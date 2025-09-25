@@ -1,0 +1,515 @@
+"""
+Unit tests for face recognition integrations
+Tests AI system integration layer and cross-app workflows
+"""
+
+from django.test import TestCase
+from unittest.mock import Mock, patch, MagicMock, call
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.core.cache import cache
+
+from apps.face_recognition.integrations import (
+    AIAttendanceIntegration, process_attendance_async
+)
+from apps.attendance.models import PeopleEventlog
+from apps.face_recognition.models import FaceVerificationLog
+from apps.anomaly_detection.models import AnomalyDetectionResult
+from apps.behavioral_analytics.models import FraudRiskAssessment
+from tests.factories import (
+    UserFactory, AttendanceFactory, FaceEmbeddingFactory,
+    AnomalyDetectionResultFactory, FraudRiskAssessmentFactory
+)
+from tests.utils import AITestCase
+
+
+class AIAttendanceIntegrationTest(AITestCase):
+    """Test AIAttendanceIntegration functionality"""
+    
+    def setUp(self):
+        super().setUp()
+        self.user = UserFactory()
+        self.integration = AIAttendanceIntegration()
+        self.attendance = AttendanceFactory(
+            user=self.user,
+            facerecognitionin=True,
+            extra_info={
+                'confidence_in': '0.92',
+                'distance_in': '0.85'
+            }
+        )
+    
+    def test_integration_initialization(self):
+        """Test AI attendance integration initialization"""
+        self.assertIsInstance(self.integration, AIAttendanceIntegration)
+        self.assertIsNotNone(self.integration.face_engine)
+        self.assertIsNotNone(self.integration.anomaly_detector)
+        self.assertIsNotNone(self.integration.fraud_detector)
+    
+    @patch('apps.face_recognition.integrations.EnhancedFaceRecognitionEngine')
+    @patch('apps.face_recognition.integrations.EnsembleAnomalyDetector')
+    @patch('apps.face_recognition.integrations.AttendanceFraudDetector')
+    def test_process_attendance_complete_workflow(self, mock_fraud, mock_anomaly, mock_face):
+        """Test complete attendance processing workflow"""
+        # Setup mocks
+        mock_face_instance = Mock()
+        mock_anomaly_instance = Mock()
+        mock_fraud_instance = Mock()
+        
+        mock_face.return_value = mock_face_instance
+        mock_anomaly.return_value = mock_anomaly_instance
+        mock_fraud.return_value = mock_fraud_instance
+        
+        # Mock face recognition result
+        mock_face_instance.verify_face.return_value = Mock(
+            verification_successful=True,
+            similarity_score=0.88,
+            confidence_score=0.92,
+            processing_time_ms=145.3,
+            quality_assessment={'overall_quality': 0.85},
+            liveness_assessment={'is_live': True, 'liveness_score': 0.91}
+        )
+        
+        # Mock anomaly detection result
+        mock_anomaly_instance.detect_anomalies.return_value = [
+            {
+                'anomaly_score': 0.25,
+                'is_anomaly': False,
+                'confidence': 0.88,
+                'anomaly_type': 'TEMPORAL'
+            }
+        ]
+        
+        # Mock fraud detection result
+        mock_fraud_instance.analyze_attendance.return_value = {
+            'overall_fraud_risk': 0.15,
+            'risk_breakdown': {
+                'face_recognition_risk': 0.1,
+                'location_risk': 0.2,
+                'temporal_risk': 0.1
+            },
+            'fraud_indicators': [],
+            'confidence_score': 0.92
+        }
+        
+        # Process attendance
+        result = self.integration.process_attendance(
+            self.attendance.id, 
+            image_path='/mock/image/path.jpg'
+        )
+        
+        # Verify workflow execution
+        self.assertTrue(result['success'])
+        self.assertIn('face_verification', result)
+        self.assertIn('anomaly_detection', result)
+        self.assertIn('fraud_analysis', result)
+        
+        # Verify all engines were called
+        mock_face_instance.verify_face.assert_called_once()
+        mock_anomaly_instance.detect_anomalies.assert_called_once()
+        mock_fraud_instance.analyze_attendance.assert_called_once()
+    
+    def test_face_verification_integration(self):
+        """Test face verification integration"""
+        # Create existing face embedding for user
+        FaceEmbeddingFactory(
+            user=self.user,
+            embedding_vector=[0.1] * 512,
+            is_validated=True
+        )
+        
+        with patch.object(self.integration.face_engine, 'verify_face') as mock_verify:
+            mock_verify.return_value = Mock(
+                verification_successful=True,
+                similarity_score=0.89,
+                confidence_score=0.94,
+                failure_reason=None,
+                processing_time_ms=156.2
+            )
+            
+            face_result = self.integration._process_face_verification(
+                self.attendance, '/mock/image/path.jpg'
+            )
+            
+            self.assertIsInstance(face_result, dict)
+            self.assertTrue(face_result['verification_successful'])
+            self.assertEqual(face_result['similarity_score'], 0.89)
+            self.assertIsNone(face_result['failure_reason'])
+            
+            # Should create FaceVerificationLog
+            verification_log = FaceVerificationLog.objects.filter(
+                user=self.user
+            ).first()
+            # Log creation would depend on actual implementation
+    
+    def test_anomaly_detection_integration(self):
+        """Test anomaly detection integration"""
+        with patch.object(self.integration.anomaly_detector, 'detect_anomalies') as mock_detect:
+            mock_detect.return_value = [
+                {
+                    'anomaly_score': 0.75,
+                    'is_anomaly': True,
+                    'confidence': 0.87,
+                    'anomaly_type': 'TEMPORAL',
+                    'feature_contributions': {
+                        'arrival_time': 0.6,
+                        'location': 0.15
+                    }
+                }
+            ]
+            
+            anomaly_result = self.integration._process_anomaly_detection(self.attendance)
+            
+            self.assertIsInstance(anomaly_result, dict)
+            self.assertIn('anomalies_detected', anomaly_result)
+            self.assertIn('total_anomalies', anomaly_result)
+            
+            # High anomaly score should be flagged
+            self.assertGreater(anomaly_result['anomalies_detected'][0]['anomaly_score'], 0.7)
+    
+    def test_fraud_analysis_integration(self):
+        """Test fraud analysis integration"""
+        with patch.object(self.integration.fraud_detector, 'analyze_attendance') as mock_analyze:
+            mock_analyze.return_value = {
+                'overall_fraud_risk': 0.65,
+                'risk_breakdown': {
+                    'face_recognition_risk': 0.3,
+                    'location_risk': 0.8,
+                    'temporal_risk': 0.4,
+                    'behavioral_risk': 0.7
+                },
+                'fraud_indicators': [
+                    'unusual_location',
+                    'atypical_time',
+                    'behavioral_deviation'
+                ],
+                'confidence_score': 0.91
+            }
+            
+            fraud_result = self.integration._process_fraud_analysis(
+                self.attendance, ['temporal_analysis', 'spatial_analysis']
+            )
+            
+            self.assertIsInstance(fraud_result, dict)
+            self.assertEqual(fraud_result['overall_fraud_risk'], 0.65)
+            self.assertIn('unusual_location', fraud_result['fraud_indicators'])
+            
+            # Should create FraudRiskAssessment
+            # Implementation would depend on actual integration
+    
+    @patch('apps.face_recognition.integrations.cache')
+    def test_result_caching(self, mock_cache):
+        """Test caching of processing results"""
+        mock_cache.get.return_value = None
+        mock_cache.set.return_value = True
+        
+        # Process attendance (should cache results)
+        result = self.integration.process_attendance(self.attendance.id)
+        
+        # Verify cache operations
+        mock_cache.get.assert_called()
+        mock_cache.set.assert_called()
+        
+        # Cache key should include attendance ID
+        cache_calls = mock_cache.get.call_args_list
+        cache_key = cache_calls[0][0][0] if cache_calls else ''
+        self.assertIn(str(self.attendance.id), cache_key)
+    
+    def test_error_handling_face_verification_failure(self):
+        """Test error handling when face verification fails"""
+        with patch.object(self.integration.face_engine, 'verify_face') as mock_verify:
+            mock_verify.return_value = Mock(
+                verification_successful=False,
+                similarity_score=0.15,
+                confidence_score=0.45,
+                failure_reason='INSUFFICIENT_QUALITY',
+                processing_time_ms=89.1
+            )
+            
+            result = self.integration.process_attendance(self.attendance.id)
+            
+            # Should handle failure gracefully
+            self.assertTrue(result['success'])  # Overall processing still succeeds
+            self.assertFalse(result['face_verification']['verification_successful'])
+            self.assertEqual(
+                result['face_verification']['failure_reason'],
+                'INSUFFICIENT_QUALITY'
+            )
+    
+    def test_error_handling_anomaly_detection_failure(self):
+        """Test error handling when anomaly detection fails"""
+        with patch.object(self.integration.anomaly_detector, 'detect_anomalies') as mock_detect:
+            mock_detect.side_effect = Exception('Anomaly detection model failed')
+            
+            result = self.integration.process_attendance(self.attendance.id)
+            
+            # Should handle failure gracefully
+            self.assertTrue(result['success'])  # Overall processing still succeeds
+            self.assertIn('error', result['anomaly_detection'])
+    
+    def test_cross_system_correlation(self):
+        """Test correlation between different AI system results"""
+        # Mock results that should correlate
+        face_result = {
+            'verification_successful': False,
+            'similarity_score': 0.25,
+            'confidence_score': 0.35,
+            'failure_reason': 'LOW_SIMILARITY'
+        }
+        
+        anomaly_result = {
+            'anomalies_detected': [{
+                'anomaly_score': 0.85,
+                'is_anomaly': True,
+                'anomaly_type': 'BEHAVIORAL'
+            }]
+        }
+        
+        fraud_result = {
+            'overall_fraud_risk': 0.78,
+            'fraud_indicators': ['low_face_confidence', 'behavioral_anomaly']
+        }
+        
+        correlation_analysis = self.integration._analyze_cross_system_correlation(
+            face_result, anomaly_result, fraud_result
+        )
+        
+        self.assertIsInstance(correlation_analysis, dict)
+        self.assertIn('correlation_score', correlation_analysis)
+        self.assertIn('supporting_evidence', correlation_analysis)
+        
+        # High anomaly + low face confidence + high fraud risk should correlate
+        self.assertGreater(correlation_analysis['correlation_score'], 0.7)
+    
+    def test_adaptive_processing_based_on_risk(self):
+        """Test adaptive processing based on initial risk assessment"""
+        # High-risk attendance should trigger more thorough analysis
+        high_risk_attendance = AttendanceFactory(
+            user=self.user,
+            punchintime=timezone.now().replace(hour=3, minute=0),  # Unusual time
+            latitudein='35.6762',  # Unusual location (Tokyo)
+            longitudein='139.6503',
+            extra_info={'confidence_in': '0.45'}  # Low confidence
+        )
+        
+        with patch.object(self.integration, '_calculate_initial_risk_score') as mock_risk:
+            mock_risk.return_value = 0.82  # High risk
+            
+            result = self.integration.process_attendance(high_risk_attendance.id)
+            
+            # Should enable additional analysis for high-risk cases
+            self.assertIn('enhanced_analysis_enabled', result)
+            if result.get('enhanced_analysis_enabled'):
+                self.assertIn('behavioral_analysis', result)
+                self.assertIn('contextual_analysis', result)
+    
+    def test_real_time_alert_generation(self):
+        """Test real-time alert generation for critical findings"""
+        # Mock critical fraud detection result
+        with patch.object(self.integration.fraud_detector, 'analyze_attendance') as mock_analyze:
+            mock_analyze.return_value = {
+                'overall_fraud_risk': 0.95,  # Critical risk
+                'fraud_indicators': [
+                    'impossible_travel',
+                    'face_spoof_detected',
+                    'device_mismatch'
+                ],
+                'confidence_score': 0.96
+            }
+            
+            with patch.object(self.integration, '_generate_real_time_alert') as mock_alert:
+                result = self.integration.process_attendance(self.attendance.id)
+                
+                # Should generate alert for critical risk
+                mock_alert.assert_called_once()
+                alert_call_args = mock_alert.call_args[0]
+                self.assertEqual(alert_call_args[1], 'CRITICAL_FRAUD_RISK')
+    
+    def test_batch_processing_optimization(self):
+        """Test batch processing optimization"""
+        # Create multiple attendance records
+        attendances = [
+            AttendanceFactory(user=self.user) for _ in range(5)
+        ]
+        attendance_ids = [att.id for att in attendances]
+        
+        with patch.object(self.integration, '_process_batch_optimized') as mock_batch:
+            mock_batch.return_value = [
+                {'success': True, 'processing_time_ms': 120.5} 
+                for _ in range(5)
+            ]
+            
+            results = self.integration.process_attendance_batch(attendance_ids)
+            
+            self.assertIsInstance(results, list)
+            self.assertEqual(len(results), 5)
+            
+            # Batch processing should be more efficient than individual processing
+            mock_batch.assert_called_once_with(attendance_ids)
+    
+    def test_performance_monitoring(self):
+        """Test performance monitoring and metrics collection"""
+        start_time = timezone.now()
+        result = self.integration.process_attendance(self.attendance.id)
+        end_time = timezone.now()
+        
+        # Should include performance metrics
+        self.assertIn('performance_metrics', result)
+        self.assertIn('total_processing_time_ms', result['performance_metrics'])
+        self.assertIn('face_verification_time_ms', result['performance_metrics'])
+        self.assertIn('anomaly_detection_time_ms', result['performance_metrics'])
+        self.assertIn('fraud_analysis_time_ms', result['performance_metrics'])
+        
+        # Total time should be reasonable
+        total_time_ms = result['performance_metrics']['total_processing_time_ms']
+        self.assertLess(total_time_ms, 10000)  # Less than 10 seconds
+    
+    @patch('apps.face_recognition.integrations.logger')
+    def test_comprehensive_logging(self, mock_logger):
+        """Test comprehensive logging throughout integration"""
+        self.integration.process_attendance(self.attendance.id)
+        
+        # Should log various stages of processing
+        mock_logger.info.assert_called()
+        mock_logger.debug.assert_called()
+        
+        # Check for specific log messages
+        log_calls = [call.args[0] for call in mock_logger.info.call_args_list]
+        self.assertTrue(any('Starting AI processing' in msg for msg in log_calls))
+    
+    def test_data_consistency_validation(self):
+        """Test data consistency validation across systems"""
+        # Create attendance with inconsistent data
+        inconsistent_attendance = AttendanceFactory(
+            user=self.user,
+            facerecognitionin=True,
+            extra_info={
+                'confidence_in': '0.95',  # High confidence
+                'distance_in': '0.15'     # But very low distance (inconsistent)
+            }
+        )
+        
+        result = self.integration.process_attendance(inconsistent_attendance.id)
+        
+        # Should detect and flag inconsistencies
+        self.assertIn('data_consistency_check', result)
+        if 'inconsistencies_detected' in result['data_consistency_check']:
+            self.assertGreater(
+                len(result['data_consistency_check']['inconsistencies_detected']),
+                0
+            )
+    
+    def test_integration_with_external_systems(self):
+        """Test integration with external systems and APIs"""
+        with patch('apps.face_recognition.integrations.external_api_client') as mock_api:
+            mock_api.post.return_value.json.return_value = {
+                'risk_score': 0.45,
+                'external_factors': ['weather_alert', 'traffic_delay']
+            }
+            
+            result = self.integration.process_attendance(
+                self.attendance.id,
+                include_external_factors=True
+            )
+            
+            # Should include external factor analysis
+            self.assertIn('external_factors', result)
+            if result.get('external_factors'):
+                self.assertIn('weather_alert', result['external_factors'])
+
+
+class ProcessAttendanceAsyncTest(AITestCase):
+    """Test asynchronous attendance processing"""
+    
+    def setUp(self):
+        super().setUp()
+        self.user = UserFactory()
+        self.attendance = AttendanceFactory(user=self.user)
+    
+    @patch('apps.face_recognition.integrations.AIAttendanceIntegration')
+    def test_async_processing_task(self, mock_integration_class):
+        """Test asynchronous processing task execution"""
+        mock_integration = Mock()
+        mock_integration_class.return_value = mock_integration
+        
+        mock_integration.process_attendance.return_value = {
+            'success': True,
+            'processing_time_ms': 234.7
+        }
+        
+        # Execute async task
+        result = process_attendance_async(
+            attendance_id=self.attendance.id,
+            image_path='/mock/image/path.jpg'
+        )
+        
+        # Verify task execution
+        self.assertTrue(result['success'])
+        mock_integration.process_attendance.assert_called_once_with(
+            self.attendance.id,
+            image_path='/mock/image/path.jpg'
+        )
+    
+    @patch('apps.face_recognition.integrations.process_attendance_async.retry')
+    def test_async_task_retry_on_failure(self, mock_retry):
+        """Test task retry mechanism on failure"""
+        with patch('apps.face_recognition.integrations.AIAttendanceIntegration') as mock_class:
+            mock_integration = Mock()
+            mock_class.return_value = mock_integration
+            
+            # Mock processing failure
+            mock_integration.process_attendance.side_effect = Exception('Processing failed')
+            
+            try:
+                process_attendance_async(self.attendance.id)
+            except Exception:
+                pass
+            
+            # Should trigger retry
+            mock_retry.assert_called_once()
+    
+    def test_async_task_result_storage(self):
+        """Test storage of async task results"""
+        with patch('apps.face_recognition.integrations.AIAttendanceIntegration') as mock_class:
+            mock_integration = Mock()
+            mock_class.return_value = mock_integration
+            
+            mock_result = {
+                'success': True,
+                'face_verification': {'verification_successful': True},
+                'anomaly_detection': {'anomalies_detected': []},
+                'fraud_analysis': {'overall_fraud_risk': 0.25}
+            }
+            
+            mock_integration.process_attendance.return_value = mock_result
+            
+            result = process_attendance_async(self.attendance.id)
+            
+            # Result should be stored and retrievable
+            self.assertEqual(result, mock_result)
+    
+    @patch('apps.face_recognition.integrations.cache')
+    def test_async_task_progress_tracking(self, mock_cache):
+        """Test progress tracking for long-running tasks"""
+        mock_cache.set.return_value = True
+        
+        with patch('apps.face_recognition.integrations.AIAttendanceIntegration') as mock_class:
+            mock_integration = Mock()
+            mock_class.return_value = mock_integration
+            
+            def mock_processing_with_progress(*args, **kwargs):
+                # Simulate progress updates
+                mock_cache.set(f'task_progress_{self.attendance.id}', 50)
+                return {'success': True}
+            
+            mock_integration.process_attendance.side_effect = mock_processing_with_progress
+            
+            process_attendance_async(self.attendance.id)
+            
+            # Should update progress during processing
+            mock_cache.set.assert_called()
+            progress_calls = [
+                call for call in mock_cache.set.call_args_list
+                if 'task_progress' in str(call)
+            ]
+            self.assertGreater(len(progress_calls), 0)

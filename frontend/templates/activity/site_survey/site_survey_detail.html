@@ -1,0 +1,896 @@
+{% extends "globals/base_list.html" %}
+
+{% block card_title %}
+ Site Survey Detail
+{% endblock card_title %}
+
+<!---- BEGIN PAGE TITLE -------->
+{% block page_title %}
+Site Survey Detail
+{% endblock page_title %}
+<!----- END PAGE TITLE ---------->
+
+{% block extra_css %}
+<style>
+    .professional-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .professional-card-header {
+        background: #f8fafc;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .professional-card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #3a3b40;
+        margin: 0;
+    }
+
+    .professional-card-body {
+        padding: 1.25rem;
+    }
+
+    .summary-stat {
+        padding: 0.5rem;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #01579B;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .icon-primary {
+        background: #01579B;
+        color: white;
+    }
+
+    .icon-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .icon-warning {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        padding: 0.5rem;
+        background: #f9fafb;
+        border-radius: 0.375rem;
+        border: 1px solid #f3f4f6;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: #1f2937;
+        font-weight: 500;
+    }
+
+    .question-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        transition: border-color 0.2s ease;
+    }
+
+    .question-card:hover {
+        border-color: #01579B;
+    }
+
+    .question-header {
+        background: #f9fafb;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .question-number {
+        background: #01579B;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+
+    .question-content {
+        flex: 1;
+    }
+
+    .question-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .question-meta {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .answer-type {
+        background: #e0f2fe;
+        color: #01579B;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .mandatory-indicator {
+        color: #dc2626;
+        font-weight: bold;
+        margin-left: 0.25rem;
+    }
+
+    .mandatory-text {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .question-body {
+        padding: 1rem;
+    }
+
+    .answer-value {
+        background: #f0f9ff;
+        border: 1px solid #01579B;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        color: #01579B;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .answer-empty {
+        color: #6b7280;
+        font-style: italic;
+        margin-bottom: 0.5rem;
+    }
+
+    .question-options, .question-range, .question-alert {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .question-alert {
+        color: #d97706;
+        font-weight: 500;
+    }
+
+    .question-attachments {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .question-attachments-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .attachments-inline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .attachment-inline {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        max-width: 300px;
+    }
+
+    .attachment-inline:hover {
+        background: #f3f4f6;
+        border-color: #01579B;
+    }
+
+    .attachment-inline-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    .attachment-inline-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .attachment-inline-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #1f2937;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .attachment-inline-meta {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .attachment-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .attachment-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 0.375rem;
+        background: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .attachment-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .attachment-filename {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        word-break: break-word;
+    }
+
+    .attachment-meta {
+        display: flex;
+        gap: 0.75rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .attachment-type, .attachment-size {
+        background: #f3f4f6;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .attachment-body {
+        flex: 1;
+        margin-bottom: 1rem;
+    }
+
+    .attachment-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .detail-item i {
+        width: 16px;
+        color: #9ca3af;
+    }
+
+    .attachment-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-attachment {
+        flex: 1;
+        background: #01579B;
+        color: white;
+        border: 1px solid #01579B;
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn-attachment:hover {
+        background: #1175c1;
+        border-color: #1175c1;
+        color: white;
+    }
+
+    .loading-modern {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+        gap: 1.5rem;
+    }
+
+    .spinner-modern {
+        width: 48px;
+        height: 48px;
+        border: 3px solid #e5e7eb;
+        border-top: 3px solid #01579B;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        font-size: 1.125rem;
+        font-weight: 500;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .no-data-modern {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        gap: 1rem;
+    }
+
+    .no-data-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: #64748b;
+    }
+
+    .no-data-text {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .section-divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 2rem 0;
+    }
+
+    /* Status badges matching your existing styles */
+    .status-assigned { color: #007bff; }
+    .status-inprogress { color: #fd7e14; }
+    .status-completed { color: #198754; }
+    .status-partiallycompleted { color: #ffc107; }
+    .priority-high { color: #dc3545; font-weight: bold; }
+    .priority-medium { color: #fd7e14; }
+    .priority-low { color: #28a745; }
+
+    @media (max-width: 768px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .attachment-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .professional-card-body {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock extra_css %}
+
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{{ url('activity:site_survey_list') }}?template=true" class="pe-3">Site Survey List</a></li>
+<li class="breadcrumb-item pe-3">Detail</li>
+{% endblock pagebreadcumb %}
+
+{% block breadcumbactions %}
+<div class="d-flex">
+    <h5 class="me-4"><a href="javascript:void(0)" onclick="window.close()" class="border-bottom border-secondary border-3" title="Close"><i class="fas fa-times"></i> Close</a></h5>
+    <h5 class="me-4"><a href="javascript:void(0)" onclick="window.print()" class="border-bottom border-primary border-3" title="Print"><i class="fas fa-print"></i> Print</a></h5>
+</div>
+{% endblock breadcumbactions %}
+
+{% block table %}
+<!-- Loading Spinner -->
+<div id="loading-spinner" class="loading-modern">
+    <div class="spinner-modern"></div>
+    <div class="loading-text">Loading site survey details...</div>
+</div>
+
+<!-- Main Content -->
+<div id="survey-content" style="display: none;">
+    <!-- Survey Information Card -->
+    <div class="professional-card">
+        <div class="professional-card-header">
+            <div class="icon icon-primary">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <h2 class="professional-card-title">Survey Information</h2>
+        </div>
+        <div class="professional-card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Survey ID</div>
+                    <div class="info-value" id="survey-id">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Description</div>
+                    <div class="info-value" id="survey-description">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value" id="survey-status">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Priority</div>
+                    <div class="info-value" id="survey-priority">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Type</div>
+                    <div class="info-value" id="survey-type">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Frequency</div>
+                    <div class="info-value" id="survey-frequency">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Planned Date</div>
+                    <div class="info-value" id="survey-planned-date">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Expiry Date</div>
+                    <div class="info-value" id="survey-expiry-date">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Start Time</div>
+                    <div class="info-value" id="survey-start-time">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">End Time</div>
+                    <div class="info-value" id="survey-end-time">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Grace Time</div>
+                    <div class="info-value" id="survey-grace-time">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Survey Details (Questions & Answers) Card -->
+    <div class="professional-card">
+        <div class="professional-card-header">
+            <div class="icon icon-success">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <h2 class="professional-card-title">Survey Questions & Answers</h2>
+        </div>
+        <div class="professional-card-body">
+            <div id="survey-details-container">
+                <div class="no-data-modern">
+                    <div class="no-data-icon">
+                        <i class="fas fa-question"></i>
+                    </div>
+                    <div class="no-data-text">No survey details found</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Card (Optional - shows overall stats) -->
+    <div class="professional-card" id="summary-card" style="display: none;">
+        <div class="professional-card-header">
+            <div class="icon icon-warning">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <h2 class="professional-card-title">Summary</h2>
+        </div>
+        <div class="professional-card-body">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="summary-stat">
+                        <div class="stat-number" id="total-questions">0</div>
+                        <div class="stat-label">Total Questions</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-stat">
+                        <div class="stat-number" id="answered-questions">0</div>
+                        <div class="stat-label">Answered</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-stat">
+                        <div class="stat-number" id="mandatory-questions">0</div>
+                        <div class="stat-label">Mandatory</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-stat">
+                        <div class="stat-number" id="total-attachments">0</div>
+                        <div class="stat-label">Attachments</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message -->
+<div id="error-message" class="alert alert-danger" style="display: none;">
+    <h4 class="alert-heading">Error!</h4>
+    <p id="error-text">An error occurred while loading the site survey details.</p>
+</div>
+{% endblock table %}
+
+{% block extra_scripts %}
+<script>
+    function loadSurveyDetail() {
+        console.log('Loading survey detail...');
+        const urlParams = new URLSearchParams(window.location.search);
+        const surveyId = urlParams.get('id');
+        console.log('Survey ID:', surveyId);
+
+        if (!surveyId) {
+            console.error('No survey ID provided');
+            showError('No survey ID provided');
+            return;
+        }
+
+        console.log('Making AJAX call to:', '{{ url("activity:site_survey_detail") }}');
+        $.ajax({
+            url: '{{ url("activity:site_survey_detail") }}',
+            type: 'GET',
+            data: {
+                action: 'get_detail',
+                id: surveyId
+            },
+            success: function(response) {
+                console.log('AJAX response received:', response);
+                if (response.success) {
+                    populateSurveyData(response.survey, response.details, response.attachments);
+                    $('#loading-spinner').hide();
+                    $('#survey-content').show();
+                } else {
+                    console.error('Response error:', response.message);
+                    showError(response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', status, error);
+                showError('Failed to load survey details');
+            }
+        });
+    }
+
+    function populateSurveyData(survey, details, attachments) {
+        // Populate basic survey information
+        $('#survey-id').text(survey.id);
+        $('#survey-description').text(survey.jobdesc || '-');
+
+        // Status with styling
+        if (survey.jobstatus) {
+            const statusClass = getStatusClass(survey.jobstatus);
+            $('#survey-status').html(`<span class="status-badge ${statusClass}">${survey.jobstatus}</span>`);
+        }
+
+        // Priority with styling
+        if (survey.priority) {
+            const priorityClass = getPriorityClass(survey.priority);
+            $('#survey-priority').html(`<span class="${priorityClass}">${survey.priority}</span>`);
+        }
+
+        $('#survey-type').text(survey.jobtype || '-');
+        $('#survey-frequency').text(survey.frequency || '-');
+        $('#survey-planned-date').text(survey.plandatetime || '-');
+        $('#survey-expiry-date').text(survey.expirydatetime || '-');
+        $('#survey-start-time').text(survey.starttime || '-');
+        $('#survey-end-time').text(survey.endtime || '-');
+        $('#survey-grace-time').text(survey.gracetime ? `${survey.gracetime} minutes` : '-');
+
+        // Group attachments by their owner (question UUID)
+        const attachmentsByOwner = {};
+        if (attachments && attachments.length > 0) {
+            attachments.forEach(attachment => {
+                const owner = attachment.owner;
+                if (!attachmentsByOwner[owner]) {
+                    attachmentsByOwner[owner] = [];
+                }
+                attachmentsByOwner[owner].push(attachment);
+            });
+        }
+
+        // Populate survey details with grouped attachments
+        populateSurveyDetailsWithAttachments(details, attachmentsByOwner);
+
+        // Update summary stats
+        updateSummaryStats(details, attachments);
+    }
+
+    function populateSurveyDetailsWithAttachments(details, attachmentsByOwner) {
+        const container = $('#survey-details-container');
+        container.empty();
+
+        if (!details || details.length === 0) {
+            container.html(`
+                <div class="no-data-modern">
+                    <div class="no-data-icon">
+                        <i class="fas fa-question"></i>
+                    </div>
+                    <div class="no-data-text">No survey details found</div>
+                </div>
+            `);
+            return;
+        }
+
+        details.forEach(function(detail, index) {
+            const questionAttachments = attachmentsByOwner[detail.uuid] || [];
+
+            let attachmentsHtml = '';
+            if (questionAttachments.length > 0) {
+                attachmentsHtml = `
+                    <div class="question-attachments">
+                        <div class="question-attachments-title">
+                            <i class="fas fa-paperclip"></i>
+                            <span>Attachments (${questionAttachments.length})</span>
+                        </div>
+                        <div class="attachments-inline">
+                `;
+
+                questionAttachments.forEach(attachment => {
+                    const fileIcon = getFileIcon(attachment.filename);
+                    attachmentsHtml += `
+                        <div class="attachment-inline" onclick="viewAttachment('${attachment.id}')" title="Click to view">
+                            <div class="attachment-inline-icon">
+                                <i class="${fileIcon.icon}" style="color: ${fileIcon.color}"></i>
+                            </div>
+                            <div class="attachment-inline-info">
+                                <div class="attachment-inline-name">${attachment.filename || 'Unnamed'}</div>
+                                <div class="attachment-inline-meta">${attachment.size ? formatFileSize(attachment.size) : 'Unknown size'}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                attachmentsHtml += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            const detailHtml = `
+                <div class="question-card">
+                    <div class="question-header">
+                        <div class="question-number">${index + 1}</div>
+                        <div class="question-content">
+                            <div class="question-title">
+                                ${detail.question}
+                                ${detail.ismandatory ? '<span class="mandatory-indicator">*</span>' : ''}
+                            </div>
+                            <div class="question-meta">
+                                <span class="answer-type">${detail.answertype}</span>
+                                ${detail.ismandatory ? '<span class="mandatory-text">Required</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="question-body">
+                        ${detail.answer ?
+                            `<div class="answer-value">${detail.answer}</div>` :
+                            '<div class="answer-empty">No answer provided</div>'
+                        }
+                        ${detail.options ? `<div class="question-options">Options: ${detail.options}</div>` : ''}
+                        ${(detail.min !== null || detail.max !== null) ?
+                            `<div class="question-range">Range: ${detail.min || 'N/A'} - ${detail.max || 'N/A'}</div>` : ''
+                        }
+                        ${detail.alerton ?
+                            `<div class="question-alert">Alert On: ${detail.alerton}</div>` : ''
+                        }
+                        ${attachmentsHtml}
+                    </div>
+                </div>
+            `;
+            container.append(detailHtml);
+        });
+    }
+
+    function updateSummaryStats(details, attachments) {
+        if (!details || details.length === 0) {
+            return;
+        }
+
+        // Calculate statistics
+        const totalQuestions = details.length;
+        const answeredQuestions = details.filter(d => d.answer && d.answer.trim() !== '').length;
+        const mandatoryQuestions = details.filter(d => d.ismandatory).length;
+        const totalAttachments = attachments ? attachments.length : 0;
+
+        // Update summary card
+        $('#total-questions').text(totalQuestions);
+        $('#answered-questions').text(answeredQuestions);
+        $('#mandatory-questions').text(mandatoryQuestions);
+        $('#total-attachments').text(totalAttachments);
+
+        // Show summary card if there are questions
+        if (totalQuestions > 0) {
+            $('#summary-card').show();
+        }
+    }
+
+    function getStatusClass(status) {
+        switch(status.toLowerCase()) {
+            case 'assigned': return 'status-assigned';
+            case 'in progress': return 'status-inprogress';
+            case 'completed': return 'status-completed';
+            case 'partially completed': return 'status-partiallycompleted';
+            default: return '';
+        }
+    }
+
+    function getPriorityClass(priority) {
+        switch(priority.toLowerCase()) {
+            case 'high': return 'priority-high';
+            case 'medium': return 'priority-medium';
+            case 'low': return 'priority-low';
+            default: return '';
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function getFileIcon(filename) {
+        if (!filename) return { icon: 'fas fa-file', color: '#6b7280' };
+
+        const extension = filename.toLowerCase().split('.').pop();
+
+        switch(extension) {
+            case 'pdf':
+                return { icon: 'fas fa-file-pdf', color: '#dc2626' };
+            case 'doc':
+            case 'docx':
+                return { icon: 'fas fa-file-word', color: '#2563eb' };
+            case 'xls':
+            case 'xlsx':
+                return { icon: 'fas fa-file-excel', color: '#059669' };
+            case 'ppt':
+            case 'pptx':
+                return { icon: 'fas fa-file-powerpoint', color: '#dc2626' };
+            case 'jpg':
+            case 'jpeg':
+            case 'png':
+            case 'gif':
+            case 'bmp':
+            case 'webp':
+                return { icon: 'fas fa-file-image', color: '#7c3aed' };
+            case 'mp4':
+            case 'avi':
+            case 'mov':
+            case 'wmv':
+            case 'flv':
+                return { icon: 'fas fa-file-video', color: '#dc2626' };
+            case 'mp3':
+            case 'wav':
+            case 'flac':
+            case 'aac':
+                return { icon: 'fas fa-file-audio', color: '#059669' };
+            case 'txt':
+                return { icon: 'fas fa-file-alt', color: '#6b7280' };
+            case 'zip':
+            case 'rar':
+            case '7z':
+            case 'tar':
+            case 'gz':
+                return { icon: 'fas fa-file-archive', color: '#d97706' };
+            default:
+                return { icon: 'fas fa-file', color: '#6b7280' };
+        }
+    }
+
+    function viewAttachment(attachmentId) {
+        window.open(`{{ url('activity:previewImage') }}?id=${attachmentId}`, '_blank');
+    }
+
+    function showError(message) {
+        $('#loading-spinner').hide();
+        $('#error-text').text(message);
+        $('#error-message').show();
+    }
+
+    // Initialize on document ready
+    $(document).ready(function() {
+        console.log('Document ready, calling loadSurveyDetail');
+        loadSurveyDetail();
+    });
+</script>
+{% endblock extra_scripts %}

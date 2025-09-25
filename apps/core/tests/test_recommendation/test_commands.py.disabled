@@ -1,0 +1,626 @@
+"""
+Unit tests for recommendation management commands
+"""
+import pytest
+import io
+from unittest.mock import patch, Mock
+from django.core.management import call_command, CommandError
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from datetime import timedelta
+
+from apps.core.management.commands.generate_recommendations import Command as GenerateCommand
+from apps.core.management.commands.calculate_user_similarities import Command as SimilarityCommand
+from apps.core.models.recommendation import (
+    UserBehaviorProfile, ContentRecommendation, NavigationRecommendation, UserSimilarity
+)
+from apps.core.models.heatmap import HeatmapSession
+from tests.factories.recommendation_factories import (
+    UserBehaviorProfileFactory, ContentRecommendationFactory, NavigationRecommendationFactory,
+    UserSimilarityFactory
+)
+from tests.factories.heatmap_factories import UserFactory, HeatmapSessionFactory
+
+pytestmark = pytest.mark.django_db
+
+
+class TestGenerateRecommendationsCommand:
+    """Test generate_recommendations management command"""
+    
+    def setup_method(self):
+        self.command = GenerateCommand()
+        self.user = UserFactory()
+        self.profile = UserBehaviorProfileFactory(user=self.user)
+    
+    def test_command_help_text(self):
+        """Test command help text is accessible"""
+        assert 'Generate recommendations for users' in self.command.help
+    
+    def test_command_arguments(self):
+        """Test command has required arguments"""
+        parser = self.command.create_parser('test', 'generate_recommendations')
+        
+        # Check that key arguments exist
+        action_names = [action.dest for action in parser._actions]
+        expected_args = [
+            'user_id', 'all_users', 'active_days', 'limit', 
+            'force', 'navigation_only', 'content_only', 'verbose'
+        ]
+        
+        for arg in expected_args:
+            assert arg in action_names
+    
+    def test_generate_content_recommendations_single_user(self):
+        """Test generating content recommendations for single user"""
+        # Create sufficient activity for user
+        for _ in range(10):
+            HeatmapSessionFactory(
+                user=self.user,
+                start_time=timezone.now() - timedelta(days=5)
+            )
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_recommendations = [ContentRecommendationFactory.build(user=self.user) for _ in range(3)]
+            mock_engine.generate_user_recommendations.return_value = mock_recommendations
+            
+            call_command('generate_recommendations', user_id=self.user.id, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully generated recommendations' in output
+            mock_engine.generate_user_recommendations.assert_called()
+    
+    def test_generate_content_recommendations_all_users(self):
+        """Test generating content recommendations for all active users"""
+        # Create multiple active users
+        users = []
+        for i in range(3):
+            user = UserFactory()
+            UserBehaviorProfileFactory(user=user)
+            users.append(user)
+            
+            # Create recent sessions to make them active
+            for _ in range(5):
+                HeatmapSessionFactory(
+                    user=user,
+                    start_time=timezone.now() - timedelta(days=10)
+                )
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = [
+                ContentRecommendationFactory.build(user=users[0])
+            ]
+            
+            call_command('generate_recommendations', all_users=True, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully generated recommendations' in output
+            # Should be called for each active user
+            assert mock_engine.generate_user_recommendations.call_count >= len(users)
+    
+    def test_generate_navigation_recommendations_only(self):
+        """Test generating only navigation recommendations"""
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_navigation_recommendations.return_value = [
+                NavigationRecommendationFactory.build()
+            ]
+            
+            call_command('generate_recommendations', all_users=True, navigation_only=True, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully generated recommendations' in output
+            mock_engine.generate_navigation_recommendations.assert_called()
+            # Should not generate content recommendations
+            mock_engine.generate_user_recommendations.assert_not_called()
+    
+    def test_generate_content_recommendations_only(self):
+        """Test generating only content recommendations"""
+        # Create active user
+        for _ in range(10):
+            HeatmapSessionFactory(
+                user=self.user,
+                start_time=timezone.now() - timedelta(days=5)
+            )
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = []
+            
+            call_command('generate_recommendations', all_users=True, content_only=True, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully generated recommendations' in output
+            mock_engine.generate_user_recommendations.assert_called()
+            # Should not generate navigation recommendations
+            mock_engine.generate_navigation_recommendations.assert_not_called()
+    
+    def test_force_regenerate_recommendations(self):
+        """Test force regenerating existing recommendations"""
+        # Create existing recent recommendation
+        existing_rec = ContentRecommendationFactory(
+            user=self.user,
+            created_at=timezone.now() - timedelta(hours=1)
+        )
+        
+        # Create activity for user
+        for _ in range(10):
+            HeatmapSessionFactory(
+                user=self.user,
+                start_time=timezone.now() - timedelta(days=5)
+            )
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = [
+                ContentRecommendationFactory.build(user=self.user)
+            ]
+            
+            # Without force, should skip due to recent recommendations
+            call_command('generate_recommendations', user_id=self.user.id, stdout=out)
+            
+            # With force, should generate anyway
+            call_command('generate_recommendations', user_id=self.user.id, force=True, stdout=out)
+            
+            # Should be called at least once with force=True
+            mock_engine.generate_user_recommendations.assert_called()
+    
+    def test_generate_with_custom_limit(self):
+        """Test generating recommendations with custom limit"""
+        for _ in range(10):
+            HeatmapSessionFactory(
+                user=self.user,
+                start_time=timezone.now() - timedelta(days=5)
+            )
+        
+        out = io.StringIO()
+        custom_limit = 15
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = []
+            
+            call_command('generate_recommendations', user_id=self.user.id, limit=custom_limit, stdout=out)
+            
+            # Should pass custom limit to engine
+            mock_engine.generate_user_recommendations.assert_called_with(self.user, limit=custom_limit)
+    
+    def test_generate_with_active_days_filter(self):
+        """Test filtering users by activity within specified days"""
+        # Create user with old activity (should be filtered out)
+        old_user = UserFactory()
+        UserBehaviorProfileFactory(user=old_user)
+        HeatmapSessionFactory(
+            user=old_user,
+            start_time=timezone.now() - timedelta(days=60)
+        )
+        
+        # Create user with recent activity (should be included)
+        recent_user = UserFactory()
+        UserBehaviorProfileFactory(user=recent_user)
+        HeatmapSessionFactory(
+            user=recent_user,
+            start_time=timezone.now() - timedelta(days=10)
+        )
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = []
+            
+            call_command('generate_recommendations', all_users=True, active_days=30, stdout=out)
+            
+            # Should only process recent user
+            call_args_list = mock_engine.generate_user_recommendations.call_args_list
+            processed_users = [args[0][0] for args in call_args_list]
+            
+            assert recent_user in processed_users
+            assert old_user not in processed_users
+    
+    def test_get_target_users_invalid_user_id(self):
+        """Test handling invalid user ID"""
+        options = {'user_id': 99999, 'all_users': False, 'active_days': 30}
+        
+        with pytest.raises(CommandError, match='User with ID 99999 does not exist'):
+            self.command._get_target_users(options)
+    
+    def test_get_target_users_no_options(self):
+        """Test error when no user selection options provided"""
+        options = {'user_id': None, 'all_users': False, 'active_days': 30}
+        
+        with pytest.raises(CommandError, match='Please specify either --user-id or --all-users'):
+            self.command._get_target_users(options)
+    
+    def test_verbose_output(self):
+        """Test verbose output mode"""
+        for _ in range(5):
+            HeatmapSessionFactory(
+                user=self.user,
+                start_time=timezone.now() - timedelta(days=5)
+            )
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = [
+                ContentRecommendationFactory.build(user=self.user)
+            ]
+            
+            call_command('generate_recommendations', user_id=self.user.id, verbose=True, stdout=out)
+            
+            output = out.getvalue()
+            # Should include detailed processing information
+            assert f'Processing user 1/1: {self.user.username}' in output or \
+                   f'{self.user.username}' in output
+    
+    def test_command_error_handling(self):
+        """Test command error handling"""
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine', side_effect=Exception('Test error')):
+            with pytest.raises(CommandError, match='Error generating recommendations'):
+                call_command('generate_recommendations', user_id=self.user.id, stdout=out)
+
+
+class TestCalculateUserSimilaritiesCommand:
+    """Test calculate_user_similarities management command"""
+    
+    def setup_method(self):
+        self.command = SimilarityCommand()
+        self.user = UserFactory()
+        self.profile = UserBehaviorProfileFactory(user=self.user)
+    
+    def test_command_help_text(self):
+        """Test command help text is accessible"""
+        assert 'Calculate user similarities' in self.command.help
+    
+    def test_command_arguments(self):
+        """Test command has required arguments"""
+        parser = self.command.create_parser('test', 'calculate_user_similarities')
+        
+        # Check that key arguments exist
+        action_names = [action.dest for action in parser._actions]
+        expected_args = [
+            'user_id', 'all_users', 'min_sessions', 'force_rebuild',
+            'batch_size', 'verbose', 'cleanup_old'
+        ]
+        
+        for arg in expected_args:
+            assert arg in action_names
+    
+    def test_calculate_similarity_single_user(self):
+        """Test calculating similarities for single user"""
+        # Create sufficient sessions for user
+        for _ in range(10):
+            HeatmapSessionFactory(user=self.user)
+        
+        # Create other users for similarity comparison
+        other_users = []
+        for _ in range(3):
+            other_user = UserFactory()
+            UserBehaviorProfileFactory(user=other_user)
+            other_users.append(other_user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            call_command('calculate_user_similarities', user_id=self.user.id, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully calculated user similarities' in output
+            mock_engine.calculate_user_similarities.assert_called_with(self.user)
+    
+    def test_calculate_similarity_all_users(self):
+        """Test calculating similarities for all eligible users"""
+        # Create users with sufficient sessions
+        users = [self.user]  # Include the setup user
+        for i in range(2):
+            user = UserFactory()
+            UserBehaviorProfileFactory(user=user)
+            users.append(user)
+            
+            # Create sufficient sessions
+            for _ in range(8):
+                HeatmapSessionFactory(user=user)
+        
+        # Also create sessions for setup user
+        for _ in range(8):
+            HeatmapSessionFactory(user=self.user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            call_command('calculate_user_similarities', all_users=True, min_sessions=5, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully calculated user similarities' in output
+            
+            # Should be called for each eligible user
+            assert mock_engine.calculate_user_similarities.call_count >= len(users)
+    
+    def test_min_sessions_filter(self):
+        """Test minimum sessions requirement"""
+        # User with insufficient sessions
+        insufficient_user = UserFactory()
+        UserBehaviorProfileFactory(user=insufficient_user)
+        for _ in range(3):  # Below minimum
+            HeatmapSessionFactory(user=insufficient_user)
+        
+        # User with sufficient sessions
+        sufficient_user = UserFactory()
+        UserBehaviorProfileFactory(user=sufficient_user)
+        for _ in range(10):  # Above minimum
+            HeatmapSessionFactory(user=sufficient_user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            call_command('calculate_user_similarities', all_users=True, min_sessions=5, stdout=out)
+            
+            # Should only process users with sufficient sessions
+            call_args_list = mock_engine.calculate_user_similarities.call_args_list
+            processed_users = [args[0][0] for args in call_args_list]
+            
+            assert sufficient_user in processed_users
+            assert insufficient_user not in processed_users
+    
+    def test_force_rebuild_similarities(self):
+        """Test force rebuilding existing similarities"""
+        # Create user with existing recent similarity
+        other_user = UserFactory()
+        UserBehaviorProfileFactory(user=other_user)
+        
+        # Create recent similarity
+        UserSimilarityFactory(
+            user1=self.user,
+            user2=other_user,
+            calculated_at=timezone.now() - timedelta(hours=1)
+        )
+        
+        # Create sufficient sessions
+        for _ in range(10):
+            HeatmapSessionFactory(user=self.user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            # Without force, should skip recent calculations
+            call_command('calculate_user_similarities', user_id=self.user.id, stdout=out)
+            
+            # With force, should recalculate
+            call_command('calculate_user_similarities', user_id=self.user.id, force_rebuild=True, stdout=out)
+            
+            # Should be called at least once
+            mock_engine.calculate_user_similarities.assert_called()
+    
+    def test_batch_processing(self):
+        """Test batch processing of users"""
+        # Create multiple users (more than default batch size)
+        batch_size = 2
+        users = [self.user]
+        
+        for i in range(5):  # Total 6 users including setup user
+            user = UserFactory()
+            UserBehaviorProfileFactory(user=user)
+            users.append(user)
+            
+            # Create sufficient sessions
+            for _ in range(8):
+                HeatmapSessionFactory(user=user)
+        
+        # Create sessions for setup user
+        for _ in range(8):
+            HeatmapSessionFactory(user=self.user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            call_command(
+                'calculate_user_similarities',
+                all_users=True,
+                min_sessions=5,
+                batch_size=batch_size,
+                verbose=True,
+                stdout=out
+            )
+            
+            output = out.getvalue()
+            # Should mention batch processing
+            assert 'Processing batch' in output
+    
+    def test_cleanup_old_similarities(self):
+        """Test cleaning up old similarity calculations"""
+        # Create old similarities
+        other_user = UserFactory()
+        old_similarity = UserSimilarityFactory(
+            user1=self.user,
+            user2=other_user,
+            calculated_at=timezone.now() - timedelta(days=35)
+        )
+        
+        # Create recent similarity
+        recent_user = UserFactory()
+        recent_similarity = UserSimilarityFactory(
+            user1=self.user,
+            user2=recent_user,
+            calculated_at=timezone.now() - timedelta(days=5)
+        )
+        
+        out = io.StringIO()
+        
+        call_command('calculate_user_similarities', user_id=self.user.id, cleanup_old=True, stdout=out)
+        
+        output = out.getvalue()
+        assert 'Cleaned up' in output or 'Cleaning up' in output
+        
+        # Old similarity should be deleted
+        assert not UserSimilarity.objects.filter(id=old_similarity.id).exists()
+        # Recent similarity should remain
+        assert UserSimilarity.objects.filter(id=recent_similarity.id).exists()
+    
+    def test_build_missing_user_profile(self):
+        """Test building user profile when missing"""
+        # Create user without profile
+        no_profile_user = UserFactory()
+        
+        # Create sufficient sessions
+        for _ in range(10):
+            HeatmapSessionFactory(user=no_profile_user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.BehaviorAnalyzer') as mock_analyzer_class:
+            with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+                mock_analyzer = Mock()
+                mock_analyzer_class.return_value = mock_analyzer
+                mock_engine = Mock()
+                mock_engine_class.return_value = mock_engine
+                
+                call_command('calculate_user_similarities', user_id=no_profile_user.id, verbose=True, stdout=out)
+                
+                output = out.getvalue()
+                assert 'Building profile' in output or 'no behavior profile' in output
+                
+                # Should create profile
+                assert UserBehaviorProfile.objects.filter(user=no_profile_user).exists()
+    
+    def test_verbose_similarity_display(self):
+        """Test verbose mode shows top similarities"""
+        # Create other users and similarities
+        similar_users = []
+        for i in range(3):
+            similar_user = UserFactory()
+            UserSimilarityFactory(
+                user1=self.user,
+                user2=similar_user,
+                similarity_score=0.9 - i * 0.1  # 0.9, 0.8, 0.7
+            )
+            similar_users.append(similar_user)
+        
+        # Create sufficient sessions
+        for _ in range(10):
+            HeatmapSessionFactory(user=self.user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            call_command('calculate_user_similarities', user_id=self.user.id, verbose=True, stdout=out)
+            
+            output = out.getvalue()
+            # Should show top similarities
+            assert 'Top similarities:' in output or 'similarities for' in output
+    
+    def test_user_not_found_error(self):
+        """Test error when user ID doesn't exist"""
+        out = io.StringIO()
+        
+        with pytest.raises(CommandError, match='User with ID 99999 does not exist'):
+            call_command('calculate_user_similarities', user_id=99999, stdout=out)
+    
+    def test_no_options_error(self):
+        """Test error when no processing options provided"""
+        out = io.StringIO()
+        
+        with pytest.raises(CommandError, match='Please specify either --user-id or --all-users'):
+            call_command('calculate_user_similarities', stdout=out)
+    
+    def test_insufficient_activity_warning(self):
+        """Test warning for users with insufficient activity"""
+        # Create user with insufficient sessions
+        low_activity_user = UserFactory()
+        UserBehaviorProfileFactory(user=low_activity_user)
+        
+        # Create only 2 sessions (below minimum of 5)
+        for _ in range(2):
+            HeatmapSessionFactory(user=low_activity_user)
+        
+        out = io.StringIO()
+        
+        call_command(
+            'calculate_user_similarities',
+            user_id=low_activity_user.id,
+            min_sessions=5,
+            verbose=True,
+            stdout=out
+        )
+        
+        output = out.getvalue()
+        assert 'only 2 sessions' in output and 'Minimum required: 5' in output
+    
+    def test_show_statistics_option(self):
+        """Test showing similarity statistics after calculation"""
+        # Create some similarities
+        for i in range(3):
+            other_user = UserFactory()
+            UserSimilarityFactory(
+                user1=self.user,
+                user2=other_user,
+                similarity_score=0.8 - i * 0.1
+            )
+        
+        for _ in range(10):
+            HeetmapSessionFactory(user=self.user)
+        
+        out = io.StringIO()
+        
+        # Note: This test assumes the command supports --show-stats option
+        # based on the method _show_similarity_statistics in the command
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            
+            # This would test the show-stats functionality if implemented
+            call_command('calculate_user_similarities', user_id=self.user.id, stdout=out)
+            
+            output = out.getvalue()
+            assert 'Successfully calculated' in output
+    
+    def test_command_error_handling(self):
+        """Test command error handling"""
+        for _ in range(10):
+            HeatmapSessionFactory(user=self.user)
+        
+        out = io.StringIO()
+        
+        with patch('apps.core.recommendation_engine.CollaborativeFilteringEngine', side_effect=Exception('Test error')):
+            with pytest.raises(CommandError, match='Error calculating similarities'):
+                call_command('calculate_user_similarities', user_id=self.user.id, stdout=out)

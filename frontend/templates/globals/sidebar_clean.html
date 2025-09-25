@@ -1,0 +1,391 @@
+<div class="menu menu-column menu-title-gray-800 menu-state-title-primary menu-state-icon-primary menu-state-bullet-primary menu-arrow text-white mb-1-gray-500"
+    id="kt_aside_menu" data-kt-menu="true">
+    
+    <!-- Dashboard - Always visible -->
+    <div class="menu-item" id="menu-dashboard">
+        <a class="menu-link" href="{{ url('onboarding:rp_dashboard') }}">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">home</span>
+                </span>
+            </span>
+            <span class="menu-title">Dashboard</span>
+        </a>
+    </div>
+
+    <!-- Operations Menu -->
+    <div data-kt-menu-trigger="click" id="menu-operations" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">assignment</span>
+                </span>
+            </span>
+            <span class="menu-title">Operations</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <!-- Tasks & Tours -->
+            <div class="menu-item">
+                <a class="menu-link" href="/operations/tasks/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Tasks</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/operations/tours/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Tours</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/operations/schedules/tours/internal/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Schedules</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/operations/work-orders/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Work Orders</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assets Menu -->
+    <div data-kt-menu-trigger="click" id="menu-assets" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">category</span>
+                </span>
+            </span>
+            <span class="menu-title">Assets</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <div class="menu-item">
+                <a class="menu-link" href="/assets/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Asset Management</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/assets/maintenance/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Maintenance Logs</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/assets/compare/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Asset Comparison</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/assets/compare/parameters/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Parameter Comparison</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/assets/locations/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Locations</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- People Menu -->
+    <div data-kt-menu-trigger="click" id="menu-people" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">people</span>
+                </span>
+            </span>
+            <span class="menu-title">People</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <div class="menu-item">
+                <a class="menu-link" href="/people/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Employee Directory</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/people/attendance/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Attendance</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/people/tracking/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Location Tracking</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/people/groups/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">People Groups</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/people/site-groups/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Site Groups</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Desk Menu -->
+    <div data-kt-menu-trigger="click" id="menu-helpdesk" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">support_agent</span>
+                </span>
+            </span>
+            <span class="menu-title">Help Desk</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <div class="menu-item">
+                <a class="menu-link" href="/help-desk/tickets/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Tickets</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/help-desk/escalations/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Escalations</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/help-desk/posting-orders/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Posting Orders</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/help-desk/uniform-requests/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Uniform Requests</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Menu -->
+    <div data-kt-menu-trigger="click" id="menu-reports" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">analytics</span>
+                </span>
+            </span>
+            <span class="menu-title">Reports</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <div class="menu-item">
+                <a class="menu-link" href="/reports/download/">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Download Reports</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/reports/schedule/?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Schedule Reports</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('reports:sitereport_list') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Site Reports</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('reports:incidentreport_list') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Incident Reports</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Menu - Role Based -->
+    {% if user.is_staff or user.is_superuser %}
+    <div data-kt-menu-trigger="click" id="menu-admin" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">admin_panel_settings</span>
+                </span>
+            </span>
+            <span class="menu-title">Administration</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <!-- System Settings -->
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('onboarding:bu') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Business Units</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('onboarding:shift') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Shifts</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('onboarding:typeassist') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Type Definitions</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('onboarding:geofence') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Geofences</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('work_order_management:vendor') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Vendors</span>
+                </a>
+            </div>
+            <!-- Data Management -->
+            <div class="menu-item mt-3">
+                <a class="menu-link" href="{{ url('onboarding:import') }}?action=form">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Import Data</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('onboarding:import_update') }}?action=form">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Bulk Update</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Super Admin Menu -->
+    {% if user.is_superuser %}
+    <div data-kt-menu-trigger="click" id="menu-superadmin" class="menu-item menu-accordion">
+        <span class="menu-link">
+            <span class="menu-icon">
+                <span class="svg-icon svg-icon-2">
+                    <span class="material-icons">verified_user</span>
+                </span>
+            </span>
+            <span class="menu-title">Super Admin</span>
+            <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('peoples:capability') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Capabilities</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('onboarding:client') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Clients</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="{{ url('clientbilling:features') }}?template=true">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Features</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link" href="/admin/">
+                    <span class="menu-bullet">
+                        <span class="bullet bullet-dot"></span>
+                    </span>
+                    <span class="menu-title">Django Admin</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

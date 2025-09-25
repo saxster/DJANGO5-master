@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- Required Meta Tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+
+  <!-- Google Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" type="text/css"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" type="text/css"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" type="text/css"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" type="text/css"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+  <!-- Global CSS & ICONS -->
+  <link href="{{ static('assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet" type="text/css" />
+  <link href="{{ static('assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
+  <link rel="stylesheet" type="text/css" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/ui-darkness/jquery-ui.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" type="text/css"/>
+  <link rel="shortcut icon" type="image/jpg" href="{{ static('assets/media/images/favicon.ico') }}"/>
+
+  <!-- Modern Dashboard CSS -->
+  <link href="{{ static('assets/css/local/global_level.css') }}" rel="stylesheet" type="text/css" />
+  
+  <!-- Modern Dashboard Styles -->
+  <style>
+    :root {
+      --primary-color: #377dff;
+      --secondary-color: #8392a5;
+      --success-color: #00c9a7;
+      --info-color: #00d4ff;
+      --warning-color: #ffc107;
+      --danger-color: #de4437;
+      --light-color: #f8fafd;
+      --dark-color: #132144;
+      --sidebar-width: 280px;
+      --sidebar-collapsed-width: 70px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafd;
+      font-size: 0.875rem;
+    }
+
+    /* Modern Sidebar */
+    .modern-sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: linear-gradient(180deg, #132144 0%, #1e2d4d 100%);
+      transition: all 0.3s ease;
+      z-index: 1050;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .modern-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .modern-sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .sidebar-collapsed .modern-sidebar {
+      width: var(--sidebar-collapsed-width);
+    }
+
+    .sidebar-header {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .sidebar-brand i {
+      margin-right: 0.75rem;
+      color: var(--primary-color);
+    }
+
+    .sidebar-nav {
+      padding: 1rem 0;
+    }
+
+    .nav-item {
+      margin-bottom: 0.25rem;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1.25rem;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border-radius: 0;
+      font-weight: 500;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .nav-link.active {
+      background: var(--primary-color);
+      color: white;
+      position: relative;
+    }
+
+    .nav-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: white;
+    }
+
+    .nav-link i {
+      margin-right: 0.75rem;
+      width: 20px;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    .nav-section {
+      margin-top: 2rem;
+      padding: 0 1.25rem 0.5rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+    }
+
+    .sidebar-collapsed .main-content {
+      margin-left: var(--sidebar-collapsed-width);
+    }
+
+    /* Modern Header */
+    .modern-header {
+      background: white;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #e7eaf3;
+      display: flex;
+      align-items: center;
+      justify-content: between;
+      position: sticky;
+      top: 0;
+      z-index: 1040;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .sidebar-toggle {
+      background: none;
+      border: none;
+      color: #8392a5;
+      font-size: 1.25rem;
+      margin-right: 1rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-toggle:hover {
+      background: #f8fafd;
+      color: var(--dark-color);
+    }
+
+    .breadcrumb-modern {
+      background: none;
+      padding: 0;
+      margin: 0;
+      font-size: 0.875rem;
+    }
+
+    .breadcrumb-modern .breadcrumb-item {
+      color: #8392a5;
+    }
+
+    .breadcrumb-modern .breadcrumb-item.active {
+      color: var(--dark-color);
+      font-weight: 500;
+    }
+
+    .breadcrumb-modern .breadcrumb-item + .breadcrumb-item::before {
+      content: "›";
+      color: #8392a5;
+      margin: 0 0.5rem;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-action {
+      position: relative;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      background: none;
+      border: none;
+      color: #8392a5;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .header-action:hover {
+      background: #f8fafd;
+      color: var(--dark-color);
+    }
+
+    .user-dropdown {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      color: var(--dark-color);
+      transition: all 0.2s ease;
+    }
+
+    .user-dropdown:hover {
+      background: #f8fafd;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+
+    .site-info {
+      font-size: 0.875rem;
+      color: #8392a5;
+      margin-right: 1rem;
+    }
+
+    .site-info strong {
+      color: var(--dark-color);
+    }
+
+    /* Content Area */
+    .content-wrapper {
+      padding: 1.5rem;
+    }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-title {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--dark-color);
+      margin: 0;
+    }
+
+    .page-subtitle {
+      color: #8392a5;
+      margin-top: 0.25rem;
+    }
+
+    /* Cards */
+    .modern-card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 0.125rem 0.25rem rgba(165, 163, 174, 0.3);
+      border: 1px solid #e7eaf3;
+    }
+
+    .card-header-modern {
+      padding: 1.5rem 1.5rem 0;
+      border-bottom: none;
+      background: none;
+    }
+
+    .card-body-modern {
+      padding: 1.5rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 991.98px) {
+      .modern-sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .sidebar-open .modern-sidebar {
+        transform: translateX(0);
+      }
+      
+      .main-content {
+        margin-left: 0;
+      }
+      
+      .content-wrapper {
+        padding: 1rem;
+      }
+      
+      .header-actions {
+        gap: 0.5rem;
+      }
+      
+      .site-info {
+        display: none;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .page-title {
+        font-size: 1.5rem;
+      }
+      
+      .content-wrapper {
+        padding: 0.75rem;
+      }
+    }
+
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1049;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .sidebar-open .sidebar-overlay {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Loading animation improvements */
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.95);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    #loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e7eaf3;
+      border-top: 3px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- Page Title -->
+  <title>
+  {%- block title -%}
+    {{ request.session.sitename }} - YOUTILITY
+  {% endblock title %}
+  </title>
+
+  <!-- Extra CSS Block -->
+  {%- block extra_css -%}
+  {% endblock extra_css %}
+</head>
+
+<body id="kt_body" class="modern-dashboard" data-kt-aside-minimize='off'>
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Classic Sidebar from layout.html -->
+  <div id="kt_aside" class="aside aside-dark" data-kt-drawer="true" data-kt-drawer-name="aside"
+    data-kt-drawer-activate="{default: true, lg: false}" data-kt-drawer-overlay="true"
+    data-kt-drawer-width="{default: '200px', '300px': '250px'}" data-kt-drawer-direction="start"
+    data-kt-drawer-toggle="#kt_aside_mobile_toggle">
+    {# BEGIN BRAND #}
+    <div class="aside-logo flex-column-auto" id="kt_aside_logo">
+      {# BEGIN LOGO #}
+      <a href="{% if request.session.sitecode not in ["SPSESIC", "SPSPAYROLL", "SPSOPS", "SPSOPERATION", "SPSHR"] %}
+          {{ url('onboarding:rp_dashboard') }}
+      {% elif request.session.sitecode == "SPSOPS" %}
+          {{ url('reports:generateattendance') }}
+       {% elif request.session.sitecode == "SPSOPERATION" %}
+          {{ url('reports:generate_declaration_form') }}
+      {% elif request.session.sitecode == "SPSHR" %}
+          {{ url('employee_creation:employee_creation') }}
+      {% else %}
+          {{ url('reports:generatepdf') }}
+      {% endif %}">
+      </a>
+      {# END LOGO #}
+      {# BEGIN ASIDE TOGGLER #}
+      <div id="kt_aside_toggle" class="btn btn-icon w-auto px-0 btn-active-color-primary aside-toggle"
+        data-kt-toggle="true" data-kt-toggle-state="active" data-kt-toggle-target="body"
+        data-kt-toggle-name="aside-minimize">
+        <!--begin::Svg Icon | path: icons/duotone/Navigation/Angle-double-left.svg-->
+        <span class="svg-icon svg-icon-1 rotate-180">
+          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px"
+            height="24px" viewBox="0 0 24 24" version="1.1">
+            <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+              <polygon points="0 0 24 0 24 24 0 24"></polygon>
+              <path
+                d="M5.29288961,6.70710318 C4.90236532,6.31657888 4.90236532,5.68341391 5.29288961,5.29288961 C5.68341391,4.90236532 6.31657888,4.90236532 6.70710318,5.29288961 L12.7071032,11.2928896 C13.0856821,11.6714686 13.0989277,12.281055 12.7371505,12.675721 L7.23715054,18.675721 C6.86395813,19.08284 6.23139076,19.1103429 5.82427177,18.7371505 C5.41715278,18.3639581 5.38964985,17.7313908 5.76284226,17.3242718 L10.6158586,12.0300721 L5.29288961,6.70710318 Z"
+                fill="#000000" fill-rule="nonzero"
+                transform="translate(8.999997, 11.999999) scale(-1, 1) translate(-8.999997, -11.999999)"></path>
+              <path
+                d="M10.7071009,15.7071068 C10.3165766,16.0976311 9.68341162,16.0976311 9.29288733,15.7071068 C8.90236304,15.3165825 8.90236304,14.6834175 9.29288733,14.2928932 L15.2928873,8.29289322 C15.6714663,7.91431428 16.2810527,7.90106866 16.6757187,8.26284586 L22.6757187,13.7628459 C23.0828377,14.1360383 23.1103407,14.7686056 22.7371482,15.1757246 C22.3639558,15.5828436 21.7313885,15.6103465 21.3242695,15.2371541 L16.0300699,10.3841378 L10.7071009,15.7071068 Z"
+                fill="#000000" fill-rule="nonzero" opacity="0.5"
+                transform="translate(15.999997, 11.999999) scale(-1, 1) rotate(-270.000000) translate(-15.999997, -11.999999)">
+              </path>
+            </g>
+          </svg>
+        </span>
+        {# END SVG ICON #}
+      </div>
+      {# END ASIDE TOGGLER #}
+    </div>
+    {# BEGIN BRAND #}
+    {# BEGIN ASIDE MENU #}
+    <div class="aside-menu flex-column-fluid">
+      {# BEGIN ASIDE MENU #}
+      <div class="hover-scroll-overlay-y my-5 my-lg-5" id="kt_aside_menu_wrapper" data-kt-scroll="true"
+        data-kt-scroll-activate="{default: false, lg: true}" data-kt-scroll-height="auto"
+        data-kt-scroll-dependencies="#kt_aside_logo, #kt_aside_footer" data-kt-scroll-wrappers="#kt_aside_menu"
+        data-kt-scroll-offset="0" style="height: 798px;">
+        {# BEGIN MENU #}
+        {% include "globals/updated_sidebarmenus.html" %}
+        {# END MENU #}
+      </div>
+    </div>
+    <!--end::Aside menu-->
+    <!--begin::Footer-->
+    <div class="aside-footer flex-column-auto pt-5 pb-7 px-5" id="kt_aside_footer">
+    </div>
+    <!--end::Footer-->
+  </div>
+  <!--end::Aside-->
+  
+  <!-- Auto-expand/collapse Sidebar CSS (same as layout.html) -->
+  <style>
+    /* Transition for smooth sidebar animation */
+    #kt_aside {
+      transition: width 0.3s ease-in-out;
+      position: fixed !important;
+      left: 0 !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      z-index: 1040;
+    }
+    
+    /* Hide text when sidebar is minimized */
+    body[data-kt-aside-minimize="on"] #kt_aside .menu-title,
+    body[data-kt-aside-minimize="on"] #kt_aside .menu-arrow {
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+      pointer-events: none;
+    }
+    
+    /* Show text when sidebar is expanded */
+    body[data-kt-aside-minimize="off"] #kt_aside .menu-title,
+    body[data-kt-aside-minimize="off"] #kt_aside .menu-arrow {
+      opacity: 1;
+      transition: opacity 0.2s ease-in-out 0.1s;
+      pointer-events: auto;
+    }
+    
+    /* Keep sidebar at its minimized width when collapsed */
+    body[data-kt-aside-minimize="on"] #kt_aside {
+      overflow: hidden;
+      width: 75px !important;
+      padding: 0 !important;
+    }
+    
+    /* Keep sidebar at its expanded width when open */
+    body[data-kt-aside-minimize="off"] #kt_aside {
+      width: 265px !important;
+      padding: 0 !important;
+    }
+    
+    /* Ensure main content adjusts properly */
+    body[data-kt-aside-minimize="on"] .main-content {
+      margin-left: 75px !important;
+      transition: margin-left 0.3s ease-in-out;
+    }
+    
+    body[data-kt-aside-minimize="off"] .main-content {
+      margin-left: 265px !important;
+      transition: margin-left 0.3s ease-in-out;
+    }
+    
+    /* Remove ALL padding from aside and its children */
+    #kt_aside.aside,
+    #kt_aside .aside-logo,
+    #kt_aside .aside-menu,
+    #kt_aside .aside-footer {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+  </style>
+
+  <!-- Main Content -->
+  <div class="main-content" id="mainContent">
+    <!-- Modern Header -->
+    <header class="modern-header">
+      <div class="header-left">
+        <button class="sidebar-toggle" id="sidebarToggle">
+          <i class="material-icons">menu</i>
+        </button>
+        
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb breadcrumb-modern">
+            {% block breadcrumb %}
+            <li class="breadcrumb-item"><a href="{{ url('onboarding:rp_dashboard') }}">Home</a></li>
+            {% endblock breadcrumb %}
+          </ol>
+        </nav>
+      </div>
+
+      <div class="header-right">
+        <div class="header-actions">
+          <!-- Site Info -->
+          <div class="site-info">
+            <span>Site: <strong>{{ request.session.sitename }}</strong></span>
+          </div>
+
+          <!-- Notifications -->
+          <button class="header-action" title="Notifications">
+            <i class="material-icons">notifications</i>
+          </button>
+
+          <!-- User Dropdown -->
+          <div class="dropdown">
+            <a href="#" class="user-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="user-avatar">
+                {% if request.user.is_authenticated and request.user.peoplename %}{{ request.user.peoplename[0]|upper }}{% else %}U{% endif %}
+              </div>
+              <div class="user-info">
+                <div class="user-name">{% if request.user.is_authenticated %}{{ request.user.peoplename or request.user.loginid or 'User' }}{% else %}Guest{% endif %}</div>
+              </div>
+              <i class="material-icons">keyboard_arrow_down</i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#"><i class="material-icons me-2">person</i>Profile</a></li>
+              <li><a class="dropdown-item" href="#"><i class="material-icons me-2">lock</i>Change Password</a></li>
+              <li><a class="dropdown-item" href="javascript:changeSiteReq();"><i class="material-icons me-2">swap_horiz</i>Switch Site</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url('logout') }}"><i class="material-icons me-2">logout</i>Log Out</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Wrapper -->
+    <div class="content-wrapper">
+      {% block page_header %}
+      <div class="page-header">
+        <h1 class="page-title">{% block page_title %}Dashboard{% endblock page_title %}</h1>
+        {% block page_subtitle %}{% endblock page_subtitle %}
+      </div>
+      {% endblock page_header %}
+
+      <!-- Main Content Area -->
+      {% block content %}
+      <div class="modern-card">
+        <div class="card-body-modern">
+          <p>Welcome to your modern dashboard!</p>
+        </div>
+      </div>
+      {% endblock content %}
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="{{ static('assets/plugins/global/plugins.bundle.js') }}"></script>
+  <script src="{{ static('assets/plugins/global/apexcharts.js') }}"></script>
+  <script src="{{ static('assets/js/scripts.bundle.js') }}"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js" type="text/javascript" charset="utf-8"></script>
+
+  <script>
+    // Session data - only serialize safe session values
+    var session = {
+      bu_id: "{{ request.session.bu_id|default('') }}",
+      sitename: "{{ request.session.sitename|default('') }}",
+      sitecode: "{{ request.session.sitecode|default('') }}",
+      clientcode: "{{ request.session.clientcode|default('') }}",
+      is_admin: {% if request.user.is_authenticated and request.user.isadmin %}true{% else %}false{% endif %},
+      people_webcaps: {{ request.session.people_webcaps|default([])|tojson }},
+      client_webcaps: {{ request.session.client_webcaps|default([])|tojson }}
+    };
+    const fileUploadUrl = "{{ url('onboarding:file_upload') }}";
+
+    // Block UI setup
+    var dontBlock = false;
+    var target = document.querySelector("body");
+    var blockUI = new KTBlockUI(target, {
+      message: "<div class='blockui-message'><span class='spinner-border text-primary'></span> Loading...</div>",
+    });
+
+    function startBlockUi() {
+      if (!dontBlock) blockUI.block();
+    }
+
+    function endBlockUi() {
+      if (blockUI.isBlocked()) {
+        blockUI.release();
+      }
+    }
+
+    // Modern sidebar functionality with auto-hover
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebarToggle = document.getElementById('kt_aside_toggle');
+      const sidebar = document.getElementById('kt_aside');
+      const mainContent = document.getElementById('mainContent');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const body = document.body;
+      
+      // Auto-hover variables
+      let hoverTimeout;
+      let autoHoverEnabled = true;
+      let isHoveringOnSidebar = false;
+      
+      // Initially minimize the sidebar
+      if (!body.hasAttribute('data-kt-aside-minimize')) {
+        body.setAttribute('data-kt-aside-minimize', 'on');
+      }
+      
+      // Function to expand sidebar
+      function expandSidebar() {
+        if (body.getAttribute('data-kt-aside-minimize') === 'on') {
+          body.setAttribute('data-kt-aside-minimize', 'off');
+        }
+      }
+      
+      // Function to collapse sidebar
+      function collapseSidebar() {
+        if (body.getAttribute('data-kt-aside-minimize') === 'off' && !isHoveringOnSidebar) {
+          body.setAttribute('data-kt-aside-minimize', 'on');
+        }
+      }
+
+      // Toggle sidebar function (from base.html)
+      function toggleAttribute() {
+        var body = document.querySelector("body");
+        if (body.hasAttribute("data-kt-aside-minimize")) {
+          body.removeAttribute("data-kt-aside-minimize");
+        } else {
+          body.setAttribute("data-kt-aside-minimize", "on");
+        }
+      }
+
+      // Toggle sidebar click handler
+      if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleAttribute();
+          autoHoverEnabled = false;
+          // Re-enable auto-hover after 5 seconds
+          clearTimeout(hoverTimeout);
+          hoverTimeout = setTimeout(function() {
+            autoHoverEnabled = true;
+            // Auto-minimize after manual toggle timeout
+            if (body.getAttribute('data-kt-aside-minimize') === 'off' && !isHoveringOnSidebar) {
+              collapseSidebar();
+            }
+          }, 5000);
+        });
+      }
+      
+      // Mouse enter event - expand sidebar
+      if (sidebar) {
+        sidebar.addEventListener('mouseenter', function(e) {
+          if (!autoHoverEnabled) return;
+          
+          // Check if we're in minimized state
+          if (body.getAttribute('data-kt-aside-minimize') === 'on') {
+            isHoveringOnSidebar = true;
+            clearTimeout(hoverTimeout);
+            expandSidebar();
+          }
+        });
+        
+        // Mouse leave event - collapse sidebar with delay
+        sidebar.addEventListener('mouseleave', function(e) {
+          if (!autoHoverEnabled) return;
+          
+          isHoveringOnSidebar = false;
+          
+          // Only collapse if we're leaving the sidebar entirely
+          hoverTimeout = setTimeout(function() {
+            if (!isHoveringOnSidebar) {
+              collapseSidebar();
+            }
+          }, 300); // 300ms delay before collapsing
+        });
+        
+        // Track mouse position to ensure we're actually over the sidebar
+        sidebar.addEventListener('mousemove', function(e) {
+          isHoveringOnSidebar = true;
+          clearTimeout(hoverTimeout);
+        });
+      }
+
+      // Close sidebar when clicking overlay (mobile)
+      if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+          body.classList.remove('sidebar-open');
+        });
+      }
+
+      // Handle window resize
+      window.addEventListener('resize', function() {
+        if (window.innerWidth > 991.98) {
+          body.classList.remove('sidebar-open');
+        }
+      });
+
+      // Active navigation highlighting
+      const currentPath = window.location.pathname;
+      const navLinks = document.querySelectorAll('.nav-link');
+      
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        const href = link.getAttribute('href');
+        if (href && (currentPath === href || currentPath.startsWith(href + '/'))) {
+          link.classList.add('active');
+        }
+      });
+
+      // Bootstrap compatibility
+      $('body').removeClass('modal-open');
+      $('.booleans').addClass("form-check form-switch form-check-custom form-check-solid");
+      $('select').removeClass("form-control");
+
+      // Handle menu rendering based on user capabilities
+      try {
+        if (typeof handle_rendering_of_menus === 'function') {
+          handle_rendering_of_menus(session);
+        }
+      } catch (e) {
+        console.warn('handle_rendering_of_menus error:', e);
+      }
+
+      try {
+        if (typeof make_env_for_wizard === 'function') {
+          make_env_for_wizard(session);
+        }
+      } catch (e) {
+        console.warn('make_env_for_wizard error:', e);
+      }
+
+      // Stepper controller
+      $('#kt_content').addClass('pt-1');
+      try {
+        if (typeof stepper_controller === 'function') {
+          stepper_controller(session);
+        }
+      } catch (e) {
+        console.warn('stepper_controller error:', e);
+      }
+
+      // Select2 for multiple select fields
+      $("select[multiple]").select2({
+        closeOnSelect: false
+      });
+
+      // Alert fadeout
+      $("#alert_msg").fadeTo(2000, 500).slideUp(500, function(){
+        $("#alert_msg").slideUp(700);
+      });
+    });
+  </script>
+
+  <!-- Global Custom Script -->
+  <script src="{{ static('assets/js/local/custom.js') }}?v=5" type="text/javascript"></script>
+
+  <!-- Switch Site Script -->
+  {% block switchSiteScript %}
+  <script>
+    function getSites(url){
+      fire_ajax_get({'url':url})
+      .done((data, status, xhr) => {
+        var client_site= "{{ request.session.clientcode }}.{{ request.session.sitecode }}"
+        $("#id_defaultsite").val(client_site);
+        $("#id_assignesite").empty();
+        $("#id_assignesite").append($("<option></option>").val(" ").html("----------"));
+        if(data!=undefined){
+          data.forEach(function(row, idx) {
+              if(row.id != session.bu_id){
+                  $("#id_assignesite").append($("<option></option>").val(row.id).html(row.buname + " - [" + row.bucode +"]"));
+              }
+          });
+        }
+      })
+      .fail((xhr, status, error) =>{
+        console.log("getSites error", error);
+      })
+    }
+
+    function changeSiteReq(){
+      var session = "{{ request.session.bu_id }}";
+      if ("{{ request.session }}".toUpperCase() == "TRUE"){
+        let url = "{{ url('onboarding:get_allsites') }}"
+        getSites(url)
+      }
+      else{
+        let url = "{{ url('onboarding:get_assignedsites') }}"
+        getSites(url)
+      }
+      $('#popup_switch_site').modal('show');
+    }
+
+    $(document).ready(function() {
+      $('.modal-dialog, .DTED_Lightbox_Content').draggable();
+      $("#id_assignesite").select2({
+        dropdownParent: $("#popup_switch_site")
+      });
+      $("#btnSwitchSite").click(function(){
+        $('#SwitchSiteForm').submit();
+      });
+
+      $('#SwitchSiteForm').submit(function(e){
+        e.preventDefault();
+        var form = $(this);
+        const params = {url:"{{ url('onboarding:switchsite') }}"}
+        const payLoad = {buid:$("#id_assignesite").val(), csrfmiddlewaretoken:'{{ csrf_token }}'}
+        fire_ajax_form_post(params, payLoad)
+        .done((response, status, xhr) => {
+          if(response.rc==1){
+            $('.site_err_msg').html("Error: "+response.errMsg);
+            $("#site_err_popup").fadeTo(2000, 1000).slideUp(800, function(){
+            $("#site_err_popup").slideUp(1000);
+            });
+          }else{
+            var count = 3;
+            $('.site_success_msg').html("Site switching in "+ count +" seconds");
+            $("#site_success_popup").show();
+            var timer = setInterval(function() {
+              if (count !== 0) {
+                $('.site_success_msg').html("Site switching in "+ count-- +" seconds");
+              } else {
+              clearInterval(timer);
+              setTimeout(location.reload.bind(location), 0);
+              }
+            }, 1000);
+          }
+        })
+        .fail((xhr, status, error) => {
+          $('.site_err_msg').html("Error: "+data["msg"]);
+        });
+      });
+    });
+  </script>
+  {% endblock switchSiteScript %}
+
+  <!-- Extra Scripts Block -->
+  {% block extra_scripts %}
+  {% endblock extra_scripts %}
+
+  <!-- Switch Site Modal -->
+  <div id="popup_switch_site" class="modal fade" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title bold">Switch Site</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger site_err_msg" id="site_err_popup" style="display:none">
+            <button type="button" class="close" data-dismiss="alert">x</button>
+            <strong>Error! </strong>
+          </div>
+          <div class="alert alert-success site_success_msg" id="site_success_popup" style="display:none">
+            <button type="button" class="close" data-dismiss="alert">x</button>
+            <strong>Success! </strong>
+          </div>
+          <form id="SwitchSiteForm" name="SwitchSiteForm" action="" method="post">
+            <input type="hidden" name="oper" id="switchsite_oper" value="edit">
+            <input type="hidden" name="id" id="switchsite_id" value="">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <div class="row g-3">
+              <div class="col-md-3"><label>Current Site:</label></div>
+              <div class="col-md-9">
+                <div>
+                  <input type="text" name="defaultsite" value="" id="id_defaultsite" readonly required class="form-control" maxlength="250" />
+                </div>
+              </div>
+              <div class="col-md-3"><label>Other Sites:</label></div>
+              <div class="col-md-9">
+                <div>
+                  <select class="form-select form-select-solid" name="assignesite" id="id_assignesite" data-control="select2" required maxlength="20">
+                    <option>NONE</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary font-weight-bold" id="btnSwitchSite" name="btnSwitchSite">Switch</button>
+          <button type="button" class="btn btn-secondary font-weight-bold" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Alerts Block -->
+  {%- block popup_alerts -%}
+  {% endblock popup_alerts %}
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base - AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <span class="navbar-brand mb-0 h1">YOUTILITY5 - Knowledge Base</span>
+    </nav>
+    
+    <div class="container mt-4">
+        <h2>Knowledge Base Management</h2>
+        <p class="text-muted">RAG (Retrieval Augmented Generation) Knowledge Bases</p>
+        
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Available Knowledge Bases</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if knowledge_bases %}
+                            <div class="list-group">
+                                {% for kb in knowledge_bases %}
+                                <div class="list-group-item">
+                                    <h6>{{ kb.name }}</h6>
+                                    <p class="mb-1">{{ kb.description }}</p>
+                                    <small>Type: {{ kb.knowledge_type }} | Queries: {{ kb.total_rag_queries }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                No knowledge bases available yet. Knowledge bases will appear here once created.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Recent Queries -->
+                <div class="card mt-3">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Recent RAG Queries</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_queries %}
+                            <ul class="list-group">
+                                {% for query in recent_queries %}
+                                <li class="list-group-item">
+                                    <strong>{{ query.query_text }}</strong><br>
+                                    <small>KB: {{ query.knowledge_base.name }} | Confidence: {{ query.confidence_score|round(2) }}</small>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No recent queries.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">RAG Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Total Queries:</strong> {{ rag_stats.total_queries }}</p>
+                        <p><strong>Avg Confidence:</strong> {{ rag_stats.avg_confidence|round(2) }}</p>
+                        <p><strong>Avg Response Time:</strong> {{ rag_stats.avg_response_time|round|int }}ms</p>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">Quick Links</h5>
+                    </div>
+                    <div class="card-body">
+                        <a href="/ai/search/test/" class="btn btn-block btn-outline-primary">Test Page</a>
+                        <a href="/ai/search/search/" class="btn btn-block btn-outline-info">Smart Search</a>
+                        <a href="/ai/search/analytics/" class="btn btn-block btn-outline-success">Analytics</a>
+                        <a href="/ai/search/indexing/" class="btn btn-block btn-outline-warning">Bulk Indexing</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

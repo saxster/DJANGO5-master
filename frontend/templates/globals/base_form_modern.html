@@ -1,0 +1,646 @@
+{% extends "globals/base_modern.html" %}
+
+{% block extra_css %}
+<style>
+  .form-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .modern-form-card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(165, 163, 174, 0.3);
+    border: 1px solid #e7eaf3;
+    overflow: hidden;
+  }
+
+  .form-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #4c84ff 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .form-header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: white;
+  }
+
+  .form-header p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+  }
+
+  .form-header .form-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+    font-size: 1.5rem;
+  }
+
+  .form-body {
+    padding: 2rem;
+  }
+
+  .form-section {
+    background: #f8fafd;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e7eaf3;
+  }
+
+  .form-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .form-section-title i {
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    font-weight: 500;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .form-label.required::after {
+    content: " *";
+    color: var(--danger-color);
+  }
+
+  .form-control {
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+  }
+
+  .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(55, 125, 255, 0.25);
+  }
+
+  .form-select {
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+  }
+
+  .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(55, 125, 255, 0.25);
+  }
+
+  .form-text {
+    font-size: 0.75rem;
+    color: #8392a5;
+    margin-top: 0.25rem;
+  }
+
+  .invalid-feedback {
+    display: block;
+    color: var(--danger-color);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  .form-check {
+    margin-bottom: 1rem;
+  }
+
+  .form-check-input {
+    margin-top: 0.25em;
+  }
+
+  .form-check-label {
+    font-weight: 500;
+    color: var(--dark-color);
+  }
+
+  .form-switch .form-check-input {
+    border-radius: 1rem;
+  }
+
+  .form-actions {
+    background: #f8fafd;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e7eaf3;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .btn-group .btn {
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+
+  .btn-primary:hover {
+    background: #2c6bf5;
+    border-color: #2c6bf5;
+  }
+
+  .btn-success {
+    background: var(--success-color);
+    border-color: var(--success-color);
+  }
+
+  .btn-danger {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+  }
+
+  .btn-secondary {
+    background: #8392a5;
+    border-color: #8392a5;
+  }
+
+  .btn i {
+    font-size: 1rem;
+  }
+
+  /* Upload area styling */
+  .upload-area {
+    border: 2px dashed #d1d5db;
+    border-radius: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+    background: #f8fafd;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .upload-area:hover {
+    border-color: var(--primary-color);
+    background: rgba(55, 125, 255, 0.05);
+  }
+
+  .upload-area.dragover {
+    border-color: var(--primary-color);
+    background: rgba(55, 125, 255, 0.1);
+  }
+
+  .upload-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .upload-text {
+    color: var(--dark-color);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  .upload-subtext {
+    color: #8392a5;
+    font-size: 0.875rem;
+  }
+
+  /* Progress bars */
+  .progress {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    background: #e7eaf3;
+  }
+
+  .progress-bar {
+    background: var(--primary-color);
+    border-radius: 0.25rem;
+  }
+
+  /* Tabs styling */
+  .nav-tabs {
+    border-bottom: 2px solid #e7eaf3;
+    margin-bottom: 2rem;
+  }
+
+  .nav-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #8392a5;
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+  }
+
+  .nav-tabs .nav-link.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+    background: none;
+  }
+
+  .nav-tabs .nav-link:hover {
+    border-bottom-color: rgba(55, 125, 255, 0.5);
+    color: var(--primary-color);
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .form-container {
+      margin: 0 -0.75rem;
+    }
+
+    .form-header {
+      padding: 1.5rem 1rem;
+    }
+
+    .form-body {
+      padding: 1.5rem 1rem;
+    }
+
+    .form-section {
+      padding: 1rem;
+    }
+
+    .form-actions {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 1rem;
+    }
+
+    .btn-group {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .btn-group .btn {
+      justify-content: center;
+    }
+  }
+
+  /* Loading states */
+  .loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  /* Success states */
+  .form-success {
+    border: 2px solid var(--success-color);
+    background: rgba(0, 201, 167, 0.05);
+  }
+
+  /* Error states */
+  .form-error {
+    border: 2px solid var(--danger-color);
+    background: rgba(222, 68, 55, 0.05);
+  }
+
+  /* Alert styles */
+  .alert {
+    border-radius: 0.75rem;
+    border: none;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .alert-success {
+    background: rgba(0, 201, 167, 0.1);
+    color: var(--success-color);
+  }
+
+  .alert-danger {
+    background: rgba(222, 68, 55, 0.1);
+    color: var(--danger-color);
+  }
+
+  .alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--warning-color);
+  }
+
+  .alert-info {
+    background: rgba(0, 212, 255, 0.1);
+    color: var(--info-color);
+  }
+
+  /* Modern checkbox and radio styling */
+  .form-check-input[type="checkbox"] {
+    border-radius: 0.25rem;
+  }
+
+  .form-check-input[type="radio"] {
+    border-radius: 50%;
+  }
+
+  .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+</style>
+{% endblock extra_css %}
+
+{% block page_header %}
+<div class="page-header mb-4">
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <h1 class="page-title">{% block page_title %}Form{% endblock page_title %}</h1>
+      <p class="page-subtitle">{% block page_subtitle %}Enter and manage information{% endblock page_subtitle %}</p>
+    </div>
+    <div class="page-actions">
+      {% block page_actions %}
+      <a href="javascript:history.back()" class="btn btn-outline-secondary">
+        <i class="material-icons me-1">arrow_back</i>
+        Back
+      </a>
+      {% endblock page_actions %}
+    </div>
+  </div>
+</div>
+{% endblock page_header %}
+
+{% block content %}
+<div class="form-container">
+  <div class="modern-form-card">
+    <!-- Form Header -->
+    <div class="form-header">
+      <div class="form-icon">
+        <i class="material-icons">{% block form_icon %}assignment{% endblock form_icon %}</i>
+      </div>
+      <h1>{% block form_title %}Form Title{% endblock form_title %}</h1>
+      <p>{% block form_description %}Complete the form below to continue{% endblock form_description %}</p>
+    </div>
+
+    <!-- Non-field errors -->
+    {% block nonfield_errors %}
+    {% endblock nonfield_errors %}
+
+    <!-- Form Body -->
+    <div class="form-body">
+      {% block form_content %}
+      <div class="form-section">
+        <h3 class="form-section-title">
+          <i class="material-icons">info</i>
+          Basic Information
+        </h3>
+        
+        {% block form %}
+        <p class="text-muted">No form content defined</p>
+        {% endblock form %}
+      </div>
+      {% endblock form_content %}
+
+      <!-- Additional sections -->
+      {% block extra_sections %}
+      {% endblock extra_sections %}
+    </div>
+
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <div class="form-info">
+        {% block form_info %}
+        <small class="text-muted">All required fields must be completed</small>
+        {% endblock form_info %}
+      </div>
+      
+      <div class="btn-group">
+        {% block form_actions %}
+        <button type="submit" class="btn btn-primary" form="main-form">
+          <i class="material-icons">save</i>
+          Save
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="javascript:history.back()">
+          <i class="material-icons">cancel</i>
+          Cancel
+        </button>
+        {% endblock form_actions %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+  // Form validation enhancements
+  $('form').on('submit', function(e) {
+    // Add loading state
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<i class="material-icons">hourglass_empty</i> Processing...');
+    
+    // Remove loading state after 2 seconds (adjust as needed)
+    setTimeout(() => {
+      submitBtn.prop('disabled', false).html(originalText);
+    }, 2000);
+  });
+
+  // Enhanced form controls
+  $('.form-control, .form-select').on('focus', function() {
+    $(this).closest('.form-group').addClass('focused');
+  }).on('blur', function() {
+    $(this).closest('.form-group').removeClass('focused');
+  });
+
+  // Auto-resize textareas
+  $('textarea').on('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+  });
+
+  // File upload enhancements
+  $('.upload-area').on('dragover dragenter', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $(this).addClass('dragover');
+  }).on('dragleave dragend drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $(this).removeClass('dragover');
+  });
+
+  // Form field animations
+  $('.form-control, .form-select').each(function() {
+    if ($(this).val()) {
+      $(this).addClass('has-value');
+    }
+  }).on('blur', function() {
+    if ($(this).val()) {
+      $(this).addClass('has-value');
+    } else {
+      $(this).removeClass('has-value');
+    }
+  });
+
+  // Success/Error state handling
+  $('.form-control, .form-select').on('input change', function() {
+    const $group = $(this).closest('.form-group');
+    $group.removeClass('form-error form-success');
+    
+    if (this.checkValidity()) {
+      if ($(this).val()) {
+        $group.addClass('form-success');
+      }
+    } else {
+      $group.addClass('form-error');
+    }
+  });
+
+  // Initialize tooltips for form help text
+  $('[data-bs-toggle="tooltip"]').tooltip();
+
+  // Keyboard shortcuts
+  $(document).on('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+      switch(e.keyCode) {
+        case 83: // Ctrl+S to save
+          e.preventDefault();
+          $('form').submit();
+          break;
+        case 27: // Escape to cancel
+          if (!e.shiftKey) {
+            history.back();
+          }
+          break;
+      }
+    }
+  });
+
+  // Auto-save functionality (optional)
+  if (typeof enableAutoSave !== 'undefined' && enableAutoSave) {
+    let autoSaveTimeout;
+    $('form input, form select, form textarea').on('input change', function() {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(() => {
+        saveFormDraft();
+      }, 2000);
+    });
+  }
+
+  // Form progress indicator
+  function updateFormProgress() {
+    const totalFields = $('form input:required, form select:required, form textarea:required').length;
+    const filledFields = $('form input:required, form select:required, form textarea:required').filter(function() {
+      return $(this).val() !== '';
+    }).length;
+    
+    const progress = totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 100;
+    
+    if ($('.form-progress').length === 0) {
+      $('.form-header').append(`
+        <div class="form-progress mt-3">
+          <div class="progress">
+            <div class="progress-bar" role="progressbar" style="width: ${progress}%" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <small class="text-white-50 mt-1 d-block">Form completion: ${progress}%</small>
+        </div>
+      `);
+    } else {
+      $('.form-progress .progress-bar').css('width', progress + '%').attr('aria-valuenow', progress);
+      $('.form-progress small').text(`Form completion: ${progress}%`);
+    }
+  }
+
+  // Update progress on form changes
+  $('form input, form select, form textarea').on('input change', updateFormProgress);
+  updateFormProgress(); // Initial call
+
+  // Smooth form section transitions
+  $('.form-section').each(function(index) {
+    $(this).css({
+      'animation-delay': (index * 0.1) + 's',
+      'animation': 'fadeInUp 0.5s ease forwards'
+    });
+  });
+});
+
+// Auto-save draft function
+function saveFormDraft() {
+  const formData = $('form').serialize();
+  localStorage.setItem('form_draft_' + window.location.pathname, formData);
+  
+  // Show auto-save indicator
+  if ($('.auto-save-indicator').length === 0) {
+    $('.form-actions .form-info').append('<span class="auto-save-indicator text-success ms-2"><i class="material-icons">cloud_done</i> Draft saved</span>');
+  }
+  
+  setTimeout(() => {
+    $('.auto-save-indicator').fadeOut(() => {
+      $(this).remove();
+    });
+  }, 2000);
+}
+
+// Load draft function
+function loadFormDraft() {
+  const draftData = localStorage.getItem('form_draft_' + window.location.pathname);
+  if (draftData) {
+    const params = new URLSearchParams(draftData);
+    params.forEach((value, key) => {
+      const field = $(`[name="${key}"]`);
+      if (field.length) {
+        if (field.is(':checkbox') || field.is(':radio')) {
+          field.filter(`[value="${value}"]`).prop('checked', true);
+        } else {
+          field.val(value);
+        }
+      }
+    });
+  }
+}
+
+// CSS animations
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock extra_scripts %}

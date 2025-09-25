@@ -1,0 +1,629 @@
+{% extends "globals/base_form_modern.html" %}
+
+{% block page_title %}
+{% if peopleform.instance.id %}
+Edit Person - {{ peopleform.instance.peoplename }}
+{% else %}
+Add New Person
+{% endif %}
+{% endblock page_title %}
+
+{% block page_subtitle %}
+{% if peopleform.instance.id %}
+Update personnel information and settings
+{% else %}
+Create a new person record in the system
+{% endif %}
+{% endblock page_subtitle %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item"><a href="{{ url('peoples:people') }}">People</a></li>
+<li class="breadcrumb-item active">
+  {% if peopleform.instance.id %}Edit{% else %}Add{% endif %}
+</li>
+{% endblock breadcrumb %}
+
+{% block form_icon %}person{% endblock form_icon %}
+
+{% block form_title %}
+{% if peopleform.instance.id %}
+Edit Person
+{% else %}
+Add New Person
+{% endif %}
+{% endblock form_title %}
+
+{% block form_description %}
+{% if peopleform.instance.id %}
+Update the information for {{ peopleform.instance.peoplename }}
+{% else %}
+Create a new person record with complete details
+{% endif %}
+{% endblock form_description %}
+
+{% block nonfield_errors %}
+{% if peopleform.non_field_errors() %}
+<div class="alert alert-danger">
+  <div class="d-flex align-items-center">
+    <i class="material-icons me-2">error</i>
+    <strong>Please correct the following errors:</strong>
+  </div>
+  <ul class="mb-0 mt-2">
+    {% for error in peopleform.non_field_errors() %}
+    <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock nonfield_errors %}
+
+{% block form_content %}
+<form id="people-form" method="post" enctype="multipart/form-data" novalidate>
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+  
+  <!-- Basic Information Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">person</i>
+      Basic Information
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.peoplecode.id_for_label }}" class="form-label required">
+            {{ peopleform.peoplecode.label }}
+          </label>
+          {{ peopleform.peoplecode }}
+          {% if peopleform.peoplecode.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.peoplecode.errors.0 }}
+            </div>
+          {% endif %}
+          <div class="form-text">Unique identifier for this person</div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.peoplename.id_for_label }}" class="form-label required">
+            {{ peopleform.peoplename.label }}
+          </label>
+          {{ peopleform.peoplename }}
+          {% if peopleform.peoplename.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.peoplename.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.email.id_for_label }}" class="form-label">
+            {{ peopleform.email.label }}
+          </label>
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="material-icons">email</i>
+            </span>
+            {{ peopleform.email }}
+          </div>
+          {% if peopleform.email.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.email.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.mobno.id_for_label }}" class="form-label">
+            {{ peopleform.mobno.label }}
+          </label>
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="material-icons">phone</i>
+            </span>
+            {{ peopleform.mobno }}
+          </div>
+          {% if peopleform.mobno.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.mobno.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Professional Information Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">work</i>
+      Professional Information
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.designation.id_for_label }}" class="form-label">
+            {{ peopleform.designation.label }}
+          </label>
+          {{ peopleform.designation }}
+          {% if peopleform.designation.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.designation.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.department.id_for_label }}" class="form-label">
+            {{ peopleform.department.label }}
+          </label>
+          {{ peopleform.department }}
+          {% if peopleform.department.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.department.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.peopletype.id_for_label }}" class="form-label">
+            {{ peopleform.peopletype.label }}
+          </label>
+          {{ peopleform.peopletype }}
+          {% if peopleform.peopletype.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.peopletype.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.bu.id_for_label }}" class="form-label required">
+            {{ peopleform.bu.label }}
+          </label>
+          {{ peopleform.bu }}
+          {% if peopleform.bu.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.bu.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Location & Access Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">location_on</i>
+      Location & Access
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ peopleform.location.id_for_label }}" class="form-label">
+            {{ peopleform.location.label }}
+          </label>
+          {{ peopleform.location }}
+          {% if peopleform.location.errors %}
+            <div class="invalid-feedback">
+              {{ peopleform.location.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- Profile Image Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">photo_camera</i>
+      Profile Image
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="upload-area" id="imageUploadArea">
+          <div class="upload-icon">
+            <i class="material-icons">cloud_upload</i>
+          </div>
+          <div class="upload-text">Drop image here or click to upload</div>
+          <div class="upload-subtext">Supports: JPG, PNG, GIF (Max: 5MB)</div>
+          {{ peopleform.peopleimg }}
+        </div>
+        {% if peopleform.peopleimg.errors %}
+          <div class="invalid-feedback">
+            {{ peopleform.peopleimg.errors.0 }}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="col-md-6">
+        <div class="image-preview" id="imagePreview">
+          {% if peopleform.instance.peopleimg %}
+            <img src="{{ peopleform.instance.peopleimg.url }}" alt="Profile Image" class="img-fluid rounded" style="max-height: 200px;">
+            <div class="mt-2">
+              <small class="text-muted">Current profile image</small>
+            </div>
+          {% else %}
+            <div class="text-center p-4">
+              <i class="material-icons" style="font-size: 4rem; color: #8392a5;">account_circle</i>
+              <p class="text-muted">No image uploaded</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Settings Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">settings</i>
+      System Settings
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-check form-switch">
+          {{ peopleform.enable }}
+          <label class="form-check-label" for="{{ peopleform.enable.id_for_label }}">
+            <strong>{{ peopleform.enable.label }}</strong>
+            <div class="form-text">Allow this person to access the system</div>
+          </label>
+        </div>
+        {% if peopleform.enable.errors %}
+          <div class="invalid-feedback">
+            {{ peopleform.enable.errors.0 }}
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-check form-switch">
+          {{ peopleform.isadmin }}
+          <label class="form-check-label" for="{{ peopleform.isadmin.id_for_label }}">
+            <strong>{{ peopleform.isadmin.label }}</strong>
+            <div class="form-text">Grant administrative privileges</div>
+          </label>
+        </div>
+        {% if peopleform.isadmin.errors %}
+          <div class="invalid-feedback">
+            {{ peopleform.isadmin.errors.0 }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</form>
+{% endblock form_content %}
+
+{% block form_actions %}
+{% if peopleform.instance.id %}
+  <button type="submit" form="people-form" class="btn btn-primary">
+    <i class="material-icons">save</i>
+    Update Person
+  </button>
+  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+    <i class="material-icons">delete</i>
+    Delete
+  </button>
+{% else %}
+  <button type="submit" form="people-form" class="btn btn-success">
+    <i class="material-icons">person_add</i>
+    Create Person
+  </button>
+{% endif %}
+<button type="button" class="btn btn-secondary" onclick="window.location.href='{{ url('peoples:people') }}'">
+  <i class="material-icons">cancel</i>
+  Cancel
+</button>
+{% endblock form_actions %}
+
+<!-- Delete Confirmation Modal -->
+{% if peopleform.instance.id %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">
+          <i class="material-icons me-2 text-danger">warning</i>
+          Confirm Deletion
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ peopleform.instance.peoplename }}</strong>?</p>
+        <div class="alert alert-warning">
+          <i class="material-icons me-2">info</i>
+          <strong>Warning:</strong> This action cannot be undone. All associated data will be permanently removed.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{{ url('peoples:people') }}?action=delete&id={{ peopleform.instance.id }}" style="display: inline;">
+          <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+          <button type="submit" class="btn btn-danger">
+            <i class="material-icons me-1">delete_forever</i>
+            Delete Permanently
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+$(document).ready(function() {
+  // Enable auto-save for this form
+  window.enableAutoSave = true;
+
+  // Image upload handling
+  const imageInput = $('#id_peopleimg');
+  const uploadArea = $('#imageUploadArea');
+  const imagePreview = $('#imagePreview');
+
+  // Make upload area clickable
+  uploadArea.on('click', function() {
+    imageInput.click();
+  });
+
+  // Handle file selection
+  imageInput.on('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      previewImage(file);
+      validateImageFile(file);
+    }
+  });
+
+  // Drag and drop functionality
+  uploadArea.on('dragover dragenter', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadArea.addClass('dragover');
+  });
+
+  uploadArea.on('dragleave dragend', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadArea.removeClass('dragover');
+  });
+
+  uploadArea.on('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadArea.removeClass('dragover');
+    
+    const files = e.originalEvent.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        imageInput[0].files = files;
+        previewImage(file);
+        validateImageFile(file);
+      } else {
+        showAlert('danger', 'Please select a valid image file.');
+      }
+    }
+  });
+
+  // Preview image function
+  function previewImage(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      imagePreview.html(`
+        <img src="${e.target.result}" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px;">
+        <div class="mt-2">
+          <small class="text-success">New image selected</small>
+          <div>
+            <small class="text-muted">${file.name} (${formatFileSize(file.size)})</small>
+          </div>
+        </div>
+      `);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Validate image file
+  function validateImageFile(file) {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+    if (!allowedTypes.includes(file.type)) {
+      showAlert('danger', 'Invalid file type. Please select a JPG, PNG, or GIF image.');
+      imageInput.val('');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      showAlert('danger', 'File size is too large. Please select an image under 5MB.');
+      imageInput.val('');
+      return false;
+    }
+
+    return true;
+  }
+
+  // Format file size
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // Show alert function
+  function showAlert(type, message) {
+    const alertHtml = `
+      <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        <i class="material-icons me-2">${type === 'danger' ? 'error' : 'check_circle'}</i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    
+    // Remove existing alerts
+    $('.alert:not(.permanent)').remove();
+    
+    // Add new alert at the top of the form
+    $('.form-body').prepend(alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      $('.alert').fadeOut();
+    }, 5000);
+  }
+
+  // Form validation enhancements
+  $('#people-form').on('submit', function(e) {
+    let isValid = true;
+    const requiredFields = $(this).find('input[required], select[required], textarea[required]');
+    
+    requiredFields.each(function() {
+      const field = $(this);
+      const value = field.val();
+      
+      if (!value || value.trim() === '') {
+        isValid = false;
+        field.addClass('is-invalid');
+        field.closest('.form-group').addClass('form-error');
+      } else {
+        field.removeClass('is-invalid');
+        field.closest('.form-group').removeClass('form-error');
+      }
+    });
+
+    // Email validation
+    const emailField = $('#id_email');
+    if (emailField.val() && !isValidEmail(emailField.val())) {
+      isValid = false;
+      emailField.addClass('is-invalid');
+      emailField.closest('.form-group').addClass('form-error');
+      showAlert('danger', 'Please enter a valid email address.');
+    }
+
+    // Phone validation
+    const phoneField = $('#id_mobno');
+    if (phoneField.val() && !isValidPhone(phoneField.val())) {
+      isValid = false;
+      phoneField.addClass('is-invalid');
+      phoneField.closest('.form-group').addClass('form-error');
+      showAlert('danger', 'Please enter a valid phone number.');
+    }
+
+    if (!isValid) {
+      e.preventDefault();
+      showAlert('danger', 'Please correct the errors below and try again.');
+      
+      // Scroll to first error
+      const firstError = $('.form-error').first();
+      if (firstError.length) {
+        $('html, body').animate({
+          scrollTop: firstError.offset().top - 100
+        }, 500);
+      }
+    }
+  });
+
+  // Real-time validation
+  $('input, select, textarea').on('blur', function() {
+    const field = $(this);
+    const value = field.val();
+    
+    if (field.attr('required') && (!value || value.trim() === '')) {
+      field.addClass('is-invalid');
+      field.closest('.form-group').addClass('form-error');
+    } else {
+      field.removeClass('is-invalid');
+      field.closest('.form-group').removeClass('form-error').addClass('form-success');
+    }
+  });
+
+  // Email validation function
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  // Phone validation function
+  function isValidPhone(phone) {
+    const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
+    return phoneRegex.test(phone);
+  }
+
+  // Generate person code automatically if empty
+  $('#id_peoplename').on('blur', function() {
+    const name = $(this).val();
+    const codeField = $('#id_peoplecode');
+    
+    if (name && !codeField.val()) {
+      const generatedCode = generatePersonCode(name);
+      codeField.val(generatedCode);
+      codeField.trigger('blur'); // Trigger validation
+    }
+  });
+
+  // Generate person code from name
+  function generatePersonCode(name) {
+    const sitecode = "{{ request.session.sitecode or '' }}";
+    const nameParts = name.trim().split(' ');
+    let code = sitecode + '_';
+    
+    if (nameParts.length >= 2) {
+      code += nameParts[0].substring(0, 3).toUpperCase() + 
+              nameParts[nameParts.length - 1].substring(0, 3).toUpperCase();
+    } else {
+      code += name.substring(0, 6).toUpperCase();
+    }
+    
+    // Add timestamp to ensure uniqueness
+    const timestamp = Date.now().toString().slice(-4);
+    code += timestamp;
+    
+    return code;
+  }
+
+  // Initialize Select2 for dropdowns
+  if ($.fn.select2) {
+    $('select').select2({
+      theme: 'bootstrap-5',
+      width: '100%'
+    });
+  }
+
+  // Load form draft on page load
+  loadFormDraft();
+
+  // Clear draft on successful submission
+  $('#people-form').on('submit', function() {
+    localStorage.removeItem('form_draft_' + window.location.pathname);
+  });
+});
+</script>
+{% endblock extra_scripts %}

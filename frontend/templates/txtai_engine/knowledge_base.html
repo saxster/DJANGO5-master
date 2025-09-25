@@ -1,0 +1,48 @@
+{% extends 'globals/base.html' %}
+
+{% block title %}Knowledge Base - AI{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Knowledge Base Management</h2>
+    <p class="text-muted">RAG (Retrieval Augmented Generation) Knowledge Bases</p>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Available Knowledge Bases</h5>
+                </div>
+                <div class="card-body">
+                    {% if knowledge_bases %}
+                        <div class="list-group">
+                            {% for kb in knowledge_bases %}
+                            <div class="list-group-item">
+                                <h6>{{ kb.name }}</h6>
+                                <p class="mb-1">{{ kb.description }}</p>
+                                <small>Type: {{ kb.knowledge_type }} | Queries: {{ kb.total_rag_queries }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No knowledge bases available yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>RAG Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Queries:</strong> {{ rag_stats.total_queries }}</p>
+                    <p><strong>Avg Confidence:</strong> {{ rag_stats.avg_confidence|floatformat:2 }}</p>
+                    <p><strong>Avg Response Time:</strong> {{ rag_stats.avg_response_time|floatformat:0 }}ms</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

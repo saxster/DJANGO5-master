@@ -1,0 +1,10 @@
+from django.apps import AppConfig
+
+
+class FaceRecognitionConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'apps.face_recognition'
+    verbose_name = 'Enhanced Face Recognition'
+
+    def ready(self):
+        import apps.face_recognition.signals

@@ -1,0 +1,696 @@
+"""
+Integration tests for heatmap visualization views
+"""
+import pytest
+import json
+from django.test import RequestFactory, Client
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
+from django.utils import timezone
+from datetime import timedelta
+from unittest.mock import patch, MagicMock
+
+from apps.core.views.heatmap_views import (
+    HeatmapDashboardView, HeatmapDataAPIView, HeatmapComparisonView, HeatmapExportView
+)
+from apps.core.models.heatmap import (
+    HeatmapSession, ClickHeatmap, ScrollHeatmap, AttentionHeatmap, 
+    ElementInteraction, HeatmapAggregation
+)
+from tests.factories.heatmap_factories import (
+    HeatmapSessionFactory, ClickHeatmapFactory, ScrollHeatmapFactory,
+    AttentionHeatmapFactory, ElementInteractionFactory, HeatmapAggregationFactory,
+    UserFactory, create_complete_session_with_data
+)
+
+User = get_user_model()
+pytestmark = pytest.mark.django_db
+
+
+class TestHeatmapDashboardView:
+    """Test HeatmapDashboardView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.staff_user = UserFactory(is_staff=True)
+        self.regular_user = UserFactory(is_staff=False)
+        self.view = HeatmapDashboardView()
+        cache.clear()
+    
+    def test_dashboard_requires_login(self):
+        """Test that dashboard requires login"""
+        response = self.client.get('/heatmap/dashboard/')
+        assert response.status_code == 302  # Redirect to login
+    
+    def test_dashboard_requires_staff_permission(self):
+        """Test that only staff users can access dashboard"""
+        self.client.force_login(self.regular_user)
+        response = self.client.get('/heatmap/dashboard/')
+        assert response.status_code == 403  # Forbidden
+    
+    def test_staff_user_can_access_dashboard(self):
+        """Test that staff users can access dashboard"""
+        # Create some test data
+        create_complete_session_with_data()
+        
+        request = self.factory.get('/heatmap/dashboard/')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        assert response.status_code == 200
+    
+    def test_dashboard_context_contains_required_data(self):
+        """Test that dashboard context contains all required data"""
+        # Create test sessions
+        session1 = create_complete_session_with_data(page_url='/page1/')
+        session2 = create_complete_session_with_data(page_url='/page2/')
+        
+        request = self.factory.get('/heatmap/dashboard/')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        
+        # Extract context data (would normally come from render)
+        context = {
+            'title': 'User Behavior Heatmaps',
+            'page_list': self.view._get_tracked_pages(),
+            'device_types': ['all', 'desktop', 'tablet', 'mobile'],
+            'time_ranges': self.view._get_time_ranges(),
+        }
+        
+        assert context['title'] == 'User Behavior Heatmaps'
+        assert len(context['page_list']) >= 2
+        assert 'desktop' in context['device_types']
+        assert len(context['time_ranges']) == 5
+    
+    def test_get_tracked_pages(self):
+        """Test _get_tracked_pages method"""
+        # Create sessions for different pages
+        for i in range(3):
+            create_complete_session_with_data(page_url=f'/page{i}/')
+        
+        pages = self.view._get_tracked_pages()
+        
+        assert len(pages) >= 3
+        for page in pages:
+            assert 'page_url' in page
+            assert 'page_title' in page
+            assert 'session_count' in page
+            assert 'last_tracked' in page
+    
+    def test_get_time_ranges(self):
+        """Test _get_time_ranges method"""
+        ranges = self.view._get_time_ranges()
+        
+        expected_values = ['1h', '24h', '7d', '30d', 'custom']
+        actual_values = [r['value'] for r in ranges]
+        
+        assert all(v in actual_values for v in expected_values)
+
+
+class TestHeatmapDataAPIView:
+    """Test HeatmapDataAPIView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.staff_user = UserFactory(is_staff=True)
+        self.regular_user = UserFactory(is_staff=False)
+        self.view = HeatmapDataAPIView()
+        cache.clear()
+    
+    def test_api_requires_authentication(self):
+        """Test that API requires authentication"""
+        response = self.client.get('/api/heatmap/data/')
+        assert response.status_code == 302  # Redirect to login
+    
+    def test_api_requires_staff_permission(self):
+        """Test that API requires staff permission"""
+        self.client.force_login(self.regular_user)
+        response = self.client.get('/api/heatmap/data/?page_url=/test/')
+        assert response.status_code == 403
+    
+    def test_missing_page_url_parameter(self):
+        """Test that page_url parameter is required"""
+        request = self.factory.get('/api/heatmap/data/')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 400
+        assert 'error' in data
+        assert 'page_url parameter required' in data['error']
+    
+    def test_click_heatmap_data_generation(self):
+        """Test click heatmap data generation"""
+        # Create test data
+        session = create_complete_session_with_data(
+            page_url='/test-page/',
+            num_clicks=10
+        )
+        
+        request = self.factory.get('/api/heatmap/data/?page_url=/test-page/&type=click')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'click'
+        assert data['page_url'] == '/test-page/'
+        assert data['session_count'] == 1
+        assert data['total_clicks'] > 0
+        assert 'click_points' in data
+        assert 'heatmap_matrix' in data
+        assert 'statistics' in data
+    
+    def test_scroll_heatmap_data_generation(self):
+        """Test scroll heatmap data generation"""
+        session = create_complete_session_with_data(
+            page_url='/test-page/',
+            num_scrolls=5
+        )
+        
+        request = self.factory.get('/api/heatmap/data/?page_url=/test-page/&type=scroll')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'scroll'
+        assert 'depth_distribution' in data
+        assert 'avg_max_depth' in data
+        assert data['avg_max_depth'] >= 0
+    
+    def test_attention_heatmap_data_generation(self):
+        """Test attention heatmap data generation"""
+        session = create_complete_session_with_data(page_url='/test-page/')
+        
+        request = self.factory.get('/api/heatmap/data/?page_url=/test-page/&type=attention')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'attention'
+        assert 'attention_zones' in data
+        assert 'content_type_breakdown' in data
+    
+    def test_interaction_heatmap_data_generation(self):
+        """Test interaction heatmap data generation"""
+        session = create_complete_session_with_data(
+            page_url='/test-page/',
+            num_interactions=8
+        )
+        
+        request = self.factory.get('/api/heatmap/data/?page_url=/test-page/&type=interaction')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'interaction'
+        assert 'top_interactions' in data
+        assert 'interaction_map' in data
+        assert 'interaction_types' in data
+    
+    def test_invalid_heatmap_type(self):
+        """Test handling of invalid heatmap type"""
+        request = self.factory.get('/api/heatmap/data/?page_url=/test/&type=invalid')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 400
+        assert 'error' in data
+        assert 'Invalid heatmap type' in data['error']
+    
+    def test_device_type_filtering(self):
+        """Test device type filtering"""
+        # Create sessions for different device types
+        create_complete_session_with_data(page_url='/test/', device_type='desktop')
+        create_complete_session_with_data(page_url='/test/', device_type='mobile')
+        
+        # Test desktop filter
+        request = self.factory.get('/api/heatmap/data/?page_url=/test/&device_type=desktop&type=click')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['session_count'] == 1  # Only desktop session
+    
+    def test_time_range_filtering(self):
+        """Test time range filtering"""
+        # Create old session
+        old_time = timezone.now() - timedelta(days=2)
+        with patch('django.utils.timezone.now', return_value=old_time):
+            old_session = create_complete_session_with_data(page_url='/test/')
+        
+        # Create recent session
+        recent_session = create_complete_session_with_data(page_url='/test/')
+        
+        # Test 24h filter
+        request = self.factory.get('/api/heatmap/data/?page_url=/test/&time_range=24h&type=click')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['session_count'] == 1  # Only recent session
+    
+    @patch('django.core.cache.cache.get')
+    @patch('django.core.cache.cache.set')
+    def test_caching_behavior(self, mock_set, mock_get):
+        """Test that results are cached properly"""
+        mock_get.return_value = None  # Cache miss
+        
+        create_complete_session_with_data(page_url='/test/')
+        
+        request = self.factory.get('/api/heatmap/data/?page_url=/test/&type=click')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+        mock_set.assert_called_once()
+    
+    def test_calculate_start_date(self):
+        """Test _calculate_start_date method"""
+        end_date = timezone.now()
+        
+        # Test different time ranges
+        start_1h = self.view._calculate_start_date('1h', end_date)
+        assert (end_date - start_1h).total_seconds() == 3600
+        
+        start_24h = self.view._calculate_start_date('24h', end_date)
+        assert (end_date - start_24h).days == 1
+        
+        start_7d = self.view._calculate_start_date('7d', end_date)
+        assert (end_date - start_7d).days == 7
+    
+    def test_generate_heatmap_matrix(self):
+        """Test _generate_heatmap_matrix method"""
+        points = [
+            {'x': 0.5, 'y': 0.5, 'value': 1},
+            {'x': 0.6, 'y': 0.6, 'value': 1},
+            {'x': 0.5, 'y': 0.5, 'value': 1}  # Duplicate position
+        ]
+        
+        matrix = self.view._generate_heatmap_matrix(points, grid_size=10)
+        
+        assert len(matrix) == 10
+        assert len(matrix[0]) == 10
+        assert all(0 <= val <= 1 for row in matrix for val in row)
+    
+    def test_get_sessions_filtering(self):
+        """Test _get_sessions method with various filters"""
+        # Create test sessions
+        desktop_session = HeatmapSessionFactory(
+            page_url='/test/',
+            device_type='desktop',
+            start_time=timezone.now() - timedelta(hours=1)
+        )
+        mobile_session = HeatmapSessionFactory(
+            page_url='/test/',
+            device_type='mobile',
+            start_time=timezone.now() - timedelta(hours=1)
+        )
+        different_page_session = HeatmapSessionFactory(
+            page_url='/other/',
+            device_type='desktop',
+            start_time=timezone.now() - timedelta(hours=1)
+        )
+        
+        start_date = timezone.now() - timedelta(hours=2)
+        end_date = timezone.now()
+        
+        # Test all devices
+        all_sessions = self.view._get_sessions('/test/', 'all', start_date, end_date)
+        assert all_sessions.count() == 2
+        
+        # Test specific device
+        desktop_sessions = self.view._get_sessions('/test/', 'desktop', start_date, end_date)
+        assert desktop_sessions.count() == 1
+        assert desktop_sessions.first() == desktop_session
+
+
+class TestHeatmapComparisonView:
+    """Test HeatmapComparisonView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.staff_user = UserFactory(is_staff=True)
+        self.view = HeatmapComparisonView()
+        cache.clear()
+    
+    def test_comparison_requires_authentication(self):
+        """Test that comparison view requires authentication"""
+        response = self.client.get('/api/heatmap/comparison/')
+        assert response.status_code == 302
+    
+    def test_missing_page_url(self):
+        """Test handling of missing page_url parameter"""
+        request = self.factory.get('/api/heatmap/comparison/')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 400
+        assert 'error' in data
+    
+    def test_device_comparison(self):
+        """Test device type comparison"""
+        # Create sessions for different devices
+        create_complete_session_with_data(page_url='/test/', device_type='desktop')
+        create_complete_session_with_data(page_url='/test/', device_type='mobile')
+        
+        request = self.factory.get('/api/heatmap/comparison/?page_url=/test/&comparison=device')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'device_comparison'
+        assert 'desktop' in data['data']
+        assert 'mobile' in data['data']
+    
+    def test_time_comparison(self):
+        """Test time period comparison"""
+        # Create sessions at different times
+        today = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        yesterday = today - timedelta(days=1)
+        
+        with patch('django.utils.timezone.now', return_value=today):
+            create_complete_session_with_data(page_url='/test/')
+        
+        with patch('django.utils.timezone.now', return_value=yesterday):
+            create_complete_session_with_data(page_url='/test/')
+        
+        request = self.factory.get('/api/heatmap/comparison/?page_url=/test/&comparison=time')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'time_comparison'
+        assert 'data' in data
+    
+    def test_user_segment_comparison(self):
+        """Test user segment comparison"""
+        # Create sessions for authenticated and anonymous users
+        auth_user = UserFactory()
+        create_complete_session_with_data(page_url='/test/', user=auth_user)
+        create_complete_session_with_data(page_url='/test/', user=None)
+        
+        request = self.factory.get('/api/heatmap/comparison/?page_url=/test/&comparison=user_segment')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['type'] == 'user_segment_comparison'
+        assert 'authenticated' in data['data']
+        assert 'anonymous' in data['data']
+    
+    def test_invalid_comparison_type(self):
+        """Test handling of invalid comparison type"""
+        request = self.factory.get('/api/heatmap/comparison/?page_url=/test/&comparison=invalid')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 400
+        assert 'error' in data
+    
+    def test_get_segment_stats(self):
+        """Test _get_segment_stats method"""
+        session = create_complete_session_with_data()
+        sessions = HeatmapSession.objects.filter(id=session.id)
+        
+        stats = self.view._get_segment_stats(sessions)
+        
+        assert stats is not None
+        assert 'session_count' in stats
+        assert 'avg_duration' in stats
+        assert 'total_clicks' in stats
+        assert 'total_interactions' in stats
+        assert 'interaction_rate' in stats
+    
+    def test_empty_segment_stats(self):
+        """Test _get_segment_stats with empty queryset"""
+        empty_sessions = HeatmapSession.objects.none()
+        stats = self.view._get_segment_stats(empty_sessions)
+        
+        assert stats is None
+
+
+class TestHeatmapExportView:
+    """Test HeatmapExportView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.staff_user = UserFactory(is_staff=True)
+        self.view = HeatmapExportView()
+        cache.clear()
+    
+    def test_export_requires_authentication(self):
+        """Test that export requires authentication"""
+        response = self.client.get('/api/heatmap/export/')
+        assert response.status_code == 302
+    
+    def test_missing_page_url(self):
+        """Test handling of missing page_url parameter"""
+        request = self.factory.get('/api/heatmap/export/')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 400
+        assert 'error' in data
+    
+    def test_json_export(self):
+        """Test JSON export functionality"""
+        # Create test data
+        session = create_complete_session_with_data(page_url='/test/')
+        
+        request = self.factory.get('/api/heatmap/export/?page_url=/test/&format=json')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['page_url'] == '/test/'
+        assert 'export_date' in data
+        assert 'session_count' in data
+        assert 'sessions' in data
+        assert 'summary' in data
+        assert len(data['sessions']) >= 1
+    
+    def test_csv_export(self):
+        """Test CSV export functionality"""
+        session = create_complete_session_with_data(page_url='/test/')
+        
+        request = self.factory.get('/api/heatmap/export/?page_url=/test/&format=csv')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'text/csv'
+        assert 'attachment; filename=' in response['Content-Disposition']
+        
+        # Check CSV content
+        content = response.content.decode('utf-8')
+        lines = content.split('\n')
+        assert len(lines) >= 2  # Header + at least one data row
+        assert 'Session ID' in lines[0]
+    
+    def test_invalid_export_format(self):
+        """Test handling of invalid export format"""
+        request = self.factory.get('/api/heatmap/export/?page_url=/test/&format=xml')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 400
+        assert 'error' in data
+    
+    def test_time_range_filtering_in_export(self):
+        """Test time range filtering in export"""
+        # Create old and recent sessions
+        old_time = timezone.now() - timedelta(days=10)
+        recent_time = timezone.now() - timedelta(hours=1)
+        
+        with patch('django.utils.timezone.now', return_value=old_time):
+            old_session = create_complete_session_with_data(page_url='/test/')
+        
+        with patch('django.utils.timezone.now', return_value=recent_time):
+            recent_session = create_complete_session_with_data(page_url='/test/')
+        
+        # Test 7d filter
+        request = self.factory.get('/api/heatmap/export/?page_url=/test/&time_range=7d&format=json')
+        request.user = self.staff_user
+        
+        response = self.view.get(request)
+        data = json.loads(response.content)
+        
+        assert response.status_code == 200
+        assert data['session_count'] == 1  # Only recent session
+    
+    def test_generate_summary(self):
+        """Test _generate_summary method"""
+        session = create_complete_session_with_data()
+        sessions = HeatmapSession.objects.filter(id=session.id)
+        
+        summary = self.view._generate_summary(sessions)
+        
+        assert 'total_sessions' in summary
+        assert 'unique_users' in summary
+        assert 'avg_duration' in summary
+        assert 'total_clicks' in summary
+        assert 'total_scrolls' in summary
+        assert 'total_interactions' in summary
+        assert 'device_breakdown' in summary
+    
+    def test_empty_summary(self):
+        """Test _generate_summary with empty queryset"""
+        empty_sessions = HeatmapSession.objects.none()
+        summary = self.view._generate_summary(empty_sessions)
+        
+        assert summary == {}
+    
+    def test_calculate_start_date_export(self):
+        """Test _calculate_start_date method in export view"""
+        end_date = timezone.now()
+        
+        start_1d = self.view._calculate_start_date('1d', end_date)
+        assert (end_date - start_1d).days == 1
+        
+        start_7d = self.view._calculate_start_date('7d', end_date)
+        assert (end_date - start_7d).days == 7
+        
+        start_30d = self.view._calculate_start_date('30d', end_date)
+        assert (end_date - start_30d).days == 30
+
+
+class TestViewIntegration:
+    """Test integration between different views"""
+    
+    def setup_method(self):
+        self.client = Client()
+        self.staff_user = UserFactory(is_staff=True)
+        cache.clear()
+    
+    @pytest.mark.integration
+    def test_complete_heatmap_workflow(self):
+        """Test complete workflow from data creation to visualization"""
+        self.client.force_login(self.staff_user)
+        
+        # Create comprehensive test data
+        for device in ['desktop', 'mobile', 'tablet']:
+            session = create_complete_session_with_data(
+                page_url='/test-workflow/',
+                device_type=device,
+                num_clicks=5,
+                num_scrolls=3,
+                num_interactions=4
+            )
+        
+        # Test dashboard access
+        dashboard_response = self.client.get('/heatmap/dashboard/')
+        assert dashboard_response.status_code == 200
+        
+        # Test data API for different types
+        for heatmap_type in ['click', 'scroll', 'attention', 'interaction']:
+            api_response = self.client.get(
+                f'/api/heatmap/data/?page_url=/test-workflow/&type={heatmap_type}'
+            )
+            assert api_response.status_code == 200
+            data = json.loads(api_response.content)
+            assert data['type'] == heatmap_type
+            assert data['session_count'] == 3
+        
+        # Test comparison
+        comparison_response = self.client.get(
+            '/api/heatmap/comparison/?page_url=/test-workflow/&comparison=device'
+        )
+        assert comparison_response.status_code == 200
+        comp_data = json.loads(comparison_response.content)
+        assert len(comp_data['data']) == 3  # desktop, mobile, tablet
+        
+        # Test export
+        export_response = self.client.get(
+            '/api/heatmap/export/?page_url=/test-workflow/&format=json'
+        )
+        assert export_response.status_code == 200
+        export_data = json.loads(export_response.content)
+        assert export_data['session_count'] == 3
+    
+    @pytest.mark.integration
+    def test_error_handling_consistency(self):
+        """Test that error handling is consistent across views"""
+        self.client.force_login(self.staff_user)
+        
+        # Test missing page_url parameter across different endpoints
+        endpoints = [
+            '/api/heatmap/data/',
+            '/api/heatmap/comparison/',
+            '/api/heatmap/export/'
+        ]
+        
+        for endpoint in endpoints:
+            response = self.client.get(endpoint)
+            data = json.loads(response.content)
+            assert response.status_code == 400
+            assert 'error' in data
+    
+    @pytest.mark.integration
+    def test_performance_with_large_dataset(self):
+        """Test view performance with larger dataset"""
+        self.client.force_login(self.staff_user)
+        
+        # Create larger dataset
+        for i in range(20):
+            create_complete_session_with_data(
+                page_url='/performance-test/',
+                num_clicks=10,
+                num_scrolls=5,
+                num_interactions=8
+            )
+        
+        # Test that API responds within reasonable time
+        import time
+        
+        start_time = time.time()
+        response = self.client.get(
+            '/api/heatmap/data/?page_url=/performance-test/&type=click'
+        )
+        end_time = time.time()
+        
+        assert response.status_code == 200
+        assert (end_time - start_time) < 5  # Should complete within 5 seconds
+        
+        data = json.loads(response.content)
+        assert data['session_count'] == 20

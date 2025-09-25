@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .card h3 {
+            color: #2d3748;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: #f7fafc;
+            border-radius: 5px;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .health-good { color: #38a169; }
+        .health-warning { color: #d69e2e; }
+        .health-critical { color: #e53e3e; }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+        }
+        
+        .error {
+            background: #fed7d7;
+            color: #9b2c2c;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .progress-fill {
+            height: 20px;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            transition: width 0.3s ease;
+        }
+        
+        .url-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+        }
+        
+        .url-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid #f7fafc;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        
+        .url-item:last-child {
+            border-bottom: none;
+        }
+        
+        .url-old {
+            color: #e53e3e;
+            font-family: monospace;
+        }
+        
+        .url-new {
+            color: #38a169;
+            font-family: monospace;
+        }
+        
+        .refresh-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        
+        .refresh-btn:hover {
+            background: #3182ce;
+        }
+        
+        .timestamp {
+            font-size: 0.8rem;
+            color: #718096;
+            text-align: center;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>🏗️ Information Architecture Dashboard</h1>
+            <p>Monitor URL optimization and navigation patterns</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="dashboard-content">
+            <div class="loading">
+                <p>Loading analytics data...</p>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="loadDashboard()">🔄 Refresh Data</button>
+        
+        <div class="timestamp" id="last-updated"></div>
+    </div>
+
+    <script>
+        async function loadDashboard() {
+            const contentDiv = document.getElementById('dashboard-content');
+            const timestampDiv = document.getElementById('last-updated');
+            
+            try {
+                contentDiv.innerHTML = '<div class="loading"><p>Loading analytics data...</p></div>';
+                
+                const response = await fetch('{{ analytics_url }}');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                renderDashboard(data);
+                timestampDiv.textContent = `Last updated: ${new Date(data.timestamp).toLocaleString()}`;
+                
+            } catch (error) {
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error loading dashboard</h3>
+                        <p>${error.message}</p>
+                        <p>Please check the server logs for more details.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderDashboard(data) {
+            const summary = data.summary || {};
+            const navigation = data.navigation || {};
+            const migration = data.migration || {};
+            const performance = data.performance || {};
+            
+            const healthClass = getHealthClass(summary.system_health || 0);
+            
+            const html = `
+                <div class="dashboard-grid">
+                    <!-- System Health Overview -->
+                    <div class="card">
+                        <h3>📊 System Health</h3>
+                        <div class="metric">
+                            <span>Overall Health Score</span>
+                            <span class="metric-value ${healthClass}">${summary.system_health || 0}/100</span>
+                        </div>
+                        <div class="metric">
+                            <span>Total URL Mappings</span>
+                            <span class="metric-value">${summary.total_url_mappings || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Tracked Pages</span>
+                            <span class="metric-value">${summary.tracked_pages || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Dead URLs Found</span>
+                            <span class="metric-value ${summary.dead_urls > 0 ? 'health-warning' : 'health-good'}">${summary.dead_urls || 0}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Migration Progress -->
+                    <div class="card">
+                        <h3>🔄 Migration Progress</h3>
+                        <div class="metric">
+                            <span>Migration Complete</span>
+                            <span class="metric-value health-good">${migration.migration_percentage || 0}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${migration.migration_percentage || 0}%"></div>
+                        </div>
+                        <div class="metric">
+                            <span>Migrated URLs</span>
+                            <span class="metric-value">${migration.migrated_urls || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Legacy URLs Still Used</span>
+                            <span class="metric-value ${migration.still_used_legacy > 0 ? 'health-warning' : 'health-good'}">${migration.still_used_legacy || 0}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Analytics -->
+                    <div class="card">
+                        <h3>📈 Navigation Insights</h3>
+                        <div class="metric">
+                            <span>Popular Pages</span>
+                            <span class="metric-value">${navigation.popular_paths?.total_tracked_paths || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Active Sessions</span>
+                            <span class="metric-value">${navigation.user_flows?.active_sessions || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>404 Errors</span>
+                            <span class="metric-value ${navigation.dead_urls?.total_dead_urls > 0 ? 'health-critical' : 'health-good'}">${navigation.dead_urls?.total_dead_urls || 0}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Metrics -->
+                    <div class="card">
+                        <h3>⚡ Performance</h3>
+                        <div class="metric">
+                            <span>Slow Pages (>2s)</span>
+                            <span class="metric-value ${performance.slow_pages?.length > 0 ? 'health-critical' : 'health-good'}">${performance.slow_pages?.length || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Fast Pages (<0.5s)</span>
+                            <span class="metric-value health-good">${performance.fast_pages?.length || 0}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Total Tracked</span>
+                            <span class="metric-value">${performance.total_tracked_pages || 0}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Legacy URLs Still Used -->
+                    <div class="card" style="grid-column: span 2;">
+                        <h3>🔗 Most Used Legacy URLs</h3>
+                        <div class="url-list">
+                            ${migration.top_legacy_usage?.map(item => `
+                                <div class="url-item">
+                                    <div>
+                                        <div class="url-old">${item.url}</div>
+                                        <div class="url-new">→ ${item.new_url}</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div><strong>${item.usage_count}</strong> uses</div>
+                                        <div>${item.unique_users} users</div>
+                                    </div>
+                                </div>
+                            `).join('') || '<div class="url-item">No legacy URL usage detected</div>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Recommendations -->
+                    <div class="card" style="grid-column: span 2;">
+                        <h3>💡 Recommendations</h3>
+                        ${navigation.recommendations?.map(rec => `
+                            <div class="metric">
+                                <span>${rec.message}</span>
+                                <span class="metric-value ${rec.priority === 'high' ? 'health-critical' : rec.priority === 'medium' ? 'health-warning' : 'health-good'}">${rec.priority.toUpperCase()}</span>
+                            </div>
+                        `).join('') || '<div class="metric"><span>No recommendations at this time</span><span class="metric-value health-good">ALL GOOD</span></div>'}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('dashboard-content').innerHTML = html;
+        }
+        
+        function getHealthClass(score) {
+            if (score >= 90) return 'health-good';
+            if (score >= 70) return 'health-warning';
+            return 'health-critical';
+        }
+        
+        // Load dashboard on page load
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+        
+        // Auto-refresh every 5 minutes
+        setInterval(loadDashboard, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

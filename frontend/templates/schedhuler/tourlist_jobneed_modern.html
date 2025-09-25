@@ -1,0 +1,769 @@
+{% extends "globals/base_list.html" %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+{{ tour_type|default('Tour', true) }} Management - Card View
+<div class="float-end">
+	<a href="{{ request.path }}?template=true&old=true" class="btn btn-sm btn-light-secondary me-2">
+		<i class="bi bi-table"></i> Classic View
+	</a>
+	<a href="{{ request.path }}?template=true&list=true" class="btn btn-sm btn-light-primary me-2">
+		<i class="bi bi-list-ul"></i> List View
+	</a>
+	{% if tour_type == 'External Tour' %}
+	<a href="{{ url('schedhuler:schd_external_tour') }}?action=form" class="btn btn-sm btn-primary">
+		<i class="bi bi-plus"></i> Add Route Plan
+	</a>
+	{% else %}
+	<a href="{{ url('schedhuler:schd_internal_tour') }}?action=form" class="btn btn-sm btn-primary">
+		<i class="bi bi-plus"></i> Add Tour
+	</a>
+	{% endif %}
+</div>
+{% endblock card_title %}
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+{{ tour_type|default('Tour', true) }} Management
+{% endblock page_title %}
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{{ request.path }}?template=true" class="pe-3">{{ tour_type|default('Tours', true) }}</a></li>
+{% endblock pagebreadcumb %}
+
+<!---- BEGIN EXTRA CSS ------>
+{% block extra_css %}
+<style>
+/* Modern Tour List Styles */
+.tour-filters {
+	background: #fff;
+	padding: 20px;
+	border-radius: 10px;
+	margin-bottom: 20px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tour-search {
+	position: relative;
+}
+
+.tour-search input {
+	padding-left: 40px;
+	border-radius: 8px;
+	border: 1px solid #dee2e6;
+}
+
+.tour-search .search-icon {
+	position: absolute;
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: #6c757d;
+}
+
+.filter-buttons {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 15px;
+}
+
+.filter-btn {
+	padding: 8px 16px;
+	border: 1px solid #dee2e6;
+	border-radius: 6px;
+	background: #fff;
+	color: #495057;
+	cursor: pointer;
+	transition: all 0.3s;
+	font-size: 14px;
+}
+
+.filter-btn:hover {
+	border-color: #0d6efd;
+	color: #0d6efd;
+}
+
+.filter-btn.active {
+	background: #0d6efd;
+	color: #fff;
+	border-color: #0d6efd;
+}
+
+.tour-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+	gap: 20px;
+	margin-bottom: 20px;
+}
+
+.tour-card {
+	background: #fff;
+	border-radius: 10px;
+	padding: 20px;
+	border: 1px solid #e9ecef;
+	transition: all 0.3s;
+	cursor: pointer;
+	position: relative;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tour-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+	border-color: #0d6efd;
+}
+
+.tour-card.status-completed {
+	border-left: 4px solid #198754;
+}
+
+.tour-card.status-assigned {
+	border-left: 4px solid #0d6efd;
+}
+
+.tour-card.status-inprogress {
+	border-left: 4px solid #fd7e14;
+}
+
+.tour-card.status-partiallycompleted {
+	border-left: 4px solid #ffc107;
+}
+
+.tour-card.status-autoclosed {
+	border-left: 4px solid #dc3545;
+}
+
+.tour-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: start;
+	margin-bottom: 15px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #f1f3f5;
+}
+
+.tour-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #212529;
+	flex: 1;
+	margin-right: 10px;
+}
+
+.tour-status {
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.status-badge-completed {
+	background: #d1f2eb;
+	color: #0a7c5a;
+}
+
+.status-badge-assigned {
+	background: #cfe2ff;
+	color: #084298;
+}
+
+.status-badge-inprogress {
+	background: #fed7aa;
+	color: #c2410c;
+}
+
+.status-badge-partiallycompleted {
+	background: #fff3cd;
+	color: #856404;
+}
+
+.status-badge-autoclosed {
+	background: #f8d7da;
+	color: #842029;
+}
+
+.tour-info {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	font-size: 14px;
+	color: #6c757d;
+}
+
+.tour-info-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.tour-info-row i {
+	width: 16px;
+	color: #adb5bd;
+}
+
+.tour-info-row strong {
+	color: #495057;
+}
+
+.tour-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: 15px;
+	padding-top: 10px;
+	border-top: 1px solid #f1f3f5;
+	font-size: 13px;
+}
+
+.tour-date {
+	color: #6c757d;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.tour-type {
+	padding: 3px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.type-schedule {
+	background: #e7f1ff;
+	color: #0c63e4;
+}
+
+.type-adhoc {
+	background: #f8e7fd;
+	color: #7928ca;
+}
+
+.dynamic-indicator {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	color: #198754;
+	font-size: 18px;
+}
+
+.tour-checkpoints {
+	background: #f8f9fa;
+	padding: 6px 10px;
+	border-radius: 4px;
+	font-size: 12px;
+	color: #495057;
+	margin-top: 8px;
+	border: 1px solid #e9ecef;
+}
+
+.empty-state {
+	text-align: center;
+	padding: 60px 20px;
+	color: #6c757d;
+}
+
+.empty-state i {
+	font-size: 48px;
+	color: #dee2e6;
+	margin-bottom: 20px;
+}
+
+.pagination-wrapper {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+.page-btn {
+	padding: 6px 12px;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	background: #fff;
+	color: #495057;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+	border-color: #0d6efd;
+	color: #0d6efd;
+}
+
+.page-btn.active {
+	background: #0d6efd;
+	color: #fff;
+	border-color: #0d6efd;
+}
+
+.page-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+#loading-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255,255,255,0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+
+.spinner-border {
+	width: 3rem;
+	height: 3rem;
+}
+</style>
+{% endblock extra_css %}
+
+<!---- BEGIN TABLE ------>
+{% block table %}
+<!-- Filters Section -->
+<div class="tour-filters">
+	<div class="row">
+		<div class="col-md-6">
+			<div class="tour-search">
+				<i class="bi bi-search search-icon"></i>
+				<input type="text" class="form-control" id="tour-search-input" placeholder="Search tours...">
+			</div>
+		</div>
+		<div class="col-md-6">
+			<div class="input-group">
+				<span class="input-group-text"><i class="bi bi-calendar-range"></i></span>
+				<input type="text" class="form-control" id="date-range-picker" placeholder="Select date range">
+			</div>
+		</div>
+	</div>
+	
+	<div class="filter-buttons">
+		<button class="filter-btn" data-filter="status" data-value="ASSIGNED">
+			<i class="bi bi-person-check"></i> Assigned
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="COMPLETED">
+			<i class="bi bi-check-circle"></i> Completed
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="INPROGRESS">
+			<i class="bi bi-play-circle"></i> In Progress
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="PARTIALLYCOMPLETED">
+			<i class="bi bi-clock-history"></i> Partially Completed
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="AUTOCLOSED">
+			<i class="bi bi-x-circle"></i> Auto Closed
+		</button>
+		<button class="filter-btn" data-filter="type" data-value="ADHOC">
+			<i class="bi bi-lightning"></i> ADHOC
+		</button>
+		<button class="filter-btn" data-filter="dynamic" data-value="true">
+			<i class="bi bi-arrow-repeat"></i> Dynamic
+		</button>
+		<button class="filter-btn btn-danger" id="clear-filters">
+			<i class="bi bi-x"></i> Clear Filters
+		</button>
+	</div>
+</div>
+
+<!-- Tour Grid -->
+<div class="tour-grid" id="tour-grid">
+	<!-- Tours will be loaded here -->
+</div>
+
+<!-- Pagination -->
+<div class="pagination-wrapper" id="pagination-container">
+	<!-- Pagination will be loaded here -->
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display: none;">
+	<div class="spinner-border text-primary" role="status">
+		<span class="visually-hidden">Loading...</span>
+	</div>
+</div>
+{% endblock table %}
+
+<!---- BEGIN POPUP ALERTS ------>
+{% block popup_alerts %}
+{{ super() }}
+{% call general_popup(title='List of Peoples', popup_id='id_people_list', modal_size='modal-md') %}
+	<div class="modal-body">
+		<table class="display cell-border" style="width:100%" id="tabListOfPeoples"></table>
+	</div>
+{% endcall %}
+{% endblock popup_alerts %}
+
+<!---- BEGIN EXTRA SCRIPTS ------>
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+	// Global variables
+	let currentPage = 1;
+	let totalPages = 1;
+	let pageSize = 20;
+	let searchTerm = '';
+	let activeFilters = {
+		status: null,
+		type: null,
+		dynamic: null,
+		from: moment().subtract(7, 'days').format('YYYY-MM-DD'),
+		to: moment().format('YYYY-MM-DD')
+	};
+	let allTours = [];
+	let totalRecords = 0;
+	let ajaxData = {};
+	let peopleList = null;
+	
+	// Check for dashboard filters
+	const table_filters = localStorage.getItem('dynamic_tours_filter') ||
+						  localStorage.getItem('tourstats_filter') ||
+						  localStorage.getItem('alertsFilters') ||
+						  localStorage.getItem('routes_filter');
+	if (table_filters) {
+		const params = JSON.parse(table_filters);
+		if (params.from) activeFilters.from = params.from;
+		if (params.to) activeFilters.to = params.to;
+		if (params.jobstatus) {
+			activeFilters.status = params.jobstatus;
+			$(`.filter-btn[data-value="${params.jobstatus}"]`).addClass('active');
+		}
+		localStorage.removeItem('dynamic_tours_filter');
+		localStorage.removeItem('tourstats_filter');
+		localStorage.removeItem('alertsFilters');
+		localStorage.removeItem('routes_filter');
+	}
+	
+	// Initialize date range picker
+	$('#date-range-picker').daterangepicker({
+		startDate: moment(activeFilters.from),
+		endDate: moment(activeFilters.to),
+		locale: {
+			format: 'YYYY-MM-DD'
+		},
+		ranges: {
+			'Today': [moment(), moment()],
+			'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+			'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+			'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+			'This Month': [moment().startOf('month'), moment().endOf('month')],
+			'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+		}
+	});
+	
+	// Date range change handler
+	$('#date-range-picker').on('apply.daterangepicker', function(ev, picker) {
+		activeFilters.from = picker.startDate.format('YYYY-MM-DD');
+		activeFilters.to = picker.endDate.format('YYYY-MM-DD');
+		currentPage = 1;
+		loadTours();
+	});
+	
+	// Search handler
+	let searchTimeout;
+	$('#tour-search-input').on('input', function() {
+		clearTimeout(searchTimeout);
+		const value = $(this).val();
+		searchTimeout = setTimeout(function() {
+			searchTerm = value;
+			currentPage = 1;
+			loadTours();
+		}, 300);
+	});
+	
+	// Filter button handlers
+	$('.filter-btn[data-filter]').on('click', function() {
+		const $btn = $(this);
+		const filterType = $btn.data('filter');
+		const filterValue = $btn.data('value');
+		
+		if ($btn.hasClass('active')) {
+			$btn.removeClass('active');
+			activeFilters[filterType] = null;
+		} else {
+			$(`.filter-btn[data-filter="${filterType}"]`).removeClass('active');
+			$btn.addClass('active');
+			activeFilters[filterType] = filterValue;
+		}
+		
+		currentPage = 1;
+		loadTours();
+	});
+	
+	// Clear filters
+	$('#clear-filters').on('click', function() {
+		$('.filter-btn[data-filter]').removeClass('active');
+		$('#tour-search-input').val('');
+		searchTerm = '';
+		activeFilters = {
+			status: null,
+			type: null,
+			dynamic: null,
+			from: moment().subtract(7, 'days').format('YYYY-MM-DD'),
+			to: moment().format('YYYY-MM-DD')
+		};
+		$('#date-range-picker').data('daterangepicker').setStartDate(moment(activeFilters.from));
+		$('#date-range-picker').data('daterangepicker').setEndDate(moment(activeFilters.to));
+		currentPage = 1;
+		loadTours();
+	});
+	
+	// Load tours function
+	function loadTours() {
+		$('#loading-overlay').show();
+		
+		const params = {
+			from: activeFilters.from,
+			to: activeFilters.to
+		};
+		
+		if (activeFilters.status) params.jobstatus = activeFilters.status;
+		if (activeFilters.type) params.jobtype = activeFilters.type;
+		if (activeFilters.dynamic) params.isdynamic = activeFilters.dynamic === 'true';
+		
+		$.ajax({
+			url: '{{ request.path }}',
+			method: 'GET',
+			data: {
+				action: 'list',
+				params: JSON.stringify(params),
+				start: (currentPage - 1) * pageSize,
+				length: pageSize,
+				'search[value]': searchTerm
+			},
+			success: function(response) {
+				allTours = response.data || [];
+				totalRecords = response.recordsFiltered || 0;
+				totalPages = Math.ceil(totalRecords / pageSize);
+				renderTours();
+				renderPagination();
+				$('#loading-overlay').hide();
+			},
+			error: function() {
+				$('#loading-overlay').hide();
+				if (typeof toastr !== 'undefined') {
+					toastr.error('Failed to load tours');
+				} else {
+					console.error('Failed to load tours');
+					alert('Failed to load tours. Please try again.');
+				}
+			}
+		});
+	}
+	
+	// Render tours
+	function renderTours() {
+		const $container = $('#tour-grid');
+		$container.empty();
+		
+		if (allTours.length === 0) {
+			$container.html(`
+				<div class="col-12">
+					<div class="empty-state">
+						<i class="bi bi-map"></i>
+						<h3>No {{ tour_type|default('Tours', true) }} Found</h3>
+						<p>There are no {{ tour_type|default('tours', true)|lower }} matching your current filters.</p>
+						{% if tour_type == 'External Tour' %}
+						<a href="{{ url('schedhuler:schd_external_tour') }}?action=form" class="btn btn-primary">
+							<i class="bi bi-plus"></i> Create New Route Plan
+						</a>
+						{% else %}
+						<a href="{{ url('schedhuler:schd_internal_tour') }}?action=form" class="btn btn-primary">
+							<i class="bi bi-plus"></i> Create New Tour
+						</a>
+						{% endif %}
+					</div>
+				</div>
+			`);
+			return;
+		}
+		
+		allTours.forEach(function(tour) {
+			const card = createTourCard(tour);
+			$container.append(card);
+		});
+	}
+	
+	// Create tour card
+	function createTourCard(tour) {
+		const statusClass = getStatusClass(tour.jobstatus);
+		const statusBadgeClass = getStatusBadgeClass(tour.jobstatus);
+		const typeClass = tour.jobtype === 'ADHOC' ? 'type-adhoc' : 'type-schedule';
+		
+		const plannedDate = tour.plandatetime ? moment(tour.plandatetime).format('YYYY-MM-DD HH:mm') : 'Not set';
+		const performedDate = tour.endtime ? moment(tour.endtime).format('YYYY-MM-DD HH:mm') : null;
+		
+		const card = $(`
+			<div class="tour-card status-${statusClass}" data-tour-id="${tour.id}">
+				${tour.other_info__isdynamic ? '<i class="bi bi-arrow-repeat dynamic-indicator" title="Dynamic Tour"></i>' : ''}
+				
+				<div class="tour-header">
+					<div class="tour-title">${tour.jobdesc || 'Untitled Tour'}</div>
+					<span class="tour-status status-badge-${statusClass}">${tour.jobstatus || 'ASSIGNED'}</span>
+				</div>
+				
+				<div class="tour-info">
+					<div class="tour-info-row">
+						<i class="bi bi-building"></i>
+						<span>Site: <strong>${tour.bu__buname || 'Not assigned'}</strong></span>
+					</div>
+					
+					${tour.assignedto ? `
+						<div class="tour-info-row">
+							<i class="bi bi-person"></i>
+							<span>Assigned: <strong>${tour.assignedto}</strong></span>
+						</div>
+					` : ''}
+					
+					${tour.performedby__peoplename ? `
+						<div class="tour-info-row">
+							<i class="bi bi-person-check"></i>
+							<span>Performed: <strong>${tour.performedby__peoplename}</strong></span>
+						</div>
+					` : ''}
+					
+					${performedDate ? `
+						<div class="tour-info-row">
+							<i class="bi bi-calendar-check"></i>
+							<span>Completed: <strong>${performedDate}</strong></span>
+						</div>
+					` : ''}
+				</div>
+				
+				${tour.no_of_checkpoints ? `
+					<div class="tour-checkpoints">
+						<i class="bi bi-geo-alt"></i> ${tour.no_of_checkpoints} Checkpoints
+						${tour.completed ? ` • ${tour.completed} Completed` : ''}
+						${tour.missed ? ` • ${tour.missed} Missed` : ''}
+					</div>
+				` : ''}
+				
+				<div class="tour-footer">
+					<div class="tour-date">
+						<i class="bi bi-calendar3"></i>
+						<span>${plannedDate}</span>
+					</div>
+					<span class="tour-type ${typeClass}">${tour.jobtype || 'SCHEDULE'}</span>
+				</div>
+			</div>
+		`);
+		
+		// Click handler
+		card.on('click', function() {
+			window.location.href = `/operations/tours/?id=${tour.id}`;
+		});
+		
+		// Handle group assignments
+		if (tour.assignedto && tour.assignedto.includes('[GROUP]')) {
+			card.find('.tour-info-row:contains("Assigned")').css('cursor', 'pointer').on('click', function(e) {
+				e.stopPropagation();
+				showListOfPeoples(tour.id, 'Jobneed');
+			});
+		}
+		
+		return card;
+	}
+	
+	// Get status class
+	function getStatusClass(status) {
+		const statusMap = {
+			'ASSIGNED': 'assigned',
+			'COMPLETED': 'completed',
+			'INPROGRESS': 'inprogress',
+			'PARTIALLYCOMPLETED': 'partiallycompleted',
+			'AUTOCLOSED': 'autoclosed',
+			'Auto Closed': 'autoclosed'
+		};
+		return statusMap[status] || 'assigned';
+	}
+	
+	// Get status badge class
+	function getStatusBadgeClass(status) {
+		const statusMap = {
+			'ASSIGNED': 'assigned',
+			'COMPLETED': 'completed',
+			'INPROGRESS': 'inprogress',
+			'PARTIALLYCOMPLETED': 'partiallycompleted',
+			'AUTOCLOSED': 'autoclosed',
+			'Auto Closed': 'autoclosed'
+		};
+		return statusMap[status] || 'assigned';
+	}
+	
+	// Render pagination
+	function renderPagination() {
+		const $container = $('#pagination-container');
+		$container.empty();
+		
+		if (totalPages <= 1) return;
+		
+		// Previous button
+		$container.append(`
+			<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
+				<i class="bi bi-chevron-left"></i>
+			</button>
+		`);
+		
+		// Page numbers
+		const startPage = Math.max(1, currentPage - 2);
+		const endPage = Math.min(totalPages, startPage + 4);
+		
+		for (let i = startPage; i <= endPage; i++) {
+			$container.append(`
+				<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>
+			`);
+		}
+		
+		// Next button
+		$container.append(`
+			<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
+				<i class="bi bi-chevron-right"></i>
+			</button>
+		`);
+		
+		// Page info
+		const startRecord = (currentPage - 1) * pageSize + 1;
+		const endRecord = Math.min(currentPage * pageSize, totalRecords);
+		$container.append(`
+			<span class="ms-3 text-muted">Showing ${startRecord}-${endRecord} of ${totalRecords}</span>
+		`);
+		
+		// Page click handlers
+		$('.page-btn[data-page]').on('click', function() {
+			if (!$(this).prop('disabled')) {
+				currentPage = parseInt($(this).data('page'));
+				loadTours();
+			}
+		});
+	}
+	
+	// Show list of peoples
+	function showListOfPeoples(id, from) {
+		$('#id_people_list').modal('show');
+		ajaxData.id = id;
+		ajaxData.model = from;
+		if (peopleList) {
+			peopleList.ajax.reload();
+		}
+	}
+	
+	// Initialize people list modal
+	if (typeof initializeListOfPeoplesModal === 'function') {
+		initializeListOfPeoplesModal(ajaxData, "{{ url('onboarding:list_of_peoples') }}");
+	}
+	
+	// Initial load
+	loadTours();
+});
+</script>
+{% endblock extra_scripts %}

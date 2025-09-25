@@ -1,0 +1,750 @@
+"""
+Unit tests for recommendation system models
+"""
+import pytest
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from datetime import timedelta
+from unittest.mock import patch, MagicMock
+import json
+
+from apps.core.models.recommendation import (
+    UserBehaviorProfile, NavigationRecommendation, ContentRecommendation,
+    UserSimilarity, RecommendationFeedback, RecommendationImplementation
+)
+from tests.factories.recommendation_factories import (
+    UserBehaviorProfileFactory, NavigationRecommendationFactory, ContentRecommendationFactory,
+    UserSimilarityFactory, RecommendationFeedbackFactory, RecommendationImplementationFactory,
+    create_complete_user_profile, create_recommendation_with_feedback,
+    create_navigation_recommendation_with_implementation
+)
+from tests.factories.heatmap_factories import UserFactory
+
+pytestmark = pytest.mark.django_db
+
+
+class TestUserBehaviorProfile:
+    """Test UserBehaviorProfile model"""
+    
+    def test_profile_creation(self):
+        """Test creating a user behavior profile with valid data"""
+        profile = UserBehaviorProfileFactory()
+        assert profile.user
+        assert isinstance(profile.preferred_pages, dict)
+        assert isinstance(profile.common_paths, list)
+        assert profile.session_duration_avg >= 0
+        assert isinstance(profile.click_patterns, dict)
+        assert profile.preferred_device_type in ['desktop', 'mobile', 'tablet']
+        assert 0.0 <= profile.exploration_tendency <= 1.0
+        assert 0.0 <= profile.task_completion_rate <= 1.0
+        assert 0.0 <= profile.feature_adoption_rate <= 1.0
+        assert isinstance(profile.similarity_vector, list)
+    
+    def test_one_to_one_relationship_with_user(self):
+        """Test that each user has only one behavior profile"""
+        user = UserFactory()
+        profile1 = UserBehaviorProfileFactory(user=user)
+        
+        # Try to create another profile for the same user
+        with pytest.raises(IntegrityError):
+            UserBehaviorProfileFactory(user=user)
+    
+    def test_get_top_pages_method(self):
+        """Test the get_top_pages method"""
+        profile = UserBehaviorProfileFactory(
+            preferred_pages={
+                '/dashboard/': 50,
+                '/assets/': 30,
+                '/reports/': 15,
+                '/settings/': 5
+            }
+        )
+        
+        top_pages = profile.get_top_pages(3)
+        assert len(top_pages) == 3
+        assert top_pages[0] == ('/dashboard/', 50)
+        assert top_pages[1] == ('/assets/', 30)
+        assert top_pages[2] == ('/reports/', 15)
+        
+        # Test with limit larger than available pages
+        all_pages = profile.get_top_pages(10)
+        assert len(all_pages) == 4
+    
+    def test_update_page_preference_method(self):
+        """Test updating page preferences"""
+        profile = UserBehaviorProfileFactory(preferred_pages={'/test/': 1})
+        
+        # Update existing page
+        profile.update_page_preference('/test/', 5)
+        assert profile.preferred_pages['/test/'] == 5
+        
+        # Add new page
+        profile.update_page_preference('/new/', 3)
+        assert profile.preferred_pages['/new/'] == 3
+        
+        # Test increment mode
+        profile.update_page_preference('/test/', 2, increment=True)
+        assert profile.preferred_pages['/test/'] == 7
+    
+    def test_calculate_similarity_vector_method(self):
+        """Test similarity vector calculation"""
+        profile = UserBehaviorProfileFactory()
+        
+        with patch('apps.core.recommendation_engine.BehaviorAnalyzer') as mock_analyzer:
+            mock_analyzer_instance = MagicMock()
+            mock_analyzer.return_value = mock_analyzer_instance
+            mock_analyzer_instance.calculate_feature_vector.return_value = [0.1, 0.5, 0.8, 0.3, 0.9]
+            
+            profile.calculate_similarity_vector()
+            
+            mock_analyzer_instance.calculate_feature_vector.assert_called_once_with(profile.user)
+            assert profile.similarity_vector == [0.1, 0.5, 0.8, 0.3, 0.9]
+    
+    def test_exploration_tendency_validation(self):
+        """Test exploration tendency is within valid range"""
+        # Valid values
+        profile = UserBehaviorProfileFactory(exploration_tendency=0.0)
+        profile.full_clean()
+        
+        profile.exploration_tendency = 1.0
+        profile.full_clean()
+        
+        profile.exploration_tendency = 0.5
+        profile.full_clean()
+        
+        # Invalid values should raise ValidationError
+        profile.exploration_tendency = -0.1
+        with pytest.raises(ValidationError):
+            profile.full_clean()
+        
+        profile.exploration_tendency = 1.1
+        with pytest.raises(ValidationError):
+            profile.full_clean()
+    
+    def test_task_completion_rate_validation(self):
+        """Test task completion rate validation"""
+        profile = UserBehaviorProfileFactory()
+        
+        # Valid values
+        for rate in [0.0, 0.5, 1.0]:
+            profile.task_completion_rate = rate
+            profile.full_clean()
+        
+        # Invalid values
+        for rate in [-0.1, 1.1]:
+            profile.task_completion_rate = rate
+            with pytest.raises(ValidationError):
+                profile.full_clean()
+    
+    def test_feature_adoption_rate_validation(self):
+        """Test feature adoption rate validation"""
+        profile = UserBehaviorProfileFactory()
+        
+        # Valid values
+        for rate in [0.0, 0.25, 0.75, 1.0]:
+            profile.feature_adoption_rate = rate
+            profile.full_clean()
+        
+        # Invalid values
+        for rate in [-0.5, 1.5]:
+            profile.feature_adoption_rate = rate
+            with pytest.raises(ValidationError):
+                profile.full_clean()
+    
+    def test_profile_auto_timestamps(self):
+        """Test automatic timestamp fields"""
+        profile = UserBehaviorProfileFactory()
+        assert profile.created_at
+        assert profile.last_updated
+        
+        initial_updated = profile.last_updated
+        
+        # Update the profile
+        profile.exploration_tendency = 0.8
+        profile.save()
+        
+        assert profile.last_updated > initial_updated
+
+
+class TestNavigationRecommendation:
+    """Test NavigationRecommendation model"""
+    
+    def test_recommendation_creation(self):
+        """Test creating a navigation recommendation"""
+        recommendation = NavigationRecommendationFactory()
+        assert recommendation.recommendation_type
+        assert recommendation.title
+        assert recommendation.description
+        assert 0.0 <= recommendation.confidence_score <= 1.0
+        assert recommendation.priority in ['low', 'medium', 'high', 'critical']
+        assert recommendation.status in ['pending', 'approved', 'implemented', 'rejected']
+        assert isinstance(recommendation.target_user_segment, dict)
+        assert isinstance(recommendation.implementation_details, dict)
+        assert isinstance(recommendation.supporting_data, dict)
+    
+    def test_recommendation_type_choices(self):
+        """Test valid recommendation types"""
+        valid_types = [
+            'page_suggestion', 'menu_optimization', 'search_enhancement',
+            'layout_improvement', 'content_personalization'
+        ]
+        
+        for rec_type in valid_types:
+            recommendation = NavigationRecommendationFactory(recommendation_type=rec_type)
+            assert recommendation.recommendation_type == rec_type
+    
+    def test_confidence_score_validation(self):
+        """Test confidence score is within valid range"""
+        recommendation = NavigationRecommendationFactory()
+        
+        # Valid values
+        for score in [0.0, 0.5, 1.0]:
+            recommendation.confidence_score = score
+            recommendation.full_clean()
+        
+        # Invalid values
+        for score in [-0.1, 1.1]:
+            recommendation.confidence_score = score
+            with pytest.raises(ValidationError):
+                recommendation.full_clean()
+    
+    def test_priority_ordering(self):
+        """Test that recommendations are ordered by priority"""
+        # Create recommendations with different priorities
+        high_rec = NavigationRecommendationFactory(priority='high', confidence_score=0.8)
+        low_rec = NavigationRecommendationFactory(priority='low', confidence_score=0.9)
+        critical_rec = NavigationRecommendationFactory(priority='critical', confidence_score=0.7)
+        
+        # Query should return in priority order (critical > high > low)
+        ordered_recs = NavigationRecommendation.objects.all().order_by('-priority', '-confidence_score')
+        
+        # Check that critical comes first despite lower confidence
+        assert ordered_recs[0] == critical_rec
+    
+    def test_apply_recommendation_method(self):
+        """Test the apply_recommendation method"""
+        user = UserFactory()
+        recommendation = NavigationRecommendationFactory(status='approved')
+        
+        # Apply the recommendation
+        implementation = recommendation.apply_recommendation(user)
+        
+        assert implementation.recommendation == recommendation
+        assert implementation.implemented_by == user
+        assert recommendation.status == 'implemented'
+        
+        # Check that RecommendationImplementation was created
+        assert RecommendationImplementation.objects.filter(
+            recommendation=recommendation
+        ).exists()
+    
+    def test_is_applicable_method(self):
+        """Test the is_applicable method for user segments"""
+        recommendation = NavigationRecommendationFactory(
+            target_user_segment={
+                'device_types': ['desktop', 'tablet'],
+                'experience_levels': ['intermediate', 'expert']
+            }
+        )
+        
+        # Test with matching user profile
+        profile = UserBehaviorProfileFactory(
+            preferred_device_type='desktop',
+            feature_adoption_rate=0.7  # intermediate level
+        )
+        assert recommendation.is_applicable(profile) is True
+        
+        # Test with non-matching device
+        profile.preferred_device_type = 'mobile'
+        profile.save()
+        assert recommendation.is_applicable(profile) is False
+    
+    def test_expiration_handling(self):
+        """Test recommendation expiration"""
+        # Create expired recommendation
+        expired_rec = NavigationRecommendationFactory(
+            valid_until=timezone.now() - timedelta(days=1)
+        )
+        
+        # Create valid recommendation
+        valid_rec = NavigationRecommendationFactory(
+            valid_until=timezone.now() + timedelta(days=1)
+        )
+        
+        # Test is_expired method
+        assert expired_rec.is_expired() is True
+        assert valid_rec.is_expired() is False
+        
+        # Test querying valid recommendations
+        valid_recommendations = NavigationRecommendation.objects.filter(
+            valid_until__gt=timezone.now()
+        )
+        assert expired_rec not in valid_recommendations
+        assert valid_rec in valid_recommendations
+
+
+class TestContentRecommendation:
+    """Test ContentRecommendation model"""
+    
+    def test_recommendation_creation(self):
+        """Test creating a content recommendation"""
+        recommendation = ContentRecommendationFactory()
+        assert recommendation.user
+        assert recommendation.content_type in ['page', 'feature', 'tool', 'report', 'dashboard']
+        assert recommendation.content_title
+        assert recommendation.content_url
+        assert 0.0 <= recommendation.relevance_score <= 1.0
+        assert recommendation.recommendation_algorithm
+        assert isinstance(recommendation.recommended_context, dict)
+        assert isinstance(recommendation.display_conditions, dict)
+        assert recommendation.shown_count >= 0
+        assert recommendation.clicked_count >= 0
+        assert recommendation.dismissed_count >= 0
+        assert recommendation.is_active is True
+    
+    def test_unique_constraint(self):
+        """Test unique constraint on user and content_url"""
+        user = UserFactory()
+        content_url = '/test-content/'
+        
+        # Create first recommendation
+        rec1 = ContentRecommendationFactory(user=user, content_url=content_url)
+        
+        # Try to create duplicate
+        with pytest.raises(IntegrityError):
+            ContentRecommendationFactory(user=user, content_url=content_url)
+    
+    def test_mark_shown_method(self):
+        """Test the mark_shown method"""
+        recommendation = ContentRecommendationFactory(shown_count=5)
+        initial_count = recommendation.shown_count
+        
+        recommendation.mark_shown()
+        
+        assert recommendation.shown_count == initial_count + 1
+        assert recommendation.last_shown is not None
+        assert abs((timezone.now() - recommendation.last_shown).total_seconds()) < 5
+    
+    def test_mark_clicked_method(self):
+        """Test the mark_clicked method"""
+        recommendation = ContentRecommendationFactory(clicked_count=2)
+        initial_count = recommendation.clicked_count
+        
+        recommendation.mark_clicked()
+        
+        assert recommendation.clicked_count == initial_count + 1
+    
+    def test_mark_dismissed_method(self):
+        """Test the mark_dismissed method"""
+        recommendation = ContentRecommendationFactory(dismissed_count=1, is_active=True)
+        initial_count = recommendation.dismissed_count
+        
+        recommendation.mark_dismissed()
+        
+        assert recommendation.dismissed_count == initial_count + 1
+        assert recommendation.is_active is False
+    
+    def test_click_through_rate_property(self):
+        """Test the click_through_rate property"""
+        # Test with no shows
+        recommendation = ContentRecommendationFactory(shown_count=0, clicked_count=0)
+        assert recommendation.click_through_rate == 0.0
+        
+        # Test with clicks and shows
+        recommendation.shown_count = 100
+        recommendation.clicked_count = 5
+        recommendation.save()
+        assert recommendation.click_through_rate == 0.05
+        
+        # Test with clicks but no shows (edge case)
+        recommendation.shown_count = 0
+        recommendation.clicked_count = 1
+        recommendation.save()
+        assert recommendation.click_through_rate == 0.0
+    
+    def test_is_effective_method(self):
+        """Test the is_effective method"""
+        # Effective recommendation (high CTR, low dismissal rate)
+        recommendation = ContentRecommendationFactory(
+            shown_count=100,
+            clicked_count=10,  # 10% CTR
+            dismissed_count=5   # 5% dismissal rate
+        )
+        assert recommendation.is_effective() is True
+        
+        # Ineffective recommendation (low CTR, high dismissal rate)
+        recommendation.clicked_count = 1  # 1% CTR
+        recommendation.dismissed_count = 20  # 20% dismissal rate
+        recommendation.save()
+        assert recommendation.is_effective() is False
+    
+    def test_should_show_method(self):
+        """Test the should_show method based on display conditions"""
+        recommendation = ContentRecommendationFactory(
+            display_conditions={
+                'min_session_duration': 60,
+                'required_permissions': ['read'],
+                'exclude_pages': ['/admin/']
+            }
+        )
+        
+        # Test valid context
+        context = {
+            'session_duration': 120,
+            'user_permissions': ['read', 'write'],
+            'current_page': '/dashboard/'
+        }
+        assert recommendation.should_show(context) is True
+        
+        # Test invalid context (short session)
+        context['session_duration'] = 30
+        assert recommendation.should_show(context) is False
+        
+        # Test excluded page
+        context['session_duration'] = 120
+        context['current_page'] = '/admin/users/'
+        assert recommendation.should_show(context) is False
+    
+    def test_relevance_score_validation(self):
+        """Test relevance score validation"""
+        recommendation = ContentRecommendationFactory()
+        
+        # Valid values
+        for score in [0.0, 0.5, 1.0]:
+            recommendation.relevance_score = score
+            recommendation.full_clean()
+        
+        # Invalid values
+        for score in [-0.1, 1.1]:
+            recommendation.relevance_score = score
+            with pytest.raises(ValidationError):
+                recommendation.full_clean()
+    
+    def test_expiration_handling(self):
+        """Test recommendation expiration"""
+        # Create expired recommendation
+        expired_rec = ContentRecommendationFactory(
+            expires_at=timezone.now() - timedelta(hours=1)
+        )
+        
+        assert expired_rec.is_expired() is True
+        
+        # Create valid recommendation
+        valid_rec = ContentRecommendationFactory(
+            expires_at=timezone.now() + timedelta(days=7)
+        )
+        
+        assert valid_rec.is_expired() is False
+
+
+class TestUserSimilarity:
+    """Test UserSimilarity model"""
+    
+    def test_similarity_creation(self):
+        """Test creating user similarity records"""
+        similarity = UserSimilarityFactory()
+        assert similarity.user1
+        assert similarity.user2
+        assert similarity.user1 != similarity.user2
+        assert -1.0 <= similarity.similarity_score <= 1.0
+        assert similarity.calculation_method
+        assert isinstance(similarity.features_used, list)
+        assert similarity.calculated_at
+    
+    def test_unique_constraint(self):
+        """Test unique constraint on user1 and user2"""
+        user1 = UserFactory()
+        user2 = UserFactory()
+        
+        # Create first similarity
+        similarity1 = UserSimilarityFactory(user1=user1, user2=user2)
+        
+        # Try to create duplicate
+        with pytest.raises(IntegrityError):
+            UserSimilarityFactory(user1=user1, user2=user2)
+        
+        # But reverse order should be allowed
+        similarity2 = UserSimilarityFactory(user1=user2, user2=user1)
+        assert similarity2.user1 == user2
+        assert similarity2.user2 == user1
+    
+    def test_similarity_score_validation(self):
+        """Test similarity score is within valid range"""
+        similarity = UserSimilarityFactory()
+        
+        # Valid values
+        for score in [-1.0, -0.5, 0.0, 0.5, 1.0]:
+            similarity.similarity_score = score
+            similarity.full_clean()
+        
+        # Invalid values
+        for score in [-1.1, 1.1]:
+            similarity.similarity_score = score
+            with pytest.raises(ValidationError):
+                similarity.full_clean()
+    
+    def test_get_similar_users_classmethod(self):
+        """Test the get_similar_users class method"""
+        user = UserFactory()
+        
+        # Create some similar users
+        similar_users = []
+        for i in range(3):
+            similar_user = UserFactory()
+            UserSimilarityFactory(
+                user1=user,
+                user2=similar_user,
+                similarity_score=0.8 - i * 0.1  # 0.8, 0.7, 0.6
+            )
+            similar_users.append(similar_user)
+        
+        # Test getting similar users
+        result = UserSimilarity.get_similar_users(user, limit=2, min_score=0.65)
+        
+        assert len(result) == 2
+        assert similar_users[0] in [sim.user2 for sim in result]
+        assert similar_users[1] in [sim.user2 for sim in result]
+        # similar_users[2] should be excluded due to min_score filter
+    
+    def test_automatic_timestamp_update(self):
+        """Test that calculated_at is automatically updated"""
+        similarity = UserSimilarityFactory()
+        initial_time = similarity.calculated_at
+        
+        # Update similarity score
+        similarity.similarity_score = 0.9
+        similarity.save()
+        
+        # calculated_at should be updated automatically
+        assert similarity.calculated_at > initial_time
+
+
+class TestRecommendationFeedback:
+    """Test RecommendationFeedback model"""
+    
+    def test_feedback_creation(self):
+        """Test creating recommendation feedback"""
+        feedback = RecommendationFeedbackFactory()
+        assert feedback.user
+        assert feedback.content_type
+        assert feedback.object_id
+        assert feedback.feedback_type in ['helpful', 'not_helpful', 'implemented', 'irrelevant']
+        assert feedback.created_at
+        
+        if feedback.rating:
+            assert 1 <= feedback.rating <= 5
+    
+    def test_unique_constraint(self):
+        """Test unique constraint on content_type, object_id, user"""
+        recommendation = ContentRecommendationFactory()
+        user = UserFactory()
+        
+        # Create first feedback
+        feedback1 = RecommendationFeedbackFactory(
+            user=user,
+            recommendation=recommendation
+        )
+        
+        # Try to create duplicate feedback from same user
+        with pytest.raises(IntegrityError):
+            RecommendationFeedbackFactory(
+                user=user,
+                recommendation=recommendation
+            )
+    
+    def test_rating_validation(self):
+        """Test rating field validation"""
+        feedback = RecommendationFeedbackFactory()
+        
+        # Valid ratings
+        for rating in [1, 2, 3, 4, 5]:
+            feedback.rating = rating
+            feedback.full_clean()
+        
+        # Invalid ratings
+        for rating in [0, 6]:
+            feedback.rating = rating
+            with pytest.raises(ValidationError):
+                feedback.full_clean()
+    
+    def test_generic_foreign_key_functionality(self):
+        """Test that feedback can be associated with different recommendation types"""
+        user = UserFactory()
+        
+        # Test with ContentRecommendation
+        content_rec = ContentRecommendationFactory()
+        content_feedback = RecommendationFeedbackFactory(
+            user=user,
+            recommendation=content_rec
+        )
+        assert content_feedback.recommendation == content_rec
+        
+        # Test with NavigationRecommendation
+        nav_rec = NavigationRecommendationFactory()
+        nav_feedback = RecommendationFeedbackFactory(
+            user=user,
+            recommendation=nav_rec
+        )
+        assert nav_feedback.recommendation == nav_rec
+    
+    def test_get_average_rating_classmethod(self):
+        """Test getting average rating for a recommendation"""
+        recommendation = ContentRecommendationFactory()
+        
+        # Create multiple feedback entries
+        ratings = [5, 4, 3, 4, 5]
+        for rating in ratings:
+            user = UserFactory()
+            RecommendationFeedbackFactory(
+                user=user,
+                recommendation=recommendation,
+                rating=rating
+            )
+        
+        avg_rating = RecommendationFeedback.get_average_rating(recommendation)
+        expected_avg = sum(ratings) / len(ratings)
+        assert abs(avg_rating - expected_avg) < 0.01
+
+
+class TestRecommendationImplementation:
+    """Test RecommendationImplementation model"""
+    
+    def test_implementation_creation(self):
+        """Test creating recommendation implementation"""
+        implementation = RecommendationImplementationFactory()
+        assert implementation.recommendation
+        assert implementation.implemented_by
+        assert implementation.implementation_date
+        assert implementation.implementation_method
+        assert isinstance(implementation.before_metrics, dict)
+        assert isinstance(implementation.after_metrics, dict)
+        assert isinstance(implementation.success_metrics, dict)
+        
+        if implementation.effectiveness_score is not None:
+            assert 0.0 <= implementation.effectiveness_score <= 1.0
+    
+    def test_calculate_improvement_method(self):
+        """Test the calculate_improvement method"""
+        implementation = RecommendationImplementationFactory(
+            before_metrics={'conversion_rate': 0.10},
+            after_metrics={'conversion_rate': 0.15}
+        )
+        
+        improvement = implementation.calculate_improvement('conversion_rate')
+        expected_improvement = ((0.15 - 0.10) / 0.10) * 100  # 50%
+        assert abs(improvement - expected_improvement) < 0.01
+    
+    def test_calculate_improvement_with_missing_metric(self):
+        """Test improvement calculation with missing metrics"""
+        implementation = RecommendationImplementationFactory(
+            before_metrics={'conversion_rate': 0.10},
+            after_metrics={'bounce_rate': 0.30}  # Missing conversion_rate
+        )
+        
+        improvement = implementation.calculate_improvement('conversion_rate')
+        assert improvement is None
+    
+    def test_is_successful_determination(self):
+        """Test automatic success determination"""
+        # Successful implementation
+        implementation = RecommendationImplementationFactory(
+            before_metrics={
+                'conversion_rate': 0.10,
+                'bounce_rate': 0.60
+            },
+            after_metrics={
+                'conversion_rate': 0.15,  # +50% improvement
+                'bounce_rate': 0.45       # -25% improvement (lower is better)
+            }
+        )
+        
+        # Mock the determine_success method
+        with patch.object(implementation, 'determine_success', return_value=True):
+            success = implementation.determine_success()
+            assert success is True
+    
+    def test_effectiveness_score_validation(self):
+        """Test effectiveness score validation"""
+        implementation = RecommendationImplementationFactory()
+        
+        # Valid values
+        for score in [0.0, 0.5, 1.0]:
+            implementation.effectiveness_score = score
+            implementation.full_clean()
+        
+        # Invalid values
+        for score in [-0.1, 1.1]:
+            implementation.effectiveness_score = score
+            with pytest.raises(ValidationError):
+                implementation.full_clean()
+    
+    def test_cascade_delete_from_recommendation(self):
+        """Test that implementation is deleted when recommendation is deleted"""
+        recommendation = NavigationRecommendationFactory()
+        implementation = RecommendationImplementationFactory(recommendation=recommendation)
+        implementation_id = implementation.pk
+        
+        recommendation.delete()
+        
+        assert not RecommendationImplementation.objects.filter(pk=implementation_id).exists()
+
+
+class TestCompleteRecommendationFlow:
+    """Test complete recommendation workflow"""
+    
+    @pytest.mark.integration
+    def test_complete_user_profile_creation(self):
+        """Test creating a complete user profile with all related data"""
+        profile = create_complete_user_profile()
+        
+        assert profile.user
+        assert UserSimilarity.objects.filter(user1=profile.user).count() == 3
+        assert ContentRecommendation.objects.filter(user=profile.user).count() == 5
+    
+    @pytest.mark.integration
+    def test_recommendation_with_feedback_flow(self):
+        """Test complete recommendation with feedback flow"""
+        user = UserFactory()
+        recommendation = create_recommendation_with_feedback(user=user)
+        
+        assert recommendation.user == user
+        
+        # Check feedback was created
+        feedback = RecommendationFeedback.objects.filter(
+            object_id=recommendation.id,
+            user=user
+        ).first()
+        assert feedback is not None
+    
+    @pytest.mark.integration
+    def test_navigation_recommendation_implementation_flow(self):
+        """Test complete navigation recommendation implementation flow"""
+        recommendation, implementation = create_navigation_recommendation_with_implementation()
+        
+        assert recommendation.status == 'approved'
+        assert implementation.recommendation == recommendation
+        assert implementation.is_successful is True
+    
+    @pytest.mark.integration
+    def test_recommendation_cascade_delete(self):
+        """Test that all related data is properly deleted"""
+        user = UserFactory()
+        profile = UserBehaviorProfileFactory(user=user)
+        recommendation = ContentRecommendationFactory(user=user)
+        feedback = RecommendationFeedbackFactory(
+            user=user,
+            recommendation=recommendation
+        )
+        
+        # Delete user should cascade to all related objects
+        user_id = user.id
+        profile_id = profile.id
+        recommendation_id = recommendation.id
+        feedback_id = feedback.id
+        
+        user.delete()
+        
+        assert not UserBehaviorProfile.objects.filter(pk=profile_id).exists()
+        assert not ContentRecommendation.objects.filter(pk=recommendation_id).exists()
+        assert not RecommendationFeedback.objects.filter(pk=feedback_id).exists()

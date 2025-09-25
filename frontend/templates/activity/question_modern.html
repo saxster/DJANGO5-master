@@ -1,0 +1,567 @@
+{% extends "globals/base_list.html" %}
+
+{% block card_title %}
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+    <span style="font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 600; color: #1e3a8a;">
+        Question List - Modern View
+    </span>
+    <a href="/assets/checklists/questions/?template=true&classic=true{% if request.GET.get('type') %}&type={{ request.GET.get('type') }}{% endif %}" style="padding: 0.5rem 1rem; background: white; border: 1px solid #e5e7eb; border-radius: 8px; color: #6b7280; font-size: 0.875rem; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+        <i class="bi bi-list"></i> Classic View
+    </a>
+</div>
+{% endblock card_title %}
+
+{% block page_title %}
+Question List
+{% endblock page_title %}
+
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Question List</a></li>
+{% endblock pagebreadcumb %}
+
+{% block table %}
+<div style="background: #ffffff; padding: 2rem 2.5rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); margin-bottom: 2rem;">
+    <!-- Controls Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <!-- Search Bar -->
+            <div style="position: relative;">
+                <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+                <input type="text" id="searchBox" placeholder="Search questions..." style="padding: 0.625rem 1rem 0.625rem 2.5rem; border: 2px solid #e5e7eb; border-radius: 10px; width: 280px; font-size: 0.875rem; transition: all 0.3s; outline: none;">
+            </div>
+            
+            <!-- Filter Buttons -->
+            <button class="filter-btn" data-filter="all" style="padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);">
+                <i class="bi bi-grid-3x3-gap"></i> All Questions
+            </button>
+            <button class="filter-btn" data-filter="TEXT" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-fonts"></i> Text
+            </button>
+            <button class="filter-btn" data-filter="NUMBER" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-123"></i> Number
+            </button>
+            <button class="filter-btn" data-filter="workflow" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-diagram-3"></i> Workflow
+            </button>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 0.75rem;">
+            <button id="exportBtn" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <button id="addNewBtn" style="padding: 0.625rem 1.25rem; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-plus-circle"></i> Add Question
+            </button>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Total Questions</p>
+                    <p id="totalCount" style="color: #1f2937; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-question-circle" style="color: #3b82f6; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Text Type</p>
+                    <p id="textCount" style="color: #10b981; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dcfce7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-fonts" style="color: #10b981; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Number Type</p>
+                    <p id="numberCount" style="color: #f59e0b; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #fef3c7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-123" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Workflow</p>
+                    <p id="workflowCount" style="color: #8b5cf6; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #e9d5ff; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-diagram-3" style="color: #8b5cf6; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Questions Grid -->
+    <div id="questionsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.5rem;">
+        <!-- Questions will be loaded here -->
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" style="display: flex; justify-content: center; align-items: center; padding: 4rem;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p style="color: #6b7280; font-size: 0.875rem;">Loading questions...</p>
+        </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div id="emptyState" style="display: none; text-align: center; padding: 4rem;">
+        <div style="width: 80px; height: 80px; background: #e5e7eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+            <i class="bi bi-question-circle" style="color: #9ca3af; font-size: 2rem;"></i>
+        </div>
+        <h3 style="color: #1f2937; font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem 0;">No Questions Found</h3>
+        <p style="color: #6b7280; font-size: 0.875rem; margin: 0 0 1.5rem 0;">Start by creating your first question</p>
+        <button onclick="document.getElementById('addNewBtn').click()" style="padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer;">
+            <i class="bi bi-plus-circle"></i> Create Question
+        </button>
+    </div>
+</div>
+{% endblock table %}
+
+{% block popup_alerts %}
+<!-- Modal for Add/Edit -->
+<div class="modal" tabindex="-1" aria-hidden="true" aria-labelledby="exampleModalLabel" data-bs-backdrop="static" id="modal-ques">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content" id="ques_content">
+        </div>
+    </div>
+</div>
+{% endblock popup_alerts %}
+
+{% block extra_scripts %}
+<style>
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.question-card {
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+.filter-btn.active {
+    background: #3b82f6 !important;
+    color: white !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3) !important;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    const modal_id = "#modal-ques";
+    const modalcontent_id = "#ques_content";
+    const urlname = "/assets/checklists/questions/";
+    const viewname = "Question";
+    const typeParam = '{% if request.GET.get("type") %}&type={{ request.GET.get("type") }}{% endif %}';
+    
+    let allQuestions = [];
+    let currentFilter = 'all';
+    let searchTerm = '';
+    
+    // Generate color based on question type
+    function getColorForType(type) {
+        const colors = {
+            'TEXT': '#10b981',
+            'NUMBER': '#f59e0b',
+            'RADIO': '#3b82f6',
+            'CHECKBOX': '#8b5cf6',
+            'DROPDOWN': '#ec4899',
+            'DATE': '#14b8a6',
+            'TIME': '#f43f5e',
+            'YESNO': '#6366f1'
+        };
+        
+        return colors[type] || '#6b7280';
+    }
+    
+    // Get type icon
+    function getTypeIcon(type) {
+        const icons = {
+            'TEXT': 'bi-fonts',
+            'NUMBER': 'bi-123',
+            'RADIO': 'bi-record-circle',
+            'CHECKBOX': 'bi-check2-square',
+            'DROPDOWN': 'bi-chevron-down',
+            'DATE': 'bi-calendar',
+            'TIME': 'bi-clock',
+            'YESNO': 'bi-toggle-on'
+        };
+        
+        return icons[type] || 'bi-question-circle';
+    }
+    
+    // Generate initials
+    function getInitials(name) {
+        return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+    }
+    
+    // Create question card HTML
+    function createQuestionCard(question) {
+        const initials = getInitials(question.quesname);
+        const color = getColorForType(question.answertype);
+        const icon = getTypeIcon(question.answertype);
+        const isWorkflow = question.isworkflow === true;
+        
+        return `
+            <div class="question-card" data-id="${question.id}" data-type="${question.answertype}" data-workflow="${isWorkflow}"
+                 style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); 
+                        transition: all 0.3s; cursor: pointer; border: 2px solid transparent;">
+                <div style="padding: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="width: 56px; height: 56px; background: ${color}; border-radius: 12px; 
+                                    display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="${icon}" style="color: white; font-size: 1.5rem;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="color: #1f2937; font-size: 1.125rem; font-weight: 600; margin: 0; 
+                                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${question.quesname}</h3>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                                <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; 
+                                            background: #e5e7eb; border-radius: 6px; 
+                                            font-size: 0.75rem; color: #6b7280; font-weight: 500;">
+                                    <i class="${icon}" style="font-size: 0.75rem;"></i> ${question.answertype}
+                                </span>
+                                ${isWorkflow ? 
+                                    '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: #e9d5ff; border-radius: 6px; font-size: 0.75rem; color: #7c3aed; font-weight: 500;"><i class="bi bi-diagram-3"></i> Workflow</span>' :
+                                    ''
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.25rem;">
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Answer Type</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${question.answertype}
+                            </p>
+                        </div>
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Unit</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${question.unit__tacode || 'None'}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e5e7eb;">
+                        <button class="edit-btn" data-id="${question.id}" 
+                                style="padding: 0.5rem 1rem; background: #3b82f6; 
+                                       color: white; border: none; border-radius: 8px; font-size: 0.75rem; 
+                                       font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="delete-btn" data-id="${question.id}" 
+                                style="padding: 0.5rem 1rem; background: white; color: #ef4444; 
+                                       border: 1px solid #fee2e2; border-radius: 8px; font-size: 0.75rem; 
+                                       font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Apply filters and search
+    function applyFilters() {
+        let filteredQuestions = allQuestions;
+        
+        // Apply type/workflow filter
+        if (currentFilter !== 'all') {
+            if (currentFilter === 'workflow') {
+                filteredQuestions = filteredQuestions.filter(q => q.isworkflow === true);
+            } else {
+                filteredQuestions = filteredQuestions.filter(q => q.answertype === currentFilter);
+            }
+        }
+        
+        // Apply search filter
+        if (searchTerm) {
+            filteredQuestions = filteredQuestions.filter(q => 
+                q.quesname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                q.answertype.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (q.unit__tacode && q.unit__tacode.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+        }
+        
+        renderQuestions(filteredQuestions);
+    }
+    
+    // Render questions
+    function renderQuestions(questions) {
+        const grid = $('#questionsGrid');
+        grid.empty();
+        
+        if (questions.length === 0) {
+            $('#emptyState').show();
+        } else {
+            $('#emptyState').hide();
+            questions.forEach((question, index) => {
+                const card = $(createQuestionCard(question));
+                card.css('animation-delay', `${index * 0.05}s`);
+                grid.append(card);
+            });
+        }
+        
+        // Update counts
+        updateCounts();
+    }
+    
+    // Update statistics
+    function updateCounts() {
+        const textCount = allQuestions.filter(q => q.answertype === 'TEXT').length;
+        const numberCount = allQuestions.filter(q => q.answertype === 'NUMBER').length;
+        const workflowCount = allQuestions.filter(q => q.isworkflow === true).length;
+        
+        $('#totalCount').text(allQuestions.length);
+        $('#textCount').text(textCount);
+        $('#numberCount').text(numberCount);
+        $('#workflowCount').text(workflowCount);
+    }
+    
+    // Load questions
+    function loadQuestions() {
+        $('#loadingIndicator').show();
+        $('#questionsGrid').hide();
+        
+        $.ajax({
+            url: `${urlname}?action=list`,
+            type: 'GET',
+            success: function(response) {
+                allQuestions = response.data || [];
+                $('#loadingIndicator').hide();
+                $('#questionsGrid').show();
+                applyFilters();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading questions:', error);
+                $('#loadingIndicator').hide();
+                $('#emptyState').show();
+                show_error_alert('Failed to load questions');
+            }
+        });
+    }
+    
+    // Filter button click
+    $('.filter-btn').on('click', function() {
+        $('.filter-btn').removeClass('active');
+        $(this).addClass('active');
+        currentFilter = $(this).data('filter');
+        applyFilters();
+    });
+    
+    // Search input with debounce
+    let searchTimer;
+    $('#searchBox').on('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            searchTerm = $(this).val();
+            applyFilters();
+        }, 300);
+    });
+    
+    // Add hover effects
+    $('#searchBox').on('focus', function() {
+        $(this).css('border-color', '#3b82f6');
+        $(this).css('box-shadow', '0 0 0 3px rgba(59, 130, 246, 0.1)');
+    }).on('blur', function() {
+        $(this).css('border-color', '#e5e7eb');
+        $(this).css('box-shadow', 'none');
+    });
+    
+    // Card hover effect
+    $(document).on('mouseenter', '.question-card', function() {
+        $(this).css('transform', 'translateY(-4px)');
+        $(this).css('box-shadow', '0 8px 16px rgba(0, 0, 0, 0.12)');
+        $(this).css('border-color', '#3b82f6');
+    }).on('mouseleave', '.question-card', function() {
+        $(this).css('transform', 'translateY(0)');
+        $(this).css('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.08)');
+        $(this).css('border-color', 'transparent');
+    });
+    
+    // Button hover effects
+    $('.filter-btn').on('mouseenter', function() {
+        if (!$(this).hasClass('active')) {
+            $(this).css('background', '#f3f4f6');
+            $(this).css('transform', 'translateY(-2px)');
+        }
+    }).on('mouseleave', function() {
+        if (!$(this).hasClass('active')) {
+            $(this).css('background', 'white');
+            $(this).css('transform', 'translateY(0)');
+        }
+    });
+    
+    // Add new question button
+    $('#addNewBtn').on('click', function() {
+        const params = {
+            'modal_id': modal_id,
+            'url': `${urlname}?action=form${typeParam}`,
+            'beforeSend': function() {
+                $(modal_id).modal("show");
+            }
+        };
+        
+        fire_ajax_get(params)
+        .done((data, status, xhr) => {
+            $(`${modal_id} .modal-content`).html(data.html_form);
+        })
+        .fail((xhr, status, error) => {
+            show_error_alert("Something went wrong!");
+        });
+    });
+    
+    // Edit button click
+    $(document).on('click', '.edit-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        
+        const params = {
+            'modal_id': modal_id,
+            'url': `${urlname}?id=${id}${typeParam}`,
+            'beforeSend': function() {
+                $(modal_id).modal("show");
+            }
+        };
+        
+        fire_ajax_get(params)
+        .done((data, status, xhr) => {
+            $(modalcontent_id).attr('data-form', 'update');
+            $(`${modal_id} .modal-content`).html(data.html_form);
+        })
+        .fail((xhr, status, error) => {
+            show_error_alert('Something went wrong!');
+        });
+    });
+    
+    // Delete button click
+    $(document).on('click', '.delete-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        
+        show_alert_before_delete(viewname)
+        .then((result) => {
+            if(result.isConfirmed) {
+                const params = {
+                    url: `${urlname}?action=delete&id=${id}${typeParam}`
+                };
+                
+                fire_ajax_get(params)
+                .done((data, status, xhr) => {
+                    if(xhr.status === 200) {
+                        show_successful_delete_alert();
+                        loadQuestions(); // Reload the questions
+                    } else {
+                        show_error_alert('Something went Wrong!');
+                    }
+                })
+                .fail((xhr, status, error) => {
+                    show_error_alert('Delete failed: ' + (xhr.responseJSON?.errors || error));
+                });
+            }
+        });
+    });
+    
+    // Form submission
+    $(modal_id).on('submit', '#qsetbng_form', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const id = $("#pk").val();
+        
+        var payLoad = {
+            formData: form.serialize(),
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        };
+        
+        if(id !== 'None') {
+            payLoad.pk = id;
+        }
+        
+        const params = { url: urlname, modal: true };
+        
+        fire_ajax_form_post(params, payLoad)
+        .done((data, status, xhr) => {
+            console.log("data ", data);
+            $(modal_id).modal("hide");
+            show_successful_save_alert(id !== 'None');
+            loadQuestions(); // Reload the questions
+        })
+        .fail((xhr, status, error) => {
+            console.error('Form submission failed:', xhr, status, error);
+            show_error_alert('Error saving question: ' + (xhr.responseJSON?.errors || error));
+        });
+    });
+    
+    // Export button
+    $('#exportBtn').on('click', function() {
+        // Export filtered questions as CSV
+        let csvContent = "Question Name,Answer Type,Unit,Workflow\n";
+        let filteredQuestions = allQuestions;
+        
+        if (currentFilter !== 'all') {
+            if (currentFilter === 'workflow') {
+                filteredQuestions = filteredQuestions.filter(q => q.isworkflow === true);
+            } else {
+                filteredQuestions = filteredQuestions.filter(q => q.answertype === currentFilter);
+            }
+        }
+        
+        if (searchTerm) {
+            filteredQuestions = filteredQuestions.filter(q => 
+                q.quesname.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+        
+        filteredQuestions.forEach(question => {
+            const workflow = question.isworkflow ? 'Yes' : 'No';
+            csvContent += `"${question.quesname}","${question.answertype}","${question.unit__tacode || ''}","${workflow}"\n`;
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'questions.csv';
+        a.click();
+    });
+    
+    // Initial load
+    loadQuestions();
+});
+</script>
+{% endblock extra_scripts %}

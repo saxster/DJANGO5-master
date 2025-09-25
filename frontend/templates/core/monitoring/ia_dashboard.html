@@ -1,0 +1,419 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}IA Monitoring Dashboard - YOUTILITY3{% endblock %}
+
+{% block base_head %}
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    
+    <style>
+        .metric-card {
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .trend-up { color: #28a745; }
+        .trend-down { color: #dc3545; }
+        .trend-neutral { color: #6c757d; }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-root">
+    <div class="page d-flex flex-row flex-column-fluid">
+        <!-- Include Sidebar -->
+        <div class="aside aside-dark aside-hoverable" data-kt-drawer="true">
+            {% include "globals/sidebar_clean.html" %}
+        </div>
+        
+        <!-- Main Content -->
+        <div class="wrapper d-flex flex-column flex-row-fluid">
+            <!-- Header -->
+            <div class="header align-items-stretch">
+                {% include "globals/header.html" %}
+            </div>
+            
+            <!-- Content -->
+            <div class="content d-flex flex-column flex-column-fluid">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="container-fluid d-flex flex-stack">
+                        <div class="page-title d-flex align-items-center flex-wrap me-3 mb-5 mb-lg-0">
+                            <h1 class="d-flex text-dark fw-bold fs-3 align-items-center my-1">
+                                Information Architecture Monitoring
+                            </h1>
+                        </div>
+                        
+                        <!-- Date Range Selector -->
+                        <div class="d-flex align-items-center gap-2">
+                            <select class="form-select form-select-sm" id="date-range-selector">
+                                <option value="7" {% if date_range.days == 7 %}selected{% endif %}>Last 7 days</option>
+                                <option value="14" {% if date_range.days == 14 %}selected{% endif %}>Last 14 days</option>
+                                <option value="30" {% if date_range.days == 30 %}selected{% endif %}>Last 30 days</option>
+                                <option value="90" {% if date_range.days == 90 %}selected{% endif %}>Last 90 days</option>
+                            </select>
+                            <a href="{% url 'core:legacy_url_report' %}" class="btn btn-sm btn-light-primary">
+                                <i class="bi bi-file-text"></i> Detailed Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dashboard Content -->
+                <div class="post d-flex flex-column-fluid">
+                    <div class="container-xxl">
+                        <!-- Key Metrics Row -->
+                        <div class="row g-5 mb-5">
+                            <!-- Migration Progress -->
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card metric-card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="card-title mb-0">Migration Progress</h5>
+                                            <i class="bi bi-arrow-right-circle fs-2x text-primary"></i>
+                                        </div>
+                                        <div class="fs-2 fw-bold">{{ legacy_url_metrics.migration_progress.percentage }}%</div>
+                                        <p class="text-muted mb-0">
+                                            {{ legacy_url_metrics.migration_progress.unused_legacy_urls }} of 
+                                            {{ legacy_url_metrics.migration_progress.total_legacy_urls }} URLs migrated
+                                        </p>
+                                        <div class="progress mt-2" style="height: 6px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: {{ legacy_url_metrics.migration_progress.percentage }}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 404 Error Reduction -->
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card metric-card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="card-title mb-0">404 Error Reduction</h5>
+                                            <i class="bi bi-graph-down fs-2x text-success"></i>
+                                        </div>
+                                        <div class="fs-2 fw-bold">
+                                            <span class="trend-down">↓ {{ error_metrics.error_reduction.percentage }}%</span>
+                                        </div>
+                                        <p class="text-muted mb-0">
+                                            From {{ error_metrics.error_reduction.pre_ia_count }} to 
+                                            {{ error_metrics.error_reduction.post_ia_count }} errors
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Navigation Efficiency -->
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card metric-card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="card-title mb-0">Navigation Efficiency</h5>
+                                            <i class="bi bi-speedometer2 fs-2x text-info"></i>
+                                        </div>
+                                        <div class="fs-2 fw-bold">{{ user_flow_metrics.navigation_efficiency.score }}/100</div>
+                                        <p class="text-muted mb-0">
+                                            <span class="trend-up">↑ {{ user_flow_metrics.navigation_efficiency.improvement_percentage }}%</span>
+                                            improvement
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Page Load Time -->
+                            <div class="col-xl-3 col-md-6">
+                                <div class="card metric-card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="card-title mb-0">Avg Page Load</h5>
+                                            <i class="bi bi-lightning fs-2x text-warning"></i>
+                                        </div>
+                                        <div class="fs-2 fw-bold">{{ performance_metrics.avg_load_time }}s</div>
+                                        <p class="text-muted mb-0">
+                                            Menu: {{ performance_metrics.avg_menu_render }}s
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charts Row -->
+                        <div class="row g-5 mb-5">
+                            <!-- Legacy URL Usage Trend -->
+                            <div class="col-xl-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Legacy URL Usage Trend</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="legacy-url-trend-chart" height="300"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Error Distribution -->
+                            <div class="col-xl-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Daily Error Trends</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="error-trend-chart" height="300"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation Analysis Row -->
+                        <div class="row g-5 mb-5">
+                            <!-- Top Menu Items -->
+                            <div class="col-xl-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Most Used Menu Items</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-row-dashed">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Menu Item</th>
+                                                        <th class="text-end">Clicks</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for item in navigation_metrics.top_menu_items %}
+                                                    <tr>
+                                                        <td>{{ item.menu_item }}</td>
+                                                        <td class="text-end">
+                                                            <span class="badge badge-light-primary">{{ item.click_count }}</span>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Page Load Distribution -->
+                            <div class="col-xl-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Page Load Time Distribution</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="load-time-distribution" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Common User Paths -->
+                            <div class="col-xl-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Common Navigation Paths</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        {% for path in user_flow_metrics.common_paths|slice:":5" %}
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <div class="fw-bold">{{ path.path }}</div>
+                                                <div class="text-muted small">Avg time: {{ path.avg_time }}s</div>
+                                            </div>
+                                            <span class="badge badge-light">{{ path.count }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Legacy URLs Detail -->
+                        <div class="row g-5">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Top Legacy URLs Still in Use</h3>
+                                        <div class="card-toolbar">
+                                            <a href="{% url 'core:legacy_url_report' %}" class="btn btn-sm btn-light">
+                                                View All
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-row-dashed">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Legacy URL</th>
+                                                        <th>New URL</th>
+                                                        <th class="text-center">Usage Count</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for url, count in legacy_url_metrics.top_urls %}
+                                                    <tr>
+                                                        <td>
+                                                            <code class="text-danger">{{ url }}</code>
+                                                        </td>
+                                                        <td>
+                                                            <code class="text-success">/{{ url|get_new_url }}</code>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge badge-light-warning">{{ count }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-light-primary copy-redirect" 
+                                                                    data-old="{{ url }}" 
+                                                                    data-new="/{{ url|get_new_url }}">
+                                                                <i class="bi bi-clipboard"></i> Copy Redirect
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Date range selector
+document.getElementById('date-range-selector').addEventListener('change', function() {
+    window.location.href = '?days=' + this.value;
+});
+
+// Legacy URL Trend Chart
+const legacyTrendCtx = document.getElementById('legacy-url-trend-chart').getContext('2d');
+new Chart(legacyTrendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ legacy_url_metrics.trend_data|map:'timestamp'|json_script:'trend-labels' }},
+        datasets: [{
+            label: 'Legacy URL Hits',
+            data: {{ legacy_url_metrics.trend_data|map:'total_hits'|json_script:'trend-data' }},
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// Error Trend Chart
+const errorTrendCtx = document.getElementById('error-trend-chart').getContext('2d');
+new Chart(errorTrendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ error_metrics.daily_trends|map:'day'|json_script:'error-labels' }},
+        datasets: [{
+            label: '404 Errors',
+            data: {{ error_metrics.daily_trends|map:'not_found'|json_script:'error-404-data' }},
+            borderColor: 'rgb(255, 159, 64)',
+            backgroundColor: 'rgba(255, 159, 64, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'Server Errors',
+            data: {{ error_metrics.daily_trends|map:'server_error'|json_script:'error-500-data' }},
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// Load Time Distribution Chart
+const loadDistCtx = document.getElementById('load-time-distribution').getContext('2d');
+new Chart(loadDistCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ performance_metrics.load_time_distribution|map:'label'|json_script:'dist-labels' }},
+        datasets: [{
+            data: {{ performance_metrics.load_time_distribution|map:'percentage'|json_script:'dist-data' }},
+            backgroundColor: [
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 206, 86, 0.8)',
+                'rgba(255, 159, 64, 0.8)',
+                'rgba(255, 99, 132, 0.8)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            datalabels: {
+                formatter: (value, ctx) => {
+                    return value + '%';
+                },
+                color: '#fff',
+                font: {
+                    weight: 'bold'
+                }
+            }
+        }
+    }
+});
+
+// Copy redirect functionality
+document.querySelectorAll('.copy-redirect').forEach(button => {
+    button.addEventListener('click', function() {
+        const oldUrl = this.dataset.old;
+        const newUrl = this.dataset.new;
+        const redirectRule = `RedirectPermanent /${oldUrl} ${newUrl}`;
+        
+        navigator.clipboard.writeText(redirectRule).then(() => {
+            // Show success message
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            this.classList.remove('btn-light-primary');
+            this.classList.add('btn-success');
+            
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.classList.remove('btn-success');
+                this.classList.add('btn-light-primary');
+            }, 2000);
+        });
+    });
+});
+</script>
+{% endblock %}

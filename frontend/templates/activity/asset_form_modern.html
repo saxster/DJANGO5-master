@@ -1,0 +1,593 @@
+{% extends "globals/base_form_modern.html" %}
+{% from "onboarding/partials/partial_ta_form.html" import typeassist_form with context %}
+
+{% block page_title %}
+{% if assetform.instance.id %}
+Edit Asset - {{ assetform.instance.assetname }}
+{% else %}
+Add New Asset
+{% endif %}
+{% endblock page_title %}
+
+{% block page_subtitle %}
+{% if assetform.instance.id %}
+Update asset information and settings
+{% else %}
+Create a new asset record in the system
+{% endif %}
+{% endblock page_subtitle %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item"><a href="/assets/?template=true">Assets</a></li>
+<li class="breadcrumb-item active">
+  {% if assetform.instance.id %}Edit{% else %}Add{% endif %}
+</li>
+{% endblock breadcrumb %}
+
+{% block form_icon %}inventory_2{% endblock form_icon %}
+
+{% block form_title %}
+{% if assetform.instance.id %}
+Edit Asset
+{% else %}
+Add New Asset
+{% endif %}
+{% endblock form_title %}
+
+{% block form_description %}
+{% if assetform.instance.id %}
+Update the information for {{ assetform.instance.assetname }}
+{% else %}
+Create a new asset record with complete details
+{% endif %}
+{% endblock form_description %}
+
+{% block nonfield_errors %}
+{% if assetform.non_field_errors %}
+<div class="alert alert-danger">
+  <div class="d-flex align-items-center">
+    <i class="material-icons me-2">error</i>
+    <strong>Please correct the following errors:</strong>
+  </div>
+  <ul class="mb-0 mt-2">
+    {% for error in assetform.non_field_errors %}
+    <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock nonfield_errors %}
+
+{% block extra_css %}
+{{ assetform.media.css }}
+{% endblock extra_css %}
+
+{% block form_content %}
+<form id="asset-form" method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="pk" id="pk" value="{{ assetform.instance.pk }}">
+  {{ assetform.identifier }}
+  <input type="hidden" name="{{ assetform.ctzoffset.name }}" id="{{ assetform.ctzoffset.auto_id }}" value="-1">
+  
+  <!-- Basic Information Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">info</i>
+      Basic Information
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.assetcode.id_for_label }}" class="form-label required">
+            {{ assetform.assetcode.label }}
+          </label>
+          {{ assetform.assetcode }}
+          {% if assetform.assetcode.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.assetcode.errors.0 }}
+            </div>
+          {% endif %}
+          <div class="form-text">Unique identifier for this asset</div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.assetname.id_for_label }}" class="form-label required">
+            {{ assetform.assetname.label }}
+          </label>
+          {{ assetform.assetname }}
+          {% if assetform.assetname.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.assetname.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.type.id_for_label }}" class="form-label">
+            {{ assetform.type.label }}
+          </label>
+          {{ assetform.type }}
+          {% if assetform.type.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.type.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.category.id_for_label }}" class="form-label">
+            {{ assetform.category.label }}
+          </label>
+          <div class="input-group">
+            {{ assetform.category }}
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#category_popup" data-bs-toggle="tooltip" title="Add new category">
+              <i class="material-icons">add</i>
+            </button>
+          </div>
+          {% if assetform.category.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.category.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Location & Status Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">location_on</i>
+      Location & Status
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.location.id_for_label }}" class="form-label">
+            {{ assetform.location.label }}
+          </label>
+          {{ assetform.location }}
+          {% if assetform.location.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.location.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.parent.id_for_label }}" class="form-label">
+            {{ assetform.parent.label }}
+          </label>
+          {{ assetform.parent }}
+          {% if assetform.parent.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.parent.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.runningstatus.id_for_label }}" class="form-label">
+            {{ assetform.runningstatus.label }}
+          </label>
+          {{ assetform.runningstatus }}
+          {% if assetform.runningstatus.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.runningstatus.errors.0 }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="{{ assetform.status_field.id_for_label }}" class="form-label">
+            {{ assetform.status_field.label }}
+          </label>
+          <div class="input-group">
+            {{ assetform.status_field }}
+            <button type="button" class="btn btn-outline-info" id="fetch-status" data-bs-toggle="tooltip" title="Fetch current status">
+              <i class="material-icons">refresh</i>
+            </button>
+          </div>
+          {% if assetform.status_field.errors %}
+            <div class="invalid-feedback">
+              {{ assetform.status_field.errors.0 }}
+            </div>
+          {% endif %}
+          <div class="form-text">
+            <span id="status_fetched" class="text-primary"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GPS & Location Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">gps_fixed</i>
+      GPS Location
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-8">
+        <div class="form-group">
+          <label for="id_gpslocation" class="form-label">
+            GPS Coordinates
+          </label>
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="material-icons">place</i>
+            </span>
+            <input type="text" name="gpslocation" readonly placeholder="Latitude, Longitude"
+                   geom_type="POINT" class="form-control" id="id_gpslocation">
+            <button type="button" class="btn btn-primary" id="id_setgps">
+              <i class="material-icons me-1">my_location</i>
+              Set GPS
+            </button>
+          </div>
+          <div class="form-text">Click "Set GPS" to capture current location coordinates</div>
+        </div>
+      </div>
+      
+      <div class="col-md-4">
+        <div class="form-group">
+          <label class="form-label">GPS Preview</label>
+          <div id="gps-preview" class="text-center p-3 border rounded bg-light">
+            <i class="material-icons text-muted" style="font-size: 2rem;">location_off</i>
+            <div class="text-muted">No location set</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Section -->
+  <div class="form-section">
+    <h3 class="form-section-title">
+      <i class="material-icons">settings</i>
+      Asset Settings
+    </h3>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-check form-switch mb-3">
+          {{ assetform.enable }}
+          <label class="form-check-label" for="{{ assetform.enable.id_for_label }}">
+            <strong>{{ assetform.enable.label }}</strong>
+            <div class="form-text">Enable this asset for operations</div>
+          </label>
+        </div>
+        
+        <div class="form-check form-switch mb-3">
+          {{ assetform.iscritical }}
+          <label class="form-check-label" for="{{ assetform.iscritical.id_for_label }}">
+            <strong>{{ assetform.iscritical.label }}</strong>
+            <div class="form-text">Mark as critical asset</div>
+          </label>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        {% if assetextrasform %}
+        <div class="form-check form-switch mb-3">
+          {{ assetextrasform.ismeter }}
+          <label class="form-check-label" for="{{ assetextrasform.ismeter.id_for_label }}">
+            <strong>{{ assetextrasform.ismeter.label }}</strong>
+            <div class="form-text">Asset has meter readings</div>
+          </label>
+        </div>
+        
+        <div class="form-check form-switch mb-3">
+          {{ assetextrasform.is_nonengg_asset }}
+          <label class="form-check-label" for="{{ assetextrasform.is_nonengg_asset.id_for_label }}">
+            <strong>{{ assetextrasform.is_nonengg_asset.label }}</strong>
+            <div class="form-text">Non-engineering asset</div>
+          </label>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Category Modal -->
+<div class="modal fade" id="category_popup" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModalLabel">
+          <i class="material-icons me-2">add_circle</i>
+          Add New Category
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {{ typeassist_form("category", ta_form, auto_id=False) }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock form_content %}
+
+{% block form_actions %}
+{% if assetform.instance.id %}
+  <button type="submit" form="asset-form" class="btn btn-primary">
+    <i class="material-icons">save</i>
+    Update Asset
+  </button>
+  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+    <i class="material-icons">delete</i>
+    Delete
+  </button>
+{% else %}
+  <button type="submit" form="asset-form" class="btn btn-success">
+    <i class="material-icons">add_box</i>
+    Create Asset
+  </button>
+{% endif %}
+<button type="button" class="btn btn-secondary" onclick="window.location.href='/assets/?template=true'">
+  <i class="material-icons">cancel</i>
+  Cancel
+</button>
+{% endblock form_actions %}
+
+<!-- Delete Confirmation Modal -->
+{% if assetform.instance.id %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">
+          <i class="material-icons me-2 text-danger">warning</i>
+          Confirm Deletion
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ assetform.instance.assetname }}</strong>?</p>
+        <div class="alert alert-warning">
+          <i class="material-icons me-2">info</i>
+          <strong>Warning:</strong> This action cannot be undone. All associated data will be permanently removed.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="get" action="/assets/?action=delete&id={{ assetform.instance.id }}" style="display: inline;">
+          <button type="submit" class="btn btn-danger">
+            <i class="material-icons me-1">delete_forever</i>
+            Delete Permanently
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% block extra_scripts %}
+{{ super() }}
+{{ assetform.media.js }}
+<script>
+$(document).ready(function() {
+  // Enable auto-save for this form
+  window.enableAutoSave = true;
+
+  // GPS location handling
+  $('#id_setgps').on('click', function() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const gpsValue = `${lat}, ${lng}`;
+        
+        $('#id_gpslocation').val(gpsValue);
+        updateGpsPreview(lat, lng);
+        showAlert('success', 'GPS location captured successfully!');
+      }, function(error) {
+        showAlert('danger', 'Unable to get GPS location: ' + error.message);
+      });
+    } else {
+      showAlert('danger', 'Geolocation is not supported by this browser.');
+    }
+  });
+
+  // Update GPS preview
+  function updateGpsPreview(lat, lng) {
+    const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+    $('#gps-preview').html(`
+      <a href="${googleMapsUrl}" target="_blank" class="text-decoration-none">
+        <i class="material-icons text-success" style="font-size: 2rem;">place</i>
+        <div class="text-success">Location Set</div>
+        <small class="text-muted">${lat.toFixed(4)}, ${lng.toFixed(4)}</small>
+      </a>
+    `);
+  }
+
+  // Check if GPS is already set
+  const currentGps = $('#id_gpslocation').val();
+  if (currentGps) {
+    const coords = currentGps.split(',');
+    if (coords.length === 2) {
+      const lat = parseFloat(coords[0].trim());
+      const lng = parseFloat(coords[1].trim());
+      if (!isNaN(lat) && !isNaN(lng)) {
+        updateGpsPreview(lat, lng);
+      }
+    }
+  }
+
+  // Status fetching functionality
+  $('#fetch-status').on('click', function() {
+    const assetId = $('#pk').val();
+    const statusField = $('#id_status_field').val();
+    
+    if (!assetId || !statusField) {
+      showAlert('warning', 'Asset ID and status field are required to fetch status.');
+      return;
+    }
+    
+    const button = $(this);
+    const originalIcon = button.find('i').text();
+    
+    button.prop('disabled', true).find('i').text('hourglass_empty');
+    
+    $.get('/assets/', {
+      fetchStatus: statusField,
+      id: assetId
+    })
+    .done(function(response) {
+      if (response.period) {
+        $('#status_fetched').text('Last updated: ' + response.period);
+        showAlert('success', 'Status information updated successfully.');
+      }
+    })
+    .fail(function() {
+      showAlert('danger', 'Failed to fetch status information.');
+    })
+    .always(function() {
+      button.prop('disabled', false).find('i').text(originalIcon);
+    });
+  });
+
+  // Form validation enhancements
+  $('#asset-form').on('submit', function(e) {
+    let isValid = true;
+    const requiredFields = $(this).find('input[required], select[required], textarea[required]');
+    
+    requiredFields.each(function() {
+      const field = $(this);
+      const value = field.val();
+      
+      if (!value || value.trim() === '') {
+        isValid = false;
+        field.addClass('is-invalid');
+        field.closest('.form-group').addClass('form-error');
+      } else {
+        field.removeClass('is-invalid');
+        field.closest('.form-group').removeClass('form-error');
+      }
+    });
+
+    if (!isValid) {
+      e.preventDefault();
+      showAlert('danger', 'Please fill in all required fields.');
+      
+      // Scroll to first error
+      const firstError = $('.form-error').first();
+      if (firstError.length) {
+        $('html, body').animate({
+          scrollTop: firstError.offset().top - 100
+        }, 500);
+      }
+    }
+  });
+
+  // Real-time validation
+  $('input, select, textarea').on('blur', function() {
+    const field = $(this);
+    const value = field.val();
+    
+    if (field.attr('required') && (!value || value.trim() === '')) {
+      field.addClass('is-invalid');
+      field.closest('.form-group').addClass('form-error');
+    } else {
+      field.removeClass('is-invalid');
+      field.closest('.form-group').removeClass('form-error').addClass('form-success');
+    }
+  });
+
+  // Initialize Select2 for dropdowns
+  if ($.fn.select2) {
+    $('select').select2({
+      theme: 'bootstrap-5',
+      width: '100%'
+    });
+  }
+
+  // Auto-generate asset code if empty
+  $('#id_assetname').on('blur', function() {
+    const name = $(this).val();
+    const codeField = $('#id_assetcode');
+    
+    if (name && !codeField.val()) {
+      const generatedCode = generateAssetCode(name);
+      codeField.val(generatedCode);
+      codeField.trigger('blur');
+    }
+  });
+
+  // Generate asset code from name
+  function generateAssetCode(name) {
+    const sitecode = "{{ request.session.sitecode or '' }}";
+    const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+    const words = cleanName.split(' ');
+    let code = sitecode + '_';
+    
+    if (words.length >= 2) {
+      code += words[0].substring(0, 3).toUpperCase() + 
+              words[words.length - 1].substring(0, 3).toUpperCase();
+    } else {
+      code += cleanName.substring(0, 6).toUpperCase();
+    }
+    
+    // Add timestamp to ensure uniqueness
+    const timestamp = Date.now().toString().slice(-4);
+    code += timestamp;
+    
+    return code;
+  }
+
+  // Show alert function
+  function showAlert(type, message) {
+    const alertHtml = `
+      <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        <i class="material-icons me-2">${type === 'danger' ? 'error' : type === 'success' ? 'check_circle' : 'info'}</i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    
+    // Remove existing alerts
+    $('.alert:not(.permanent)').remove();
+    
+    // Add new alert at the top of the form
+    $('.form-body').prepend(alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      $('.alert').fadeOut();
+    }, 5000);
+  }
+
+  // Initialize tooltips
+  $('[data-bs-toggle="tooltip"]').tooltip();
+  
+  // Load form draft on page load
+  loadFormDraft();
+  
+  // Clear draft on successful submission
+  $('#asset-form').on('submit', function() {
+    localStorage.removeItem('form_draft_' + window.location.pathname);
+  });
+});
+</script>
+{% endblock extra_scripts %}

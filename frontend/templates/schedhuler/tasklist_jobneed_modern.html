@@ -1,0 +1,750 @@
+{% extends "globals/base_list.html" %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Task Management - Card View
+<div class="float-end">
+	<a href="/operations/tasks/?template=true&old=true" class="btn btn-sm btn-light-secondary me-2">
+		<i class="bi bi-table"></i> Classic View
+	</a>
+	<a href="/operations/tasks/?template=true&list=true" class="btn btn-sm btn-light-primary me-2">
+		<i class="bi bi-list-ul"></i> List View
+	</a>
+	<a href="/operations/tasks/?action=form" class="btn btn-sm btn-primary">
+		<i class="bi bi-plus"></i> Add Task
+	</a>
+</div>
+{% endblock card_title %}
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Task Management
+{% endblock page_title %}
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="/operations/tasks/?template=true" class="pe-3">Tasks</a></li>
+{% endblock pagebreadcumb %}
+
+<!---- BEGIN EXTRA CSS ------>
+{% block extra_css %}
+<style>
+/* Modern Task List Styles */
+.task-filters {
+	background: #fff;
+	padding: 20px;
+	border-radius: 10px;
+	margin-bottom: 20px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.task-search {
+	position: relative;
+}
+
+.task-search input {
+	padding-left: 40px;
+	border-radius: 8px;
+	border: 1px solid #dee2e6;
+}
+
+.task-search .search-icon {
+	position: absolute;
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: #6c757d;
+}
+
+.filter-buttons {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 15px;
+}
+
+.filter-btn {
+	padding: 8px 16px;
+	border: 1px solid #dee2e6;
+	border-radius: 6px;
+	background: #fff;
+	color: #495057;
+	cursor: pointer;
+	transition: all 0.3s;
+	font-size: 14px;
+}
+
+.filter-btn:hover {
+	border-color: #0d6efd;
+	color: #0d6efd;
+}
+
+.filter-btn.active {
+	background: #0d6efd;
+	color: #fff;
+	border-color: #0d6efd;
+}
+
+.task-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+	gap: 20px;
+	margin-bottom: 20px;
+}
+
+.task-card {
+	background: #fff;
+	border-radius: 10px;
+	padding: 20px;
+	border: 1px solid #e9ecef;
+	transition: all 0.3s;
+	cursor: pointer;
+	position: relative;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.task-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+	border-color: #0d6efd;
+}
+
+.task-card.status-completed {
+	border-left: 4px solid #198754;
+}
+
+.task-card.status-pending {
+	border-left: 4px solid #ffc107;
+}
+
+.task-card.status-assigned {
+	border-left: 4px solid #0d6efd;
+}
+
+.task-card.status-autoclosed {
+	border-left: 4px solid #dc3545;
+}
+
+.task-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: start;
+	margin-bottom: 15px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #f1f3f5;
+}
+
+.task-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #212529;
+	flex: 1;
+	margin-right: 10px;
+}
+
+.task-status {
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.status-badge-completed {
+	background: #d1f2eb;
+	color: #0a7c5a;
+}
+
+.status-badge-pending {
+	background: #fff3cd;
+	color: #856404;
+}
+
+.status-badge-assigned {
+	background: #cfe2ff;
+	color: #084298;
+}
+
+.status-badge-autoclosed {
+	background: #f8d7da;
+	color: #842029;
+}
+
+.task-info {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	font-size: 14px;
+	color: #6c757d;
+}
+
+.task-info-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.task-info-row i {
+	width: 16px;
+	color: #adb5bd;
+}
+
+.task-info-row strong {
+	color: #495057;
+}
+
+.task-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: 15px;
+	padding-top: 10px;
+	border-top: 1px solid #f1f3f5;
+	font-size: 13px;
+}
+
+.task-date {
+	color: #6c757d;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.task-type {
+	padding: 3px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.type-schedule {
+	background: #e7f1ff;
+	color: #0c63e4;
+}
+
+.type-adhoc {
+	background: #f8e7fd;
+	color: #7928ca;
+}
+
+.acknowledged-indicator {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	color: #198754;
+	font-size: 18px;
+}
+
+.empty-state {
+	text-align: center;
+	padding: 60px 20px;
+	color: #6c757d;
+}
+
+.empty-state i {
+	font-size: 48px;
+	color: #dee2e6;
+	margin-bottom: 20px;
+}
+
+.pagination-wrapper {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+.page-btn {
+	padding: 6px 12px;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	background: #fff;
+	color: #495057;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+	border-color: #0d6efd;
+	color: #0d6efd;
+}
+
+.page-btn.active {
+	background: #0d6efd;
+	color: #fff;
+	border-color: #0d6efd;
+}
+
+.page-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+#loading-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255,255,255,0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+
+.spinner-border {
+	width: 3rem;
+	height: 3rem;
+}
+</style>
+{% endblock extra_css %}
+
+<!---- BEGIN TABLE ------>
+{% block table %}
+<!-- Filters Section -->
+<div class="task-filters">
+	<div class="row">
+		<div class="col-md-6">
+			<div class="task-search">
+				<i class="bi bi-search search-icon"></i>
+				<input type="text" class="form-control" id="task-search-input" placeholder="Search tasks...">
+			</div>
+		</div>
+		<div class="col-md-6">
+			<div class="input-group">
+				<span class="input-group-text"><i class="bi bi-calendar-range"></i></span>
+				<input type="text" class="form-control" id="date-range-picker" placeholder="Select date range">
+			</div>
+		</div>
+	</div>
+	
+	<div class="filter-buttons">
+		<button class="filter-btn" data-filter="status" data-value="ASSIGNED">
+			<i class="bi bi-person-check"></i> Assigned
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="COMPLETED">
+			<i class="bi bi-check-circle"></i> Completed
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="PENDING">
+			<i class="bi bi-clock"></i> Pending
+		</button>
+		<button class="filter-btn" data-filter="status" data-value="AUTOCLOSED">
+			<i class="bi bi-x-circle"></i> Auto Closed
+		</button>
+		<button class="filter-btn" data-filter="type" data-value="ADHOC">
+			<i class="bi bi-lightning"></i> ADHOC
+		</button>
+		<button class="filter-btn btn-danger" id="clear-filters">
+			<i class="bi bi-x"></i> Clear Filters
+		</button>
+	</div>
+</div>
+
+<!-- Task Grid -->
+<div class="task-grid" id="task-grid">
+	<!-- Tasks will be loaded here -->
+</div>
+
+<!-- Pagination -->
+<div class="pagination-wrapper" id="pagination-container">
+	<!-- Pagination will be loaded here -->
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display: none;">
+	<div class="spinner-border text-primary" role="status">
+		<span class="visually-hidden">Loading...</span>
+	</div>
+</div>
+{% endblock table %}
+
+<!---- BEGIN POPUP ALERTS ------>
+{% block popup_alerts %}
+{{ super() }}
+{% call general_popup(title='List of Peoples', popup_id='id_people_list', modal_size='modal-md') %}
+	<div class="modal-body">
+		<table class="display cell-border" style="width:100%" id="tabListOfPeoples"></table>
+	</div>
+{% endcall %}
+{% endblock popup_alerts %}
+
+<!---- BEGIN EXTRA SCRIPTS ------>
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+	// Global variables
+	let currentPage = 1;
+	let totalPages = 1;
+	let pageSize = 20;
+	let searchTerm = '';
+	let activeFilters = {
+		status: null,
+		type: null,
+		from: moment().subtract(7, 'days').format('YYYY-MM-DD'),
+		to: moment().format('YYYY-MM-DD')
+	};
+	let allTasks = [];
+	let totalRecords = 0;
+	let ajaxData = {};
+	let peopleList = null;
+	
+	// Check for dashboard filters
+	const table_filters = localStorage.getItem('taskstats_filter') || localStorage.getItem('alertsFilters');
+	if (table_filters) {
+		const params = JSON.parse(table_filters);
+		console.log('Dashboard filter params:', params);  // Debug log
+		if (params.from) activeFilters.from = params.from;
+		if (params.to) activeFilters.to = params.to;
+		if (params.jobstatus) {
+			activeFilters.status = params.jobstatus;
+			// Set the appropriate filter button as active
+			$(`.filter-btn[data-value="${params.jobstatus}"]`).addClass('active');
+			console.log('Set status filter to:', params.jobstatus);  // Debug log
+		}
+		localStorage.removeItem('taskstats_filter');
+		localStorage.removeItem('alertsFilters');
+	}
+	
+	// Initialize date range picker
+	$('#date-range-picker').daterangepicker({
+		startDate: moment(activeFilters.from),
+		endDate: moment(activeFilters.to),
+		locale: {
+			format: 'YYYY-MM-DD'
+		},
+		ranges: {
+			'Today': [moment(), moment()],
+			'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+			'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+			'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+			'This Month': [moment().startOf('month'), moment().endOf('month')],
+			'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+		}
+	});
+	
+	// Date range change handler
+	$('#date-range-picker').on('apply.daterangepicker', function(ev, picker) {
+		activeFilters.from = picker.startDate.format('YYYY-MM-DD');
+		activeFilters.to = picker.endDate.format('YYYY-MM-DD');
+		currentPage = 1;
+		loadTasks();
+	});
+	
+	// Search handler
+	let searchTimeout;
+	$('#task-search-input').on('input', function() {
+		clearTimeout(searchTimeout);
+		const value = $(this).val();
+		searchTimeout = setTimeout(function() {
+			searchTerm = value;
+			currentPage = 1;
+			loadTasks();
+		}, 300);
+	});
+	
+	// Filter button handlers
+	$('.filter-btn[data-filter]').on('click', function() {
+		const $btn = $(this);
+		const filterType = $btn.data('filter');
+		const filterValue = $btn.data('value');
+		
+		if ($btn.hasClass('active')) {
+			$btn.removeClass('active');
+			activeFilters[filterType] = null;
+		} else {
+			$(`.filter-btn[data-filter="${filterType}"]`).removeClass('active');
+			$btn.addClass('active');
+			activeFilters[filterType] = filterValue;
+		}
+		
+		currentPage = 1;
+		loadTasks();
+	});
+	
+	// Clear filters
+	$('#clear-filters').on('click', function() {
+		$('.filter-btn[data-filter]').removeClass('active');
+		$('#task-search-input').val('');
+		searchTerm = '';
+		activeFilters = {
+			status: null,
+			type: null,
+			from: moment().subtract(7, 'days').format('YYYY-MM-DD'),
+			to: moment().format('YYYY-MM-DD')
+		};
+		$('#date-range-picker').data('daterangepicker').setStartDate(moment(activeFilters.from));
+		$('#date-range-picker').data('daterangepicker').setEndDate(moment(activeFilters.to));
+		currentPage = 1;
+		loadTasks();
+	});
+	
+	// Load tasks function
+	function loadTasks() {
+		$('#loading-overlay').show();
+		
+		const params = {
+			from: activeFilters.from,
+			to: activeFilters.to
+		};
+		
+		if (activeFilters.status) params.jobstatus = activeFilters.status;
+		if (activeFilters.type) params.jobtype = activeFilters.type;
+		
+		console.log('LoadTasks - activeFilters:', activeFilters);  // Debug log
+		console.log('LoadTasks - params being sent:', params);  // Debug log
+		
+		$.ajax({
+			url: '/operations/tasks/',
+			method: 'GET',
+			data: {
+				action: 'list',
+				params: JSON.stringify(params),
+				start: (currentPage - 1) * pageSize,
+				length: pageSize,
+				'search[value]': searchTerm
+			},
+			success: function(response) {
+				allTasks = response.data || [];
+				totalRecords = response.recordsFiltered || 0;
+				totalPages = Math.ceil(totalRecords / pageSize);
+				renderTasks();
+				renderPagination();
+				$('#loading-overlay').hide();
+			},
+			error: function() {
+				$('#loading-overlay').hide();
+				toastr.error('Failed to load tasks');
+			}
+		});
+	}
+	
+	// Render tasks
+	function renderTasks() {
+		const $container = $('#task-grid');
+		$container.empty();
+		
+		if (allTasks.length === 0) {
+			$container.html(`
+				<div class="col-12">
+					<div class="empty-state">
+						<i class="bi bi-inbox"></i>
+						<h3>No Tasks Found</h3>
+						<p>There are no tasks matching your current filters.</p>
+						<a href="/operations/tasks/?action=form" class="btn btn-primary">
+							<i class="bi bi-plus"></i> Create New Task
+						</a>
+					</div>
+				</div>
+			`);
+			return;
+		}
+		
+		allTasks.forEach(function(task) {
+			const card = createTaskCard(task);
+			$container.append(card);
+		});
+	}
+	
+	// Create task card
+	function createTaskCard(task) {
+		const statusClass = getStatusClass(task.jobstatus);
+		const statusBadgeClass = getStatusBadgeClass(task.jobstatus);
+		const typeClass = task.jobtype === 'ADHOC' ? 'type-adhoc' : 'type-schedule';
+		
+		const plannedDate = task.plandatetime ? moment(task.plandatetime).format('YYYY-MM-DD HH:mm') : 'Not set';
+		
+		const card = $(`
+			<div class="task-card status-${statusClass}" data-task-id="${task.id}">
+				${task.other_info__isAcknowledged ? '<i class="bi bi-check-circle-fill acknowledged-indicator"></i>' : ''}
+				
+				<div class="task-header">
+					<div class="task-title">${task.jobdesc || 'Untitled Task'}</div>
+					<span class="task-status status-badge-${statusClass}">${task.jobstatus || 'PENDING'}</span>
+				</div>
+				
+				<div class="task-info">
+					<div class="task-info-row">
+						<i class="bi bi-building"></i>
+						<span>Site: <strong>${task.bu__buname || 'Not assigned'}</strong></span>
+					</div>
+					
+					${task.assignedto ? `
+						<div class="task-info-row">
+							<i class="bi bi-person"></i>
+							<span>Assigned: <strong>${task.assignedto}</strong></span>
+						</div>
+					` : ''}
+					
+					${task.asset__assetname ? `
+						<div class="task-info-row">
+							<i class="bi bi-geo-alt"></i>
+							<span>Asset: <strong>${task.asset__assetname}</strong></span>
+						</div>
+					` : ''}
+					
+					${task.performedby__peoplename ? `
+						<div class="task-info-row">
+							<i class="bi bi-person-check"></i>
+							<span>Performed: <strong>${task.performedby__peoplename}</strong></span>
+						</div>
+					` : ''}
+				</div>
+				
+				<div class="task-footer">
+					<div class="task-date">
+						<i class="bi bi-calendar3"></i>
+						<span>${plannedDate}</span>
+					</div>
+					<span class="task-type ${typeClass}">${task.jobtype || 'SCHEDULE'}</span>
+				</div>
+			</div>
+		`);
+		
+		// Click handler
+		card.on('click', function() {
+			if (task.jobstatus === 'AUTOCLOSED' && !task.other_info__isAcknowledged) {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Acknowledge Task',
+					text: 'Do you want to acknowledge this auto-closed task?',
+					showCancelButton: true,
+					confirmButtonText: 'Yes, Acknowledge',
+					cancelButtonText: 'Cancel'
+				}).then((result) => {
+					if (result.isConfirmed) {
+						acknowledgeTask(task.id);
+					}
+				});
+			} else {
+				window.location.href = `/operations/tasks/?id=${task.id}`;
+			}
+		});
+		
+		// Handle group assignments
+		if (task.assignedto && task.assignedto.includes('[GROUP]')) {
+			card.find('.task-info-row:contains("Assigned")').css('cursor', 'pointer').on('click', function(e) {
+				e.stopPropagation();
+				showListOfPeoples(task.id, 'Jobneed');
+			});
+		}
+		
+		return card;
+	}
+	
+	// Get status class
+	function getStatusClass(status) {
+		const statusMap = {
+			'ASSIGNED': 'assigned',
+			'COMPLETED': 'completed',
+			'PENDING': 'pending',
+			'AUTOCLOSED': 'autoclosed',
+			'Auto Closed': 'autoclosed',
+			'PARTIALLYCOMPLETED': 'pending'
+		};
+		return statusMap[status] || 'pending';
+	}
+	
+	// Get status badge class
+	function getStatusBadgeClass(status) {
+		const statusMap = {
+			'ASSIGNED': 'assigned',
+			'COMPLETED': 'completed',
+			'PENDING': 'pending',
+			'AUTOCLOSED': 'autoclosed',
+			'Auto Closed': 'autoclosed',
+			'PARTIALLYCOMPLETED': 'pending'
+		};
+		return statusMap[status] || 'pending';
+	}
+	
+	// Acknowledge task
+	function acknowledgeTask(taskId) {
+		$.ajax({
+			url: '/operations/tasks/',
+			method: 'GET',
+			data: {
+				action: 'acknowledgeAutoCloseTask',
+				id: taskId
+			},
+			success: function(response) {
+				toastr.success('Task acknowledged successfully');
+				loadTasks();
+			},
+			error: function() {
+				toastr.error('Failed to acknowledge task');
+			}
+		});
+	}
+	
+	// Render pagination
+	function renderPagination() {
+		const $container = $('#pagination-container');
+		$container.empty();
+		
+		if (totalPages <= 1) return;
+		
+		// Previous button
+		$container.append(`
+			<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
+				<i class="bi bi-chevron-left"></i>
+			</button>
+		`);
+		
+		// Page numbers
+		const startPage = Math.max(1, currentPage - 2);
+		const endPage = Math.min(totalPages, startPage + 4);
+		
+		for (let i = startPage; i <= endPage; i++) {
+			$container.append(`
+				<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>
+			`);
+		}
+		
+		// Next button
+		$container.append(`
+			<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
+				<i class="bi bi-chevron-right"></i>
+			</button>
+		`);
+		
+		// Page info
+		const startRecord = (currentPage - 1) * pageSize + 1;
+		const endRecord = Math.min(currentPage * pageSize, totalRecords);
+		$container.append(`
+			<span class="ms-3 text-muted">Showing ${startRecord}-${endRecord} of ${totalRecords}</span>
+		`);
+		
+		// Page click handlers
+		$('.page-btn[data-page]').on('click', function() {
+			if (!$(this).prop('disabled')) {
+				currentPage = parseInt($(this).data('page'));
+				loadTasks();
+			}
+		});
+	}
+	
+	// Show list of peoples
+	function showListOfPeoples(id, from) {
+		$('#id_people_list').modal('show');
+		ajaxData.id = id;
+		ajaxData.model = from;
+		if (peopleList) {
+			peopleList.ajax.reload();
+		}
+	}
+	
+	// Initialize people list modal
+	if (typeof initializeListOfPeoplesModal === 'function') {
+		initializeListOfPeoplesModal(ajaxData, "{{ url('onboarding:list_of_peoples') }}");
+	}
+	
+	// Initial load
+	loadTasks();
+});
+</script>
+{% endblock extra_scripts %}

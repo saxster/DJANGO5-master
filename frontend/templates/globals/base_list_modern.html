@@ -1,0 +1,359 @@
+{% extends "globals/base_modern.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/colreorder/1.7.0/css/colReorder.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.bootstrap5.min.css">
+<style>
+  .modern-list-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #4c84ff 100%);
+    color: white;
+    border-radius: 0.75rem 0.75rem 0 0;
+    padding: 1.5rem;
+    margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+  }
+
+  .modern-list-header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: white;
+  }
+
+  .modern-list-header p {
+    margin: 0.5rem 0 0 0;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .list-actions {
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .list-actions .search-box {
+    flex: 1;
+    max-width: 300px;
+  }
+
+  .list-actions .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stats-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    border: 1px solid #e7eaf3;
+    transition: all 0.2s ease;
+  }
+
+  .stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(165, 163, 174, 0.3);
+  }
+
+  .stats-card .stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .stats-card.primary .stats-icon {
+    background: rgba(55, 125, 255, 0.1);
+    color: var(--primary-color);
+  }
+
+  .stats-card.success .stats-icon {
+    background: rgba(0, 201, 167, 0.1);
+    color: var(--success-color);
+  }
+
+  .stats-card.warning .stats-icon {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--warning-color);
+  }
+
+  .stats-card.danger .stats-icon {
+    background: rgba(222, 68, 55, 0.1);
+    color: var(--danger-color);
+  }
+
+  .stats-card .stats-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin: 0;
+  }
+
+  .stats-card .stats-label {
+    color: #8392a5;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .table-container {
+    background: white;
+    border-radius: 0.75rem;
+    border: 1px solid #e7eaf3;
+    overflow: hidden;
+  }
+
+  .table-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid #e7eaf3;
+    background: #f8fafd;
+  }
+
+  .table-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--dark-color);
+    margin: 0;
+  }
+
+  .table-subtitle {
+    color: #8392a5;
+    font-size: 0.875rem;
+    margin: 0.25rem 0 0 0;
+  }
+
+  /* DataTables Styling */
+  .dataTables_wrapper {
+    padding: 1.25rem;
+  }
+
+  .dataTables_filter {
+    margin-bottom: 1rem;
+  }
+
+  .dataTables_filter input {
+    border-radius: 0.375rem;
+    border: 1px solid #d1d5db;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .dataTables_length select {
+    border-radius: 0.375rem;
+    border: 1px solid #d1d5db;
+    padding: 0.375rem;
+  }
+
+  .dataTables_info {
+    color: #8392a5;
+    font-size: 0.875rem;
+  }
+
+  .dataTables_paginate .paginate_button {
+    border-radius: 0.375rem;
+    margin: 0 0.125rem;
+  }
+
+  .dataTables_paginate .paginate_button.current {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: white !important;
+  }
+
+  .table th {
+    background: #f8fafd;
+    color: var(--dark-color);
+    font-weight: 600;
+    border-top: none;
+    white-space: nowrap;
+  }
+
+  .table td {
+    vertical-align: middle;
+    border-color: #e7eaf3;
+  }
+
+  .table tbody tr:hover {
+    background-color: #f8fafd;
+  }
+
+  .badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+  }
+
+  .btn-group-sm > .btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .action-buttons .btn {
+    border-radius: 0.375rem;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .list-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .list-actions .search-box {
+      max-width: none;
+    }
+
+    .stats-cards {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .modern-list-header {
+      padding: 1rem;
+      margin: -1.5rem -1.5rem 1rem -1.5rem;
+    }
+
+    .modern-list-header h1 {
+      font-size: 1.5rem;
+    }
+  }
+
+  /* Loading state */
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 0.75rem;
+  }
+
+  .loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 0.25rem solid #e7eaf3;
+    border-top: 0.25rem solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+</style>
+{% endblock extra_css %}
+
+{% block page_header %}
+<div class="page-header mb-4">
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <h1 class="page-title">{% block page_title %}List View{% endblock page_title %}</h1>
+      <p class="page-subtitle">{% block page_subtitle %}Manage and view your data{% endblock page_subtitle %}</p>
+    </div>
+    <div class="page-actions">
+      {% block page_actions %}
+      {% endblock page_actions %}
+    </div>
+  </div>
+</div>
+{% endblock page_header %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Stats Cards -->
+  {% block stats_cards %}
+  {% endblock stats_cards %}
+
+  <!-- Main Table Container -->
+  <div class="table-container">
+    <div class="table-header">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h3 class="table-title">{% block table_title %}Data List{% endblock table_title %}</h3>
+          <p class="table-subtitle">{% block table_subtitle %}View and manage your records{% endblock table_subtitle %}</p>
+        </div>
+        <div class="table-actions">
+          {% block table_actions %}
+          {% endblock table_actions %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="table-content">
+      {% block table %}
+      <div class="p-4 text-center text-muted">
+        <i class="material-icons mb-3" style="font-size: 3rem;">table_view</i>
+        <p>No table content defined</p>
+      </div>
+      {% endblock table %}
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
+<script src="https://cdn.datatables.net/select/1.7.0/js/dataTables.select.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/colreorder/1.7.0/js/dataTables.colReorder.min.js"></script>
+<script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
+
+<script>
+$(document).ready(function() {
+  // Enhanced DataTable configuration
+  if (typeof dataTablesConfig === 'function') {
+    dataTablesConfig();
+  }
+  
+  // Add loading state to tables
+  $('.table-container').on('processing.dt', function(e, settings, processing) {
+    if (processing) {
+      $(this).append('<div class="loading-overlay"><div class="loading-spinner"></div></div>');
+    } else {
+      $(this).find('.loading-overlay').remove();
+    }
+  });
+
+  // Enhanced button styling
+  $('.dataTables_wrapper .btn').addClass('btn-sm');
+  
+  // Responsive table adjustments
+  function adjustTableResponsive() {
+    if ($.fn.DataTable) {
+      $('.dataTable').each(function() {
+        if ($.fn.DataTable.isDataTable(this)) {
+          $(this).DataTable().responsive.recalc();
+        }
+      });
+    }
+  }
+  
+  $(window).on('resize', adjustTableResponsive);
+  
+  // Initialize tooltips
+  $('[data-bs-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock extra_scripts %}

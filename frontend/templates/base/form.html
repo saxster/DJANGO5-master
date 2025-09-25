@@ -1,0 +1,276 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - YOUTILITY3{% endblock %}
+
+{% block base_head %}
+    <!-- Form specific CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-root">
+    <div class="page d-flex flex-row flex-column-fluid">
+        <!-- Include Sidebar -->
+        <div class="aside aside-dark aside-hoverable" data-kt-drawer="true">
+            {% include "globals/sidebar_clean.html" %}
+        </div>
+        
+        <!-- Main Content -->
+        <div class="wrapper d-flex flex-column flex-row-fluid">
+            <!-- Header -->
+            <div class="header align-items-stretch">
+                {% include "globals/header.html" %}
+            </div>
+            
+            <!-- Content -->
+            <div class="content d-flex flex-column flex-column-fluid">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="container-fluid d-flex flex-stack">
+                        <!-- Page Title -->
+                        <div class="page-title d-flex align-items-center flex-wrap me-3 mb-5 mb-lg-0">
+                            <h1 class="d-flex text-dark fw-bold fs-3 align-items-center my-1">
+                                {{ page_title }}
+                            </h1>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Container -->
+                <div class="post d-flex flex-column-fluid">
+                    <div class="container-xxl">
+                        <!-- Breadcrumbs -->
+                        <nav aria-label="breadcrumb" class="mb-5">
+                            <ol class="breadcrumb breadcrumb-dot">
+                                {% for crumb in breadcrumbs %}
+                                    <li class="breadcrumb-item {% if forloop.last %}active{% endif %}">
+                                        {% if crumb.url and not forloop.last %}
+                                            <a href="{{ crumb.url }}">{{ crumb.title }}</a>
+                                        {% else %}
+                                            {{ crumb.title }}
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        </nav>
+                        
+                        <!-- Form Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">{{ page_title }}</h3>
+                                <div class="card-toolbar">
+                                    {% block form_toolbar %}{% endblock %}
+                                </div>
+                            </div>
+                            
+                            <form method="post" enctype="multipart/form-data" class="form" novalidate>
+                                {% csrf_token %}
+                                
+                                <div class="card-body">
+                                    <!-- Display form errors -->
+                                    {% if form.non_field_errors %}
+                                        <div class="alert alert-danger d-flex align-items-center mb-5">
+                                            <i class="bi bi-exclamation-triangle fs-2x me-4"></i>
+                                            <div>
+                                                {% for error in form.non_field_errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Success Messages -->
+                                    {% if messages %}
+                                        {% for message in messages %}
+                                            <div class="alert alert-{{ message.tags|default:'info' }} d-flex align-items-center mb-5">
+                                                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% else %}info-circle{% endif %} fs-2x me-4"></i>
+                                                <div>{{ message }}</div>
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {% block form_content %}
+                                        <!-- Default form rendering -->
+                                        <div class="row">
+                                            {% for field in form %}
+                                                {% if field.field.widget.input_type != 'hidden' %}
+                                                    <div class="col-md-6 mb-5">
+                                                        <div class="form-group">
+                                                            <label class="form-label {% if field.field.required %}required{% endif %}">
+                                                                {{ field.label }}
+                                                            </label>
+                                                            
+                                                            {% if field.field.widget.input_type == 'checkbox' %}
+                                                                <div class="form-check form-switch">
+                                                                    {{ field|add_class:"form-check-input" }}
+                                                                </div>
+                                                            {% elif field.field.widget.input_type == 'select' %}
+                                                                {{ field|add_class:"form-select"|attr:"data-control:select2" }}
+                                                            {% elif field.field.widget.attrs.rows %}
+                                                                {{ field|add_class:"form-control" }}
+                                                            {% else %}
+                                                                {{ field|add_class:"form-control" }}
+                                                            {% endif %}
+                                                            
+                                                            {% if field.help_text %}
+                                                                <div class="form-text text-muted">
+                                                                    {{ field.help_text }}
+                                                                </div>
+                                                            {% endif %}
+                                                            
+                                                            {% if field.errors %}
+                                                                <div class="invalid-feedback d-block">
+                                                                    {% for error in field.errors %}
+                                                                        {{ error }}
+                                                                    {% endfor %}
+                                                                </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    {{ field }}
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    {% endblock %}
+                                </div>
+                                
+                                <div class="card-footer d-flex justify-content-between">
+                                    <div>
+                                        <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url app_name|add:':list' %}{% endif %}" 
+                                           class="btn btn-light me-3">
+                                            <i class="bi bi-arrow-left"></i> Cancel
+                                        </a>
+                                    </div>
+                                    
+                                    <div>
+                                        {% block form_actions %}
+                                            <button type="reset" class="btn btn-light-primary me-3">
+                                                <i class="bi bi-arrow-clockwise"></i> Reset
+                                            </button>
+                                            
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-check-circle"></i>
+                                                {% if object %}Update{% else %}Create{% endif %}
+                                            </button>
+                                        {% endblock %}
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Additional Cards -->
+                        {% block additional_cards %}{% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{ static('assets/js/just-validate.production.min.js') }}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2
+    $('[data-control="select2"]').select2({
+        theme: 'bootstrap-5',
+        width: '100%'
+    });
+    
+    // Initialize date pickers
+    document.querySelectorAll('[data-control="datepicker"]').forEach(element => {
+        flatpickr(element, {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "F j, Y"
+        });
+    });
+    
+    // Initialize datetime pickers
+    document.querySelectorAll('[data-control="datetimepicker"]').forEach(element => {
+        flatpickr(element, {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            altInput: true,
+            altFormat: "F j, Y H:i"
+        });
+    });
+    
+    // Form validation
+    const form = document.querySelector('.form');
+    if (form) {
+        const validation = new JustValidate(form, {
+            errorFieldCssClass: 'is-invalid',
+            errorLabelStyle: {
+                fontSize: '14px',
+                color: '#dc3545',
+            },
+            focusInvalidField: true,
+            lockForm: true,
+        });
+        
+        // Add validation rules based on HTML5 attributes
+        form.querySelectorAll('[required]').forEach(field => {
+            validation.addField('#' + field.id, [
+                {
+                    rule: 'required',
+                    errorMessage: 'This field is required',
+                },
+            ]);
+        });
+        
+        form.querySelectorAll('[type="email"]').forEach(field => {
+            validation.addField('#' + field.id, [
+                {
+                    rule: 'email',
+                    errorMessage: 'Please enter a valid email address',
+                },
+            ]);
+        });
+    }
+});
+
+// Auto-save draft functionality
+let autoSaveTimer;
+const autoSaveForm = () => {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+        const formData = new FormData(document.querySelector('.form'));
+        formData.append('auto_save', 'true');
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        }).then(response => {
+            if (response.ok) {
+                // Show auto-save indicator
+                const indicator = document.createElement('div');
+                indicator.className = 'position-fixed bottom-0 end-0 m-5 alert alert-success';
+                indicator.innerHTML = '<i class="bi bi-check"></i> Draft saved';
+                document.body.appendChild(indicator);
+                
+                setTimeout(() => indicator.remove(), 2000);
+            }
+        });
+    }, 5000); // Auto-save after 5 seconds of inactivity
+};
+
+// Enable auto-save on form changes
+document.querySelectorAll('.form input, .form select, .form textarea').forEach(field => {
+    field.addEventListener('input', autoSaveForm);
+    field.addEventListener('change', autoSaveForm);
+});
+</script>
+
+{% block form_scripts %}{% endblock %}
+{% endblock %}

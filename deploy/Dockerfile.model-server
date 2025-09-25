@@ -1,0 +1,167 @@
+# Model Server Dockerfile for YOUTILITY5 AI
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV MODEL_PATH=/app/models
+ENV WORKERS=2
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for model serving
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    torch==2.1.0 \
+    transformers==4.35.0 \
+    sentence-transformers==2.2.2 \
+    numpy==1.24.4 \
+    pydantic==2.5.0 \
+    python-multipart==0.0.6
+
+# Create model server application
+COPY <<EOF /app/model_server.py
+import os
+import logging
+from typing import Dict, List, Optional
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import torch
+from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="YOUTILITY5 Model Server", version="1.0.0")
+
+# Global model storage
+models = {}
+
+class EmbeddingRequest(BaseModel):
+    texts: List[str]
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+
+class EmbeddingResponse(BaseModel):
+    embeddings: List[List[float]]
+    model_name: str
+    
+class TextGenerationRequest(BaseModel):
+    prompt: str
+    model_name: str = "gpt2"
+    max_length: int = 100
+    temperature: float = 0.7
+
+class TextGenerationResponse(BaseModel):
+    generated_text: str
+    model_name: str
+
+def load_embedding_model(model_name: str):
+    """Load sentence transformer model for embeddings"""
+    if model_name not in models:
+        try:
+            logger.info(f"Loading embedding model: {model_name}")
+            models[model_name] = SentenceTransformer(model_name)
+            logger.info(f"Successfully loaded model: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to load model {model_name}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+    return models[model_name]
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "models_loaded": list(models.keys())}
+
+@app.get("/models")
+async def list_models():
+    """List available models"""
+    return {
+        "loaded_models": list(models.keys()),
+        "available_models": [
+            "sentence-transformers/all-MiniLM-L6-v2",
+            "sentence-transformers/all-mpnet-base-v2",
+            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        ]
+    }
+
+@app.post("/embeddings", response_model=EmbeddingResponse)
+async def generate_embeddings(request: EmbeddingRequest):
+    """Generate embeddings for texts"""
+    try:
+        model = load_embedding_model(request.model_name)
+        embeddings = model.encode(request.texts, convert_to_tensor=False)
+        
+        # Convert numpy arrays to lists for JSON serialization
+        if isinstance(embeddings, np.ndarray):
+            embeddings = embeddings.tolist()
+        
+        return EmbeddingResponse(
+            embeddings=embeddings,
+            model_name=request.model_name
+        )
+    except Exception as e:
+        logger.error(f"Error generating embeddings: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/similarity")
+async def compute_similarity(texts1: List[str], texts2: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    """Compute similarity between two sets of texts"""
+    try:
+        model = load_embedding_model(model_name)
+        embeddings1 = model.encode(texts1)
+        embeddings2 = model.encode(texts2)
+        
+        # Compute cosine similarity
+        from sklearn.metrics.pairwise import cosine_similarity
+        similarities = cosine_similarity(embeddings1, embeddings2)
+        
+        return {
+            "similarities": similarities.tolist(),
+            "model_name": model_name
+        }
+    except Exception as e:
+        logger.error(f"Error computing similarity: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"message": "YOUTILITY5 Model Server", "status": "running"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
+EOF
+
+# Create directories
+RUN mkdir -p /app/models /app/logs
+
+# Create non-root user
+RUN adduser --disabled-password --gecos '' modeluser \
+    && chown -R modeluser:modeluser /app
+USER modeluser
+
+# Expose port
+EXPOSE 8001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# Start the model server
+CMD ["uvicorn", "model_server:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "2"]

@@ -1,0 +1,289 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - YOUTILITY3{% endblock %}
+
+{% block base_head %}
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-root">
+    <div class="page d-flex flex-row flex-column-fluid">
+        <!-- Include Sidebar -->
+        <div class="aside aside-dark aside-hoverable" data-kt-drawer="true">
+            {% include "globals/sidebar_clean.html" %}
+        </div>
+        
+        <!-- Main Content -->
+        <div class="wrapper d-flex flex-column flex-row-fluid">
+            <!-- Header -->
+            <div class="header align-items-stretch">
+                {% include "globals/header.html" %}
+            </div>
+            
+            <!-- Content -->
+            <div class="content d-flex flex-column flex-column-fluid">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="container-fluid d-flex flex-stack">
+                        <!-- Page Title -->
+                        <div class="page-title d-flex align-items-center flex-wrap me-3 mb-5 mb-lg-0">
+                            <h1 class="d-flex text-dark fw-bold fs-3 align-items-center my-1">
+                                {{ page_title }}
+                            </h1>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="d-flex align-items-center gap-2 gap-lg-3">
+                            {% block list_actions %}
+                                {% if user_permissions.can_create %}
+                                    <a href="{% url app_name|add:':create' %}" class="btn btn-sm fw-bold btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Add New
+                                    </a>
+                                {% endif %}
+                                
+                                <!-- Export Menu -->
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light btn-active-light-primary" 
+                                            type="button" 
+                                            data-bs-toggle="dropdown">
+                                        <i class="bi bi-download"></i> Export
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="?export=csv">Export as CSV</a></li>
+                                        <li><a class="dropdown-item" href="?export=excel">Export as Excel</a></li>
+                                        <li><a class="dropdown-item" href="?export=pdf">Export as PDF</a></li>
+                                    </ul>
+                                </div>
+                            {% endblock %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Container -->
+                <div class="post d-flex flex-column-fluid">
+                    <div class="container-xxl">
+                        <!-- Breadcrumbs -->
+                        <nav aria-label="breadcrumb" class="mb-5">
+                            <ol class="breadcrumb breadcrumb-dot">
+                                {% for crumb in breadcrumbs %}
+                                    <li class="breadcrumb-item {% if forloop.last %}active{% endif %}">
+                                        {% if crumb.url and not forloop.last %}
+                                            <a href="{{ crumb.url }}">{{ crumb.title }}</a>
+                                        {% else %}
+                                            {{ crumb.title }}
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        </nav>
+                        
+                        <!-- List Card -->
+                        <div class="card">
+                            <!-- Card Header -->
+                            <div class="card-header border-0 pt-6">
+                                <div class="card-title">
+                                    <!-- Search -->
+                                    <div class="d-flex align-items-center position-relative my-1">
+                                        <i class="bi bi-search position-absolute ms-4"></i>
+                                        <form method="get" class="d-flex">
+                                            <input type="text" 
+                                                   name="q" 
+                                                   value="{{ search_query }}"
+                                                   class="form-control form-control-solid w-250px ps-12" 
+                                                   placeholder="Search...">
+                                            {% for field, filter in filters.items %}
+                                                {% if filter.value %}
+                                                    <input type="hidden" name="filter_{{ field }}" value="{{ filter.value }}">
+                                                {% endif %}
+                                            {% endfor %}
+                                        </form>
+                                    </div>
+                                </div>
+                                
+                                <!-- Filters -->
+                                {% if filters %}
+                                <div class="card-toolbar flex-row-fluid justify-content-end gap-3">
+                                    {% for field, filter in filters.items %}
+                                        <select name="filter_{{ field }}" 
+                                                class="form-select form-select-sm w-150px filter-select"
+                                                data-control="select2"
+                                                data-placeholder="{{ filter.display_name }}">
+                                            <option value="">All {{ filter.display_name }}</option>
+                                            {% for value, label in filter.options %}
+                                                <option value="{{ value }}" 
+                                                        {% if filter.value == value|stringformat:"s" %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Card Body -->
+                            <div class="card-body pt-0">
+                                {% block list_content %}
+                                    <!-- Statistics -->
+                                    {% if stats %}
+                                    <div class="row g-5 g-xl-8 mb-5">
+                                        {% for key, value in stats.items %}
+                                        <div class="col">
+                                            <div class="bg-light-primary rounded p-4">
+                                                <div class="fs-2 fw-bold text-primary">{{ value }}</div>
+                                                <div class="fs-7 text-gray-600">{{ key|title|replace:"_":" " }}</div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Table -->
+                                    <div class="table-responsive">
+                                        <table class="table table-row-dashed table-row-gray-300 align-middle gs-0 gy-4" 
+                                               id="data-table">
+                                            <thead>
+                                                <tr class="fw-bold text-muted">
+                                                    {% block table_headers %}
+                                                        <th>ID</th>
+                                                        <th>Name</th>
+                                                        <th>Created</th>
+                                                        <th>Status</th>
+                                                        <th class="text-end">Actions</th>
+                                                    {% endblock %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for object in objects %}
+                                                    {% block table_row %}
+                                                    <tr>
+                                                        <td>{{ object.id }}</td>
+                                                        <td>{{ object.name|default:object }}</td>
+                                                        <td>{{ object.created_at|date:"Y-m-d H:i" }}</td>
+                                                        <td>
+                                                            <span class="badge badge-light-success">Active</span>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                {% if user_permissions.can_view %}
+                                                                <a href="{% url app_name|add:':detail' object.pk %}" 
+                                                                   class="btn btn-light btn-active-light-primary"
+                                                                   title="View">
+                                                                    <i class="bi bi-eye"></i>
+                                                                </a>
+                                                                {% endif %}
+                                                                {% if user_permissions.can_edit %}
+                                                                <a href="{% url app_name|add:':update' object.pk %}" 
+                                                                   class="btn btn-light btn-active-light-primary"
+                                                                   title="Edit">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </a>
+                                                                {% endif %}
+                                                                {% if user_permissions.can_delete %}
+                                                                <a href="{% url app_name|add:':delete' object.pk %}" 
+                                                                   class="btn btn-light btn-active-light-danger"
+                                                                   title="Delete">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </a>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endblock %}
+                                                {% empty %}
+                                                    <tr>
+                                                        <td colspan="100%" class="text-center py-10">
+                                                            <div class="text-gray-500">
+                                                                <i class="bi bi-info-circle fs-2x"></i>
+                                                                <div class="fs-6 mt-2">No records found</div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Pagination -->
+                                    {% if is_paginated %}
+                                    <div class="d-flex justify-content-between align-items-center mt-5">
+                                        <div class="text-gray-700">
+                                            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} 
+                                            of {{ pagination_info.total_count }} entries
+                                        </div>
+                                        
+                                        <nav>
+                                            <ul class="pagination">
+                                                {% if page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}">
+                                                        <i class="bi bi-chevron-double-left"></i>
+                                                    </a>
+                                                </li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                                                        <i class="bi bi-chevron-left"></i>
+                                                    </a>
+                                                </li>
+                                                {% endif %}
+                                                
+                                                {% for page_num in pagination_info.page_range %}
+                                                    {% if page_num == page_obj.number %}
+                                                        <li class="page-item active">
+                                                            <span class="page-link">{{ page_num }}</span>
+                                                        </li>
+                                                    {% else %}
+                                                        <li class="page-item">
+                                                            <a class="page-link" href="?page={{ page_num }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                                                                {{ page_num }}
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                
+                                                {% if page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                                                        <i class="bi bi-chevron-right"></i>
+                                                    </a>
+                                                </li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                                                        <i class="bi bi-chevron-double-right"></i>
+                                                    </a>
+                                                </li>
+                                                {% endif %}
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                    {% endif %}
+                                {% endblock %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize filters
+document.querySelectorAll('.filter-select').forEach(select => {
+    select.addEventListener('change', function() {
+        const url = new URL(window.location.href);
+        if (this.value) {
+            url.searchParams.set(this.name, this.value);
+        } else {
+            url.searchParams.delete(this.name);
+        }
+        window.location.href = url.toString();
+    });
+});
+</script>
+{% endblock %}

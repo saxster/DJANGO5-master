@@ -1,0 +1,421 @@
+{% extends "globals/base_list.html" %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Business View
+<div class="float-end">
+	<a href="{{ url('admin_panel:bu_list') }}?template=true&modern=true" class="btn btn-sm btn-light-primary">
+		<i class="bi bi-grid-3x3-gap"></i> Modern View
+	</a>
+</div>
+{% endblock card_title %}
+<!----- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Business View
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{{ url('admin_panel:bu_list') }}?template=true" class="pe-3">BV List</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+<!---- BEGIN EXTRA STYLES ------>
+{% block extra_styles %}
+<style>
+	.status-badge {
+		display: inline-block;
+		padding: 0.25em 0.5em;
+		font-size: 0.875em;
+		font-weight: 500;
+		line-height: 1;
+		text-align: center;
+		white-space: nowrap;
+		vertical-align: baseline;
+		border-radius: 0.375rem;
+		margin: 0 2px;
+	}
+	.badge-warehouse {
+		background-color: #e8f5e9;
+		color: #2e7d32;
+		border: 1px solid #4caf50;
+	}
+	.badge-vendor {
+		background-color: #fff3e0;
+		color: #e65100;
+		border: 1px solid #ff9800;
+	}
+	.badge-service {
+		background-color: #e3f2fd;
+		color: #0d47a1;
+		border: 1px solid #2196f3;
+	}
+	.badge-gps {
+		background-color: #f3e5f5;
+		color: #4a148c;
+		border: 1px solid #9c27b0;
+	}
+	.badge-device {
+		background-color: #fce4ec;
+		color: #880e4f;
+		border: 1px solid #e91e63;
+	}
+	.site-incharge-cell {
+		font-weight: 500;
+		color: #1976d2;
+	}
+	.no-incharge {
+		color: #f44336;
+		font-style: italic;
+	}
+	.location-info {
+		font-size: 0.85em;
+		color: #666;
+	}
+	.status-composite {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		flex-wrap: wrap;
+	}
+</style>
+{% endblock extra_styles %}
+<!---- END EXTRA STYLES ------>
+
+<!------------------ BEGIN BU TABLE ------------------------->
+{% block table %}
+<div class="table-responsive">
+	<table id="bt_table" class="display compact cell-border" style="width:100%">
+		<thead class="fw-bold fs-6">
+			<th>Id</th>
+			<th>Code</th>
+			<th>Name</th>
+			<th>Site Incharge</th>
+			<th>Type</th>
+			<th>Status</th>
+			<th>Location</th>
+			<th>Business Category</th>
+			<th>Belongs To</th>
+			<th>Sol ID</th>
+		</thead>
+	</table>
+</div>
+{% endblock table %}
+<!------------------ END BU TABLE --------------------------->
+
+<!--------- BEGIN EXTRA SCRIPTS ------------------------------>
+{% block extra_scripts %}
+<script>
+	$(document).ready(function () {
+		//BEGIN DATATABLE INITIALIZATION
+		var table = $('#bt_table').DataTable({
+			ajax:{
+				url: '{{ url("admin_panel:bu_list") }}?action=list',
+			},
+			serverSide:true,
+			deferRender: true,
+			responsive:true,
+			pageLength:250,
+			lengthMenu: [250,500,750,1000],
+			language: {
+				searchPlaceholder: "Search by code, name, or site incharge"
+			},
+			initComplete:function(){
+                const input = $(`#bt_table_filter input`);
+                input.off();
+                input.on('keypress',function(e){
+                    if (e.which === 13) {
+                        table.search(this.value).draw();
+                    }
+                })
+            },
+			columns     : [
+                { "data": "id", className:'noVis' },
+                { "data": "bucode" },
+                { "data": "buname" },
+                { "data": "siteincharge__peoplename" },
+                { "data": "butype__taname" },
+                { "data": null }, // Status composite
+                { "data": null }, // Location info
+                { "data": null }, // Business category
+                { "data": "parent__buname" },
+                { "data": "solid" },
+            ],
+			columnDefs:[
+				{targets:0, visible:false, searchable:false, orderable:false},
+				{
+					targets: 1,
+					data   : 'bucode',
+					render : function ( data, type, row, meta ) {
+						return `<a href={{ url('admin_panel:bu_list') }}?id=${row['id']}><strong>${data}</strong></a>`
+					}
+				},
+				{
+					targets:2, 
+					data:'buname', 
+					render:function(data, type, row, meta){
+						return `<a href={{ url('admin_panel:bu_list') }}?id=${row['id']}>${data}</a>`
+					}
+				},
+				{
+					targets: 3,
+					data: 'siteincharge__peoplename',
+					render: function(data, type, row, meta) {
+						if(data && data !== 'None' && data !== null) {
+							return `<span class="site-incharge-cell">${data}</span>`;
+						} else {
+							return `<span class="no-incharge">Not Assigned</span>`;
+						}
+					}
+				},
+				{
+					targets: 4,
+					data: 'butype__taname',
+					render: function(data, type, row, meta) {
+						return data || 'Standard';
+					}
+				},
+				{
+					targets: 5,
+					render: function(data, type, row, meta) {
+						let statusHtml = '<div class="status-composite">';
+						
+						// Enable/Disable status
+						if(row['enable'] === true) {
+							statusHtml += '<i class="bi bi-check-circle-fill text-success" title="Active"></i>';
+						} else {
+							statusHtml += '<i class="bi bi-x-circle-fill text-danger" title="Inactive"></i>';
+						}
+						
+						// GPS Status
+						if(row['gpsenable'] === true) {
+							statusHtml += '<span class="status-badge badge-gps" title="GPS Enabled"><i class="bi bi-geo-alt-fill"></i> GPS</span>';
+						}
+						
+						// Device Event
+						if(row['deviceevent'] === true) {
+							statusHtml += '<span class="status-badge badge-device" title="Device Events Enabled"><i class="bi bi-phone-fill"></i></span>';
+						}
+						
+						statusHtml += '</div>';
+						return statusHtml;
+					}
+				},
+				{
+					targets: 6,
+					render: function(data, type, row, meta) {
+						let locationHtml = '';
+						
+						if(row['has_gpslocation'] === true) {
+							locationHtml = '<span class="location-info"><i class="bi bi-geo-fill text-primary"></i> Configured</span>';
+							if(row['pdist'] && row['pdist'] > 0) {
+								locationHtml += `<br><small>Range: ${row['pdist']}m</small>`;
+							}
+						} else {
+							locationHtml = '<span class="location-info text-muted">Not Set</span>';
+						}
+						
+						return locationHtml;
+					}
+				},
+				{
+					targets: 7,
+					render: function(data, type, row, meta) {
+						let badges = [];
+						
+						if(row['iswarehouse'] === true) {
+							badges.push('<span class="status-badge badge-warehouse"><i class="bi bi-building"></i> Warehouse</span>');
+						}
+						if(row['isvendor'] === true) {
+							badges.push('<span class="status-badge badge-vendor"><i class="bi bi-people-fill"></i> Vendor</span>');
+						}
+						if(row['isserviceprovider'] === true) {
+							badges.push('<span class="status-badge badge-service"><i class="bi bi-tools"></i> Service</span>');
+						}
+						
+						if(badges.length === 0) {
+							return '<span class="text-muted">Standard</span>';
+						}
+						
+						return badges.join(' ');
+					}
+				},
+				{
+					targets: 8,
+					data: 'parent__buname',
+					render: function(data, type, row, meta) {
+						return data || '<span class="text-muted">-</span>';
+					}
+				},
+				{
+					targets: 9,
+					data: 'solid',
+					render: function(data, type, row, meta) {
+						return data || '<span class="text-muted">-</span>';
+					}
+				}
+			],
+			createdRow:function(row, data, dataIndex){
+				if(data['enable'] === false){
+					$(row).addClass('disabled-record')
+				}
+			},
+			dom       : `<'row' <'col-sm-6 d-flex justify-content-start'f> <'col-sm-6 d-flex justify-content-end'B> >rt<'row'
+			<'col-sm-6'l> <'col-sm-6'p><'col-sm-12 d-flex justify-content-center'i>>`,
+			buttons:[
+				{
+					extend: 'searchBuilder',
+					config: {
+						columns: [1, 2, 3, 4, 5, 7, 8, 9],
+						conditions: {
+							string: {
+								'=': null,
+								'!=': null,
+								'contains': null,
+								'!contains': null,
+								'starts': null,
+								'!starts': null,
+								'ends': null,
+								'!ends': null,
+								'null': null,
+								'!null': null
+							}
+						}
+					}
+				},
+				{
+					text: '<i class="bi bi-funnel"></i> Filters',
+					className: 'btn btn-sm btn-light-info dropdown-toggle',
+					extend: 'collection',
+					buttons: [
+						{
+							text: '<i class="bi bi-check-circle"></i> Active Only',
+							action: function(e, dt, node, config) {
+								let currentUrl = new URL(dt.ajax.url(), window.location.origin);
+								if(currentUrl.searchParams.get('filter_active') === 'true') {
+									currentUrl.searchParams.delete('filter_active');
+									$(node).removeClass('active');
+								} else {
+									currentUrl.searchParams.set('filter_active', 'true');
+									$(node).addClass('active');
+								}
+								dt.ajax.url(currentUrl.toString()).load();
+							}
+						},
+						{
+							text: '<i class="bi bi-geo-alt-fill"></i> GPS Enabled',
+							action: function(e, dt, node, config) {
+								let currentUrl = new URL(dt.ajax.url(), window.location.origin);
+								if(currentUrl.searchParams.get('filter_gps') === 'true') {
+									currentUrl.searchParams.delete('filter_gps');
+									$(node).removeClass('active');
+								} else {
+									currentUrl.searchParams.set('filter_gps', 'true');
+									$(node).addClass('active');
+								}
+								dt.ajax.url(currentUrl.toString()).load();
+							}
+						},
+						{
+							text: '<i class="bi bi-building"></i> Warehouses',
+							action: function(e, dt, node, config) {
+								let currentUrl = new URL(dt.ajax.url(), window.location.origin);
+								if(currentUrl.searchParams.get('filter_warehouse') === 'true') {
+									currentUrl.searchParams.delete('filter_warehouse');
+									$(node).removeClass('active');
+								} else {
+									currentUrl.searchParams.set('filter_warehouse', 'true');
+									$(node).addClass('active');
+								}
+								dt.ajax.url(currentUrl.toString()).load();
+							}
+						},
+						{
+							text: '<i class="bi bi-people-fill"></i> Vendors',
+							action: function(e, dt, node, config) {
+								let currentUrl = new URL(dt.ajax.url(), window.location.origin);
+								if(currentUrl.searchParams.get('filter_vendor') === 'true') {
+									currentUrl.searchParams.delete('filter_vendor');
+									$(node).removeClass('active');
+								} else {
+									currentUrl.searchParams.set('filter_vendor', 'true');
+									$(node).addClass('active');
+								}
+								dt.ajax.url(currentUrl.toString()).load();
+							}
+						},
+						{
+							text: '<i class="bi bi-tools"></i> Service Providers',
+							action: function(e, dt, node, config) {
+								let currentUrl = new URL(dt.ajax.url(), window.location.origin);
+								if(currentUrl.searchParams.get('filter_service') === 'true') {
+									currentUrl.searchParams.delete('filter_service');
+									$(node).removeClass('active');
+								} else {
+									currentUrl.searchParams.set('filter_service', 'true');
+									$(node).addClass('active');
+								}
+								dt.ajax.url(currentUrl.toString()).load();
+							}
+						},
+						{
+							text: '<i class="bi bi-exclamation-triangle"></i> No Site Incharge',
+							className: 'text-danger',
+							action: function(e, dt, node, config) {
+								let currentUrl = new URL(dt.ajax.url(), window.location.origin);
+								if(currentUrl.searchParams.get('filter_no_incharge') === 'true') {
+									currentUrl.searchParams.delete('filter_no_incharge');
+									$(node).removeClass('active');
+								} else {
+									currentUrl.searchParams.set('filter_no_incharge', 'true');
+									$(node).addClass('active');
+								}
+								dt.ajax.url(currentUrl.toString()).load();
+							}
+						},
+						{
+							text: '<i class="bi bi-x-circle"></i> Clear All Filters',
+							className: 'text-warning',
+							action: function(e, dt, node, config) {
+								let baseUrl = '{{ url("admin_panel:bu_list") }}?action=list';
+								dt.ajax.url(baseUrl).load();
+								$('.dt-button-collection .dt-button').removeClass('active');
+							}
+						}
+					]
+				},
+                dataTablesPDFConfig(
+                    title = `Site: {{request.user.bu.buname}}\n BV List`,
+                    columns = ':visible',
+					filename = "bu_list"
+                ),
+                dataTablesExcelConfig(
+                    title = `Site: {{request.user.bu.buname}}\n BV List`,
+                    columns = ':visible',
+					filename = "bu_list"
+                ),
+                dataTablesColumnVisibilityConfig(),
+				{
+					text     : `Add New &nbsp;<i class='fas fs-6 fa-plus'></i>`,
+					className: "btn btn-sm btn-light-primary border border-primary add_new_bu",
+					//action for add_new_button
+					action: function(e, dt, node, config){
+						location.href =  "{{ url('admin_panel:bu_list') }}?action=form"
+					}
+				}
+			]
+		})
+		//END DATATABLE INITIALIZATION
+		//hide add new button for non-admin peoples
+		if(!session.is_admin){
+			$('.add_new_bu').hide()
+		}
+
+	});
+</script>
+{% endblock extra_scripts %}
+<!-------- END EXTRA SCRIPTS ------------------------------->

@@ -1,0 +1,54 @@
+{
+  "name": "youtility5-frontend-tests",
+  "version": "1.0.0",
+  "description": "Frontend testing suite for YOUTILITY5 URL mapping migration",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose",
+    "test:performance": "jest --testNamePattern=performance",
+    "test:integration": "jest --testNamePattern=integration",
+    "test:unit": "jest --testNamePattern=unit"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "babel-jest": "^29.5.0",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "jsdom": "^22.1.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/tests/frontend/setup.js"],
+    "testMatch": [
+      "<rootDir>/tests/frontend/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "frontend/static/assets/js/local/*.js",
+      "!**/node_modules/**",
+      "!**/vendor/**"
+    ],
+    "coverageDirectory": "coverage/frontend",
+    "coverageReporters": ["text", "lcov", "html"],
+    "verbose": true,
+    "testTimeout": 10000,
+    "moduleNameMapping": {
+      "^@/(.*)$": "<rootDir>/frontend/static/assets/js/local/$1"
+    }
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ]
+    ]
+  }
+}

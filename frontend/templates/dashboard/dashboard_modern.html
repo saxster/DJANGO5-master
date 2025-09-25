@@ -1,0 +1,474 @@
+{% extends "globals/base_modern.html" %}
+
+{% block extra_css %}
+<style>
+  /* YOUTILITY Dashboard Grid Layout */
+  .dashboard-container {
+    padding: 20px;
+    background: #f5f5f5;
+    min-height: calc(100vh - 80px);
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Widget base styles */
+  .widget {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+  }
+
+  /* Tasks Widget (Top Left) */
+  .tasks-widget {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-height: 200px;
+  }
+
+  .task-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .task-row:last-child {
+    border-bottom: none;
+  }
+
+  .task-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2196F3;
+  }
+
+  .task-label {
+    font-size: 14px;
+    color: #666;
+    margin-left: 10px;
+  }
+
+  .task-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+  }
+
+  .task-icon.new { background: #4CAF50; }
+  .task-icon.progress { background: #2196F3; }
+  .task-icon.pending { background: #FF9800; }
+  .task-icon.completed { background: #9E9E9E; }
+
+  /* Assets Status Widget (Top Center) */
+  .assets-widget {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: center;
+    position: relative;
+  }
+
+  .widget-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .assets-chart {
+    width: 100% !important;
+    max-width: 300px;
+    height: 200px !important;
+    margin: 0 auto;
+  }
+
+  /* Tours Widget (Top Right) */
+  .tours-widget {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .tours-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: #666;
+  }
+
+  .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2196F3;
+  }
+
+  /* Ticket Metrics Widget (Bottom Left) */
+  .ticket-widget {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: center;
+    position: relative;
+    min-height: 300px;
+  }
+
+  .ticket-chart {
+    width: 200px;
+    height: 200px;
+    margin: 20px auto;
+    border-radius: 50%;
+    background: conic-gradient(
+      #FF6384 0deg 108deg,      /* Open: 45/135 * 360 = 108deg */
+      #36A2EB 108deg 169deg,    /* In Progress: 23/135 * 360 = 61deg */
+      #FFCE56 169deg 360deg     /* Resolved: 67/135 * 360 = 178deg */
+    );
+    position: relative;
+  }
+
+  .ticket-chart::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100px;
+    height: 100px;
+    background: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .chart-legend {
+    margin-top: 10px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 12px;
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 8px;
+  }
+
+  /* Alerts Widget (Right Side) */
+  .alerts-widget {
+    grid-column: 3;
+    grid-row: 2;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+  }
+
+  .alert-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    font-size: 14px;
+  }
+
+  .alert-item:last-child {
+    border-bottom: none;
+  }
+
+  .alert-icon {
+    margin-right: 10px;
+    color: #ff9800;
+  }
+
+  .alert-count {
+    margin-left: auto;
+    font-weight: bold;
+    color: #f44336;
+  }
+
+  /* Empty center bottom widget */
+  .center-widget {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-style: italic;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+    }
+    
+    .tours-widget { grid-column: 2; grid-row: 1; }
+    .ticket-widget { grid-column: 1; grid-row: 2; }
+    .alerts-widget { grid-column: 2; grid-row: 2; }
+    .center-widget { grid-column: 1 / -1; grid-row: 3; }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+    
+    .dashboard-container {
+      padding: 15px;
+    }
+    
+    .widget {
+      padding: 15px;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block page_title %}Dashboard{% endblock page_title %}
+{% block page_subtitle %}{% endblock page_subtitle %}
+
+{% block page_header %}
+<!-- No custom header for YOUTILITY dashboard -->
+{% endblock page_header %}
+
+{% block content %}
+<div class="dashboard-container">
+  <div class="dashboard-grid">
+    <!-- Tasks Widget (Top Left) -->
+    <div class="widget tasks-widget">
+      <h3 class="widget-title">Tasks</h3>
+      <div class="task-row">
+        <div style="display: flex; align-items: center;">
+          <span class="task-number">2</span>
+          <span class="task-label">New Tasks</span>
+        </div>
+        <div class="task-icon new">
+          <i class="material-icons">add_task</i>
+        </div>
+      </div>
+      <div class="task-row">
+        <div style="display: flex; align-items: center;">
+          <span class="task-number">4</span>
+          <span class="task-label">In Progress</span>
+        </div>
+        <div class="task-icon progress">
+          <i class="material-icons">hourglass_empty</i>
+        </div>
+      </div>
+      <div class="task-row">
+        <div style="display: flex; align-items: center;">
+          <span class="task-number">6</span>
+          <span class="task-label">Pending</span>
+        </div>
+        <div class="task-icon pending">
+          <i class="material-icons">schedule</i>
+        </div>
+      </div>
+      <div class="task-row">
+        <div style="display: flex; align-items: center;">
+          <span class="task-number">12</span>
+          <span class="task-label">Completed</span>
+        </div>
+        <div class="task-icon completed">
+          <i class="material-icons">check_circle</i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assets Status Widget (Top Center) -->
+    <div class="widget assets-widget">
+      <h3 class="widget-title">Assets Status</h3>
+      <canvas id="assetsChart" class="assets-chart"></canvas>
+    </div>
+
+    <!-- Tours Widget (Top Right) -->
+    <div class="widget tours-widget">
+      <h3 class="widget-title">Tours</h3>
+      <div class="tours-stats">
+        <div class="stat-item">
+          <span class="stat-label">Tours</span>
+          <span class="stat-value">157</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Steps</span>
+          <span class="stat-value">584</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Active</span>
+          <span class="stat-value">9</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Total Records</span>
+          <span class="stat-value">1601</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket Metrics Widget (Bottom Left) -->
+    <div class="widget ticket-widget">
+      <h3 class="widget-title">Ticket Metrics</h3>
+      <div class="ticket-chart"></div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div style="display: flex; align-items: center;">
+            <div class="legend-color" style="background: #FF6384;"></div>
+            <span>Open</span>
+          </div>
+          <span>45</span>
+        </div>
+        <div class="legend-item">
+          <div style="display: flex; align-items: center;">
+            <div class="legend-color" style="background: #36A2EB;"></div>
+            <span>In Progress</span>
+          </div>
+          <span>23</span>
+        </div>
+        <div class="legend-item">
+          <div style="display: flex; align-items: center;">
+            <div class="legend-color" style="background: #FFCE56;"></div>
+            <span>Resolved</span>
+          </div>
+          <span>67</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Widget (Empty) -->
+    <div class="widget center-widget">
+      <span>Additional metrics can be added here</span>
+    </div>
+
+    <!-- Alerts Widget (Right Side) -->
+    <div class="widget alerts-widget">
+      <h3 class="widget-title">Alerts</h3>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">warning</i>
+        <span>No Data Found</span>
+        <span class="alert-count">0</span>
+      </div>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">error</i>
+        <span>SOS Alerts</span>
+        <span class="alert-count">0</span>
+      </div>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">location_off</i>
+        <span>Site Exceptions Alerts</span>
+        <span class="alert-count">0</span>
+      </div>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">warning</i>
+        <span>Site Crisis Alerts</span>
+        <span class="alert-count">0</span>
+      </div>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">report_problem</i>
+        <span>Incident Reports</span>
+        <span class="alert-count">249</span>
+      </div>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">assignment</i>
+        <span>Attendances</span>
+        <span class="alert-count">249</span>
+      </div>
+      <div class="alert-item">
+        <i class="material-icons alert-icon">build</i>
+        <span>Resolutions</span>
+        <span class="alert-count">19</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+$(document).ready(function() {
+  // Initialize YOUTILITY dashboard charts
+  initializeYOUTILITYCharts();
+});
+
+function initializeYOUTILITYCharts() {
+  // Disable all Chart.js animations globally
+  Chart.defaults.animation = false;
+  Chart.defaults.animations.colors = false;
+  Chart.defaults.animations.x = false;
+  Chart.defaults.animations.y = false;
+
+  // Assets Status Doughnut Chart
+  const assetsCtx = document.getElementById('assetsChart');
+  if (assetsCtx) {
+    new Chart(assetsCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Working', 'Maintenance', 'Standby'],
+        datasets: [{
+          data: [1547, 89, 211],
+          backgroundColor: [
+            '#4CAF50',  // Green for Working
+            '#FF9800',  // Orange for Maintenance  
+            '#2196F3'   // Blue for Standby
+          ],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 0
+        },
+        transitions: {
+          active: {
+            animation: {
+              duration: 0
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  // Ticket chart is now pure CSS - no JavaScript needed
+}
+</script>
+{% endblock extra_scripts %}

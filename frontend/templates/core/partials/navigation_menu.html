@@ -1,0 +1,63 @@
+{% load ia_tags %}
+
+<ul class="{{ css_class }}">
+    {% for item in menu_items %}
+    <li class="nav-item 
+        {% if item.children %}dropdown{% endif %}
+        {% navigation_active_class item.url %}">
+        
+        {% if item.children %}
+            <!-- Dropdown Menu -->
+            <a class="nav-link dropdown-toggle" href="#" role="button" 
+               data-bs-toggle="dropdown" aria-expanded="false"
+               {% track_navigation_click item.name item.url as onclick %}{{ onclick|safe }}>
+                {% if item.icon %}
+                    <i class="material-icons">{{ item.icon }}</i>
+                {% endif %}
+                {{ item.name }}
+            </a>
+            <ul class="dropdown-menu">
+                {% for child in item.children %}
+                <li>
+                    <a class="dropdown-item {% navigation_active_class child.url %}" 
+                       href="{{ child.url }}"
+                       {% track_navigation_click child.name child.url as child_onclick %}{{ child_onclick|safe }}>
+                        {% if child.icon %}
+                            <i class="material-icons me-2">{{ child.icon }}</i>
+                        {% endif %}
+                        {{ child.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <!-- Regular Menu Item -->
+            <a class="nav-link" href="{{ item.url }}"
+               {% track_navigation_click item.name item.url as onclick %}{{ onclick|safe }}>
+                {% if item.icon %}
+                    <i class="material-icons">{{ item.icon }}</i>
+                {% endif %}
+                {{ item.name }}
+            </a>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+
+<script>
+// Navigation click tracking function
+function trackNavClick(menuItem, targetUrl) {
+    if (typeof gtag !== 'undefined') {
+        gtag('event', 'navigation_click', {
+            'menu_item': menuItem,
+            'target_url': targetUrl,
+            'source_page': window.location.pathname
+        });
+    }
+    
+    // Send to custom analytics endpoint if available
+    if (window.iaAnalytics) {
+        window.iaAnalytics.trackNavigation(menuItem, targetUrl);
+    }
+}
+</script>

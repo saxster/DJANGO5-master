@@ -1,0 +1,109 @@
+{
+  "timestamp": "2025-07-09T09:54:26.793115",
+  "summary": {
+    "total": 12,
+    "passed": 8,
+    "failed": 4
+  },
+  "results": [
+    {
+      "function": "fn_getassetdetails (days=7)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fn_getassetdetails (days=30)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fn_getassetdetails (days=90)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fn_getassetvsquestionset (type=)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fn_getassetvsquestionset (type=name)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fun_getjobneed (p=1)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fun_getexttourjobneed (p=1)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fn_getbulist_basedon_idnf (cus=True, si=True)",
+      "passed": false,
+      "orm_count": 1,
+      "pg_count": 0,
+      "differences": {
+        "missing_in_orm": [],
+        "extra_in_orm": [
+          "3"
+        ]
+      }
+    },
+    {
+      "function": "fn_getbulist_basedon_idnf (cus=True, si=False)",
+      "passed": true,
+      "orm_count": 0,
+      "pg_count": 0,
+      "differences": []
+    },
+    {
+      "function": "fn_getbulist_basedon_idnf (cus=False, si=True)",
+      "passed": false,
+      "orm_count": 1,
+      "pg_count": 0,
+      "differences": {
+        "missing_in_orm": [],
+        "extra_in_orm": [
+          "3"
+        ]
+      }
+    },
+    {
+      "function": "fn_getbulist_basedon_idnf (cus=False, si=False)",
+      "passed": false,
+      "orm_count": 1,
+      "pg_count": 0,
+      "differences": {
+        "missing_in_orm": [],
+        "extra_in_orm": [
+          "2"
+        ]
+      }
+    },
+    {
+      "function": "get_web_caps_for_client",
+      "passed": false,
+      "orm_count": 10,
+      "pg_count": 37,
+      "differences": []
+    }
+  ]
+}

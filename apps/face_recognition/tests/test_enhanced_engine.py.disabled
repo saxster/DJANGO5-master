@@ -1,0 +1,464 @@
+"""
+Unit tests for enhanced face recognition engine
+Tests all face recognition engine functionality with mocked ML dependencies
+"""
+
+from django.test import TestCase
+from unittest.mock import Mock, patch, MagicMock
+import numpy as np
+from datetime import datetime, timedelta
+from django.utils import timezone
+import tempfile
+import os
+
+from apps.face_recognition.enhanced_engine import (
+    EnhancedFaceRecognitionEngine, FaceDetectionResult, 
+    FaceVerificationResult, QualityAssessmentResult
+)
+from apps.face_recognition.models import FaceRecognitionModel, FaceEmbedding
+from tests.factories import (
+    FaceRecognitionModelFactory, FaceEmbeddingFactory, UserFactory
+)
+from tests.utils import AITestCase, MockFaceRecognition
+
+
+class EnhancedFaceRecognitionEngineTest(AITestCase):
+    """Test EnhancedFaceRecognitionEngine functionality"""
+    
+    def setUp(self):
+        super().setUp()
+        self.user = UserFactory()
+        self.model = FaceRecognitionModelFactory(model_type='FACENET512')
+        self.engine = EnhancedFaceRecognitionEngine()
+        self.test_image_path = self.create_mock_image()
+    
+    def test_engine_initialization(self):
+        """Test enhanced face recognition engine initialization"""
+        self.assertIsInstance(self.engine, EnhancedFaceRecognitionEngine)
+        self.assertIsNotNone(self.engine.face_models)
+        self.assertIsNotNone(self.engine.anti_spoofing_models)
+        self.assertIsNotNone(self.engine.quality_thresholds)
+    
+    @patch('apps.face_recognition.enhanced_engine.cv2.imread')
+    @patch('apps.face_recognition.enhanced_engine.face_recognition.face_locations')
+    def test_detect_faces(self, mock_face_locations, mock_imread):
+        """Test face detection functionality"""
+        # Mock image loading and face detection
+        mock_imread.return_value = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+        mock_face_locations.return_value = [(100, 200, 250, 150)]  # top, right, bottom, left
+        
+        result = self.engine.detect_faces(self.test_image_path)
+        
+        self.assertIsInstance(result, FaceDetectionResult)
+        self.assertTrue(result.faces_detected)
+        self.assertEqual(result.face_count, 1)
+        self.assertEqual(len(result.face_locations), 1)
+        
+        # Verify face location format
+        face_location = result.face_locations[0]
+        self.assertIn('top', face_location)
+        self.assertIn('right', face_location)
+        self.assertIn('bottom', face_location)
+        self.assertIn('left', face_location)
+    
+    @patch('apps.face_recognition.enhanced_engine.face_recognition.face_encodings')
+    def test_extract_face_embedding(self, mock_face_encodings):
+        """Test face embedding extraction"""
+        # Mock face encoding extraction
+        mock_embedding = np.random.rand(128)  # face_recognition library uses 128-dim
+        mock_face_encodings.return_value = [mock_embedding]
+        
+        embedding = self.engine._extract_face_embedding(
+            self.test_image_path, 'facenet512'
+        )
+        
+        self.assertIsNotNone(embedding)
+        self.assertIsInstance(embedding, (list, np.ndarray))
+        self.assertEqual(len(embedding), 128)
+        
+        # Verify embedding values are normalized
+        embedding_array = np.array(embedding)
+        self.assertTrue(np.all(np.isfinite(embedding_array)))
+    
+    def test_calculate_similarity(self):
+        """Test similarity calculation between embeddings"""
+        # Create two similar embeddings
+        embedding1 = np.random.rand(128)
+        embedding1 = embedding1 / np.linalg.norm(embedding1)  # Normalize
+        
+        embedding2 = embedding1 + np.random.normal(0, 0.1, 128)  # Add small noise
+        embedding2 = embedding2 / np.linalg.norm(embedding2)  # Normalize
+        
+        # Create one dissimilar embedding
+        embedding3 = np.random.rand(128)
+        embedding3 = embedding3 / np.linalg.norm(embedding3)  # Normalize
+        
+        # Test similar embeddings
+        similarity_high = self.engine._calculate_similarity(embedding1, embedding2)
+        self.assertBetween(similarity_high, 0.7, 1.0)
+        
+        # Test dissimilar embeddings
+        similarity_low = self.engine._calculate_similarity(embedding1, embedding3)
+        self.assertBetween(similarity_low, 0.0, 0.7)
+        
+        # Similarity should be symmetric
+        similarity_reverse = self.engine._calculate_similarity(embedding2, embedding1)
+        self.assertAlmostEqual(similarity_high, similarity_reverse, places=5)
+    
+    @patch('apps.face_recognition.enhanced_engine.cv2.Laplacian')
+    @patch('apps.face_recognition.enhanced_engine.cv2.imread')
+    def test_assess_image_quality(self, mock_imread, mock_laplacian):
+        """Test image quality assessment"""
+        # Mock image and quality metrics
+        mock_image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+        mock_imread.return_value = mock_image
+        
+        # Mock sharpness calculation
+        mock_laplacian_result = np.random.rand(480, 640) * 100
+        mock_laplacian.return_value = mock_laplacian_result
+        
+        quality_result = self.engine._assess_image_quality(self.test_image_path)
+        
+        self.assertIsInstance(quality_result, QualityAssessmentResult)
+        self.assertBetween(quality_result.overall_quality, 0, 1)
+        self.assertBetween(quality_result.sharpness_score, 0, 1)
+        self.assertBetween(quality_result.brightness_score, 0, 1)
+        self.assertBetween(quality_result.contrast_score, 0, 1)
+        
+        # Quality issues should be a list
+        self.assertIsInstance(quality_result.quality_issues, list)
+    
+    def test_detect_spoofing(self):
+        """Test anti-spoofing detection"""
+        # Test with normal image
+        spoof_result_normal = self.engine._detect_spoofing(
+            self.test_image_path, method='texture_based'
+        )
+        
+        self.assertIsInstance(spoof_result_normal, dict)
+        self.assertIn('is_live', spoof_result_normal)
+        self.assertIn('liveness_score', spoof_result_normal)
+        self.assertIn('confidence', spoof_result_normal)
+        self.assertIn('spoof_type', spoof_result_normal)
+        
+        # Liveness score should be between 0 and 1
+        self.assertBetween(spoof_result_normal['liveness_score'], 0, 1)
+        self.assertBetween(spoof_result_normal['confidence'], 0, 1)
+    
+    def test_ensemble_verification(self):
+        """Test ensemble verification combining multiple models"""
+        # Create mock embeddings for user
+        user_embeddings = [
+            np.random.rand(128) for _ in range(3)  # Multiple embeddings
+        ]
+        
+        # Create input features (similar to one of the user embeddings)
+        input_features = user_embeddings[0] + np.random.normal(0, 0.1, 128)
+        
+        ensemble_result = self.engine._ensemble_verification(
+            input_features, user_embeddings
+        )
+        
+        self.assertIsInstance(ensemble_result, dict)
+        self.assertIn('similarity_scores', ensemble_result)
+        self.assertIn('ensemble_score', ensemble_result)
+        self.assertIn('confidence', ensemble_result)
+        self.assertIn('best_match_index', ensemble_result)
+        
+        # Ensemble score should be between 0 and 1
+        self.assertBetween(ensemble_result['ensemble_score'], 0, 1)
+        self.assertBetween(ensemble_result['confidence'], 0, 1)
+    
+    @patch('apps.face_recognition.enhanced_engine.EnhancedFaceRecognitionEngine._extract_face_embedding')
+    @patch('apps.face_recognition.enhanced_engine.EnhancedFaceRecognitionEngine._assess_image_quality')
+    @patch('apps.face_recognition.enhanced_engine.EnhancedFaceRecognitionEngine._detect_spoofing')
+    def test_verify_face_complete_workflow(self, mock_spoof, mock_quality, mock_embedding):
+        """Test complete face verification workflow"""
+        # Setup mocks
+        mock_embedding.return_value = np.random.rand(128)
+        mock_quality.return_value = QualityAssessmentResult(
+            overall_quality=0.85,
+            sharpness_score=0.9,
+            brightness_score=0.8,
+            contrast_score=0.85,
+            face_size_score=0.9,
+            quality_issues=[]
+        )
+        mock_spoof.return_value = {
+            'is_live': True,
+            'liveness_score': 0.92,
+            'confidence': 0.88,
+            'spoof_type': None
+        }
+        
+        # Create user with existing embeddings
+        existing_embeddings = [
+            FaceEmbeddingFactory(
+                user=self.user,
+                embedding_vector=np.random.rand(128).tolist(),
+                is_validated=True
+            )
+            for _ in range(2)
+        ]
+        
+        # Perform verification
+        result = self.engine.verify_face(self.user.id, self.test_image_path)
+        
+        self.assertIsInstance(result, FaceVerificationResult)
+        self.assertIn('verification_successful', result.__dict__)
+        self.assertIn('similarity_score', result.__dict__)
+        self.assertIn('confidence_score', result.__dict__)
+        self.assertIn('quality_assessment', result.__dict__)
+        self.assertIn('liveness_assessment', result.__dict__)
+    
+    def test_face_verification_with_insufficient_quality(self):
+        """Test face verification with poor quality image"""
+        with patch.object(self.engine, '_assess_image_quality') as mock_quality:
+            mock_quality.return_value = QualityAssessmentResult(
+                overall_quality=0.25,  # Poor quality
+                sharpness_score=0.3,
+                brightness_score=0.2,
+                contrast_score=0.3,
+                face_size_score=0.4,
+                quality_issues=['LOW_SHARPNESS', 'POOR_LIGHTING', 'SMALL_FACE_SIZE']
+            )
+            
+            result = self.engine.verify_face(self.user.id, self.test_image_path)
+            
+            # Should fail due to insufficient quality
+            self.assertFalse(result.verification_successful)
+            self.assertEqual(result.failure_reason, 'INSUFFICIENT_QUALITY')
+            self.assertGreater(len(result.quality_assessment.quality_issues), 0)
+    
+    def test_face_verification_with_spoof_detected(self):
+        """Test face verification when spoof is detected"""
+        with patch.object(self.engine, '_detect_spoofing') as mock_spoof:
+            mock_spoof.return_value = {
+                'is_live': False,
+                'liveness_score': 0.15,  # Low liveness
+                'confidence': 0.92,
+                'spoof_type': 'photo_attack'
+            }
+            
+            result = self.engine.verify_face(self.user.id, self.test_image_path)
+            
+            # Should fail due to spoof detection
+            self.assertFalse(result.verification_successful)
+            self.assertEqual(result.failure_reason, 'SPOOF_DETECTED')
+            self.assertEqual(result.liveness_assessment['spoof_type'], 'photo_attack')
+    
+    def test_face_verification_no_existing_embeddings(self):
+        """Test face verification when user has no existing embeddings"""
+        # Create user with no embeddings
+        new_user = UserFactory()
+        
+        result = self.engine.verify_face(new_user.id, self.test_image_path)
+        
+        # Should fail due to no reference embeddings
+        self.assertFalse(result.verification_successful)
+        self.assertEqual(result.failure_reason, 'NO_REFERENCE_EMBEDDINGS')
+    
+    def test_face_verification_fraud_risk_analysis(self):
+        """Test fraud risk analysis integration"""
+        with patch.object(self.engine, '_analyze_fraud_risk') as mock_fraud:
+            mock_fraud.return_value = {
+                'overall_risk_score': 0.35,
+                'risk_factors': ['unusual_lighting', 'slight_pose_variation'],
+                'risk_breakdown': {
+                    'quality_risk': 0.2,
+                    'behavioral_risk': 0.4,
+                    'contextual_risk': 0.5
+                }
+            }
+            
+            # Create user with embeddings
+            FaceEmbeddingFactory(
+                user=self.user,
+                embedding_vector=np.random.rand(128).tolist()
+            )
+            
+            result = self.engine.verify_face(
+                self.user.id, self.test_image_path, analyze_fraud_risk=True
+            )
+            
+            # Should include fraud risk analysis
+            self.assertIn('fraud_risk_analysis', result.__dict__)
+            self.assertEqual(result.fraud_risk_analysis['overall_risk_score'], 0.35)
+            self.assertIn('unusual_lighting', result.fraud_risk_analysis['risk_factors'])
+    
+    @patch('apps.face_recognition.enhanced_engine.cache')
+    def test_embedding_caching(self, mock_cache):
+        """Test caching of embeddings for performance"""
+        # Mock cache miss then hit
+        mock_cache.get.side_effect = [None, {'embeddings': [np.random.rand(128).tolist()]}]
+        mock_cache.set.return_value = True
+        
+        # First call should miss cache and compute embeddings
+        result1 = self.engine._get_user_embeddings(self.user.id)
+        
+        # Second call should hit cache
+        result2 = self.engine._get_user_embeddings(self.user.id)
+        
+        # Verify cache operations
+        self.assertEqual(mock_cache.get.call_count, 2)
+        mock_cache.set.assert_called_once()
+    
+    def test_multi_face_handling(self):
+        """Test handling of multiple faces in image"""
+        with patch.object(self.engine, 'detect_faces') as mock_detect:
+            # Mock detection of multiple faces
+            mock_detect.return_value = FaceDetectionResult(
+                faces_detected=True,
+                face_count=3,
+                face_locations=[
+                    {'top': 100, 'right': 200, 'bottom': 250, 'left': 150},
+                    {'top': 200, 'right': 300, 'bottom': 350, 'left': 250},
+                    {'top': 150, 'right': 400, 'bottom': 300, 'left': 350}
+                ],
+                confidence_scores=[0.95, 0.88, 0.92]
+            )
+            
+            result = self.engine.verify_face(self.user.id, self.test_image_path)
+            
+            # Should handle multiple faces appropriately
+            if result.verification_successful:
+                # If successful, should use the best face
+                self.assertIn('selected_face_index', result.__dict__)
+            else:
+                # Or fail with appropriate reason
+                self.assertEqual(result.failure_reason, 'MULTIPLE_FACES_DETECTED')
+    
+    def test_performance_monitoring(self):
+        """Test performance monitoring and timing"""
+        start_time = timezone.now()
+        
+        # Create user with embeddings for successful verification
+        FaceEmbeddingFactory(
+            user=self.user,
+            embedding_vector=np.random.rand(128).tolist()
+        )
+        
+        result = self.engine.verify_face(self.user.id, self.test_image_path)
+        end_time = timezone.now()
+        
+        processing_time = (end_time - start_time).total_seconds() * 1000  # ms
+        
+        # Should complete within reasonable time
+        self.assertLess(processing_time, 5000)  # Less than 5 seconds
+        
+        # Should include performance metrics
+        self.assertIn('processing_time_ms', result.__dict__)
+        self.assertGreater(result.processing_time_ms, 0)
+    
+    def test_batch_face_verification(self):
+        """Test batch processing of multiple images"""
+        # Create multiple test images
+        test_images = [self.create_mock_image() for _ in range(3)]
+        user_ids = [self.user.id] * 3
+        
+        # Create embeddings for user
+        FaceEmbeddingFactory(
+            user=self.user,
+            embedding_vector=np.random.rand(128).tolist()
+        )
+        
+        results = self.engine.verify_faces_batch(user_ids, test_images)
+        
+        self.assertIsInstance(results, list)
+        self.assertEqual(len(results), 3)
+        
+        # Each result should be a FaceVerificationResult
+        for result in results:
+            self.assertIsInstance(result, FaceVerificationResult)
+    
+    def test_adaptive_threshold_adjustment(self):
+        """Test adaptive threshold adjustment based on user history"""
+        # Create user with very consistent verification history
+        consistent_user = UserFactory()
+        embeddings = [
+            FaceEmbeddingFactory(
+                user=consistent_user,
+                embedding_vector=np.random.rand(128).tolist(),
+                face_confidence=0.95 + i * 0.01  # High, consistent confidence
+            )
+            for i in range(5)
+        ]
+        
+        # Test with adaptive thresholds
+        result = self.engine.verify_face(
+            consistent_user.id, 
+            self.test_image_path,
+            adaptive_threshold=True
+        )
+        
+        # Should include threshold adjustments in result
+        if hasattr(result, 'threshold_adjustments'):
+            self.assertIn('similarity_threshold', result.threshold_adjustments)
+            self.assertIn('confidence_threshold', result.threshold_adjustments)
+    
+    def test_error_handling_invalid_image(self):
+        """Test error handling for invalid image files"""
+        invalid_image_path = '/path/to/nonexistent/image.jpg'
+        
+        result = self.engine.verify_face(self.user.id, invalid_image_path)
+        
+        self.assertFalse(result.verification_successful)
+        self.assertEqual(result.failure_reason, 'IMAGE_PROCESSING_ERROR')
+    
+    def test_model_ensemble_weighting(self):
+        """Test ensemble model weighting system"""
+        # Test with different model weights
+        weights = {
+            'facenet512': 0.4,
+            'arcface': 0.35,
+            'insightface': 0.25
+        }
+        
+        # Mock multiple model results
+        model_results = {
+            'facenet512': {'similarity': 0.8, 'confidence': 0.9},
+            'arcface': {'similarity': 0.75, 'confidence': 0.85},
+            'insightface': {'similarity': 0.85, 'confidence': 0.88}
+        }
+        
+        ensemble_score = self.engine._calculate_ensemble_score(
+            model_results, weights
+        )
+        
+        # Calculate expected weighted score
+        expected_score = (
+            0.8 * 0.4 +    # facenet512
+            0.75 * 0.35 +  # arcface  
+            0.85 * 0.25    # insightface
+        )
+        
+        self.assertAlmostEqual(ensemble_score, expected_score, places=3)
+    
+    def test_quality_threshold_enforcement(self):
+        """Test quality threshold enforcement"""
+        # Test with different quality thresholds
+        thresholds = {
+            'minimum_overall_quality': 0.6,
+            'minimum_sharpness': 0.5,
+            'minimum_brightness': 0.3,
+            'minimum_contrast': 0.4,
+            'minimum_face_size': 0.5
+        }
+        
+        # Mock quality assessment below thresholds
+        low_quality = QualityAssessmentResult(
+            overall_quality=0.4,  # Below 0.6 threshold
+            sharpness_score=0.3,  # Below 0.5 threshold
+            brightness_score=0.2,  # Below 0.3 threshold
+            contrast_score=0.3,    # Below 0.4 threshold
+            face_size_score=0.4,   # Below 0.5 threshold
+            quality_issues=['LOW_SHARPNESS', 'POOR_LIGHTING', 'LOW_CONTRAST']
+        )
+        
+        quality_check = self.engine._check_quality_thresholds(
+            low_quality, thresholds
+        )
+        
+        self.assertFalse(quality_check['passes_threshold'])
+        self.assertGreater(len(quality_check['failing_metrics']), 0)
+        self.assertIn('overall_quality', quality_check['failing_metrics'])

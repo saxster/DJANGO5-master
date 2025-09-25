@@ -1,0 +1,558 @@
+{% extends "globals/base_list.html" %}
+
+{% block card_title %}
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+    <span style="font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 600; color: #1e3a8a;">
+        People Groups - Modern View
+    </span>
+    <a href="{{ url('peoples:peoplegroup') }}?template=true&classic=true{% if request.GET.get('type') %}&type={{ request.GET.get('type') }}{% endif %}" style="padding: 0.5rem 1rem; background: white; border: 1px solid #e5e7eb; border-radius: 8px; color: #6b7280; font-size: 0.875rem; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+        <i class="bi bi-list"></i> Classic View
+    </a>
+</div>
+{% endblock card_title %}
+
+{% block page_title %}
+People Groups
+{% endblock page_title %}
+
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">People Groups</a></li>
+{% endblock pagebreadcumb %}
+
+{% block table %}
+<div style="background: #ffffff; padding: 2rem 2.5rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); margin-bottom: 2rem;">
+    <!-- Controls Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <!-- Search Bar -->
+            <div style="position: relative;">
+                <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+                <input type="text" id="searchBox" placeholder="Search groups..." style="padding: 0.625rem 1rem 0.625rem 2.5rem; border: 2px solid #e5e7eb; border-radius: 10px; width: 280px; font-size: 0.875rem; transition: all 0.3s; outline: none;">
+            </div>
+            
+            <!-- Filter Buttons -->
+            <button class="filter-btn" data-filter="all" style="padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);">
+                <i class="bi bi-grid-3x3-gap"></i> All Groups
+            </button>
+            <button class="filter-btn" data-filter="active" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-check-circle"></i> Active
+            </button>
+            <button class="filter-btn" data-filter="inactive" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-x-circle"></i> Inactive
+            </button>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 0.75rem;">
+            <button id="exportBtn" style="padding: 0.625rem 1.25rem; background: white; color: #6b7280; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <button id="addNewBtn" style="padding: 0.625rem 1.25rem; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-plus-circle"></i> Add New Group
+            </button>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Total Groups</p>
+                    <p id="totalCount" style="color: #1f2937; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-people" style="color: #3b82f6; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Active</p>
+                    <p id="activeCount" style="color: #10b981; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dcfce7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Inactive</p>
+                    <p id="inactiveCount" style="color: #ef4444; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #fee2e2; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-x-circle-fill" style="color: #ef4444; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Groups Grid -->
+    <div id="groupsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem;">
+        <!-- Groups will be loaded here -->
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" style="display: flex; justify-content: center; align-items: center; padding: 4rem;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p style="color: #6b7280; font-size: 0.875rem;">Loading groups...</p>
+        </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div id="emptyState" style="display: none; text-align: center; padding: 4rem;">
+        <div style="width: 80px; height: 80px; background: #e5e7eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+            <i class="bi bi-people" style="color: #9ca3af; font-size: 2rem;"></i>
+        </div>
+        <h3 style="color: #1f2937; font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem 0;">No Groups Found</h3>
+        <p style="color: #6b7280; font-size: 0.875rem; margin: 0 0 1.5rem 0;">Start by creating your first people group</p>
+        <button onclick="document.getElementById('addNewBtn').click()" style="padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer;">
+            <i class="bi bi-plus-circle"></i> Create Group
+        </button>
+    </div>
+</div>
+{% endblock table %}
+
+{% block popup_alerts %}
+<!-- Modal for Add/Edit -->
+<div class="modal animate__animated animate__zoomIn" tabindex="-1" aria-hidden="true" aria-labelledby="exampleModalLabel" data-bs-backdrop="static" id="modal-pgroup">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" id="pgroup_content">
+        </div>
+    </div>
+</div>
+{% endblock popup_alerts %}
+
+{% block extra_scripts %}
+<style>
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.group-card {
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+.filter-btn.active {
+    background: #3b82f6 !important;
+    color: white !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3) !important;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    const modal_id = "#modal-pgroup";
+    const modalcontent_id = "#pgroup_content";
+    const urlname = "{{ url('peoples:peoplegroup') }}";
+    const viewname = "People Group";
+    const typeParam = '{% if request.GET.get("type") %}&type={{ request.GET.get("type") }}{% endif %}';
+    
+    let allGroups = [];
+    let currentFilter = 'all';
+    let searchTerm = '';
+    
+    // Generate color based on group name
+    function getColorForGroup(name) {
+        const colors = [
+            '#667eea',
+            '#f093fb', 
+            '#4facfe',
+            '#43e97b',
+            '#fa709a',
+            '#30cfd0',
+            '#a8edea',
+            '#ff9a9e',
+            '#fbc2eb',
+            '#fdcbf1'
+        ];
+        
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    }
+    
+    // Generate initials
+    function getInitials(name) {
+        return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+    }
+    
+    // Create group card HTML
+    function createGroupCard(group) {
+        const initials = getInitials(group.groupname);
+        const color = getColorForGroup(group.groupname);
+        const isActive = group.enable === true;
+        
+        return `
+            <div class="group-card" data-id="${group.id}" data-status="${isActive ? 'active' : 'inactive'}" 
+                 style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); 
+                        transition: all 0.3s; cursor: pointer; border: 2px solid transparent;">
+                <div style="padding: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="width: 56px; height: 56px; background: ${color}; border-radius: 12px; 
+                                    display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span style="color: white; font-size: 1.25rem; font-weight: 700;">${initials}</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="color: #1f2937; font-size: 1.125rem; font-weight: 600; margin: 0; 
+                                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${group.groupname}</h3>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                                ${isActive ? 
+                                    '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #dcfce7; border-radius: 20px; font-size: 0.75rem; color: #059669; font-weight: 500;"><i class="bi bi-check-circle-fill"></i> Active</span>' :
+                                    '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #fee2e2; border-radius: 20px; font-size: 0.75rem; color: #dc2626; font-weight: 500;"><i class="bi bi-x-circle-fill"></i> Inactive</span>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.25rem;">
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Site</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${group.bu__buname || 'Not Assigned'}
+                            </p>
+                        </div>
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Site Code</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${group.bu__bucode || 'N/A'}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e5e7eb;">
+                        <button class="edit-btn" data-id="${group.id}" 
+                                style="padding: 0.5rem 1rem; background: #3b82f6; 
+                                       color: white; border: none; border-radius: 8px; font-size: 0.75rem; 
+                                       font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="delete-btn" data-id="${group.id}" 
+                                style="padding: 0.5rem 1rem; background: white; color: #ef4444; 
+                                       border: 1px solid #fee2e2; border-radius: 8px; font-size: 0.75rem; 
+                                       font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Apply filters and search
+    function applyFilters() {
+        let filteredGroups = allGroups;
+        
+        // Apply status filter
+        if (currentFilter === 'active') {
+            filteredGroups = filteredGroups.filter(g => g.enable === true);
+        } else if (currentFilter === 'inactive') {
+            filteredGroups = filteredGroups.filter(g => g.enable === false);
+        }
+        
+        // Apply search filter
+        if (searchTerm) {
+            filteredGroups = filteredGroups.filter(g => 
+                g.groupname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (g.bu__buname && g.bu__buname.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (g.bu__bucode && g.bu__bucode.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+        }
+        
+        renderGroups(filteredGroups);
+    }
+    
+    // Render groups
+    function renderGroups(groups) {
+        const grid = $('#groupsGrid');
+        grid.empty();
+        
+        if (groups.length === 0) {
+            $('#emptyState').show();
+        } else {
+            $('#emptyState').hide();
+            groups.forEach((group, index) => {
+                const card = $(createGroupCard(group));
+                card.css('animation-delay', `${index * 0.05}s`);
+                grid.append(card);
+            });
+        }
+        
+        // Update counts
+        updateCounts();
+    }
+    
+    // Update statistics
+    function updateCounts() {
+        const activeGroups = allGroups.filter(g => g.enable === true);
+        const inactiveGroups = allGroups.filter(g => g.enable === false);
+        
+        $('#totalCount').text(allGroups.length);
+        $('#activeCount').text(activeGroups.length);
+        $('#inactiveCount').text(inactiveGroups.length);
+    }
+    
+    // Load groups
+    function loadGroups() {
+        $('#loadingIndicator').show();
+        $('#groupsGrid').hide();
+        
+        // Build data object to match DataTables server-side format
+        var requestData = {
+            action: 'list',
+            draw: 1,
+            start: 0,
+            length: 1000,
+            'search[value]': '',
+            'search[regex]': false
+        };
+        
+        // Add column data
+        for (let i = 0; i < 5; i++) {
+            requestData[`columns[${i}][data]`] = i;
+            requestData[`columns[${i}][name]`] = '';
+            requestData[`columns[${i}][searchable]`] = true;
+            requestData[`columns[${i}][orderable]`] = true;
+            requestData[`columns[${i}][search][value]`] = '';
+            requestData[`columns[${i}][search][regex]`] = false;
+        }
+        
+        // Add ordering
+        requestData['order[0][column]'] = 0;
+        requestData['order[0][dir]'] = 'asc';
+        
+        $.ajax({
+            url: `${urlname}`,
+            type: 'GET',
+            data: requestData,
+            success: function(response) {
+                allGroups = response.data || [];
+                $('#loadingIndicator').hide();
+                $('#groupsGrid').show();
+                applyFilters();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading groups:', error);
+                $('#loadingIndicator').hide();
+                $('#emptyState').show();
+                show_error_alert('Failed to load groups');
+            }
+        });
+    }
+    
+    // Filter button click
+    $('.filter-btn').on('click', function() {
+        $('.filter-btn').removeClass('active');
+        $(this).addClass('active');
+        currentFilter = $(this).data('filter');
+        applyFilters();
+    });
+    
+    // Search input with debounce
+    let searchTimer;
+    $('#searchBox').on('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            searchTerm = $(this).val();
+            applyFilters();
+        }, 300);
+    });
+    
+    // Add hover effects
+    $('#searchBox').on('focus', function() {
+        $(this).css('border-color', '#3b82f6');
+        $(this).css('box-shadow', '0 0 0 3px rgba(59, 130, 246, 0.1)');
+    }).on('blur', function() {
+        $(this).css('border-color', '#e5e7eb');
+        $(this).css('box-shadow', 'none');
+    });
+    
+    // Card hover effect
+    $(document).on('mouseenter', '.group-card', function() {
+        $(this).css('transform', 'translateY(-4px)');
+        $(this).css('box-shadow', '0 8px 16px rgba(0, 0, 0, 0.12)');
+        $(this).css('border-color', '#3b82f6');
+    }).on('mouseleave', '.group-card', function() {
+        $(this).css('transform', 'translateY(0)');
+        $(this).css('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.08)');
+        $(this).css('border-color', 'transparent');
+    });
+    
+    // Button hover effects
+    $('.filter-btn').on('mouseenter', function() {
+        if (!$(this).hasClass('active')) {
+            $(this).css('background', '#f3f4f6');
+            $(this).css('transform', 'translateY(-2px)');
+        }
+    }).on('mouseleave', function() {
+        if (!$(this).hasClass('active')) {
+            $(this).css('background', 'white');
+            $(this).css('transform', 'translateY(0)');
+        }
+    });
+    
+    // Add new group button
+    $('#addNewBtn').on('click', function() {
+        const params = {
+            'modal_id': modal_id,
+            'url': `${urlname}?action=form${typeParam}`,
+            'beforeSend': function() {
+                $(modal_id).modal("show");
+            }
+        };
+        
+        fire_ajax_get(params)
+        .done((data, status, xhr) => {
+            $(`${modal_id} .modal-content`).html(data.html_form);
+        })
+        .fail((xhr, status, error) => {
+            show_error_alert("Something went wrong!");
+        });
+    });
+    
+    // Edit button click
+    $(document).on('click', '.edit-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        
+        const params = {
+            'modal_id': modal_id,
+            'url': `${urlname}?id=${id}${typeParam}`,
+            'beforeSend': function() {
+                $(modal_id).modal("show");
+            }
+        };
+        
+        fire_ajax_get(params)
+        .done((data, status, xhr) => {
+            $(modalcontent_id).attr('data-form', 'update');
+            $(`${modal_id} .modal-content`).html(data.html_form);
+        })
+        .fail((xhr, status, error) => {
+            show_error_alert('Something went wrong!');
+        });
+    });
+    
+    // Delete button click
+    $(document).on('click', '.delete-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        
+        show_alert_before_delete(viewname)
+        .then((result) => {
+            if(result.isConfirmed) {
+                const params = {
+                    url: `${urlname}?action=delete&id=${id}${typeParam}`,
+                    beforeSend: function() {}
+                };
+                
+                fire_ajax_get(params)
+                .done((data, status, xhr) => {
+                    if(xhr.status === 200) {
+                        show_successful_delete_alert();
+                        loadGroups(); // Reload the groups
+                    } else {
+                        show_error_alert('Something went Wrong!');
+                    }
+                })
+                .fail((xhr, status, error) => {
+                    console.log(xhr);
+                    show_error_alert(xhr.responseJSON?.errors || 'Delete failed');
+                });
+            }
+        });
+    });
+    
+    // Form submission
+    $(modal_id).on('submit', '#id_pgroupform', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const id = $("#pk").val();
+        
+        var payLoad = {
+            formData: form.serialize(),
+            peoples: $("#id_peoples").val(),
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        };
+        
+        if(id !== 'None') {
+            payLoad.pk = id;
+        }
+        
+        const params = { url: urlname, modal: true };
+        
+        fire_ajax_form_post(params, payLoad)
+        .done((data, status, xhr) => {
+            console.log('Form submission success:', data);
+            $(modal_id).modal("hide");
+            show_successful_save_alert(id !== 'None');
+            loadGroups(); // Reload the groups
+        })
+        .fail((xhr, status, error) => {
+            console.error('Form submission failed:', xhr, status, error);
+            show_error_alert('Error saving People Group: ' + (xhr.responseJSON?.errors || error));
+        });
+    });
+    
+    // Export button
+    $('#exportBtn').on('click', function() {
+        // Export filtered groups as CSV
+        let csvContent = "Group Name,Status,Site,Site Code\n";
+        let filteredGroups = allGroups;
+        
+        if (currentFilter === 'active') {
+            filteredGroups = filteredGroups.filter(g => g.enable === true);
+        } else if (currentFilter === 'inactive') {
+            filteredGroups = filteredGroups.filter(g => g.enable === false);
+        }
+        
+        if (searchTerm) {
+            filteredGroups = filteredGroups.filter(g => 
+                g.groupname.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+        
+        filteredGroups.forEach(group => {
+            const status = group.enable ? 'Active' : 'Inactive';
+            csvContent += `"${group.groupname}","${status}","${group.bu__buname || ''}","${group.bu__bucode || ''}"\n`;
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'people_groups.csv';
+        a.click();
+    });
+    
+    // Initial load
+    loadGroups();
+});
+</script>
+{% endblock extra_scripts %}

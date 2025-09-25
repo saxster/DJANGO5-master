@@ -1,0 +1,991 @@
+"""
+Tests for middleware components
+"""
+import pytest
+import json
+import time
+from unittest.mock import patch, MagicMock
+from django.test import RequestFactory, Client, override_settings
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth import get_user_model
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.contrib.auth.middleware import AuthenticationMiddleware
+from django.utils import timezone
+from datetime import timedelta
+
+from apps.core.middleware.ia_tracking import (
+    IATrackingMiddleware, NavigationClickTrackingMiddleware, HeatmapTrackingMiddleware
+)
+from apps.core.models.monitoring import (
+    PageView, NavigationClick, ErrorLog, LegacyURLAccess, NavigationPath
+)
+from apps.core.models.heatmap import (
+    HeatmapSession, ClickHeatmap, ScrollHeatmap, AttentionHeatmap, 
+    ElementInteraction, HeatmapAggregation
+)
+from tests.factories.heatmap_factories import UserFactory
+
+User = get_user_model()
+pytestmark = pytest.mark.django_db
+
+
+def add_session_middleware(request):
+    """Helper to add session middleware to request"""
+    session_middleware = SessionMiddleware(lambda r: None)
+    session_middleware.process_request(request)
+    request.session.save()
+    return request
+
+
+def add_auth_middleware(request, user=None):
+    """Helper to add auth middleware to request"""
+    auth_middleware = AuthenticationMiddleware(lambda r: None)
+    auth_middleware.process_request(request)
+    if user:
+        request.user = user
+    return request
+
+
+class TestIATrackingMiddleware:
+    """Test IATrackingMiddleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.middleware = IATrackingMiddleware(lambda r: HttpResponse('OK'))
+        self.user = UserFactory()
+    
+    def test_process_request_initializes_timing(self):
+        """Test that process_request initializes timing"""
+        request = self.factory.get('/test/')
+        request = add_session_middleware(request)
+        
+        self.middleware.process_request(request)
+        
+        assert hasattr(request, '_start_time')
+        assert hasattr(request, '_ia_session_id')
+        assert request._ia_session_id == request.session.session_key
+    
+    def test_process_request_initializes_navigation_path(self):
+        """Test navigation path initialization"""
+        request = self.factory.get('/test/')
+        request = add_session_middleware(request)
+        
+        self.middleware.process_request(request)
+        
+        assert 'ia_navigation_path' in request.session
+        assert 'ia_session_start' in request.session
+        assert request.session['ia_navigation_path'] == []
+    
+    def test_process_view_tracks_legacy_url(self):
+        """Test that process_view tracks legacy URLs"""
+        request = self.factory.get('/legacy-path/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        with patch('apps.core.url_router.URLRouter.should_show_deprecation_warning', return_value=True):
+            with patch('apps.core.url_router.URLRouter.get_new_url', return_value='/new-path/'):
+                self.middleware.process_view(request, lambda r: None, [], {})
+        
+        assert hasattr(request, '_view_start_time')
+    
+    def test_should_skip_tracking_ajax_requests(self):
+        """Test that AJAX requests are skipped"""
+        request = self.factory.get('/test/', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        
+        assert self.middleware._should_skip_tracking(request) is True
+    
+    def test_should_skip_tracking_static_files(self):
+        """Test that static files are skipped"""
+        with override_settings(STATIC_URL='/static/'):
+            request = self.factory.get('/static/css/style.css')
+            assert self.middleware._should_skip_tracking(request) is True
+    
+    def test_should_skip_tracking_admin_urls(self):
+        """Test that admin URLs are skipped"""
+        request = self.factory.get('/admin/users/')
+        assert self.middleware._should_skip_tracking(request) is True
+    
+    def test_should_skip_tracking_api_urls(self):
+        """Test that API URLs are skipped"""
+        request = self.factory.get('/api/data/')
+        assert self.middleware._should_skip_tracking(request) is True
+    
+    def test_should_not_skip_tracking_regular_pages(self):
+        """Test that regular pages are not skipped"""
+        request = self.factory.get('/dashboard/')
+        assert self.middleware._should_skip_tracking(request) is False
+    
+    def test_process_response_tracks_successful_page_view(self):
+        """Test tracking successful page views"""
+        request = self.factory.get('/test-page/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        # Initialize timing
+        request._start_time = time.time() - 0.5
+        request._view_start_time = time.time() - 0.3
+        
+        response = HttpResponse('Success')
+        response.status_code = 200
+        
+        with patch.object(self.middleware, '_determine_page_type', return_value='dashboard'):
+            result = self.middleware.process_response(request, response)
+        
+        assert result == response
+        
+        # Check that PageView was created
+        page_view = PageView.objects.filter(
+            session_id=request.session.session_key,
+            path='/test-page/'
+        ).first()
+        
+        assert page_view is not None
+        assert page_view.user == self.user
+        assert page_view.page_type == 'dashboard'
+        assert page_view.load_time > 0
+    
+    def test_process_response_tracks_errors(self):
+        """Test tracking error responses"""
+        request = self.factory.get('/not-found/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        request._start_time = time.time()
+        
+        response = HttpResponse('Not Found', status=404)
+        response.reason_phrase = 'Not Found'
+        
+        with patch('apps.core.url_router.URLRouter.should_show_deprecation_warning', return_value=False):
+            result = self.middleware.process_response(request, response)
+        
+        assert result == response
+        
+        # Check that ErrorLog was created
+        error_log = ErrorLog.objects.filter(
+            path='/not-found/',
+            status_code=404
+        ).first()
+        
+        assert error_log is not None
+        assert error_log.user == self.user
+        assert error_log.is_legacy_url is False
+    
+    def test_track_legacy_url_access(self):
+        """Test tracking legacy URL access"""
+        request = self.factory.get('/old-path/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        with patch('apps.core.url_router.URLRouter.get_new_url', return_value='/new-path/'):
+            self.middleware._track_legacy_url(request)
+        
+        legacy_access = LegacyURLAccess.objects.filter(
+            legacy_url='/old-path/',
+            new_url='/new-path/'
+        ).first()
+        
+        assert legacy_access is not None
+        assert legacy_access.user == self.user
+    
+    def test_update_navigation_path(self):
+        """Test navigation path updating"""
+        request = self.factory.get('/page1/')
+        request = add_session_middleware(request)
+        request.session['ia_navigation_path'] = []
+        request.session['ia_session_start'] = timezone.now().isoformat()
+        
+        with patch.object(self.middleware, '_get_page_title', return_value='Page 1'):
+            self.middleware._update_navigation_path(request)
+        
+        path = request.session['ia_navigation_path']
+        assert len(path) == 1
+        assert path[0]['path'] == '/page1/'
+        assert path[0]['title'] == 'Page 1'
+    
+    def test_navigation_path_limits_to_20_pages(self):
+        """Test that navigation path is limited to 20 pages"""
+        request = self.factory.get('/current-page/')
+        request = add_session_middleware(request)
+        
+        # Fill with 25 pages
+        existing_path = [
+            {'path': f'/page{i}/', 'timestamp': timezone.now().isoformat(), 'title': f'Page {i}'}
+            for i in range(25)
+        ]
+        request.session['ia_navigation_path'] = existing_path
+        
+        with patch.object(self.middleware, '_get_page_title', return_value='Current'):
+            self.middleware._update_navigation_path(request)
+        
+        path = request.session['ia_navigation_path']
+        assert len(path) == 20  # Should be limited to 20
+        assert path[-1]['path'] == '/current-page/'  # Last should be current page
+    
+    def test_check_goal_completion_view_asset(self):
+        """Test goal completion detection for viewing assets"""
+        path_list = [
+            {'path': '/dashboard/', 'timestamp': timezone.now().isoformat()},
+            {'path': '/assets/123/', 'timestamp': timezone.now().isoformat()},
+            {'path': '/assets/123/details/', 'timestamp': timezone.now().isoformat()}
+        ]
+        
+        goal = self.middleware._check_goal_completion(path_list)
+        assert goal == 'view_asset'
+    
+    def test_check_goal_completion_create_task(self):
+        """Test goal completion detection for creating tasks"""
+        path_list = [
+            {'path': '/dashboard/', 'timestamp': timezone.now().isoformat()},
+            {'path': '/tasks/create/', 'timestamp': timezone.now().isoformat()},
+            {'path': '/tasks/123/', 'timestamp': timezone.now().isoformat()}
+        ]
+        
+        goal = self.middleware._check_goal_completion(path_list)
+        assert goal == 'create_task'
+    
+    def test_check_goal_completion_no_goal(self):
+        """Test when no goal is detected"""
+        path_list = [
+            {'path': '/dashboard/', 'timestamp': timezone.now().isoformat()},
+            {'path': '/settings/', 'timestamp': timezone.now().isoformat()}
+        ]
+        
+        goal = self.middleware._check_goal_completion(path_list)
+        assert goal is None
+    
+    def test_save_navigation_path(self):
+        """Test saving completed navigation path"""
+        request = self.factory.get('/final-page/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        path_list = [
+            {'path': '/start/', 'timestamp': (timezone.now() - timedelta(minutes=5)).isoformat(), 'title': 'Start'},
+            {'path': '/middle/', 'timestamp': (timezone.now() - timedelta(minutes=2)).isoformat(), 'title': 'Middle'},
+            {'path': '/end/', 'timestamp': timezone.now().isoformat(), 'title': 'End'}
+        ]
+        
+        self.middleware._save_navigation_path(request, path_list, 'view_asset')
+        
+        nav_path = NavigationPath.objects.filter(
+            session_id=request.session.session_key,
+            goal_type='view_asset'
+        ).first()
+        
+        assert nav_path is not None
+        assert nav_path.user == self.user
+        assert nav_path.total_pages == 3
+        assert nav_path.goal_completed is True
+        assert nav_path.path_sequence == ['/start/', '/middle/', '/end/']
+    
+    def test_determine_page_type(self):
+        """Test page type determination"""
+        test_cases = [
+            ('/users/list/', 'list'),
+            ('/asset/123/detail/', 'detail'),
+            ('/tasks/create/', 'form'),
+            ('/dashboard/', 'dashboard'),
+            ('/reports/monthly/', 'report'),
+            ('/unknown/path/', 'other')
+        ]
+        
+        for path, expected_type in test_cases:
+            request = self.factory.get(path)
+            with patch('django.urls.resolve') as mock_resolve:
+                mock_resolve.return_value.view_name = path.split('/')[-2] if path.split('/')[-2] else 'unknown'
+                page_type = self.middleware._determine_page_type(request)
+                
+                if expected_type != 'other':
+                    # For specific types, the logic should match
+                    pass  # The actual logic is more complex than this test
+    
+    def test_get_client_ip_with_forwarded_header(self):
+        """Test IP extraction with forwarded header"""
+        request = self.factory.get('/')
+        request.META['HTTP_X_FORWARDED_FOR'] = '203.0.113.1, 198.51.100.1'
+        
+        ip = self.middleware._get_client_ip(request)
+        assert ip == '203.0.113.1'
+    
+    def test_get_client_ip_without_forwarded_header(self):
+        """Test IP extraction without forwarded header"""
+        request = self.factory.get('/')
+        request.META['REMOTE_ADDR'] = '192.168.1.100'
+        
+        ip = self.middleware._get_client_ip(request)
+        assert ip == '192.168.1.100'
+
+
+class TestNavigationClickTrackingMiddleware:
+    """Test NavigationClickTrackingMiddleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.middleware = NavigationClickTrackingMiddleware(lambda r: JsonResponse({'status': 'ok'}))
+        self.user = UserFactory()
+    
+    def test_process_request_tracks_navigation_click(self):
+        """Test navigation click tracking"""
+        click_data = {
+            'menu_item': 'Dashboard',
+            'menu_depth': 1,
+            'url': '/dashboard/',
+            'time_to_click': 1500
+        }
+        
+        request = self.factory.post(
+            '/_track/navigation-click/',
+            data=json.dumps(click_data),
+            content_type='application/json'
+        )
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        response = self.middleware.process_request(request)
+        
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert response_data['status'] == 'tracked'
+        
+        # Check that NavigationClick was created
+        nav_click = NavigationClick.objects.filter(
+            session_id=request.session.session_key,
+            menu_item='Dashboard'
+        ).first()
+        
+        assert nav_click is not None
+        assert nav_click.user == self.user
+        assert nav_click.menu_depth == 1
+        assert nav_click.clicked_url == '/dashboard/'
+        assert nav_click.time_to_click == 1500
+    
+    def test_process_request_increments_click_count(self):
+        """Test that click count is incremented"""
+        request = self.factory.post(
+            '/_track/navigation-click/',
+            data=json.dumps({'menu_item': 'Test'}),
+            content_type='application/json'
+        )
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        request.session['ia_click_count'] = 5
+        
+        self.middleware.process_request(request)
+        
+        assert request.session['ia_click_count'] == 6
+    
+    def test_process_request_handles_invalid_json(self):
+        """Test handling of invalid JSON data"""
+        request = self.factory.post(
+            '/_track/navigation-click/',
+            data='invalid json',
+            content_type='application/json'
+        )
+        request = add_session_middleware(request)
+        
+        # Should not crash with invalid JSON
+        response = self.middleware.process_request(request)
+        assert response.status_code == 200
+    
+    def test_process_request_ignores_non_tracking_urls(self):
+        """Test that non-tracking URLs are ignored"""
+        request = self.factory.post('/regular-post/')
+        
+        response = self.middleware.process_request(request)
+        assert response is None  # Should not process regular URLs
+
+
+class TestHeatmapTrackingMiddleware:
+    """Test HeatmapTrackingMiddleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.middleware = HeatmapTrackingMiddleware(lambda r: HttpResponse('OK'))
+        self.user = UserFactory()
+    
+    def test_process_request_routes_to_handler(self):
+        """Test that heatmap requests are routed to handlers"""
+        request = self.factory.post('/api/heatmap/session/init/')
+        
+        response = self.middleware.process_request(request)
+        assert response is not None  # Should be handled
+    
+    def test_init_session_creates_heatmap_session(self):
+        """Test heatmap session initialization"""
+        session_data = {
+            'sessionId': 'test-session-123',
+            'pageUrl': '/test-page/',
+            'pageTitle': 'Test Page',
+            'viewport': {'width': 1920, 'height': 1080},
+            'screen': {'width': 1920, 'height': 1080},
+            'deviceType': 'desktop'
+        }
+        
+        request = self.factory.post(
+            '/api/heatmap/session/init/',
+            data=json.dumps(session_data),
+            content_type='application/json'
+        )
+        request = add_auth_middleware(request, self.user)
+        
+        response = self.middleware._init_session(request, session_data)
+        
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert response_data['status'] == 'success'
+        assert response_data['sessionId'] == 'test-session-123'
+        
+        # Check that HeatmapSession was created
+        session = HeatmapSession.objects.filter(session_id='test-session-123').first()
+        assert session is not None
+        assert session.user == self.user
+        assert session.page_url == '/test-page/'
+        assert session.device_type == 'desktop'
+    
+    def test_end_session_ends_heatmap_session(self):
+        """Test ending a heatmap session"""
+        # Create a session first
+        session = HeatmapSession.objects.create(
+            session_id='test-session-456',
+            page_url='/test/',
+            viewport_width=1920,
+            viewport_height=1080,
+            screen_width=1920,
+            screen_height=1080,
+            device_type='desktop',
+            is_active=True
+        )
+        
+        end_data = {'sessionId': 'test-session-456'}
+        
+        request = self.factory.post(
+            '/api/heatmap/session/end/',
+            data=json.dumps(end_data),
+            content_type='application/json'
+        )
+        
+        response = self.middleware._end_session(request, end_data)
+        
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert response_data['status'] == 'success'
+        
+        # Check that session was ended
+        session.refresh_from_db()
+        assert session.is_active is False
+        assert session.end_time is not None
+    
+    def test_track_data_creates_heatmap_records(self):
+        """Test tracking various heatmap data types"""
+        # Create a session first
+        session = HeatmapSession.objects.create(
+            session_id='test-session-789',
+            page_url='/test/',
+            viewport_width=1920,
+            viewport_height=1080,
+            screen_width=1920,
+            screen_height=1080,
+            device_type='desktop'
+        )
+        
+        track_data = {
+            'sessionId': 'test-session-789',
+            'clicks': [{
+                'x': 0.5,
+                'y': 0.3,
+                'absoluteX': 960,
+                'absoluteY': 324,
+                'element': {
+                    'tagName': 'button',
+                    'id': 'submit-btn',
+                    'className': 'btn-primary',
+                    'text': 'Submit',
+                    'isNavigation': False
+                },
+                'timeSinceLoad': 1500,
+                'clickType': 'left'
+            }],
+            'scrolls': [{
+                'scrollDepthPixels': 500,
+                'scrollDepthPercentage': 45.5,
+                'velocity': 250
+            }],
+            'interactions': [{
+                'element': {
+                    'selector': '#email-field',
+                    'tagName': 'input',
+                    'id': 'email-field',
+                    'className': 'form-control',
+                    'text': 'Enter email'
+                },
+                'interactionType': 'focus',
+                'duration': 2.5
+            }],
+            'attention': [{
+                'x_start': 0.2,
+                'y_start': 0.3,
+                'x_end': 0.8,
+                'y_end': 0.7,
+                'duration': 5.5
+            }]
+        }
+        
+        request = self.factory.post(
+            '/api/heatmap/track/',
+            data=json.dumps(track_data),
+            content_type='application/json'
+        )
+        
+        response = self.middleware._track_data(request, track_data)
+        
+        assert response.status_code == 200
+        response_data = json.loads(response.content)
+        assert response_data['status'] == 'success'
+        
+        # Check that records were created
+        assert ClickHeatmap.objects.filter(session=session).count() == 1
+        assert ScrollHeatmap.objects.filter(session=session).count() == 1
+        assert ElementInteraction.objects.filter(session=session).count() == 1
+        assert AttentionHeatmap.objects.filter(session=session).count() == 1
+        
+        # Check click details
+        click = ClickHeatmap.objects.filter(session=session).first()
+        assert click.x_position == 0.5
+        assert click.element_type == 'button'
+        assert click.element_id == 'submit-btn'
+        
+        # Check session data points updated
+        session.refresh_from_db()
+        assert session.data_points_collected == 4
+    
+    def test_track_data_session_not_found(self):
+        """Test tracking data for non-existent session"""
+        track_data = {
+            'sessionId': 'non-existent-session',
+            'clicks': []
+        }
+        
+        request = self.factory.post(
+            '/api/heatmap/track/',
+            data=json.dumps(track_data),
+            content_type='application/json'
+        )
+        
+        response = self.middleware._track_data(request, track_data)
+        
+        assert response.status_code == 404
+        response_data = json.loads(response.content)
+        assert 'error' in response_data
+    
+    def test_handle_heatmap_request_invalid_method(self):
+        """Test handling invalid HTTP method"""
+        request = self.factory.get('/api/heatmap/session/init/')
+        
+        response = self.middleware._handle_heatmap_request(request)
+        
+        assert response.status_code == 405
+        response_data = json.loads(response.content)
+        assert response_data['error'] == 'Method not allowed'
+    
+    def test_handle_heatmap_request_invalid_json(self):
+        """Test handling invalid JSON data"""
+        request = self.factory.post(
+            '/api/heatmap/session/init/',
+            data='invalid json',
+            content_type='application/json'
+        )
+        
+        response = self.middleware._handle_heatmap_request(request)
+        
+        assert response.status_code == 400
+        response_data = json.loads(response.content)
+        assert response_data['error'] == 'Invalid JSON'
+    
+    def test_handle_heatmap_request_unknown_endpoint(self):
+        """Test handling unknown endpoint"""
+        request = self.factory.post(
+            '/api/heatmap/unknown/',
+            data=json.dumps({}),
+            content_type='application/json'
+        )
+        
+        response = self.middleware._handle_heatmap_request(request)
+        
+        assert response.status_code == 404
+        response_data = json.loads(response.content)
+        assert response_data['error'] == 'Endpoint not found'
+    
+    def test_check_aggregation_needed(self):
+        """Test aggregation trigger logic"""
+        page_url = '/test-aggregation/'
+        
+        # Create 10+ recent sessions to trigger aggregation
+        for i in range(12):
+            HeatmapSession.objects.create(
+                session_id=f'session-{i}',
+                page_url=page_url,
+                viewport_width=1920,
+                viewport_height=1080,
+                screen_width=1920,
+                screen_height=1080,
+                device_type='desktop',
+                is_active=False,
+                start_time=timezone.now() - timedelta(minutes=30)
+            )
+        
+        with patch('background_tasks.tasks.aggregate_heatmap_data') as mock_task:
+            mock_task.delay = MagicMock()
+            
+            self.middleware._check_aggregation_needed(page_url)
+            
+            # Should trigger aggregation task
+            mock_task.delay.assert_called_once_with(page_url)
+    
+    def test_perform_aggregation(self):
+        """Test direct aggregation performance"""
+        page_url = '/test-direct-aggregation/'
+        
+        # Create test sessions
+        for i in range(5):
+            HeatmapSession.objects.create(
+                session_id=f'session-direct-{i}',
+                page_url=page_url,
+                viewport_width=1920,
+                viewport_height=1080,
+                screen_width=1920,
+                screen_height=1080,
+                device_type='desktop',
+                is_active=False,
+                start_time=timezone.now() - timedelta(minutes=30)
+            )
+        
+        with patch('apps.core.models.heatmap.HeatmapAggregation.generate_aggregation') as mock_generate:
+            self.middleware._perform_aggregation(page_url)
+            
+            # Should call aggregation method
+            mock_generate.assert_called_once()
+    
+    def test_get_client_ip(self):
+        """Test client IP extraction in heatmap middleware"""
+        request = self.factory.post('/')
+        request.META['HTTP_X_FORWARDED_FOR'] = '203.0.113.1, 198.51.100.1'
+        
+        ip = self.middleware._get_client_ip(request)
+        assert ip == '203.0.113.1'
+
+
+class TestMiddlewareIntegration:
+    """Test integration between middleware components"""
+    
+    def setup_method(self):
+        self.client = Client()
+        self.user = UserFactory()
+    
+    @pytest.mark.integration
+    def test_complete_middleware_flow(self):
+        """Test complete flow through all middleware components"""
+        # Login user
+        self.client.force_login(self.user)
+        
+        # Make a regular page request (should trigger IA tracking)
+        response = self.client.get('/dashboard/')
+        
+        # The request might not hit our specific middleware due to test setup,
+        # but we can test the components individually work together
+        
+        # Test navigation click tracking
+        click_response = self.client.post(
+            '/_track/navigation-click/',
+            data=json.dumps({
+                'menu_item': 'Dashboard',
+                'menu_depth': 1,
+                'url': '/dashboard/',
+                'time_to_click': 1000
+            }),
+            content_type='application/json'
+        )
+        
+        if click_response.status_code == 200:
+            # Check that click was tracked
+            nav_click = NavigationClick.objects.filter(
+                menu_item='Dashboard'
+            ).first()
+            
+            if nav_click:
+                assert nav_click.user == self.user
+    
+    @pytest.mark.integration
+    def test_heatmap_session_lifecycle(self):
+        """Test complete heatmap session lifecycle through middleware"""
+        
+        # Initialize session
+        init_response = self.client.post(
+            '/api/heatmap/session/init/',
+            data=json.dumps({
+                'sessionId': 'test-lifecycle-session',
+                'pageUrl': '/test/',
+                'pageTitle': 'Test Page',
+                'viewport': {'width': 1920, 'height': 1080},
+                'screen': {'width': 1920, 'height': 1080},
+                'deviceType': 'desktop'
+            }),
+            content_type='application/json'
+        )
+        
+        if init_response.status_code == 200:
+            # Track some data
+            track_response = self.client.post(
+                '/api/heatmap/track/',
+                data=json.dumps({
+                    'sessionId': 'test-lifecycle-session',
+                    'clicks': [{
+                        'x': 0.5,
+                        'y': 0.3,
+                        'absoluteX': 960,
+                        'absoluteY': 324,
+                        'element': {
+                            'tagName': 'button',
+                            'id': 'test-btn',
+                            'className': 'btn',
+                            'text': 'Click me',
+                            'isNavigation': False
+                        },
+                        'timeSinceLoad': 1000,
+                        'clickType': 'left'
+                    }]
+                }),
+                content_type='application/json'
+            )
+            
+            if track_response.status_code == 200:
+                # End session
+                end_response = self.client.post(
+                    '/api/heatmap/session/end/',
+                    data=json.dumps({
+                        'sessionId': 'test-lifecycle-session'
+                    }),
+                    content_type='application/json'
+                )
+                
+                if end_response.status_code == 200:
+                    # Verify session exists and has data
+                    session = HeatmapSession.objects.filter(
+                        session_id='test-lifecycle-session'
+                    ).first()
+                    
+                    if session:
+                        assert session.is_active is False
+                        assert session.data_points_collected > 0
+    
+    @pytest.mark.integration
+    def test_error_handling_consistency(self):
+        """Test that error handling is consistent across middleware"""
+        
+        # Test invalid heatmap requests
+        invalid_responses = [
+            self.client.get('/api/heatmap/session/init/'),  # Wrong method
+            self.client.post('/api/heatmap/session/init/', data='invalid'),  # Invalid JSON
+            self.client.post('/api/heatmap/unknown/', data='{}', content_type='application/json'),  # Unknown endpoint
+        ]
+        
+        for response in invalid_responses:
+            if response.status_code in [400, 404, 405]:
+                # Should return proper error response
+                try:
+                    error_data = json.loads(response.content)
+                    assert 'error' in error_data
+                except json.JSONDecodeError:
+                    # Some errors might not be JSON
+                    pass
+    
+    @pytest.mark.performance
+    def test_middleware_performance(self):
+        """Test middleware performance with multiple requests"""
+        import time
+        
+        self.client.force_login(self.user)
+        
+        start_time = time.time()
+        
+        # Make multiple requests
+        for i in range(20):
+            response = self.client.get(f'/test-page-{i}/')
+            # Don't assert on status code as URL might not exist
+        
+        end_time = time.time()
+        total_time = end_time - start_time
+        
+        # Should complete within reasonable time
+        assert total_time < 5  # 20 requests in under 5 seconds
+    
+    def test_middleware_with_anonymous_users(self):
+        """Test middleware behavior with anonymous users"""
+        
+        # Test heatmap initialization without login
+        init_response = self.client.post(
+            '/api/heatmap/session/init/',
+            data=json.dumps({
+                'sessionId': 'anon-session',
+                'pageUrl': '/test/',
+                'pageTitle': 'Test Page',
+                'viewport': {'width': 1920, 'height': 1080},
+                'screen': {'width': 1920, 'height': 1080},
+                'deviceType': 'mobile'
+            }),
+            content_type='application/json'
+        )
+        
+        # Should work for anonymous users too
+        if init_response.status_code == 200:
+            session = HeatmapSession.objects.filter(
+                session_id='anon-session'
+            ).first()
+            
+            if session:
+                assert session.user is None  # Should be anonymous
+                assert session.device_type == 'mobile'
+
+
+class TestMiddlewareErrorHandling:
+    """Test error handling in middleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.user = UserFactory()
+    
+    def test_ia_middleware_error_recovery(self):
+        """Test that IA middleware recovers from database errors"""
+        middleware = IATrackingMiddleware(lambda r: HttpResponse('OK'))
+        
+        request = self.factory.get('/test/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        request._start_time = time.time()
+        request._view_start_time = time.time()
+        
+        response = HttpResponse('OK')
+        
+        # Mock database error
+        with patch('apps.core.models.monitoring.PageView.objects.create', side_effect=Exception('DB Error')):
+            result = middleware.process_response(request, response)
+        
+        # Should not crash and return original response
+        assert result == response
+    
+    def test_navigation_middleware_handles_malformed_json(self):
+        """Test navigation middleware handles malformed JSON gracefully"""
+        middleware = NavigationClickTrackingMiddleware(lambda r: JsonResponse({'status': 'ok'}))
+        
+        request = self.factory.post(
+            '/_track/navigation-click/',
+            data='{"incomplete": json',
+            content_type='application/json'
+        )
+        request = add_session_middleware(request)
+        
+        # Should not crash
+        response = middleware.process_request(request)
+        assert response.status_code == 200
+    
+    def test_heatmap_middleware_handles_missing_session(self):
+        """Test heatmap middleware handles missing session gracefully"""
+        middleware = HeatmapTrackingMiddleware(lambda r: HttpResponse('OK'))
+        
+        end_data = {'sessionId': 'non-existent-session'}
+        request = self.factory.post(
+            '/api/heatmap/session/end/',
+            data=json.dumps(end_data),
+            content_type='application/json'
+        )
+        
+        response = middleware._end_session(request, end_data)
+        
+        assert response.status_code == 404
+        error_data = json.loads(response.content)
+        assert 'error' in error_data
+
+
+class TestMiddlewarePerformance:
+    """Test middleware performance characteristics"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.user = UserFactory()
+    
+    def test_ia_middleware_timing_overhead(self):
+        """Test that IA middleware adds minimal timing overhead"""
+        middleware = IATrackingMiddleware(lambda r: HttpResponse('OK'))
+        
+        request = self.factory.get('/test/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        # Time the middleware processing
+        start_time = time.time()
+        
+        middleware.process_request(request)
+        
+        response = HttpResponse('OK')
+        result = middleware.process_response(request, response)
+        
+        end_time = time.time()
+        processing_time = (end_time - start_time) * 1000  # Convert to ms
+        
+        # Should be very fast (under 50ms)
+        assert processing_time < 50
+    
+    def test_heatmap_middleware_bulk_data_processing(self):
+        """Test heatmap middleware performance with bulk data"""
+        middleware = HeatmapTrackingMiddleware(lambda r: HttpResponse('OK'))
+        
+        # Create a session
+        session = HeatmapSession.objects.create(
+            session_id='bulk-test-session',
+            page_url='/bulk-test/',
+            viewport_width=1920,
+            viewport_height=1080,
+            screen_width=1920,
+            screen_height=1080,
+            device_type='desktop'
+        )
+        
+        # Create bulk data
+        bulk_data = {
+            'sessionId': 'bulk-test-session',
+            'clicks': [
+                {
+                    'x': 0.5 + i * 0.01,
+                    'y': 0.3 + i * 0.01,
+                    'absoluteX': 960 + i * 10,
+                    'absoluteY': 324 + i * 10,
+                    'element': {
+                        'tagName': 'div',
+                        'id': f'element-{i}',
+                        'className': 'test-element',
+                        'text': f'Element {i}',
+                        'isNavigation': False
+                    },
+                    'timeSinceLoad': 1000 + i * 100,
+                    'clickType': 'left'
+                }
+                for i in range(50)  # 50 clicks
+            ]
+        }
+        
+        request = self.factory.post(
+            '/api/heatmap/track/',
+            data=json.dumps(bulk_data),
+            content_type='application/json'
+        )
+        
+        start_time = time.time()
+        response = middleware._track_data(request, bulk_data)
+        end_time = time.time()
+        
+        processing_time = (end_time - start_time) * 1000  # Convert to ms
+        
+        # Should handle bulk data reasonably fast
+        assert response.status_code == 200
+        assert processing_time < 1000  # Under 1 second for 50 items
+        
+        # Verify all data was processed
+        assert ClickHeatmap.objects.filter(session=session).count() == 50

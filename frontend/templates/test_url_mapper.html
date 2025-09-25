@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Mapper Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .test-section {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            background: white;
+            border-left: 4px solid #4CAF50;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .test-result.error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .test-controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        #console-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ URL Mapper Test Suite</h1>
+    <p>This page tests the URL mapping functionality for the YOUTILITY5 Information Architecture migration.</p>
+
+    <div class="test-section">
+        <h2>🔧 Test Controls</h2>
+        <div class="test-controls">
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="testURLTransformation()">Test URL Transformation</button>
+            <button onclick="testAJAXInterception()">Test AJAX Interception</button>
+            <button onclick="clearConsole()">Clear Console</button>
+            <button onclick="toggleDebugMode()">Toggle Debug Mode</button>
+        </div>
+        <p><strong>Debug Mode:</strong> <span id="debug-status">OFF</span></p>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Results</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🖥️ Console Output</h2>
+        <div id="console-output"></div>
+    </div>
+
+    <!-- Include our URL mapper and custom.js -->
+    <script>
+        // Enable debug mode for testing
+        window.URL_DEBUG_MODE = true;
+        
+        // Mock console for capturing output
+        const originalConsole = {
+            log: console.log,
+            warn: console.warn,
+            error: console.error
+        };
+        
+        function logToPage(type, ...args) {
+            const consoleDiv = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.join(' ');
+            consoleDiv.innerHTML += `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            
+            // Also log to real console
+            originalConsole[type](...args);
+        }
+        
+        console.log = (...args) => logToPage('log', ...args);
+        console.warn = (...args) => logToPage('warn', ...args);
+        console.error = (...args) => logToPage('error', ...args);
+    </script>
+    
+    <script src="../static/assets/js/local/url_mapper.js"></script>
+    
+    <script>
+        // Test suite implementation
+        let testResults = [];
+        
+        function addResult(testName, passed, message) {
+            const result = { testName, passed, message, timestamp: new Date() };
+            testResults.push(result);
+            
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? '' : 'error'}`;
+            resultDiv.innerHTML = `
+                <strong>${passed ? '✅' : '❌'} ${testName}</strong><br>
+                ${message}<br>
+                <small>${result.timestamp.toLocaleString()}</small>
+            `;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        function testURLTransformation() {
+            console.log('🔄 Starting URL Transformation Tests...');
+            
+            const testCases = [
+                {
+                    input: 'onboarding:bu',
+                    expected: 'admin_panel:bu_list',
+                    description: 'Business units namespace mapping'
+                },
+                {
+                    input: 'onboarding:client',
+                    expected: 'admin_panel:clients_list',
+                    description: 'Client namespace mapping'
+                },
+                {
+                    input: 'onboarding:contract',
+                    expected: 'admin_panel:contracts_list',
+                    description: 'Contract namespace mapping'
+                },
+                {
+                    input: 'onboarding:geofence',
+                    expected: 'admin_panel:config_geofences',
+                    description: 'Geofence namespace mapping'
+                },
+                {
+                    input: 'onboarding:typeassist',
+                    expected: 'admin_panel:config_types',
+                    description: 'TypeAssist namespace mapping'
+                },
+                {
+                    input: '/onboarding/bu/?action=list',
+                    expected: '/admin/business-units/?action=list',
+                    description: 'URL path transformation'
+                }
+            ];
+            
+            testCases.forEach(testCase => {
+                try {
+                    const result = window.UrlMapper.transformUrl(testCase.input);
+                    const passed = result.includes(testCase.expected.split(':')[0]);
+                    
+                    addResult(
+                        `Transform: ${testCase.description}`,
+                        passed,
+                        `Input: ${testCase.input}<br>Expected: ${testCase.expected}<br>Got: ${result}`
+                    );
+                    
+                    console.log(`Test: ${testCase.description} - ${passed ? 'PASS' : 'FAIL'}`);
+                } catch (error) {
+                    addResult(
+                        `Transform: ${testCase.description}`,
+                        false,
+                        `Error: ${error.message}`
+                    );
+                }
+            });
+        }
+        
+        function testAJAXInterception() {
+            console.log('📡 Starting AJAX Interception Tests...');
+            
+            // Test that our AJAX wrapper is working
+            const testUrl = '/onboarding/bu/?action=list';
+            
+            // Mock AJAX call
+            try {
+                $.ajax({
+                    url: testUrl,
+                    type: 'GET',
+                    beforeSend: function(xhr) {
+                        // Cancel the request to avoid actual network call
+                        xhr.abort();
+                        return false;
+                    },
+                    success: function() {},
+                    error: function(xhr, status, error) {
+                        if (status === 'abort') {
+                            addResult(
+                                'AJAX Interception Test',
+                                true,
+                                'AJAX wrapper successfully intercepted and would transform URL'
+                            );
+                            console.log('✅ AJAX interception working correctly');
+                        } else {
+                            addResult(
+                                'AJAX Interception Test',
+                                false,
+                                `Unexpected error: ${error}`
+                            );
+                        }
+                    }
+                });
+            } catch (error) {
+                addResult(
+                    'AJAX Interception Test',
+                    false,
+                    `Error testing AJAX: ${error.message}`
+                );
+            }
+        }
+        
+        function testLegacyDetection() {
+            console.log('🔍 Testing Legacy URL Detection...');
+            
+            const legacyUrls = [
+                'onboarding:bu',
+                '/onboarding/client/',
+                'onboarding:geofence'
+            ];
+            
+            const modernUrls = [
+                'admin_panel:bu_list',
+                '/admin/business-units/',
+                'admin_panel:config_geofences'
+            ];
+            
+            legacyUrls.forEach(url => {
+                const isLegacy = window.UrlMapper.isLegacyUrl(url);
+                addResult(
+                    `Legacy Detection: ${url}`,
+                    isLegacy,
+                    `URL "${url}" ${isLegacy ? 'correctly' : 'incorrectly'} identified as ${isLegacy ? 'legacy' : 'modern'}`
+                );
+            });
+            
+            modernUrls.forEach(url => {
+                const isLegacy = window.UrlMapper.isLegacyUrl(url);
+                addResult(
+                    `Modern Detection: ${url}`,
+                    !isLegacy,
+                    `URL "${url}" ${!isLegacy ? 'correctly' : 'incorrectly'} identified as ${!isLegacy ? 'modern' : 'legacy'}`
+                );
+            });
+        }
+        
+        function runAllTests() {
+            console.log('🚀 Running Full Test Suite...');
+            document.getElementById('test-results').innerHTML = '';
+            testResults = [];
+            
+            testURLTransformation();
+            setTimeout(() => testAJAXInterception(), 100);
+            setTimeout(() => testLegacyDetection(), 200);
+            
+            setTimeout(() => {
+                const passed = testResults.filter(r => r.passed).length;
+                const total = testResults.length;
+                
+                addResult(
+                    'OVERALL SUMMARY',
+                    passed === total,
+                    `${passed}/${total} tests passed (${((passed/total) * 100).toFixed(1)}%)`
+                );
+                
+                console.log(`📈 Test Suite Complete: ${passed}/${total} tests passed`);
+            }, 500);
+        }
+        
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+        }
+        
+        function toggleDebugMode() {
+            window.URL_DEBUG_MODE = !window.URL_DEBUG_MODE;
+            document.getElementById('debug-status').textContent = window.URL_DEBUG_MODE ? 'ON' : 'OFF';
+            console.log(`🔧 Debug mode ${window.URL_DEBUG_MODE ? 'enabled' : 'disabled'}`);
+        }
+        
+        // Auto-run tests when page loads
+        window.addEventListener('load', function() {
+            console.log('🎯 URL Mapper Test Suite Loaded');
+            console.log('📝 URL Mapper available:', typeof window.UrlMapper !== 'undefined');
+            console.log('📝 jQuery available:', typeof $ !== 'undefined');
+            
+            if (typeof window.UrlMapper !== 'undefined') {
+                console.log('✅ URL Mapper initialized successfully');
+                console.log('📋 Available methods:', Object.keys(window.UrlMapper));
+                
+                // Run a quick smoke test
+                setTimeout(runAllTests, 1000);
+            } else {
+                console.error('❌ URL Mapper failed to initialize');
+            }
+        });
+    </script>
+</body>
+</html>

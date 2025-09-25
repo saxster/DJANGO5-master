@@ -1,0 +1,31 @@
+{% if show_warning %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="material-icons me-2">warning</i>
+        <div>
+            <strong>URL Deprecated:</strong> 
+            This page has moved to a new location.
+            <br>
+            <small class="text-muted">
+                Old: <code>{{ old_url }}</code> → New: <code>{{ new_url }}</code>
+            </small>
+        </div>
+        <div class="ms-auto">
+            <a href="{{ new_url }}" class="btn btn-sm btn-outline-primary me-2">
+                Go to New URL
+            </a>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<script>
+// Auto-redirect after 10 seconds if user doesn't interact
+setTimeout(function() {
+    const alert = document.querySelector('.alert-warning');
+    if (alert && alert.classList.contains('show')) {
+        window.location.href = '{{ new_url }}';
+    }
+}, 10000);
+</script>
+{% endif %}

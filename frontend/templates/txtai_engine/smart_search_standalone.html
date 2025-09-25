@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Search - AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <span class="navbar-brand mb-0 h1">YOUTILITY5 - AI Smart Search</span>
+    </nav>
+    
+    <div class="container mt-4">
+        <h2>Smart Semantic Search</h2>
+        <p class="text-muted">AI-Powered Document Search</p>
+        
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <!-- Search Form -->
+                <div class="card">
+                    <div class="card-body">
+                        <form id="searchForm" method="get">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" name="q" id="searchQuery" 
+                                       placeholder="Enter your search query..." 
+                                       value="{{ request.GET.get('q', '') }}">
+                                <div class="input-group-append">
+                                    <button class="btn btn-primary" type="submit">
+                                        Search
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="col-md-6">
+                                    <select name="index" class="form-control">
+                                        <option value="">All Indexes</option>
+                                        {% for index in indexes %}
+                                        <option value="{{ index.id }}">{{ index.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <select name="type" class="form-control">
+                                        <option value="SEMANTIC">Semantic Search</option>
+                                        <option value="KEYWORD">Keyword Search</option>
+                                        <option value="HYBRID">Hybrid Search</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Search Results -->
+                <div id="searchResults" class="mt-4">
+                    {% if query %}
+                        {% if search_results %}
+                            <div class="alert alert-success">
+                                <strong>Found {{ search_results|length }} results for "{{ query }}"</strong>
+                            </div>
+                            
+                            {% for result in search_results %}
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between">
+                                    <strong>{{ result.title }}</strong>
+                                    <small class="text-muted">{{ result.index_name }} (Score: {{ result.score }})</small>
+                                </div>
+                                <div class="card-body">
+                                    <p>{{ result.content }}</p>
+                                    {% if result.metadata %}
+                                        <small class="text-muted">
+                                            {% if result.metadata.get('category') %}
+                                                Category: {{ result.metadata.category }} |
+                                            {% endif %}
+                                            {% if result.metadata.get('file_name') %}
+                                                File: {{ result.metadata.file_name }} |
+                                            {% endif %}
+                                            {% if result.metadata.get('priority') %}
+                                                Priority: {{ result.metadata.priority }} |
+                                            {% endif %}
+                                            Document ID: {{ result.document_id }}
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <strong>No results found for "{{ query }}"</strong>
+                                <br>Try different keywords or search in a specific index.
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            Enter a search query above to see results.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <!-- Search Stats -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Your Search Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Total Searches:</strong> {{ search_stats.total_searches }}</p>
+                        <p><strong>Avg Search Time:</strong> {{ search_stats.avg_search_time|round|int }}ms</p>
+                        <p><strong>Satisfaction:</strong> {{ search_stats.avg_satisfaction|round(1) }}/5</p>
+                    </div>
+                </div>
+                
+                <!-- Available Indexes -->
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Available Indexes</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if indexes %}
+                            <ul class="list-unstyled">
+                                {% for index in indexes %}
+                                <li>
+                                    <strong>{{ index.name }}</strong><br>
+                                    <small>Type: {{ index.content_type }}</small><br>
+                                    <small>Documents: {{ index.document_count }}</small>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No indexes available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <a href="/ai/search/test/" class="btn btn-outline-primary">Go to Test Page</a>
+            <a href="/admin/" class="btn btn-outline-secondary">Admin Panel</a>
+        </div>
+    </div>
+
+    <script>
+    function rerunSearch(query) {
+        document.getElementById('searchQuery').value = query;
+        document.getElementById('searchForm').submit();
+    }
+    </script>
+</body>
+</html>

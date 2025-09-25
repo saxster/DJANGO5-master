@@ -1,0 +1,100 @@
+{% extends 'globals/base.html' %}
+
+{% block title %}Smart Search - AI{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Smart Semantic Search</h2>
+    <p class="text-muted">AI-Powered Document Search</p>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <!-- Search Form -->
+            <div class="card">
+                <div class="card-body">
+                    <form id="searchForm" method="get">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" name="q" id="searchQuery" 
+                                   placeholder="Enter your search query..." 
+                                   value="{{ request.GET.q }}">
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" type="submit">
+                                    Search
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="col-md-6">
+                                <select name="index" class="form-control">
+                                    <option value="">All Indexes</option>
+                                    {% for index in indexes %}
+                                    <option value="{{ index.id }}">{{ index.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <select name="type" class="form-control">
+                                    <option value="SEMANTIC">Semantic Search</option>
+                                    <option value="KEYWORD">Keyword Search</option>
+                                    <option value="HYBRID">Hybrid Search</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Search Results -->
+            <div id="searchResults" class="mt-4">
+                <!-- Results will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Search Stats -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Your Search Stats</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Searches:</strong> {{ search_stats.total_searches }}</p>
+                    <p><strong>Avg Search Time:</strong> {{ search_stats.avg_search_time|floatformat:0 }}ms</p>
+                    <p><strong>Satisfaction:</strong> {{ search_stats.avg_satisfaction|floatformat:1 }}/5</p>
+                </div>
+            </div>
+            
+            <!-- Recent Searches -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Searches</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_searches %}
+                        <ul class="list-group list-group-flush">
+                            {% for search in recent_searches %}
+                            <li class="list-group-item px-0">
+                                <a href="#" class="text-decoration-none" onclick="rerunSearch('{{ search.query_text }}')">
+                                    {{ search.query_text|truncatechars:30 }}
+                                </a>
+                                <br>
+                                <small class="text-muted">{{ search.results_count }} results</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent searches.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function rerunSearch(query) {
+    document.getElementById('searchQuery').value = query;
+    document.getElementById('searchForm').submit();
+}
+</script>
+{% endblock %}

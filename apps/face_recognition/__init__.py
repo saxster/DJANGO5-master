@@ -1,0 +1,1 @@
+default_app_config = 'apps.face_recognition.apps.FaceRecognitionConfig'

@@ -1,0 +1,733 @@
+{% extends "globals/base_list.html" %}
+
+{% block card_title %}
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+    <span style="font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 600; color: #1e3a8a;">
+        {{ label }} List - Modern View
+    </span>
+    <a href="/assets/checkpoints/?template=true&classic=true{% if request.GET.get('type') %}&type={{ request.GET.get('type') }}{% endif %}" style="padding: 0.5rem 1rem; background: white; border: 1px solid #e5e7eb; border-radius: 8px; color: #6b7280; font-size: 0.875rem; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+        <i class="bi bi-list"></i> Classic View
+    </a>
+</div>
+{% endblock card_title %}
+
+{% block page_title %}
+{{ label }} List
+{% endblock page_title %}
+
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">{{ label }} List</a></li>
+{% endblock pagebreadcumb %}
+
+{% block table %}
+<div style="background: #ffffff; padding: 2rem 2.5rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); margin-bottom: 2rem;">
+    <!-- Controls Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <!-- Search Bar -->
+            <div style="position: relative;">
+                <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+                <input type="text" id="searchBox" placeholder="Search checkpoints..." style="padding: 0.625rem 1rem 0.625rem 2.5rem; border: 2px solid #e5e7eb; border-radius: 10px; width: 280px; font-size: 0.875rem; transition: all 0.3s; outline: none;">
+            </div>
+            
+            <!-- Filter Buttons -->
+            <button class="filter-btn" data-filter="all" style="padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);">
+                <i class="bi bi-grid-3x3-gap"></i> All
+            </button>
+            <button class="filter-btn" data-filter="WORKING" style="padding: 0.625rem 1.25rem; background: white; color: #374151; border: 2px solid #d1d5db; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-check-circle"></i> Working
+            </button>
+            <button class="filter-btn" data-filter="MAINTENANCE" style="padding: 0.625rem 1.25rem; background: white; color: #374151; border: 2px solid #d1d5db; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-tools"></i> Maintenance
+            </button>
+            <button class="filter-btn" data-filter="STANDBY" style="padding: 0.625rem 1.25rem; background: white; color: #374151; border: 2px solid #d1d5db; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                <i class="bi bi-pause-circle"></i> Standby
+            </button>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 0.75rem;">
+            <button id="exportBtn" style="padding: 0.625rem 1.25rem; background: white; color: #374151; border: 2px solid #d1d5db; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <button id="addNewBtn" style="padding: 0.625rem 1.25rem; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-plus-circle"></i> Add Checkpoint
+            </button>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Total Checkpoints</p>
+                    <p id="totalCount" style="color: #1f2937; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-geo-alt" style="color: #3b82f6; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Working</p>
+                    <p id="workingCount" style="color: #10b981; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dcfce7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Maintenance</p>
+                    <p id="maintenanceCount" style="color: #f59e0b; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #fef3c7; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-tools" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Active</p>
+                    <p id="activeCount" style="color: #3b82f6; font-size: 1.75rem; font-weight: 700; margin: 0.25rem 0 0 0;">0</p>
+                </div>
+                <div style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-toggle-on" style="color: #3b82f6; font-size: 1.25rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Checkpoints Grid -->
+    <div id="checkpointsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1.5rem;">
+        <!-- Checkpoints will be loaded here -->
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" style="display: flex; justify-content: center; align-items: center; padding: 4rem;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p style="color: #6b7280; font-size: 0.875rem;">Loading checkpoints...</p>
+        </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div id="emptyState" style="display: none; text-align: center; padding: 4rem;">
+        <div style="width: 80px; height: 80px; background: #e5e7eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+            <i class="bi bi-geo-alt" style="color: #9ca3af; font-size: 2rem;"></i>
+        </div>
+        <h3 style="color: #1f2937; font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem 0;">No Checkpoints Found</h3>
+        <p style="color: #6b7280; font-size: 0.875rem; margin: 0 0 1.5rem 0;">Start by creating your first checkpoint</p>
+        <button onclick="document.getElementById('addNewBtn').click()" style="padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer;">
+            <i class="bi bi-plus-circle"></i> Create Checkpoint
+        </button>
+    </div>
+</div>
+{% endblock table %}
+
+{% block popup_alerts %}
+<!-- Modal for Add/Edit -->
+<div class="modal animate__animated animate__zoomIn" tabindex="-1" aria-hidden="true" aria-labelledby="exampleModalLabel" data-bs-backdrop="static" id="modal-checkpoint">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content" id="checkpoint_content">
+        </div>
+    </div>
+</div>
+
+<!-- Modal for setting GPS coordinates-->
+{% call general_popup(title="Set GPS Location", popup_id="open_map", modal_size="modal-lg") %}
+<div class="modal-body card">
+    <div class="card-body p-0">
+        <div id="map" style="width:750px; height:350px"></div>
+    </div>
+</div>
+<div class="modal-footer d-flex justify-content-between">
+    <div><p>Tip: Zoom in for accurate coordinates of address, place the marker and then set the coords.</p></div>
+    <div></div>
+    <div><a href="#" class="btn" id="close_setgps" data-dismiss="modal">Close</a>
+    <a href="#" class="btn btn-primary2" id="set_the_coords">Set the coordinates</a></div>
+</div>
+{% endcall %}
+{% endblock popup_alerts %}
+
+{% block extra_scripts %}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3PUZCB7u2PiV8whHeAshweOPIK_d690o&libraries=places&v=weekly&loading=async" defer></script>
+
+<style>
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.checkpoint-card {
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+.filter-btn.active {
+    background: #3b82f6 !important;
+    color: white !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3) !important;
+}
+</style>
+
+<script>
+// Google Maps variables
+var map;
+var userMarker;
+
+function clearAllMarkers(markers){
+    // Clear out the old markers.
+    markers.forEach((marker) => {
+        marker.setMap(null);
+    });
+}
+
+function placeMarker(location) {
+    if ( userMarker ) {
+        userMarker.setPosition(location);
+    } else {
+        userMarker = new google.maps.Marker({
+        position: location,
+        map: map,
+        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+        });
+    }
+}
+
+function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: -34.397, lng: 150.644 },
+        zoom: 8,
+    });
+    //search-radius-form controls
+    const controlDiv = document.createElement('DIV');
+    controlDiv.id = "search_rad_controls";
+
+    // Create the search box and link it to the UI element.
+    const controlInput = document.createElement('input');
+    controlInput.id = "pac-input";
+    controlInput.className = "controls mt-2 form-control";
+    controlInput.placeholder = 'Search any keyword..'
+    controlInput.style = 'width: 170% !important;'
+
+    controlDiv.appendChild(controlInput);
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(controlDiv);
+
+    const searchBox = new google.maps.places.SearchBox(controlInput);
+
+    // Bias the SearchBox results towards current map's viewport.
+    map.addListener("bounds_changed", () => {
+        searchBox.setBounds(map.getBounds());
+    });
+
+    let markers = [];
+
+    // Listen for the event fired when the user selects a prediction and retrieve
+    // more details for that place.
+    searchBox.addListener("places_changed", () => {
+        const places = searchBox.getPlaces();
+
+        if (places.length == 0) {
+        return;
+        }
+
+        // Clear out the old markers.
+        clearAllMarkers(markers)
+        markers = [];
+
+        // For each place, get the icon, name and location.
+        const bounds = new google.maps.LatLngBounds();
+
+        places.forEach((place) => {
+        if (!place.geometry || !place.geometry.location) {
+            console.log("Returned place contains no geometry");
+            return;
+        }
+
+        const icon = {
+            url: place.icon,
+            size: new google.maps.Size(71, 71),
+            origin: new google.maps.Point(0, 0),
+            anchor: new google.maps.Point(17, 34),
+            scaledSize: new google.maps.Size(25, 25),
+        };
+
+        let marker = new google.maps.Marker({
+            map,
+            icon,
+            title: place.name,
+            position: place.geometry.location,
+            animation:google.maps.Animation.DROP
+            })
+
+        // Create a marker for each place.
+        markers.push(
+            marker
+        );
+
+        //on click marker zoom in
+        marker.addListener("click", () => {
+            map.setZoom(17);
+            map.setCenter(marker.getPosition());
+        });
+
+        if (place.geometry.viewport) {
+            // Only geocodes have viewport.
+            bounds.union(place.geometry.viewport);
+        } else {
+            bounds.extend(place.geometry.location);
+        }
+        });
+        map.fitBounds(bounds);
+    }); // searchBox.addListener
+
+    //place marker when user clicks on map
+    google.maps.event.addListener(map, 'click', function(event) {
+        clearAllMarkers(markers)
+        placeMarker(event.latLng);
+    });
+}// initMap end
+
+$(document).ready(function() {
+    const modal_id = "#modal-checkpoint";
+    const modalcontent_id = "#checkpoint_content";
+    const urlname = "/assets/checkpoints/";
+    const viewname = "{{ label }}";
+    const typeParam = '{% if request.GET.get("type") %}&type={{ request.GET.get("type") }}{% endif %}';
+    
+    let allCheckpoints = [];
+    let currentFilter = 'all';
+    let searchTerm = '';
+    
+    // Generate color based on checkpoint code
+    function getColorForCheckpoint(code) {
+        const colors = [
+            '#64748b', // slate-500
+            '#475569', // slate-600
+            '#334155', // slate-700
+            '#1e293b', // slate-800
+            '#6b7280', // gray-500
+            '#4b5563', // gray-600
+            '#374151', // gray-700
+            '#1f2937', // gray-800
+            '#3b82f6', // blue-500
+            '#1d4ed8'  // blue-700
+        ];
+        
+        let hash = 0;
+        for (let i = 0; i < code.length; i++) {
+            hash = code.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    }
+    
+    // Generate initials
+    function getInitials(name) {
+        return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+    }
+    
+    // Get status badge
+    function getStatusBadge(status) {
+        switch(status) {
+            case 'WORKING':
+                return '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #dcfce7; border-radius: 20px; font-size: 0.75rem; color: #059669; font-weight: 500;"><i class="bi bi-check-circle-fill"></i> Working</span>';
+            case 'MAINTENANCE':
+                return '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #fef3c7; border-radius: 20px; font-size: 0.75rem; color: #d97706; font-weight: 500;"><i class="bi bi-tools"></i> Maintenance</span>';
+            case 'STANDBY':
+                return '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #fed7aa; border-radius: 20px; font-size: 0.75rem; color: #ea580c; font-weight: 500;"><i class="bi bi-pause-circle"></i> Standby</span>';
+            case 'SCRAPPED':
+                return '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #e5e7eb; border-radius: 20px; font-size: 0.75rem; color: #6b7280; font-weight: 500;"><i class="bi bi-x-circle"></i> Scrapped</span>';
+            default:
+                return '<span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; background: #e5e7eb; border-radius: 20px; font-size: 0.75rem; color: #6b7280; font-weight: 500;">Unknown</span>';
+        }
+    }
+    
+    // Create checkpoint card HTML
+    function createCheckpointCard(checkpoint) {
+        const initials = getInitials(checkpoint.assetname);
+        const color = getColorForCheckpoint(checkpoint.assetcode);
+        const isActive = checkpoint.enable === true;
+        const statusBadge = getStatusBadge(checkpoint.runningstatus);
+        
+        // Parse GPS coordinates
+        let gpsLink = 'N/A';
+        if (checkpoint.gps && checkpoint.gps.length > 0) {
+            let coords = checkpoint.gps.match(/POINT\(([^ ]+) ([^ ]+)\)/);
+            if (coords) {
+                let lng = coords[1];
+                let lat = coords[2];
+                gpsLink = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="color: #3b82f6; text-decoration: none;"><i class="bi bi-geo-alt"></i> View Map</a>`;
+            }
+        }
+        
+        return `
+            <div class="checkpoint-card" data-id="${checkpoint.id}" data-status="${checkpoint.runningstatus}" data-enable="${isActive}"
+                 style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); 
+                        transition: all 0.3s; cursor: pointer; border: 2px solid transparent;">
+                <div style="padding: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="width: 56px; height: 56px; background: ${color}; border-radius: 12px; 
+                                    display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span style="color: white; font-size: 1.25rem; font-weight: 700;">${initials}</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="color: #1f2937; font-size: 1rem; font-weight: 600; margin: 0; 
+                                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${checkpoint.assetcode}</h3>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin: 0.25rem 0 0 0;
+                                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${checkpoint.assetname}</p>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.25rem;">
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Location</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${checkpoint.location__locname || 'Not Assigned'}
+                            </p>
+                        </div>
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Status</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${isActive ? '<i class="bi bi-check-circle-fill" style="color: #10b981;"></i> Active' : '<i class="bi bi-x-circle-fill" style="color: #ef4444;"></i> Inactive'}
+                            </p>
+                        </div>
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Site</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${checkpoint.bu__buname || 'N/A'}
+                            </p>
+                        </div>
+                        <div>
+                            <p style="color: #6b7280; font-size: 0.75rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">GPS</p>
+                            <p style="color: #1f2937; font-size: 0.875rem; font-weight: 500; margin: 0.25rem 0 0 0;">
+                                ${gpsLink}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e5e7eb;">
+                        <a href="/assets/checkpoints/?action=qrdownload&code=${encodeURIComponent(checkpoint.assetcode)}&name=${encodeURIComponent(checkpoint.assetname)}" 
+                           onclick="event.stopPropagation()" 
+                           style="padding: 0.5rem 1rem; background: #6366f1; 
+                                  color: white; border: none; border-radius: 8px; font-size: 0.75rem; 
+                                  font-weight: 500; cursor: pointer; transition: all 0.3s; text-decoration: none;">
+                            <i class="bi bi-qr-code"></i> QR Code
+                        </a>
+                        <button class="edit-btn" data-id="${checkpoint.id}" 
+                                style="padding: 0.5rem 1rem; background: #3b82f6; 
+                                       color: white; border: none; border-radius: 8px; font-size: 0.75rem; 
+                                       font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="delete-btn" data-id="${checkpoint.id}" 
+                                style="padding: 0.5rem 1rem; background: white; color: #ef4444; 
+                                       border: 1px solid #fee2e2; border-radius: 8px; font-size: 0.75rem; 
+                                       font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Apply filters and search
+    function applyFilters() {
+        let filteredCheckpoints = allCheckpoints;
+        
+        // Apply status filter
+        if (currentFilter !== 'all') {
+            filteredCheckpoints = filteredCheckpoints.filter(c => c.runningstatus === currentFilter);
+        }
+        
+        // Apply search filter
+        if (searchTerm) {
+            filteredCheckpoints = filteredCheckpoints.filter(c => 
+                c.assetcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.assetname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (c.location__locname && c.location__locname.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+        }
+        
+        renderCheckpoints(filteredCheckpoints);
+    }
+    
+    // Render checkpoints
+    function renderCheckpoints(checkpoints) {
+        const grid = $('#checkpointsGrid');
+        grid.empty();
+        
+        if (checkpoints.length === 0) {
+            $('#emptyState').show();
+        } else {
+            $('#emptyState').hide();
+            checkpoints.forEach((checkpoint, index) => {
+                const card = $(createCheckpointCard(checkpoint));
+                card.css('animation-delay', `${index * 0.05}s`);
+                grid.append(card);
+            });
+        }
+        
+        // Update counts
+        updateCounts();
+    }
+    
+    // Update statistics
+    function updateCounts() {
+        const workingCount = allCheckpoints.filter(c => c.runningstatus === 'WORKING').length;
+        const maintenanceCount = allCheckpoints.filter(c => c.runningstatus === 'MAINTENANCE').length;
+        const activeCount = allCheckpoints.filter(c => c.enable === true).length;
+        
+        $('#totalCount').text(allCheckpoints.length);
+        $('#workingCount').text(workingCount);
+        $('#maintenanceCount').text(maintenanceCount);
+        $('#activeCount').text(activeCount);
+    }
+    
+    // Load checkpoints
+    function loadCheckpoints() {
+        $('#loadingIndicator').show();
+        $('#checkpointsGrid').hide();
+        
+        $.ajax({
+            url: `${urlname}?action=list`,
+            type: 'GET',
+            data: { params: JSON.stringify(null) },
+            success: function(response) {
+                allCheckpoints = response.data || [];
+                $('#loadingIndicator').hide();
+                $('#checkpointsGrid').show();
+                applyFilters();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading checkpoints:', error);
+                $('#loadingIndicator').hide();
+                $('#emptyState').show();
+                show_error_alert('Failed to load checkpoints');
+            }
+        });
+    }
+    
+    // Filter button click
+    $('.filter-btn').on('click', function() {
+        $('.filter-btn').removeClass('active');
+        $(this).addClass('active');
+        currentFilter = $(this).data('filter');
+        applyFilters();
+    });
+    
+    // Search input with debounce
+    let searchTimer;
+    $('#searchBox').on('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            searchTerm = $(this).val();
+            applyFilters();
+        }, 300);
+    });
+    
+    // Add hover effects
+    $('#searchBox').on('focus', function() {
+        $(this).css('border-color', '#3b82f6');
+        $(this).css('box-shadow', '0 0 0 3px rgba(59, 130, 246, 0.1)');
+    }).on('blur', function() {
+        $(this).css('border-color', '#e5e7eb');
+        $(this).css('box-shadow', 'none');
+    });
+    
+    // Card hover effect
+    $(document).on('mouseenter', '.checkpoint-card', function() {
+        $(this).css('transform', 'translateY(-4px)');
+        $(this).css('box-shadow', '0 8px 16px rgba(0, 0, 0, 0.12)');
+        $(this).css('border-color', '#3b82f6');
+    }).on('mouseleave', '.checkpoint-card', function() {
+        $(this).css('transform', 'translateY(0)');
+        $(this).css('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.08)');
+        $(this).css('border-color', 'transparent');
+    });
+    
+    // Button hover effects
+    $('.filter-btn').on('mouseenter', function() {
+        if (!$(this).hasClass('active')) {
+            $(this).css('background', '#f9fafb');
+            $(this).css('color', '#1f2937');
+            $(this).css('border-color', '#9ca3af');
+            $(this).css('transform', 'translateY(-2px)');
+        }
+    }).on('mouseleave', function() {
+        if (!$(this).hasClass('active')) {
+            $(this).css('background', 'white');
+            $(this).css('color', '#374151');
+            $(this).css('border-color', '#d1d5db');
+            $(this).css('transform', 'translateY(0)');
+        }
+    });
+    
+    // Add new checkpoint button
+    $('#addNewBtn').on('click', function() {
+        const params = {
+            'modal_id': modal_id,
+            'url': `${urlname}?action=form${typeParam}`,
+            'beforeSend': function() {
+                $(modal_id).modal("show");
+            }
+        };
+        
+        fire_ajax_get(params)
+        .done((data, status, xhr) => {
+            $(`${modal_id} .modal-content`).html(data.html_form);
+        })
+        .fail((xhr, status, error) => {
+            show_error_alert("Something went wrong!");
+        });
+    });
+    
+    // Edit button click
+    $(document).on('click', '.edit-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        
+        const params = {
+            'modal_id': modal_id,
+            'url': `${urlname}?id=${id}${typeParam}`,
+            'beforeSend': function() {
+                $(modal_id).modal("show");
+            }
+        };
+        
+        fire_ajax_get(params)
+        .done((data, status, xhr) => {
+            $(modalcontent_id).attr('data-form', 'update');
+            $(`${modal_id} .modal-content`).html(data.html_form);
+        })
+        .fail((xhr, status, error) => {
+            show_error_alert('Something went wrong!');
+        });
+    });
+    
+    // Delete button click
+    $(document).on('click', '.delete-btn', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        
+        show_alert_before_delete(viewname)
+        .then((result) => {
+            if(result.isConfirmed) {
+                const params = {
+                    url: `${urlname}?action=delete&id=${id}${typeParam}`
+                };
+                
+                fire_ajax_get(params)
+                .done((data, status, xhr) => {
+                    if(xhr.status === 200) {
+                        show_successful_delete_alert();
+                        loadCheckpoints(); // Reload the checkpoints
+                    } else {
+                        show_error_alert('Something went Wrong!');
+                    }
+                })
+                .fail((xhr, status, error) => {
+                    show_error_alert('Something went wrong!');
+                });
+            }
+        });
+    });
+    
+    // Form submission
+    $(modal_id).on('submit', '#id_checkpointform', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const id = $("#pk").val();
+        
+        var payLoad = {
+            formData: form.serialize(),
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        };
+        
+        if(id !== 'None') {
+            payLoad.pk = id;
+        }
+        
+        const params = { url: urlname, modal: true };
+        
+        fire_ajax_form_post(params, payLoad)
+        .done((data, status, xhr) => {
+            console.log("data ", data);
+            $(modal_id).modal("hide");
+            show_successful_save_alert(id !== 'None');
+            loadCheckpoints(); // Reload the checkpoints
+        })
+        .fail((xhr, status, error) => {
+            console.error('Form submission failed:', xhr, status, error);
+            show_error_alert('Error saving checkpoint: ' + (xhr.responseJSON?.errors || error));
+        });
+    });
+    
+    // Export button
+    $('#exportBtn').on('click', function() {
+        // Export filtered checkpoints as CSV
+        let csvContent = "Code,Name,Location,Status,GPS,Site\n";
+        let filteredCheckpoints = allCheckpoints;
+        
+        if (currentFilter !== 'all') {
+            filteredCheckpoints = filteredCheckpoints.filter(c => c.runningstatus === currentFilter);
+        }
+        
+        if (searchTerm) {
+            filteredCheckpoints = filteredCheckpoints.filter(c => 
+                c.assetcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                c.assetname.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+        
+        filteredCheckpoints.forEach(checkpoint => {
+            let gps = 'N/A';
+            if (checkpoint.gps && checkpoint.gps.length > 0) {
+                let coords = checkpoint.gps.match(/POINT\(([^ ]+) ([^ ]+)\)/);
+                if (coords) {
+                    gps = `${coords[2]},${coords[1]}`;
+                }
+            }
+            csvContent += `"${checkpoint.assetcode}","${checkpoint.assetname}","${checkpoint.location__locname || ''}","${checkpoint.runningstatus}","${gps}","${checkpoint.bu__buname || ''}"\n`;
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'checkpoints.csv';
+        a.click();
+    });
+    
+    // Initial load
+    loadCheckpoints();
+});
+</script>
+{% endblock extra_scripts %}

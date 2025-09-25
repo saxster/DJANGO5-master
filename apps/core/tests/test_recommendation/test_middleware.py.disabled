@@ -1,0 +1,653 @@
+"""
+Unit tests for recommendation middleware components
+"""
+import pytest
+import json
+import time
+from unittest.mock import patch, MagicMock, Mock
+from django.test import RequestFactory, Client, override_settings
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth import get_user_model
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.contrib.auth.middleware import AuthenticationMiddleware
+from django.utils import timezone
+from django.core.cache import cache
+from datetime import timedelta
+
+from apps.core.middleware.recommendation_middleware import (
+    RecommendationMiddleware, RecommendationContextMiddleware, RecommendationAPIMiddleware
+)
+from apps.core.models.recommendation import (
+    UserBehaviorProfile, ContentRecommendation, NavigationRecommendation
+)
+from apps.core.models.heatmap import HeatmapSession
+from tests.factories.recommendation_factories import (
+    UserBehaviorProfileFactory, ContentRecommendationFactory, NavigationRecommendationFactory
+)
+from tests.factories.heatmap_factories import UserFactory, HeatmapSessionFactory
+
+User = get_user_model()
+pytestmark = pytest.mark.django_db
+
+
+def add_session_middleware(request):
+    """Helper to add session middleware to request"""
+    session_middleware = SessionMiddleware(lambda r: None)
+    session_middleware.process_request(request)
+    request.session.save()
+    return request
+
+
+def add_auth_middleware(request, user=None):
+    """Helper to add auth middleware to request"""
+    auth_middleware = AuthenticationMiddleware(lambda r: None)
+    auth_middleware.process_request(request)
+    if user:
+        request.user = user
+    return request
+
+
+class TestRecommendationMiddleware:
+    """Test RecommendationMiddleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.middleware = RecommendationMiddleware(lambda r: HttpResponse('OK'))
+        self.user = UserFactory()
+        cache.clear()  # Clear cache between tests
+    
+    def test_middleware_initialization(self):
+        """Test middleware initialization with settings"""
+        assert self.middleware.enabled is True
+        assert self.middleware.cache_timeout == 3600
+        assert self.middleware.min_sessions_for_recommendations == 5
+        assert self.middleware.engine is not None
+    
+    @override_settings(RECOMMENDATIONS_ENABLED=False)
+    def test_middleware_disabled_by_setting(self):
+        """Test middleware can be disabled via settings"""
+        middleware = RecommendationMiddleware(lambda r: HttpResponse('OK'))
+        request = self.factory.get('/test/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        response = middleware(request)
+        
+        # Should not process recommendations when disabled
+        assert not hasattr(request, 'recommendations')
+        assert response.status_code == 200
+    
+    def test_process_request_recommendations_authenticated_user(self):
+        """Test recommendation processing for authenticated user"""
+        request = self.factory.get('/dashboard/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        # Create user profile and sessions to meet minimum requirements
+        UserBehaviorProfileFactory(user=self.user)
+        for _ in range(6):  # Above minimum threshold
+            HeatmapSessionFactory(user=self.user)
+        
+        with patch.object(self.middleware.engine, 'generate_user_recommendations') as mock_generate:
+            with patch.object(self.middleware.engine, 'generate_navigation_recommendations') as mock_nav:
+                mock_generate.return_value = [ContentRecommendationFactory.build(user=self.user)]
+                mock_nav.return_value = [NavigationRecommendationFactory.build()]
+                
+                self.middleware.process_request_recommendations(request)
+                
+                assert hasattr(request, 'recommendations')
+                assert 'content' in request.recommendations
+                assert 'navigation' in request.recommendations
+                assert request.recommendations['personalized'] is True
+    
+    def test_process_request_recommendations_anonymous_user(self):
+        """Test recommendation processing for anonymous user"""
+        request = self.factory.get('/dashboard/')
+        request = add_session_middleware(request)
+        
+        # Create anonymous user
+        from django.contrib.auth.models import AnonymousUser
+        request.user = AnonymousUser()
+        
+        self.middleware.process_request_recommendations(request)
+        
+        # Should not process recommendations for anonymous users
+        assert not hasattr(request, 'recommendations')
+    
+    def test_should_skip_recommendation_admin_urls(self):
+        """Test that admin URLs are skipped"""
+        admin_urls = ['/admin/', '/admin/users/', '/admin/core/user/']
+        
+        for url in admin_urls:
+            request = self.factory.get(url)
+            assert self.middleware._should_skip_recommendation(request) is True
+    
+    def test_should_skip_recommendation_api_urls(self):
+        """Test that API URLs are skipped"""
+        api_urls = ['/api/users/', '/api/v1/data/', '/api/recommendations/']
+        
+        for url in api_urls:
+            request = self.factory.get(url)
+            assert self.middleware._should_skip_recommendation(request) is True
+    
+    def test_should_skip_recommendation_static_files(self):
+        """Test that static files are skipped"""
+        static_urls = ['/static/css/style.css', '/static/js/app.js', '/media/uploads/file.pdf']
+        
+        for url in static_urls:
+            request = self.factory.get(url)
+            assert self.middleware._should_skip_recommendation(request) is True
+    
+    def test_should_skip_recommendation_ajax_requests(self):
+        """Test that AJAX requests are skipped"""
+        request = self.factory.get('/data/', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        assert self.middleware._should_skip_recommendation(request) is True
+    
+    def test_should_skip_recommendation_non_get_requests(self):
+        """Test that non-GET requests are skipped"""
+        for method in ['POST', 'PUT', 'DELETE', 'PATCH']:
+            request = getattr(self.factory, method.lower())('/test/')
+            assert self.middleware._should_skip_recommendation(request) is True
+    
+    def test_should_not_skip_regular_pages(self):
+        """Test that regular pages are not skipped"""
+        regular_urls = ['/dashboard/', '/reports/', '/users/', '/settings/']
+        
+        for url in regular_urls:
+            request = self.factory.get(url)
+            assert self.middleware._should_skip_recommendation(request) is False
+    
+    def test_get_user_recommendations_cached(self):
+        """Test that recommendations are retrieved from cache"""
+        cached_recommendations = {
+            'content': [{'id': 1, 'title': 'Test Recommendation'}],
+            'navigation': [],
+            'generated_at': timezone.now().isoformat(),
+            'personalized': True
+        }
+        
+        cache_key = f'user_recommendations_{self.user.id}'
+        cache.set(cache_key, cached_recommendations, 3600)
+        
+        with patch.object(self.middleware, '_update_recommendation_shown_counts') as mock_update:
+            result = self.middleware._get_user_recommendations(self.user)
+            
+            assert result == cached_recommendations
+            mock_update.assert_called_once_with(cached_recommendations['content'])
+    
+    def test_get_user_recommendations_insufficient_activity(self):
+        """Test default recommendations for users with insufficient activity"""
+        # User has fewer sessions than minimum required
+        for _ in range(3):  # Below minimum threshold of 5
+            HeatmapSessionFactory(user=self.user)
+        
+        result = self.middleware._get_user_recommendations(self.user)
+        
+        assert result['personalized'] is False
+        assert 'content' in result
+        assert len(result['content']) > 0
+        # Should contain default recommendations
+        titles = [rec['title'] for rec in result['content']]
+        assert any('Getting Started' in title for title in titles)
+    
+    def test_get_user_recommendations_fresh_generation(self):
+        """Test generating fresh recommendations"""
+        # Create sufficient activity
+        UserBehaviorProfileFactory(user=self.user)
+        for _ in range(6):
+            HeatmapSessionFactory(user=self.user)
+        
+        # Clear cache
+        cache.clear()
+        
+        with patch.object(self.middleware.engine, 'generate_user_recommendations') as mock_content:
+            with patch.object(self.middleware.engine, 'generate_navigation_recommendations') as mock_nav:
+                mock_content.return_value = [ContentRecommendationFactory.build(user=self.user)]
+                mock_nav.return_value = [NavigationRecommendationFactory.build()]
+                
+                with patch.object(self.middleware, '_save_content_recommendations'):
+                    result = self.middleware._get_user_recommendations(self.user)
+                    
+                    assert result['personalized'] is True
+                    assert 'generated_at' in result
+                    mock_content.assert_called_once_with(self.user, limit=5)
+                    mock_nav.assert_called_once()
+    
+    def test_serialize_content_recommendations(self):
+        """Test content recommendation serialization"""
+        recommendation = ContentRecommendationFactory.build(user=self.user)
+        
+        serialized = self.middleware._serialize_content_recommendations([recommendation])
+        
+        assert len(serialized) == 1
+        rec_data = serialized[0]
+        assert rec_data['type'] == recommendation.content_type
+        assert rec_data['title'] == recommendation.content_title
+        assert rec_data['url'] == recommendation.content_url
+        assert rec_data['relevance_score'] == recommendation.relevance_score
+    
+    def test_serialize_navigation_recommendations(self):
+        """Test navigation recommendation serialization"""
+        recommendation = NavigationRecommendationFactory.build()
+        
+        serialized = self.middleware._serialize_navigation_recommendations([recommendation])
+        
+        assert len(serialized) == 1
+        rec_data = serialized[0]
+        assert rec_data['type'] == recommendation.recommendation_type
+        assert rec_data['title'] == recommendation.title
+        assert rec_data['confidence_score'] == recommendation.confidence_score
+    
+    def test_track_page_visit(self):
+        """Test page visit tracking"""
+        request = self.factory.get('/test-page/')
+        request.user = self.user
+        
+        with patch.object(self.middleware.engine, 'update_user_behavior') as mock_update:
+            with patch.object(self.middleware, '_detect_device_type', return_value='desktop'):
+                self.middleware._track_page_visit(request)
+                
+                mock_update.assert_called_once()
+                call_args = mock_update.call_args
+                assert call_args[0][0] == self.user
+                session_data = call_args[0][1]
+                assert session_data['page_url'] == '/test-page/'
+                assert session_data['device_type'] == 'desktop'
+    
+    def test_detect_device_type(self):
+        """Test device type detection from user agent"""
+        test_cases = [
+            ('Mozilla/5.0 (iPhone; CPU iPhone OS 14_0)', 'mobile'),
+            ('Mozilla/5.0 (Android 10; Mobile)', 'mobile'),
+            ('Mozilla/5.0 (iPad; CPU OS 14_0)', 'tablet'),
+            ('Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'desktop'),
+            ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'desktop'),
+        ]
+        
+        for user_agent, expected_device in test_cases:
+            request = self.factory.get('/')
+            request.META['HTTP_USER_AGENT'] = user_agent
+            
+            device_type = self.middleware._detect_device_type(request)
+            assert device_type == expected_device
+    
+    def test_update_recommendation_shown_counts(self):
+        """Test updating recommendation shown counts"""
+        recommendation = ContentRecommendationFactory(user=self.user, shown_count=5)
+        
+        content_recommendations = [
+            {'id': recommendation.id, 'title': 'Test'}
+        ]
+        
+        with patch('django.utils.timezone.now') as mock_now:
+            mock_time = timezone.now()
+            mock_now.return_value = mock_time
+            
+            self.middleware._update_recommendation_shown_counts(content_recommendations)
+            
+            recommendation.refresh_from_db()
+            assert recommendation.shown_count == 6
+            assert recommendation.last_shown == mock_time
+    
+    def test_track_recommendation_interactions(self):
+        """Test tracking recommendation interactions"""
+        recommendation = ContentRecommendationFactory(user=self.user, clicked_count=2)
+        
+        request = self.factory.get(f'/test/?rec_id={recommendation.id}&rec_type=content')
+        request.user = self.user
+        request.META['HTTP_REFERER'] = 'http://example.com/previous/'
+        
+        response = HttpResponse('OK')
+        
+        with patch.object(recommendation, 'mark_clicked') as mock_clicked:
+            self.middleware._track_recommendation_interactions(request, response)
+            mock_clicked.assert_called_once()
+    
+    def test_should_inject_recommendations_html_response(self):
+        """Test recommendation injection conditions for HTML response"""
+        request = self.factory.get('/dashboard/')
+        request.user = self.user
+        request.recommendations = {
+            'content': [{'title': 'Test Recommendation'}],
+            'navigation': []
+        }
+        
+        response = HttpResponse('<!DOCTYPE html><html><body>Content</body></html>')
+        response['Content-Type'] = 'text/html'
+        
+        assert self.middleware._should_inject_recommendations(request, response) is True
+    
+    def test_should_not_inject_recommendations_json_response(self):
+        """Test that recommendations are not injected into JSON responses"""
+        request = self.factory.get('/api/data/')
+        request.user = self.user
+        request.recommendations = {'content': [], 'navigation': []}
+        
+        response = JsonResponse({'data': 'test'})
+        
+        assert self.middleware._should_inject_recommendations(request, response) is False
+    
+    def test_should_not_inject_recommendations_no_recommendations(self):
+        """Test that injection is skipped when no recommendations exist"""
+        request = self.factory.get('/dashboard/')
+        request.user = self.user
+        request.recommendations = {'content': [], 'navigation': []}
+        
+        response = HttpResponse('<!DOCTYPE html><html><body>Content</body></html>')
+        response['Content-Type'] = 'text/html'
+        
+        assert self.middleware._should_inject_recommendations(request, response) is False
+    
+    def test_inject_recommendations_into_response(self):
+        """Test HTML injection of recommendations"""
+        request = self.factory.get('/dashboard/')
+        request.recommendations = {
+            'content': [
+                {
+                    'id': 1,
+                    'title': 'Test Recommendation',
+                    'description': 'Test Description',
+                    'url': '/test-url/',
+                    'reason': 'Test Reason'
+                }
+            ]
+        }
+        
+        original_html = '<!DOCTYPE html><html><body><h1>Test Page</h1></body></html>'
+        response = HttpResponse(original_html)
+        response['Content-Type'] = 'text/html'
+        
+        result_response = self.middleware._inject_recommendations_into_response(request, response)
+        
+        result_html = result_response.content.decode('utf-8')
+        assert 'Test Recommendation' in result_html
+        assert 'recommendation-panel' in result_html
+        assert '</body>' in result_html
+    
+    def test_generate_recommendations_html(self):
+        """Test HTML generation for recommendations"""
+        recommendations = {
+            'content': [
+                {
+                    'id': 1,
+                    'title': 'Test Recommendation',
+                    'description': 'A test recommendation',
+                    'url': '/test/',
+                    'reason': 'Based on your activity'
+                }
+            ]
+        }
+        
+        html = self.middleware._generate_recommendations_html(recommendations)
+        
+        assert 'recommendation-panel' in html
+        assert 'Test Recommendation' in html
+        assert 'A test recommendation' in html
+        assert 'rec_id=1' in html
+        assert 'recommendation-dismiss' in html
+        assert '<style>' in html
+        assert '<script>' in html
+    
+    def test_middleware_error_handling(self):
+        """Test that middleware handles errors gracefully"""
+        request = self.factory.get('/test/')
+        request = add_session_middleware(request)
+        request = add_auth_middleware(request, self.user)
+        
+        # Mock an error in recommendation generation
+        with patch.object(self.middleware, '_get_user_recommendations', side_effect=Exception('Test error')):
+            self.middleware.process_request_recommendations(request)
+            
+            # Should still set recommendations attribute with empty values
+            assert hasattr(request, 'recommendations')
+            assert request.recommendations['content'] == []
+            assert request.recommendations['navigation'] == []
+            assert request.recommendations['personalized'] is False
+
+
+class TestRecommendationContextMiddleware:
+    """Test RecommendationContextMiddleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.middleware = RecommendationContextMiddleware(lambda r: HttpResponse('OK'))
+        self.user = UserFactory()
+    
+    def test_middleware_initialization(self):
+        """Test middleware initialization"""
+        assert self.middleware.get_response is not None
+    
+    def test_process_template_response_with_recommendations(self):
+        """Test adding recommendations to template context"""
+        request = self.factory.get('/dashboard/')
+        request.user = self.user
+        request.recommendations = {
+            'content': [{'title': 'Test Recommendation'}],
+            'navigation': []
+        }
+        
+        # Mock template response
+        response = Mock()
+        response.context_data = {}
+        
+        result = self.middleware.process_template_response(request, response)
+        
+        assert 'recommendations' in result.context_data
+        assert result.context_data['recommendations'] == request.recommendations
+        assert result.context_data['has_recommendations'] is True
+    
+    def test_process_template_response_no_recommendations(self):
+        """Test template response without recommendations"""
+        request = self.factory.get('/dashboard/')
+        request.user = self.user
+        request.recommendations = {'content': [], 'navigation': []}
+        
+        response = Mock()
+        response.context_data = {}
+        
+        result = self.middleware.process_template_response(request, response)
+        
+        assert result.context_data['has_recommendations'] is False
+    
+    def test_process_template_response_no_context_data(self):
+        """Test handling response without context_data"""
+        request = self.factory.get('/dashboard/')
+        request.recommendations = {'content': [], 'navigation': []}
+        
+        response = Mock()
+        response.context_data = None
+        
+        result = self.middleware.process_template_response(request, response)
+        
+        assert result.context_data is not None
+        assert 'recommendations' in result.context_data
+    
+    def test_process_template_response_no_recommendations_attribute(self):
+        """Test handling request without recommendations attribute"""
+        request = self.factory.get('/dashboard/')
+        request.user = self.user
+        
+        response = Mock()
+        response.context_data = {}
+        
+        result = self.middleware.process_template_response(request, response)
+        
+        # Should not modify context_data if no recommendations
+        assert 'recommendations' not in result.context_data
+
+
+class TestRecommendationAPIMiddleware:
+    """Test RecommendationAPIMiddleware"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.middleware = RecommendationAPIMiddleware(lambda r: HttpResponse('OK'))
+        self.user = UserFactory()
+    
+    def test_middleware_initialization(self):
+        """Test middleware initialization"""
+        assert self.middleware.get_response is not None
+        assert self.middleware.engine is not None
+    
+    def test_api_request_gets_recommendation_method(self):
+        """Test that API requests get recommendation method attached"""
+        request = self.factory.get('/api/data/')
+        request = add_auth_middleware(request, self.user)
+        
+        self.middleware(request)
+        
+        assert hasattr(request, 'get_user_recommendations')
+        assert callable(request.get_user_recommendations)
+    
+    def test_non_api_request_no_method_attached(self):
+        """Test that non-API requests don't get method attached"""
+        request = self.factory.get('/dashboard/')
+        request = add_auth_middleware(request, self.user)
+        
+        self.middleware(request)
+        
+        assert not hasattr(request, 'get_user_recommendations')
+    
+    def test_get_api_recommendations(self):
+        """Test getting recommendations formatted for API"""
+        profile = UserBehaviorProfileFactory(user=self.user)
+        
+        with patch.object(self.middleware.engine, 'generate_user_recommendations') as mock_content:
+            with patch.object(self.middleware.engine, 'generate_navigation_recommendations') as mock_nav:
+                mock_content.return_value = [ContentRecommendationFactory.build(user=self.user)]
+                mock_nav.return_value = [NavigationRecommendationFactory.build()]
+                
+                result = self.middleware._get_api_recommendations(self.user)
+                
+                assert 'content_recommendations' in result
+                assert 'navigation_recommendations' in result
+                assert 'user_profile' in result
+                assert len(result['content_recommendations']) > 0
+    
+    def test_get_user_profile_summary(self):
+        """Test getting user profile summary for API"""
+        profile = UserBehaviorProfileFactory(
+            user=self.user,
+            preferred_device_type='desktop',
+            session_duration_avg=180.5,
+            exploration_tendency=0.7,
+            task_completion_rate=0.85
+        )
+        
+        summary = self.middleware._get_user_profile_summary(self.user)
+        
+        assert summary['preferred_device'] == 'desktop'
+        assert summary['session_duration_avg'] == 180.5
+        assert summary['exploration_tendency'] == 0.7
+        assert summary['task_completion_rate'] == 0.85
+        assert 'last_updated' in summary
+    
+    def test_get_user_profile_summary_no_profile(self):
+        """Test getting profile summary when user has no profile"""
+        summary = self.middleware._get_user_profile_summary(self.user)
+        
+        assert summary == {}
+    
+    def test_api_recommendations_error_handling(self):
+        """Test error handling in API recommendations"""
+        with patch.object(self.middleware.engine, 'generate_user_recommendations', side_effect=Exception('Test error')):
+            result = self.middleware._get_api_recommendations(self.user)
+            
+            assert result['content_recommendations'] == []
+            assert result['navigation_recommendations'] == []
+            assert result['user_profile'] == {}
+
+
+class TestMiddlewareIntegration:
+    """Test integration between middleware components"""
+    
+    def setup_method(self):
+        self.client = Client()
+        self.user = UserFactory()
+        cache.clear()
+    
+    @pytest.mark.integration
+    def test_complete_middleware_flow(self):
+        """Test complete flow through recommendation middleware"""
+        # Create user with sufficient activity
+        profile = UserBehaviorProfileFactory(user=self.user)
+        for _ in range(6):
+            HeatmapSessionFactory(user=self.user)
+        
+        self.client.force_login(self.user)
+        
+        # Make request that should trigger recommendation processing
+        with patch('apps.core.middleware.recommendation_middleware.RecommendationMiddleware._get_user_recommendations') as mock_get_recs:
+            mock_get_recs.return_value = {
+                'content': [{'title': 'Test Recommendation'}],
+                'navigation': [],
+                'personalized': True
+            }
+            
+            response = self.client.get('/dashboard/')
+            
+            # Response might vary depending on URL routing in test environment
+            # The important thing is that middleware was called
+    
+    @pytest.mark.integration
+    def test_middleware_caching_behavior(self):
+        """Test that middleware properly caches recommendations"""
+        profile = UserBehaviorProfileFactory(user=self.user)
+        for _ in range(6):
+            HeatmapSessionFactory(user=self.user)
+        
+        middleware = RecommendationMiddleware(lambda r: HttpResponse('OK'))
+        
+        # First call should generate recommendations and cache them
+        with patch.object(middleware.engine, 'generate_user_recommendations') as mock_generate:
+            mock_generate.return_value = [ContentRecommendationFactory.build(user=self.user)]
+            
+            recs1 = middleware._get_user_recommendations(self.user)
+            mock_generate.assert_called_once()
+        
+        # Second call should use cached recommendations
+        with patch.object(middleware.engine, 'generate_user_recommendations') as mock_generate:
+            recs2 = middleware._get_user_recommendations(self.user)
+            mock_generate.assert_not_called()
+            
+            # Should return same data structure
+            assert recs1.keys() == recs2.keys()
+    
+    @pytest.mark.performance
+    def test_middleware_performance(self):
+        """Test middleware performance with multiple requests"""
+        profile = UserBehaviorProfileFactory(user=self.user)
+        self.client.force_login(self.user)
+        
+        start_time = time.time()
+        
+        # Make multiple requests
+        for i in range(10):
+            response = self.client.get(f'/test-page-{i}/')
+            # Don't assert on response status as URLs might not exist
+        
+        end_time = time.time()
+        total_time = end_time - start_time
+        
+        # Should complete within reasonable time
+        assert total_time < 3.0  # 10 requests in under 3 seconds
+    
+    def test_middleware_with_different_user_types(self):
+        """Test middleware behavior with different user types"""
+        # Test with new user (no profile)
+        new_user = UserFactory()
+        
+        middleware = RecommendationMiddleware(lambda r: HttpResponse('OK'))
+        recs_new_user = middleware._get_user_recommendations(new_user)
+        assert recs_new_user['personalized'] is False
+        
+        # Test with active user (has profile and sessions)
+        active_user = UserFactory()
+        UserBehaviorProfileFactory(user=active_user)
+        for _ in range(10):
+            HeatmapSessionFactory(user=active_user)
+        
+        with patch.object(middleware.engine, 'generate_user_recommendations', return_value=[]):
+            with patch.object(middleware.engine, 'generate_navigation_recommendations', return_value=[]):
+                recs_active_user = middleware._get_user_recommendations(active_user)
+                assert recs_active_user['personalized'] is True

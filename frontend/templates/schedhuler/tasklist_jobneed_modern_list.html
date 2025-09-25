@@ -1,0 +1,1378 @@
+{% extends "globals/base_list.html" %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Task Management - Modern List View
+<div class="float-end">
+	<a href="/operations/tasks/?template=true&old=true" class="btn btn-sm btn-light-secondary me-2">
+		<i class="bi bi-table"></i> Classic View
+	</a>
+	<a href="/operations/tasks/?template=true" class="btn btn-sm btn-light-primary me-2">
+		<i class="bi bi-grid-3x3-gap"></i> Card View
+	</a>
+	<a href="/operations/tasks/?action=form" class="btn btn-sm btn-primary">
+		<i class="bi bi-plus"></i> Add Task
+	</a>
+</div>
+{% endblock card_title %}
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Task Management
+{% endblock page_title %}
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="/operations/tasks/?template=true" class="pe-3">Tasks</a></li>
+{% endblock pagebreadcumb %}
+
+<!---- BEGIN EXTRA CSS ------>
+{% block extra_css %}
+<style>
+/* Stats Bar */
+.stats-bar {
+	margin-bottom: 20px;
+}
+
+.stat-card {
+	padding: 15px;
+	border-radius: 10px;
+	text-align: center;
+	transition: all 0.3s;
+	cursor: pointer;
+	border: 1px solid transparent;
+}
+
+.stat-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+	border-color: #dee2e6;
+}
+
+.stat-value {
+	font-size: 24px;
+	font-weight: 700;
+	margin-bottom: 5px;
+}
+
+.stat-label {
+	font-size: 12px;
+	color: #6c757d;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 500;
+}
+
+/* Modern List View Styles */
+.modern-list-container {
+	background: #ffffff;
+	border-radius: 12px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+	overflow: hidden;
+}
+
+/* Search and Filter Bar */
+.list-controls {
+	background: #f8f9fa;
+	padding: 20px;
+	border-bottom: 1px solid #e9ecef;
+}
+
+.search-box {
+	position: relative;
+	max-width: 400px;
+}
+
+.search-box input {
+	padding-left: 40px;
+	border: 1px solid #dee2e6;
+	border-radius: 8px;
+	height: 42px;
+	font-size: 14px;
+	transition: all 0.3s;
+}
+
+.search-box input:focus {
+	border-color: #0d6efd;
+	box-shadow: 0 0 0 3px rgba(13,110,253,0.1);
+}
+
+.search-box .search-icon {
+	position: absolute;
+	left: 14px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: #6c757d;
+	font-size: 16px;
+}
+
+/* Filter Pills */
+.filter-pills {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 12px;
+}
+
+.filter-pill {
+	padding: 6px 14px;
+	border: 1px solid #dee2e6;
+	border-radius: 20px;
+	background: #ffffff;
+	color: #495057;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.filter-pill:hover {
+	border-color: #0d6efd;
+	color: #0d6efd;
+	background: #f0f6ff;
+}
+
+.filter-pill.active {
+	background: #0d6efd;
+	color: #ffffff;
+	border-color: #0d6efd;
+}
+
+.filter-pill i {
+	font-size: 12px;
+}
+
+/* List Header */
+.list-header {
+	display: grid;
+	grid-template-columns: 40px 40px minmax(200px, 2fr) 100px 90px 120px 140px 120px 100px 110px 110px 100px 90px;
+	padding: 12px 20px;
+	background: #f8f9fa;
+	border-bottom: 2px solid #dee2e6;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #6c757d;
+	letter-spacing: 0.5px;
+	gap: 10px;
+}
+
+.list-header > div {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+/* List Items */
+.task-list {
+	max-height: calc(100vh - 400px);
+	overflow-y: auto;
+	overflow-x: auto;
+}
+
+.task-list::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.task-list::-webkit-scrollbar-track {
+	background: #f1f1f1;
+}
+
+.task-list::-webkit-scrollbar-thumb {
+	background: #cbd5e0;
+	border-radius: 4px;
+}
+
+.task-list::-webkit-scrollbar-thumb:hover {
+	background: #a0aec0;
+}
+
+.task-item {
+	display: grid;
+	grid-template-columns: 40px 40px minmax(200px, 2fr) 100px 90px 120px 140px 120px 100px 110px 110px 100px 90px;
+	padding: 14px 20px;
+	border-bottom: 1px solid #f1f3f5;
+	transition: all 0.2s;
+	cursor: pointer;
+	align-items: center;
+	position: relative;
+	gap: 10px;
+	min-width: 1400px;
+}
+
+.task-item:hover {
+	background: #f8f9fa;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.task-item.selected {
+	background: #e7f3ff;
+}
+
+/* Checkbox */
+.task-checkbox {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.task-checkbox input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+	cursor: pointer;
+	border: 2px solid #dee2e6;
+	border-radius: 4px;
+}
+
+/* Task Description */
+.task-desc {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.task-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #212529;
+	text-decoration: none;
+	line-height: 1.3;
+}
+
+.task-title:hover {
+	color: #0d6efd;
+	text-decoration: underline;
+}
+
+.task-meta {
+	font-size: 11px;
+	color: #6c757d;
+	display: flex;
+	gap: 8px;
+}
+
+.task-meta span {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.task-meta i {
+	font-size: 10px;
+	color: #adb5bd;
+}
+
+/* Quick Actions (appears on hover) */
+.task-item .quick-actions {
+	display: none;
+	position: absolute;
+	right: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	gap: 5px;
+	background: #ffffff;
+	padding: 5px;
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.task-item:hover .quick-actions {
+	display: flex;
+}
+
+.quick-action-btn {
+	padding: 4px 8px;
+	border: none;
+	background: #f8f9fa;
+	color: #495057;
+	border-radius: 4px;
+	font-size: 11px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+	background: #0d6efd;
+	color: #ffffff;
+}
+
+/* Urgency indicators */
+.urgency-indicator {
+	width: 4px;
+	height: 100%;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+
+.urgency-critical {
+	background: linear-gradient(180deg, #dc3545 0%, #c82333 100%);
+}
+
+.urgency-high {
+	background: linear-gradient(180deg, #fd7e14 0%, #e56910 100%);
+}
+
+.urgency-normal {
+	background: linear-gradient(180deg, #ffc107 0%, #e0a800 100%);
+}
+
+.urgency-low {
+	background: linear-gradient(180deg, #28a745 0%, #218838 100%);
+}
+
+/* Status Badge */
+.status-badge {
+	padding: 4px 10px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	display: inline-block;
+}
+
+.status-assigned {
+	background: #cfe2ff;
+	color: #004085;
+}
+
+.status-completed {
+	background: #d4edda;
+	color: #155724;
+}
+
+.status-pending {
+	background: #fff3cd;
+	color: #856404;
+}
+
+.status-autoclosed {
+	background: #f8d7da;
+	color: #721c24;
+}
+
+.status-partiallycompleted {
+	background: #e2e3e5;
+	color: #383d41;
+}
+
+/* Type Badge */
+.type-badge {
+	padding: 3px 8px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 500;
+	text-transform: uppercase;
+}
+
+.type-schedule {
+	background: #e7f1ff;
+	color: #004085;
+}
+
+.type-adhoc {
+	background: #f4e7ff;
+	color: #6f42c1;
+}
+
+/* Info Cells */
+.task-site, .task-assigned, .task-asset {
+	font-size: 13px;
+	color: #495057;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.task-date {
+	font-size: 13px;
+	color: #6c757d;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.task-date i {
+	font-size: 12px;
+	color: #adb5bd;
+}
+
+/* Task ID styling */
+.task-id {
+	font-family: 'Courier New', monospace;
+	font-weight: 500;
+	color: #6c757d;
+}
+
+/* Acknowledged tasks */
+.task-item.acknowledged {
+	background: #f0fdf4;
+}
+
+.task-item.acknowledged:hover {
+	background: #dcfce7;
+}
+
+/* Overdue tasks */
+.task-expiry.overdue {
+	color: #dc3545;
+	font-weight: 600;
+}
+
+/* High priority indicators */
+.priority-high {
+	border-left: 3px solid #dc3545 !important;
+}
+
+.priority-medium {
+	border-left: 3px solid #ffc107 !important;
+}
+
+.priority-low {
+	border-left: 3px solid #28a745 !important;
+}
+
+/* Additional info styling */
+.task-desc small {
+	color: #6c757d;
+	font-size: 11px;
+}
+
+/* Scrollable container */
+.list-wrapper {
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.list-wrapper::-webkit-scrollbar {
+	height: 8px;
+}
+
+.list-wrapper::-webkit-scrollbar-track {
+	background: #f1f1f1;
+}
+
+.list-wrapper::-webkit-scrollbar-thumb {
+	background: #cbd5e0;
+	border-radius: 4px;
+}
+
+/* Actions */
+.task-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.action-btn {
+	padding: 4px 8px;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #6c757d;
+	font-size: 12px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.action-btn:hover {
+	border-color: #0d6efd;
+	color: #0d6efd;
+	background: #f0f6ff;
+}
+
+/* Empty State */
+.empty-state {
+	text-align: center;
+	padding: 80px 20px;
+	color: #6c757d;
+}
+
+.empty-state i {
+	font-size: 64px;
+	color: #dee2e6;
+	margin-bottom: 20px;
+}
+
+.empty-state h3 {
+	font-size: 20px;
+	font-weight: 600;
+	color: #495057;
+	margin-bottom: 8px;
+}
+
+.empty-state p {
+	font-size: 14px;
+	margin-bottom: 24px;
+}
+
+/* Pagination */
+.list-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 16px 20px;
+	background: #f8f9fa;
+	border-top: 1px solid #dee2e6;
+}
+
+.pagination-info {
+	font-size: 13px;
+	color: #6c757d;
+}
+
+.pagination-controls {
+	display: flex;
+	gap: 4px;
+}
+
+.page-btn {
+	padding: 6px 12px;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #495057;
+	font-size: 13px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+	border-color: #0d6efd;
+	color: #0d6efd;
+	background: #f0f6ff;
+}
+
+.page-btn.active {
+	background: #0d6efd;
+	color: #ffffff;
+	border-color: #0d6efd;
+}
+
+.page-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255,255,255,0.95);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+
+.spinner-border {
+	width: 3rem;
+	height: 3rem;
+}
+
+/* Bulk Actions Bar */
+.bulk-actions {
+	display: none;
+	padding: 12px 20px;
+	background: #0d6efd;
+	color: #ffffff;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.bulk-actions.show {
+	display: flex;
+}
+
+.bulk-actions-info {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.bulk-actions-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.bulk-action-btn {
+	padding: 6px 14px;
+	border: 1px solid rgba(255,255,255,0.3);
+	border-radius: 6px;
+	background: rgba(255,255,255,0.1);
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.bulk-action-btn:hover {
+	background: rgba(255,255,255,0.2);
+	border-color: rgba(255,255,255,0.5);
+}
+
+/* Column visibility control */
+.column-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: 10px;
+}
+
+.column-toggle label {
+	font-size: 12px;
+	font-weight: 500;
+	color: #495057;
+}
+
+.column-dropdown {
+	position: relative;
+	display: inline-block;
+}
+
+.column-dropdown-content {
+	display: none;
+	position: absolute;
+	right: 0;
+	background: #ffffff;
+	min-width: 200px;
+	box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+	z-index: 1000;
+	border-radius: 8px;
+	padding: 10px;
+	margin-top: 5px;
+}
+
+.column-dropdown-content.show {
+	display: block;
+}
+
+.column-option {
+	display: flex;
+	align-items: center;
+	padding: 5px;
+	cursor: pointer;
+}
+
+.column-option:hover {
+	background: #f8f9fa;
+	border-radius: 4px;
+}
+
+.column-option input {
+	margin-right: 8px;
+}
+
+/* Responsive - maintain minimum width for scrolling */
+@media (max-width: 1600px) {
+	.modern-list-container {
+		overflow-x: auto;
+	}
+}
+
+@media (max-width: 1200px) {
+	.list-header,
+	.task-item {
+		min-width: 1400px;
+	}
+}
+
+@media (max-width: 768px) {
+	.filter-pills {
+		overflow-x: auto;
+		flex-wrap: nowrap;
+		padding-bottom: 10px;
+	}
+	
+	.list-controls {
+		padding: 15px;
+	}
+}
+</style>
+{% endblock extra_css %}
+
+<!---- BEGIN TABLE ------>
+{% block table %}
+<!-- Quick Stats Bar -->
+<div class="stats-bar mb-3">
+	<div class="row g-2">
+		<div class="col-md-2 col-6">
+			<div class="stat-card bg-light">
+				<div class="stat-value text-primary" id="stat-total">0</div>
+				<div class="stat-label">Total Tasks</div>
+			</div>
+		</div>
+		<div class="col-md-2 col-6">
+			<div class="stat-card bg-light">
+				<div class="stat-value text-info" id="stat-assigned">0</div>
+				<div class="stat-label">Assigned</div>
+			</div>
+		</div>
+		<div class="col-md-2 col-6">
+			<div class="stat-card bg-light">
+				<div class="stat-value text-warning" id="stat-pending">0</div>
+				<div class="stat-label">Pending</div>
+			</div>
+		</div>
+		<div class="col-md-2 col-6">
+			<div class="stat-card bg-light">
+				<div class="stat-value text-success" id="stat-completed">0</div>
+				<div class="stat-label">Completed</div>
+			</div>
+		</div>
+		<div class="col-md-2 col-6">
+			<div class="stat-card bg-light">
+				<div class="stat-value text-danger" id="stat-overdue">0</div>
+				<div class="stat-label">Overdue</div>
+			</div>
+		</div>
+		<div class="col-md-2 col-6">
+			<div class="stat-card bg-light">
+				<div class="stat-value text-secondary" id="stat-adhoc">0</div>
+				<div class="stat-label">ADHOC</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modern-list-container">
+	<!-- Search and Filter Controls -->
+	<div class="list-controls">
+		<div class="row align-items-center">
+			<div class="col-md-6">
+				<div class="search-box">
+					<i class="bi bi-search search-icon"></i>
+					<input type="text" class="form-control" id="task-search" placeholder="Search by task name, site, or assignee...">
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="input-group">
+					<span class="input-group-text"><i class="bi bi-calendar-range"></i></span>
+					<input type="text" class="form-control" id="date-range" placeholder="Select date range">
+				</div>
+			</div>
+		</div>
+		
+		<div class="filter-pills">
+			<span class="filter-pill" data-filter="all">
+				<i class="bi bi-list-task"></i> All Tasks
+			</span>
+			<span class="filter-pill" data-filter="status" data-value="ASSIGNED">
+				<i class="bi bi-person-check"></i> Assigned
+			</span>
+			<span class="filter-pill" data-filter="status" data-value="COMPLETED">
+				<i class="bi bi-check-circle"></i> Completed
+			</span>
+			<span class="filter-pill" data-filter="status" data-value="PENDING">
+				<i class="bi bi-clock"></i> Pending
+			</span>
+			<span class="filter-pill" data-filter="status" data-value="AUTOCLOSED">
+				<i class="bi bi-x-circle"></i> Auto Closed
+			</span>
+			<span class="filter-pill" data-filter="type" data-value="ADHOC">
+				<i class="bi bi-lightning"></i> ADHOC Only
+			</span>
+		</div>
+	</div>
+	
+	<!-- Bulk Actions Bar -->
+	<div class="bulk-actions" id="bulk-actions">
+		<div class="bulk-actions-info">
+			<span id="selected-count">0</span> items selected
+		</div>
+		<div class="bulk-actions-buttons">
+			<button class="bulk-action-btn" onclick="bulkAssign()">
+				<i class="bi bi-person-plus"></i> Assign
+			</button>
+			<button class="bulk-action-btn" onclick="bulkUpdateStatus()">
+				<i class="bi bi-pencil"></i> Update Status
+			</button>
+			<button class="bulk-action-btn" onclick="bulkExport()">
+				<i class="bi bi-download"></i> Export
+			</button>
+			<button class="bulk-action-btn" onclick="clearSelection()">
+				<i class="bi bi-x"></i> Clear
+			</button>
+		</div>
+	</div>
+	
+	<!-- List Header -->
+	<div class="list-header">
+		<div title="Select All">
+			<input type="checkbox" id="select-all">
+		</div>
+		<div title="Task ID">#</div>
+		<div>TASK DESCRIPTION</div>
+		<div>STATUS</div>
+		<div>TYPE</div>
+		<div>SITE</div>
+		<div>ASSIGNED TO</div>
+		<div>PERFORMED BY</div>
+		<div>ASSET/CHECKPOINT</div>
+		<div>PLANNED DATE</div>
+		<div>EXPIRY DATE</div>
+		<div>GRACE TIME</div>
+		<div>CATEGORY</div>
+	</div>
+	
+	<!-- Task List -->
+	<div class="task-list" id="task-list">
+		<!-- Tasks will be loaded here -->
+	</div>
+	
+	<!-- List Footer -->
+	<div class="list-footer">
+		<div class="pagination-info">
+			Showing <span id="start-record">0</span>-<span id="end-record">0</span> of <span id="total-records">0</span> tasks
+		</div>
+		<div class="pagination-controls" id="pagination">
+			<!-- Pagination will be loaded here -->
+		</div>
+	</div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display: none;">
+	<div class="spinner-border text-primary" role="status">
+		<span class="visually-hidden">Loading...</span>
+	</div>
+</div>
+{% endblock table %}
+
+<!---- BEGIN POPUP ALERTS ------>
+{% block popup_alerts %}
+{{ super() }}
+{% call general_popup(title='List of Peoples', popup_id='id_people_list', modal_size='modal-md') %}
+	<div class="modal-body">
+		<table class="display cell-border" style="width:100%" id="tabListOfPeoples"></table>
+	</div>
+{% endcall %}
+{% endblock popup_alerts %}
+
+<!---- BEGIN EXTRA SCRIPTS ------>
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+	// Global variables
+	let currentPage = 1;
+	let totalPages = 1;
+	let pageSize = 25;
+	let searchTerm = '';
+	let activeFilters = {
+		status: null,
+		type: null,
+		from: moment().subtract(7, 'days').format('YYYY-MM-DD'),
+		to: moment().format('YYYY-MM-DD')
+	};
+	let allTasks = [];
+	let totalRecords = 0;
+	let selectedTasks = new Set();
+	let ajaxData = {};
+	let peopleList = null;
+	
+	// Check for dashboard filters
+	const table_filters = localStorage.getItem('taskstats_filter') || localStorage.getItem('alertsFilters');
+	if (table_filters) {
+		const params = JSON.parse(table_filters);
+		if (params.from) activeFilters.from = params.from;
+		if (params.to) activeFilters.to = params.to;
+		if (params.jobstatus) {
+			activeFilters.status = params.jobstatus;
+			$(`.filter-pill[data-value="${params.jobstatus}"]`).addClass('active');
+		}
+		localStorage.removeItem('taskstats_filter');
+		localStorage.removeItem('alertsFilters');
+	}
+	
+	// Initialize date range picker
+	$('#date-range').daterangepicker({
+		startDate: moment(activeFilters.from),
+		endDate: moment(activeFilters.to),
+		locale: {
+			format: 'YYYY-MM-DD'
+		},
+		ranges: {
+			'Today': [moment(), moment()],
+			'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+			'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+			'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+			'This Month': [moment().startOf('month'), moment().endOf('month')],
+			'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+		}
+	});
+	
+	// Date range change handler
+	$('#date-range').on('apply.daterangepicker', function(ev, picker) {
+		activeFilters.from = picker.startDate.format('YYYY-MM-DD');
+		activeFilters.to = picker.endDate.format('YYYY-MM-DD');
+		currentPage = 1;
+		loadTasks();
+	});
+	
+	// Search handler
+	let searchTimeout;
+	$('#task-search').on('input', function() {
+		clearTimeout(searchTimeout);
+		const value = $(this).val();
+		searchTimeout = setTimeout(function() {
+			searchTerm = value;
+			currentPage = 1;
+			loadTasks();
+		}, 300);
+	});
+	
+	// Filter pill handlers
+	$('.filter-pill').on('click', function() {
+		const $pill = $(this);
+		const filter = $pill.data('filter');
+		const value = $pill.data('value');
+		
+		if (filter === 'all') {
+			$('.filter-pill').removeClass('active');
+			$pill.addClass('active');
+			activeFilters.status = null;
+			activeFilters.type = null;
+		} else {
+			$('.filter-pill[data-filter="all"]').removeClass('active');
+			
+			if ($pill.hasClass('active')) {
+				$pill.removeClass('active');
+				activeFilters[filter] = null;
+			} else {
+				$(`.filter-pill[data-filter="${filter}"]`).removeClass('active');
+				$pill.addClass('active');
+				activeFilters[filter] = value;
+			}
+		}
+		
+		currentPage = 1;
+		loadTasks();
+	});
+	
+	// Select all checkbox
+	$('#select-all').on('change', function() {
+		const isChecked = $(this).prop('checked');
+		$('.task-checkbox input').prop('checked', isChecked);
+		
+		if (isChecked) {
+			allTasks.forEach(task => selectedTasks.add(task.id));
+		} else {
+			selectedTasks.clear();
+		}
+		
+		updateBulkActions();
+	});
+	
+	// Load tasks function
+	function loadTasks() {
+		$('#loading-overlay').show();
+		
+		const params = {
+			from: activeFilters.from,
+			to: activeFilters.to
+		};
+		
+		if (activeFilters.status) params.jobstatus = activeFilters.status;
+		if (activeFilters.type) params.jobtype = activeFilters.type;
+		
+		$.ajax({
+			url: '/operations/tasks/',
+			method: 'GET',
+			data: {
+				action: 'list',
+				params: JSON.stringify(params),
+				start: (currentPage - 1) * pageSize,
+				length: pageSize,
+				'search[value]': searchTerm
+			},
+			success: function(response) {
+				allTasks = response.data || [];
+				totalRecords = response.recordsFiltered || 0;
+				totalPages = Math.ceil(totalRecords / pageSize);
+				renderTasks();
+				renderPagination();
+				updateFooterInfo();
+				updateStats(response.data);
+				$('#loading-overlay').hide();
+			},
+			error: function() {
+				$('#loading-overlay').hide();
+				toastr.error('Failed to load tasks');
+			}
+		});
+	}
+	
+	// Render tasks
+	function renderTasks() {
+		const $container = $('#task-list');
+		$container.empty();
+		
+		if (allTasks.length === 0) {
+			$container.html(`
+				<div class="empty-state">
+					<i class="bi bi-inbox"></i>
+					<h3>No Tasks Found</h3>
+					<p>There are no tasks matching your current filters.</p>
+					<a href="/operations/tasks/?action=form" class="btn btn-primary">
+						<i class="bi bi-plus"></i> Create New Task
+					</a>
+				</div>
+			`);
+			return;
+		}
+		
+		allTasks.forEach(function(task) {
+			const item = createTaskItem(task);
+			$container.append(item);
+		});
+	}
+	
+	// Create task item
+	function createTaskItem(task) {
+		const statusClass = getStatusClass(task.jobstatus);
+		const typeClass = task.jobtype === 'ADHOC' ? 'type-adhoc' : 'type-schedule';
+		const plannedDate = task.plandatetime ? moment(task.plandatetime).format('MMM DD, HH:mm') : '-';
+		const expiryDate = task.expirydatetime ? moment(task.expirydatetime).format('MMM DD, HH:mm') : '-';
+		const isChecked = selectedTasks.has(task.id) ? 'checked' : '';
+		
+		// Format task ID with leading zeros
+		const taskId = String(task.id).padStart(6, '0');
+		
+		// Truncate long descriptions
+		const description = task.jobdesc || 'Untitled Task';
+		const truncatedDesc = description.length > 50 ? description.substring(0, 47) + '...' : description;
+		
+		// Format grace time
+		const graceTime = task.gracetime ? `${task.gracetime} mins` : '-';
+		
+		// Check if task is acknowledged
+		const isAcknowledged = task.other_info__isAcknowledged ? '<i class="bi bi-check-circle-fill text-success" title="Acknowledged"></i>' : '';
+		
+		const $item = $(`
+			<div class="task-item ${task.other_info__isAcknowledged ? 'acknowledged' : ''}" data-task-id="${task.id}">
+				<div class="task-checkbox">
+					<input type="checkbox" value="${task.id}" ${isChecked}>
+				</div>
+				<div class="task-id" style="font-size: 12px; color: #6c757d; font-family: monospace;">
+					${taskId} ${isAcknowledged}
+				</div>
+				<div class="task-desc">
+					<a href="/operations/tasks/?id=${task.id}" class="task-title" title="${description}">${truncatedDesc}</a>
+					${task.parent && task.parent !== 1 ? `<div style="font-size: 11px; color: #6c757d;"><i class="bi bi-diagram-2"></i> Parent: ${task.parent}</div>` : ''}
+				</div>
+				<div>
+					<span class="status-badge status-${statusClass}">${task.jobstatus || 'PENDING'}</span>
+				</div>
+				<div>
+					<span class="type-badge ${typeClass}">${task.jobtype || 'SCHEDULE'}</span>
+				</div>
+				<div class="task-site" title="${task.bu__buname || ''}" style="font-size: 13px;">
+					${task.bu__buname ? task.bu__buname.substring(0, 20) : '-'}
+					${task.bu__bucode ? `<br><small style="color: #6c757d;">${task.bu__bucode}</small>` : ''}
+				</div>
+				<div class="task-assigned" style="font-size: 13px;">
+					${task.assignedto || '-'}
+					${task.assignedto && task.assignedto.includes('[GROUP]') ? '<i class="bi bi-people-fill text-primary ms-1"></i>' : ''}
+				</div>
+				<div class="task-performed" style="font-size: 13px; color: ${task.performedby__peoplename ? '#198754' : '#6c757d'};">
+					${task.performedby__peoplename || '-'}
+				</div>
+				<div class="task-asset" title="${task.asset__assetname || ''}" style="font-size: 13px;">
+					${task.asset__assetname ? task.asset__assetname.substring(0, 15) : '-'}
+				</div>
+				<div class="task-date" style="font-size: 12px;">
+					<i class="bi bi-calendar3"></i> ${plannedDate}
+				</div>
+				<div class="task-expiry" style="font-size: 12px; color: ${new Date(task.expirydatetime) < new Date() ? '#dc3545' : '#6c757d'};">
+					<i class="bi bi-calendar-x"></i> ${expiryDate}
+				</div>
+				<div class="task-grace" style="font-size: 12px; text-align: center;">
+					${graceTime}
+				</div>
+				<div class="task-category" style="font-size: 12px;">
+					${task.ticketcategory__taname ? `<span class="badge bg-secondary">${task.ticketcategory__taname}</span>` : '-'}
+				</div>
+			</div>
+		`);
+		
+		// Checkbox handler
+		$item.find('input[type="checkbox"]').on('change', function(e) {
+			e.stopPropagation();
+			const taskId = parseInt($(this).val());
+			if ($(this).prop('checked')) {
+				selectedTasks.add(taskId);
+			} else {
+				selectedTasks.delete(taskId);
+			}
+			updateBulkActions();
+		});
+		
+		// Row click handler (excluding checkbox)
+		$item.on('click', function(e) {
+			if (!$(e.target).is('input[type="checkbox"]') && !$(e.target).is('a')) {
+				if (task.jobstatus === 'AUTOCLOSED' && !task.other_info__isAcknowledged) {
+					Swal.fire({
+						icon: 'warning',
+						title: 'Acknowledge Task',
+						text: 'Do you want to acknowledge this auto-closed task?',
+						showCancelButton: true,
+						confirmButtonText: 'Yes, Acknowledge'
+					}).then((result) => {
+						if (result.isConfirmed) {
+							acknowledgeTask(task.id);
+						}
+					});
+				} else {
+					window.location.href = `/operations/tasks/?id=${task.id}`;
+				}
+			}
+		});
+		
+		// Handle group assignments
+		if (task.assignedto && task.assignedto.includes('[GROUP]')) {
+			$item.find('.task-assigned').css('cursor', 'pointer').on('click', function(e) {
+				e.stopPropagation();
+				showListOfPeoples(task.id, 'Jobneed');
+			});
+		}
+		
+		return $item;
+	}
+	
+	// Get status class
+	function getStatusClass(status) {
+		const statusMap = {
+			'ASSIGNED': 'assigned',
+			'COMPLETED': 'completed',
+			'PENDING': 'pending',
+			'AUTOCLOSED': 'autoclosed',
+			'Auto Closed': 'autoclosed',
+			'PARTIALLYCOMPLETED': 'partiallycompleted'
+		};
+		return statusMap[status] || 'pending';
+	}
+	
+	// Update bulk actions bar
+	function updateBulkActions() {
+		const count = selectedTasks.size;
+		if (count > 0) {
+			$('#bulk-actions').addClass('show');
+			$('#selected-count').text(count);
+		} else {
+			$('#bulk-actions').removeClass('show');
+		}
+		
+		// Update select all checkbox state
+		if (count === allTasks.length && count > 0) {
+			$('#select-all').prop('checked', true);
+		} else if (count === 0) {
+			$('#select-all').prop('checked', false);
+		} else {
+			$('#select-all').prop('indeterminate', true);
+		}
+	}
+	
+	// Clear selection
+	window.clearSelection = function() {
+		selectedTasks.clear();
+		$('.task-checkbox input').prop('checked', false);
+		$('#select-all').prop('checked', false);
+		updateBulkActions();
+	};
+	
+	// Bulk actions (placeholder functions)
+	window.bulkAssign = function() {
+		toastr.info(`Assign ${selectedTasks.size} tasks`);
+	};
+	
+	window.bulkUpdateStatus = function() {
+		toastr.info(`Update status for ${selectedTasks.size} tasks`);
+	};
+	
+	window.bulkExport = function() {
+		toastr.info(`Export ${selectedTasks.size} tasks`);
+	};
+	
+	// Acknowledge task
+	function acknowledgeTask(taskId) {
+		$.ajax({
+			url: '/operations/tasks/',
+			method: 'GET',
+			data: {
+				action: 'acknowledgeAutoCloseTask',
+				id: taskId
+			},
+			success: function(response) {
+				toastr.success('Task acknowledged successfully');
+				loadTasks();
+			},
+			error: function() {
+				toastr.error('Failed to acknowledge task');
+			}
+		});
+	}
+	
+	// Render pagination
+	function renderPagination() {
+		const $container = $('#pagination');
+		$container.empty();
+		
+		if (totalPages <= 1) return;
+		
+		// Previous button
+		$container.append(`
+			<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
+				<i class="bi bi-chevron-left"></i>
+			</button>
+		`);
+		
+		// Page numbers
+		const startPage = Math.max(1, currentPage - 2);
+		const endPage = Math.min(totalPages, startPage + 4);
+		
+		for (let i = startPage; i <= endPage; i++) {
+			$container.append(`
+				<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>
+			`);
+		}
+		
+		// Next button
+		$container.append(`
+			<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
+				<i class="bi bi-chevron-right"></i>
+			</button>
+		`);
+		
+		// Page click handlers
+		$('.page-btn[data-page]').on('click', function() {
+			if (!$(this).prop('disabled')) {
+				currentPage = parseInt($(this).data('page'));
+				selectedTasks.clear();
+				updateBulkActions();
+				loadTasks();
+			}
+		});
+	}
+	
+	// Update footer info
+	function updateFooterInfo() {
+		const start = Math.min((currentPage - 1) * pageSize + 1, totalRecords);
+		const end = Math.min(currentPage * pageSize, totalRecords);
+		$('#start-record').text(start);
+		$('#end-record').text(end);
+		$('#total-records').text(totalRecords);
+	}
+	
+	// Show list of peoples
+	function showListOfPeoples(id, from) {
+		$('#id_people_list').modal('show');
+		ajaxData.id = id;
+		ajaxData.model = from;
+		if (peopleList) {
+			peopleList.ajax.reload();
+		}
+	}
+	
+	// Initialize people list modal
+	if (typeof initializeListOfPeoplesModal === 'function') {
+		initializeListOfPeoplesModal(ajaxData, "{{ url('onboarding:list_of_peoples') }}");
+	}
+	
+	// Update stats function
+	function updateStats(tasks) {
+		if (!tasks) return;
+		
+		const stats = {
+			total: tasks.length,
+			assigned: 0,
+			pending: 0,
+			completed: 0,
+			overdue: 0,
+			adhoc: 0
+		};
+		
+		const now = new Date();
+		
+		tasks.forEach(task => {
+			// Count by status
+			if (task.jobstatus === 'ASSIGNED') stats.assigned++;
+			else if (task.jobstatus === 'PENDING') stats.pending++;
+			else if (task.jobstatus === 'COMPLETED') stats.completed++;
+			
+			// Count overdue
+			if (task.expirydatetime && new Date(task.expirydatetime) < now) {
+				stats.overdue++;
+			}
+			
+			// Count ADHOC
+			if (task.jobtype === 'ADHOC') stats.adhoc++;
+		});
+		
+		// Update display
+		$('#stat-total').text(totalRecords || stats.total);
+		$('#stat-assigned').text(stats.assigned);
+		$('#stat-pending').text(stats.pending);
+		$('#stat-completed').text(stats.completed);
+		$('#stat-overdue').text(stats.overdue);
+		$('#stat-adhoc').text(stats.adhoc);
+	}
+	
+	// Stat card click handlers
+	$('.stat-card').on('click', function() {
+		const statType = $(this).find('.stat-label').text().toLowerCase();
+		
+		// Clear existing filters
+		$('.filter-pill').removeClass('active');
+		activeFilters = {
+			status: null,
+			type: null,
+			from: activeFilters.from,
+			to: activeFilters.to
+		};
+		
+		// Apply specific filter based on stat clicked
+		switch(statType) {
+			case 'assigned':
+				activeFilters.status = 'ASSIGNED';
+				$('.filter-pill[data-value="ASSIGNED"]').addClass('active');
+				break;
+			case 'pending':
+				activeFilters.status = 'PENDING';
+				$('.filter-pill[data-value="PENDING"]').addClass('active');
+				break;
+			case 'completed':
+				activeFilters.status = 'COMPLETED';
+				$('.filter-pill[data-value="COMPLETED"]').addClass('active');
+				break;
+			case 'adhoc':
+				activeFilters.type = 'ADHOC';
+				$('.filter-pill[data-value="ADHOC"]').addClass('active');
+				break;
+			case 'total tasks':
+				$('.filter-pill[data-filter="all"]').addClass('active');
+				break;
+		}
+		
+		currentPage = 1;
+		loadTasks();
+	});
+	
+	// Set default "All Tasks" filter as active
+	$('.filter-pill[data-filter="all"]').addClass('active');
+	
+	// Initial load
+	loadTasks();
+});
+</script>
+{% endblock extra_scripts %}

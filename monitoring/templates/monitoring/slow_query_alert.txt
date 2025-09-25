@@ -1,0 +1,32 @@
+CRITICAL: Slow Query Alert
+
+A database query has exceeded the critical performance threshold.
+
+Query Details:
+- Duration: {{ alert.duration|floatformat:3 }}s (Threshold: {{ threshold|floatformat:1 }}s)
+- Timestamp: {{ alert.timestamp }}
+- Request Path: {{ alert.request_path|default:"Unknown" }}
+- User ID: {{ alert.user_id|default:"Anonymous" }}
+
+SQL Query:
+{{ alert.sql }}
+
+{% if alert.optimization_suggestions %}
+Optimization Suggestions:
+{% for suggestion in alert.optimization_suggestions %}
+- {{ suggestion }}
+{% endfor %}
+{% endif %}
+
+{% if alert.stack_trace %}
+Stack Trace:
+{% for line in alert.stack_trace %}
+{{ line }}
+{% endfor %}
+{% endif %}
+
+Please investigate this query immediately to prevent performance degradation.
+
+---
+This alert was generated automatically by the Performance Monitoring System.
+To adjust alert thresholds, contact your system administrator.

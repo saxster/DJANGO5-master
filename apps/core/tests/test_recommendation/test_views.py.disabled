@@ -1,0 +1,943 @@
+"""
+Unit tests for recommendation system views
+"""
+import pytest
+import json
+from unittest.mock import patch, Mock
+from django.test import Client, RequestFactory
+from django.http import JsonResponse, Http404
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
+from django.utils import timezone
+from django.contrib.contenttypes.models import ContentType
+
+from apps.core.views.recommendation_views import (
+    RecommendationAPIView, RecommendationInteractionView, UserRecommendationDashboardView,
+    RecommendationFeedbackView, RecommendationManagementView, AdminRecommendationView
+)
+from apps.core.models.recommendation import (
+    UserBehaviorProfile, ContentRecommendation, NavigationRecommendation,
+    RecommendationFeedback, RecommendationImplementation
+)
+from tests.factories.recommendation_factories import (
+    UserBehaviorProfileFactory, ContentRecommendationFactory, NavigationRecommendationFactory,
+    RecommendationFeedbackFactory, RecommendationImplementationFactory
+)
+from tests.factories.heatmap_factories import UserFactory
+
+User = get_user_model()
+pytestmark = pytest.mark.django_db
+
+
+class TestRecommendationAPIView:
+    """Test RecommendationAPIView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.user = UserFactory()
+        self.view = RecommendationAPIView()
+    
+    def test_api_view_requires_authentication(self):
+        """Test that API view requires authentication"""
+        response = self.client.get('/api/recommendations/')
+        
+        # Should redirect to login or return 401/403
+        assert response.status_code in [302, 401, 403]
+    
+    def test_get_recommendations_authenticated_user(self):
+        """Test getting recommendations for authenticated user"""
+        profile = UserBehaviorProfileFactory(user=self.user)
+        self.client.force_login(self.user)
+        
+        # Create some recommendations
+        content_recs = [ContentRecommendationFactory(user=self.user) for _ in range(3)]
+        nav_recs = [NavigationRecommendationFactory() for _ in range(2)]
+        
+        request = self.factory.get('/api/recommendations/')
+        request.user = self.user
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = content_recs
+            mock_engine.generate_navigation_recommendations.return_value = nav_recs
+            
+            response = self.view.get(request)
+            
+            assert response.status_code == 200
+            
+            data = json.loads(response.content)
+            assert 'content_recommendations' in data
+            assert 'navigation_recommendations' in data
+            assert 'user_profile' in data
+            assert 'generated_at' in data
+            
+            assert len(data['content_recommendations']) == 3
+            assert len(data['navigation_recommendations']) == 2
+    
+    def test_get_recommendations_with_parameters(self):
+        """Test API with limit and type parameters"""
+        self.client.force_login(self.user)
+        
+        request = self.factory.get('/api/recommendations/?limit=5&type=content')
+        request.user = self.user
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = []
+            
+            response = self.view.get(request)
+            
+            mock_engine.generate_user_recommendations.assert_called_with(self.user, limit=5)
+            
+            data = json.loads(response.content)
+            assert 'content_recommendations' in data
+            assert 'navigation_recommendations' not in data  # Should be filtered out
+    
+    def test_get_recommendations_type_filtering(self):
+        """Test recommendation type filtering"""
+        self.client.force_login(self.user)
+        
+        test_cases = [
+            ('content', True, False),
+            ('navigation', False, True),
+            ('all', True, True),
+        ]
+        
+        for rec_type, expect_content, expect_nav in test_cases:
+            request = self.factory.get(f'/api/recommendations/?type={rec_type}')
+            request.user = self.user
+            
+            with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+                mock_engine = Mock()
+                mock_engine_class.return_value = mock_engine
+                mock_engine.generate_user_recommendations.return_value = []
+                mock_engine.generate_navigation_recommendations.return_value = []
+                
+                response = self.view.get(request)
+                data = json.loads(response.content)
+                
+                assert ('content_recommendations' in data) == expect_content
+                assert ('navigation_recommendations' in data) == expect_nav
+    
+    def test_get_recommendations_limit_parameter(self):
+        """Test limit parameter with bounds checking"""
+        self.client.force_login(self.user)
+        
+        # Test normal limit
+        request = self.factory.get('/api/recommendations/?limit=10')
+        request.user = self.user
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = []
+            
+            response = self.view.get(request)
+            mock_engine.generate_user_recommendations.assert_called_with(self.user, limit=10)
+        
+        # Test limit exceeding maximum (should be capped at 50)
+        request = self.factory.get('/api/recommendations/?limit=100')
+        request.user = self.user
+        
+        with patch('apps.core.recommendation_engine.RecommendationEngine') as mock_engine_class:
+            mock_engine = Mock()
+            mock_engine_class.return_value = mock_engine
+            mock_engine.generate_user_recommendations.return_value = []
+            
+            response = self.view.get(request)
+            mock_engine.generate_user_recommendations.assert_called_with(self.user, limit=50)
+    
+    def test_serialize_content_recommendation(self):
+        """Test content recommendation serialization"""
+        rec = ContentRecommendationFactory.build(
+            user=self.user,
+            id=123,
+            content_type='dashboard',
+            content_title='Test Dashboard',
+            shown_count=5
+        )
+        
+        serialized = self.view._serialize_content_recommendation(rec)
+        
+        assert serialized['id'] == 123
+        assert serialized['type'] == 'dashboard'
+        assert serialized['title'] == 'Test Dashboard'
+        assert serialized['shown_count'] == 5
+    
+    def test_serialize_navigation_recommendation(self):
+        """Test navigation recommendation serialization"""
+        rec = NavigationRecommendationFactory.build(
+            id=456,
+            recommendation_type='menu_optimization',
+            title='Improve Main Menu',
+            confidence_score=0.85
+        )
+        
+        serialized = self.view._serialize_navigation_recommendation(rec)
+        
+        assert serialized['id'] == 456
+        assert serialized['type'] == 'menu_optimization'
+        assert serialized['title'] == 'Improve Main Menu'
+        assert serialized['confidence_score'] == 0.85
+    
+    def test_api_error_handling(self):
+        """Test API error handling"""
+        self.client.force_login(self.user)
+        
+        request = self.factory.get('/api/recommendations/')
+        request.user = self.user
+        
+        # Mock engine to raise exception
+        with patch('apps.core.recommendation_engine.RecommendationEngine', side_effect=Exception('Test error')):
+            response = self.view.get(request)
+            
+            assert response.status_code == 500
+            data = json.loads(response.content)
+            assert 'error' in data
+
+
+class TestRecommendationInteractionView:
+    """Test RecommendationInteractionView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.user = UserFactory()
+        self.view = RecommendationInteractionView()
+    
+    def test_interaction_view_requires_authentication(self):
+        """Test that interaction view requires authentication"""
+        response = self.client.post('/api/recommendations/interact/')
+        assert response.status_code in [302, 401, 403]
+    
+    def test_record_content_recommendation_click(self):
+        """Test recording content recommendation click"""
+        recommendation = ContentRecommendationFactory(user=self.user, clicked_count=2)
+        
+        interaction_data = {
+            'type': 'click',
+            'rec_id': recommendation.id,
+            'rec_type': 'content'
+        }
+        
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data=json.dumps(interaction_data),
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        with patch.object(recommendation, 'mark_clicked') as mock_clicked:
+            with patch('apps.core.models.recommendation.ContentRecommendation.objects.get', return_value=recommendation):
+                response = self.view.post(request)
+                
+                assert response.status_code == 200
+                data = json.loads(response.content)
+                assert data['status'] == 'success'
+                mock_clicked.assert_called_once()
+    
+    def test_record_content_recommendation_dismiss(self):
+        """Test recording content recommendation dismissal"""
+        recommendation = ContentRecommendationFactory(user=self.user, dismissed_count=1)
+        
+        interaction_data = {
+            'type': 'dismiss',
+            'rec_id': recommendation.id,
+            'rec_type': 'content'
+        }
+        
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data=json.dumps(interaction_data),
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        with patch.object(recommendation, 'mark_dismissed') as mock_dismissed:
+            with patch('apps.core.models.recommendation.ContentRecommendation.objects.get', return_value=recommendation):
+                response = self.view.post(request)
+                
+                assert response.status_code == 200
+                mock_dismissed.assert_called_once()
+    
+    def test_record_content_recommendation_shown(self):
+        """Test recording content recommendation as shown"""
+        recommendation = ContentRecommendationFactory(user=self.user, shown_count=5)
+        
+        interaction_data = {
+            'type': 'shown',
+            'rec_id': recommendation.id,
+            'rec_type': 'content'
+        }
+        
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data=json.dumps(interaction_data),
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        with patch.object(recommendation, 'mark_shown') as mock_shown:
+            with patch('apps.core.models.recommendation.ContentRecommendation.objects.get', return_value=recommendation):
+                response = self.view.post(request)
+                
+                assert response.status_code == 200
+                mock_shown.assert_called_once()
+    
+    def test_record_feedback_with_interaction(self):
+        """Test recording feedback along with interaction"""
+        recommendation = ContentRecommendationFactory(user=self.user)
+        
+        interaction_data = {
+            'type': 'click',
+            'rec_id': recommendation.id,
+            'rec_type': 'content',
+            'feedback': {
+                'type': 'helpful',
+                'rating': 4,
+                'comments': 'This was useful!'
+            }
+        }
+        
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data=json.dumps(interaction_data),
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        with patch.object(self.view, '_record_feedback') as mock_feedback:
+            with patch('apps.core.models.recommendation.ContentRecommendation.objects.get', return_value=recommendation):
+                response = self.view.post(request)
+                
+                assert response.status_code == 200
+                mock_feedback.assert_called_once_with(
+                    self.user, recommendation.id, 'content', interaction_data['feedback']
+                )
+    
+    def test_record_feedback_method(self):
+        """Test the _record_feedback method"""
+        recommendation = ContentRecommendationFactory(user=self.user)
+        
+        feedback_data = {
+            'type': 'helpful',
+            'rating': 5,
+            'comments': 'Very useful recommendation'
+        }
+        
+        with patch('apps.core.models.recommendation.RecommendationFeedback.objects.update_or_create') as mock_create:
+            mock_create.return_value = (Mock(), True)
+            
+            self.view._record_feedback(self.user, recommendation.id, 'content', feedback_data)
+            
+            mock_create.assert_called_once()
+            call_args = mock_create.call_args[1]
+            assert call_args['user'] == self.user
+            assert call_args['object_id'] == recommendation.id
+            assert call_args['defaults']['feedback_type'] == 'helpful'
+            assert call_args['defaults']['rating'] == 5
+    
+    def test_interaction_missing_parameters(self):
+        """Test interaction with missing required parameters"""
+        incomplete_data = {
+            'type': 'click',
+            # Missing rec_id and rec_type
+        }
+        
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data=json.dumps(incomplete_data),
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        response = self.view.post(request)
+        
+        assert response.status_code == 400
+        data = json.loads(response.content)
+        assert 'error' in data
+        assert 'Missing required parameters' in data['error']
+    
+    def test_interaction_invalid_json(self):
+        """Test interaction with invalid JSON"""
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data='invalid json',
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        response = self.view.post(request)
+        
+        assert response.status_code == 400
+        data = json.loads(response.content)
+        assert 'error' in data
+        assert 'Invalid JSON data' in data['error']
+    
+    def test_interaction_recommendation_not_found(self):
+        """Test interaction with non-existent recommendation"""
+        interaction_data = {
+            'type': 'click',
+            'rec_id': 99999,  # Non-existent ID
+            'rec_type': 'content'
+        }
+        
+        request = self.factory.post(
+            '/api/recommendations/interact/',
+            data=json.dumps(interaction_data),
+            content_type='application/json'
+        )
+        request.user = self.user
+        
+        response = self.view.post(request)
+        
+        assert response.status_code == 404
+        data = json.loads(response.content)
+        assert 'error' in data
+        assert 'not found' in data['error'].lower()
+
+
+class TestUserRecommendationDashboardView:
+    """Test UserRecommendationDashboardView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.user = UserFactory()
+        self.view = UserRecommendationDashboardView()
+    
+    def test_dashboard_requires_authentication(self):
+        """Test that dashboard requires authentication"""
+        response = self.client.get('/recommendations/dashboard/')
+        assert response.status_code in [302, 401, 403]
+    
+    def test_dashboard_renders_successfully(self):
+        """Test that dashboard renders for authenticated user"""
+        profile = UserBehaviorProfileFactory(user=self.user)
+        
+        # Create some recommendations
+        content_recs = [ContentRecommendationFactory(user=self.user, is_active=True) for _ in range(5)]
+        nav_recs = [NavigationRecommendationFactory(status='pending') for _ in range(3)]
+        
+        request = self.factory.get('/recommendations/dashboard/')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            mock_render.return_value = Mock()
+            
+            response = self.view.get(request)
+            
+            mock_render.assert_called_once()
+            context = mock_render.call_args[0][2]  # Third argument is context
+            
+            assert 'content_recommendations' in context
+            assert 'navigation_recommendations' in context
+            assert 'user_profile' in context
+            assert 'recommendation_stats' in context
+    
+    def test_dashboard_pagination(self):
+        """Test dashboard pagination of content recommendations"""
+        # Create 25 recommendations (more than 10 per page)
+        for i in range(25):
+            ContentRecommendationFactory(user=self.user, is_active=True)
+        
+        # Request second page
+        request = self.factory.get('/recommendations/dashboard/?content_page=2')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            mock_render.return_value = Mock()
+            
+            response = self.view.get(request)
+            
+            context = mock_render.call_args[0][2]
+            content_page = context['content_recommendations']
+            
+            # Should have paginated results
+            assert hasattr(content_page, 'has_next')
+            assert hasattr(content_page, 'has_previous')
+    
+    def test_dashboard_similar_users(self):
+        """Test dashboard shows similar users"""
+        profile = UserBehaviorProfileFactory(user=self.user)
+        
+        # Create similar users
+        from apps.core.models.recommendation import UserSimilarity
+        similar_users = []
+        for i in range(3):
+            similar_user = UserFactory()
+            UserSimilarity.objects.create(
+                user1=self.user,
+                user2=similar_user,
+                similarity_score=0.8 - i * 0.1
+            )
+            similar_users.append(similar_user)
+        
+        request = self.factory.get('/recommendations/dashboard/')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            mock_render.return_value = Mock()
+            
+            with patch('django.db.models.Q') as mock_q:
+                mock_q.return_value = Mock()
+                with patch('apps.core.models.recommendation.UserSimilarity.objects.filter') as mock_filter:
+                    mock_similarities = [
+                        Mock(user2=similar_users[0], similarity_score=0.8, user1=self.user),
+                        Mock(user2=similar_users[1], similarity_score=0.7, user1=self.user),
+                    ]
+                    mock_filter.return_value.order_by.return_value = mock_similarities[:5]
+                    
+                    response = self.view.get(request)
+                    
+                    context = mock_render.call_args[0][2]
+                    assert 'similar_users' in context
+    
+    def test_get_recommendation_stats(self):
+        """Test recommendation statistics calculation"""
+        # Create recommendations with various interactions
+        recs = [
+            ContentRecommendationFactory(user=self.user, clicked_count=1, dismissed_count=0),
+            ContentRecommendationFactory(user=self.user, clicked_count=0, dismissed_count=1),
+            ContentRecommendationFactory(user=self.user, clicked_count=2, dismissed_count=0),
+            ContentRecommendationFactory(user=self.user, clicked_count=0, dismissed_count=0),
+        ]
+        
+        stats = self.view._get_recommendation_stats(self.user)
+        
+        assert stats['total_recommendations'] == 4
+        assert stats['clicked_recommendations'] == 2  # 2 recs with clicks > 0
+        assert stats['dismissed_recommendations'] == 1  # 1 rec with dismissal > 0
+        assert stats['total_clicks'] == 3  # 1 + 0 + 2 + 0
+        assert 'average_relevance_score' in stats
+    
+    def test_dashboard_no_profile(self):
+        """Test dashboard behavior when user has no behavior profile"""
+        request = self.factory.get('/recommendations/dashboard/')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            mock_render.return_value = Mock()
+            
+            response = self.view.get(request)
+            
+            context = mock_render.call_args[0][2]
+            assert context['user_profile'] is None
+            assert context['similar_users'] == []
+
+
+class TestRecommendationFeedbackView:
+    """Test RecommendationFeedbackView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.user = UserFactory()
+        self.view = RecommendationFeedbackView()
+    
+    def test_feedback_view_requires_authentication(self):
+        """Test that feedback view requires authentication"""
+        response = self.client.get('/recommendations/feedback/content/1/')
+        assert response.status_code in [302, 401, 403]
+    
+    def test_get_content_recommendation_feedback_form(self):
+        """Test displaying feedback form for content recommendation"""
+        recommendation = ContentRecommendationFactory(user=self.user)
+        
+        request = self.factory.get(f'/recommendations/feedback/content/{recommendation.id}/')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+                mock_render.return_value = Mock()
+                
+                response = self.view.get(request, 'content', recommendation.id)
+                
+                mock_render.assert_called_once()
+                context = mock_render.call_args[0][2]
+                assert context['recommendation'] == recommendation
+                assert context['rec_type'] == 'content'
+    
+    def test_get_navigation_recommendation_feedback_form(self):
+        """Test displaying feedback form for navigation recommendation"""
+        recommendation = NavigationRecommendationFactory()
+        
+        request = self.factory.get(f'/recommendations/feedback/navigation/{recommendation.id}/')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+                mock_render.return_value = Mock()
+                
+                response = self.view.get(request, 'navigation', recommendation.id)
+                
+                context = mock_render.call_args[0][2]
+                assert context['recommendation'] == recommendation
+                assert context['rec_type'] == 'navigation'
+    
+    def test_get_existing_feedback(self):
+        """Test displaying existing feedback in form"""
+        recommendation = ContentRecommendationFactory(user=self.user)
+        
+        # Create existing feedback
+        content_type = ContentType.objects.get_for_model(ContentRecommendation)
+        existing_feedback = RecommendationFeedbackFactory(
+            user=self.user,
+            content_type=content_type,
+            object_id=recommendation.id
+        )
+        
+        request = self.factory.get(f'/recommendations/feedback/content/{recommendation.id}/')
+        request.user = self.user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+                with patch('apps.core.models.recommendation.RecommendationFeedback.objects.filter') as mock_filter:
+                    mock_filter.return_value.first.return_value = existing_feedback
+                    mock_render.return_value = Mock()
+                    
+                    response = self.view.get(request, 'content', recommendation.id)
+                    
+                    context = mock_render.call_args[0][2]
+                    assert context['existing_feedback'] == existing_feedback
+    
+    def test_post_feedback_content_recommendation(self):
+        """Test submitting feedback for content recommendation"""
+        recommendation = ContentRecommendationFactory(user=self.user)
+        
+        feedback_data = {
+            'feedback_type': 'helpful',
+            'rating': '4',
+            'comments': 'This was very useful!'
+        }
+        
+        request = self.factory.post(
+            f'/recommendations/feedback/content/{recommendation.id}/',
+            data=feedback_data
+        )
+        request.user = self.user
+        
+        with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+            with patch('apps.core.models.recommendation.RecommendationFeedback.objects.update_or_create') as mock_create:
+                with patch('django.shortcuts.redirect') as mock_redirect:
+                    with patch('django.contrib.messages.success') as mock_message:
+                        mock_create.return_value = (Mock(), True)
+                        mock_redirect.return_value = Mock()
+                        
+                        response = self.view.post(request, 'content', recommendation.id)
+                        
+                        mock_create.assert_called_once()
+                        mock_message.assert_called_once()
+                        mock_redirect.assert_called_once()
+    
+    def test_post_feedback_invalid_rating(self):
+        """Test handling invalid rating in feedback"""
+        recommendation = ContentRecommendationFactory(user=self.user)
+        
+        feedback_data = {
+            'feedback_type': 'helpful',
+            'rating': 'invalid',  # Invalid rating
+            'comments': 'Test comment'
+        }
+        
+        request = self.factory.post(
+            f'/recommendations/feedback/content/{recommendation.id}/',
+            data=feedback_data
+        )
+        request.user = self.user
+        
+        with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+            with patch('apps.core.models.recommendation.RecommendationFeedback.objects.update_or_create') as mock_create:
+                mock_create.return_value = (Mock(), True)
+                
+                response = self.view.post(request, 'content', recommendation.id)
+                
+                # Should call update_or_create with rating=None
+                call_args = mock_create.call_args[1]
+                assert call_args['defaults']['rating'] is None
+    
+    def test_feedback_invalid_recommendation_type(self):
+        """Test handling invalid recommendation type"""
+        request = self.factory.get('/recommendations/feedback/invalid/1/')
+        request.user = self.user
+        
+        with pytest.raises(Http404):
+            self.view.get(request, 'invalid', 1)
+
+
+class TestAdminRecommendationView:
+    """Test AdminRecommendationView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.admin_user = UserFactory(is_staff=True)
+        self.regular_user = UserFactory(is_staff=False)
+        self.view = AdminRecommendationView()
+    
+    def test_admin_view_requires_staff_permission(self):
+        """Test that admin view requires staff permission"""
+        request = self.factory.get('/admin/recommendations/')
+        request.user = self.regular_user
+        
+        with pytest.raises(Http404):
+            self.view.get(request)
+    
+    def test_admin_dashboard_renders_for_staff(self):
+        """Test that admin dashboard renders for staff users"""
+        # Create pending recommendations
+        pending_recs = [NavigationRecommendationFactory(status='pending') for _ in range(3)]
+        
+        request = self.factory.get('/admin/recommendations/')
+        request.user = self.admin_user
+        
+        with patch('django.shortcuts.render') as mock_render:
+            mock_render.return_value = Mock()
+            
+            response = self.view.get(request)
+            
+            mock_render.assert_called_once()
+            context = mock_render.call_args[0][2]
+            assert 'pending_recommendations' in context
+            assert 'recent_feedback' in context
+            assert 'recommendation_stats' in context
+    
+    def test_admin_approve_recommendation(self):
+        """Test approving a recommendation"""
+        recommendation = NavigationRecommendationFactory(status='pending')
+        
+        request = self.factory.post('/admin/recommendations/', {
+            'action': 'approve',
+            'recommendation_id': recommendation.id
+        })
+        request.user = self.admin_user
+        
+        with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+            with patch('django.shortcuts.redirect') as mock_redirect:
+                with patch('django.contrib.messages.success') as mock_message:
+                    mock_redirect.return_value = Mock()
+                    
+                    response = self.view.post(request)
+                    
+                    recommendation.refresh_from_db()
+                    assert recommendation.status == 'approved'
+                    mock_message.assert_called_once()
+    
+    def test_admin_reject_recommendation(self):
+        """Test rejecting a recommendation"""
+        recommendation = NavigationRecommendationFactory(status='pending')
+        
+        request = self.factory.post('/admin/recommendations/', {
+            'action': 'reject',
+            'recommendation_id': recommendation.id
+        })
+        request.user = self.admin_user
+        
+        with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+            with patch('django.shortcuts.redirect') as mock_redirect:
+                with patch('django.contrib.messages.success') as mock_message:
+                    mock_redirect.return_value = Mock()
+                    
+                    response = self.view.post(request)
+                    
+                    recommendation.refresh_from_db()
+                    assert recommendation.status == 'rejected'
+                    mock_message.assert_called_once()
+    
+    def test_admin_implement_recommendation(self):
+        """Test implementing a recommendation"""
+        recommendation = NavigationRecommendationFactory(status='approved')
+        
+        request = self.factory.post('/admin/recommendations/', {
+            'action': 'implement',
+            'recommendation_id': recommendation.id
+        })
+        request.user = self.admin_user
+        
+        with patch('django.shortcuts.get_object_or_404', return_value=recommendation):
+            with patch.object(recommendation, 'apply_recommendation') as mock_apply:
+                with patch('django.shortcuts.redirect') as mock_redirect:
+                    with patch('django.contrib.messages.success') as mock_message:
+                        mock_redirect.return_value = Mock()
+                        
+                        response = self.view.post(request)
+                        
+                        mock_apply.assert_called_once_with(self.admin_user)
+                        mock_message.assert_called_once()
+    
+    def test_admin_recommendation_not_found(self):
+        """Test handling non-existent recommendation"""
+        request = self.factory.post('/admin/recommendations/', {
+            'action': 'approve',
+            'recommendation_id': 99999
+        })
+        request.user = self.admin_user
+        
+        with patch('django.shortcuts.redirect') as mock_redirect:
+            with patch('django.contrib.messages.error') as mock_message:
+                mock_redirect.return_value = Mock()
+                
+                response = self.view.post(request)
+                
+                mock_message.assert_called_once()
+                assert 'not found' in mock_message.call_args[0][1].lower()
+    
+    def test_get_admin_stats(self):
+        """Test admin statistics calculation"""
+        # Create various recommendations and feedback
+        NavigationRecommendationFactory(status='pending')
+        NavigationRecommendationFactory(status='approved')
+        NavigationRecommendationFactory(status='implemented')
+        
+        ContentRecommendationFactory(is_active=True)
+        ContentRecommendationFactory(is_active=False)
+        
+        RecommendationFeedbackFactory()
+        UserBehaviorProfileFactory()
+        
+        stats = self.view._get_admin_stats()
+        
+        assert stats['total_navigation_recommendations'] == 3
+        assert stats['pending_navigation_recommendations'] == 1
+        assert stats['approved_navigation_recommendations'] == 1
+        assert stats['implemented_navigation_recommendations'] == 1
+        assert stats['total_content_recommendations'] == 2
+        assert stats['active_content_recommendations'] == 1
+        assert stats['total_feedback_items'] == 1
+        assert stats['users_with_profiles'] == 1
+
+
+class TestRecommendationManagementView:
+    """Test RecommendationManagementView"""
+    
+    def setup_method(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.user = UserFactory()
+        self.view = RecommendationManagementView()
+    
+    def test_management_requires_authentication(self):
+        """Test that management view requires authentication"""
+        response = self.client.post('/recommendations/manage/')
+        assert response.status_code in [302, 401, 403]
+    
+    def test_dismiss_selected_recommendations(self):
+        """Test dismissing multiple selected recommendations"""
+        recs = [ContentRecommendationFactory(user=self.user, is_active=True) for _ in range(3)]
+        rec_ids = [str(rec.id) for rec in recs]
+        
+        request = self.factory.post('/recommendations/manage/', {
+            'action': 'dismiss_selected',
+            'recommendation_ids': rec_ids
+        })
+        request.user = self.user
+        
+        with patch('django.shortcuts.redirect') as mock_redirect:
+            with patch('django.contrib.messages.success') as mock_message:
+                mock_redirect.return_value = Mock()
+                
+                response = self.view.post(request)
+                
+                # Check that recommendations were deactivated
+                for rec in recs:
+                    rec.refresh_from_db()
+                    assert rec.is_active is False
+                
+                mock_message.assert_called_once()
+                assert 'Dismissed 3 recommendations' in mock_message.call_args[0][1]
+    
+    def test_mark_recommendations_helpful(self):
+        """Test marking recommendations as helpful"""
+        recs = [ContentRecommendationFactory(user=self.user) for _ in range(2)]
+        rec_ids = [str(rec.id) for rec in recs]
+        
+        request = self.factory.post('/recommendations/manage/', {
+            'action': 'mark_helpful',
+            'recommendation_ids': rec_ids
+        })
+        request.user = self.user
+        
+        with patch.object(self.view, '_add_quick_feedback') as mock_feedback:
+            with patch('django.shortcuts.redirect') as mock_redirect:
+                with patch('django.contrib.messages.success') as mock_message:
+                    mock_redirect.return_value = Mock()
+                    
+                    response = self.view.post(request)
+                    
+                    assert mock_feedback.call_count == 2
+                    mock_message.assert_called_once()
+    
+    def test_mark_recommendations_not_helpful(self):
+        """Test marking recommendations as not helpful"""
+        rec = ContentRecommendationFactory(user=self.user)
+        
+        request = self.factory.post('/recommendations/manage/', {
+            'action': 'mark_not_helpful',
+            'recommendation_ids': [str(rec.id)]
+        })
+        request.user = self.user
+        
+        with patch.object(self.view, '_add_quick_feedback') as mock_feedback:
+            with patch('django.shortcuts.redirect') as mock_redirect:
+                with patch('django.contrib.messages.success') as mock_message:
+                    mock_redirect.return_value = Mock()
+                    
+                    response = self.view.post(request)
+                    
+                    mock_feedback.assert_called_once_with(self.user, str(rec.id), 'not_helpful')
+    
+    def test_add_quick_feedback(self):
+        """Test adding quick feedback"""
+        rec = ContentRecommendationFactory(user=self.user)
+        
+        with patch('apps.core.models.recommendation.RecommendationFeedback.objects.update_or_create') as mock_create:
+            mock_create.return_value = (Mock(), True)
+            
+            self.view._add_quick_feedback(self.user, rec.id, 'helpful')
+            
+            mock_create.assert_called_once()
+            call_args = mock_create.call_args[1]
+            assert call_args['user'] == self.user
+            assert call_args['object_id'] == rec.id
+            assert call_args['defaults']['feedback_type'] == 'helpful'
+    
+    def test_management_no_recommendations_selected(self):
+        """Test management action with no recommendations selected"""
+        request = self.factory.post('/recommendations/manage/', {
+            'action': 'dismiss_selected',
+            'recommendation_ids': []
+        })
+        request.user = self.user
+        
+        with patch('django.shortcuts.redirect') as mock_redirect:
+            with patch('django.contrib.messages.error') as mock_message:
+                mock_redirect.return_value = Mock()
+                
+                response = self.view.post(request)
+                
+                mock_message.assert_called_once()
+                assert 'No recommendations selected' in mock_message.call_args[0][1]
+    
+    def test_management_error_handling(self):
+        """Test error handling in management view"""
+        rec = ContentRecommendationFactory(user=self.user)
+        
+        request = self.factory.post('/recommendations/manage/', {
+            'action': 'dismiss_selected',
+            'recommendation_ids': [str(rec.id)]
+        })
+        request.user = self.user
+        
+        with patch('apps.core.models.recommendation.ContentRecommendation.objects.filter', side_effect=Exception('Test error')):
+            with patch('django.shortcuts.redirect') as mock_redirect:
+                with patch('django.contrib.messages.error') as mock_message:
+                    mock_redirect.return_value = Mock()
+                    
+                    response = self.view.post(request)
+                    
+                    mock_message.assert_called_once()
+                    assert 'error occurred' in mock_message.call_args[0][1].lower()

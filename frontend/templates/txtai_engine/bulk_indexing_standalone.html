@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Indexing - AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <span class="navbar-brand mb-0 h1">YOUTILITY5 - Bulk Indexing</span>
+    </nav>
+<div class="container mt-4">
+    <h2>Bulk Document Indexing</h2>
+    <p class="text-muted">Index documents for AI-powered search</p>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Indexing Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if indexes %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Index Name</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Documents</th>
+                                        <th>Last Updated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for index in indexes %}
+                                    <tr>
+                                        <td>{{ index.name }}</td>
+                                        <td>{{ index.content_type }}</td>
+                                        <td>
+                                            <span class="badge badge-{% if index.status == 'ACTIVE' %}success{% elif index.status == 'ERROR' %}danger{% else %}warning{% endif %}">
+                                                {{ index.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ index.document_count }}</td>
+                                        <td>{{ index.last_indexed|default("Never") }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" onclick="reindexDocuments({{ index.id }})">
+                                                Reindex
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p>No semantic indexes configured yet.</p>
+                        <button class="btn btn-primary" onclick="createIndex()">Create First Index</button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Bulk Upload Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Bulk Document Upload</h5>
+                </div>
+                <div class="card-body">
+                    <form id="bulkUploadForm" enctype="multipart/form-data">
+                        {{ csrf_input }}
+                        <div class="form-group">
+                            <label>Select Index:</label>
+                            <select name="index_id" class="form-control" required>
+                                <option value="">Choose an index...</option>
+                                {% for index in indexes %}
+                                <option value="{{ index.id }}">{{ index.name }} ({{ index.content_type }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Document Type:</label>
+                            <select name="doc_type" class="form-control" required>
+                                <option value="tickets">Tickets</option>
+                                <option value="reports">Reports</option>
+                                <option value="assets">Assets</option>
+                                <option value="documents">Documents</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Upload CSV/JSON File:</label>
+                            <input type="file" name="file" class="form-control-file" accept=".csv,.json">
+                            <small class="form-text text-muted">
+                                CSV should have columns: title, content, metadata
+                            </small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">Start Indexing</button>
+                    </form>
+                    
+                    <div id="uploadProgress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                        <p class="mt-2">Processing...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Indexing Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>Indexing Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Indexes:</strong> {{ indexes|length }}</p>
+                    <p><strong>Total Documents:</strong> {% if indexes %}{{ indexes|first|attr('document_count')|default(0) }}{% else %}0{% endif %}</p>
+                    <p><strong>Active Indexes:</strong> {{ indexes|length }}</p>
+                    <p><strong>Last Index:</strong> {% if indexes %}{{ indexes|first|attr('last_indexed')|default("Never") }}{% else %}Never{% endif %}</p>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Recent Indexing Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_docs %}
+                        <ul class="list-unstyled">
+                            {% for doc in recent_docs %}
+                            <li class="mb-2">
+                                <strong>{{ doc.title }}</strong><br>
+                                <small>{{ doc.indexed_at }} - {{ doc.semantic_index.name }}</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent activity.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function reindexDocuments(indexId) {
+    if (confirm('Are you sure you want to reindex all documents in this index?')) {
+        // Call reindex API
+        console.log('Reindexing documents for index:', indexId);
+    }
+}
+
+function createIndex() {
+    // Redirect to index creation page or show modal
+    console.log('Creating new index...');
+}
+</script>
+</body>
+</html>

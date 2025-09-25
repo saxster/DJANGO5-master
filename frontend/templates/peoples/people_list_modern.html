@@ -1,0 +1,687 @@
+{% extends "globals/base_list.html" %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+People Directory - Modern View
+<div class="float-end">
+	<a href="{{ url('peoples:people') }}?template=true" class="btn btn-sm btn-light-secondary me-2">
+		<i class="bi bi-table"></i> Classic View
+	</a>
+	<button class="btn btn-sm btn-primary" id="header-add-new">
+		<i class="bi bi-plus"></i> Add New
+	</button>
+</div>
+{% endblock card_title %}
+<!---- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+People Directory
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{{ url('peoples:people') }}?template=true&modern=true" class="pe-3">People Directory</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+<!---- BEGIN EXTRA STYLES ------>
+{% block extra_styles %}
+<style>
+	/* Premium Modern People List Styles */
+	body {
+		background-color: #f8fafc !important;
+		font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+	}
+	
+	/* Premium Animations */
+	@keyframes fadeInUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.7;
+		}
+	}
+	
+	/* Header Controls with maximum specificity */
+	div.card-body div.modern-header-controls,
+	.card .card-body .modern-header-controls,
+	.modern-header-controls {
+		background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+		padding: 2rem 2.5rem !important;
+		border-radius: 16px !important;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+		margin-bottom: 2rem !important;
+		border: 1px solid #e2e8f0 !important;
+		backdrop-filter: blur(10px) !important;
+		position: relative !important;
+		z-index: 1 !important;
+	}
+	
+	/* Search Component */
+	div.modern-header-controls .modern-search,
+	.card-body .modern-search,
+	.modern-search {
+		position: relative !important;
+		flex: 1 !important;
+		max-width: 400px !important;
+		margin-right: 2rem !important;
+	}
+	
+	div.modern-header-controls .modern-search .search-icon,
+	.card-body .modern-search .search-icon,
+	.modern-search .search-icon {
+		position: absolute !important;
+		left: 18px !important;
+		top: 50% !important;
+		transform: translateY(-50%) !important;
+		color: #6b7280 !important;
+		z-index: 10 !important;
+		font-size: 16px !important;
+		font-weight: 500 !important;
+	}
+	
+	div.modern-header-controls .modern-search input,
+	.card-body .modern-search input,
+	.modern-search input,
+	input#modern-search-input {
+		width: 100% !important;
+		padding: 14px 20px 14px 52px !important;
+		background-color: #ffffff !important;
+		border: 2px solid #e5e7eb !important;
+		border-radius: 12px !important;
+		font-size: 15px !important;
+		font-weight: 500 !important;
+		color: #1f2937 !important;
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+		height: auto !important;
+	}
+	
+	div.modern-header-controls .modern-search input:focus,
+	.card-body .modern-search input:focus,
+	.modern-search input:focus,
+	input#modern-search-input:focus {
+		background-color: #ffffff !important;
+		border-color: #3b82f6 !important;
+		box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+		outline: none !important;
+		transform: translateY(-1px) !important;
+	}
+	
+	/* Filter Buttons */
+	div.modern-header-controls .modern-filter-group,
+	.card-body .modern-filter-group,
+	.modern-filter-group {
+		display: flex !important;
+		align-items: center !important;
+		gap: 12px !important;
+		flex-wrap: wrap !important;
+	}
+	
+	div.modern-header-controls .modern-filter-btn,
+	.card-body .modern-filter-btn,
+	.modern-filter-btn,
+	button.modern-filter-btn {
+		padding: 10px 18px !important;
+		border: 2px solid #e5e7eb !important;
+		border-radius: 10px !important;
+		background: #ffffff !important;
+		color: #6b7280 !important;
+		font-size: 14px !important;
+		font-weight: 600 !important;
+		cursor: pointer !important;
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+		display: inline-flex !important;
+		align-items: center !important;
+		gap: 8px !important;
+		white-space: nowrap !important;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+		letter-spacing: 0.025em !important;
+		text-decoration: none !important;
+		height: auto !important;
+		line-height: normal !important;
+	}
+	
+	button.modern-filter-btn:hover {
+		background: #f9fafb !important;
+		border-color: #d1d5db !important;
+		color: #374151 !important;
+		transform: translateY(-1px) !important;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+		text-decoration: none !important;
+	}
+	
+	button.modern-filter-btn.active {
+		background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+		border-color: #3b82f6 !important;
+		color: white !important;
+		box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4), 0 2px 4px -1px rgba(59, 130, 246, 0.2) !important;
+		transform: translateY(-1px) !important;
+	}
+	
+	button.modern-filter-btn.active:hover {
+		background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+		transform: translateY(-2px) !important;
+		box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.5), 0 4px 6px -1px rgba(59, 130, 246, 0.3) !important;
+		color: white !important;
+	}
+	
+	/* Action Buttons */
+	div.modern-header-controls .modern-action-group,
+	.card-body .modern-action-group,
+	.modern-action-group {
+		display: flex !important;
+		align-items: center !important;
+		gap: 12px !important;
+		margin-left: auto !important;
+	}
+	
+	div.modern-header-controls .modern-export-btn,
+	.modern-export-btn,
+	button.modern-export-btn {
+		padding: 10px 18px !important;
+		border: 2px solid #d1d5db !important;
+		border-radius: 10px !important;
+		background: #ffffff !important;
+		color: #6b7280 !important;
+		font-size: 14px !important;
+		font-weight: 600 !important;
+		cursor: pointer !important;
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+		display: inline-flex !important;
+		align-items: center !important;
+		gap: 8px !important;
+		white-space: nowrap !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+		letter-spacing: 0.025em !important;
+		text-decoration: none !important;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+	}
+	
+	button.modern-export-btn:hover {
+		background: #f9fafb !important;
+		border-color: #9ca3af !important;
+		color: #374151 !important;
+		transform: translateY(-1px) !important;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+		text-decoration: none !important;
+	}
+	
+	div.modern-header-controls .modern-add-btn,
+	.modern-add-btn,
+	button.modern-add-btn {
+		padding: 10px 18px !important;
+		border: 2px solid #10b981 !important;
+		border-radius: 10px !important;
+		background: linear-gradient(135deg, #10b981, #059669) !important;
+		color: white !important;
+		font-size: 14px !important;
+		font-weight: 600 !important;
+		cursor: pointer !important;
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+		display: inline-flex !important;
+		align-items: center !important;
+		gap: 8px !important;
+		white-space: nowrap !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+		letter-spacing: 0.025em !important;
+		text-decoration: none !important;
+		box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2) !important;
+	}
+	
+	button.modern-add-btn:hover {
+		background: linear-gradient(135deg, #059669, #047857) !important;
+		transform: translateY(-1px) !important;
+		box-shadow: 0 6px 8px -1px rgba(16, 185, 129, 0.5), 0 4px 6px -1px rgba(16, 185, 129, 0.3) !important;
+		color: white !important;
+		text-decoration: none !important;
+	}
+	
+	/* People List Container */
+	.card-body .premium-people-list {
+		background: linear-gradient(135deg, #ffffff 0%, #fefefe 100%) !important;
+		border-radius: 16px !important;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+		border: 1px solid #e5e7eb !important;
+		overflow: hidden !important;
+		backdrop-filter: blur(10px) !important;
+	}
+	
+	/* Loading and Empty States */
+	.card-body .premium-loading, 
+	.card-body .premium-empty {
+		padding: 80px 32px !important;
+		text-align: center !important;
+		color: #6b7280 !important;
+		background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%) !important;
+	}
+	
+	.card-body .premium-loading .spinner-border {
+		color: #3b82f6 !important;
+		width: 3rem !important;
+		height: 3rem !important;
+		border-width: 0.3em !important;
+	}
+	
+	.card-body .premium-loading h5, 
+	.card-body .premium-empty h5 {
+		color: #374151 !important;
+		font-weight: 600 !important;
+		margin-top: 1.5rem !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+	}
+	
+	.card-body .premium-loading p, 
+	.card-body .premium-empty p {
+		color: #9ca3af !important;
+		font-size: 15px !important;
+		margin-top: 0.5rem !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+	}
+	
+	/* Responsive Design */
+	@media (max-width: 1024px) {
+		.card-body .modern-header-controls {
+			padding: 1.5rem 2rem !important;
+		}
+		
+		.card-body .modern-search {
+			max-width: 350px !important;
+			margin-right: 1.5rem !important;
+		}
+		
+		.card-body .modern-filter-group {
+			gap: 8px !important;
+		}
+		
+		.card-body .modern-filter-btn {
+			padding: 8px 14px !important;
+			font-size: 13px !important;
+		}
+	}
+	
+	@media (max-width: 768px) {
+		.card-body .modern-header-controls {
+			padding: 1.25rem 1.5rem !important;
+		}
+		
+		.card-body .modern-header-controls > div {
+			flex-direction: column !important;
+			gap: 1.5rem !important;
+		}
+		
+		.card-body .modern-search {
+			max-width: 100% !important;
+			margin-right: 0 !important;
+		}
+		
+		.card-body .modern-filter-group {
+			width: 100% !important;
+			justify-content: center !important;
+			flex-wrap: wrap !important;
+		}
+		
+		.card-body .modern-action-group {
+			margin-left: 0 !important;
+			justify-content: center !important;
+		}
+	}
+	
+	@media (max-width: 640px) {
+		.card-body .modern-filter-btn {
+			flex: 1 !important;
+			justify-content: center !important;
+			min-width: 110px !important;
+		}
+		
+		.card-body .modern-action-group {
+			width: 100% !important;
+			justify-content: stretch !important;
+		}
+		
+		.card-body .modern-export-btn, 
+		.card-body .modern-add-btn {
+			flex: 1 !important;
+			justify-content: center !important;
+		}
+	}
+</style>
+{% endblock extra_styles %}
+<!---- END EXTRA STYLES ------>
+
+<!------------------ BEGIN PEOPLE TABLE ------------------------->
+{% block table %}
+<div class="modern-header-controls" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important; padding: 2rem 2.5rem !important; border-radius: 16px !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; margin-bottom: 2rem !important; border: 1px solid #e2e8f0 !important; backdrop-filter: blur(10px) !important;">
+	<div class="d-flex align-items-center justify-content-between flex-wrap gap-4">
+		<div class="modern-search" style="position: relative; flex: 1; max-width: 400px; margin-right: 2rem;">
+			<i class="bi bi-search search-icon" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #6b7280; z-index: 10; font-size: 16px; font-weight: 500;"></i>
+			<input type="text" id="modern-search-input" placeholder="Search by name, code, email, phone..." style="width: 100% !important; padding: 14px 20px 14px 52px !important; background-color: #ffffff !important; border: 2px solid #e5e7eb !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 500 !important; color: #1f2937 !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; height: auto !important;">
+		</div>
+		
+		<div class="modern-filter-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+			<button class="modern-filter-btn" data-filter="all" style="padding: 10px 18px !important; border: 2px solid #e5e7eb !important; border-radius: 10px !important; background: #ffffff !important; color: #6b7280 !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; letter-spacing: 0.025em !important; text-decoration: none !important;">
+				<i class="bi bi-people"></i> All People
+			</button>
+			<button class="modern-filter-btn" data-filter="active" style="padding: 10px 18px !important; border: 2px solid #e5e7eb !important; border-radius: 10px !important; background: #ffffff !important; color: #6b7280 !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; letter-spacing: 0.025em !important; text-decoration: none !important;">
+				<i class="bi bi-check-circle-fill"></i> Active
+			</button>
+			<button class="modern-filter-btn" data-filter="admin" style="padding: 10px 18px !important; border: 2px solid #e5e7eb !important; border-radius: 10px !important; background: #ffffff !important; color: #6b7280 !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; letter-spacing: 0.025em !important; text-decoration: none !important;">
+				<i class="bi bi-shield-check"></i> Admins
+			</button>
+			<button class="modern-filter-btn" data-filter="verified" style="padding: 10px 18px !important; border: 2px solid #e5e7eb !important; border-radius: 10px !important; background: #ffffff !important; color: #6b7280 !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; letter-spacing: 0.025em !important; text-decoration: none !important;">
+				<i class="bi bi-patch-check-fill"></i> Verified
+			</button>
+			
+			<div class="modern-action-group" style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+				<button class="modern-export-btn" style="padding: 10px 18px !important; border: 2px solid #d1d5db !important; border-radius: 10px !important; background: #ffffff !important; color: #6b7280 !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; letter-spacing: 0.025em !important; text-decoration: none !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;">
+					<i class="bi bi-download"></i> Export
+				</button>
+				<button class="modern-add-btn" id="add-new-person" style="padding: 10px 18px !important; border: 2px solid #10b981 !important; border-radius: 10px !important; background: linear-gradient(135deg, #10b981, #059669) !important; color: white !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important; font-family: 'Inter', system-ui, -apple-system, sans-serif !important; letter-spacing: 0.025em !important; text-decoration: none !important; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2) !important;">
+					<i class="bi bi-person-plus-fill"></i> Add Person
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="premium-people-list">
+	<!-- Table Header -->
+	<div style="display: flex; align-items: center; min-height: 48px; padding: 12px 16px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-bottom: 2px solid #e2e8f0; font-weight: 600; font-size: 13px; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Inter', system-ui, sans-serif;">
+		<div style="width: 52px; margin-right: 12px;"><!-- Avatar space --></div>
+		<div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; align-items: center;">
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-person" style="margin-right: 6px; font-size: 12px;"></i>Person Details
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-briefcase" style="margin-right: 6px; font-size: 12px;"></i>Role & Department
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-envelope" style="margin-right: 6px; font-size: 12px;"></i>Contact Info
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-building" style="margin-right: 6px; font-size: 12px;"></i>Site & Type
+			</div>
+		</div>
+		<div style="min-width: 100px; text-align: center; font-weight: 700; color: #1e293b;">
+			<i class="bi bi-shield" style="margin-right: 6px; font-size: 12px;"></i>Status
+		</div>
+		<div style="min-width: 100px; text-align: center; font-weight: 700; color: #1e293b;">
+			<i class="bi bi-gear" style="margin-right: 6px; font-size: 12px;"></i>Actions
+		</div>
+	</div>
+
+	<div id="people-loading" class="premium-loading">
+		<div class="spinner-border" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<h5>Loading people directory...</h5>
+		<p>Please wait while we fetch the data</p>
+	</div>
+
+	<div id="people-list" class="d-none">
+		<!-- People will be populated here -->
+	</div>
+
+	<div id="people-empty" class="premium-empty d-none">
+		<i class="bi bi-people" style="font-size: 4rem; color: #d1d5db; margin-bottom: 1rem;"></i>
+		<h5>No people found</h5>
+		<p>Try adjusting your search criteria or filters to find who you're looking for</p>
+	</div>
+</div>
+{% endblock table %}
+<!------------------ END PEOPLE TABLE --------------------------->
+
+<!--------- BEGIN EXTRA SCRIPTS ------>
+{% block extra_scripts %}
+<script>
+$(document).ready(function () {
+	let currentFilter = 'all';
+	let currentSearch = '';
+	let peopleData = [];
+	
+	// Avatar color classes
+	const avatarColors = [
+		'avatar-blue', 'avatar-green', 'avatar-purple', 'avatar-orange',
+		'avatar-pink', 'avatar-indigo', 'avatar-red', 'avatar-teal'
+	];
+	
+	// Get avatar color based on name
+	function getAvatarColor(name) {
+		const index = name ? name.length % avatarColors.length : 0;
+		return avatarColors[index];
+	}
+	
+	// Get avatar initials
+	function getInitials(name) {
+		if (!name) return '??';
+		return name.split(' ')
+			.map(word => word.charAt(0).toUpperCase())
+			.filter(char => char)
+			.join('')
+			.substring(0, 2) || name.substring(0, 2).toUpperCase();
+	}
+	
+	// Format phone number
+	function formatPhone(phone) {
+		if (!phone) return 'Not provided';
+		// Keep original format or add basic formatting
+		return phone;
+	}
+	
+	// Render person item
+	function renderPerson(person, index) {
+		const initials = getInitials(person.peoplename);
+		const avatarColor = getAvatarColor(person.peoplename);
+		
+		const site = person.bu__buname || 'Unassigned';
+		const designation = person.designation__taname || 'Not specified';
+		const department = person.department__taname || 'Not specified';
+		const email = person.email || 'No email';
+		const phone = formatPhone(person.mobno);
+		const type = person.peopletype__taname || 'Standard';
+		
+		let badges = [];
+		
+		const badgeBaseStyle = "padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.025em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; font-family: 'Inter', system-ui, sans-serif;";
+		
+		// Status badge
+		if (person.enable === true) {
+			badges.push(`<span style="${badgeBaseStyle} background: #dcfdf4; color: #065f46;">ACTIVE</span>`);
+		} else {
+			badges.push(`<span style="${badgeBaseStyle} background: #fef2f2; color: #991b1b;">INACTIVE</span>`);
+		}
+		
+		// Admin badge
+		if (person.isadmin === true) {
+			badges.push(`<span style="${badgeBaseStyle} background: #fef3c7; color: #92400e;"><i class="bi bi-shield-fill" style="font-size: 8px;"></i> ADMIN</span>`);
+		}
+		
+		// Get avatar gradient colors
+		const avatarGradients = {
+			'avatar-blue': 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+			'avatar-green': 'linear-gradient(135deg, #10b981, #059669)',
+			'avatar-purple': 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+			'avatar-orange': 'linear-gradient(135deg, #f59e0b, #d97706)',
+			'avatar-pink': 'linear-gradient(135deg, #ec4899, #be185d)',
+			'avatar-indigo': 'linear-gradient(135deg, #6366f1, #4f46e5)',
+			'avatar-red': 'linear-gradient(135deg, #ef4444, #dc2626)',
+			'avatar-teal': 'linear-gradient(135deg, #14b8a6, #0d9488)'
+		};
+
+		const html = `
+			<div style="display: flex; align-items: center; min-height: 64px; padding: 12px 16px; border-bottom: 1px solid #f1f5f9; background: white; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; opacity: 0; animation: fadeInUp 0.5s ease forwards; animation-delay: ${index * 0.03}s;" 
+				 onmouseover="this.style.background='#f8fafc'; this.style.boxShadow='inset 3px 0 0 #3b82f6';" 
+				 onmouseout="this.style.background='white'; this.style.boxShadow='none';" 
+				 data-id="${person.id}">
+				
+				<div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: white; margin-right: 12px; flex-shrink: 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); background: ${avatarGradients[avatarColor] || avatarGradients['avatar-blue']};">
+					${initials}
+				</div>
+				
+				<div style="flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; align-items: center;">
+					<div style="min-width: 0;">
+						<h6 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 2px 0; line-height: 1.3; font-family: 'Inter', system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${person.peoplename}</h6>
+						<div style="font-size: 11px; color: #3b82f6; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${person.peoplecode}</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; color: #475569; font-weight: 500; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${designation}</div>
+						<div style="font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${department}</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; color: #475569; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+							<i class="bi bi-envelope" style="font-size: 10px; opacity: 0.6; margin-right: 4px;"></i>${email}
+						</div>
+						<div style="font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+							<i class="bi bi-telephone" style="font-size: 10px; opacity: 0.6; margin-right: 4px;"></i>${phone}
+						</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; color: #475569; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+							<i class="bi bi-building" style="font-size: 10px; opacity: 0.6; margin-right: 4px;"></i>${site}
+						</div>
+						<div style="font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+							<i class="bi bi-person-badge" style="font-size: 10px; opacity: 0.6; margin-right: 4px;"></i>${type}
+						</div>
+					</div>
+				</div>
+				
+				<div style="display: flex; align-items: center; gap: 4px; margin: 0 12px; min-width: 100px; justify-content: flex-end;">
+					${badges.join('')}
+				</div>
+				
+				<div style="display: flex; gap: 4px;">
+					<button onclick="editPerson(${person.id})" title="Edit" 
+							style="width: 28px; height: 28px; border-radius: 5px; border: 1px solid #e2e8f0; background: white; color: #64748b; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; font-size: 12px;"
+							onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; this.style.color='#3b82f6';"
+							onmouseout="this.style.background='white'; this.style.borderColor='#e2e8f0'; this.style.color='#64748b';">
+						<i class="bi bi-pencil"></i>
+					</button>
+					<button onclick="viewPerson(${person.id})" title="View"
+							style="width: 28px; height: 28px; border-radius: 5px; border: 1px solid #e2e8f0; background: white; color: #64748b; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; font-size: 12px;"
+							onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; this.style.color='#10b981';"
+							onmouseout="this.style.background='white'; this.style.borderColor='#e2e8f0'; this.style.color='#64748b';">
+						<i class="bi bi-eye"></i>
+					</button>
+					<button onclick="downloadQR('${person.peoplecode}', '${person.peoplename}')" title="QR"
+							style="width: 28px; height: 28px; border-radius: 5px; border: 1px solid #e2e8f0; background: white; color: #64748b; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; font-size: 12px;"
+							onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; this.style.color='#f59e0b';"
+							onmouseout="this.style.background='white'; this.style.borderColor='#e2e8f0'; this.style.color='#64748b';">
+						<i class="bi bi-qr-code"></i>
+					</button>
+				</div>
+			</div>
+		`;
+		
+		return html;
+	}
+	
+	// Load people data
+	function loadPeople() {
+		$('#people-loading').removeClass('d-none');
+		$('#people-list').addClass('d-none');
+		$('#people-empty').addClass('d-none');
+		
+		let url = '{{ url("peoples:people") }}?action=list&length=1000';
+		
+		// Apply filters
+		if (currentFilter === 'active') url += '&filter_active=true';
+		else if (currentFilter === 'admin') url += '&filter_admin=true';
+		else if (currentFilter === 'verified') url += '&filter_verified=true';
+		
+		// Apply search
+		if (currentSearch) url += `&search[value]=${encodeURIComponent(currentSearch)}`;
+		
+		$.get(url)
+		.done(function(response) {
+			peopleData = response.data || [];
+			renderPeople();
+		})
+		.fail(function(xhr, status, error) {
+			console.error('Failed to load people:', error);
+			$('#people-loading').addClass('d-none');
+			$('#people-empty').removeClass('d-none');
+		});
+	}
+	
+	// Render all people
+	function renderPeople() {
+		$('#people-loading').addClass('d-none');
+		
+		if (peopleData.length === 0) {
+			$('#people-empty').removeClass('d-none');
+			return;
+		}
+		
+		const html = peopleData.map((person, index) => renderPerson(person, index)).join('');
+		$('#people-list').html(html).removeClass('d-none');
+	}
+	
+	// Filter handlers
+	$('.modern-filter-btn[data-filter]').click(function() {
+		const filter = $(this).data('filter');
+		if (filter === currentFilter) return;
+		
+		$('.modern-filter-btn[data-filter]').removeClass('active');
+		$(this).addClass('active');
+		
+		currentFilter = filter;
+		loadPeople();
+	});
+	
+	// Search handler
+	$('#modern-search-input').on('input', function() {
+		clearTimeout(window.searchTimeout);
+		const searchValue = $(this).val().trim();
+		
+		window.searchTimeout = setTimeout(() => {
+			currentSearch = searchValue;
+			loadPeople();
+		}, 300);
+	});
+	
+	// Add new person button - both in header and in controls
+	$('#add-new-person, #header-add-new').click(function() {
+		window.location.href = '{{ url("peoples:people") }}?action=form';
+	});
+	
+	// Action functions
+	window.editPerson = function(id) {
+		window.location.href = `{{ url("peoples:people") }}?id=${id}`;
+	};
+	
+	window.viewPerson = function(id) {
+		window.location.href = `{{ url("peoples:people") }}?id=${id}`;
+	};
+	
+	window.downloadQR = function(code, name) {
+		const downloadUrl = `{{ url('peoples:people') }}?action=qrdownload&code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`;
+		window.location.href = downloadUrl;
+	};
+	
+	// Initialize
+	$('.modern-filter-btn[data-filter="all"]').addClass('active');
+	loadPeople();
+});
+</script>
+{% endblock extra_scripts %}
+<!-------- END EXTRA SCRIPTS ------------------------------->

@@ -1,0 +1,31 @@
+WARNING: Performance Regression Detected
+
+A significant performance regression has been detected for the following endpoint.
+
+Endpoint: {{ endpoint }}
+
+Performance Comparison:
+                    Baseline    Current     Change
+Response Time:      {{ baseline.avg_response_time|floatformat:3 }}s      {{ current.current_response_time|floatformat:3 }}s      {{ current.current_response_time|sub:baseline.avg_response_time|floatformat:3 }}s
+Query Count:        {{ baseline.avg_query_count }}          {{ current.current_query_count }}          {{ current.current_query_count|sub:baseline.avg_query_count }}
+Avg Query Time:     {{ baseline.avg_query_time|floatformat:3 }}s      {{ current.current_avg_query_time|floatformat:3 }}s      {{ current.current_avg_query_time|sub:baseline.avg_query_time|floatformat:3 }}s
+
+Regression Threshold: {{ regression_threshold }}%
+
+Baseline Information:
+- Last Updated: {{ baseline.last_updated }}
+- Sample Count: {{ baseline.sample_count }}
+- 95th Percentile: {{ baseline.p95_response_time|floatformat:3 }}s
+
+This regression indicates that the endpoint is performing significantly worse than its historical average.
+
+Recommended Actions:
+1. Check for recent code deployments or configuration changes
+2. Review database query performance for this endpoint
+3. Monitor server resource usage (CPU, memory, disk I/O)
+4. Check for database locks or blocking queries
+5. Review application logs for errors or warnings
+
+---
+This alert was generated automatically by the Performance Monitoring System.
+Alert will be suppressed for 5 minutes to prevent spam.

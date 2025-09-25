@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Functionality Test - YOUTILITY5</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-error {
+            background-color: #dc3545;
+            color: white;
+        }
+        .test-card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .result-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mb-4">
+            <h1>AI Functionality Test Dashboard</h1>
+            <p class="text-muted">YOUTILITY5 - txtai Integration Testing</p>
+        </div>
+        
+        <div class="row">
+            <!-- Model Test Results -->
+            <div class="col-md-4">
+                <div class="card test-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">📊 Model Tests</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if test_results.models.status == 'success' %}
+                            <span class="status-badge status-success">✓ PASSED</span>
+                            <div class="mt-3">
+                                <div class="result-item">
+                                    <strong>Semantic Indexes:</strong> 
+                                    <span class="float-right">{{ test_results.models.semantic_indexes }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Indexed Documents:</strong> 
+                                    <span class="float-right">{{ test_results.models.indexed_documents }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Knowledge Bases:</strong> 
+                                    <span class="float-right">{{ test_results.models.knowledge_bases }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Searches:</strong> 
+                                    <span class="float-right">{{ test_results.models.searches }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>RAG Queries:</strong> 
+                                    <span class="float-right">{{ test_results.models.rag_queries }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Cache Entries:</strong> 
+                                    <span class="float-right">{{ test_results.models.cache_entries }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="status-badge status-error">✗ FAILED</span>
+                            <p class="text-danger mt-2">{{ test_results.models.error }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Service Test Results -->
+            <div class="col-md-4">
+                <div class="card test-card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">⚙️ Service Tests</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if test_results.services.status == 'success' %}
+                            <span class="status-badge status-success">✓ PASSED</span>
+                            <div class="mt-3">
+                                <div class="result-item">
+                                    <strong>Search Service:</strong> 
+                                    <span class="float-right text-success">{{ test_results.services.search_service }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>RAG Service:</strong> 
+                                    <span class="float-right text-success">{{ test_results.services.rag_service }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Indexing Service:</strong> 
+                                    <span class="float-right text-success">{{ test_results.services.indexing_service }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="status-badge status-error">✗ FAILED</span>
+                            <p class="text-danger mt-2">{{ test_results.services.error }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Test Results -->
+            <div class="col-md-4">
+                <div class="card test-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">🔍 Search Tests</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if test_results.search.status == 'success' %}
+                            <span class="status-badge status-success">✓ PASSED</span>
+                            <div class="mt-3">
+                                <div class="result-item">
+                                    <strong>Query:</strong> 
+                                    <span class="float-right">"{{ test_results.search.query }}"</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Results:</strong> 
+                                    <span class="float-right">{{ test_results.search.results_count }}</span>
+                                </div>
+                                <div class="result-item">
+                                    <strong>Time:</strong> 
+                                    <span class="float-right">{{ test_results.search.search_time }}ms</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="status-badge status-error">✗ FAILED</span>
+                            <p class="text-danger mt-2">{{ test_results.search.error }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Interactive Test Section -->
+        <div class="card test-card mt-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">🧪 Interactive Test</h5>
+            </div>
+            <div class="card-body">
+                <form id="searchTestForm">
+                    <div class="form-group">
+                        <label for="testQuery">Test Search Query:</label>
+                        <input type="text" class="form-control" id="testQuery" 
+                               placeholder="Enter a test query..." value="maintenance schedule">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Run Test Search</button>
+                </form>
+                
+                <div id="searchResults" class="mt-3" style="display: none;">
+                    <h6>Test Data (what would be sent to API):</h6>
+                    <pre id="resultsContent" class="bg-light p-3 rounded"></pre>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Command Line Testing -->
+        <div class="card test-card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">💻 Command Line Testing</h5>
+            </div>
+            <div class="card-body">
+                <p>Run these commands in your terminal to test AI functionality:</p>
+                <div class="bg-dark text-white p-3 rounded">
+                    <code># Test all components</code><br>
+                    <code>python manage.py test_ai_functionality --test all</code><br><br>
+                    
+                    <code># Test specific components</code><br>
+                    <code>python manage.py test_ai_functionality --test models</code><br>
+                    <code>python manage.py test_ai_functionality --test services</code><br>
+                    <code>python manage.py test_ai_functionality --test search</code><br>
+                    <code>python manage.py test_ai_functionality --test rag</code><br>
+                    <code>python manage.py test_ai_functionality --test indexing</code>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary -->
+        <div class="card test-card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">📈 Test Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>✅ Completed Features:</h6>
+                        <ul>
+                            <li>txtai engine models created</li>
+                            <li>Service layer implemented</li>
+                            <li>Basic search functionality</li>
+                            <li>RAG service structure</li>
+                            <li>Document indexing system</li>
+                            <li>Caching mechanism</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>🔄 Next Steps:</h6>
+                        <ul>
+                            <li>Connect actual txtai library</li>
+                            <li>Implement vector embeddings</li>
+                            <li>Add real semantic search</li>
+                            <li>Connect to language models</li>
+                            <li>Index existing documents</li>
+                            <li>Build user interfaces</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4 mb-5">
+            <p class="text-muted">AI Integration Test Page - YOUTILITY5</p>
+            <a href="/admin/" class="btn btn-sm btn-outline-secondary">Go to Admin</a>
+            <a href="/" class="btn btn-sm btn-outline-primary">Go to Home</a>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('searchTestForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const query = document.getElementById('testQuery').value;
+        const resultsDiv = document.getElementById('searchResults');
+        const resultsContent = document.getElementById('resultsContent');
+        
+        // Show what would be sent to the API
+        const testData = {
+            query: query,
+            timestamp: new Date().toISOString(),
+            endpoint: '/ai/search/api/search/',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': 'would-include-csrf-token-here'
+            },
+            body: {
+                query: query,
+                limit: 10,
+                search_type: 'SEMANTIC'
+            }
+        };
+        
+        resultsContent.textContent = JSON.stringify(testData, null, 2);
+        resultsDiv.style.display = 'block';
+    });
+    </script>
+</body>
+</html>

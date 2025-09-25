@@ -1,0 +1,629 @@
+{% extends "globals/layout.html" %}
+
+{% block page_title %}Asset Management{% endblock page_title %}
+{% block page_subtitle %}Manage your assets, equipment and inventory{% endblock page_subtitle %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item active">Asset Management</li>
+{% endblock breadcrumb %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+  <a href="/assets/?action=form" class="btn btn-primary">
+    <i class="material-icons me-1">add_box</i>
+    Add Asset
+  </a>
+  <a href="/assets/logs/?template=true" class="btn btn-outline-info">
+    <i class="material-icons me-1">history</i>
+    Asset Logs
+  </a>
+</div>
+{% endblock page_actions %}
+
+{% block stats_cards %}
+<div class="stats-cards">
+  <div class="stats-card primary">
+    <div class="stats-icon">
+      <i class="material-icons">inventory_2</i>
+    </div>
+    <h3 class="stats-number" id="total-assets">-</h3>
+    <p class="stats-label">Total Assets</p>
+  </div>
+  
+  <div class="stats-card success">
+    <div class="stats-icon">
+      <i class="material-icons">check_circle</i>
+    </div>
+    <h3 class="stats-number" id="working-assets">-</h3>
+    <p class="stats-label">Working</p>
+  </div>
+  
+  <div class="stats-card warning">
+    <div class="stats-icon">
+      <i class="material-icons">build</i>
+    </div>
+    <h3 class="stats-number" id="maintenance-assets">-</h3>
+    <p class="stats-label">Maintenance</p>
+  </div>
+  
+  <div class="stats-card danger">
+    <div class="stats-icon">
+      <i class="material-icons">block</i>
+    </div>
+    <h3 class="stats-number" id="scrapped-assets">-</h3>
+    <p class="stats-label">Scrapped</p>
+  </div>
+</div>
+{% endblock stats_cards %}
+
+{% block table_title %}Asset Inventory{% endblock table_title %}
+{% block table_subtitle %}Complete list of all assets and equipment{% endblock table_subtitle %}
+
+{% block table_actions %}
+<div class="btn-group" role="group">
+  <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="tooltip" title="Refresh Data" id="refreshAssets">
+    <i class="material-icons">refresh</i>
+  </button>
+  <div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="material-icons">filter_list</i>
+      Status
+    </button>
+    <ul class="dropdown-menu">
+      <li><a class="dropdown-item" href="#" data-filter="">All Statuses</a></li>
+      <li><a class="dropdown-item" href="#" data-filter="WORKING">Working</a></li>
+      <li><a class="dropdown-item" href="#" data-filter="MAINTENANCE">Maintenance</a></li>
+      <li><a class="dropdown-item" href="#" data-filter="STANDBY">Standby</a></li>
+      <li><a class="dropdown-item" href="#" data-filter="SCRAPPED">Scrapped</a></li>
+    </ul>
+  </div>
+</div>
+{% endblock table_actions %}
+
+{% block table %}
+<div class="table-responsive">
+  <table id="asset_table" class="table table-striped table-hover" style="width:100%">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Parent Asset</th>
+        <th>Location</th>
+        <th>Status</th>
+        <th>Enabled</th>
+        <th>Site</th>
+        <th>Site Code</th>
+        <th>QR Code</th>
+        <th>GPS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Data will be populated by DataTables -->
+    </tbody>
+  </table>
+</div>
+{% endblock table %}
+
+{% block extra_scripts %}
+{{ super() }}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="{{ static('assets/plugins/custom/DataTables/datatables.min.css') }}">
+
+<!-- DataTables JS -->
+<script src="{{ static('assets/plugins/custom/DataTables/datatables.min.js') }}"></script>
+
+<script>
+let params = null;
+let currentFilter = '';
+
+// Check for localStorage filters
+let filters = localStorage.getItem('assetFilters') ? JSON.parse(localStorage.getItem('assetFilters')) : null;
+if (filters && filters.AssetType === 0) {
+  switch(filters.AssetStatus) {
+    case 0:
+      params = {status: 'WORKING'};
+      currentFilter = 'WORKING';
+      break;
+    case 1:
+      params = {status: 'MAINTENANCE'};
+      currentFilter = 'MAINTENANCE';
+      break;
+    case 2:
+      params = {status: 'STANDBY'};
+      currentFilter = 'STANDBY';
+      break;
+    case 3:
+      params = {status: 'SCRAPPED'};
+      currentFilter = 'SCRAPPED';
+      break;
+  }
+  localStorage.removeItem('assetFilters');
+}
+
+$(document).ready(function () {
+  // Initialize DataTable with modern styling
+  const table = $('#asset_table').DataTable({
+    ajax: {
+      url: "/assets/?action=list",
+      data: function(d) {
+        d.params = JSON.stringify(params);
+      },
+      dataSrc: function(json) {
+        updateStatsCards(json.data);
+        return json.data;
+      }
+    },
+    columns: [
+      {data: 'id', title: "ID", visible: false, className: 'noVis'},
+      {data: 'identifier', title: 'Type', visible: false},
+      {data: 'assetcode', title: 'Code', className: "fw-medium"},
+      {data: 'assetname', title: 'Name', className: "fw-semibold"},
+      {data: 'parent__assetname', title: 'Parent Asset', visible: false},
+      {data: 'location__locname', title: 'Location'},
+      {data: 'runningstatus', title: 'Status'},
+      {data: 'enable', title: 'Enabled'},
+      {data: "bu__buname", title: 'Site', visible: false},
+      {data: "bu__bucode", title: 'Site Code', visible: false},
+      {data: null, title: 'Actions', orderable: false, searchable: false},
+      {data: 'gps', visible: false, title: "GPS", searchable: false}
+    ],
+    order: [[2, 'asc']],
+    deferRender: true,
+    lengthMenu: [[25, 50, 100, 250], [25, 50, 100, 250]],
+    pageLength: 50,
+    responsive: {
+      details: {
+        type: 'column',
+        target: 'tr'
+      }
+    },
+    language: {
+      searchPlaceholder: "Search assets...",
+      search: "",
+      lengthMenu: "Show _MENU_ entries",
+      info: "Showing _START_ to _END_ of _TOTAL_ assets",
+      infoEmpty: "No assets found",
+      infoFiltered: "(filtered from _MAX_ total assets)",
+      zeroRecords: "No matching assets found",
+      emptyTable: "No asset data available",
+      loadingRecords: "Loading asset data...",
+      processing: "Processing..."
+    },
+    dom: `<'row mb-3'<'col-sm-6'l><'col-sm-6'f>>
+          <'row'<'col-12'tr>>
+          <'row mt-3'<'col-sm-5'i><'col-sm-7'p>>`,
+    initComplete: function() {
+      const input = $('#asset_table_filter input');
+      input.addClass('form-control');
+      input.attr('placeholder', 'Search assets...');
+      
+      $('#asset_table_length select').addClass('form-select');
+      
+      // Setup search on Enter key
+      input.off().on('keyup', function(e) {
+        if (e.keyCode === 13) {
+          table.search(this.value).draw();
+        }
+      });
+      
+      // Add custom buttons
+      addCustomButtons();
+      
+      // Update filter dropdown to show current selection
+      updateFilterDropdown();
+    },
+    columnDefs: [
+      {
+        targets: [2, 3], 
+        render: function(data, type, row, meta) {
+          const updateUrl = "/assets/";
+          const col = meta.col;
+          const displayData = col === 2 ? row.assetcode : row.assetname;
+          
+          return `<a href="${updateUrl}?id=${row['id']}" class="text-decoration-none">
+                    <div class="d-flex align-items-center">
+                      <div class="asset-icon me-2">
+                        <i class="material-icons text-primary">inventory_2</i>
+                      </div>
+                      <div>
+                        <div class="fw-semibold">${displayData}</div>
+                        ${col === 3 ? `<small class="text-muted">${row.assetcode}</small>` : ''}
+                      </div>
+                    </div>
+                  </a>`;
+        }
+      },
+      {
+        targets: 6, 
+        render: function(data, type, row, meta) {
+          const statusConfig = {
+            'WORKING': { class: 'bg-success', icon: 'check_circle' },
+            'MAINTENANCE': { class: 'bg-warning', icon: 'build' },
+            'STANDBY': { class: 'bg-info', icon: 'pause_circle' },
+            'SCRAPPED': { class: 'bg-danger', icon: 'block' }
+          };
+          
+          const config = statusConfig[data] || { class: 'bg-secondary', icon: 'help' };
+          
+          return `<span class="badge ${config.class}">
+                    <i class="material-icons me-1" style="font-size: 14px;">${config.icon}</i>
+                    ${data}
+                  </span>`;
+        }
+      },
+      {
+        targets: [4, 5], 
+        render: function(data, type, row, meta) {
+          return data || '<span class="text-muted">-</span>';
+        }
+      },
+      {
+        targets: 7, 
+        render: function(data, type, row, meta) {
+          if (data === true) {
+            return '<span class="badge bg-success"><i class="material-icons me-1" style="font-size: 14px;">check_circle</i>Active</span>';
+          } else {
+            return '<span class="badge bg-danger"><i class="material-icons me-1" style="font-size: 14px;">block</i>Inactive</span>';
+          }
+        }
+      },
+      {
+        targets: 10,
+        render: function(data, type, row, meta) {
+          const downloadUrl = `/assets/?action=qrdownload&code=${encodeURIComponent(row['assetcode'])}&name=${row['assetname']}`;
+          const editUrl = `/assets/?id=${row['id']}`;
+          
+          return `<div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="window.open('${downloadUrl}', '_blank')" data-bs-toggle="tooltip" title="Download QR Code">
+                      <i class="material-icons">qr_code</i>
+                    </button>
+                    <a href="${editUrl}" class="btn btn-outline-secondary" data-bs-toggle="tooltip" title="Edit Asset">
+                      <i class="material-icons">edit</i>
+                    </a>
+                    <button type="button" class="btn btn-outline-info" onclick="viewAssetLocation('${row.gps}')" data-bs-toggle="tooltip" title="View Location" ${!row.gps || row.gps === 'NONE' ? 'disabled' : ''}>
+                      <i class="material-icons">location_on</i>
+                    </button>
+                  </div>`;
+        }
+      },
+      {
+        targets: 11,
+        render: function(data, type, row, meta) {
+          if (!data || data === 'NONE') {
+            return '<span class="text-muted">No GPS</span>';
+          }
+          
+          try {
+            const coords = typeof data === 'string' ? JSON.parse(data) : data;
+            if (coords && coords.coordinates) {
+              const lat = coords.coordinates[1];
+              const lng = coords.coordinates[0];
+              return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="text-decoration-none">
+                        <i class="material-icons me-1" style="font-size: 16px;">place</i>
+                        ${lat.toFixed(4)}, ${lng.toFixed(4)}
+                      </a>`;
+            }
+          } catch (e) {
+            console.warn('Invalid GPS data:', data);
+          }
+          
+          return '<span class="text-muted">Invalid GPS</span>';
+        }
+      }
+    ],
+    createdRow: function(row, data, dataIndex) {
+      if (data['enable'] === false) {
+        $(row).addClass('table-secondary opacity-50');
+      }
+      
+      // Add status-based row styling
+      const statusClass = {
+        'WORKING': 'table-success',
+        'MAINTENANCE': 'table-warning',
+        'STANDBY': 'table-info',
+        'SCRAPPED': 'table-danger'
+      };
+      
+      if (statusClass[data.runningstatus]) {
+        $(row).addClass(statusClass[data.runningstatus] + ' bg-opacity-10');
+      }
+    },
+    buttons: [
+      {
+        extend: 'colvis',
+        text: '<i class="material-icons">view_column</i> Columns',
+        className: 'btn btn-outline-primary btn-sm'
+      },
+      {
+        extend: 'pdf',
+        text: '<i class="material-icons">picture_as_pdf</i> PDF',
+        className: 'btn btn-outline-danger btn-sm',
+        title: `Site: {{ request.user.bu.buname if (request.user.is_authenticated and request.user.bu) else 'Unknown' }} - Asset List`,
+        exportOptions: {
+          columns: ':visible:not(.noVis)'
+        },
+        customize: function(doc) {
+          doc.styles.title = {
+            color: '#377dff',
+            fontSize: 16,
+            alignment: 'center',
+            margin: [0, 0, 0, 20]
+          };
+        }
+      },
+      {
+        extend: 'excel',
+        text: '<i class="material-icons">table_chart</i> Excel',
+        className: 'btn btn-outline-success btn-sm',
+        title: `Site: {{ request.user.bu.buname if (request.user.is_authenticated and request.user.bu) else 'Unknown' }} - Asset List`,
+        exportOptions: {
+          columns: ':visible:not(.noVis)'
+        }
+      }
+    ]
+  });
+
+  // Add custom buttons to the page
+  function addCustomButtons() {
+    // Add buttons to DataTable
+    table.buttons().container()
+      .removeClass('btn-group')
+      .addClass('btn-group btn-group-sm')
+      .appendTo('#asset_table_wrapper .col-sm-6:eq(0)');
+  }
+
+  // Update stats cards based on data
+  function updateStatsCards(data) {
+    const totalAssets = data.length;
+    const workingAssets = data.filter(asset => asset.runningstatus === 'WORKING').length;
+    const maintenanceAssets = data.filter(asset => asset.runningstatus === 'MAINTENANCE').length;
+    const scrappedAssets = data.filter(asset => asset.runningstatus === 'SCRAPPED').length;
+
+    // Animate counters
+    animateCounter('#total-assets', totalAssets);
+    animateCounter('#working-assets', workingAssets);
+    animateCounter('#maintenance-assets', maintenanceAssets);
+    animateCounter('#scrapped-assets', scrappedAssets);
+  }
+
+  // Counter animation function
+  function animateCounter(selector, endValue) {
+    let current = 0;
+    const increment = endValue / 30;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= endValue) {
+        current = endValue;
+        clearInterval(timer);
+      }
+      $(selector).text(Math.floor(current));
+    }, 50);
+  }
+
+  // Status filter functionality
+  $(document).on('click', '[data-filter]', function(e) {
+    e.preventDefault();
+    const filterValue = $(this).data('filter');
+    currentFilter = filterValue;
+    
+    if (filterValue === '') {
+      params = null;
+    } else {
+      params = { status: filterValue };
+    }
+    
+    table.ajax.reload();
+    updateFilterDropdown();
+  });
+
+  // Update filter dropdown display
+  function updateFilterDropdown() {
+    const dropdownButton = $('.dropdown-toggle:contains("Status")');
+    if (currentFilter) {
+      dropdownButton.html(`<i class="material-icons">filter_list</i> ${currentFilter}`);
+      dropdownButton.removeClass('btn-outline-primary').addClass('btn-primary');
+    } else {
+      dropdownButton.html(`<i class="material-icons">filter_list</i> Status`);
+      dropdownButton.removeClass('btn-primary').addClass('btn-outline-primary');
+    }
+  }
+
+  // Refresh button functionality
+  $('#refreshAssets').on('click', function() {
+    table.ajax.reload();
+    $(this).find('i').addClass('fa-spin');
+    setTimeout(() => {
+      $(this).find('i').removeClass('fa-spin');
+    }, 1000);
+  });
+
+  // View asset location function
+  window.viewAssetLocation = function(gpsData) {
+    if (!gpsData || gpsData === 'NONE') {
+      showAlert('warning', 'No GPS location available for this asset.');
+      return;
+    }
+    
+    try {
+      const coords = typeof gpsData === 'string' ? JSON.parse(gpsData) : gpsData;
+      if (coords && coords.coordinates) {
+        const lat = coords.coordinates[1];
+        const lng = coords.coordinates[0];
+        const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
+        window.open(googleMapsUrl, '_blank');
+      } else {
+        showAlert('warning', 'Invalid GPS data format.');
+      }
+    } catch (e) {
+      showAlert('error', 'Unable to parse GPS coordinates.');
+    }
+  };
+
+  // Show alert function
+  function showAlert(type, message) {
+    const alertClass = type === 'error' ? 'danger' : type;
+    const iconMap = {
+      'success': 'check_circle',
+      'warning': 'warning',
+      'danger': 'error',
+      'info': 'info'
+    };
+    
+    const alertHtml = `
+      <div class="alert alert-${alertClass} alert-dismissible fade show position-fixed" 
+           style="top: 20px; right: 20px; z-index: 1060; min-width: 300px;" role="alert">
+        <i class="material-icons me-2">${iconMap[alertClass]}</i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    
+    $('body').append(alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      $('.alert').fadeOut(() => {
+        $(this).remove();
+      });
+    }, 5000);
+  }
+
+  // Initialize tooltips
+  $(document).on('mouseenter', '[data-bs-toggle="tooltip"]', function() {
+    $(this).tooltip();
+  });
+
+  // Search enhancement
+  $('#asset_table_filter input').attr('placeholder', 'Search by code, name, location...');
+  
+  // Add keyboard shortcuts
+  $(document).on('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+      switch(e.keyCode) {
+        case 70: // Ctrl+F for search
+          e.preventDefault();
+          $('#asset_table_filter input').focus();
+          break;
+        case 78: // Ctrl+N for new asset
+          e.preventDefault();
+          window.location.href = "/assets/?action=form";
+          break;
+      }
+    }
+  });
+});
+</script>
+
+<style>
+/* Custom styles for asset list */
+.asset-icon i {
+  font-size: 1.25rem;
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.btn-group-sm .btn i {
+  font-size: 14px;
+}
+
+#asset_table_wrapper .dt-buttons {
+  margin-bottom: 0.75rem;
+}
+
+.dataTables_filter input {
+  width: 280px;
+}
+
+/* Status-based row styling */
+.table-success.bg-opacity-10 {
+  background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.table-warning.bg-opacity-10 {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.table-info.bg-opacity-10 {
+  background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+.table-danger.bg-opacity-10 {
+  background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+/* Enhanced table hover effects */
+#asset_table tbody tr:hover {
+  background-color: rgba(55, 125, 255, 0.05);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+/* Badge improvements */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.badge i {
+  margin-right: 4px;
+}
+
+/* Dropdown button active state */
+.dropdown-toggle.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dataTables_filter input {
+    width: 100%;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    border-radius: 0.375rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .page-actions .btn-group {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+}
+
+/* GPS location styling */
+a[href*="google.com/maps"] {
+  color: var(--info-color);
+}
+
+a[href*="google.com/maps"]:hover {
+  color: var(--primary-color);
+}
+
+/* Loading animation for refresh button */
+.fa-spin {
+  animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock extra_scripts %}

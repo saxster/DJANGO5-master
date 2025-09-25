@@ -1,0 +1,281 @@
+{% extends "globals/base_list.html" %}
+
+{% block card_title %}
+ Site Survey List
+{% endblock card_title %}
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Site Survey List
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+{% block extra_css %}
+<style>
+    .dt-buttons {
+        margin-bottom: 10px;
+    }
+    .status-assigned { color: #007bff; }
+    .status-inprogress { color: #fd7e14; }
+    .status-completed { color: #198754; }
+    .status-partiallycompleted { color: #ffc107; }
+    .priority-high { color: #dc3545; font-weight: bold; }
+    .priority-medium { color: #fd7e14; }
+    .priority-low { color: #28a745; }
+</style>
+{% endblock extra_css %}
+
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Site Survey List</a></li>
+{% endblock pagebreadcumb %}
+
+{% block breadcumbactions %}
+<div class="d-flex">
+    <h5 class="me-4"><a id="refresh_list" href="javascript:void(0)" class="border-bottom border-primary border-3" title="Refresh"><i class="fas fa-sync-alt"></i> Refresh</a></h5>
+</div>
+{% endblock breadcumbactions %}
+
+{% block table %}
+<table id="site_survey_table" class="display compact cell-border">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Description</th>
+            <th>Planned Date</th>
+            <th>Expiry Date</th>
+            <th>Assigned To</th>
+            <th>Status</th>
+            <th>Site</th>
+            <th>Asset</th>
+            <th>Priority</th>
+            <th>Attachments</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+</table>
+{% endblock table %}
+
+{% block extra_scripts %}
+<script>
+    var site_survey_table;
+    var current_sel_jobstatus = 'ALL';
+    var current_from_date = '';
+    var current_to_date = '';
+
+    function initStatusFilter(){
+        let html = `
+            <label>Status:&nbsp;</label>
+            <select name="status_filter" id="status_filter" style="width:100%" class="form-select">
+                <option value="ALL">All</option>
+                {% for status_code, status_label in status_options %}
+                <option value="{{ status_code }}">{{ status_label }}</option>
+                {% endfor %}
+            </select>`;
+        return html;
+    }
+
+    function initDateRangeFilter(){
+        let html = `
+            <label>Date Range:&nbsp;</label>
+            <input type="date" id="from_date" class="form-control d-inline-block" style="width: 150px; margin-right: 10px;" placeholder="From Date">
+            <input type="date" id="to_date" class="form-control d-inline-block" style="width: 150px;" placeholder="To Date">
+            <button type="button" id="apply_date_filter" class="btn btn-sm btn-primary ms-2">Apply</button>
+            <button type="button" id="clear_date_filter" class="btn btn-sm btn-secondary ms-1">Clear</button>`;
+        return html;
+    }
+
+    function initSearchFilter(){
+        let html = `
+            <label>Search:&nbsp;</label>
+            <input type="text" id="global_search" class="form-control d-inline-block" style="width: 200px;" placeholder="Search...">`;
+        return html;
+    }
+
+    function loadSiteSurveyTable() {
+        if (site_survey_table) {
+            site_survey_table.destroy();
+        }
+
+        site_survey_table = $('#site_survey_table').DataTable({
+            "processing": true,
+            "serverSide": false,
+            "ajax": {
+                "url": "{{ url('activity:site_survey_list') }}",
+                "type": "GET",
+                "data": function(d) {
+                    d.action = 'site_survey_list';
+                    d.status = current_sel_jobstatus;
+                    d.from_date = current_from_date;
+                    d.to_date = current_to_date;
+                    d.search = $('#global_search').val();
+                }
+            },
+            "columns": [
+                { "data": "id", "width": "5%" },
+                {
+                    "data": "jobdesc",
+                    "width": "20%",
+                    "render": function(data, type, row) {
+                        return `<span title="${data}">${data.length > 50 ? data.substring(0, 50) + '...' : data}</span>`;
+                    }
+                },
+                {
+                    "data": "plandatetime",
+                    "width": "12%",
+                    "render": function(data, type, row) {
+                        return data ? new Date(data).toLocaleString() : '';
+                    }
+                },
+                {
+                    "data": "expirydatetime",
+                    "width": "12%",
+                    "render": function(data, type, row) {
+                        return data ? new Date(data).toLocaleString() : '';
+                    }
+                },
+                { "data": "performedby", "width": "12%" },
+                {
+                    "data": "jobstatus",
+                    "width": "10%",
+                    "render": function(data, type, row) {
+                        let className = '';
+                        switch(data.toLowerCase()) {
+                            case 'assigned': className = 'status-assigned'; break;
+                            case 'in progress': className = 'status-inprogress'; break;
+                            case 'completed': className = 'status-completed'; break;
+                            case 'partially completed': className = 'status-partiallycompleted'; break;
+                        }
+                        return `<span class="${className}">${data}</span>`;
+                    }
+                },
+                { "data": "bu_name", "width": "10%" },
+                { "data": "asset_name", "width": "10%" },
+                {
+                    "data": "priority",
+                    "width": "8%",
+                    "render": function(data, type, row) {
+                        let className = '';
+                        switch(data.toLowerCase()) {
+                            case 'high': className = 'priority-high'; break;
+                            case 'medium': className = 'priority-medium'; break;
+                            case 'low': className = 'priority-low'; break;
+                        }
+                        return `<span class="${className}">${data}</span>`;
+                    }
+                },
+                {
+                    "data": "attachment_count",
+                    "width": "8%",
+                    "render": function(data, type, row) {
+                        return data > 0 ? `<span class="badge bg-info">${data}</span>` : '0';
+                    }
+                },
+                {
+                    "data": null,
+                    "width": "13%",
+                    "orderable": false,
+                    "render": function(data, type, row) {
+                        return `
+                            <button class="btn btn-sm btn-primary me-1 view-detail" data-id="${row.id}" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-survey" data-id="${row.id}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                    }
+                }
+            ],
+            "pageLength": 25,
+            "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
+            "order": [[2, "desc"]], // Order by planned date desc
+            "dom": 'lBfrtip',
+            "buttons": [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ],
+            "language": {
+                "emptyTable": "No site surveys found",
+                "info": "Showing _START_ to _END_ of _TOTAL_ site surveys",
+                "infoEmpty": "Showing 0 to 0 of 0 site surveys",
+                "infoFiltered": "(filtered from _MAX_ total site surveys)"
+            }
+        });
+
+        // Add custom filters
+        $('#site_survey_table_length').after(
+            '<div class="d-flex flex-wrap align-items-center mb-3">' +
+                '<div class="me-3">' + initStatusFilter() + '</div>' +
+                '<div class="me-3">' + initDateRangeFilter() + '</div>' +
+                '<div class="me-3">' + initSearchFilter() + '</div>' +
+            '</div>'
+        );
+
+        // Status filter change event
+        $('#status_filter').on('change', function() {
+            current_sel_jobstatus = this.value;
+            site_survey_table.ajax.reload();
+        });
+
+        // Date filter events
+        $('#apply_date_filter').on('click', function() {
+            current_from_date = $('#from_date').val();
+            current_to_date = $('#to_date').val();
+            site_survey_table.ajax.reload();
+        });
+
+        $('#clear_date_filter').on('click', function() {
+            $('#from_date').val('');
+            $('#to_date').val('');
+            current_from_date = '';
+            current_to_date = '';
+            site_survey_table.ajax.reload();
+        });
+
+        // Global search
+        $('#global_search').on('keyup', function() {
+            site_survey_table.ajax.reload();
+        });
+    }
+
+    // Event handlers
+    $(document).on('click', '.view-detail', function() {
+        const surveyId = $(this).data('id');
+        window.open(`{{ url('activity:site_survey_detail') }}?template=true&id=${surveyId}`, '_blank');
+    });
+
+    $(document).on('click', '.delete-survey', function() {
+        const surveyId = $(this).data('id');
+        if (confirm('Are you sure you want to delete this site survey?')) {
+            $.ajax({
+                url: '{{ url("activity:site_survey_list") }}',
+                type: 'GET',
+                data: {
+                    action: 'delete',
+                    id: surveyId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        site_survey_table.ajax.reload();
+                        alert('Site survey deleted successfully.');
+                    } else {
+                        alert('Error: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('Error deleting site survey.');
+                }
+            });
+        }
+    });
+
+    $('#refresh_list').on('click', function() {
+        site_survey_table.ajax.reload();
+    });
+
+    // Initialize on document ready
+    $(document).ready(function() {
+        loadSiteSurveyTable();
+    });
+</script>
+{% endblock extra_scripts %}
