@@ -4,16 +4,14 @@ GraphQL DataLoaders for N+1 Query Prevention
 Implements batch loading to optimize GraphQL query performance.
 """
 
+import logging
 from promise import Promise
 from promise.dataloader import DataLoader
 from collections import defaultdict
-from typing import List, Dict, Any, Optional
-import logging
-
-from apps.peoples.models import People, Pgroup
-from apps.activity.models.asset_model import Asset
-from apps.activity.models.job_model import Job, Jobneed
 from apps.onboarding.models import BT, Shift
+from apps.peoples.models import People
+from apps.activity.models.asset_model import Asset
+from apps.activity.models.job_model import Job
 
 logger = logging.getLogger('graphql.dataloaders')
 
@@ -47,8 +45,8 @@ class PeopleByIdLoader(DataLoader, BatchLoadMixin):
         # Convert to list of integers
         person_ids = [int(id) for id in person_ids]
         
-        # Fetch all people in one query
-        people = People.objects.in_bulk(person_ids)
+        # Fetch all people in one query with optimizations
+        people = People.objects.select_related('department', 'designation', 'bu', 'client', 'peopletype').in_bulk(person_ids)
         
         # Return in the same order as requested
         return Promise.resolve([
@@ -71,11 +69,11 @@ class PeopleByGroupLoader(DataLoader, BatchLoadMixin):
         # Create a dictionary to store results
         people_by_group = defaultdict(list)
         
-        # Fetch all people-group relationships
+        # Fetch all people-group relationships with optimizations
         from apps.peoples.models import Pgbelonging
         belongings = Pgbelonging.objects.filter(
             group_id__in=group_ids
-        ).select_related('people')
+        ).select_related('people', 'people__department', 'people__bu', 'pgroup')
         
         # Group people by group_id
         for belonging in belongings:
@@ -234,37 +232,95 @@ class CountLoader(DataLoader):
     """
     Generic DataLoader for counting related objects.
     """
-    
+
     def __init__(self, model, field_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model
         self.field_name = field_name
         self.cache = True
-    
+
     def batch_load_fn(self, parent_ids):
         """
         Batch load counts of related objects.
         """
         from django.db.models import Count
-        
+
         parent_ids = [int(id) for id in parent_ids]
-        
+
         # Get counts for all parent IDs
         counts = self.model.objects.filter(
             **{f"{self.field_name}__in": parent_ids}
         ).values(self.field_name).annotate(
             count=Count('id')
         )
-        
+
         # Create lookup dictionary
         count_dict = {
-            item[self.field_name]: item['count'] 
+            item[self.field_name]: item['count']
             for item in counts
         }
-        
+
         # Return counts in requested order
         return Promise.resolve([
             count_dict.get(parent_id, 0) for parent_id in parent_ids
+        ])
+
+
+class JobsByPeopleLoader(DataLoader, BatchLoadMixin):
+    """
+    DataLoader for loading jobs by people ID with optimized relationships.
+    """
+
+    def batch_load_fn(self, people_ids):
+        """
+        Batch load jobs for people with full optimization.
+        """
+        people_ids = [int(id) for id in people_ids]
+
+        jobs_by_people = defaultdict(list)
+
+        # Fetch all jobs related to people with comprehensive select_related
+        jobs = Job.objects.filter(
+            people_id__in=people_ids
+        ).select_related(
+            'jobneed', 'asset', 'asset__location', 'asset__created_by',
+            'people', 'people__shift', 'people__bt'
+        )
+
+        for job in jobs:
+            jobs_by_people[job.people_id].append(job)
+
+        return Promise.resolve([
+            jobs_by_people.get(people_id, []) for people_id in people_ids
+        ])
+
+
+class JobsByJobneedLoader(DataLoader, BatchLoadMixin):
+    """
+    DataLoader for loading jobs by jobneed ID with optimized relationships.
+    """
+
+    def batch_load_fn(self, jobneed_ids):
+        """
+        Batch load jobs for jobneeds with full optimization.
+        """
+        jobneed_ids = [int(id) for id in jobneed_ids]
+
+        jobs_by_jobneed = defaultdict(list)
+
+        # Fetch all jobs related to jobneeds with comprehensive select_related
+        jobs = Job.objects.filter(
+            jobneed_id__in=jobneed_ids
+        ).select_related(
+            'jobneed', 'asset', 'asset__location', 'asset__created_by',
+            'people', 'people__shift', 'people__bt'
+        )
+
+        for job in jobs:
+            jobs_by_jobneed[job.jobneed_id].append(job)
+
+        return Promise.resolve([
+            jobs_by_jobneed.get(jobneed_id, []) for jobneed_id in jobneed_ids
         ])
 
 
@@ -315,16 +371,24 @@ def get_loaders(info):
         'groups_by_person': registry.get_loader(GroupsByPersonLoader),
         'asset_by_id': registry.get_loader(AssetByIdLoader),
         'jobs_by_asset': registry.get_loader(JobsByAssetLoader),
+        'jobs_by_people': registry.get_loader(JobsByPeopleLoader),
+        'jobs_by_jobneed': registry.get_loader(JobsByJobneedLoader),
         'jobneed_by_job': registry.get_loader(JobneedByJobLoader),
         'shift_by_id': registry.get_loader(ShiftByIdLoader),
         'bt_by_id': registry.get_loader(BTByIdLoader),
-        
+
         # Count loaders
         'people_count_by_group': registry.get_loader(
             CountLoader, People, 'groups'
         ),
         'job_count_by_asset': registry.get_loader(
             CountLoader, Job, 'asset'
+        ),
+        'job_count_by_people': registry.get_loader(
+            CountLoader, Job, 'people'
+        ),
+        'job_count_by_jobneed': registry.get_loader(
+            CountLoader, Job, 'jobneed'
         ),
     }
 
@@ -353,6 +417,8 @@ __all__ = [
     'GroupsByPersonLoader',
     'AssetByIdLoader',
     'JobsByAssetLoader',
+    'JobsByPeopleLoader',
+    'JobsByJobneedLoader',
     'JobneedByJobLoader',
     'ShiftByIdLoader',
     'BTByIdLoader',

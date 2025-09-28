@@ -2,9 +2,7 @@
 Tests for Shift model
 """
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from datetime import time, timedelta
 from apps.onboarding.models import Shift
 
 

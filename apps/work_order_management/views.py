@@ -1,7 +1,7 @@
 from django.shortcuts import render
-from django.db import IntegrityError, transaction
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic.base import View
+from django.db import transaction, IntegrityError
 from .forms import VendorForm, WorkOrderForm, WorkPermitForm, ApproverForm, SlaForm
 from .models import Vendor, Wom, WomDetails, Approver
 from apps.peoples.models import People
@@ -14,7 +14,6 @@ from background_tasks.tasks import (
     send_email_notification_for_wp_verifier,
     send_email_notification_for_workpermit_approval,
 )
-from django.http import Http404, QueryDict, response as rp, HttpResponse
 from apps.core import utils
 from apps.peoples import utils as putils
 import psycopg2.errors as pg_errs
@@ -31,6 +30,7 @@ from apps.work_order_management.utils import (
 import logging
 from django.utils import timezone
 from apps.work_order_management import utils as wom_utils
+from apps.core.utils_new.db_utils import get_current_db_name
 
 # from apps.reports.report_designs.workpermit import GeneralWorkPermit
 from apps.reports.report_designs.service_level_agreement import ServiceLevelAgreement
@@ -117,26 +117,27 @@ class VendorView(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError):
             resp = utils.handle_Exception(request)
         return resp
 
     def handle_valid_form(self, form, request, create):
         logger.info("vendor form is valid")
         try:
-            vendor = form.save(commit=False)
-            vendor.gpslocation = form.cleaned_data["gpslocation"]
-            vendor = putils.save_userinfo(
-                vendor, request.user, request.session, create=create
-            )
-            logger.info("question form saved")
-            data = {
-                "msg": f"{vendor.name}",
-                "row": Vendor.objects.values(*self.params["fields"]).get(id=vendor.id),
-            }
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                vendor = form.save(commit=False)
+                vendor.gpslocation = form.cleaned_data["gpslocation"]
+                vendor = putils.save_userinfo(
+                    vendor, request.user, request.session, create=create
+                )
+                logger.info("vendor form saved")
+                data = {
+                    "msg": f"{vendor.name}",
+                    "row": Vendor.objects.values(*self.params["fields"]).get(id=vendor.id),
+                }
+                return rp.JsonResponse(data, status=200)
         except (IntegrityError, pg_errs.UniqueViolation):
-            return utils.handle_intergrity_error("Question")
+            return utils.handle_intergrity_error("Vendor")
 
 
 # Create your views here.
@@ -239,7 +240,7 @@ class WorkOrderView(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError):
             resp = utils.handle_Exception(request)
         return resp
 
@@ -250,26 +251,27 @@ class WorkOrderView(LoginRequiredMixin, View):
             from django.utils import timezone
             from .utils import notify_wo_creation
 
-            workorder = form.save(commit=False)
-            workorder.uuid = request.POST.get("uuid")
-            workorder.other_data["created_at"] = timezone.now().strftime(
-                "%d-%b-%Y %H:%M:%S"
-            )
-            workorder.other_data["token"] = secrets.token_urlsafe(16)
-            workorder = putils.save_userinfo(
-                workorder, request.user, request.session, create=create
-            )
-            if not workorder.ismailsent:
-                workorder = notify_wo_creation(id=workorder.id)
-            workorder.add_history()
-            logger.info("workorder form saved")
-            data = {
-                "msg": f"{workorder.id}",
-                "row": Wom.objects.values(*self.params["fields"]).get(id=workorder.id),
-                "pk": workorder.id,
-            }
+            with transaction.atomic(using=get_current_db_name()):
+                workorder = form.save(commit=False)
+                workorder.uuid = request.POST.get("uuid")
+                workorder.other_data["created_at"] = timezone.now().strftime(
+                    "%d-%b-%Y %H:%M:%S"
+                )
+                workorder.other_data["token"] = secrets.token_urlsafe(16)
+                workorder = putils.save_userinfo(
+                    workorder, request.user, request.session, create=create
+                )
+                if not workorder.ismailsent:
+                    workorder = notify_wo_creation(id=workorder.id)
+                workorder.add_history()
+                logger.info("workorder form saved")
+                data = {
+                    "msg": f"{workorder.id}",
+                    "row": Wom.objects.values(*self.params["fields"]).get(id=workorder.id),
+                    "pk": workorder.id,
+                }
 
-            return rp.JsonResponse(data, status=200)
+                return rp.JsonResponse(data, status=200)
         except (IntegrityError, pg_errs.UniqueViolation):
             return utils.handle_intergrity_error("WorkOrder")
 
@@ -480,7 +482,7 @@ class WorkPermit(LoginRequiredMixin, View):
                     return rp.JsonResponse(data={"data": result["message"]}, status=200)
                 else:
                     return rp.JsonResponse(data={"data": result["message"]}, status=400)
-            except Exception as e:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 return rp.JsonResponse(data={"error": str(e)}, status=400)
 
         if action == "approve_wp" and R.get("womid"):
@@ -746,7 +748,7 @@ class WorkPermit(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             resp = utils.handle_Exception(request)
         return resp
 
@@ -765,56 +767,65 @@ class WorkPermit(LoginRequiredMixin, View):
     def handle_valid_form(self, form, R, request, create=True):
         S = request.session
         permit_name = request.POST["permit_name"]
-        workpermit = form.save(commit=False)
-        workpermit.uuid = request.POST.get("uuid")
-        workpermit = putils.save_userinfo(
-            workpermit, request.user, request.session, create=create
-        )
-        workpermit = save_approvers_injson(workpermit)
-        workpermit = save_verifiers_injson(workpermit)
-        workpermit = save_workpermit_name_injson(workpermit, permit_name)
-        import html
 
-        raw_formdata = request.POST["workpermitdetails"]
-        logger.info(f"Raw form data: {raw_formdata}")
+        try:
+            with transaction.atomic(using=get_current_db_name()):
+                workpermit = form.save(commit=False)
+                workpermit.uuid = request.POST.get("uuid")
+                workpermit = putils.save_userinfo(
+                    workpermit, request.user, request.session, create=create
+                )
+                workpermit = save_approvers_injson(workpermit)
+                workpermit = save_verifiers_injson(workpermit)
+                workpermit = save_workpermit_name_injson(workpermit, permit_name)
+                import html
 
-        # Decode HTML entities in the raw form data before parsing
-        decoded_formdata = html.unescape(raw_formdata)
-        logger.info(f"Decoded form data: {decoded_formdata}")
+                raw_formdata = request.POST["workpermitdetails"]
+                logger.info(f"Raw form data: {raw_formdata}")
 
-        formdata = QueryDict(decoded_formdata).copy()
-        logger.info(f"Parsed form data keys: {list(formdata.keys())}")
+                decoded_formdata = html.unescape(raw_formdata)
+                logger.info(f"Decoded form data: {decoded_formdata}")
 
-        self.create_workpermit_details(request.POST, workpermit, request, formdata)
-        sitename = S.get("sitename", "demo")
-        workpermit_status = "PENDING"
-        report_object = wom_utils.get_report_object(permit_name)
-        client_id = request.session.get("client_id")
-        report = report_object(
-            filename=permit_name,
-            client_id=client_id,
-            returnfile=True,
-            formdata={"id": workpermit.id},
-            request=request,
-        )
-        report_pdf_object = report.execute()
-        vendor_name = Vendor.objects.get(id=workpermit.vendor_id).name
-        pdf_path = wom_utils.save_pdf_to_tmp_location(
-            report_pdf_object,
-            report_name=permit_name,
-            report_number=workpermit.other_data["wp_seqno"],
-        )
-        send_email_notification_for_wp_verifier.delay(
-            workpermit.id,
-            workpermit.verifiers,
-            sitename,
-            workpermit_status,
-            permit_name,
-            vendor_name,
-            client_id,
-            pdf_path,
-        )
-        return rp.JsonResponse({"pk": workpermit.id})
+                formdata = QueryDict(decoded_formdata).copy()
+                logger.info(f"Parsed form data keys: {list(formdata.keys())}")
+
+                self.create_workpermit_details(request.POST, workpermit, request, formdata)
+
+                sitename = S.get("sitename", "demo")
+                workpermit_status = "PENDING"
+                report_object = wom_utils.get_report_object(permit_name)
+                client_id = request.session.get("client_id")
+                report = report_object(
+                    filename=permit_name,
+                    client_id=client_id,
+                    returnfile=True,
+                    formdata={"id": workpermit.id},
+                    request=request,
+                )
+                report_pdf_object = report.execute()
+                vendor_name = Vendor.objects.get(id=workpermit.vendor_id).name
+                pdf_path = wom_utils.save_pdf_to_tmp_location(
+                    report_pdf_object,
+                    report_name=permit_name,
+                    report_number=workpermit.other_data["wp_seqno"],
+                )
+
+                logger.info(f"Work permit created successfully: {workpermit.id}")
+
+                send_email_notification_for_wp_verifier.delay(
+                    workpermit.id,
+                    workpermit.verifiers,
+                    sitename,
+                    workpermit_status,
+                    permit_name,
+                    vendor_name,
+                    client_id,
+                    pdf_path,
+                )
+                return rp.JsonResponse({"pk": workpermit.id})
+
+        except IntegrityError:
+            return utils.handle_intergrity_error("WorkPermit")
 
     def create_child_wom(self, wom, qset_id, rwp_seqno=None):
         qset = QuestionSet.objects.get(id=qset_id)
@@ -868,7 +879,6 @@ class WorkPermit(LoginRequiredMixin, View):
                 qsb_obj = QuestionSetBelonging.objects.filter(id=qsb_id).first()
                 if qsb_obj.answertype in ["CHECKBOX", "DROPDOWN"]:
                     alerts = (qsb_obj.alerton and v in qsb_obj.alerton) or False
-                    # alerts = v in qsb_obj.alerton
                 elif qsb_obj.answertype == "MULTISELECT":
                     selected_values = formdata.getlist(k)
                     if selected_values:
@@ -916,7 +926,7 @@ class WorkPermit(LoginRequiredMixin, View):
                 data = lookup_args | default_data
                 WomDetails.objects.create(**data)
                 logger.info(
-                    f"wom detail is created for the for the child wom: {childwom.description}"
+                    f"wom detail is created for the child wom: {childwom.description}"
                 )
 
     def getReportFormatBasedOnWorkpermitType(self, R):
@@ -1318,27 +1328,28 @@ class ApproverView(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError):
             resp = utils.handle_Exception(request)
         return resp
 
     def handle_valid_form(self, form, request, create):
-        logger.info("vendor form is valid")
+        logger.info("approver form is valid")
         try:
-            approver = form.save(commit=False)
-            approver = putils.save_userinfo(
-                approver, request.user, request.session, create=create
-            )
-            logger.info("approver form saved")
-            data = {
-                "msg": f"{approver.people.peoplename}",
-                "row": Approver.objects.values(*self.params["fields"]).get(
-                    id=approver.id
-                ),
-            }
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                approver = form.save(commit=False)
+                approver = putils.save_userinfo(
+                    approver, request.user, request.session, create=create
+                )
+                logger.info("approver form saved")
+                data = {
+                    "msg": f"{approver.people.peoplename}",
+                    "row": Approver.objects.values(*self.params["fields"]).get(
+                        id=approver.id
+                    ),
+                }
+                return rp.JsonResponse(data, status=200)
         except (IntegrityError, pg_errs.UniqueViolation):
-            return utils.handle_intergrity_error("Question")
+            return utils.handle_intergrity_error("Approver")
 
 
 class SLA_View(LoginRequiredMixin, View):
@@ -1527,6 +1538,6 @@ class SLA_View(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             resp = utils.handle_Exception(request)
         return resp

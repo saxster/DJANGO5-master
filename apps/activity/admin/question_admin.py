@@ -634,8 +634,10 @@ class QuestionAdmin(ImportExportModelAdmin):
     def get_resource_kwargs(self, request, *args, **kwargs):
         return {"request": request}
 
+    list_select_related = ('qset', 'cuser', 'muser', 'tenant')
+
     def get_queryset(self, request):
-        return Question.objects.select_related().all()
+        return Question.objects.select_related('qset', 'cuser', 'muser', 'tenant').all()
 
 # Register only if not already registered
 try:

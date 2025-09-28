@@ -679,7 +679,6 @@ class GeofenceManager(models.Manager):
 
 class ShiftManager(models.Manager):
     use_in_migrations: True
-    from datetime import time
 
     def shift_listview(self, request, related, fields):
         S = request.session

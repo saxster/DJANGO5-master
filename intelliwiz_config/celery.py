@@ -23,6 +23,14 @@ app.conf.timezone = 'UTC'
 app.autodiscover_tasks()
 app.conf.CELERYD_HIJACK_ROOT_LOGGER = False
 
+# Register onboarding schedules
+try:
+    from apps.onboarding_api.celery_schedules import register_onboarding_schedules
+    register_onboarding_schedules(app)
+except ImportError:
+    # Gracefully handle if onboarding_api is not installed
+    pass
+
 
 
 app.conf.beat_schedule = {

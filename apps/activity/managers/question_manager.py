@@ -400,6 +400,15 @@ class QuestionManager(models.Manager):
         )
         return qset or self.none()
 
+    def optimized_filter_for_display(self, question_id, fields):
+        """
+        Get question data for display with optimized FK loading.
+        Prevents N+1 when accessing related fields like unit__tacode.
+        """
+        return self.select_related('unit', 'category').filter(
+            id=question_id
+        ).values(*fields).first()
+
 
 class QsetBlngManager(models.Manager):
     use_in_migrations = True

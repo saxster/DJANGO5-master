@@ -9,7 +9,6 @@ from django.db.models import Count, Q, Avg
 from django.core.cache import cache
 from django.utils import timezone
 from datetime import datetime, timedelta
-import json
 
 from apps.core.url_router import URLRouter
 from apps.core.models import PageView, NavigationClick, ErrorLog

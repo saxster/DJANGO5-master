@@ -1,0 +1,248 @@
+<!-- Test Preview Partial -->
+<div class="test-preview-container">
+    <!-- Test Metadata -->
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h6 class="mb-1">{{ gap.title }}</h6>
+            <div class="small text-muted">{{ gap.get_coverage_type_display }} • {{ framework|title }}</div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="copyTestCode()">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button class="btn btn-success" onclick="downloadTestFile()">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Information -->
+    <div class="alert alert-light border">
+        <div class="row small">
+            <div class="col-md-6">
+                <strong>File:</strong> test_{{ gap.coverage_type }}_{{ gap.id|slice:":8" }}{{ file_extension }}<br>
+                <strong>Framework:</strong> {{ framework|title }}
+            </div>
+            <div class="col-md-6">
+                <strong>Lines:</strong> {{ test_code|linebreaksbr|length }}<br>
+                <strong>Generated:</strong> {{ gap.updated_at|timesince }} ago
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Preview -->
+    <div class="code-preview-wrapper">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">Generated Test Code</h6>
+            <div class="small text-muted">
+                {{ framework|title }} Test
+            </div>
+        </div>
+
+        <div class="code-container bg-light border rounded">
+            <pre class="mb-0 p-3" style="max-height: 400px; overflow-y: auto;"><code id="preview-test-code" class="language-{% if 'swift' in framework %}swift{% else %}kotlin{% endif %}">{{ test_code }}</code></pre>
+        </div>
+    </div>
+
+    <!-- Test Features Analysis -->
+    <div class="mt-4">
+        <h6 class="mb-3">Generated Test Features</h6>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="feature-list">
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Test Setup:</strong> Automated initialization
+                    </div>
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Assertions:</strong> Coverage-specific validations
+                    </div>
+                    {% if gap.coverage_type == 'visual' %}
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Visual Testing:</strong> Screenshot comparison
+                    </div>
+                    {% elif gap.coverage_type == 'performance' %}
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Performance:</strong> Timing and benchmarks
+                    </div>
+                    {% elif gap.coverage_type == 'functional' %}
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Functional:</strong> End-to-end workflow
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="feature-list">
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Error Handling:</strong> Exception scenarios
+                    </div>
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Cleanup:</strong> Resource management
+                    </div>
+                    {% if gap.affected_platforms|length > 1 %}
+                    <div class="feature-item mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>Multi-platform:</strong> {{ gap.affected_platforms|join:", " }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Implementation Guidance -->
+    <div class="mt-4 p-3 bg-info bg-opacity-10 border border-info rounded">
+        <h6 class="text-info mb-2">
+            <i class="fas fa-lightbulb"></i> Implementation Tips
+        </h6>
+        <div class="small">
+            <ul class="mb-0">
+                <li>Review and customize assertions based on your specific requirements</li>
+                <li>Integrate with your existing test suite and CI/CD pipeline</li>
+                <li>Consider adding additional edge cases specific to your application</li>
+                {% if gap.similar_gaps_count > 0 %}
+                <li>This test pattern can be adapted for {{ gap.similar_gaps_count }} similar gap{{ gap.similar_gaps_count|pluralize }}</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="mt-4 text-center">
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary" onclick="regenerateTest()">
+                <i class="fas fa-redo"></i> Regenerate
+            </button>
+            <button class="btn btn-outline-primary" onclick="copyTestCode()">
+                <i class="fas fa-copy"></i> Copy Code
+            </button>
+            <button class="btn btn-success" onclick="saveAndImplement()">
+                <i class="fas fa-save"></i> Save & Implement
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.test-preview-container {
+    animation: fadeInUp 0.3s ease-in-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.code-container {
+    position: relative;
+}
+
+.feature-item {
+    font-size: 0.9rem;
+}
+
+.feature-list {
+    padding-left: 0;
+}
+</style>
+
+<script>
+function copyTestCode() {
+    const codeElement = document.getElementById('preview-test-code');
+    if (!codeElement) {
+        showToast('No code to copy', 'warning');
+        return;
+    }
+
+    const code = codeElement.textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        showToast('Test code copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy to clipboard', 'danger');
+    });
+}
+
+function downloadTestFile() {
+    const gapId = '{{ gap.id }}';
+    const framework = '{{ framework }}';
+
+    window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/download-generated-test/?framework=${framework}`;
+    showToast('Test file downloaded!', 'success');
+}
+
+function regenerateTest() {
+    const gapId = '{{ gap.id }}';
+    window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/generate-test/`;
+}
+
+function saveAndImplement() {
+    const gapId = '{{ gap.id }}';
+
+    fetch(`/streamlab/ai/coverage-gaps/${gapId}/update-status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: 'status=test_generated&notes=Test code generated and ready for implementation'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Test saved for implementation!', 'success');
+            setTimeout(() => {
+                window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/`;
+            }, 1500);
+        } else {
+            showToast(data.error || 'Failed to save test', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while saving', 'danger');
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+
+// Initialize syntax highlighting when the element is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Prism !== 'undefined') {
+        Prism.highlightAll();
+    }
+});
+</script>

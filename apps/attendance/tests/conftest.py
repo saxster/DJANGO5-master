@@ -6,7 +6,6 @@ from django.test import RequestFactory
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.utils import timezone
 from django.contrib.gis.geos import Point, LineString
-from datetime import datetime, timedelta, date
 from apps.attendance.models import PeopleEventlog, Tracking
 from apps.peoples.models import People
 from apps.onboarding.models import Bt, TypeAssist, Shift, GeofenceMaster

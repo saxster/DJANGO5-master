@@ -6,11 +6,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.contrib.auth import authenticate
-from django.utils import timezone
 from datetime import date, timedelta
-from apps.peoples.models import People, Pgroup, Pgbelonging, Capability
-from apps.onboarding.models import Bt, TypeAssist
-from apps.activity.models import Location
 
 
 @pytest.mark.django_db

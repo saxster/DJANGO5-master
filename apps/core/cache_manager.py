@@ -3,16 +3,11 @@ Cache management for Django ORM queries.
 Implements intelligent caching for hierarchical data and frequently accessed queries.
 """
 
-from typing import Any, Dict, List, Optional, Union, Callable
-from datetime import datetime, timedelta
 import json
 import hashlib
 from functools import wraps
 
 from django.core.cache import cache
-from django.conf import settings
-from django.db.models import Model, QuerySet
-from django.utils import timezone
 
 
 class CacheManager:

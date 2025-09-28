@@ -3,8 +3,6 @@ Simplified Tests for Reports Forms
 """
 import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime, time
-from apps.reports.forms import GeneratePDFForm, EmailReportForm
 from apps.reports.models import GeneratePDF
 
 

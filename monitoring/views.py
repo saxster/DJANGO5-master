@@ -1,5 +1,19 @@
 """
 Monitoring views for health checks and metrics endpoints.
+
+CSRF Protection Compliance (Rule #3):
+All monitoring endpoints use require_monitoring_api_key decorator for authentication
+instead of CSRF tokens. This is the documented alternative protection method for
+read-only endpoints accessed by external monitoring systems (Prometheus, Grafana, etc.).
+
+Security:
+- API key authentication required for all endpoints
+- Rate limiting per API key (1000 requests/hour)
+- IP whitelisting support (optional)
+- Audit logging for all accesses
+- All endpoints are GET-only and read-only (no state modification)
+
+Compliance: Rule #3 Alternative Protection - API key auth for monitoring systems
 """
 
 import json
@@ -8,22 +22,26 @@ from datetime import datetime, timedelta
 
 from django.http import JsonResponse, HttpResponse
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db import connection
 from django.core.cache import cache
 from django.conf import settings
 
+from apps.core.decorators import require_monitoring_api_key
 from .django_monitoring import (
-    metrics_collector, 
-    HealthCheckView, 
+    metrics_collector,
+    HealthCheckView,
     export_metrics_prometheus
 )
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(require_monitoring_api_key, name='dispatch')
 class HealthCheckEndpoint(View):
-    """Health check endpoint for load balancers and monitoring systems"""
+    """
+    Health check endpoint for load balancers and monitoring systems.
+
+    Security: Requires monitoring API key authentication (Rule #3 alternative protection).
+    """
     
     def get(self, request):
         """Perform health checks and return status"""
@@ -58,9 +76,13 @@ class HealthCheckEndpoint(View):
         return JsonResponse(health_status, status=status_code)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(require_monitoring_api_key, name='dispatch')
 class MetricsEndpoint(View):
-    """Metrics endpoint for monitoring systems"""
+    """
+    Metrics endpoint for monitoring systems.
+
+    Security: Requires monitoring API key authentication (Rule #3 alternative protection).
+    """
     
     def get(self, request):
         """Return metrics in requested format"""
@@ -106,9 +128,13 @@ class MetricsEndpoint(View):
             return {}
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(require_monitoring_api_key, name='dispatch')
 class QueryPerformanceView(View):
-    """Detailed query performance metrics"""
+    """
+    Detailed query performance metrics.
+
+    Security: Requires monitoring API key authentication (Rule #3 alternative protection).
+    """
     
     def get(self, request):
         """Return query performance data"""
@@ -179,9 +205,13 @@ class QueryPerformanceView(View):
         return recommendations
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(require_monitoring_api_key, name='dispatch')
 class CachePerformanceView(View):
-    """Cache performance metrics"""
+    """
+    Cache performance metrics.
+
+    Security: Requires monitoring API key authentication (Rule #3 alternative protection).
+    """
     
     def get(self, request):
         """Return cache performance data"""
@@ -235,9 +265,13 @@ class CachePerformanceView(View):
         return recommendations
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(require_monitoring_api_key, name='dispatch')
 class AlertsView(View):
-    """Current alerts and threshold violations"""
+    """
+    Current alerts and threshold violations.
+
+    Security: Requires monitoring API key authentication (Rule #3 alternative protection).
+    """
     
     def get(self, request):
         """Return current alerts"""
@@ -265,9 +299,13 @@ class AlertsView(View):
         return JsonResponse(response_data)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(require_monitoring_api_key, name='dispatch')
 class DashboardDataView(View):
-    """Aggregated data for monitoring dashboards"""
+    """
+    Aggregated data for monitoring dashboards.
+
+    Security: Requires monitoring API key authentication (Rule #3 alternative protection).
+    """
     
     def get(self, request):
         """Return dashboard data"""

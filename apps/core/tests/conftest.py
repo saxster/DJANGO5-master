@@ -3,12 +3,9 @@ Test configuration and fixtures for core app
 """
 import pytest
 import time
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 from django.test import RequestFactory, Client
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.utils import timezone
 from apps.onboarding.models import Bt
 
 User = get_user_model()

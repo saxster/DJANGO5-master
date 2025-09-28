@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.gis.db.models import LineStringField, PointField, PolygonField
 from django.utils.translation import gettext_lazy as _
-from .managers import PELManager
+from apps.attendance.managers import PELManager
 from django.contrib.postgres.fields import ArrayField
 from apps.core.utils_new.error_handling import safe_property
 

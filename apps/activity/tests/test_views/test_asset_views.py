@@ -1,12 +1,8 @@
 import pytest
-import json
-from django.test import RequestFactory
 from django.contrib.auth.models import AnonymousUser
-from django.urls import reverse
 from django.contrib.sessions.middleware import SessionMiddleware
 from apps.activity.views.asset_views import AssetView
 from apps.activity.models.asset_model import Asset
-from apps.peoples.models import People
 from apps.onboarding.models import Bt
 
 

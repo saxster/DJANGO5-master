@@ -1,16 +1,8 @@
 import pytest
-import json
-from django.test import RequestFactory, Client
-from django.contrib.sessions.middleware import SessionMiddleware
-from django.contrib.auth.models import AnonymousUser
-from django.urls import reverse
 from django.utils import timezone
-from datetime import datetime, timedelta
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job
 from apps.activity.models.location_model import Location
-from apps.activity.models.question_model import Question
-from apps.peoples.models import People
 from apps.onboarding.models import Bt
 
 

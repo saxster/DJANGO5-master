@@ -4,10 +4,8 @@ Supports Apache, Nginx, and other common web server formats
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.conf import settings
 import os
 import json
-from typing import Dict, List
 
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.middleware.navigation_tracking import NavigationTrackingMiddleware
@@ -95,7 +93,7 @@ class Command(BaseCommand):
                 deprecated_usage = analytics.get('deprecated_usage', {})
                 for url_data in deprecated_usage.get('deprecated_url_usage', []):
                     usage_data[url_data['old_url']] = url_data['usage_count']
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stdout.write(
                     self.style.WARNING(f'Could not load usage data: {e}')
                 )

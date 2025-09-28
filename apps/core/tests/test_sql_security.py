@@ -8,7 +8,6 @@ and that the new security utilities work correctly.
 import pytest
 from django.test import TestCase
 from django.core.exceptions import ValidationError
-from django.db import connection
 from unittest.mock import patch, MagicMock
 
 from apps.core.utils_new.sql_security import SecureSQL, secure_raw_sql

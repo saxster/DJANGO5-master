@@ -23,6 +23,44 @@ error_logger = logging.getLogger("error_logger")
 debug_logger = logging.getLogger("debug_logger")
 
 
+__all__ = [
+    'save_common_stuff',
+    'create_tenant_with_alias',
+    'check_nones',
+    'get_record_from_input',
+    'dictfetchall',
+    'namedtuplefetchall',
+    'runrawsql',
+    'get_action_on_ticket_states',
+    'store_ticket_history',
+    'get_or_create_none_people',
+    'get_none_typeassist',
+    'get_or_create_none_pgroup',
+    'get_or_create_none_location',
+    'hostname_from_request',
+    'get_tenants_map',
+    'tenant_db_from_request',
+    'get_or_create_none_cap',
+    'get_or_create_none_bv',
+    'get_or_create_none_typeassist',
+    'get_or_create_none_tenant',
+    'get_or_create_none_jobneed',
+    'get_or_create_none_wom',
+    'get_or_create_none_qset',
+    'get_or_create_none_question',
+    'get_or_create_none_qsetblng',
+    'get_or_create_none_asset',
+    'get_or_create_none_ticket',
+    'get_or_create_none_job',
+    'get_or_create_none_gf',
+    'create_none_entries',
+    'create_super_admin',
+    'THREAD_LOCAL',
+    'get_current_db_name',
+    'set_db_for_router',
+]
+
+
 def save_common_stuff(request, instance, is_superuser=False, ctzoffset=-1):
     from django.utils import timezone
 
@@ -112,7 +150,6 @@ def runrawsql(
         runrawsql("SELECT * FROM users WHERE id = %(user_id)s", {"user_id": user_id})
     """
     from django.db import connections
-    from psycopg2.sql import SQL
 
     cursor = connections[db].cursor()
 
@@ -524,7 +561,7 @@ def create_none_entries(self):
         get_or_create_none_gf()
         get_or_create_none_wom()
         logger.debug("NONE entries are successfully inserted...")
-    except Exception as e:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
         error_logger.error("create none entries", exc_info=True)
         raise
 

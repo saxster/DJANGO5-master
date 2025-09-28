@@ -5,13 +5,11 @@ Extends existing attendance models with AI capabilities
 
 from django.db import models
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from apps.peoples.models import BaseModel
 from apps.tenants.models import TenantAwareModel
-from datetime import timedelta
 
 
 class AIAttendanceRecord(BaseModel, TenantAwareModel):

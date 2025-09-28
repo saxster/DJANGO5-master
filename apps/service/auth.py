@@ -44,7 +44,6 @@ def check_user_site(user):
 
 def auth_check(info, input, returnUser, uclientip=None):
     from django.contrib.auth import authenticate
-    from graphql.error import GraphQLError
 
     try:
         log.info(f"Authenticating {input.loginid} for {input.clientcode}")
@@ -93,7 +92,6 @@ def authenticate_user(input, request, msg, returnUser):
     password = input.password
     deviceid = input.deviceid
 
-    from graphql import GraphQLError
     from django.contrib.auth import authenticate
 
     user = authenticate(request, username=loginid, password=password)

@@ -1,16 +1,19 @@
 import logging
 from datetime import datetime
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError
-from django.db.models import Q
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.db import IntegrityError, transaction
 from django.http import QueryDict
 from django.http import response as rp
 from django.shortcuts import render
 from django.views.generic.base import View
+from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import ActivityManagementException, DatabaseException, SystemException
 from apps.activity.forms.job_form import PPMForm, PPMFormJobneed, AdhocTaskForm
 from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
 import apps.peoples.utils as putils
 from apps.core import utils
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger("django")
 
@@ -69,7 +72,7 @@ class PPMView(LoginRequiredMixin, View):
 
         # return form with instance
         elif R.get("action") == "getppm_jobneedform" and R.get("id", None):
-            obj = Jobneed.objects.get(id=R["id"])
+            obj = Jobneed.objects.optimized_get_with_relations(R["id"])
             cxt = {
                 "ppmjobneedform": P["form_jn"](instance=obj, request=request),
                 "msg": "PPM Jobneed Update Requested",
@@ -78,7 +81,7 @@ class PPMView(LoginRequiredMixin, View):
 
         # return form with instance
         elif R.get("action") == "getppm_jobneedform" and R.get("id", None):
-            obj = Jobneed.objects.get(id=R["id"])
+            obj = Jobneed.objects.optimized_get_with_relations(R["id"])
             cxt = {
                 "ppmjobneedform": P["form_jn"](instance=obj, request=request),
                 "msg": "PPM Jobneed Update Requested",
@@ -114,8 +117,26 @@ class PPMView(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.P, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            logger.warning(f"PPMView form validation error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM form validation failed")
+            resp = rp.JsonResponse({"error": "Invalid form data", "details": str(e)}, status=400)
+        except ActivityManagementException as e:
+            logger.error(f"PPMView activity management error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM activity management error")
+            resp = rp.JsonResponse({"error": "Activity management error", "correlation_id": error_data.get("correlation_id")}, status=422)
+        except PermissionDenied as e:
+            logger.warning(f"PPMView permission denied: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM access denied")
+            resp = rp.JsonResponse({"error": "Access denied", "correlation_id": error_data.get("correlation_id")}, status=403)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"PPMView data processing error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM data processing error")
+            resp = rp.JsonResponse({"error": "Invalid data format", "correlation_id": error_data.get("correlation_id")}, status=400)
+        except SystemException as e:
+            logger.error(f"PPMView system error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM system error")
+            resp = rp.JsonResponse({"error": "System error occurred", "correlation_id": error_data.get("correlation_id")}, status=500)
         return resp
 
     @staticmethod
@@ -124,13 +145,14 @@ class PPMView(LoginRequiredMixin, View):
         from apps.core.utils import handle_intergrity_error
 
         try:
-            ppm = form.save()
-            ppm = putils.save_userinfo(
-                ppm, request.user, request.session, create=create
-            )
-            logger.info("ppm form saved")
-            data = {"pk": ppm.id}
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                ppm = form.save()
+                ppm = putils.save_userinfo(
+                    ppm, request.user, request.session, create=create
+                )
+                logger.info("ppm form saved")
+                data = {"pk": ppm.id}
+                return rp.JsonResponse(data, status=200)
         except IntegrityError:
             return handle_intergrity_error("PPM")
 
@@ -188,7 +210,7 @@ class PPMJobneedView(LoginRequiredMixin, View):
 
         # return form with instance
         elif R.get("action") == "getppm_jobneedform" and R.get("id", None):
-            obj = Jobneed.objects.get(id=R["id"])
+            obj = Jobneed.objects.optimized_get_with_relations(R["id"])
             cxt = {
                 "ppmjobneedform": P["form"](instance=obj, request=request),
                 "msg": "PPM Jobneed Update Requested",
@@ -211,25 +233,44 @@ class PPMJobneedView(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.P, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            logger.warning(f"PPMJobneedView form validation error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM Jobneed form validation failed")
+            resp = rp.JsonResponse({"error": "Invalid form data", "details": str(e)}, status=400)
+        except ActivityManagementException as e:
+            logger.error(f"PPMJobneedView activity management error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM Jobneed activity management error")
+            resp = rp.JsonResponse({"error": "Activity management error", "correlation_id": error_data.get("correlation_id")}, status=422)
+        except PermissionDenied as e:
+            logger.warning(f"PPMJobneedView permission denied: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM Jobneed access denied")
+            resp = rp.JsonResponse({"error": "Access denied", "correlation_id": error_data.get("correlation_id")}, status=403)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"PPMJobneedView data processing error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM Jobneed data processing error")
+            resp = rp.JsonResponse({"error": "Invalid data format", "correlation_id": error_data.get("correlation_id")}, status=400)
+        except SystemException as e:
+            logger.error(f"PPMJobneedView system error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "PPM Jobneed system error")
+            resp = rp.JsonResponse({"error": "System error occurred", "correlation_id": error_data.get("correlation_id")}, status=500)
         return resp
 
     @staticmethod
     def handle_valid_form(form, request, create):
-        logger.info("ppm form is valid")
+        logger.info("ppm jobneed form is valid")
         from apps.core.utils import handle_intergrity_error
 
         try:
-            ppm = form.save()
-            ppm = putils.save_userinfo(
-                ppm, request.user, request.session, create=create
-            )
-            logger.info("ppm form saved")
-            data = {"pk": ppm.id}
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                ppm = form.save()
+                ppm = putils.save_userinfo(
+                    ppm, request.user, request.session, create=create
+                )
+                logger.info("ppm jobneed form saved")
+                data = {"pk": ppm.id}
+                return rp.JsonResponse(data, status=200)
         except IntegrityError:
-            return handle_intergrity_error("PPM")
+            return handle_intergrity_error("PPMJobneed")
 
 
 def testCalendar(request):

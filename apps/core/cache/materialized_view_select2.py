@@ -4,9 +4,7 @@ Integrates materialized views for ultra-fast dropdown access
 """
 
 import json
-import time
 import logging
-from typing import Any, Dict, List, Optional, Union
 
 from django.core.cache.backends.base import BaseCache
 from django.db import connection, transaction
@@ -96,7 +94,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                         # Always release the lock
                         cursor.execute("SELECT pg_advisory_unlock(12345678);")
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error creating Select2 cache table: {e}")
             # Don't mark as initialized if there was an error
 
@@ -213,7 +211,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                 if result and result[0]:
                     return result[0]
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Materialized view query error for {mv_name}: {e}")
 
         return None
@@ -259,7 +257,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                 if result:
                     return json.loads(result[0])
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache get error for key {key}: {e}")
 
         return default
@@ -302,7 +300,7 @@ class MaterializedViewSelect2Cache(BaseCache):
 
             return True
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache set error for key {key}: {e}")
             return False
 
@@ -323,7 +321,7 @@ class MaterializedViewSelect2Cache(BaseCache):
 
                 return cursor.rowcount > 0
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache delete error for key {key}: {e}")
             return False
 
@@ -342,7 +340,7 @@ class MaterializedViewSelect2Cache(BaseCache):
 
             return True
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache clear error: {e}")
             return False
 
@@ -397,7 +395,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                         )
                         results[original_key] = json.loads(cache_data)
 
-            except Exception as e:
+            except (TypeError, ValueError, json.JSONDecodeError) as e:
                 logger.error(f"Select2 cache get_many error: {e}")
 
         return results
@@ -442,7 +440,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                     batch_data,
                 )
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache set_many error: {e}")
             failed_keys = list(data.keys())
 
@@ -469,7 +467,7 @@ class MaterializedViewSelect2Cache(BaseCache):
 
             return True
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache delete_many error: {e}")
             return False
 
@@ -517,7 +515,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                 stats["materialized_views"] = mv_stats
                 return stats
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache stats error: {e}")
 
         return {
@@ -548,6 +546,6 @@ class MaterializedViewSelect2Cache(BaseCache):
 
                 return deleted_count
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache cleanup error: {e}")
             return 0

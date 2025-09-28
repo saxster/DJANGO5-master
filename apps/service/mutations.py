@@ -1,5 +1,4 @@
 import graphene
-from graphql_jwt.shortcuts import (
     get_token,
     get_payload,
     get_refresh_token,
@@ -9,16 +8,17 @@ from graphql_jwt.decorators import login_required
 from graphene.types.generic import GenericScalar
 from graphql import GraphQLError
 from apps.service import utils as sutils
-from apps.core import utils as cutils, exceptions as excp
 from apps.peoples.models import People
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FileUploadParser, JSONParser
 from rest_framework.response import Response
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError, IntegrityError
 from . import types as ty
 from graphene_file_upload.scalars import Upload
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from pprint import pformat
 import zipfile
 from apps.core.utils_new.db_utils import get_current_db_name
@@ -26,7 +26,6 @@ import json
 from .utils import get_json_data
 from logging import getLogger
 import traceback as tb
-from graphql_jwt import ObtainJSONWebToken
 from apps.core import exceptions as excp
 
 log = getLogger("message_q")
@@ -72,9 +71,9 @@ class LoginUser(graphene.Mutation):
             log.warning(exc, exc_info=True)
             raise GraphQLError(exc) from exc
 
-        except Exception as exc:
-            err(exc, exc_info=True)
-            raise GraphQLError(exc) from exc
+        except (DatabaseError, ValueError, TypeError) as exc:
+            err(f"Authentication system error: {exc}", exc_info=True)
+            raise GraphQLError(f"Authentication system error") from exc
 
     @classmethod
     def returnUser(cls, user, request):
@@ -236,6 +235,7 @@ class TaskTourUpdate(graphene.Mutation):
         records = graphene.List(graphene.String, required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, records):
         log.warning("\n\ntasktour-update mutations start [+]")
         db = get_current_db_name()
@@ -258,6 +258,7 @@ class InsertRecord(graphene.Mutation):
         records = graphene.List(graphene.String, required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, records):
         log.warning("\n\ninsert-record mutations start [+]")
         db = get_current_db_name()
@@ -277,6 +278,7 @@ class ReportMutation(graphene.Mutation):
         records = graphene.List(graphene.String, required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, records):
         log.warning("\n\nreport mutations start [+]")
         db = get_current_db_name()
@@ -287,6 +289,16 @@ class ReportMutation(graphene.Mutation):
 
 
 class UploadAttMutaion(graphene.Mutation):
+    """
+    DEPRECATED: Legacy Base64 upload mutation with security vulnerabilities.
+
+    Security Issues:
+    - Uses vulnerable perform_uploadattachment function
+    - No file validation or content checks
+    - Inefficient Base64 encoding
+
+    Use SecureFileUploadMutation instead.
+    """
     output = graphene.Field(ty.ServiceOutputType)
 
     class Arguments:
@@ -295,58 +307,416 @@ class UploadAttMutaion(graphene.Mutation):
         record = graphene.String(required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, bytes, record, biodata):
-        log.info("\n\nupload-attachment mutations start [+]")
+        """
+        DEPRECATED ENDPOINT - MIGRATION REQUIRED
+
+        This mutation has been deprecated due to security vulnerabilities.
+        Please migrate to SecureFileUploadMutation.
+
+        The function still works but logs deprecation warnings and applies
+        additional security validation via the refactored perform_uploadattachment.
+        """
+        log.warning(
+            "DEPRECATED API USAGE: UploadAttMutaion called",
+            extra={
+                'user_id': info.context.user.id if hasattr(info.context, 'user') else None,
+                'migration_required': True,
+                'recommended_mutation': 'SecureFileUploadMutation'
+            }
+        )
+
         try:
             import base64
             recordcount = 0
-            log.info(f"type of bytes (Base64 string): {type(bytes)}")
-            
-            # Decode Base64 string to bytes
+
             file_bytes = base64.b64decode(bytes)
-            log.info(f"Decoded file size: {len(file_bytes)} bytes")
-            
+
             record = json.loads(record)
             biodata = json.loads(biodata)
-            log.info(f"Record: {record}")
-            log.info(f"Bio Data: {biodata}")
+
+            log.info(
+                "Legacy upload processing with enhanced security",
+                extra={
+                    'file_size': len(file_bytes),
+                    'ownername': biodata.get('ownername'),
+                    'user_id': info.context.user.id if hasattr(info.context, 'user') else None
+                }
+            )
+
             o = sutils.perform_uploadattachment(file_bytes, record, biodata)
             recordcount += o.recordcount
-            log.info(f"Response: {o.recordcount}, {o.msg}, {o.rc}, {o.traceback}")
+
+            if o.rc != 0:
+                log.error(
+                    "Legacy upload failed",
+                    extra={'msg': o.msg, 'traceback': o.traceback}
+                )
+
             o.recordcount = recordcount
             return UploadAttMutaion(output=o)
-        except Exception as e:
-            err(f"Exception: {e}", exc_info=True)
+
+        except (IOError, OSError, ValidationError) as e:
+            err(f"File operation error in deprecated upload: {e}", exc_info=True)
             return UploadAttMutaion(
                 output=ty.ServiceOutputType(
-                    rc=1, recordcount=0, msg="Upload Failed", traceback=tb.format_exc()
+                    rc=1, recordcount=0, msg=f"Upload Failed: {e}", traceback=str(e)
+                )
+            )
+        except DatabaseError as e:
+            err(f"Database error during deprecated upload: {e}", exc_info=True)
+            return UploadAttMutaion(
+                output=ty.ServiceOutputType(
+                    rc=1, recordcount=0, msg="Database error during upload", traceback=str(e)
                 )
             )
 
 
-class UploadFile(APIView):
-    parser_classes = [MultiPartParser, FileUploadParser, JSONParser]
-    permission_classes = [AllowAny]
+class SecureFileUploadMutation(graphene.Mutation):
+    """
+    Secure GraphQL file upload mutation with comprehensive validation.
 
-    def post(self, request, format=None):
-        file = request.data.get("file")
-        biodata = json.loads(request.data.get("biodata"))
-        record = json.loads(request.data.get("record"))
+    Features:
+    - Requires authentication via login_required decorator
+    - Uses SecureFileUploadService for file validation
+    - Prevents path traversal attacks
+    - Content type and size validation
+    - Comprehensive error handling and logging
+    """
+    output = graphene.Field(ty.ServiceOutputType)
 
-        if file and biodata and record:
-            output = sutils.perform_uploadattachment(file, record, biodata)
-        else:
-            return Response(data={"rc": 1, "msg": "No data", "recordcount": 0})
-        resp = Response(
-            data={
-                "rc": output.rc,
-                "msg": output.msg,
-                "recordcount": output.recordcount,
-                "traceback": output.traceback,
+    class Arguments:
+        file = Upload(required=True, description="File to upload")
+        biodata = graphene.String(required=True, description="JSON string with upload metadata")
+        record = graphene.String(required=True, description="JSON string with record data")
+        file_type = graphene.String(
+            required=False,
+            description="File type: image, pdf, document. Auto-detected if not provided."
+        )
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, file, biodata, record, file_type=None):
+        from apps.core.services.secure_file_upload_service import SecureFileUploadService
+        from django.core.exceptions import ValidationError
+
+        correlation_id = f"gql_upload_{info.context.user.id}_{int(timezone.now().timestamp())}"
+
+        log.info(
+            "Starting secure GraphQL file upload",
+            extra={
+                'user_id': info.context.user.id,
+                'correlation_id': correlation_id,
+                'filename': getattr(file, 'name', 'unknown')
             }
         )
-        log.warning(f"Response:{pformat(resp.data)}")
-        return resp
+
+        try:
+            # Validate user is authenticated
+            if not info.context.user.is_authenticated:
+                log.warning("Unauthenticated file upload attempt", extra={'correlation_id': correlation_id})
+                return SecureFileUploadMutation(
+                    output=ty.ServiceOutputType(
+                        rc=1, recordcount=0, msg="Authentication required", traceback="Unauthenticated"
+                    )
+                )
+
+            # Safely parse JSON inputs
+            try:
+                biodata_dict = json.loads(biodata)
+                record_dict = json.loads(record)
+            except (json.JSONDecodeError, TypeError) as e:
+                log.error("Invalid JSON in GraphQL upload", extra={'correlation_id': correlation_id}, exc_info=True)
+                return SecureFileUploadMutation(
+                    output=ty.ServiceOutputType(
+                        rc=1, recordcount=0, msg="Invalid JSON format", traceback=str(e)
+                    )
+                )
+
+            # Validate required fields
+            required_biodata_fields = ['filename', 'people_id', 'owner', 'ownername']
+            for field in required_biodata_fields:
+                if field not in biodata_dict:
+                    return SecureFileUploadMutation(
+                        output=ty.ServiceOutputType(
+                            rc=1, recordcount=0, msg=f"Missing required field: {field}", traceback="Validation"
+                        )
+                    )
+
+            # Auto-detect file type if not provided
+            if not file_type:
+                filename = biodata_dict['filename']
+                file_extension = filename.lower().split('.')[-1] if '.' in filename else ''
+
+                if file_extension in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                    file_type = 'image'
+                elif file_extension in ['pdf']:
+                    file_type = 'pdf'
+                elif file_extension in ['doc', 'docx', 'txt', 'rtf']:
+                    file_type = 'document'
+                else:
+                    return SecureFileUploadMutation(
+                        output=ty.ServiceOutputType(
+                            rc=1, recordcount=0, msg=f"Unsupported file type: .{file_extension}", traceback="Validation"
+                        )
+                    )
+
+            # Create secure upload context
+            upload_context = {
+                'people_id': biodata_dict['people_id'],
+                'folder_type': biodata_dict.get('path', 'general').strip('/'),
+                'user_id': info.context.user.id,
+                'correlation_id': correlation_id
+            }
+
+            # Use AdvancedFileValidationService for enhanced security validation and malware scanning
+            try:
+                from apps.core.services.advanced_file_validation_service import AdvancedFileValidationService
+
+                file_metadata = AdvancedFileValidationService.validate_and_scan_file(
+                    uploaded_file=file,
+                    file_type=file_type,
+                    upload_context=upload_context
+                )
+
+                # Save file securely
+                secure_file_path = SecureFileUploadService.save_uploaded_file(file, file_metadata)
+
+                # Update record with secure information
+                record_dict['localfilepath'] = secure_file_path
+                record_dict['filename'] = file_metadata['filename']
+                record_dict['file_size'] = file_metadata['file_size']
+                record_dict['correlation_id'] = file_metadata['correlation_id']
+
+                # Process using secure attachment function
+                output = sutils.perform_secure_uploadattachment(
+                    file_path=secure_file_path,
+                    record=record_dict,
+                    biodata=biodata_dict,
+                    file_metadata=file_metadata
+                )
+
+                log.info(
+                    "Secure GraphQL file upload completed successfully",
+                    extra={
+                        'user_id': info.context.user.id,
+                        'correlation_id': correlation_id,
+                        'file_size': file_metadata['file_size'],
+                        'file_type': file_type,
+                        'rc': output.rc
+                    }
+                )
+
+                # Return response with correlation ID
+                output.traceback = output.traceback if output.rc != 0 else None
+                return SecureFileUploadMutation(output=output)
+
+            except ValidationError as e:
+                log.warning(
+                    "GraphQL file upload validation failed",
+                    extra={
+                        'user_id': info.context.user.id,
+                        'correlation_id': correlation_id,
+                        'error': str(e)
+                    }
+                )
+                return SecureFileUploadMutation(
+                    output=ty.ServiceOutputType(
+                        rc=1, recordcount=0, msg=f"File validation failed: {str(e)}", traceback=str(e)
+                    )
+                )
+
+        except (IOError, OSError, DatabaseError) as e:
+            log.error(
+                "File or database error in secure GraphQL file upload",
+                extra={
+                    'user_id': info.context.user.id if hasattr(info.context, 'user') else None,
+                    'correlation_id': correlation_id,
+                    'error': str(e)
+                },
+                exc_info=True
+            )
+            return SecureFileUploadMutation(
+                output=ty.ServiceOutputType(
+                    rc=1, recordcount=0, msg="File or database operation error", traceback=f"Error ID: {correlation_id}"
+                )
+            )
+
+
+class SecureUploadFile(APIView):
+    """
+    Secure file upload endpoint with comprehensive validation.
+
+    Replaces the vulnerable UploadFile class that had:
+    - AllowAny permission (SECURITY RISK)
+    - Path traversal vulnerability
+    - No file validation
+
+    This implementation:
+    - Requires authentication
+    - Uses SecureFileUploadService for validation
+    - Prevents path traversal attacks
+    - Validates file content and types
+    """
+    parser_classes = [MultiPartParser, FileUploadParser, JSONParser]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, format=None):
+        from apps.core.services.secure_file_upload_service import SecureFileUploadService
+        from django.core.exceptions import ValidationError
+        from rest_framework.permissions import IsAuthenticated
+
+        try:
+            # Extract and validate input data
+            file = request.data.get("file")
+            if not file:
+                return Response(
+                    data={"rc": 1, "msg": "No file provided", "recordcount": 0},
+                    status=400
+                )
+
+            # Safely parse JSON data with validation
+            try:
+                biodata_raw = request.data.get("biodata")
+                record_raw = request.data.get("record")
+
+                if not biodata_raw or not record_raw:
+                    return Response(
+                        data={"rc": 1, "msg": "Missing biodata or record", "recordcount": 0},
+                        status=400
+                    )
+
+                biodata = json.loads(biodata_raw)
+                record = json.loads(record_raw)
+
+            except (json.JSONDecodeError, TypeError) as e:
+                log.error("Invalid JSON in upload request", exc_info=True)
+                return Response(
+                    data={"rc": 1, "msg": "Invalid JSON format", "recordcount": 0},
+                    status=400
+                )
+
+            # Validate required fields in biodata
+            required_fields = ['filename', 'people_id', 'owner', 'ownername']
+            for field in required_fields:
+                if field not in biodata:
+                    return Response(
+                        data={"rc": 1, "msg": f"Missing required field: {field}", "recordcount": 0},
+                        status=400
+                    )
+
+            # Determine file type based on filename
+            filename = biodata['filename']
+            file_extension = filename.lower().split('.')[-1] if '.' in filename else ''
+
+            if file_extension in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                file_type = 'image'
+            elif file_extension in ['pdf']:
+                file_type = 'pdf'
+            elif file_extension in ['doc', 'docx', 'txt', 'rtf']:
+                file_type = 'document'
+            else:
+                return Response(
+                    data={"rc": 1, "msg": f"Unsupported file type: .{file_extension}", "recordcount": 0},
+                    status=400
+                )
+
+            # Create secure upload context
+            upload_context = {
+                'people_id': biodata['people_id'],
+                'folder_type': biodata.get('path', 'general').strip('/'),  # Sanitize path
+                'user_id': request.user.id,
+                'correlation_id': f"upload_{request.user.id}_{int(timezone.now().timestamp())}"
+            }
+
+            # Use AdvancedFileValidationService for enhanced security validation and malware scanning
+            try:
+                from apps.core.services.advanced_file_validation_service import AdvancedFileValidationService
+
+                file_metadata = AdvancedFileValidationService.validate_and_scan_file(
+                    uploaded_file=file,
+                    file_type=file_type,
+                    upload_context=upload_context
+                )
+
+                # Save file securely
+                secure_file_path = SecureFileUploadService.save_uploaded_file(file, file_metadata)
+
+                # Update record with secure path information
+                record['localfilepath'] = secure_file_path
+                record['filename'] = file_metadata['filename']
+                record['file_size'] = file_metadata['file_size']
+                record['correlation_id'] = file_metadata['correlation_id']
+
+                # Use secure attachment processing
+                output = sutils.perform_secure_uploadattachment(
+                    file_path=secure_file_path,
+                    record=record,
+                    biodata=biodata,
+                    file_metadata=file_metadata
+                )
+
+                log.info(
+                    "Secure file upload completed successfully",
+                    extra={
+                        'user_id': request.user.id,
+                        'correlation_id': file_metadata['correlation_id'],
+                        'file_size': file_metadata['file_size'],
+                        'file_type': file_type
+                    }
+                )
+
+            except ValidationError as e:
+                log.warning(
+                    "File upload validation failed",
+                    extra={
+                        'user_id': request.user.id,
+                        'error': str(e),
+                        'filename': biodata.get('filename', 'unknown')
+                    }
+                )
+                return Response(
+                    data={"rc": 1, "msg": f"File validation failed: {str(e)}", "recordcount": 0},
+                    status=400
+                )
+
+            resp = Response(
+                data={
+                    "rc": output.rc,
+                    "msg": output.msg,
+                    "recordcount": output.recordcount,
+                    "file_id": file_metadata['correlation_id'],
+                    "traceback": output.traceback if output.rc != 0 else None,
+                }
+            )
+
+            log.info(f"Secure upload response: rc={output.rc}, msg={output.msg}")
+            return resp
+
+        except (IOError, OSError, DatabaseError, ValidationError) as e:
+            correlation_id = f"error_{request.user.id if request.user.is_authenticated else 'anon'}_{int(timezone.now().timestamp())}"
+
+            log.error(
+                "File or database error in secure file upload",
+                extra={
+                    'user_id': request.user.id if request.user.is_authenticated else None,
+                    'correlation_id': correlation_id,
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                },
+                exc_info=True
+            )
+
+            return Response(
+                data={
+                    "rc": 1,
+                    "msg": "Internal server error during file upload",
+                    "recordcount": 0,
+                    "error_id": correlation_id
+                },
+                status=500
+            )
 
 
 class AdhocMutation(graphene.Mutation):
@@ -356,6 +726,7 @@ class AdhocMutation(graphene.Mutation):
         records = graphene.List(graphene.String, required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, records):
         db = get_current_db_name()
         o = sutils.perform_adhocmutation(records=records, db=db)
@@ -371,6 +742,7 @@ class InsertJsonMutation(graphene.Mutation):
         tablename = graphene.String(required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, jsondata, tablename):
         # sourcery skip: instance-method-first-arg-name
         from .utils import insertrecord_json
@@ -386,9 +758,12 @@ class InsertJsonMutation(graphene.Mutation):
             tlog.info(f"=================== jsondata:============= \n{jsondata}")
             uuids = insertrecord_json(jsondata, tablename)
             recordcount, msg, rc = 1, "Inserted Successfully", 0
-        except Exception as e:
-            err("something went wrong", exc_info=True)
-            msg, rc, traceback = "Insert Failed!", 1, tb.format_exc()
+        except (DatabaseError, IntegrityError) as e:
+            err(f"Database error during insert: {e}", exc_info=True)
+            msg, rc, traceback = f"Insert Failed: Database error", 1, str(e)
+        except (ValidationError, ValueError, TypeError) as e:
+            err(f"Data validation error during insert: {e}", exc_info=True)
+            msg, rc, traceback = f"Validation Failed: {type(e).__name__}", 1, str(e)
 
         o = ty.ServiceOutputType(
             rc=rc, recordcount=recordcount, msg=msg, traceback=traceback, uuids=uuids
@@ -408,6 +783,7 @@ class SyncMutation(graphene.Mutation):
         totalrecords = graphene.Int(required=True)
 
     @classmethod
+    @login_required
     def mutate(cls, root, info, file, filesize, totalrecords):
         # sourcery skip: avoid-builtin-shadow
         from apps.core.utils import get_current_db_name
@@ -448,8 +824,14 @@ class SyncMutation(graphene.Mutation):
                         f"totalrecords is not matched with th actual totalrecords after extraction... {totalrecords} x {TR}"
                     )
                     raise excp.TotalRecordsMisMatchError
-        except Exception:
-            err("something went wrong!", exc_info=True)
+        except (excp.FileSizeMisMatchError, excp.TotalRecordsMisMatchError) as e:
+            err(f"Data integrity error in sync: {e}", exc_info=True)
+            return SyncMutation(rc=1)
+        except (DatabaseError, ValidationError) as e:
+            err(f"Database or validation error in sync: {e}", exc_info=True)
+            return SyncMutation(rc=1)
+        except (ValueError, TypeError, zipfile.BadZipFile) as e:
+            err(f"Data or file format error in sync: {e}", exc_info=True)
             return SyncMutation(rc=1)
         else:
             return SyncMutation(rc=0)

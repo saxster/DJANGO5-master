@@ -2,11 +2,7 @@
 Management command to test and demonstrate the enhanced GeofenceService
 """
 
-from django.core.management.base import BaseCommand, CommandError
-from django.contrib.gis.geos import Point, Polygon
 from apps.core.services.geofence_service import geofence_service
-from apps.onboarding.models import GeofenceMaster, Bt
-import time
 import logging
 
 logger = logging.getLogger(__name__)

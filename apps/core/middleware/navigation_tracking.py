@@ -5,12 +5,8 @@ Tracks user navigation patterns for information architecture optimization
 from django.utils.deprecation import MiddlewareMixin
 from django.core.cache import cache
 from django.utils import timezone
-from django.db import connection
-from typing import Dict, Optional
 import logging
-import json
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +95,7 @@ class NavigationTrackingMiddleware(MiddlewareMixin):
             # Track user flow
             self._track_user_flow(session_key, request.path)
             
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error tracking navigation: {e}")
     
     def _track_404(self, path: str, user=None):
@@ -143,7 +139,7 @@ class NavigationTrackingMiddleware(MiddlewareMixin):
                     'access_count': models.F('access_count') + 1
                 }
             )
-        except Exception:
+        except (ConnectionError, ValueError):
             # Fallback to cache if models not available
             pass
     

@@ -1,5 +1,4 @@
 import graphene
-from apps.peoples.models import People, Pgbelonging, Pgroup
 from apps.attendance.models import PeopleEventlog
 from apps.activity.models.attachment_model import Attachment
 from apps.service.pydantic_schemas.people_schema import (
@@ -10,17 +9,14 @@ from apps.service.pydantic_schemas.people_schema import (
     AttachmentSchema,
 )
 from graphql import GraphQLError
-from apps.service.inputs.people_input import (
-    PeopleModifiedAfterFilterInput,
-    PeopleEventLogPunchInsFilterInput,
-    PgbelongingModifiedAfterFilterInput,
-    PeopleEventLogHistoryFilterInput,
-    AttachmentFilterInput,
-)
 from apps.service.types import SelectOutputType
 from apps.core import utils
 from logging import getLogger
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
+from apps.peoples.models import People, Pgbelonging
+from apps.service.decorators import require_authentication, require_tenant_access
 
 log = getLogger("mobile_service_log")
 
@@ -64,6 +60,7 @@ class PeopleQueries(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_peoplemodifiedafter(self, info, mdtz, ctzoffset, buid):
         try:
             log.info("request for get_peoplemodifiedafter")
@@ -84,13 +81,17 @@ class PeopleQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_peoplemodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_peoplemodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_peoplemodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except People.DoesNotExist as e:
+            log.warning(f"People not found in get_peoplemodifiedafter", exc_info=True)
+            raise GraphQLError("Requested people data not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_peoplemodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_people_event_log_punch_ins(self, info, datefor, buid, peopleid):
         try:
             log.info("request for get_people_event_log_punch_ins")
@@ -110,13 +111,17 @@ class PeopleQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_people_event_log_punch_ins failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_people_event_log_punch_ins failed: {str(e)}")
+            log.error("Validation error in get_people_event_log_punch_ins", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except PeopleEventlog.DoesNotExist:
+            log.warning("Event log not found in get_people_event_log_punch_ins")
+            raise GraphQLError("Event log not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_people_event_log_punch_ins", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_pgbelongingmodifiedafter(self, info, mdtz, ctzoffset, buid, peopleid):
         try:
             log.info("request for get_pgbelongingmodifiedafter")
@@ -138,13 +143,17 @@ class PeopleQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_pgbelongingmodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_pgbelongingmodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_pgbelongingmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Pgbelonging.DoesNotExist:
+            log.warning("Pgbelonging not found in get_pgbelongingmodifiedafter")
+            raise GraphQLError("Business unit membership not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_pgbelongingmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_peopleeventlog_history(self, info, mdtz, ctzoffset, peopleid, buid, clientid, peventtypeid):
         try:
             log.info("request for get_peopleeventlog_history")
@@ -173,13 +182,17 @@ class PeopleQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_peopleeventlog_history failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_peopleeventlog_history failed: {str(e)}")
+            log.error("Validation error in get_peopleeventlog_history", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except PeopleEventlog.DoesNotExist:
+            log.warning("Event log history not found")
+            raise GraphQLError("Event log history not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_peopleeventlog_history", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_authentication
     def resolve_get_attachments(self, info, owner):
         try:
             log.info("request for get_attachments")
@@ -193,8 +206,11 @@ class PeopleQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_attachments failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_attachments failed: {str(e)}")
+            log.error("Validation error in get_attachments", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Attachment.DoesNotExist:
+            log.warning("Attachments not found")
+            raise GraphQLError("Attachments not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_attachments", exc_info=True)
+            raise GraphQLError("Database operation failed")

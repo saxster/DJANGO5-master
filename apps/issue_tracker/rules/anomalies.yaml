@@ -1,0 +1,499 @@
+# Anomaly Detection Rules for Stream Testbench
+# Define patterns and fix suggestions for common issues
+
+rules:
+  # WebSocket Performance Issues
+  - name: slow_websocket_sync
+    description: "WebSocket sync operations taking too long"
+    condition:
+      latency_ms:
+        gt: 100
+      endpoint:
+        contains: ["websocket", "ws/"]
+    severity: warning
+    anomaly_type: latency_spike
+    tags: ["websocket", "performance", "sync"]
+    fixes:
+      - type: index
+        suggestion: "Add database index on frequently queried sync fields"
+        confidence: 0.75
+      - type: caching
+        suggestion: "Implement caching for sync metadata"
+        confidence: 0.65
+
+  # MQTT Message Delays
+  - name: mqtt_message_delay
+    description: "MQTT messages experiencing high latency"
+    condition:
+      latency_ms:
+        gt: 50
+      endpoint:
+        contains: ["mqtt", "graphql/mutation"]
+    severity: warning
+    anomaly_type: message_delay
+    tags: ["mqtt", "messaging", "latency"]
+    fixes:
+      - type: connection_pool
+        suggestion: "Optimize MQTT broker connection pooling"
+        confidence: 0.80
+      - type: rate_limit
+        suggestion: "Implement message batching to reduce overhead"
+        confidence: 0.70
+
+  # Schema Validation Errors
+  - name: schema_validation_failure
+    description: "Payload schema validation failures"
+    condition:
+      outcome:
+        eq: error
+      error_message:
+        contains: ["schema", "validation", "serializer", "field required"]
+    severity: error
+    anomaly_type: schema_drift
+    tags: ["schema", "validation", "compatibility"]
+    fixes:
+      - type: serializer
+        suggestion: "Update serializer to handle schema changes gracefully"
+        confidence: 0.90
+      - type: schema_update
+        suggestion: "Implement backward-compatible schema versioning"
+        confidence: 0.85
+
+  # Database Connection Issues
+  - name: database_connection_timeout
+    description: "Database connections timing out"
+    condition:
+      outcome:
+        eq: timeout
+      latency_ms:
+        gt: 5000
+      error_message:
+        contains: ["connection", "timeout", "database"]
+    severity: error
+    anomaly_type: connection_timeout
+    tags: ["database", "connection", "timeout"]
+    fixes:
+      - type: connection_pool
+        suggestion: "Increase database connection pool size and timeout settings"
+        confidence: 0.85
+      - type: index
+        suggestion: "Add indexes to reduce query execution time"
+        confidence: 0.75
+
+  # Rate Limiting Issues
+  - name: rate_limit_exceeded
+    description: "API rate limits being exceeded"
+    condition:
+      http_status_code:
+        eq: 429
+      outcome:
+        eq: error
+    severity: warning
+    anomaly_type: rate_limit
+    tags: ["rate_limiting", "throttling", "api"]
+    fixes:
+      - type: rate_limit
+        suggestion: "Implement exponential backoff retry strategy"
+        confidence: 0.90
+      - type: caching
+        suggestion: "Add response caching to reduce API calls"
+        confidence: 0.70
+
+  # Memory Pressure Issues
+  - name: memory_pressure
+    description: "Out of memory or memory pressure errors"
+    condition:
+      outcome:
+        eq: error
+      error_message:
+        contains: ["memory", "oom", "out of memory", "heap"]
+    severity: critical
+    anomaly_type: resource_exhaustion
+    tags: ["memory", "resources", "performance"]
+    fixes:
+      - type: memory
+        suggestion: "Optimize memory usage and implement memory-efficient algorithms"
+        confidence: 0.80
+      - type: infrastructure
+        suggestion: "Scale up memory resources or implement horizontal scaling"
+        confidence: 0.85
+
+  # Authentication/Authorization Failures
+  - name: auth_failures
+    description: "Authentication or authorization failures"
+    condition:
+      http_status_code:
+        eq: [401, 403]
+      outcome:
+        eq: error
+    severity: error
+    anomaly_type: auth_failure
+    tags: ["authentication", "security", "access"]
+    fixes:
+      - type: configuration
+        suggestion: "Review authentication middleware and token validation"
+        confidence: 0.75
+      - type: code_fix
+        suggestion: "Implement proper error handling for auth failures"
+        confidence: 0.70
+
+  # JSON Parsing Errors
+  - name: json_parse_error
+    description: "JSON parsing or serialization errors"
+    condition:
+      outcome:
+        eq: error
+      error_message:
+        contains: ["json", "parse", "decode", "serializ"]
+    severity: error
+    anomaly_type: data_format_error
+    tags: ["json", "parsing", "serialization"]
+    fixes:
+      - type: code_fix
+        suggestion: "Add robust JSON validation and error handling"
+        confidence: 0.85
+      - type: serializer
+        suggestion: "Implement graceful handling of malformed JSON"
+        confidence: 0.80
+
+  # Voice Recognition Issues
+  - name: voice_processing_error
+    description: "Voice recognition or processing failures"
+    condition:
+      endpoint:
+        contains: ["voice", "audio"]
+      outcome:
+        eq: error
+    severity: error
+    anomaly_type: voice_processing_error
+    tags: ["voice", "audio", "biometric"]
+    fixes:
+      - type: configuration
+        suggestion: "Optimize voice recognition model parameters"
+        confidence: 0.70
+      - type: infrastructure
+        suggestion: "Scale voice processing resources"
+        confidence: 0.75
+
+  # Face Recognition Issues
+  - name: face_recognition_error
+    description: "Face recognition or biometric processing failures"
+    condition:
+      endpoint:
+        contains: ["face", "biometric", "recognition"]
+      outcome:
+        eq: error
+    severity: error
+    anomaly_type: biometric_processing_error
+    tags: ["face_recognition", "biometric", "image"]
+    fixes:
+      - type: configuration
+        suggestion: "Adjust face recognition confidence thresholds"
+        confidence: 0.75
+      - type: code_fix
+        suggestion: "Improve image preprocessing and error handling"
+        confidence: 0.70
+
+  # High Error Rate Pattern
+  - name: high_error_rate
+    description: "Sustained high error rate indicating systemic issues"
+    condition:
+      # This would be calculated based on recent error rates
+      # For now, using individual error outcomes
+      outcome:
+        eq: error
+    severity: critical
+    anomaly_type: high_error_rate
+    tags: ["error_rate", "reliability", "systemic"]
+    requires_manual_review: true
+    fixes:
+      - type: infrastructure
+        suggestion: "Investigate system health and resource utilization"
+        confidence: 0.60
+      - type: configuration
+        suggestion: "Review and adjust system configuration parameters"
+        confidence: 0.55
+
+  # === KOTLIN/ANDROID SPECIFIC ANOMALIES ===
+
+  # Compose UI Performance Issues
+  - name: compose_jank_detected
+    description: "Jetpack Compose UI jank or frame drops detected"
+    condition:
+      endpoint:
+        contains: ["mobile", "android"]
+      payload_sanitized:
+        contains: ["jank_percent", "frame_drops"]
+      latency_ms:
+        gt: 16  # 60fps threshold
+    severity: warning
+    anomaly_type: compose_performance
+    tags: ["kotlin", "compose", "ui_performance", "jank"]
+    fixes:
+      - type: compose_optimization
+        suggestion: "Optimize Compose recomposition by using remember, LaunchedEffect, and avoiding nested scrollables"
+        confidence: 0.85
+      - type: ui_thread_optimization
+        suggestion: "Move heavy operations off the main UI thread using Dispatchers.Default or Dispatchers.IO"
+        confidence: 0.80
+
+  - name: severe_compose_jank
+    description: "Severe Jetpack Compose jank indicating major UI performance issues"
+    condition:
+      endpoint:
+        contains: ["mobile", "android"]
+      latency_ms:
+        gt: 100  # Severe jank threshold
+    severity: error
+    anomaly_type: severe_ui_jank
+    tags: ["kotlin", "compose", "critical_performance"]
+    fixes:
+      - type: performance_profiling
+        suggestion: "Use Android GPU Inspector and Compose Layout Inspector to identify performance bottlenecks"
+        confidence: 0.90
+      - type: lazy_loading
+        suggestion: "Implement LazyColumn/LazyRow and virtualization for large datasets"
+        confidence: 0.85
+
+  # ANR (Application Not Responding)
+  - name: anr_detected
+    description: "Application Not Responding (ANR) detected"
+    condition:
+      error_message:
+        contains: ["ANR", "not responding", "application hang"]
+      outcome:
+        eq: error
+    severity: critical
+    anomaly_type: anr_detected
+    tags: ["kotlin", "anr", "main_thread", "critical"]
+    fixes:
+      - type: async_processing
+        suggestion: "Move long-running operations to background threads using Kotlin Coroutines and appropriate Dispatchers"
+        confidence: 0.95
+      - type: main_thread_optimization
+        suggestion: "Reduce main thread workload and implement proper threading for I/O operations"
+        confidence: 0.90
+
+  # StrictMode Violations
+  - name: strict_mode_violation
+    description: "Android StrictMode violation detected"
+    condition:
+      error_message:
+        contains: ["StrictMode", "policy violation", "main thread"]
+      outcome:
+        eq: error
+    severity: warning
+    anomaly_type: strict_mode_violation
+    tags: ["kotlin", "strict_mode", "threading", "policy"]
+    fixes:
+      - type: threading_fix
+        suggestion: "Use Dispatchers.IO for network/disk operations and Dispatchers.Default for CPU-intensive tasks"
+        confidence: 0.90
+      - type: async_pattern
+        suggestion: "Implement proper async patterns with suspend functions and coroutine scopes"
+        confidence: 0.85
+
+  # Memory Pressure (Android specific)
+  - name: android_memory_pressure
+    description: "Android memory pressure or OutOfMemoryError detected"
+    condition:
+      error_message:
+        contains: ["OutOfMemoryError", "memory pressure", "GC overhead", "bitmap"]
+      outcome:
+        eq: error
+    severity: error
+    anomaly_type: android_memory_pressure
+    tags: ["kotlin", "memory", "bitmap", "oom"]
+    fixes:
+      - type: memory_optimization
+        suggestion: "Optimize bitmap loading with appropriate sampling and use Coil or Glide for image loading"
+        confidence: 0.85
+      - type: lifecycle_management
+        suggestion: "Implement proper lifecycle-aware components and release resources in onDestroy/onCleared"
+        confidence: 0.80
+
+  # Kotlin Coroutine Issues
+  - name: coroutine_leak
+    description: "Kotlin Coroutines leak or improper cancellation detected"
+    condition:
+      error_message:
+        contains: ["coroutine", "cancelled", "leak", "CancellationException"]
+      outcome:
+        eq: error
+    severity: warning
+    anomaly_type: coroutine_leak
+    tags: ["kotlin", "coroutines", "memory_leak", "cancellation"]
+    fixes:
+      - type: coroutine_management
+        suggestion: "Use viewModelScope, lifecycleScope, or proper CoroutineScope management with cancellation"
+        confidence: 0.90
+      - type: structured_concurrency
+        suggestion: "Implement structured concurrency patterns and proper exception handling in coroutines"
+        confidence: 0.85
+
+  # Network on Main Thread
+  - name: network_on_main_thread
+    description: "Network operation performed on Android main/UI thread"
+    condition:
+      error_message:
+        contains: ["NetworkOnMainThreadException", "main thread network"]
+      outcome:
+        eq: error
+    severity: error
+    anomaly_type: network_main_thread
+    tags: ["kotlin", "networking", "main_thread", "violation"]
+    fixes:
+      - type: async_networking
+        suggestion: "Use Retrofit with Coroutines or OkHttp with appropriate threading for network calls"
+        confidence: 0.95
+      - type: repository_pattern
+        suggestion: "Implement Repository pattern with proper Dispatcher usage for data layer operations"
+        confidence: 0.85
+
+  # Database Operations on Main Thread
+  - name: database_main_thread
+    description: "Database operation performed on main thread"
+    condition:
+      error_message:
+        contains: ["database", "main thread", "Room", "SQLite"]
+      latency_ms:
+        gt: 50
+    severity: warning
+    anomaly_type: database_main_thread
+    tags: ["kotlin", "room", "database", "main_thread"]
+    fixes:
+      - type: room_coroutines
+        suggestion: "Use Room with Coroutines and @Dao suspend functions for database operations"
+        confidence: 0.90
+      - type: background_processing
+        suggestion: "Move database queries to background thread using Dispatchers.IO"
+        confidence: 0.85
+
+  # Cold App Startup Performance
+  - name: slow_cold_startup
+    description: "Slow Android app cold startup time detected"
+    condition:
+      endpoint:
+        contains: ["startup", "cold_start", "application"]
+      latency_ms:
+        gt: 2000  # 2 seconds for cold start is slow
+    severity: warning
+    anomaly_type: slow_cold_startup
+    tags: ["kotlin", "startup", "performance", "cold_start"]
+    fixes:
+      - type: startup_optimization
+        suggestion: "Optimize Application onCreate, reduce initialization work, and use lazy loading"
+        confidence: 0.85
+      - type: dependency_injection
+        suggestion: "Use Hilt/Dagger for dependency injection to reduce startup overhead"
+        confidence: 0.80
+
+  # Fragment/Activity Lifecycle Issues
+  - name: lifecycle_violation
+    description: "Android lifecycle violation or improper state handling"
+    condition:
+      error_message:
+        contains: ["IllegalStateException", "fragment", "activity", "lifecycle"]
+      outcome:
+        eq: error
+    severity: warning
+    anomaly_type: lifecycle_violation
+    tags: ["kotlin", "lifecycle", "fragment", "activity"]
+    fixes:
+      - type: lifecycle_awareness
+        suggestion: "Use Lifecycle-aware components and proper state handling with savedStateHandle"
+        confidence: 0.85
+      - type: viewmodel_pattern
+        suggestion: "Implement ViewModel pattern with proper state management and data persistence"
+        confidence: 0.80
+
+  # Compose Navigation Issues
+  - name: compose_navigation_error
+    description: "Jetpack Compose Navigation errors or improper route handling"
+    condition:
+      error_message:
+        contains: ["navigation", "NavController", "route", "destination"]
+      endpoint:
+        contains: ["mobile", "navigation"]
+      outcome:
+        eq: error
+    severity: warning
+    anomaly_type: compose_navigation_error
+    tags: ["kotlin", "compose", "navigation", "routing"]
+    fixes:
+      - type: navigation_fix
+        suggestion: "Verify navigation routes, handle deep links properly, and manage navigation state"
+        confidence: 0.80
+      - type: safe_navigation
+        suggestion: "Use safe navigation patterns and proper backstack management"
+        confidence: 0.75
+
+  # Slow Query Detection
+  - name: slow_database_query
+    description: "Database queries taking longer than expected"
+    condition:
+      latency_ms:
+        gt: 200
+      endpoint:
+        contains: ["api", "graphql"]
+    severity: warning
+    anomaly_type: slow_query
+    tags: ["database", "query", "performance"]
+    fixes:
+      - type: index
+        suggestion: "Analyze and create appropriate database indexes"
+        confidence: 0.85
+      - type: code_fix
+        suggestion: "Optimize ORM queries with select_related/prefetch_related"
+        confidence: 0.80
+
+# Configuration for anomaly detection thresholds
+thresholds:
+  latency:
+    websocket_p95: 100    # milliseconds
+    mqtt_p95: 50          # milliseconds
+    http_p95: 200         # milliseconds
+    # Kotlin/Android specific
+    ui_frame_time: 16     # 60fps = 16.67ms per frame
+    cold_startup: 2000    # milliseconds for cold app startup
+    database_query: 50    # milliseconds for database operations
+
+  error_rate:
+    warning_threshold: 0.05   # 5%
+    critical_threshold: 0.15  # 15%
+
+  # Kotlin/Android specific performance thresholds
+  mobile_performance:
+    jank_percentage_warning: 2.0    # 2% jank frames is concerning
+    jank_percentage_error: 5.0      # 5% jank frames is critical
+    anr_timeout: 5000               # 5 seconds for ANR detection
+    memory_pressure_mb: 100         # 100MB memory pressure threshold
+    startup_regression_pct: 20      # 20% startup time regression
+
+  recurrence:
+    frequent_threshold: 5     # occurrences
+    chronic_threshold: 10     # occurrences
+    # Kotlin specific - stricter thresholds for critical issues
+    kotlin_anr_threshold: 2   # ANRs are critical after just 2 occurrences
+    ui_jank_threshold: 8      # UI jank becomes chronic faster
+
+  confidence:
+    auto_apply: 0.95         # Only auto-apply if >95% confident
+    suggest: 0.60            # Suggest if >60% confident
+    minimum: 0.30            # Only show if >30% confident
+    # Kotlin specific - higher confidence for mobile fixes
+    kotlin_fix_confidence: 0.75  # Higher bar for mobile fixes
+
+# Alert escalation rules
+escalation:
+  critical_anomalies:
+    immediate_alert: true
+    notification_channels: ["slack", "email", "webhook"]
+
+  recurring_issues:
+    threshold: 5             # Alert after 5 occurrences
+    notification_channels: ["slack", "email"]
+
+  unresolved_duration:
+    warning_hours: 24        # Warn if unresolved for 24h
+    critical_hours: 72       # Critical alert if unresolved for 72h

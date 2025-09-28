@@ -9,7 +9,6 @@ from django.http import JsonResponse
 from django.core.cache import cache
 from django.utils import timezone
 from datetime import datetime, timedelta
-import json
 
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.middleware.navigation_tracking import NavigationTrackingMiddleware

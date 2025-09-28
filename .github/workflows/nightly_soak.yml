@@ -1,0 +1,435 @@
+name: Nightly Soak Test
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
+  workflow_dispatch:     # Allow manual triggering
+    inputs:
+      duration_hours:
+        description: 'Test duration in hours'
+        required: false
+        default: '2'
+        type: string
+      connections:
+        description: 'Number of connections'
+        required: false
+        default: '50'
+        type: string
+
+env:
+  DJANGO_SETTINGS_MODULE: intelliwiz_config.settings
+  DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/soak_test_db
+
+jobs:
+  soak-test:
+    name: "🔥 Extended Soak Test"
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours max
+
+    services:
+      postgres:
+        image: postgis/postgis:14-3.2
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: soak_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mqtt:
+        image: eclipse-mosquitto:2.0
+        ports:
+          - 1883:1883
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: ☕ Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/base.txt
+        pip install pytest-django pytest-asyncio
+
+    - name: 🗄️ Setup database
+      run: |
+        python manage.py migrate --run-syncdb
+        python manage.py collectstatic --noinput
+
+    - name: 🚀 Start Django server
+      run: |
+        daphne -b 0.0.0.0 -p 8000 intelliwiz_config.asgi:application &
+        sleep 15
+
+    - name: 🔧 Build Kotlin generator
+      working-directory: ./intelliwiz_kotlin
+      run: |
+        ./gradlew fatJar
+
+    - name: 📋 Create soak test scenarios
+      run: |
+        # WebSocket soak scenario
+        cat > websocket_soak.json << 'EOF'
+        {
+          "name": "WebSocket Soak Test",
+          "protocol": "WEBSOCKET",
+          "endpoint": "localhost:8000/ws/mobile/sync/",
+          "duration_seconds": ${{ github.event.inputs.duration_hours || '2' }}00,
+          "connections": ${{ github.event.inputs.connections || '20' }},
+          "rates": {
+            "messagesPerSecond": 3.0,
+            "burstMultiplier": 1.2,
+            "rampUpSeconds": 60,
+            "rampDownSeconds": 60
+          },
+          "payloads": [
+            "VOICE_DATA",
+            "BEHAVIORAL_DATA",
+            "SESSION_DATA",
+            "METRICS",
+            "HEARTBEAT"
+          ],
+          "failureInjection": {
+            "enabled": true,
+            "networkDelays": {
+              "enabled": true,
+              "rangeMs": {"start": 10, "endInclusive": 200},
+              "probability": 0.02
+            },
+            "duplicateMessages": {
+              "probability": 0.005
+            },
+            "connectionDrops": {
+              "probability": 0.0005,
+              "reconnectDelayMs": 2000
+            }
+          },
+          "validation": {
+            "validateResponses": true,
+            "maxLatencyMs": 3000,
+            "expectedStatusCodes": [200, 202]
+          }
+        }
+        EOF
+
+        # MQTT soak scenario
+        cat > mqtt_soak.json << 'EOF'
+        {
+          "name": "MQTT Soak Test",
+          "protocol": "MQTT",
+          "endpoint": "localhost:1883",
+          "duration_seconds": ${{ github.event.inputs.duration_hours || '2' }}00,
+          "connections": 15,
+          "rates": {
+            "messagesPerSecond": 2.0,
+            "burstMultiplier": 1.5
+          },
+          "payloads": [
+            "BEHAVIORAL_DATA",
+            "METRICS",
+            "HEARTBEAT"
+          ],
+          "failureInjection": {
+            "enabled": true,
+            "networkDelays": {
+              "enabled": true,
+              "rangeMs": {"start": 20, "endInclusive": 500},
+              "probability": 0.01
+            },
+            "duplicateMessages": {
+              "probability": 0.01
+            }
+          }
+        }
+        EOF
+
+        # Mixed protocol scenario
+        cat > mixed_soak.json << 'EOF'
+        {
+          "name": "Mixed Protocol Soak",
+          "protocol": "MIXED",
+          "endpoint": "localhost:8000",
+          "duration_seconds": ${{ github.event.inputs.duration_hours || '2' }}00,
+          "connections": 30,
+          "rates": {
+            "messagesPerSecond": 5.0,
+            "burstMultiplier": 2.0
+          },
+          "payloads": [
+            "VOICE_DATA",
+            "BEHAVIORAL_DATA",
+            "SESSION_DATA",
+            "METRICS"
+          ],
+          "failureInjection": {
+            "enabled": true,
+            "networkDelays": {
+              "enabled": true,
+              "rangeMs": {"start": 50, "endInclusive": 1000},
+              "probability": 0.03
+            },
+            "schemaDrift": {
+              "probability": 0.001
+            }
+          }
+        }
+        EOF
+
+    - name: 🧪 Run WebSocket soak test
+      run: |
+        echo "🔌 Starting WebSocket soak test..."
+        timeout ${{ github.event.inputs.duration_hours || '2' }}h30m \
+          java -jar intelliwiz_kotlin/build/libs/intelliwiz_kotlin-1.0.0-fat.jar \
+          run --scenario websocket_soak.json --output websocket_soak_results.json || echo "WebSocket test completed"
+
+    - name: 📡 Run MQTT soak test
+      run: |
+        echo "📡 Starting MQTT soak test..."
+        timeout ${{ github.event.inputs.duration_hours || '2' }}h30m \
+          java -jar intelliwiz_kotlin/build/libs/intelliwiz_kotlin-1.0.0-fat.jar \
+          run --scenario mqtt_soak.json --output mqtt_soak_results.json || echo "MQTT test completed"
+
+    - name: 🌐 Run mixed protocol test
+      run: |
+        echo "🌐 Starting mixed protocol soak test..."
+        timeout ${{ github.event.inputs.duration_hours || '2' }}h30m \
+          java -jar intelliwiz_kotlin/build/libs/intelliwiz_kotlin-1.0.0-fat.jar \
+          run --scenario mixed_soak.json --output mixed_soak_results.json || echo "Mixed test completed"
+
+    - name: 📊 Analyze soak test results
+      run: |
+        python << 'EOF'
+        import json
+        import os
+        import sys
+        from datetime import datetime
+
+        def analyze_results(filename, test_name):
+            if not os.path.exists(filename):
+                print(f"⚠️  {test_name}: No results file found")
+                return None
+
+            try:
+                with open(filename, 'r') as f:
+                    result = json.load(f)
+
+                print(f"\n📊 {test_name} Results:")
+                print(f"   Duration: {(result['endTime'] - result['startTime']) / 1000 / 3600:.2f} hours")
+                print(f"   Total Messages: {result['totalMessages']:,}")
+                print(f"   Success Rate: {((result['successfulMessages'] / result['totalMessages']) * 100 if result['totalMessages'] > 0 else 0):.2f}%")
+                print(f"   Error Rate: {(result['errorRate'] * 100):.2f}%")
+                print(f"   Avg Latency: {result['averageLatencyMs']:.1f}ms")
+                print(f"   P95 Latency: {result['p95LatencyMs']:.1f}ms")
+                print(f"   P99 Latency: {result['p99LatencyMs']:.1f}ms")
+                print(f"   Throughput: {result['throughputQps']:.2f} QPS")
+                print(f"   Anomalies: {result['anomaliesDetected']}")
+
+                if result['errors']:
+                    print(f"   Top Errors:")
+                    for error in result['errors'][:3]:
+                        print(f"     • {error['errorType']}: {error['count']} occurrences")
+
+                return result
+
+            except Exception as e:
+                print(f"❌ Error analyzing {test_name}: {e}")
+                return None
+
+        # Analyze all test results
+        ws_result = analyze_results('websocket_soak_results.json', 'WebSocket Soak')
+        mqtt_result = analyze_results('mqtt_soak_results.json', 'MQTT Soak')
+        mixed_result = analyze_results('mixed_soak_results.json', 'Mixed Protocol Soak')
+
+        # Check for failures
+        failures = []
+        results = [
+            (ws_result, 'WebSocket'),
+            (mqtt_result, 'MQTT'),
+            (mixed_result, 'Mixed')
+        ]
+
+        for result, name in results:
+            if result:
+                # Check for high error rates (> 5% for soak tests)
+                if result['errorRate'] > 0.05:
+                    failures.append(f"{name}: High error rate {result['errorRate']:.1%}")
+
+                # Check for extremely high latency (> 5 seconds)
+                if result['p95LatencyMs'] > 5000:
+                    failures.append(f"{name}: Very high P95 latency {result['p95LatencyMs']:.0f}ms")
+
+                # Check if no messages were processed
+                if result['totalMessages'] == 0:
+                    failures.append(f"{name}: No messages processed")
+
+        print(f"\n{'='*50}")
+        if failures:
+            print("❌ Soak test failures detected:")
+            for failure in failures:
+                print(f"   • {failure}")
+            print("\nℹ️  These are warnings for soak tests - not blocking CI")
+        else:
+            print("✅ All soak tests passed!")
+
+        # Generate summary report
+        with open('soak_test_summary.md', 'w') as f:
+            f.write(f"# Soak Test Report - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+            for result, name in results:
+                if result:
+                    f.write(f"## {name} Soak Test\n\n")
+                    f.write(f"- **Duration**: {(result['endTime'] - result['startTime']) / 1000 / 3600:.2f} hours\n")
+                    f.write(f"- **Messages**: {result['totalMessages']:,}\n")
+                    f.write(f"- **Success Rate**: {((result['successfulMessages'] / result['totalMessages']) * 100 if result['totalMessages'] > 0 else 0):.2f}%\n")
+                    f.write(f"- **Avg Latency**: {result['averageLatencyMs']:.1f}ms\n")
+                    f.write(f"- **P95 Latency**: {result['p95LatencyMs']:.1f}ms\n")
+                    f.write(f"- **Throughput**: {result['throughputQps']:.2f} QPS\n")
+                    f.write(f"- **Anomalies**: {result['anomaliesDetected']}\n\n")
+
+            if failures:
+                f.write("## ⚠️ Issues Detected\n\n")
+                for failure in failures:
+                    f.write(f"- {failure}\n")
+
+        print("\n📄 Summary report generated: soak_test_summary.md")
+        EOF
+
+    - name: 🗃️ Collect system metrics
+      run: |
+        echo "📈 Collecting system resource usage..."
+
+        # Memory usage
+        free -h > system_memory.log
+
+        # Disk usage
+        df -h > system_disk.log
+
+        # Database stats (if accessible)
+        python << 'EOF'
+        try:
+            import django
+            import os
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+            django.setup()
+
+            from django.db import connection
+            from apps.streamlab.models import TestRun, StreamEvent
+            from apps.issue_tracker.models import AnomalyOccurrence
+
+            with open('database_stats.log', 'w') as f:
+                f.write("Database Statistics\n")
+                f.write("==================\n\n")
+
+                # Test runs created during soak test
+                recent_runs = TestRun.objects.filter(
+                    scenario__name__icontains='Soak'
+                ).count()
+                f.write(f"Soak test runs: {recent_runs}\n")
+
+                # Stream events generated
+                total_events = StreamEvent.objects.count()
+                f.write(f"Total stream events: {total_events}\n")
+
+                # Anomalies detected
+                total_anomalies = AnomalyOccurrence.objects.count()
+                f.write(f"Total anomalies: {total_anomalies}\n")
+
+                print("✅ Database stats collected")
+
+        except Exception as e:
+            print(f"⚠️ Could not collect database stats: {e}")
+        EOF
+
+    - name: 📄 Upload soak test artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: soak-test-results-${{ github.run_number }}
+        path: |
+          *_soak_results.json
+          *_soak.json
+          soak_test_summary.md
+          system_*.log
+          database_stats.log
+        retention-days: 90
+
+    - name: 📧 Create issue for failures
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const title = `🚨 Nightly Soak Test Failed - ${new Date().toISOString().split('T')[0]}`;
+          const body = `
+          ## Soak Test Failure Report
+
+          **Run ID**: ${{ github.run_number }}
+          **Workflow**: ${{ github.workflow }}
+          **Commit**: ${{ github.sha }}
+          **Duration**: ${{ github.event.inputs.duration_hours || '2' }} hours
+
+          ### Details
+          The nightly soak test has failed. Please check the workflow logs and artifacts for detailed information.
+
+          ### Actions Required
+          1. Review the test artifacts for specific failure details
+          2. Check system resource usage during the test
+          3. Investigate any anomalies or errors reported
+          4. Fix any identified issues and re-run the test
+
+          ### Artifacts
+          - Test results JSON files
+          - System resource logs
+          - Database statistics
+          - Summary report
+
+          **Link**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          `;
+
+          // Check if similar issue already exists
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['soak-test', 'ci-failure'],
+            state: 'open'
+          });
+
+          if (issues.length === 0) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['soak-test', 'ci-failure', 'bug']
+            });
+            console.log('Created issue for soak test failure');
+          } else {
+            console.log('Similar issue already exists, skipping issue creation');
+          }

@@ -468,10 +468,17 @@ Internal Tour
     function deleteCheckpointRequest(checpointid, checklistid, parentid) {
         var deleted = false
         const params = {
-            'url': `{{ url('schedhuler:delete_checkpointTour') }}?checkpointid=${checpointid}&checklistid=${checklistid}&job=${parentid}&datasource = jobneed`,
+            'url': `{{ url('schedhuler:delete_checkpointTour') }}`,
+            'data': {
+                'checkpointid': checpointid,
+                'checklistid': checklistid,
+                'job': parentid,
+                'datasource': 'jobneed',
+                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+            },
             'beforeSend': function () {}
         }
-        fire_ajax_get(params)
+        fire_ajax_post(params)
         .done((data, status, xhr) => {
             show_successful_delete_alert()
             deleted = true

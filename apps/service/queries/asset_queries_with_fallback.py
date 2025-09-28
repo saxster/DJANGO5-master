@@ -5,15 +5,16 @@ This version allows switching between PostgreSQL and Django ORM implementations.
 
 import graphene
 from apps.core import utils
-from apps.activity.models.asset_model import Asset
 from apps.service.types import SelectOutputType
-from apps.service.inputs.asset_input import AssetFilterInput
 from graphql.error import GraphQLError
 from logging import getLogger
 from apps.service.pydantic_schemas.asset_schema import AssetFilterSchema
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
 import json
 import os
+from apps.service.decorators import require_authentication, require_tenant_access
 
 log = getLogger("mobile_service_log")
 
@@ -30,6 +31,7 @@ class AssetQueriesWithFallback(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_assetdetails(self, info, mdtz, ctzoffset, buid):
         try:
             log.info("request for get_assetdetails")
@@ -81,10 +83,11 @@ class AssetQueriesWithFallback(graphene.ObjectType):
                 
         except ValidationError as ve:
             log.error("Validation error in get_assetdetails", exc_info=True)
-            raise GraphQLError(f"get_assetdetails failed: {str(ve)}")
-        except Exception as e:
-            log.error("Unexpected error in get_assetdetails", exc_info=True)
-            # Log which implementation was being used when error occurred
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except (DatabaseError, IntegrityError) as e:
             implementation = "Django ORM" if use_django_orm else "PostgreSQL"
-            log.error(f"Error occurred while using {implementation} implementation")
-            raise GraphQLError(f"get_assetdetails failed: {str(e)}")
+            log.error(f"Database error in get_assetdetails using {implementation}", exc_info=True)
+            raise GraphQLError("Database operation failed")
+        except (IOError, OSError) as e:
+            log.error("File system error in get_assetdetails", exc_info=True)
+            raise GraphQLError("Asset data retrieval failed")

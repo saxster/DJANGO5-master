@@ -2,7 +2,6 @@
 Consolidated URL configuration for Operations domain
 Combines: schedhuler, work_order_management, and parts of activity apps
 """
-from django.urls import path, include
 # Import actual views that exist
 from apps.schedhuler import views as schedhuler_views
 from apps.work_order_management import views as wom_views

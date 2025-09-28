@@ -1,6 +1,5 @@
 import pytest
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory
 from apps.activity.models.location_model import Location
 from apps.onboarding.models import Bt
 from apps.peoples.models import People

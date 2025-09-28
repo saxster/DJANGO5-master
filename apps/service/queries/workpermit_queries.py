@@ -15,17 +15,11 @@ from apps.work_order_management.utils import reject_workpermit
 from apps.activity.models.question_model import QuestionSet
 from apps.work_order_management.models import Vendor
 from apps.peoples.models import People
-from apps.service.inputs.workpermit_input import (
-    WomPdfUrlFilterInput,
-    VendorFilterInput,
-    WomRecordFilterInput,
-    ApproverFilterInput,
-    ApproveWorkpermitFilterInput,
-    RejectWorkpermitFilterInput,
-)
 from logging import getLogger
 from apps.core import utils
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
 from apps.service.pydantic_schemas.workpermit_schema import (
     WomPdfUrlSchema,
     WomRecordSchema,
@@ -34,6 +28,7 @@ from apps.service.pydantic_schemas.workpermit_schema import (
     ApproverSchema,
     VendorSchema,
 )
+from apps.service.decorators import require_authentication, require_tenant_access, require_permission
 
 log = getLogger("mobile_service_log")
 
@@ -85,6 +80,7 @@ class WorkPermitQueries(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_vendors(self, info, clientid, mdtz, buid, ctzoffset):
         try:
             log.info("request for get_vendors")
@@ -101,13 +97,17 @@ class WorkPermitQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_vendors failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_vendors failed: {str(e)}")
+            log.error("Validation error in get_vendors", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Vendor.DoesNotExist:
+            log.warning("Vendors not found")
+            raise GraphQLError("Vendors not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_vendors", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_approvers(self, info, buid, clientid):
         try:
             log.info("request for get_approver")
@@ -120,13 +120,17 @@ class WorkPermitQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_approver failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_approver failed: {str(e)}")
+            log.error("Validation error in get_approvers", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Approver.DoesNotExist:
+            log.warning("Approvers not found")
+            raise GraphQLError("Approvers not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_approvers", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_permission('can_approve_work_permits')
     def resolve_approve_workpermit(self, info, peopleid, identifier, wom_uuid):
         try:
             log.info("request for change wom status")
@@ -220,14 +224,21 @@ class WorkPermitQueries(graphene.ObjectType):
                     # Sending Email to Approver
                 rc, msg = 0, "success"
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"approve_workpermit failed: {str(ve)}")
-        except Exception as e:
-            log.critical("something went wrong", exc_info=True)
-            rc, msg = 1, "failed"
+            log.error("Validation error in approve_workpermit", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Wom.DoesNotExist:
+            log.error("Work permit not found")
+            rc, msg = 1, "Work permit not found"
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in approve_workpermit", exc_info=True)
+            rc, msg = 1, "Database operation failed"
+        except (IOError, OSError) as e:
+            log.error("PDF generation error in approve_workpermit", exc_info=True)
+            rc, msg = 1, "PDF generation failed"
         return SelectOutputType(nrows=rc, records=msg)
 
     @staticmethod
+    @require_permission('can_approve_work_permits')
     def resolve_reject_workpermit(self, info, peopleid, identifier, wom_uuid):
         try:
             log.info("request for change wom status")
@@ -240,14 +251,18 @@ class WorkPermitQueries(graphene.ObjectType):
             reject_workpermit(validated.wom_uuid, p.peoplecode)
             rc, msg = 0, "success"
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"reject_workpermit failed: {str(ve)}")
-        except Exception as e:
-            log.critical("something went wrong", exc_info=True)
-            rc, msg = 1, "failed"
+            log.error("Validation error in reject_workpermit", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Wom.DoesNotExist:
+            log.error("Work permit not found")
+            rc, msg = 1, "Work permit not found"
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in reject_workpermit", exc_info=True)
+            rc, msg = 1, "Database operation failed"
         return SelectOutputType(nrows=rc, records=msg)
 
     @staticmethod
+    @require_authentication
     def resolve_get_wom_records(self, info, workpermit, peopleid, fromdate, todate, buid=None, parentid=None, clientid=None):
         try:
             log.info("request for get_wom_records")
@@ -266,13 +281,17 @@ class WorkPermitQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_wom_records failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_wom_records failed: {str(e)}")
+            log.error("Validation error in get_wom_records", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Wom.DoesNotExist:
+            log.warning("Work permit records not found")
+            raise GraphQLError("Work permit records not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_wom_records", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_authentication
     def resolve_get_pdf_url(self, info, wom_uuid, peopleid):
         import os
         from intelliwiz_config import settings
@@ -306,7 +325,14 @@ class WorkPermitQueries(graphene.ObjectType):
             full_url = os.path.join(settings.MEDIA_ROOT, file_url)
             return GetPdfUrl(url=full_url)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_pdf_url failed: {str(ve)}")
-        except Exception as e:
-            raise GraphQLError(f"get_pdf_url failed: {str(e)}")
+            log.error("Validation error in get_pdf_url", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Wom.DoesNotExist:
+            log.error("Work permit not found for PDF generation")
+            raise GraphQLError("Work permit not found")
+        except (IOError, OSError) as e:
+            log.error("PDF generation or file error", exc_info=True)
+            raise GraphQLError("PDF generation failed")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_pdf_url", exc_info=True)
+            raise GraphQLError("Database operation failed")

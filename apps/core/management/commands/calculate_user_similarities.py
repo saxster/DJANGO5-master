@@ -80,7 +80,7 @@ class Command(BaseCommand):
                 self.style.SUCCESS('Successfully calculated user similarities')
             )
             
-        except Exception as e:
+        except (AttributeError, FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValueError) as e:
             logger.error(f"Error in calculate_user_similarities command: {str(e)}")
             raise CommandError(f'Error calculating similarities: {str(e)}')
 
@@ -207,7 +207,7 @@ class Command(BaseCommand):
                         if self.verbose:
                             self.stdout.write(f'  Skipping {user.username} - recent calculations exist')
                 
-                except Exception as e:
+                except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValueError) as e:
                     logger.error(f"Error processing user {user.id}: {str(e)}")
                     if self.verbose:
                         self.stdout.write(f'  Error processing {user.username}: {str(e)}')

@@ -1,0 +1,1119 @@
+{% extends "globals/base_modern.html" %}
+
+{% block page_title %}Wellness Insights{% endblock page_title %}
+{% block page_subtitle %}<p class="page-subtitle">Discover patterns in your wellness journey and get personalized recommendations</p>{% endblock page_subtitle %}
+
+{% block extra_css %}
+<style>
+  /* Wellness Analytics Styles */
+  .analytics-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analytics-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 100px;
+    height: 200%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(20deg);
+  }
+
+  .header-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .analytics-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .analytics-subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 20px;
+  }
+
+  .header-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 30px;
+  }
+
+  .header-stat {
+    text-align: center;
+  }
+
+  .header-stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .header-stat-label {
+    font-size: 12px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Analytics Grid */
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+  }
+
+  .analytics-main {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .analytics-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  /* Card Styles */
+  .analytics-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 25px 25px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+  }
+
+  .card-title i {
+    margin-right: 10px;
+    color: #377dff;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .action-btn {
+    padding: 6px 8px;
+    border: none;
+    background: #f8f9fa;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .action-btn:hover {
+    background: #e9ecef;
+  }
+
+  .card-body {
+    padding: 25px;
+  }
+
+  /* Mood Trends Chart */
+  .mood-trends-card {
+    min-height: 400px;
+  }
+
+  .trend-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .trend-control {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+  }
+
+  .trend-control.active {
+    background: #377dff;
+    color: white;
+    border-color: #377dff;
+  }
+
+  .mood-chart-container {
+    height: 300px;
+    margin-top: 20px;
+  }
+
+  /* Pattern Recognition Cards */
+  .pattern-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-left: 4px solid #377dff;
+  }
+
+  .pattern-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+  }
+
+  .pattern-description {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .pattern-confidence {
+    font-size: 12px;
+    color: #377dff;
+    font-weight: 500;
+  }
+
+  /* Wellness Score Card */
+  .score-display {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .score-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#4CAF50 0deg 252deg, #e0e0e0 252deg 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+    position: relative;
+  }
+
+  .score-circle::before {
+    content: '';
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+  }
+
+  .score-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    z-index: 2;
+    position: relative;
+  }
+
+  .score-label {
+    font-size: 14px;
+    color: #666;
+  }
+
+  .score-breakdown {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+
+  .score-factor {
+    text-align: center;
+    flex: 1;
+  }
+
+  .factor-value {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .factor-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+  }
+
+  .mood-factor { color: #4CAF50; }
+  .stress-factor { color: #FF9800; }
+  .energy-factor { color: #2196F3; }
+  .consistency-factor { color: #9C27B0; }
+
+  /* Recommendations Card */
+  .recommendation-item {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .recommendation-item:nth-child(1) { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+  .recommendation-item:nth-child(2) { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+  .recommendation-item:nth-child(3) { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); }
+
+  .recommendation-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    flex-shrink: 0;
+  }
+
+  .recommendation-content {
+    flex: 1;
+  }
+
+  .recommendation-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+  }
+
+  .recommendation-description {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
+  .recommendation-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .rec-btn {
+    padding: 4px 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.8);
+    color: #555;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .rec-btn:hover {
+    background: rgba(255, 255, 255, 1);
+  }
+
+  /* Statistics Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .stat-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .stat-value-large {
+    font-size: 20px;
+    font-weight: bold;
+    color: #377dff;
+    margin-bottom: 5px;
+  }
+
+  .stat-label-small {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Time Range Selector */
+  .time-range-selector {
+    display: flex;
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  .time-range-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+  }
+
+  .time-range-btn.active {
+    background: #377dff;
+    color: white;
+  }
+
+  /* Insights Timeline */
+  .insights-timeline {
+    position: relative;
+    padding-left: 30px;
+  }
+
+  .timeline-line {
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e0e0e0;
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 25px;
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #377dff;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #e0e0e0;
+  }
+
+  .insight-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+  }
+
+  .insight-date {
+    font-size: 11px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .insight-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+  }
+
+  .insight-description {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  /* Export Options */
+  .export-card {
+    background: #f8f9fa;
+  }
+
+  .export-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  .export-option:last-child {
+    border-bottom: none;
+  }
+
+  .export-info {
+    flex: 1;
+  }
+
+  .export-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 3px;
+  }
+
+  .export-description {
+    font-size: 12px;
+    color: #666;
+  }
+
+  .export-btn {
+    padding: 6px 12px;
+    background: #377dff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s ease;
+  }
+
+  .export-btn:hover {
+    background: #2c63e6;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .analytics-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .analytics-sidebar {
+      order: -1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .analytics-header {
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header-stats {
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-header {
+      padding: 20px 20px 10px;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .trend-controls {
+      flex-wrap: wrap;
+    }
+
+    .score-breakdown {
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="analytics-container">
+  <!-- Analytics Header -->
+  <div class="analytics-header">
+    <div class="header-content">
+      <h1 class="analytics-title">Your Wellness Journey</h1>
+      <p class="analytics-subtitle">Insights and patterns from your wellness data</p>
+
+      <div class="header-stats">
+        <div class="header-stat">
+          <div class="header-stat-value">24</div>
+          <div class="header-stat-label">Journal Entries</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value">7.2</div>
+          <div class="header-stat-label">Avg Mood</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value">85%</div>
+          <div class="header-stat-label">Consistency Score</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value">12</div>
+          <div class="header-stat-label">Day Streak</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analytics-grid">
+    <!-- Main Analytics Content -->
+    <div class="analytics-main">
+      <!-- Mood Trends Chart -->
+      <div class="analytics-card mood-trends-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">trending_up</i>
+            Wellness Trends
+          </h3>
+          <div class="card-actions">
+            <button class="action-btn" title="Export Chart">
+              <i class="material-icons">file_download</i>
+            </button>
+            <button class="action-btn" title="Share">
+              <i class="material-icons">share</i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="time-range-selector">
+            <button class="time-range-btn" onclick="changeTimeRange('7d')">7 Days</button>
+            <button class="time-range-btn" onclick="changeTimeRange('30d')">30 Days</button>
+            <button class="time-range-btn active" onclick="changeTimeRange('90d')">90 Days</button>
+            <button class="time-range-btn" onclick="changeTimeRange('1y')">1 Year</button>
+          </div>
+
+          <div class="trend-controls">
+            <button class="trend-control active" onclick="toggleTrendLine('mood')">Mood</button>
+            <button class="trend-control active" onclick="toggleTrendLine('stress')">Stress</button>
+            <button class="trend-control active" onclick="toggleTrendLine('energy')">Energy</button>
+            <button class="trend-control" onclick="toggleTrendLine('sleep')">Sleep Quality</button>
+          </div>
+
+          <div class="mood-chart-container">
+            <canvas id="wellnessTrendsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pattern Recognition -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">psychology</i>
+            Discovered Patterns
+          </h3>
+          <div class="card-actions">
+            <button class="action-btn" title="Learn More">
+              <i class="material-icons">info</i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="pattern-card">
+            <div class="pattern-title">Weekly Energy Cycle</div>
+            <div class="pattern-description">
+              Your energy levels consistently peak on Tuesdays and Wednesdays, then gradually decline toward the weekend. Consider scheduling important tasks during your high-energy days.
+            </div>
+            <div class="pattern-confidence">Confidence: 87%</div>
+          </div>
+
+          <div class="pattern-card">
+            <div class="pattern-title">Mood & Weather Correlation</div>
+            <div class="pattern-description">
+              Your mood ratings show a positive correlation with sunny weather. On rainy days, your mood averages 1.5 points lower. Light therapy or indoor activities might help during cloudy periods.
+            </div>
+            <div class="pattern-confidence">Confidence: 72%</div>
+          </div>
+
+          <div class="pattern-card">
+            <div class="pattern-title">Stress Response to Deadlines</div>
+            <div class="pattern-description">
+              Stress levels spike 3-4 days before project deadlines. Early preparation and stress management techniques during these periods could improve your overall wellbeing.
+            </div>
+            <div class="pattern-confidence">Confidence: 94%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insights Timeline -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">timeline</i>
+            Recent Insights
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="insights-timeline">
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="insight-item">
+                <div class="insight-date">3 days ago</div>
+                <div class="insight-title">Gratitude Practice Impact</div>
+                <div class="insight-description">
+                  Your mood improved by 15% on days when you practice gratitude journaling. Consider making this a daily habit.
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="insight-item">
+                <div class="insight-date">1 week ago</div>
+                <div class="insight-title">Sleep Pattern Alert</div>
+                <div class="insight-description">
+                  Late bedtimes (after 11 PM) correlate with 20% lower energy levels the following day. Earlier sleep might improve your daily energy.
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="insight-item">
+                <div class="insight-date">2 weeks ago</div>
+                <div class="insight-title">Exercise & Mood Connection</div>
+                <div class="insight-description">
+                  Days with physical activity show 25% higher mood ratings. Even light exercise appears to have significant mental health benefits.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Sidebar -->
+    <div class="analytics-sidebar">
+      <!-- Overall Wellness Score -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">favorite</i>
+            Wellness Score
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="score-display">
+            <div class="score-circle">
+              <div class="score-value">7.8</div>
+            </div>
+            <div class="score-label">Overall Wellness Score</div>
+          </div>
+
+          <div class="score-breakdown">
+            <div class="score-factor">
+              <div class="factor-value mood-factor">8.2</div>
+              <div class="factor-label">Mood</div>
+            </div>
+            <div class="score-factor">
+              <div class="factor-value stress-factor">7.1</div>
+              <div class="factor-label">Stress Mgmt</div>
+            </div>
+            <div class="score-factor">
+              <div class="factor-value energy-factor">7.9</div>
+              <div class="factor-label">Energy</div>
+            </div>
+            <div class="score-factor">
+              <div class="factor-value consistency-factor">8.0</div>
+              <div class="factor-label">Consistency</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Personalized Recommendations -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">lightbulb</i>
+            Smart Recommendations
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="recommendation-item">
+            <div class="recommendation-icon">
+              <i class="material-icons">schedule</i>
+            </div>
+            <div class="recommendation-content">
+              <div class="recommendation-title">Optimize Your Schedule</div>
+              <div class="recommendation-description">
+                Schedule challenging tasks on Tuesday-Wednesday when your energy peaks.
+              </div>
+              <div class="recommendation-actions">
+                <button class="rec-btn" onclick="applyRecommendation('schedule')">Apply</button>
+                <button class="rec-btn" onclick="learnMore('schedule')">Learn More</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="recommendation-item">
+            <div class="recommendation-icon">
+              <i class="material-icons">wb_sunny</i>
+            </div>
+            <div class="recommendation-content">
+              <div class="recommendation-title">Weather Preparedness</div>
+              <div class="recommendation-description">
+                Try light therapy or mood-boosting activities on cloudy days.
+              </div>
+              <div class="recommendation-actions">
+                <button class="rec-btn" onclick="applyRecommendation('weather')">Try It</button>
+                <button class="rec-btn" onclick="learnMore('weather')">More Info</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="recommendation-item">
+            <div class="recommendation-icon">
+              <i class="material-icons">bedtime</i>
+            </div>
+            <div class="recommendation-content">
+              <div class="recommendation-title">Sleep Optimization</div>
+              <div class="recommendation-description">
+                Earlier bedtime could boost your next-day energy by 20%.
+              </div>
+              <div class="recommendation-actions">
+                <button class="rec-btn" onclick="applyRecommendation('sleep')">Set Reminder</button>
+                <button class="rec-btn" onclick="learnMore('sleep')">Sleep Tips</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="analytics-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">analytics</i>
+            Quick Stats
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value-large">92%</div>
+              <div class="stat-label-small">Mood Stability</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value-large">76%</div>
+              <div class="stat-label-small">Stress Control</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value-large">18</div>
+              <div class="stat-label-small">Good Days/Month</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value-large">3.2</div>
+              <div class="stat-label-small">Avg Stress Level</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f0f0f0;">
+            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #333;">This Week vs Last Week</h4>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
+              <span>Mood</span>
+              <span style="color: #4CAF50;">↑ +0.8</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
+              <span>Energy</span>
+              <span style="color: #4CAF50;">↑ +0.3</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span>Stress</span>
+              <span style="color: #f44336;">↑ +0.2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Options -->
+      <div class="analytics-card export-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="material-icons">file_download</i>
+            Export Data
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="export-option">
+            <div class="export-info">
+              <div class="export-title">Wellness Report</div>
+              <div class="export-description">PDF summary of your analytics</div>
+            </div>
+            <button class="export-btn" onclick="exportData('pdf')">Download</button>
+          </div>
+
+          <div class="export-option">
+            <div class="export-info">
+              <div class="export-title">Raw Data</div>
+              <div class="export-description">CSV export of all entries</div>
+            </div>
+            <button class="export-btn" onclick="exportData('csv')">Download</button>
+          </div>
+
+          <div class="export-option">
+            <div class="export-info">
+              <div class="export-title">Share Insights</div>
+              <div class="export-description">Share with your wellness coach</div>
+            </div>
+            <button class="export-btn" onclick="shareInsights()">Share</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+let wellnessTrendsChart;
+let currentTimeRange = '90d';
+let visibleTrends = ['mood', 'stress', 'energy'];
+
+$(document).ready(function() {
+  initializeWellnessTrendsChart();
+});
+
+function initializeWellnessTrendsChart() {
+  const ctx = document.getElementById('wellnessTrendsChart').getContext('2d');
+
+  // Generate sample data based on time range
+  const data = generateSampleData(currentTimeRange);
+
+  wellnessTrendsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Mood',
+          data: data.mood,
+          borderColor: '#4CAF50',
+          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+          fill: false,
+          tension: 0.4,
+          hidden: !visibleTrends.includes('mood')
+        },
+        {
+          label: 'Stress',
+          data: data.stress,
+          borderColor: '#FF9800',
+          backgroundColor: 'rgba(255, 152, 0, 0.1)',
+          fill: false,
+          tension: 0.4,
+          yAxisID: 'y1',
+          hidden: !visibleTrends.includes('stress')
+        },
+        {
+          label: 'Energy',
+          data: data.energy,
+          borderColor: '#2196F3',
+          backgroundColor: 'rgba(33, 150, 243, 0.1)',
+          fill: false,
+          tension: 0.4,
+          hidden: !visibleTrends.includes('energy')
+        },
+        {
+          label: 'Sleep Quality',
+          data: data.sleep,
+          borderColor: '#9C27B0',
+          backgroundColor: 'rgba(156, 39, 176, 0.1)',
+          fill: false,
+          tension: 0.4,
+          hidden: !visibleTrends.includes('sleep')
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: currentTimeRange === '7d' ? 'day' : currentTimeRange === '30d' ? 'day' : 'week'
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.1)'
+          }
+        },
+        y: {
+          beginAtZero: false,
+          min: 1,
+          max: 10,
+          grid: {
+            color: 'rgba(0,0,0,0.1)'
+          },
+          title: {
+            display: true,
+            text: 'Mood / Energy (1-10)'
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          min: 1,
+          max: 5,
+          title: {
+            display: true,
+            text: 'Stress (1-5)'
+          },
+          grid: {
+            drawOnChartArea: false,
+          },
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          titleColor: '#333',
+          bodyColor: '#666',
+          borderColor: '#ddd',
+          borderWidth: 1,
+          cornerRadius: 8,
+          displayColors: true
+        }
+      }
+    }
+  });
+}
+
+function generateSampleData(timeRange) {
+  const now = new Date();
+  const data = { labels: [], mood: [], stress: [], energy: [], sleep: [] };
+  let days;
+
+  switch(timeRange) {
+    case '7d': days = 7; break;
+    case '30d': days = 30; break;
+    case '90d': days = 90; break;
+    case '1y': days = 365; break;
+    default: days = 90;
+  }
+
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    data.labels.push(date);
+
+    // Generate realistic sample data with trends
+    const dayOfWeek = date.getDay();
+    const baseValues = {
+      mood: 6.5 + Math.sin(i * 0.1) * 1.5 + (dayOfWeek === 1 || dayOfWeek === 2 ? 1 : 0),
+      stress: 3 + Math.cos(i * 0.05) * 1 + (dayOfWeek === 0 || dayOfWeek === 6 ? -0.5 : 0),
+      energy: 6.8 + Math.sin(i * 0.08) * 1.2 + (dayOfWeek === 1 || dayOfWeek === 2 ? 0.8 : 0),
+      sleep: 7.2 + Math.sin(i * 0.12) * 0.8
+    };
+
+    // Add some randomness
+    Object.keys(baseValues).forEach(key => {
+      baseValues[key] += (Math.random() - 0.5) * 1.0;
+
+      // Clamp values to valid ranges
+      if (key === 'stress') {
+        baseValues[key] = Math.max(1, Math.min(5, baseValues[key]));
+      } else {
+        baseValues[key] = Math.max(1, Math.min(10, baseValues[key]));
+      }
+
+      data[key].push(baseValues[key]);
+    });
+  }
+
+  return data;
+}
+
+function changeTimeRange(range) {
+  currentTimeRange = range;
+
+  // Update active button
+  $('.time-range-btn').removeClass('active');
+  event.target.classList.add('active');
+
+  // Destroy and recreate chart with new data
+  wellnessTrendsChart.destroy();
+  initializeWellnessTrendsChart();
+}
+
+function toggleTrendLine(trendType) {
+  const btn = event.target;
+  $(btn).toggleClass('active');
+
+  if (visibleTrends.includes(trendType)) {
+    visibleTrends = visibleTrends.filter(t => t !== trendType);
+  } else {
+    visibleTrends.push(trendType);
+  }
+
+  // Update chart visibility
+  const datasetIndex = ['mood', 'stress', 'energy', 'sleep'].indexOf(trendType);
+  if (datasetIndex !== -1) {
+    const meta = wellnessTrendsChart.getDatasetMeta(datasetIndex);
+    meta.hidden = !visibleTrends.includes(trendType);
+    wellnessTrendsChart.update();
+  }
+}
+
+function applyRecommendation(type) {
+  let message = '';
+  switch(type) {
+    case 'schedule':
+      message = 'Scheduling suggestion added to your calendar preferences.';
+      break;
+    case 'weather':
+      message = 'Weather-based wellness reminders enabled.';
+      break;
+    case 'sleep':
+      message = 'Sleep reminder set for 10:30 PM.';
+      break;
+  }
+  alert(message);
+}
+
+function learnMore(type) {
+  // TODO: Navigate to relevant wellness content
+  console.log('Opening more info for:', type);
+  alert('More detailed information about ' + type + ' optimization would be shown here.');
+}
+
+function exportData(format) {
+  // TODO: Implement data export functionality
+  console.log('Exporting data in format:', format);
+  alert('Your ' + format.toUpperCase() + ' export will be ready shortly. Check your downloads folder.');
+}
+
+function shareInsights() {
+  // TODO: Implement insight sharing
+  console.log('Sharing wellness insights');
+  alert('Wellness insights sharing feature would open here.');
+}
+</script>
+{% endblock extra_scripts %}

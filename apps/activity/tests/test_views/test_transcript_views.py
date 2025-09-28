@@ -8,14 +8,12 @@ Test coverage for speech-to-text API endpoints including:
 - Error handling
 """
 
-import pytest
 from unittest.mock import Mock, patch
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from apps.activity.models.job_model import JobneedDetails
-from apps.core.services.speech_to_text_service import SpeechToTextService
 
 User = get_user_model()
 

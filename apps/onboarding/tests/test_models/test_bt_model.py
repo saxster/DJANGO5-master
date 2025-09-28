@@ -2,10 +2,7 @@
 Tests for Bt (Business Unit) model
 """
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.contrib.gis.geos import Point
-from django.utils import timezone
 from apps.onboarding.models import Bt
 
 

@@ -305,7 +305,7 @@ class SecurityReportMiddleware(MiddlewareMixin):
                 
             return HttpResponse(status=204)  # No Content
             
-        except Exception as e:
+        except (TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error processing security report: {e}")
             return HttpResponse(status=400)  # Bad Request
             

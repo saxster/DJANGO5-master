@@ -1,0 +1,485 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load cache_tags %}
+
+{% block title %}Cache Monitoring Dashboard{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; Cache Monitoring
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="cache-monitoring-dashboard">
+    <h1>Cache Monitoring Dashboard</h1>
+
+    {% if error %}
+        <div class="alert alert-danger">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    {% else %}
+
+    <!-- Cache Overview Stats -->
+    <div class="row cache-overview">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Hit Ratio</h5>
+                    <h2 class="text-success">{{ cache_stats.hit_ratio|default:"0" }}%</h2>
+                    <small class="text-muted">Cache effectiveness</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Memory Used</h5>
+                    <h2 class="text-info">{{ cache_stats.redis_memory_used|default:"N/A" }}</h2>
+                    <small class="text-muted">Redis memory consumption</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Connected Clients</h5>
+                    <h2 class="text-primary">{{ cache_stats.redis_connected_clients|default:"0" }}</h2>
+                    <small class="text-muted">Active connections</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Commands</h5>
+                    <h2 class="text-warning">{{ cache_stats.redis_total_commands|default:"0" }}</h2>
+                    <small class="text-muted">Commands processed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Patterns Overview -->
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Cache Patterns</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Pattern Name</th>
+                                    <th>Pattern</th>
+                                    <th>Key Count</th>
+                                    <th>Timeout (s)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pattern_name, info in patterns_overview.items %}
+                                <tr>
+                                    <td><strong>{{ pattern_name }}</strong></td>
+                                    <td><code>{{ info.pattern }}</code></td>
+                                    <td>
+                                        <span class="badge badge-{% if info.key_count > 100 %}success{% elif info.key_count > 10 %}warning{% else %}secondary{% endif %}">
+                                            {{ info.key_count }}
+                                        </span>
+                                    </td>
+                                    <td>{{ info.timeout }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="clearPattern('{{ info.pattern }}')">
+                                            Clear
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info" onclick="explorePattern('{{ info.pattern }}')">
+                                            Explore
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No cache patterns found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Cache Management Tools -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Management Tools</h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="refreshMetrics()">
+                            🔄 Refresh Metrics
+                        </button>
+                        <button class="btn btn-outline-success" onclick="warmDropdownCaches()">
+                            🔥 Warm Dropdown Caches
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="showCacheExplorer()">
+                            🔍 Explore Cache Keys
+                        </button>
+                        <hr>
+                        <button class="btn btn-outline-danger" onclick="confirmClearAll()">
+                            ⚠️ Clear All Caches
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invalidation Stats -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h3>Invalidation Stats</h3>
+                </div>
+                <div class="card-body">
+                    <p><strong>Registered Models:</strong> {{ invalidation_stats.registered_models }}</p>
+                    <p><strong>Total Patterns:</strong> {{ invalidation_stats.total_patterns }}</p>
+
+                    <details>
+                        <summary>Model Dependencies</summary>
+                        <div class="mt-2">
+                            {% for model, patterns in invalidation_stats.model_dependencies.items %}
+                            <div class="mb-2">
+                                <strong>{{ model }}:</strong>
+                                <div class="ms-3">
+                                    {% for pattern in patterns %}
+                                    <span class="badge badge-secondary me-1">{{ pattern }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Metrics Chart -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Real-time Cache Metrics</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="cacheMetricsChart" width="400" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- Cache Explorer Modal -->
+<div class="modal fade" id="cacheExplorerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cache Key Explorer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="explorerPattern" class="form-label">Search Pattern:</label>
+                    <input type="text" class="form-control" id="explorerPattern" value="*" placeholder="Enter cache key pattern">
+                    <button class="btn btn-primary mt-2" onclick="searchCacheKeys()">Search</button>
+                </div>
+                <div id="cacheKeysResults">
+                    <!-- Results will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.cache-monitoring-dashboard {
+    padding: 20px;
+}
+
+.stats-card {
+    margin-bottom: 20px;
+    border-left: 4px solid #007bff;
+}
+
+.stats-card .card-body h2 {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.cache-overview .col-md-3 {
+    margin-bottom: 15px;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.alert {
+    margin-bottom: 20px;
+}
+
+details summary {
+    cursor: pointer;
+    font-weight: 500;
+}
+
+details summary:hover {
+    color: #007bff;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script>
+// Cache monitoring JavaScript
+let metricsChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeMetricsChart();
+    startRealTimeMetrics();
+});
+
+function initializeMetricsChart() {
+    const ctx = document.getElementById('cacheMetricsChart').getContext('2d');
+    metricsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Hit Ratio (%)',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Memory Usage (MB)',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+}
+
+function startRealTimeMetrics() {
+    setInterval(updateMetrics, 30000); // Update every 30 seconds
+}
+
+function updateMetrics() {
+    fetch('/admin/cache/api/metrics/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                updateChart(data.data);
+            }
+        })
+        .catch(error => console.error('Error updating metrics:', error));
+}
+
+function updateChart(metrics) {
+    const now = new Date().toLocaleTimeString();
+
+    // Add new data point
+    metricsChart.data.labels.push(now);
+    metricsChart.data.datasets[0].data.push(metrics.hit_ratio || 0);
+
+    // Convert memory to MB (simplified)
+    const memoryMB = parseInt(metrics.redis_memory_used?.replace(/[^\d]/g, '') || '0') / (1024 * 1024);
+    metricsChart.data.datasets[1].data.push(memoryMB);
+
+    // Keep only last 20 data points
+    if (metricsChart.data.labels.length > 20) {
+        metricsChart.data.labels.shift();
+        metricsChart.data.datasets[0].data.shift();
+        metricsChart.data.datasets[1].data.shift();
+    }
+
+    metricsChart.update();
+}
+
+function clearPattern(pattern) {
+    if (confirm(`Are you sure you want to clear all caches matching pattern: ${pattern}?`)) {
+        const formData = new FormData();
+        formData.append('action', 'clear_pattern');
+        formData.append('pattern', pattern);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('/admin/cache/api/manage/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(`Successfully cleared ${data.result.keys_cleared || 0} cache keys`);
+                location.reload();
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error clearing cache pattern');
+        });
+    }
+}
+
+function warmDropdownCaches() {
+    const formData = new FormData();
+    formData.append('action', 'warm_pattern');
+    formData.append('pattern', 'dropdown');
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('/admin/cache/api/manage/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Dropdown caches warmed successfully');
+        } else {
+            alert(`Error: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error warming caches');
+    });
+}
+
+function showCacheExplorer() {
+    const modal = new bootstrap.Modal(document.getElementById('cacheExplorerModal'));
+    modal.show();
+    searchCacheKeys(); // Load initial results
+}
+
+function searchCacheKeys() {
+    const pattern = document.getElementById('explorerPattern').value || '*';
+
+    fetch(`/admin/cache/api/explore/?pattern=${encodeURIComponent(pattern)}&limit=50`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayCacheKeys(data.keys);
+            } else {
+                document.getElementById('cacheKeysResults').innerHTML =
+                    `<div class="alert alert-danger">Error: ${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('cacheKeysResults').innerHTML =
+                '<div class="alert alert-danger">Error loading cache keys</div>';
+        });
+}
+
+function displayCacheKeys(keys) {
+    if (keys.length === 0) {
+        document.getElementById('cacheKeysResults').innerHTML =
+            '<div class="alert alert-info">No cache keys found matching the pattern</div>';
+        return;
+    }
+
+    let html = '<div class="table-responsive"><table class="table table-sm">';
+    html += '<thead><tr><th>Key</th><th>TTL</th><th>Memory</th><th>Type</th></tr></thead><tbody>';
+
+    keys.forEach(key => {
+        html += `<tr>
+            <td><code style="font-size: 0.8em">${key.key}</code></td>
+            <td>${key.expires_in}</td>
+            <td>${key.memory_usage ? (key.memory_usage + ' bytes') : 'N/A'}</td>
+            <td><span class="badge badge-secondary">${key.type}</span></td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('cacheKeysResults').innerHTML = html;
+}
+
+function confirmClearAll() {
+    if (confirm('⚠️ WARNING: This will clear ALL application caches. Are you absolutely sure?')) {
+        if (confirm('This action cannot be undone. Type "CLEAR ALL" to confirm:') === 'CLEAR ALL') {
+            clearAllCaches();
+        }
+    }
+}
+
+function clearAllCaches() {
+    const formData = new FormData();
+    formData.append('action', 'clear_all');
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('/admin/cache/api/manage/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('All caches cleared successfully');
+            location.reload();
+        } else {
+            alert(`Error: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error clearing all caches');
+    });
+}
+
+function refreshMetrics() {
+    location.reload();
+}
+</script>
+{% endblock %}

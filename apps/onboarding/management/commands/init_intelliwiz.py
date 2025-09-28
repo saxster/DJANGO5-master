@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from django.db.utils import IntegrityError
 from apps.core import utils
 from apps.core import exceptions as excp
@@ -11,7 +10,6 @@ from django.conf import settings
 from tablib import Dataset
 import logging
 import psycopg2
-from psycopg2 import sql
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +105,7 @@ def insert_default_entries(skip_existing=False):
                     raise Exception(f"Import failed with errors: {result.errors}")
                 else:
                     log.info(f"Successfully imported data from {filepath}")
-            except Exception as e:
+            except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                 if skip_existing and "already exist" in str(e):
                     log.info(f"Skipping existing records from {filepath}")
                 else:
@@ -200,7 +198,7 @@ class Command(BaseCommand):
                 try:
                     create_sql_functions(db=db)
                     self.stdout.write(self.style.SUCCESS('✓ SQL functions created'))
-                except Exception as sql_error:
+                except (FileNotFoundError, IOError, OSError, PermissionError) as sql_error:
                     self.stdout.write(self.style.WARNING(f'⚠ Could not create SQL functions: {sql_error}'))
                 
                 self.stdout.write(self.style.SUCCESS('\n✓ Database initialization completed successfully!'))
@@ -225,7 +223,7 @@ class Command(BaseCommand):
                 else:
                     raise
 
-            except Exception as e:
+            except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                 log.critical('FAILED init_intelliwiz', exc_info = True)
                 # If it's the last retry or force mode, raise the error
                 if attempt == max_attempts - 1 or force:

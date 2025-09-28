@@ -1,12 +1,8 @@
 from import_export import resources, fields, widgets as wg
 from apps.activity.models.job_model import Job
-from import_export.admin import ImportExportModelAdmin
 from django.db.models import Q
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
-from apps.service.validators import (
-    clean_array_string,
-    clean_code,
     clean_point_field,
     clean_string,
     validate_cron,

@@ -4,9 +4,7 @@ Tests end-to-end scenarios including Job creation, assignment, and completion
 """
 import pytest
 from django.test import Client, TransactionTestCase
-from django.urls import reverse
 from django.utils import timezone
-from datetime import datetime, timedelta
 from apps.peoples.models import People, Pgroup, Pgbelonging
 from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
 from apps.activity.models.asset_model import Asset

@@ -15,6 +15,32 @@ error_logger = logging.getLogger("error_logger")
 debug_logger = logging.getLogger("debug_logger")
 
 
+__all__ = [
+    'JobFields',
+    'Instructions',
+    'get_appropriate_client_url',
+    'save_capsinfo_inside_session',
+    'save_user_session',
+    'update_timeline_data',
+    'process_wizard_form',
+    'update_wizard_form',
+    'update_prev_step',
+    'update_next_step',
+    'update_other_info',
+    'update_wizard_steps',
+    'save_msg',
+    'initailize_form_fields',
+    'apply_error_classes',
+    'get_instance_for_update',
+    'get_model_obj',
+    'get_index_for_deletion',
+    'delete_object',
+    'delete_unsaved_objects',
+    'cache_it',
+    'get_from_cache',
+]
+
+
 class JobFields:
     fields = [
         "id",
@@ -59,10 +85,8 @@ class JobFields:
 class Instructions(object):
     # constructor for the class
     def __init__(self, tablename):
-        from apps.core.utils_new.file_utils import HEADER_MAPPING, HEADER_MAPPING_UPDATE
+        from apps.core.data.excel_templates import HEADER_MAPPING, HEADER_MAPPING_UPDATE
 
-        """Imported MODEL_RESOURCE_MAP(which is a dictionary containing model and resource mapping(used to validate import data))
-        and HEADER_MAPPING(which is a dictionary containing tablename and column names mapping)"""
         from apps.onboarding.views import MODEL_RESOURCE_MAP
 
         # Check if tablename is provided initializing the class
@@ -250,7 +274,6 @@ def get_appropriate_client_url(client_code):
 def save_capsinfo_inside_session(people, request, admin):
     logger.info("save_capsinfo_inside_session... STARTED")
     from apps.core.queries import get_query
-    from apps.peoples.models import Capability, People
 
     if admin:
         # extracting the capabilities from client
@@ -306,7 +329,6 @@ def save_user_session(request, people, ctzoffset=None):
     """save user info in session"""
     from django.conf import settings
     from django.core.exceptions import ObjectDoesNotExist
-    from apps.onboarding import models as Bt
 
     try:
         logger.info("saving user data into the session ... STARTED")
@@ -363,7 +385,7 @@ def save_user_session(request, people, ctzoffset=None):
     except ObjectDoesNotExist:
         error_logger.error("object not found...", exc_info=True)
         raise
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical(
             "something went wrong please follow the traceback to fix it... ",
             exc_info=True,
@@ -589,7 +611,7 @@ def delete_object(
         msg.error(request, "Unable to delete, duw to dependencies")
         cxt = {form_name: form, jsonformname: jsonform, "edit": True}
         res = scts.render(request, temp, context=cxt)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical("something went wrong!", exc_info=True)
         msg.error(request, "[ERROR] Something went wrong", "alert alert-danger")
         cxt = {form_name: form, jsonformname: jsonform, "edit": True}
@@ -602,7 +624,7 @@ def delete_unsaved_objects(model, ids):
         try:
             logger.info("Found unsaved objects in session going to be deleted...")
             model.objects.filter(pk__in=ids).delete()
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist):
             logger.critical("delete_unsaved_objects failed", exc_info=True)
             raise
         else:

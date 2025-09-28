@@ -76,10 +76,9 @@ class SQLInjectionProtectionMiddleware:
         Returns:
             bool: True if SQL injection pattern detected, False otherwise
         """
-        # Skip SQL injection detection for GraphQL endpoints
-        # GraphQL queries contain legitimate patterns that may trigger false positives
+        # SECURITY FIX (CVSS 8.1): Validate GraphQL requests instead of bypassing
         if self._is_graphql_request(request):
-            return False
+            return self._validate_graphql_query(request)
         # Check GET parameters
         for param, value in request.GET.items():
             if self._check_value_for_sql_injection(value, param):
@@ -144,37 +143,163 @@ class SQLInjectionProtectionMiddleware:
     def _is_graphql_request(self, request):
         """
         Check if the request is for a GraphQL endpoint.
-        
+
         Args:
             request: Django HttpRequest object
-            
+
         Returns:
             bool: True if this is a GraphQL request, False otherwise
         """
-        # Check if path starts with /graphql
-        if request.path.startswith("/graphql"):
+        if request.path.startswith("/graphql") or request.path.startswith("/api/graphql"):
             return True
-            
-        # Check if content type indicates GraphQL
+
         content_type = request.content_type or ""
         if "application/graphql" in content_type:
             return True
-            
-        # Check if request body contains GraphQL query structure
-        if hasattr(request, "body") and request.content_type == "application/json":
+
+        return False
+
+    def _validate_graphql_query(self, request):
+        """
+        Validate GraphQL query for SQL injection patterns.
+
+        SECURITY: This method replaces the previous blanket bypass and provides
+        GraphQL-aware SQL injection validation.
+
+        Args:
+            request: Django HttpRequest object
+
+        Returns:
+            bool: True if SQL injection detected, False if query is safe
+        """
+        try:
+            import json
+
+            if not hasattr(request, "body"):
+                return False
+
             try:
                 body_str = request.body.decode("utf-8")
-                # Look for GraphQL query indicators without triggering SQL patterns
-                graphql_indicators = ["query", "mutation", "subscription"]
-                # Basic check for GraphQL structure: contains query/mutation keywords
-                # and has GraphQL-like bracket structure
-                if any(indicator in body_str for indicator in graphql_indicators):
-                    # Additional check: contains field selection patterns like { field }
-                    if "{" in body_str and "}" in body_str:
-                        return True
-            except (UnicodeDecodeError, AttributeError):
-                pass
-                
+            except (UnicodeDecodeError, AttributeError, RawPostDataException):
+                return False
+
+            if not body_str:
+                return False
+
+            try:
+                body_data = json.loads(body_str)
+            except (json.JSONDecodeError, ValueError):
+                if self._check_value_for_sql_injection(body_str, "graphql_raw_body"):
+                    logger.warning(
+                        "SQL injection attempt in raw GraphQL body",
+                        extra={
+                            "correlation_id": getattr(request, "correlation_id", "unknown"),
+                            "ip": self._get_client_ip(request),
+                            "path": request.path,
+                        }
+                    )
+                    return True
+                return False
+
+            # Validate GraphQL variables (highest risk area)
+            if "variables" in body_data and isinstance(body_data["variables"], dict):
+                for var_name, var_value in body_data["variables"].items():
+                    if isinstance(var_value, str):
+                        if self._check_graphql_variable_for_injection(var_value, var_name):
+                            logger.warning(
+                                f"SQL injection attempt in GraphQL variable '{var_name}'",
+                                extra={
+                                    "correlation_id": getattr(request, "correlation_id", "unknown"),
+                                    "ip": self._get_client_ip(request),
+                                    "path": request.path,
+                                    "variable_name": var_name,
+                                }
+                            )
+                            return True
+
+            # Validate query string literals (lower risk, but still check)
+            if "query" in body_data and isinstance(body_data["query"], str):
+                query_str = body_data["query"]
+                if self._check_graphql_query_literals(query_str):
+                    logger.warning(
+                        "SQL injection attempt in GraphQL query literals",
+                        extra={
+                            "correlation_id": getattr(request, "correlation_id", "unknown"),
+                            "ip": self._get_client_ip(request),
+                            "path": request.path,
+                        }
+                    )
+                    return True
+
+        except (TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+            logger.error(
+                f"Error validating GraphQL query: {type(e).__name__}",
+                extra={
+                    "correlation_id": getattr(request, "correlation_id", "unknown"),
+                    "error_message": str(e),
+                },
+                exc_info=True
+            )
+            return False
+
+        return False
+
+    def _check_graphql_variable_for_injection(self, value, var_name):
+        """
+        Check GraphQL variable value for SQL injection patterns.
+
+        Args:
+            value: Variable value to check
+            var_name: Variable name for context
+
+        Returns:
+            bool: True if SQL injection pattern detected
+        """
+        if not isinstance(value, str):
+            return False
+
+        dangerous_patterns = [
+            r"('\\ s*(or|and)\\ s*'[^']*'|'\\ s*(or|and)\\ s*\\d+\\s*=\\s*\\d+)",
+            r"('\\ s*;\\s*(drop|delete|update|insert|create|alter)\\s+)",
+            r"('\\ s*union\\s+(all\\s+)?select\\s+)",
+            r"(exec\\s*\\(|execute\\s*\\(|sp_executesql)",
+            r"(xp_cmdshell|sp_makewebtask|sp_oacreate)",
+            r"(waitfor\\s+delay|benchmark\\s*\\(|sleep\\s*\\()",
+            r"(union\\s+(all\\s+)?select\\s+null)",
+            r"(union\\s+(all\\s+)?select\\s+\\d+)",
+            r"(information_schema|sys\\.tables|sys\\.columns)",
+            r"(\\s+and\\s+\\d+\\s*=\\s*\\d+\\s*--)",
+            r"(\\s+or\\s+\\d+\\s*=\\s*\\d+\\s*--)",
+        ]
+
+        for pattern_str in dangerous_patterns:
+            pattern = re.compile(pattern_str, re.IGNORECASE)
+            if pattern.search(value):
+                return True
+
+        return False
+
+    def _check_graphql_query_literals(self, query_str):
+        """
+        Check string literals within GraphQL query for SQL injection.
+
+        Args:
+            query_str: GraphQL query string
+
+        Returns:
+            bool: True if SQL injection pattern detected in literals
+        """
+        import re
+
+        # Extract string literals from GraphQL query
+        # Match quoted strings: "..." or '...'
+        string_literal_pattern = r'["\']([^"\']*)["\'']'
+        literals = re.findall(string_literal_pattern, query_str)
+
+        for literal in literals:
+            if self._check_graphql_variable_for_injection(literal, "query_literal"):
+                return True
+
         return False
 
     def _check_value_for_sql_injection(self, value, param_name=""):

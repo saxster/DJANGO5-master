@@ -134,7 +134,7 @@ ext_schdtour_list = 'External ScheduleTour List',
 					className: "btn btn-sm border border-primary btn-light-primary add_new_job",
 					//action for add_new_button
 					action: function(e, dt, node, config){
-        				window.location.href = "/operations/schedules/tours/external/?action=form";
+        				window.location.href = "{% url 'schedhuler:create_externaltour' %}?action=form";
 					}
 				}
 			]

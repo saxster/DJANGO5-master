@@ -133,7 +133,7 @@ class UserFriendlyResource(resources.ModelResource):
         """Override to catch any remaining errors"""
         try:
             return super().import_data(dataset, dry_run, raise_errors, use_transactions, collect_failed_rows, **kwargs)
-        except Exception as e:
+        except (TypeError, ValidationError, ValueError) as e:
             # Format any uncaught errors
             friendly_message = self.format_error_message(e)
             raise type(e)(friendly_message) from e
@@ -142,7 +142,7 @@ class UserFriendlyResource(resources.ModelResource):
         """Override to catch field validation errors"""
         try:
             return super().import_field(field, obj, data, is_m2m, **kwargs)
-        except Exception as e:
+        except (TypeError, ValidationError, ValueError) as e:
             # Format the error message with field context
             friendly_message = self.format_error_message(e, data, field.column_name)
             # Re-raise with the friendly message
@@ -152,7 +152,7 @@ class UserFriendlyResource(resources.ModelResource):
         """Override to provide user-friendly error messages"""
         try:
             return super().import_row(row, instance_loader, **kwargs)
-        except Exception as e:
+        except (TypeError, ValidationError, ValueError) as e:
             # Format the error message
             friendly_message = self.format_error_message(e, row)
             # Add row number if available

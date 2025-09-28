@@ -1,0 +1,51 @@
+{
+  "name": "MQTT GraphQL Load Test",
+  "description": "MQTT message publishing with GraphQL mutations for background processing",
+  "protocol": "MQTT",
+  "endpoint": "localhost:1883",
+  "duration_seconds": 180,
+  "connections": 20,
+  "rates": {
+    "messagesPerSecond": 8.0,
+    "burstMultiplier": 3.0,
+    "rampUpSeconds": 15,
+    "rampDownSeconds": 15
+  },
+  "payloads": [
+    "BEHAVIORAL_DATA",
+    "METRICS",
+    "HEARTBEAT"
+  ],
+  "failureInjection": {
+    "enabled": true,
+    "networkDelays": {
+      "enabled": true,
+      "rangeMs": {
+        "start": 20,
+        "endInclusive": 300
+      },
+      "probability": 0.03
+    },
+    "duplicateMessages": {
+      "probability": 0.02,
+      "maxDuplicates": 2
+    },
+    "connectionDrops": {
+      "probability": 0.001,
+      "reconnectDelayMs": 2000
+    }
+  },
+  "authentication": {
+    "type": "BASIC_AUTH",
+    "credentials": {
+      "username": "mqtt_user",
+      "password": "mqtt_pass"
+    }
+  },
+  "validation": {
+    "validateResponses": true,
+    "expectedStatusCodes": [200, 201],
+    "maxLatencyMs": 2000,
+    "requiredFields": ["serviceName", "uuids"]
+  }
+}

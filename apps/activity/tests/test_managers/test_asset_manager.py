@@ -2,8 +2,6 @@ import pytest
 from django.test import RequestFactory
 from django.contrib.sessions.middleware import SessionMiddleware
 from apps.activity.models.asset_model import Asset
-from apps.onboarding.models import Bt, TypeAssist
-from apps.activity.managers.asset_manager import AssetLogManager
 import json
 from unittest.mock import patch
 

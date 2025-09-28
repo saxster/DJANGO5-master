@@ -2,14 +2,12 @@ import pytest
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from datetime import timedelta
-import uuid
 
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.peoples.models import People, Pgroup
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job, QuestionSet
 from apps.activity.models.location_model import Location
-from apps.onboarding.models import Bt, TypeAssist
 
 User = get_user_model()
 

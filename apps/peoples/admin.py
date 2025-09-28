@@ -26,7 +26,6 @@ from import_export.admin import ImportExportModelAdmin
 from django.db.models import Q
 from .models import People, Pgroup, Pgbelonging, Capability
 from django.core.exceptions import ValidationError
-from apps.service.validators import clean_string, clean_point_field, clean_array_string
 from django.contrib import admin
 import re, math
 

@@ -1,4 +1,3 @@
-from attr import fields
 import django_filters as dfs
 from apps.activity.models.job_model import Jobneed
 from apps.activity.models.question_model import QuestionSet

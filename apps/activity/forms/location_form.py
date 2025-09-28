@@ -1,8 +1,5 @@
-import django_select2.forms as s2forms
 from django import forms
 from django.contrib.gis.geos import GEOSGeometry
-from django.core.exceptions import ValidationError
-from django.db.models import Q
 from django.http import QueryDict
 import re
 from apps.activity.models.location_model import Location

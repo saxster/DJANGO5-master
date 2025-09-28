@@ -14,6 +14,30 @@ error_logger = logging.getLogger("error_logger")
 debug_logger = logging.getLogger("debug_logger")
 
 
+__all__ = [
+    'clean_encoded_form_data',
+    'get_clean_form_data',
+    'handle_other_exception',
+    'handle_does_not_exist',
+    'get_filter',
+    'searchValue',
+    'searchValue2',
+    'render_form',
+    'handle_DoesNotExist',
+    'handle_Exception',
+    'render_form_for_delete',
+    'handle_RestrictedError',
+    'handle_EmptyResultSet',
+    'handle_intergrity_error',
+    'render_form_for_update',
+    'handle_invalid_form',
+    'render_grid',
+    'paginate_results',
+    'get_paginated_results',
+    'get_paginated_results2',
+]
+
+
 def clean_encoded_form_data(form_data):
     """
     Fix HTML-encoded form data where field names have 'amp;' prefix.
@@ -106,11 +130,11 @@ def get_clean_form_data(request):
                     raw_data = parsed_body['formData'][0]  # parse_qs returns lists
                     logger.info(f"Extracted formData from raw body, length: {len(raw_data)}")
                 
-            except Exception as body_error:
+            except (ValueError, TypeError) as body_error:
                 logger.error(f"Error parsing request.body: {body_error}")
         
         return clean_encoded_form_data(raw_data)
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         logger.error(f"Error cleaning form data: {e}")
         return QueryDict()
 
@@ -210,7 +234,7 @@ def render_form_for_delete(request, params, master=False):
         return handle_DoesNotExist(request)
     except RestrictedError:
         return handle_RestrictedError(request)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         return handle_Exception(request, params)
 
 
@@ -247,7 +271,7 @@ def render_form_for_update(request, params, formname, obj, extra_cxt=None, FORM=
         return rp.JsonResponse(data, status=200)
     except params["model"].DoesNotExist:
         return handle_DoesNotExist(request)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         return handle_Exception(request)
 
 
@@ -275,7 +299,7 @@ def render_grid(request, params, msg, objs, extra_cxt=None):
         resp = scts.render(request, params["template_list"], context=cxt)
     except EmptyResultSet:
         resp = handle_EmptyResultSet(request, params, cxt)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         resp = handle_Exception(request, scts.redirect("/dashboard"))
     return resp
 

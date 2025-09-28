@@ -1,0 +1,308 @@
+# Pre-commit hooks configuration for AI Mentor integration
+# See https://pre-commit.com for more information
+
+repos:
+  # AI Mentor System Hooks
+  - repo: local
+    hooks:
+      - id: mentor-guard-validation
+        name: AI Mentor Guard Validation
+        entry: python manage.py mentor_guard --validate
+        language: system
+        files: '\.py$'
+        stages: [commit]
+
+      - id: mentor-security-scan
+        name: AI Mentor Security Scan
+        entry: python manage.py mentor_security_scan --quick
+        language: system
+        files: '\.py$'
+        stages: [commit]
+
+      - id: mentor-quality-check
+        name: AI Mentor Quality Check
+        entry: python manage.py mentor_quality_check --threshold 7.0
+        language: system
+        files: '\.py$'
+        stages: [commit]
+
+      - id: mentor-secret-scan
+        name: AI Mentor Secret Scanner
+        entry: python manage.py mentor_secret_scan
+        language: system
+        files: '\.(py|js|jsx|ts|tsx|json|yaml|yml|env)$'
+        stages: [commit]
+
+      # SETTINGS COMPLIANCE VALIDATION
+      - id: settings-line-count-compliance
+        name: Settings Line Count Compliance
+        entry: python -c "
+from intelliwiz_config.settings.validation import validate_line_count_compliance
+import sys
+result = validate_line_count_compliance()
+if not result['compliant']:
+    print('Settings line count violations found:')
+    for violation in result['violations']:
+        print(f'  {violation}')
+    print('All settings modules must be under 200 lines (.claude/rules.md)')
+    sys.exit(1)
+print('✅ All settings modules comply with 200-line limit')
+"
+        language: system
+        files: 'intelliwiz_config/settings/.*\.py$'
+        pass_filenames: false
+        stages: [commit]
+
+      # SECURITY FIX VALIDATION HOOKS
+      - id: architecture-rules-validation
+        name: Architecture Rules Validation
+        entry: python -c "
+import sys, re, os
+violations = []
+for filepath in sys.argv[1:]:
+    if not filepath.endswith('.py'): continue
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+            lines = content.split('\n')
+            # Check for oversized methods (>30 lines)
+            in_method = False
+            method_lines = 0
+            for i, line in enumerate(lines):
+                if re.match(r'\s*def \w+\(', line):
+                    in_method = True
+                    method_lines = 1
+                    method_start = i
+                elif in_method:
+                    if line.strip() and not line.startswith(' '):
+                        if method_lines > 30:
+                            violations.append(f'{filepath}:{method_start+1}: Method exceeds 30 lines ({method_lines} lines)')
+                        in_method = False
+                    else:
+                        method_lines += 1
+            # Check for generic exception handling
+            if 'except Exception:' in content:
+                for i, line in enumerate(lines):
+                    if 'except Exception:' in line:
+                        violations.append(f'{filepath}:{i+1}: Generic exception handling detected')
+if violations:
+    print('Architecture violations found:')
+    for v in violations: print(f'  {v}')
+    sys.exit(1)
+"
+        language: system
+        files: '^apps/.*\.py$'
+        exclude: '(migrations|tests)'
+
+      - id: logging-security-validation
+        name: Logging Security Validation
+        entry: python -c "
+import sys, re
+violations = []
+for filepath in sys.argv[1:]:
+    if not filepath.endswith('.py'): continue
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+            lines = content.split('\n')
+            for i, line in enumerate(lines):
+                # Check for email logging
+                if re.search(r'logger\.(info|debug|error|warning).*\.email', line, re.IGNORECASE):
+                    violations.append(f'{filepath}:{i+1}: Email address in log message')
+                # Check for password logging
+                if re.search(r'logger\.(info|debug|error|warning).*password', line, re.IGNORECASE):
+                    violations.append(f'{filepath}:{i+1}: Password reference in log message')
+                # Check for token logging
+                if re.search(r'logger\.(info|debug|error|warning).*token', line, re.IGNORECASE):
+                    violations.append(f'{filepath}:{i+1}: Token reference in log message')
+if violations:
+    print('Logging security violations found:')
+    for v in violations: print(f'  {v}')
+    sys.exit(1)
+"
+        language: system
+        files: '^apps/.*\.py$'
+        exclude: '(migrations|tests)'
+
+      - id: query-optimization-validation
+        name: Query Optimization Validation
+        entry: python -c "
+import sys, re
+violations = []
+for filepath in sys.argv[1:]:
+    if not filepath.endswith('.py'): continue
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+            # Check for unoptimized queries
+            unoptimized_patterns = [
+                (r'\.objects\.all\(\)(?!\.(?:select_related|prefetch_related))', 'Unoptimized .objects.all()'),
+                (r'\.objects\.filter\([^)]+\)(?!\.(?:select_related|prefetch_related))', 'Unoptimized .objects.filter()'),
+                (r'for\s+\w+\s+in\s+.*?\.objects\.get\(', 'Potential N+1: .objects.get() in loop')
+            ]
+            lines = content.split('\n')
+            for i, line in enumerate(lines):
+                for pattern, message in unoptimized_patterns:
+                    if re.search(pattern, line, re.MULTILINE):
+                        violations.append(f'{filepath}:{i+1}: {message}')
+if violations:
+    print('Query optimization issues found:')
+    for v in violations: print(f'  {v}')
+    print('Consider using select_related() or prefetch_related() for better performance')
+    sys.exit(1)
+"
+        language: system
+        files: '^apps/.*\.py$'
+        exclude: '(migrations|tests)'
+
+      - id: secure-encryption-validation
+        name: Secure Encryption Validation
+        entry: python -c "
+import sys, re
+violations = []
+for filepath in sys.argv[1:]:
+    if not filepath.endswith('.py'): continue
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+            # Check for insecure encryption patterns
+            if 'zlib.compress' in content and 'base64' in content:
+                lines = content.split('\n')
+                for i, line in enumerate(lines):
+                    if 'zlib.compress' in line or ('base64' in line and 'zlib' in content):
+                        violations.append(f'{filepath}:{i+1}: Insecure zlib compression detected - use SecureEncryptionService')
+if violations:
+    print('Insecure encryption patterns found:')
+    for v in violations: print(f'  {v}')
+    sys.exit(1)
+"
+        language: system
+        files: '^apps/.*\.py$'
+        exclude: '(migrations|tests)'
+
+      # IMPORT ORGANIZATION VALIDATION HOOKS
+      - id: import-validation
+        name: Import Organization Validation
+        entry: python3 standalone_import_analyzer.py
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+      - id: import-style-check
+        name: Import Style Consistency Check
+        entry: python3 fix_import_styles.py --dry-run
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+      - id: unused-imports-check
+        name: Unused Imports Detection
+        entry: python -c "
+import sys, ast, os
+violations = []
+for filepath in sys.argv[1:]:
+    if not filepath.endswith('.py') or 'migrations' in filepath: continue
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+        tree = ast.parse(content)
+        imports = []
+        used_names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    import_name = alias.asname if alias.asname else alias.name.split('.')[0]
+                    imports.append((import_name, node.lineno, f'import {alias.name}'))
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                for alias in node.names:
+                    import_name = alias.asname if alias.asname else alias.name
+                    imports.append((import_name, node.lineno, f'from {node.module} import {alias.name}'))
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                used_names.add(node.id)
+            elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                used_names.add(node.value.id)
+        for import_name, line_no, import_stmt in imports:
+            if import_name not in used_names and import_name != '*':
+                violations.append(f'{filepath}:{line_no}: Unused import - {import_stmt}')
+    except Exception:
+        pass
+if violations:
+    print('Unused imports found:')
+    for v in violations[:10]: print(f'  {v}')
+    if len(violations) > 10: print(f'  ... and {len(violations)-10} more')
+    print('Run: python3 standalone_import_analyzer.py --fix-unused')
+    sys.exit(1)
+"
+        language: system
+        files: '^apps/.*\.py$'
+        exclude: '(migrations|tests)'
+
+  # Standard Python hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  # Python formatting
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        language_version: python3
+
+  # Python import sorting with Django support
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "django", "--multi-line", "3", "--trailing-comma", "--force-grid-wrap", "0", "--combine-as", "--line-width", "88"]
+
+  # Python linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        args: [--max-line-length=88, --extend-ignore=E203]
+
+  # Django specific checks
+  - repo: local
+    hooks:
+      - id: django-check
+        name: Django Check
+        entry: python manage.py check
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        stages: [commit]
+
+      - id: django-makemigrations-check
+        name: Django Migrations Check
+        entry: python manage.py makemigrations --check --dry-run
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        stages: [commit]
+
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: ['-r', '.', '--skip', 'B101,B601']
+
+  # Type checking (optional - uncomment if using mypy)
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.5.1
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies: [django-stubs]

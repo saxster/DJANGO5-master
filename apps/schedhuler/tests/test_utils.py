@@ -1,12 +1,9 @@
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
-from unittest.mock import patch, Mock, MagicMock
 from datetime import datetime, timedelta
-import json
 import pytest
 
 from apps.schedhuler import utils as sutils
-from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.peoples.models import People, Pgroup

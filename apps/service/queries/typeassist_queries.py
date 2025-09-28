@@ -1,15 +1,16 @@
 import graphene
 from apps.onboarding.models import TypeAssist
-from apps.core.utils import get_type_data
 from apps.service.types import SelectOutputType
 from apps.core import utils
 from logging import getLogger
-from apps.service.inputs.typeassist_input import TypeAssistModifiedFilterInput
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
 from apps.service.pydantic_schemas.typeassist_schema import (
     TypeAssistModifiedFilterSchema,
 )
 from graphql import GraphQLError
+from apps.service.decorators import require_authentication, require_tenant_access
 
 log = getLogger("mobile_service_log")
 
@@ -23,6 +24,7 @@ class TypeAssistQueries(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_typeassistmodifiedafter(self, info, mdtz, ctzoffset, clientid):
         try:
             log.info("request for get_typeassistmodifiedafter")
@@ -43,8 +45,11 @@ class TypeAssistQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_typeassistmodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_typeassistmodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_typeassistmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except TypeAssist.DoesNotExist:
+            log.warning("TypeAssist records not found")
+            raise GraphQLError("TypeAssist records not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_typeassistmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")

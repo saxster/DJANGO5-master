@@ -6,17 +6,31 @@ Real-time communication for mobile SDK synchronization and monitoring
 import asyncio
 import json
 import logging
+import uuid
+import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError
 from django.utils import timezone
 
-from apps.core.utils_new.sql_security import validate_query_security
+from apps.core.exceptions import (
+    IntegrationException,
+    CacheException,
+    LLMServiceException,
+    SecurityException
+)
+
 from apps.voice_recognition.models import VoiceVerificationLog
 from .v1.views.mobile_sync_views import sync_engine
+
+# Stream Testbench integration
+from apps.streamlab.services.event_capture import stream_event_capture
+from apps.issue_tracker.services.anomaly_detector import anomaly_detector
 
 logger = logging.getLogger('mobile.websocket')
 
@@ -35,6 +49,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
         self.sync_sessions = {}
         self.heartbeat_task = None
         self.last_activity = None
+        self.correlation_id = str(uuid.uuid4())  # Stream Testbench correlation ID
         
     async def connect(self):
         """Handle WebSocket connection"""
@@ -92,10 +107,16 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             self.last_activity = datetime.utcnow()
             
             logger.info(f"Mobile sync connection established for user {self.user.id}, device {self.device_id}")
-            
-        except Exception as e:
-            logger.error(f"Mobile WebSocket connection error: {str(e)}", exc_info=True)
-            await self.close(code=4500)
+
+        except (KeyError, ValueError, AttributeError) as e:
+            logger.warning(f"Invalid connection parameters: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.close(code=4400)
+        except ConnectionError as e:
+            logger.error(f"Channel layer connection error: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.close(code=4503)
+        except SecurityException as e:
+            logger.error(f"Security error during connection: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.close(code=4403)
     
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection"""
@@ -123,24 +144,146 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 await self._update_device_status('offline')
             
             logger.info(f"Mobile sync connection closed for user {self.user.id if self.user else 'Unknown'}, code {close_code}")
-            
-        except Exception as e:
-            logger.error(f"Mobile WebSocket disconnect error: {str(e)}", exc_info=True)
+
+        except asyncio.CancelledError:
+            pass
+        except ConnectionError as e:
+            logger.warning(f"Channel layer disconnect error: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except (KeyError, AttributeError) as e:
+            logger.warning(f"Cleanup error during disconnect: {str(e)}", extra={'correlation_id': self.correlation_id})
     
     async def receive(self, text_data):
         """Handle incoming messages from mobile clients"""
+        start_time = time.time()
+        message_correlation_id = str(uuid.uuid4())
+
         try:
             message = json.loads(text_data)
-            await self._handle_message(message)
+            message_type = message.get('type', 'unknown')
+
+            # Structured logging for Stream Testbench
+            logger.info(
+                "WebSocket message received",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'user_id': str(self.user.id) if self.user else None,
+                    'device_id': self.device_id,
+                    'message_type': message_type,
+                    'message_size': len(text_data),
+                    'endpoint': 'ws/mobile/sync',
+                }
+            )
+
+            await self._handle_message(message, message_correlation_id)
             self.last_activity = datetime.utcnow()
-            
+
+            # Log successful processing
+            processing_time = (time.time() - start_time) * 1000
+            logger.info(
+                "WebSocket message processed",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'processing_time_ms': round(processing_time, 2),
+                    'status': 'success'
+                }
+            )
+
+            # Capture event for Stream Testbench
+            await self._capture_stream_event(
+                message=message,
+                message_correlation_id=message_correlation_id,
+                processing_time=processing_time,
+                outcome='success'
+            )
+
         except json.JSONDecodeError:
+            logger.error(
+                "Invalid JSON in WebSocket message",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'error_type': 'json_decode_error',
+                    'message_size': len(text_data)
+                }
+            )
             await self.send_error("Invalid JSON message", "JSON_DECODE_ERROR")
-        except Exception as e:
-            logger.error(f"Mobile message handling error: {str(e)}", exc_info=True)
-            await self.send_error(f"Message processing failed: {str(e)}", "MESSAGE_PROCESSING_ERROR")
+
+            # Capture error event
+            processing_time = (time.time() - start_time) * 1000
+            await self._capture_stream_event(
+                message={},
+                message_correlation_id=message_correlation_id,
+                processing_time=processing_time,
+                outcome='error',
+                error_details={
+                    'error_code': 'JSON_DECODE_ERROR',
+                    'error_message': 'Invalid JSON in WebSocket message',
+                    'message_size': len(text_data)
+                }
+            )
+        except (ValidationError, ValueError, TypeError) as e:
+            processing_time = (time.time() - start_time) * 1000
+            logger.warning(
+                "Message validation error",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'error': str(e),
+                    'processing_time_ms': round(processing_time, 2)
+                }
+            )
+            await self.send_error(f"Invalid message: {str(e)}", "VALIDATION_ERROR")
+            await self._capture_stream_event(
+                message=message if 'message' in locals() else {},
+                message_correlation_id=message_correlation_id,
+                processing_time=processing_time,
+                outcome='validation_error',
+                error_details={'error_code': 'VALIDATION_ERROR', 'error_message': str(e)}
+            )
+        except DatabaseError as e:
+            processing_time = (time.time() - start_time) * 1000
+            logger.error(
+                "Database error during message processing",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'error': str(e),
+                    'processing_time_ms': round(processing_time, 2)
+                },
+                exc_info=True
+            )
+            await self.send_error("Service temporarily unavailable", "DATABASE_ERROR")
+            await self._capture_stream_event(
+                message=message if 'message' in locals() else {},
+                message_correlation_id=message_correlation_id,
+                processing_time=processing_time,
+                outcome='error',
+                error_details={'error_code': 'DATABASE_ERROR', 'error_message': 'Database unavailable'}
+            )
+        except IntegrationException as e:
+            processing_time = (time.time() - start_time) * 1000
+            logger.error(
+                "Integration error during message processing",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'error': str(e),
+                    'processing_time_ms': round(processing_time, 2)
+                },
+                exc_info=True
+            )
+            await self.send_error("External service error", "INTEGRATION_ERROR")
+            await self._capture_stream_event(
+                message=message if 'message' in locals() else {},
+                message_correlation_id=message_correlation_id,
+                processing_time=processing_time,
+                outcome='error',
+                error_details={'error_code': 'INTEGRATION_ERROR', 'error_message': str(e)}
+            )
     
-    async def _handle_message(self, message: Dict[str, Any]):
+    async def _handle_message(self, message: Dict[str, Any], message_correlation_id: str = None):
         """Handle different message types"""
         try:
             message_type = message.get('type')
@@ -161,10 +304,13 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 await self._handle_device_status(message)
             else:
                 await self.send_error(f"Unknown message type: {message_type}", "UNKNOWN_MESSAGE_TYPE")
-                
-        except Exception as e:
-            logger.error(f"Message handler error: {str(e)}", exc_info=True)
-            await self.send_error(f"Handler error: {str(e)}", "HANDLER_ERROR")
+
+        except (KeyError, AttributeError) as e:
+            logger.warning(f"Invalid message structure: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Invalid message format: {str(e)}", "INVALID_MESSAGE")
+        except (ValidationError, ValueError) as e:
+            logger.warning(f"Message validation error: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Validation error: {str(e)}", "VALIDATION_ERROR")
     
     async def _handle_start_sync(self, message: Dict[str, Any]):
         """Handle sync session initiation"""
@@ -201,10 +347,16 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             
             # Notify other systems
             await self._notify_sync_started(sync_id)
-            
-        except Exception as e:
-            logger.error(f"Start sync error: {str(e)}")
-            await self.send_error(f"Sync start failed: {str(e)}", "SYNC_START_ERROR")
+
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Invalid sync start parameters: {str(e)}", extra={'correlation_id': self.correlation_id, 'sync_id': sync_id if 'sync_id' in locals() else None})
+            await self.send_error(f"Invalid sync parameters: {str(e)}", "INVALID_SYNC_PARAMS")
+        except DatabaseError as e:
+            logger.error(f"Database error starting sync: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("Sync service temporarily unavailable", "DATABASE_ERROR")
+        except ConnectionError as e:
+            logger.error(f"Channel layer error during sync start: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("Real-time service unavailable", "CONNECTION_ERROR")
     
     async def _handle_sync_data(self, message: Dict[str, Any]):
         """Handle real-time data synchronization"""
@@ -265,10 +417,16 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 },
                 'batch_results': sync_results
             })
-            
-        except Exception as e:
-            logger.error(f"Sync data error: {str(e)}")
-            await self.send_error(f"Data sync failed: {str(e)}", "DATA_SYNC_ERROR")
+
+        except (KeyError, ValueError, ValidationError) as e:
+            logger.warning(f"Invalid sync data: {str(e)}", extra={'correlation_id': self.correlation_id, 'sync_id': sync_id if 'sync_id' in locals() else None})
+            await self.send_error(f"Invalid data format: {str(e)}", "INVALID_DATA")
+        except DatabaseError as e:
+            logger.error(f"Database error during sync: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("Sync temporarily unavailable", "DATABASE_ERROR")
+        except IntegrationException as e:
+            logger.error(f"Integration error during sync: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("External service error during sync", "INTEGRATION_ERROR")
     
     async def _handle_server_data_request(self, message: Dict[str, Any]):
         """Handle requests for server data (bidirectional sync)"""
@@ -300,10 +458,16 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'data': server_data,
                 'server_timestamp': timezone.now().isoformat()
             })
-            
-        except Exception as e:
-            logger.error(f"Server data request error: {str(e)}")
-            await self.send_error(f"Server data request failed: {str(e)}", "SERVER_DATA_ERROR")
+
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid server data request: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Invalid request parameters: {str(e)}", "INVALID_REQUEST")
+        except DatabaseError as e:
+            logger.error(f"Database error fetching server data: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("Server data temporarily unavailable", "DATABASE_ERROR")
+        except ObjectDoesNotExist as e:
+            logger.info(f"No data found for request: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error("No data available", "NO_DATA")
     
     async def _handle_conflict_resolution(self, message: Dict[str, Any]):
         """Handle conflict resolution from client"""
@@ -322,10 +486,13 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'resolution_strategy': resolution_strategy,
                 'result': result
             })
-            
-        except Exception as e:
-            logger.error(f"Conflict resolution error: {str(e)}")
-            await self.send_error(f"Conflict resolution failed: {str(e)}", "CONFLICT_RESOLUTION_ERROR")
+
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Invalid conflict resolution data: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Invalid conflict resolution: {str(e)}", "INVALID_CONFLICT_DATA")
+        except DatabaseError as e:
+            logger.error(f"Database error resolving conflict: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("Conflict resolution service unavailable", "DATABASE_ERROR")
     
     async def _handle_event_subscription(self, message: Dict[str, Any]):
         """Handle event subscription requests"""
@@ -341,10 +508,13 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'type': 'subscription_confirmed',
                 'subscribed_events': event_types
             })
-            
-        except Exception as e:
-            logger.error(f"Event subscription error: {str(e)}")
-            await self.send_error(f"Subscription failed: {str(e)}", "SUBSCRIPTION_ERROR")
+
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning(f"Invalid event subscription request: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Invalid subscription: {str(e)}", "INVALID_SUBSCRIPTION")
+        except ConnectionError as e:
+            logger.error(f"Channel layer error during subscription: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
+            await self.send_error("Subscription service unavailable", "CONNECTION_ERROR")
     
     async def _handle_heartbeat(self, message: Dict[str, Any]):
         """Handle heartbeat from client"""
@@ -363,9 +533,11 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             # Store additional device info
             if 'device_info' in message:
                 await self._update_device_info(message['device_info'])
-            
-        except Exception as e:
-            logger.error(f"Device status update error: {str(e)}")
+
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Invalid device status message: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except ConnectionError as e:
+            logger.error(f"Connection error updating device status: {str(e)}", extra={'correlation_id': self.correlation_id})
     
     async def _heartbeat_loop(self):
         """Background heartbeat to maintain connection"""
@@ -387,11 +559,14 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                     'server_time': timezone.now().isoformat(),
                     'connection_duration': (datetime.utcnow() - self.last_activity).total_seconds() if self.last_activity else 0
                 })
-                
+
         except asyncio.CancelledError:
             pass
-        except Exception as e:
-            logger.error(f"Heartbeat loop error: {str(e)}")
+        except ConnectionError as e:
+            logger.error(f"Connection lost during heartbeat: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.close(code=4503)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Heartbeat data error: {str(e)}", extra={'correlation_id': self.correlation_id})
     
     async def _cleanup_sync_sessions(self):
         """Clean up active sync sessions"""
@@ -403,11 +578,13 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                     
                     # Store session results
                     await self._store_sync_session_results(sync_id, session)
-            
+
             self.sync_sessions.clear()
-            
-        except Exception as e:
-            logger.error(f"Sync session cleanup error: {str(e)}")
+
+        except (KeyError, AttributeError) as e:
+            logger.warning(f"Session cleanup data error: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except DatabaseError as e:
+            logger.error(f"Database error during cleanup: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id})
     
     async def _notify_sync_started(self, sync_id: str):
         """Notify other systems about sync start"""
@@ -424,9 +601,11 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                     'timestamp': timezone.now().isoformat()
                 }
             )
-            
-        except Exception as e:
-            logger.error(f"Sync notification error: {str(e)}")
+
+        except ConnectionError as e:
+            logger.warning(f"Channel layer unavailable for notification: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Invalid notification data: {str(e)}", extra={'correlation_id': self.correlation_id})
     
     @database_sync_to_async
     def _get_server_voice_data(self, since_timestamp: Optional[str]) -> List[Dict[str, Any]]:
@@ -454,9 +633,15 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 }
                 for log in logs
             ]
-            
-        except Exception as e:
-            logger.error(f"Server voice data retrieval error: {str(e)}")
+
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid timestamp for voice data query: {str(e)}", extra={'user_id': self.user.id if self.user else None})
+            return []
+        except DatabaseError as e:
+            logger.error(f"Database error retrieving voice data: {str(e)}", exc_info=True, extra={'user_id': self.user.id if self.user else None})
+            return []
+        except ObjectDoesNotExist:
+            logger.info(f"No voice data found for user", extra={'user_id': self.user.id if self.user else None})
             return []
     
     async def _get_server_behavioral_data(self, since_timestamp: Optional[str]) -> List[Dict[str, Any]]:
@@ -483,10 +668,13 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'strategy_applied': strategy,
                 'timestamp': timezone.now().isoformat()
             }
-            
-        except Exception as e:
-            logger.error(f"Conflict resolution application error: {str(e)}")
-            return {'status': 'failed', 'error': str(e)}
+
+        except (ValidationError, ValueError) as e:
+            logger.warning(f"Invalid conflict resolution data: {str(e)}", extra={'correlation_id': self.correlation_id, 'conflict_id': conflict_id})
+            return {'status': 'failed', 'error': f"Validation error: {str(e)}"}
+        except DatabaseError as e:
+            logger.error(f"Database error applying conflict resolution: {str(e)}", exc_info=True, extra={'correlation_id': self.correlation_id, 'conflict_id': conflict_id})
+            return {'status': 'failed', 'error': 'Database service unavailable'}
     
     async def _update_device_status(self, status: str):
         """Update device online/offline status"""
@@ -498,35 +686,43 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'connection_type': 'websocket'
             }
             cache.set(cache_key, device_status, timeout=3600)
-            
-        except Exception as e:
-            logger.error(f"Device status update error: {str(e)}")
-    
+
+        except ConnectionError as e:
+            logger.warning(f"Cache unavailable for device status update: {str(e)}", extra={'correlation_id': self.correlation_id, 'device_id': self.device_id})
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Invalid device status value: {str(e)}", extra={'correlation_id': self.correlation_id, 'status': status})
+
     async def _update_device_info(self, device_info: Dict[str, Any]):
         """Update device information"""
         try:
             cache_key = f"device_info:{self.user.id}:{self.device_id}"
             cache.set(cache_key, device_info, timeout=86400)  # 24 hours
-            
-        except Exception as e:
-            logger.error(f"Device info update error: {str(e)}")
-    
+
+        except ConnectionError as e:
+            logger.warning(f"Cache unavailable for device info: {str(e)}", extra={'correlation_id': self.correlation_id, 'device_id': self.device_id})
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning(f"Invalid device info structure: {str(e)}", extra={'correlation_id': self.correlation_id})
+
     async def _store_sync_session_results(self, sync_id: str, session: Dict[str, Any]):
         """Store sync session results for analytics"""
         try:
             # Store in cache for analytics
             cache_key = f"sync_session:{sync_id}"
             cache.set(cache_key, session, timeout=86400 * 7)  # 7 days
-            
-        except Exception as e:
-            logger.error(f"Sync session storage error: {str(e)}")
+
+        except ConnectionError as e:
+            logger.warning(f"Cache unavailable for session storage: {str(e)}", extra={'correlation_id': self.correlation_id, 'sync_id': sync_id})
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Invalid session data for storage: {str(e)}", extra={'correlation_id': self.correlation_id, 'sync_id': sync_id})
     
     async def send_message(self, message: Dict[str, Any]):
         """Send message to WebSocket client"""
         try:
             await self.send(text_data=json.dumps(message))
-        except Exception as e:
-            logger.error(f"WebSocket send error: {str(e)}")
+        except ConnectionError as e:
+            logger.error(f"WebSocket connection lost during send: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except (TypeError, ValueError) as e:
+            logger.error(f"Message serialization error: {str(e)}", extra={'correlation_id': self.correlation_id, 'message_type': message.get('type')})
     
     async def send_error(self, message: str, error_code: str = "GENERAL_ERROR"):
         """Send error message to client"""
@@ -537,9 +733,173 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'message': message,
                 'timestamp': timezone.now().isoformat()
             })
-        except Exception as e:
-            logger.error(f"Error message send failed: {str(e)}")
-    
+        except ConnectionError as e:
+            logger.critical(f"Cannot send error message - connection lost: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except (TypeError, ValueError) as e:
+            logger.error(f"Error message formatting failed: {str(e)}", extra={'correlation_id': self.correlation_id})
+
+    async def _capture_stream_event(self, message: Dict[str, Any],
+                                   message_correlation_id: str,
+                                   processing_time: float,
+                                   outcome: str = 'success',
+                                   error_details: Dict[str, Any] = None):
+        """Capture event for Stream Testbench analysis and anomaly detection"""
+        try:
+            # Extract endpoint from message or use default
+            endpoint = 'ws/mobile/sync'
+            if message.get('type'):
+                endpoint = f"{endpoint}/{message['type']}"
+
+            # Extract device/client information for version tracking
+            device_info = await self._get_device_info()
+
+            # Prepare sanitized payload for capture
+            sanitized_payload = {
+                'message_type': message.get('type', 'unknown'),
+                'data_types': message.get('data_types', []),
+                'device_info': device_info,
+                # Include size information but not actual content for PII safety
+                'content_size': len(str(message.get('data', {}))) if message.get('data') else 0,
+                'timestamp': timezone.now().isoformat()
+            }
+
+            # Capture the event
+            event_id = await stream_event_capture.capture_event(
+                correlation_id=self.correlation_id,
+                endpoint=endpoint,
+                payload=sanitized_payload,
+                direction='inbound',
+                latency_ms=processing_time,
+                outcome=outcome,
+                error_details=error_details,
+                message_correlation_id=message_correlation_id,
+                channel_topic=message.get('type', '')
+            )
+
+            # Trigger anomaly detection if event was captured
+            if event_id:
+                await self._analyze_for_anomalies(
+                    event_id=event_id,
+                    endpoint=endpoint,
+                    latency_ms=processing_time,
+                    outcome=outcome,
+                    payload_sanitized=sanitized_payload,
+                    error_details=error_details,
+                    device_info=device_info
+                )
+
+        except IntegrationException as e:
+            logger.warning(f"Stream Testbench unavailable: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except ConnectionError as e:
+            logger.warning(f"Cannot reach event capture service: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid event data for capture: {str(e)}", extra={'correlation_id': self.correlation_id})
+
+    async def _analyze_for_anomalies(self, event_id: str, endpoint: str,
+                                   latency_ms: float, outcome: str,
+                                   payload_sanitized: Dict[str, Any],
+                                   error_details: Dict[str, Any] = None,
+                                   device_info: Dict[str, Any] = None):
+        """Analyze captured event for anomalies"""
+        try:
+            # Prepare event data for anomaly analysis
+            event_data = {
+                'event_id': event_id,
+                'correlation_id': self.correlation_id,
+                'endpoint': endpoint,
+                'latency_ms': latency_ms,
+                'outcome': outcome,
+                'payload_sanitized': payload_sanitized,
+                'message_size_bytes': payload_sanitized.get('content_size', 0)
+            }
+
+            # Add error details if present
+            if error_details:
+                event_data.update({
+                    'error_message': error_details.get('error_message', ''),
+                    'error_code': error_details.get('error_code', ''),
+                    'exception_class': error_details.get('exception_type', '')
+                })
+
+            # Add device context for client version tracking
+            if device_info:
+                event_data.update({
+                    'client_app_version': device_info.get('app_version', ''),
+                    'client_os_version': device_info.get('os_version', ''),
+                    'client_device_model': device_info.get('device_model', '')
+                })
+
+            # Run anomaly analysis
+            anomaly_result = await anomaly_detector.analyze_event(event_data)
+
+            if anomaly_result:
+                logger.info(
+                    f"Anomaly detected in mobile event: {anomaly_result.get('anomaly_type')}",
+                    extra={
+                        'anomaly_id': anomaly_result.get('occurrence_id'),
+                        'severity': anomaly_result.get('severity'),
+                        'correlation_id': self.correlation_id
+                    }
+                )
+
+                # Broadcast anomaly alert for real-time dashboard
+                from apps.streamlab.consumers import send_anomaly_alert
+                await send_anomaly_alert({
+                    'id': anomaly_result.get('occurrence_id'),
+                    'type': anomaly_result.get('anomaly_type'),
+                    'severity': anomaly_result.get('severity'),
+                    'endpoint': endpoint,
+                    'correlation_id': self.correlation_id,
+                    'device_info': device_info,
+                    'created_at': timezone.now().isoformat()
+                })
+
+        except IntegrationException as e:
+            logger.warning(f"Anomaly detector unavailable: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except LLMServiceException as e:
+            logger.warning(f"AI analysis service unavailable: {str(e)}", extra={'correlation_id': self.correlation_id})
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid data for anomaly analysis: {str(e)}", extra={'correlation_id': self.correlation_id})
+
+    async def _get_device_info(self) -> Dict[str, Any]:
+        """Extract device information from cache or connection"""
+        try:
+            if self.device_id:
+                cache_key = f"device_info:{self.user.id}:{self.device_id}"
+                device_info = cache.get(cache_key, {})
+
+                # Return available device info with defaults
+                return {
+                    'app_version': device_info.get('app_version', 'unknown'),
+                    'os_version': device_info.get('os_version', 'unknown'),
+                    'device_model': device_info.get('device_model', 'unknown'),
+                    'device_id': self.device_id
+                }
+
+            return {
+                'app_version': 'unknown',
+                'os_version': 'unknown',
+                'device_model': 'unknown',
+                'device_id': 'unknown'
+            }
+
+        except ConnectionError as e:
+            logger.warning(f"Cache unavailable for device info: {str(e)}", extra={'correlation_id': self.correlation_id})
+            return {
+                'app_version': 'unknown',
+                'os_version': 'unknown',
+                'device_model': 'unknown',
+                'device_id': self.device_id if self.device_id else 'unknown'
+            }
+        except (KeyError, ValueError, AttributeError) as e:
+            logger.warning(f"Invalid device info structure: {str(e)}", extra={'correlation_id': self.correlation_id})
+            return {
+                'app_version': 'unknown',
+                'os_version': 'unknown',
+                'device_model': 'unknown',
+                'device_id': self.device_id if self.device_id else 'unknown'
+            }
+
     # Channel layer message handlers
     
     async def sync_update(self, event):

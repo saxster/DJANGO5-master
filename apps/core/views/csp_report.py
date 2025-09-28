@@ -4,7 +4,6 @@ CSP Report Endpoint for Content Security Policy Violations
 
 import json
 import logging
-from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -61,7 +60,7 @@ class CSPReportView(View):
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode CSP report: {e}")
             return HttpResponse(status=400)
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error processing CSP report: {e}")
             return HttpResponse(status=500)
             
@@ -128,7 +127,7 @@ class CSPReportView(View):
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
                 reported_at=datetime.now()
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Failed to store CSP violation: {e}")
             
     def _is_critical_violation(self, report):

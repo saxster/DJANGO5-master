@@ -4,14 +4,15 @@ from django.core.validators import RegexValidator
 from django.db.models import Q
 from django.utils.html import format_html
 from django.urls import reverse
-
+import logging
+import zlib
+import binascii
 
 import apps.peoples.models as pm  # people-models
 from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
 import apps.onboarding.models as om  # onboarding-models
 from django_select2 import forms as s2forms
-from apps.core import utils
 from apps.core.utils_new.business_logic import (
     apply_error_classes,
     initailize_form_fields,
@@ -19,13 +20,15 @@ from apps.core.utils_new.business_logic import (
 import re
 from apps.peoples.utils import create_caps_choices_for_peopleform
 
-# Import secure validation utilities
-from apps.core.validation import (
-    SecureFormMixin,
-    SecureCharField,
-    SecureEmailField,
-    InputValidator,
-    XSSPrevention,
+from apps.core.utils_new.code_validators import (
+    PEOPLECODE_VALIDATOR,
+    LOGINID_VALIDATOR,
+    MOBILE_NUMBER_VALIDATOR,
+    NAME_VALIDATOR,
+    validate_peoplecode,
+    validate_loginid,
+    validate_mobile_number,
+    validate_name,
 )
 
 # ============= BEGIN LOGIN FORM ====================#
@@ -149,13 +152,6 @@ class PeopleForm(forms.ModelForm):
         "deviceid",
     ]
 
-    # defines validator which validates peoplecode
-    alpha_special = RegexValidator(
-        regex="[a-zA-Z0-9_\-()#]",
-        message="Only this special characters are allowed -, _ ",
-        code="invalid_code",
-    )
-
     peoplecode = forms.CharField(
         max_length=20,
         required=True,
@@ -165,7 +161,7 @@ class PeopleForm(forms.ModelForm):
                 "placeholder": "Enter text not including any spaces",
             }
         ),
-        validators=[alpha_special],
+        validators=[PEOPLECODE_VALIDATOR],
         label="Code",
     )
     email = forms.EmailField(
@@ -178,6 +174,7 @@ class PeopleForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={"placeholder": "Enter text not including any spaces"}
         ),
+        validators=[LOGINID_VALIDATOR],
     )
 
     class Meta:
@@ -250,25 +247,12 @@ class PeopleForm(forms.ModelForm):
         self.fields["dateofjoin"].input_formats = settings.DATE_INPUT_FORMATS
         self.fields["dateofjoin"].required = False
 
-        # Ensure email and mobno fields display decrypted values when editing
         if self.instance and self.instance.pk:
-            from apps.core.utils_new.string_utils import decrypt
             if self.instance.email:
-                try:
-                    # Try to decrypt the email
-                    decrypted_email = decrypt(self.instance.email)
-                    self.initial['email'] = decrypted_email
-                except Exception:
-                    # If decryption fails, it might already be plain text
-                    pass
+                self.initial['email'] = self.instance.email
+
             if self.instance.mobno:
-                try:
-                    # Try to decrypt the mobno
-                    decrypted_mobno = decrypt(self.instance.mobno)
-                    self.initial['mobno'] = decrypted_mobno
-                except Exception:
-                    # If decryption fails, it might already be plain text
-                    pass
+                self.initial['mobno'] = self.instance.mobno
 
         # filters for dropdown fields
         self.fields["peopletype"].queryset = om.TypeAssist.objects.filter(

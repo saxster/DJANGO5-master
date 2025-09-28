@@ -1,18 +1,15 @@
 import logging
-from pprint import pformat
 import psycopg2.errors as pg_errs
 from apps.core.utils_new.db_utils import get_current_db_name
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, DatabaseError, transaction
+from django.core.exceptions import ValidationError
 
-from django.http import Http404, QueryDict
-from django.http import response as rp
 from django.shortcuts import render
 from django.views.generic.base import View
 
 import apps.activity.filters as aft
-from apps.activity.forms.question_form import (
     QuestionForm,
     ChecklistForm,
     QuestionSetForm,
@@ -96,140 +93,64 @@ class Question(LoginRequiredMixin, View):
         return resp
 
     def post(self, request, *args, **kwargs):
-        resp, create = None, True
+        """
+        Handle POST requests for question creation and updates.
+        Refactored to use service layer for better maintainability.
+        """
+        from apps.activity.services.question_service import QuestionService, FormDataService
+        from django.http import JsonResponse
+
         try:
-            from apps.core.utils_new.http_utils import get_clean_form_data
-            
-            # Debug: Log raw POST data
-            form_data_raw = request.POST.get('formData', 'NOT FOUND')
-            logger.info(f"Raw POST data keys: {list(request.POST.keys())}")
-            logger.info(f"FormData length: {len(form_data_raw)}")
-            logger.info(f"FormData last 50 chars: ...{form_data_raw[-50:] if len(form_data_raw) > 50 else form_data_raw}")
-            logger.info(f"Full FormData: {form_data_raw}")
-            
-            # Check specifically for options in the raw data
-            if 'options' in form_data_raw:
-                import re
-                options_match = re.search(r'options=([^&]*)', form_data_raw)
-                if options_match:
-                    logger.info(f"Options value in raw formData: {options_match.group(1)}")
-            
-            data = get_clean_form_data(request).copy()
-            
-            # Manually extract options from formData if it's missing
-            if not data.get('options'):
-                # Try to get options directly from request.POST
-                direct_options = request.POST.get('options', '')
-                if direct_options:
-                    logger.info(f"Found options directly in POST: {direct_options}")
-                    data = data.copy()
-                    data['options'] = direct_options
-                elif 'formData' in request.POST:
-                    import urllib.parse
-                    form_data_raw = request.POST.get('formData', '')
-                    
-                    # Log the actual end of formData to see if it's truly truncated
-                    logger.info(f"FormData ends with: ...{form_data_raw[-30:]}")
-                    
-                    # Check if formData appears truncated (ends with incomplete parameter)
-                    if form_data_raw.endswith('[REMOVED]') or 'opti' in form_data_raw[-20:]:
-                        logger.warning("FormData appears to be truncated by Django!")
-                        # Try to reconstruct from other sources
-                        # Check request.body if available
-                        try:
-                            body_str = request.body.decode('utf-8')
-                            logger.info(f"Request body length: {len(body_str)}")
-                            
-                            # Log last part of body to see what's there
-                            logger.info(f"Body last 100 chars: ...{body_str[-100:]}")
-                            
-                            # Look for formData parameter in body
-                            if 'formData=' in body_str:
-                                import re
-                                # Extract the formData value
-                                formdata_match = re.search(r'formData=([^&]*)', body_str)
-                                if formdata_match:
-                                    # URL decode the formData
-                                    formdata_decoded = urllib.parse.unquote(formdata_match.group(1))
-                                    logger.info(f"Decoded formData from body: {formdata_decoded[-100:]}")
-                                    
-                                    # Now look for options in the decoded formData
-                                    if 'options=' in formdata_decoded:
-                                        options_match = re.search(r'options=([^&]*)', formdata_decoded)
-                                        if options_match:
-                                            options_value = urllib.parse.unquote(options_match.group(1))
-                                            logger.info(f"Extracted options from body: {options_value}")
-                                            data = data.copy()
-                                            data['options'] = options_value
-                                    else:
-                                        logger.warning("options= not found in decoded formData")
-                                    
-                                    # Also extract other fields that might be truncated
-                                    for field in ['isavpt', 'avpttype', 'isworkflow', 'alerton', 'min', 'max']:
-                                        if field not in data or not data.get(field):
-                                            field_match = re.search(rf'{field}=([^&]*)', formdata_decoded)
-                                            if field_match:
-                                                field_value = urllib.parse.unquote(field_match.group(1))
-                                                if field_value:
-                                                    logger.info(f"Extracted {field} from body: {field_value}")
-                                                    data = data.copy()
-                                                    data[field] = field_value
-                        except Exception as e:
-                            logger.error(f"Could not read request.body: {e}")
-                    else:
-                        # Remove amp; encoding
-                        form_data_clean = form_data_raw.replace('amp;', '')
-                        # Parse the query string
-                        parsed = urllib.parse.parse_qs(form_data_clean)
-                        # Check if options exists in parsed data
-                        if 'options' in parsed:
-                            options_value = parsed['options'][0] if parsed['options'] else ''
-                            logger.info(f"Manually extracted options value: {options_value}")
-                            # Create a mutable copy and add options
-                            data = data.copy()
-                            data['options'] = options_value
-                        else:
-                            logger.info("Options not found even after manual parsing")
-            
-            # Convert checkbox values from 'on' to boolean
-            if 'isavpt' in data:
-                isavpt_value = data.get('isavpt')
-                if isavpt_value == 'on':
-                    data = data.copy()
-                    data['isavpt'] = True
-                elif isavpt_value == 'off' or isavpt_value == '':
-                    data = data.copy()
-                    data['isavpt'] = False
-                logger.info(f"isavpt converted from {isavpt_value} to {data.get('isavpt')}")
-            
-            if 'isworkflow' in data:
-                isworkflow_value = data.get('isworkflow')
-                if isworkflow_value == 'on':
-                    data = data.copy()
-                    data['isworkflow'] = True
-                elif isworkflow_value == 'off' or isworkflow_value == '':
-                    data = data.copy()
-                    data['isworkflow'] = False
-                    
-            logger.info(f"Final data keys: {list(data.keys())}")
-            logger.info(f"Final options value: {data.get('options', 'NOT FOUND')}")
-            logger.info(f"Final isavpt value: {data.get('isavpt', 'NOT FOUND')}")
-            logger.info(f"Final avpttype value: {data.get('avpttype', 'NOT FOUND')}")
-            if pk := request.POST.get("pk", None):
-                msg = "question_view"
-                ques = utils.get_model_obj(pk, request, self.params)
-                form = self.params["form_class"](data, instance=ques, request=request)
-                create = False
+            # Clean and validate form data using service
+            form_data = FormDataService.clean_question_form_data(request.POST)
+
+            # Additional validation
+            validation_errors = FormDataService.validate_question_data(form_data)
+            if validation_errors:
+                return JsonResponse({
+                    'success': False,
+                    'errors': validation_errors,
+                    'message': 'Form validation failed'
+                }, status=400)
+
+            # Determine if this is an update or create operation
+            pk = request.POST.get("pk", None)
+
+            if pk:
+                # Update existing question
+                result = QuestionService.update_question(int(pk), form_data, request)
             else:
-                form = self.params["form_class"](data, request=request)
-            if form.is_valid():
-                resp = self.handle_valid_form(form, request, create)
+                # Create new question
+                result = QuestionService.create_question(form_data, request)
+
+            # Return appropriate response
+            if result['success']:
+                return JsonResponse(result, status=200)
             else:
-                cxt = {"errors": form.errors}
-                resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
-        return resp
+                status_code = 400
+                if result.get('error_type') == 'not_found':
+                    status_code = 404
+                elif result.get('error_type') == 'integrity_error':
+                    status_code = 409
+
+                return JsonResponse(result, status=status_code)
+
+        except (TypeError, ValidationError, ValueError) as e:
+            # Use centralized error handling
+            correlation_id = ErrorHandler.handle_exception(
+                e,
+                context={
+                    'view': 'Question.post',
+                    'method': request.method,
+                    'path': request.path
+                }
+            )
+
+            return JsonResponse({
+                'success': False,
+                'message': 'An unexpected error occurred',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def handle_valid_form(self, form, request, create):
         logger.info("ques form is valid")
@@ -244,8 +165,9 @@ class Question(LoginRequiredMixin, View):
                 ques, request.user, request.session, create=create
             )
             logger.info("question form saved")
-            # Get the row data in the same format as the list view
-            row_data = Question.objects.filter(id=ques.id).values(*self.params["fields"]).first()
+            row_data = Question.objects.optimized_filter_for_display(
+                ques.id, self.params["fields"]
+            )
             data = {
                 "msg": f"Question '{ques.quesname}' saved successfully",
                 "row": row_data,
@@ -340,7 +262,24 @@ class QuestionSet(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
+        except (ValidationError, ValueError) as e:
+            logger.error(
+                f"Validation error in QuestionSet.post: {type(e).__name__}",
+                extra={'error_message': str(e), 'user_id': request.user.id}
+            )
+            resp = utils.handle_invalid_form(request, self.params, {"errors": {"form": str(e)}})
+        except (DatabaseError, IntegrityError) as e:
+            logger.error(
+                f"Database error in QuestionSet.post: {type(e).__name__}",
+                extra={'error_message': str(e), 'user_id': request.user.id}
+            )
+            resp = utils.handle_intergrity_error("QuestionSet")
+        except (DatabaseError, IntegrityError, TypeError, ValidationError, ValueError) as e:
+            logger.critical(
+                f"Unexpected error in QuestionSet.post: {type(e).__name__}",
+                extra={'error_message': str(e), 'user_id': request.user.id},
+                exc_info=True
+            )
             resp = utils.handle_Exception(request)
         return resp
 
@@ -365,8 +304,19 @@ class QuestionSet(LoginRequiredMixin, View):
                     "display_conditions",  # Add conditional logic field for web interface
                 )
             )
-        except Exception:
-            logger.critical("Something went wrong", exc_info=True)
+        except DatabaseError as e:
+            logger.error(
+                f"Database error in get_questions_for_form: {type(e).__name__}",
+                extra={'error_message': str(e), 'qset_id': qset},
+                exc_info=True
+            )
+            raise
+        except (DatabaseError, IntegrityError, TypeError, ValidationError, ValueError) as e:
+            logger.critical(
+                f"Unexpected error in get_questions_for_form: {type(e).__name__}",
+                extra={'error_message': str(e), 'qset_id': qset},
+                exc_info=True
+            )
             raise
         else:
             return questions
@@ -405,29 +355,76 @@ class QuestionSet(LoginRequiredMixin, View):
                 assigned_questions, QuestionSetBelonging, fields, request
             )
             logger.info("saving QuestionSet Belongin [Ended]")
-        except Exception:
-            logger.critical("Something went wrong", exc_info=True)
+        except (DatabaseError, IntegrityError) as e:
+            logger.error(
+                f"Database error in save_qset_belonging: {type(e).__name__}",
+                extra={
+                    'error_message': str(e),
+                    'assigned_questions_count': len(assigned_questions) if assigned_questions else 0
+                },
+                exc_info=True
+            )
+            raise
+        except (DatabaseError, IntegrityError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+            logger.critical(
+                f"Unexpected error in save_qset_belonging: {type(e).__name__}",
+                extra={
+                    'error_message': str(e),
+                    'assigned_questions_count': len(assigned_questions) if assigned_questions else 0
+                },
+                exc_info=True
+            )
             raise
 
 
 def deleteQSB(request):
-    if request.method != "GET":
-        return Http404
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "POST method required for delete operations"}, status=405
+        )
 
     status = None
     try:
-        quesname = request.GET.get("quesname")
-        answertype = request.GET.get("answertype")
-        qset = request.GET.get("qset")
+        quesname = request.POST.get("quesname")
+        answertype = request.POST.get("answertype")
+        qset = request.POST.get("qset")
         logger.info("request for delete QSB '%s' start", (quesname))
         QuestionSetBelonging.objects.get(
             question__quesname=quesname, answertype=answertype, qset_id=qset
         ).delete()
         statuscode = 200
         logger.info("Delete request executed successfully")
-    except Exception:
-        logger.critical("something went wrong", exc_info=True)
+    except QuestionSetBelonging.DoesNotExist:
+        logger.warning(
+            f"QuestionSetBelonging not found for deletion: {quesname}",
+            extra={'quesname': quesname, 'answertype': answertype, 'qset': qset}
+        )
         statuscode = 404
+    except (DatabaseError, IntegrityError) as e:
+        logger.error(
+            f"Database error in deleteQSB: {type(e).__name__}",
+            extra={
+                'error_message': str(e),
+                'quesname': quesname,
+                'answertype': answertype,
+                'qset': qset
+            },
+            exc_info=True
+        )
+        statuscode = 500
+        raise
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        logger.critical(
+            f"Unexpected error in deleteQSB: {type(e).__name__}",
+            extra={
+                'error_message': str(e),
+                'quesname': quesname,
+                'answertype': answertype,
+                'qset': qset
+            },
+            exc_info=True
+        )
+        statuscode = 500
         raise
     status = "success" if statuscode == 200 else "failed"
     data = {"status": status}
@@ -610,7 +607,24 @@ class Checkpoint(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, P, cxt)
-        except Exception:
+        except (ValidationError, ValueError) as e:
+            logger.error(
+                f"Validation error in Checkpoint.post: {type(e).__name__}",
+                extra={'error_message': str(e), 'user_id': request.user.id}
+            )
+            resp = utils.handle_invalid_form(request, P, {"errors": {"form": str(e)}})
+        except (DatabaseError, IntegrityError) as e:
+            logger.error(
+                f"Database error in Checkpoint.post: {type(e).__name__}",
+                extra={'error_message': str(e), 'user_id': request.user.id}
+            )
+            resp = utils.handle_intergrity_error("Checkpoint")
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
+            logger.critical(
+                f"Unexpected error in Checkpoint.post: {type(e).__name__}",
+                extra={'error_message': str(e), 'user_id': request.user.id},
+                exc_info=True
+            )
             resp = utils.handle_Exception(request)
         return resp
 

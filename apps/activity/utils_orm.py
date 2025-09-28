@@ -8,11 +8,6 @@ because the Event model is not accessible from this module. However, it:
 - Uses parameterized queries to prevent SQL injection
 - Is well-documented and isolated to this single function
 """
-from django.db.models import Count, Q, F, Value
-from django.db import models, connection
-from apps.y_helpdesk.models import Ticket
-import logging
-
 logger = logging.getLogger("django")
 
 
@@ -91,7 +86,7 @@ def get_ticket_events_orm(ticketno, columnsort='asc', columnname='id'):
         
         return results
         
-    except Exception as e:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error getting ticket events for {ticketno}: {str(e)}")
         return []
 

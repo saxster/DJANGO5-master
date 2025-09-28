@@ -46,7 +46,7 @@ class Command(BaseCommand):
             elif action == "test":
                 self.test_cache(select2_cache)
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             self.stdout.write(self.style.ERROR(f"Error performing {action}: {str(e)}"))
             logger.error(f"Select2 cache management error: {e}")
 
@@ -212,5 +212,5 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write("❌ Select2 cache table does not exist")
 
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             self.stdout.write(self.style.ERROR(f"Database info error: {e}"))

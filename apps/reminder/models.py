@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from apps.peoples.models import BaseModel
-from django.conf import settings
 from .managers import ReminderManager
 # Create your models here.
 

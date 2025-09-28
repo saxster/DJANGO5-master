@@ -3,13 +3,25 @@ from django.db import models
 from django.db.models import Q, F, Value as V
 from django.db.models.functions import Concat, Cast
 from django.contrib.gis.db.models.functions import AsGeoJSON
-from django.utils.translation import gettext_lazy as _
 import logging
+
+from apps.core.managers.tenant_manager import TenantQuerySet
 
 log = logging.getLogger("django")
 
 
 class PeopleManager(BaseUserManager):
+    """
+    Enhanced People Manager with tenant filtering capabilities and query optimization.
+
+    Inherits from BaseUserManager for Django auth compatibility.
+    Uses TenantQuerySet for automatic tenant filtering.
+
+    New optimization methods:
+    - with_profile(): Automatically select_related profile data
+    - with_organizational(): Automatically select_related organizational data
+    - with_full_details(): Fetch all related data efficiently
+    """
     use_in_migrations = True
     fields = [
         "id",
@@ -20,36 +32,75 @@ class PeopleManager(BaseUserManager):
         "is_staff",
         "isverified",
         "enable",
-        "department_id",
-        "designation_id",
-        "peopletype_id",
-        "client_id",
         "uuid",
-        "bu_id",
-        "cuser_id",
-        "muser_id",
-        "reportto_id",
         "deviceid",
-        "enable",
         "mobno",
         "cdtz",
         "mdtz",
-        "gender",
-        "dateofbirth",
-        "dateofjoin",
         "tenant_id",
         "ctzoffset",
+        "cuser_id",
+        "muser_id",
     ]
     related = [
-        "bu",
-        "client",
-        "peopletype",
         "muser",
         "cuser",
-        "reportto",
-        "department",
-        "designation",
     ]
+
+    def get_queryset(self):
+        """Return TenantQuerySet for automatic tenant filtering."""
+        return TenantQuerySet(self.model, using=self._db)
+
+    def with_profile(self):
+        """
+        Optimize queries by selecting related profile data.
+
+        Returns:
+            QuerySet: Optimized queryset with profile data
+        """
+        return self.select_related('profile')
+
+    def with_organizational(self):
+        """
+        Optimize queries by selecting related organizational data.
+
+        Returns:
+            QuerySet: Optimized queryset with organizational data and relationships
+        """
+        return self.select_related(
+            'organizational',
+            'organizational__department',
+            'organizational__designation',
+            'organizational__peopletype',
+            'organizational__worktype',
+            'organizational__client',
+            'organizational__bu',
+            'organizational__reportto',
+            'organizational__location'
+        )
+
+    def with_full_details(self):
+        """
+        Optimize queries by fetching all related data (profile + organizational).
+
+        Use this for detail views or when you need complete user information
+        to prevent N+1 queries.
+
+        Returns:
+            QuerySet: Fully optimized queryset with all relationships
+        """
+        return self.select_related(
+            'profile',
+            'organizational',
+            'organizational__department',
+            'organizational__designation',
+            'organizational__peopletype',
+            'organizational__worktype',
+            'organizational__client',
+            'organizational__bu',
+            'organizational__reportto',
+            'organizational__location'
+        )
 
     def create_user(self, loginid, password=None, **extra_fields):
         if not loginid:
@@ -205,7 +256,6 @@ class PeopleManager(BaseUserManager):
         R = request.GET
         from apps.peoples.models import Pgbelonging
         from apps.activity.models.deviceevent_log_model import DeviceEventlog
-        from itertools import chain
 
         bu_id = request.session["bu_id"]
         sitegrp_ids = list(

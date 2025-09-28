@@ -1,0 +1,211 @@
+<!-- AI Insights Widget for HTMX Updates -->
+{% if ai_insights %}
+    <!-- AI Health Score -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="ai-health-score me-3">
+                        <div class="circular-progress" data-score="{{ ai_insights.health_score|default:0 }}">
+                            <svg class="progress-ring" width="60" height="60">
+                                <circle class="progress-ring__circle" stroke="#e9ecef" stroke-width="4" fill="transparent" r="26" cx="30" cy="30"/>
+                                <circle class="progress-ring__progress" stroke="{% if ai_insights.health_score >= 80 %}#28a745{% elif ai_insights.health_score >= 60 %}#ffc107{% else %}#dc3545{% endif %}"
+                                        stroke-width="4" fill="transparent" r="26" cx="30" cy="30"
+                                        stroke-dasharray="{{ ai_insights.health_score|default:0|floatformat:0 }}, 100"/>
+                            </svg>
+                            <div class="progress-text">{{ ai_insights.health_score|default:0 }}%</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">AI System Health</h6>
+                        <p class="text-muted small mb-0">Last updated {{ ai_insights.last_updated|timesince }} ago</p>
+                    </div>
+                </div>
+                <span class="badge badge-{{ ai_insights.alert_level|default:'info' }} badge-pill">
+                    {% if ai_insights.alert_level == 'danger' %}Critical
+                    {% elif ai_insights.alert_level == 'warning' %}Warning
+                    {% elif ai_insights.alert_level == 'success' %}Healthy
+                    {% else %}Info
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Insights Grid -->
+    <div class="row">
+        <!-- Coverage Gaps -->
+        <div class="col-md-6 mb-3">
+            <div class="d-flex align-items-center p-2 bg-light rounded">
+                <div class="me-2">
+                    <i class="fas fa-bug text-{{ ai_insights.critical_gaps > 0|yesno:'danger,info' }}"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="small text-muted">Coverage Gaps</div>
+                    <div class="fw-bold">
+                        {{ ai_insights.critical_gaps|default:0 }} critical
+                        {% if ai_insights.coverage_gaps.total %}
+                            <span class="text-muted">/ {{ ai_insights.coverage_gaps.total }} total</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if ai_insights.coverage_gaps.total > 0 %}
+                    <a href="/streamlab/ai/coverage-gaps/" class="btn btn-sm btn-outline-primary">View</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Regression Risk -->
+        <div class="col-md-6 mb-3">
+            <div class="d-flex align-items-center p-2 bg-light rounded">
+                <div class="me-2">
+                    <i class="fas fa-exclamation-triangle text-{{ ai_insights.regression_risk > 70|yesno:'danger,warning' }}"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="small text-muted">Regression Risk</div>
+                    <div class="fw-bold">{{ ai_insights.regression_risk|default:0 }}%</div>
+                    {% if ai_insights.regression_risk.confidence %}
+                        <div class="small text-muted">{{ ai_insights.regression_risk.confidence }}% confidence</div>
+                    {% endif %}
+                </div>
+                {% if ai_insights.regression_risk.risk_factors %}
+                    <i class="fas fa-info-circle text-info" data-toggle="tooltip"
+                       title="Top factors: {{ ai_insights.regression_risk.risk_factors|join:', ' }}"></i>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pattern Analysis -->
+        {% if ai_insights.pattern_insights %}
+        <div class="col-md-6 mb-3">
+            <div class="d-flex align-items-center p-2 bg-light rounded">
+                <div class="me-2">
+                    <i class="fas fa-chart-line text-info"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="small text-muted">Pattern Analysis</div>
+                    <div class="fw-bold">{{ ai_insights.pattern_insights.patterns_detected|default:0 }} patterns</div>
+                    <div class="small text-{{ ai_insights.pattern_insights.trend_direction|default:'stable'|yesno:'success,warning' }}">
+                        Trend: {{ ai_insights.pattern_insights.trend_direction|title|default:'Stable' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Adaptive Thresholds -->
+        {% if ai_insights.threshold_status %}
+        <div class="col-md-6 mb-3">
+            <div class="d-flex align-items-center p-2 bg-light rounded">
+                <div class="me-2">
+                    <i class="fas fa-sliders-h text-primary"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="small text-muted">Adaptive Thresholds</div>
+                    <div class="fw-bold">{{ ai_insights.threshold_status.avg_accuracy|default:0 }}% accuracy</div>
+                    {% if ai_insights.threshold_status.recent_updates %}
+                        <div class="small text-success">{{ ai_insights.threshold_status.recent_updates }} recent updates</div>
+                    {% endif %}
+                    {% if ai_insights.threshold_status.stale_count > 0 %}
+                        <div class="small text-warning">{{ ai_insights.threshold_status.stale_count }} need update</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="btn-group btn-group-sm" role="group">
+                {% if ai_insights.critical_gaps > 0 %}
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="loadCoverageGaps()">
+                        <i class="fas fa-bug"></i> View Critical Gaps
+                    </button>
+                {% endif %}
+
+                {% if ai_insights.regression_risk > 50 %}
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="showRegressionDetails()">
+                        <i class="fas fa-chart-line"></i> Risk Analysis
+                    </button>
+                {% endif %}
+
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshAIInsights()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+{% else %}
+    <!-- AI Insights Unavailable -->
+    <div class="text-center py-4">
+        <div class="mb-3">
+            <i class="fas fa-robot text-muted" style="font-size: 2rem;"></i>
+        </div>
+        <h6 class="text-muted">AI Insights Unavailable</h6>
+        <p class="text-muted small">
+            AI Testing Platform is initializing or no data available yet.
+        </p>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshAIInsights()">
+            <i class="fas fa-sync-alt"></i> Retry
+        </button>
+    </div>
+{% endif %}
+
+<style>
+    .ai-health-score {
+        position: relative;
+    }
+
+    .circular-progress {
+        position: relative;
+    }
+
+    .progress-ring {
+        transform: rotate(-90deg);
+    }
+
+    .progress-ring__circle {
+        transition: stroke-dasharray 0.35s;
+        transform-origin: 50% 50%;
+    }
+
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.8rem;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .badge-danger { background-color: #dc3545; }
+    .badge-warning { background-color: #ffc107; color: #212529; }
+    .badge-success { background-color: #28a745; }
+    .badge-info { background-color: #17a2b8; }
+</style>
+
+<script>
+    function loadCoverageGaps() {
+        // TODO: Navigate to coverage gaps page when implemented
+        alert('Coverage gaps management will be implemented in Phase 2');
+    }
+
+    function showRegressionDetails() {
+        // TODO: Show regression analysis details
+        alert('Regression risk analysis details coming soon');
+    }
+
+    function refreshAIInsights() {
+        // Force refresh of the AI insights panel
+        htmx.trigger('#ai-insights-container', 'refreshAI');
+    }
+
+    // Initialize tooltips if Bootstrap is available
+    if (typeof $ !== 'undefined' && $.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip();
+    }
+</script>

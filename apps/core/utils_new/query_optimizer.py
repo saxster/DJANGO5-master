@@ -24,14 +24,19 @@ import logging
 import time
 from collections import defaultdict, Counter
 from functools import wraps
-from typing import Dict, List, Any, Optional, Tuple, Set
-from django.db import connection, reset_queries
-from django.db.models import QuerySet, Model, Prefetch
-from django.db.models.fields.related import ForeignKey, OneToOneField, ManyToManyField
-from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.conf import settings
 
 logger = logging.getLogger('query_optimizer')
+
+
+__all__ = [
+    'QueryPattern',
+    'NPlusOneDetector',
+    'QueryOptimizer',
+    'detect_n_plus_one',
+    'QueryAnalyzer',
+    'suggest_optimizations',
+]
 
 
 class QueryPattern:

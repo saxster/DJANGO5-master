@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Mentor{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+        .mentor-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+        }
+
+        .card-mentor {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .card-mentor:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-mentor {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+
+        .btn-mentor:hover {
+            background: linear-gradient(45deg, #5a67d8, #6b46c1);
+            color: white;
+        }
+
+        .status-healthy { color: #059669; }
+        .status-warning { color: #d97706; }
+        .status-error { color: #dc2626; }
+
+        .code-preview {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        .diff-added { background-color: rgba(16, 185, 129, 0.1); }
+        .diff-removed { background-color: rgba(239, 68, 68, 0.1); }
+
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .spinner-mentor {
+            width: 2rem;
+            height: 2rem;
+            border: 0.25rem solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .workflow-step {
+            position: relative;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .workflow-step::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+
+        .workflow-step.completed::before {
+            background: #059669;
+        }
+
+        .workflow-step.error::before {
+            background: #dc2626;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="mentor-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-robot me-2"></i>
+                        AI Mentor
+                    </h1>
+                    <small class="opacity-75">Intelligent Code Analysis & Generation</small>
+                </div>
+                <div class="col-auto">
+                    <div class="d-flex align-items-center">
+                        <span class="me-3">
+                            <i class="fas fa-circle status-healthy" id="status-indicator"></i>
+                            <span id="status-text">System Healthy</span>
+                        </span>
+                        <button class="btn btn-outline-light btn-sm" onclick="checkSystemHealth()">
+                            <i class="fas fa-heartbeat"></i> Health Check
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+        <div class="container">
+            <div class="navbar-nav">
+                <a class="nav-link {% if request.resolver_match.url_name == 'mentor-dashboard' %}active{% endif %}"
+                   href="{% url 'mentor:dashboard' %}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'mentor-plan' %}active{% endif %}"
+                   href="{% url 'mentor:plan' %}">
+                    <i class="fas fa-project-diagram"></i> Plan
+                </a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'mentor-patch' %}active{% endif %}"
+                   href="{% url 'mentor:patch' %}">
+                    <i class="fas fa-code"></i> Patch
+                </a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'mentor-test' %}active{% endif %}"
+                   href="{% url 'mentor:test' %}">
+                    <i class="fas fa-vials"></i> Test
+                </a>
+                <a class="nav-link {% if request.resolver_match.url_name == 'mentor-explain' %}active{% endif %}"
+                   href="{% url 'mentor:explain' %}">
+                    <i class="fas fa-question-circle"></i> Explain
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="py-4">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-4 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                🤖 Powered by AI Mentor System |
+                <a href="#" onclick="showAbout()">About</a> |
+                <a href="#" onclick="showHelp()">Help</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+
+    <script>
+        // Global JavaScript functions
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            const toastId = 'toast-' + Date.now();
+
+            const toastColors = {
+                success: 'bg-success',
+                error: 'bg-danger',
+                warning: 'bg-warning',
+                info: 'bg-primary'
+            };
+
+            const toastHtml = `
+                <div class="toast ${toastColors[type] || 'bg-primary'} text-white" id="${toastId}" role="alert">
+                    <div class="toast-body">
+                        <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                        ${message}
+                        <button type="button" class="btn-close btn-close-white float-end"
+                                onclick="document.getElementById('${toastId}').remove()"></button>
+                    </div>
+                </div>
+            `;
+
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const toast = document.getElementById(toastId);
+                if (toast) toast.remove();
+            }, 5000);
+        }
+
+        // Check system health
+        async function checkSystemHealth() {
+            try {
+                const response = await fetch('/api/v1/mentor/health/');
+                const data = await response.json();
+
+                const statusIndicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+
+                if (data.overall_health === 'healthy') {
+                    statusIndicator.className = 'fas fa-circle status-healthy';
+                    statusText.textContent = 'System Healthy';
+                    showToast('System health check passed!', 'success');
+                } else if (data.overall_health === 'degraded') {
+                    statusIndicator.className = 'fas fa-exclamation-triangle status-warning';
+                    statusText.textContent = 'System Degraded';
+                    showToast(`System health degraded. ${data.issues_found} issues found.`, 'warning');
+                } else {
+                    statusIndicator.className = 'fas fa-times-circle status-error';
+                    statusText.textContent = 'System Unhealthy';
+                    showToast(`System unhealthy. ${data.issues_found} issues found.`, 'error');
+                }
+            } catch (error) {
+                console.error('Health check failed:', error);
+                showToast('Health check failed', 'error');
+            }
+        }
+
+        // Show loading spinner
+        function showLoading(element) {
+            element.innerHTML = '<div class="spinner-mentor mx-auto"></div>';
+        }
+
+        // Hide loading spinner
+        function hideLoading(element, originalContent = '') {
+            element.innerHTML = originalContent;
+        }
+
+        // Format JSON for display
+        function formatJSON(data) {
+            return JSON.stringify(data, null, 2);
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        // About modal
+        function showAbout() {
+            showToast('AI Mentor System v1.0 - Intelligent code analysis and generation platform', 'info');
+        }
+
+        // Help modal
+        function showHelp() {
+            showToast('Use the navigation bar to access different mentor features. Check the documentation for detailed usage.', 'info');
+        }
+
+        // Initialize system health check on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemHealth();
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

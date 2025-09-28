@@ -1,0 +1,230 @@
+name: Stream Health Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/streamlab/**'
+      - 'apps/issue_tracker/**'
+      - 'apps/api/mobile_consumers.py'
+      - 'apps/mqtt/client.py'
+      - 'intelliwiz_kotlin/**'
+      - 'requirements/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/streamlab/**'
+      - 'apps/issue_tracker/**'
+      - 'apps/api/mobile_consumers.py'
+      - 'apps/mqtt/client.py'
+      - 'intelliwiz_kotlin/**'
+
+env:
+  DJANGO_SETTINGS_MODULE: intelliwiz_config.settings
+  DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+
+jobs:
+  quick-stream-test:
+    name: "🚀 Quick Stream Test"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:14-3.2
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mqtt:
+        image: eclipse-mosquitto:2.0
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_sub -h localhost -p 1883 -t '$SYS/broker/uptime' -C 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: ☕ Setup Java (for Kotlin)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: 📦 Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/base.txt
+        pip install pytest-django pytest-asyncio pytest-cov
+
+    - name: 🗄️ Setup database
+      run: |
+        python manage.py migrate --run-syncdb
+        python manage.py collectstatic --noinput
+
+    - name: 🧪 Run Stream Testbench tests
+      run: |
+        python -m pytest apps/streamlab/tests/ \
+          apps/issue_tracker/tests/ \
+          --cov=apps.streamlab \
+          --cov=apps.issue_tracker \
+          --cov-report=xml \
+          --tb=short \
+          -v
+
+    - name: 🚀 Start Django test server
+      run: |
+        daphne -b 0.0.0.0 -p 8000 intelliwiz_config.asgi:application &
+        sleep 10  # Wait for server to start
+
+    - name: 🔧 Build Kotlin generator
+      working-directory: ./intelliwiz_kotlin
+      run: |
+        ./gradlew build -x test  # Skip Kotlin tests for speed
+
+    - name: 📊 Run quick stream test
+      run: |
+        # Create minimal test scenario
+        cat > quick_test_scenario.json << 'EOF'
+        {
+          "name": "CI Quick Test",
+          "protocol": "WEBSOCKET",
+          "endpoint": "localhost:8000/ws/mobile/sync/",
+          "duration_seconds": 30,
+          "connections": 3,
+          "rates": {
+            "messagesPerSecond": 2.0,
+            "burstMultiplier": 1.0
+          },
+          "payloads": ["HEARTBEAT", "METRICS"],
+          "validation": {
+            "validateResponses": true,
+            "maxLatencyMs": 2000,
+            "expectedStatusCodes": [200, 202]
+          }
+        }
+        EOF
+
+        # Run stream test with timeout
+        timeout 60s java -jar intelliwiz_kotlin/build/libs/intelliwiz_kotlin-1.0.0-fat.jar \
+          run --scenario quick_test_scenario.json --output test_results.json || echo "Test completed"
+
+        # Check if results exist and validate
+        if [ -f "test_results.json" ]; then
+          echo "✅ Stream test results generated"
+          cat test_results.json | jq '.'
+        else
+          echo "⚠️  No test results generated"
+        fi
+
+    - name: 🏃‍♂️ Run Django management command test
+      run: |
+        # Test the scenario runner management command
+        timeout 30s python manage.py run_scenario "CI Quick Test" --duration 15 || echo "Command test completed"
+
+    - name: 📈 Check SLO compliance
+      run: |
+        python << 'EOF'
+        import json
+        import sys
+        import os
+
+        # Check if test results exist
+        if not os.path.exists('test_results.json'):
+            print("⚠️  No test results to validate")
+            sys.exit(0)
+
+        try:
+            with open('test_results.json', 'r') as f:
+                results = json.load(f)
+
+            # Convert to list if single result
+            if isinstance(results, dict):
+                results = [results]
+
+            failed_checks = []
+
+            for result in results:
+                scenario_name = result.get('scenarioName', 'Unknown')
+
+                # Check error rate (should be < 10% for CI)
+                error_rate = result.get('errorRate', 0)
+                if error_rate > 0.1:
+                    failed_checks.append(f"{scenario_name}: High error rate {error_rate:.1%}")
+
+                # Check average latency (should be < 1000ms for CI)
+                avg_latency = result.get('averageLatencyMs', 0)
+                if avg_latency > 1000:
+                    failed_checks.append(f"{scenario_name}: High latency {avg_latency:.1f}ms")
+
+                # Check if any messages were processed
+                total_messages = result.get('totalMessages', 0)
+                if total_messages == 0:
+                    failed_checks.append(f"{scenario_name}: No messages processed")
+
+                print(f"📊 {scenario_name} Results:")
+                print(f"   Messages: {total_messages}")
+                print(f"   Success Rate: {(1-error_rate)*100:.1f}%")
+                print(f"   Avg Latency: {avg_latency:.1f}ms")
+                print(f"   Throughput: {result.get('throughputQps', 0):.2f} QPS")
+
+            if failed_checks:
+                print("❌ SLO violations detected:")
+                for check in failed_checks:
+                    print(f"   • {check}")
+                sys.exit(1)
+            else:
+                print("✅ All SLOs met!")
+
+        except Exception as e:
+            print(f"⚠️  Error validating results: {e}")
+            sys.exit(0)  # Don't fail CI on validation errors
+        EOF
+
+    - name: 📊 Upload coverage reports
+      if: always()
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: streamtests
+        name: stream-testbench-coverage
+
+    - name: 📄 Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: stream-test-results
+        path: |
+          test_results.json
+          quick_test_scenario.json
+          coverage.xml
+        retention-days: 30

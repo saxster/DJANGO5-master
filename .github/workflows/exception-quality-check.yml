@@ -1,0 +1,109 @@
+name: Exception Handling Quality Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  exception-pattern-check:
+    runs-on: ubuntu-latest
+    name: Detect Generic Exception Patterns
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Run Exception Scanner
+        id: scan
+        run: |
+          echo "🔍 Scanning for generic exception patterns..."
+          python scripts/exception_scanner.py --path apps --format json --output scan_report.json || true
+
+          TOTAL=$(python -c "import json; data=json.load(open('scan_report.json')); print(data['metadata']['total_occurrences'])")
+          CRITICAL=$(python -c "import json; data=json.load(open('scan_report.json')); print(data['statistics']['by_risk_level'].get('CRITICAL', 0))")
+
+          echo "total_violations=$TOTAL" >> $GITHUB_OUTPUT
+          echo "critical_violations=$CRITICAL" >> $GITHUB_OUTPUT
+
+          echo "📊 Total violations found: $TOTAL"
+          echo "🚨 Critical violations: $CRITICAL"
+
+      - name: Generate Priority Fix List
+        run: |
+          echo "📋 Generating prioritized fix list..."
+          python scripts/exception_scanner.py --path apps --priority-list --output PRIORITY_FIX_LIST.md
+
+      - name: Upload Scan Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: exception-scan-report
+          path: |
+            scan_report.json
+            PRIORITY_FIX_LIST.md
+          retention-days: 30
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const scanReport = JSON.parse(fs.readFileSync('scan_report.json', 'utf8'));
+            const stats = scanReport.statistics;
+
+            const comment = `## 🔍 Exception Handling Quality Report
+
+            **Total Violations:** ${stats.total_occurrences}
+            **Affected Files:** ${stats.affected_files}
+
+            ### By Risk Level
+            - 🚨 **CRITICAL:** ${stats.by_risk_level.CRITICAL || 0}
+            - ⚠️  **HIGH:** ${stats.by_risk_level.HIGH || 0}
+            - ⚡ **MEDIUM:** ${stats.by_risk_level.MEDIUM || 0}
+            - ℹ️  **LOW:** ${stats.by_risk_level.LOW || 0}
+
+            ${stats.by_risk_level.CRITICAL > 0 ? '### ⚠️ CRITICAL SECURITY ISSUES FOUND\n\nThis PR introduces or modifies code with CRITICAL exception handling issues that could expose security vulnerabilities. Please fix before merging.\n\n' : ''}
+
+            ### 📋 Remediation
+            1. Download the [Priority Fix List artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            2. Run: \`python scripts/exception_fixer.py --path apps/your_module --auto-fix\`
+            3. Review suggested exceptions and test thoroughly
+            4. Re-run this check
+
+            **Rule:** [.claude/rules.md#rule-11](/.claude/rules.md#rule-11-exception-handling-specificity)
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail on Critical Violations
+        if: steps.scan.outputs.critical_violations != '0'
+        run: |
+          echo "❌ CRITICAL: ${{ steps.scan.outputs.critical_violations }} critical security violations found!"
+          echo "These must be fixed before merging to protect against security vulnerabilities."
+          exit 1
+
+      - name: Fail on Any Violations (Strict Mode)
+        if: steps.scan.outputs.total_violations != '0' && github.ref == 'refs/heads/main'
+        run: |
+          echo "❌ STRICT MODE: ${{ steps.scan.outputs.total_violations }} violations found on main branch!"
+          echo "Main branch must have zero generic exception patterns."
+          exit 1
+
+      - name: Success
+        if: steps.scan.outputs.total_violations == '0'
+        run: |
+          echo "✅ SUCCESS: No generic exception patterns detected!"
+          echo "Code follows Rule 11 - Exception Handling Specificity"

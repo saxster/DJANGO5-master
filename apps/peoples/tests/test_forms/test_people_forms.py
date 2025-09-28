@@ -2,7 +2,6 @@
 Tests for People app forms
 """
 import pytest
-from django.core.exceptions import ValidationError
 from apps.peoples.forms import LoginForm, PeopleForm, PeopleExtrasForm
 
 

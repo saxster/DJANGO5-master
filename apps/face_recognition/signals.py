@@ -11,8 +11,8 @@ from django.db import models
 
 from apps.attendance.models import PeopleEventlog
 from apps.peoples.models import People
-from .models import FaceEmbedding, FaceVerificationLog, FaceQualityMetrics
-from .integrations import process_attendance_async
+from apps.face_recognition.models import FaceEmbedding, FaceVerificationLog, FaceQualityMetrics
+from apps.face_recognition.integrations import process_attendance_async
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def handle_attendance_created(sender, instance, created, **kwargs):
             else:
                 process_attendance_async.delay(instance.id)
                 
-        except Exception as e:
+        except (AttributeError, ConnectionError, LLMServiceException, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error scheduling AI processing for attendance {instance.id}: {str(e)}")
 
 
@@ -47,33 +47,47 @@ def handle_user_updated(sender, instance, created, **kwargs):
             
             logger.info(f"Face recognition cache cleared for user {instance.id}")
             
-    except Exception as e:
+    except (AttributeError, ConnectionError, LLMServiceException, TimeoutError, TypeError, ValueError) as e:
         logger.error(f"Error handling user update for {instance.id}: {str(e)}")
 
 
 @receiver(post_save, sender=FaceEmbedding)
 def handle_face_embedding_updated(sender, instance, created, **kwargs):
-    """Handle face embedding creation/updates"""
+    """Handle face embedding creation/updates with race condition protection"""
+    from django.db import transaction, IntegrityError
+
     try:
         if created:
             logger.info(f"New face embedding created for user {instance.user_id}")
-            
-            # Update user's primary embedding if this is the first one
-            existing_primary = FaceEmbedding.objects.filter(
-                user=instance.user,
-                is_primary=True
-            ).exclude(id=instance.id).exists()
-            
-            if not existing_primary:
-                instance.is_primary = True
-                instance.save(update_fields=['is_primary'])
-        
+
+            # Set as primary using row-level locking to prevent TOCTOU
+            with transaction.atomic():
+                # Lock all embeddings for this user's model type
+                user_embeddings = FaceEmbedding.objects.select_for_update().filter(
+                    user=instance.user,
+                    extraction_model__model_type=instance.extraction_model.model_type
+                ).order_by('id')
+
+                primary_exists = user_embeddings.filter(
+                    is_primary=True
+                ).exclude(id=instance.id).exists()
+
+                if not primary_exists:
+                    # Set this as primary
+                    try:
+                        FaceEmbedding.objects.filter(pk=instance.pk).update(is_primary=True)
+                        instance.is_primary = True
+                        logger.info(f"Set embedding {instance.id} as primary for user {instance.user_id}")
+                    except IntegrityError:
+                        # Another transaction won the race - acceptable
+                        logger.info(f"Another embedding became primary for user {instance.user_id}")
+
         # Clear user's face recognition cache
         cache_key = f"user_embeddings_{instance.user_id}"
         cache.delete(cache_key)
-        
-    except Exception as e:
-        logger.error(f"Error handling face embedding update: {str(e)}")
+
+    except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
+        logger.error(f"Error handling face embedding update: {str(e)}", exc_info=True)
 
 
 @receiver(post_delete, sender=FaceEmbedding)
@@ -97,46 +111,66 @@ def handle_face_embedding_deleted(sender, instance, **kwargs):
                 next_embedding.is_primary = True
                 next_embedding.save(update_fields=['is_primary'])
                 
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error handling face embedding deletion: {str(e)}")
 
 
 @receiver(post_save, sender=FaceVerificationLog)
 def handle_verification_logged(sender, instance, created, **kwargs):
-    """Handle face verification log creation"""
-    if created:
-        try:
-            logger.info(f"Face verification logged: {instance.id}")
-            
-            # Update model statistics
-            if instance.verification_model:
-                model = instance.verification_model
-                model.verification_count = models.F('verification_count') + 1
-                
+    """Handle face verification log creation with atomic counter updates"""
+    from django.db import transaction
+    from django.db.models import F
+
+    if not created:
+        return
+
+    try:
+        logger.info(f"Face verification logged: {instance.id}")
+
+        # Update model statistics atomically
+        if instance.verification_model:
+            with transaction.atomic():
+                update_dict = {
+                    'verification_count': F('verification_count') + 1,
+                    'last_used': timezone.now()
+                }
+
                 if instance.result == 'SUCCESS':
-                    model.successful_verifications = models.F('successful_verifications') + 1
-                
-                model.last_used = timezone.now()
-                model.save(update_fields=['verification_count', 'successful_verifications', 'last_used'])
-            
-            # Update matched embedding statistics
-            if instance.matched_embedding:
-                embedding = instance.matched_embedding
-                embedding.verification_count = models.F('verification_count') + 1
-                
+                    update_dict['successful_verifications'] = F('successful_verifications') + 1
+
+                # Single atomic update query
+                from apps.face_recognition.models import FaceRecognitionModel
+                FaceRecognitionModel.objects.filter(
+                    pk=instance.verification_model.pk
+                ).update(**update_dict)
+
+                logger.debug(f"Updated model {instance.verification_model.pk} statistics")
+
+        # Update matched embedding statistics atomically
+        if instance.matched_embedding:
+            with transaction.atomic():
+                update_dict = {
+                    'verification_count': F('verification_count') + 1,
+                    'last_used': timezone.now()
+                }
+
                 if instance.result == 'SUCCESS':
-                    embedding.successful_matches = models.F('successful_matches') + 1
-                
-                embedding.last_used = timezone.now()
-                embedding.save(update_fields=['verification_count', 'successful_matches', 'last_used'])
-            
-            # Cache recent verification stats for quick access
-            if instance.user_id:
-                cache_key = f"user_verification_stats_{instance.user_id}"
-                cache.delete(cache_key)  # Clear to force refresh
-                
-        except Exception as e:
-            logger.error(f"Error handling verification log: {str(e)}")
+                    update_dict['successful_matches'] = F('successful_matches') + 1
+
+                # Single atomic update query
+                FaceEmbedding.objects.filter(
+                    pk=instance.matched_embedding.pk
+                ).update(**update_dict)
+
+                logger.debug(f"Updated embedding {instance.matched_embedding.pk} statistics")
+
+        # Clear cache
+        if instance.user_id:
+            cache_key = f"user_verification_stats_{instance.user_id}"
+            cache.delete(cache_key)
+
+    except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
+        logger.error(f"Error handling verification log: {str(e)}", exc_info=True)
 
 
 @receiver(pre_save, sender=FaceQualityMetrics)
@@ -166,7 +200,7 @@ def handle_quality_metrics_save(sender, instance, **kwargs):
             
         instance.improvement_suggestions = suggestions
         
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error handling quality metrics save: {str(e)}")
 
 
@@ -190,7 +224,7 @@ def clear_face_recognition_cache(sender, instance, **kwargs):
             model_cache_key = f"model_embeddings_{instance.extraction_model.id}"
             cache.delete(model_cache_key)
             
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error clearing face recognition cache: {str(e)}")
 
 
@@ -217,7 +251,7 @@ def monitor_performance(sender, instance, created, **kwargs):
             if instance.spoof_detected:
                 logger.warning(f"Spoof detected for user {instance.user_id} in verification {instance.id}")
                 
-        except Exception as e:
+        except (AttributeError, ConnectionError, LLMServiceException, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error monitoring performance: {str(e)}")
 
 
@@ -247,34 +281,39 @@ def monitor_model_health(sender, instance, created, **kwargs):
                     if success_rate < 0.5:
                         logger.error(f"Model {model.name} performance critically low, consider deactivation")
                         
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error monitoring model health: {str(e)}")
 
 
 # Data consistency signals
 @receiver(post_save, sender=FaceEmbedding)
 def ensure_data_consistency(sender, instance, created, **kwargs):
-    """Ensure data consistency for face embeddings"""
-    if created:
-        try:
-            # Ensure only one primary embedding per user per model type
-            if instance.is_primary:
-                other_primary = FaceEmbedding.objects.filter(
+    """Ensure data consistency for face embeddings with locking"""
+    from django.db import transaction
+
+    if not created:
+        return
+
+    try:
+        # Ensure only one primary embedding per user per model type
+        if instance.is_primary:
+            with transaction.atomic():
+                # Lock and update other primary embeddings
+                other_primary = FaceEmbedding.objects.select_for_update().filter(
                     user=instance.user,
                     extraction_model__model_type=instance.extraction_model.model_type,
                     is_primary=True
                 ).exclude(id=instance.id)
-                
+
                 if other_primary.exists():
-                    # Set others as non-primary
-                    other_primary.update(is_primary=False)
-                    logger.info(f"Updated primary embeddings for user {instance.user_id}")
-            
-            # Validate embedding vector dimensions
-            if len(instance.embedding_vector) != 512:
-                logger.warning(
-                    f"Embedding vector has unexpected dimensions: {len(instance.embedding_vector)} for embedding {instance.id}"
-                )
-                
-        except Exception as e:
-            logger.error(f"Error ensuring data consistency: {str(e)}")
+                    count = other_primary.update(is_primary=False)
+                    logger.info(f"Demoted {count} primary embeddings for user {instance.user_id}")
+
+        # Validate embedding vector dimensions
+        if len(instance.embedding_vector) != 512:
+            logger.warning(
+                f"Embedding vector has unexpected dimensions: {len(instance.embedding_vector)} for embedding {instance.id}"
+            )
+
+    except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
+        logger.error(f"Error ensuring data consistency: {str(e)}", exc_info=True)

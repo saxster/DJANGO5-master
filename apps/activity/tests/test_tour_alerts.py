@@ -3,9 +3,7 @@ Test cases for Tour/Task Alert functionality
 """
 import pytest
 from decimal import Decimal
-from datetime import datetime, timedelta
 from django.utils import timezone
-from django.core import mail
 from unittest.mock import patch, MagicMock
 
 from apps.activity.models.job_model import Jobneed, JobneedDetails

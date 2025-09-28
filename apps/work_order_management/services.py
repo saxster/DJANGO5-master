@@ -3,15 +3,6 @@ Work Order Management Services
 Optimized query patterns and caching strategies for work order operations
 """
 
-from django.db import models
-from django.db.models import Q, F, Count, Case, When, IntegerField, Prefetch
-from django.core.cache import cache
-from datetime import datetime, timedelta
-import logging
-
-logger = logging.getLogger("django")
-
-
 class WorkOrderQueryOptimizer:
     """Centralized query optimization for work order operations"""
 

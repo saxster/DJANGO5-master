@@ -167,7 +167,7 @@ def insert_questions_to_qsetblng(assigned_questions, model, fields, request):
                 qsetbng.save()
                 putils.save_userinfo(qsetbng, request.user, request.session)
 
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
         logger.critical("something went wrong", exc_info=True)
         raise
 
@@ -187,7 +187,7 @@ def get_assignedsitedata(request):
             bu_list.append(x["assignsites"])
         bu_list.append(request.user.bu_id)
         logger.debug("%s %s", data.query, bu_list)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
         logger.critical("get_assignedsitedata() exception", exc_info=True)
         bu_list.append(request.user.bu_id)
     return bu_list
@@ -348,7 +348,7 @@ def sendTicketMail(ticketid, oper):
             for record in ticketdata
         ]
         # sendEscalationTicketMail(records, oper, 'WEB')
-    except Exception as e:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical("sendTicketMail() exception: %s", e)
 
 
@@ -460,7 +460,7 @@ def save_assetjsonform(jsonform, asset):
             "far_asset_id",
         ]:
             asset.asset_json[k] = jsonform.cleaned_data.get(k)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
         logger.critical("save_jsonform(jsonform, p)... FAILED", exc_info=True)
         raise
     else:
@@ -499,7 +499,7 @@ def get_asset_jsonform(people, request):
             )
         }
 
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
         logger.critical("get_asset_jsonform(people)... FAILED", exc_info=True)
         raise
     else:
@@ -509,8 +509,6 @@ def get_asset_jsonform(people, request):
 
 import qrcode
 from qrcode.image.svg import SvgImage
-import os, io, base64
-from django.http import FileResponse
 
 
 def generate_qr_code_images(data, size=1):

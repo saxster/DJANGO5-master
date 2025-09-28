@@ -2,7 +2,6 @@
 Tests for GeofenceMaster model
 """
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.contrib.gis.geos import Point, Polygon
 from apps.onboarding.models import GeofenceMaster

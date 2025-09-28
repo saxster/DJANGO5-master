@@ -1,6 +1,4 @@
-from django.contrib import admin
 from django.core.exceptions import ValidationError
-from apps.service.validators import (
     clean_code,
     clean_string,
     clean_point_field,

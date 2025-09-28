@@ -16,23 +16,15 @@ from apps.service.pydantic_schemas.bt_schema import (
     VerifyClientSchema,
 )
 from apps.service.types import SelectOutputType, VerifyClientOutput, BasicOutput
-from apps.service.inputs.bt_input import (
-    LocationFilterInput,
-    GeofenceFilterInput,
-    ShiftFilterInput,
-    VerifyClientInput,
-    GroupsModifiedAfterFilterInput,
-    SiteListFilterInput,
-    SendEmailVerificationLinkFilterInput,
-    SuperAdminMessageFilterInput,
-    SiteVisitedLogFilterInput,
-)
 from logging import getLogger
 from apps.core import utils
 from django.utils import timezone
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
 from apps.service.types import DowntimeResponse
 import json
 from pydantic import ValidationError
+from apps.service.decorators import require_authentication, require_tenant_access
 
 
 log = getLogger("mobile_service_log")
@@ -105,13 +97,14 @@ class BtQueries(graphene.ObjectType):
             log.error(f"url not found for the specified {validated.clientcode=}")
             return VerifyClientOutput(msg="INVALID", url=None, rc=1)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"verifyclient failed: {str(ve)}")
-        except Exception as ex:
-            log.critical("something went wrong!", exc_info=True)
+            log.error("Validation error in verifyclient", exc_info=True)
+            raise GraphQLError(f"Invalid client code: {str(ve)}")
+        except (IOError, OSError) as e:
+            log.error("File or network error in verifyclient", exc_info=True)
             return VerifyClientOutput(msg="INVALID", url=None, rc=1)
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_locations(self, info, mdtz, ctzoffset, buid):
         try:
             log.info("request for get_locations")
@@ -127,13 +120,17 @@ class BtQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_locations failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_locations failed: {str(e)}")
+            log.error("Validation error in get_locations", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Location.DoesNotExist:
+            log.warning("Locations not found")
+            raise GraphQLError("Locations not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_locations", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_groupsmodifiedafter(self, info, mdtz, ctzoffset, buid):
         try:
             log.info("request for get_groupsmodifiedafter")
@@ -147,13 +144,17 @@ class BtQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_groupsmodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_groupsmodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_groupsmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Pgroup.DoesNotExist:
+            log.warning("Groups not found")
+            raise GraphQLError("Groups not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_groupsmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_authentication
     def resolve_get_gfs_for_siteids(self, info, siteids):
         try:
             log.info("request for get_gfs_for_siteids")
@@ -164,13 +165,17 @@ class BtQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_gfs_for_siteids failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_gfs_for_siteids failed: {str(e)}")
+            log.error("Validation error in get_gfs_for_siteids", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except GeofenceMaster.DoesNotExist:
+            log.warning("Geofences not found")
+            raise GraphQLError("Geofences not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_gfs_for_siteids", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_shifts(self, info, mdtz, buid, clientid):
         try:
             log.info("request for get_shifts")
@@ -183,13 +188,17 @@ class BtQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_shifts failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_shifts failed: {str(e)}")
+            log.error("Validation error in get_shifts", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Shift.DoesNotExist:
+            log.warning("Shifts not found")
+            raise GraphQLError("Shifts not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_shifts", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_getsitelist(self, info, clientid, peopleid):
         try:
             log.info("request for getsitelist")
@@ -204,11 +213,14 @@ class BtQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"getsitelist failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"getsitelist failed: {str(e)}")
+            log.error("Validation error in getsitelist", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Pgbelonging.DoesNotExist:
+            log.warning("Site list not found")
+            raise GraphQLError("Site assignments not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in getsitelist", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
     def resolve_send_email_verification_link(self, info, clientcode, loginid):
@@ -227,14 +239,18 @@ class BtQueries(graphene.ObjectType):
             else:
                 rc, msg = 1, "Failed"
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"send_email_verification_link failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"send_email_verification_link failed: {str(e)}")
+            log.error("Validation error in send_email_verification_link", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except People.DoesNotExist:
+            log.warning("User not found for email verification")
+            rc, msg = 1, "User not found"
+        except (IOError, OSError) as e:
+            log.error("Email service error", exc_info=True)
+            rc, msg = 1, "Email service unavailable"
         return BasicOutput(rc=rc, msg=msg, email=user.email)
 
     @staticmethod
+    @require_authentication
     def resolve_get_superadmin_message(self, info, client_id):
         try:
             log.info("request for get_superadmin_message")
@@ -255,13 +271,20 @@ class BtQueries(graphene.ObjectType):
             else:
                 return DowntimeResponse(message="")
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_superadmin_message failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_superadmin_message failed: {str(e)}")
+            log.error("Validation error in get_superadmin_message", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except DownTimeHistory.DoesNotExist:
+            log.warning("No downtime message found")
+            return DowntimeResponse(message="")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_superadmin_message", exc_info=True)
+            raise GraphQLError("Database operation failed")
+        except (TypeError, KeyError) as e:
+            log.error("Data format error in get_superadmin_message", exc_info=True)
+            return DowntimeResponse(message="")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_site_visited_log(self, info, ctzoffset, clientid, peopleid):
         try:
             log.info("request for get_site_visited_log")
@@ -274,8 +297,11 @@ class BtQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_site_visited_log failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_site_visited_log failed: {str(e)}")
+            log.error("Validation error in get_site_visited_log", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except PeopleEventlog.DoesNotExist:
+            log.warning("Site visit log not found")
+            raise GraphQLError("Site visit log not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_site_visited_log", exc_info=True)
+            raise GraphQLError("Database operation failed")

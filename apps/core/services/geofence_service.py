@@ -9,16 +9,13 @@ This service consolidates all geofence-related operations including:
 """
 
 import logging
-import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional, Any, Union
 from math import radians, sin, cos, sqrt, atan2
 from django.contrib.gis.geos import Point, Polygon
 from django.core.cache import cache
-from django.db import transaction
 from django.conf import settings
 from apps.onboarding.models import GeofenceMaster
-from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)
 error_logger = logging.getLogger("error_logger")
@@ -76,7 +73,7 @@ class GeofenceService:
             
             return geofences
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             error_logger.error(f"Error fetching active geofences: {str(e)}")
             return []
     
@@ -121,7 +118,7 @@ class GeofenceService:
             
             return is_inside
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             error_logger.error(f"Error in point-in-geofence check: {str(e)}")
             return False
     
@@ -167,7 +164,7 @@ class GeofenceService:
             logger.info(f"Batch checked {len(points)} points against {len(geofences)} geofences")
             return results
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             error_logger.error(f"Error in batch point checking: {str(e)}")
             return results
     
@@ -196,7 +193,7 @@ class GeofenceService:
                     cache.delete(cache_key)
                 logger.info(f"Cleared all geofence caches for client {client_id}")
                 
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             error_logger.error(f"Error invalidating geofence cache: {str(e)}")
     
     def _haversine_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -222,7 +219,7 @@ class GeofenceService:
             # Convert degrees to approximate meters (rough approximation)
             distance_meters = distance_deg * 111000  # ~111km per degree
             return distance_meters
-        except Exception:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError):
             return 0.0
     
     def _apply_hysteresis(self, current_state: bool, previous_state: bool, 
@@ -287,7 +284,7 @@ class GeofenceAuditTrail:
             
             logger.info(f"Geofence audit logged: {action} on geofence {geofence_id} by user {user_id}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             error_logger.error(f"Error logging geofence audit: {str(e)}")
     
     def log_geofence_violation(self, people_id: int, geofence_id: int, 
@@ -326,7 +323,7 @@ class GeofenceAuditTrail:
             
             logger.warning(f"Geofence violation logged: {violation_type} by person {people_id} at geofence {geofence_id}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             error_logger.error(f"Error logging geofence violation: {str(e)}")
     
     def get_recent_violations(self, days: int = 7) -> List[Dict]:
@@ -343,7 +340,7 @@ class GeofenceAuditTrail:
             violations.sort(key=lambda x: x['timestamp'], reverse=True)
             return violations[:100]  # Return last 100 violations
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             error_logger.error(f"Error retrieving recent violations: {str(e)}")
             return []
 

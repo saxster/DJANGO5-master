@@ -1,8 +1,5 @@
-from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
-from apps.core.utils_new.business_logic import save_user_session
 import apps.peoples.models as pm
-from django.shortcuts import redirect
 
 
 class AuthenticationService:

@@ -1,0 +1,1247 @@
+{% extends 'mentor/base.html' %}
+
+{% block title %}AI Mentor - Spec Wizard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wizard-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .wizard-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .wizard-progress {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 3rem;
+        position: relative;
+    }
+
+    .wizard-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        max-width: 150px;
+    }
+
+    .wizard-step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e5e7eb;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s;
+        z-index: 2;
+        position: relative;
+    }
+
+    .wizard-step.active .wizard-step-number {
+        background: #667eea;
+        color: white;
+    }
+
+    .wizard-step.completed .wizard-step-number {
+        background: #10b981;
+        color: white;
+    }
+
+    .wizard-step-title {
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-align: center;
+        color: #374151;
+        line-height: 1.2;
+    }
+
+    .wizard-step.active .wizard-step-title {
+        color: #667eea;
+    }
+
+    .wizard-step.completed .wizard-step-title {
+        color: #10b981;
+    }
+
+    .wizard-step-connector {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        right: -50%;
+        height: 2px;
+        background: #e5e7eb;
+        z-index: 1;
+    }
+
+    .wizard-step:last-child .wizard-step-connector {
+        display: none;
+    }
+
+    .wizard-step.completed .wizard-step-connector {
+        background: #10b981;
+    }
+
+    .wizard-content {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 2rem;
+        min-height: 500px;
+    }
+
+    .wizard-step-content {
+        display: none;
+    }
+
+    .wizard-step-content.active {
+        display: block;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .wizard-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .intent-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .intent-card {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+    }
+
+    .intent-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .intent-card.selected {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+
+    .intent-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #667eea;
+    }
+
+    .intent-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    .intent-description {
+        font-size: 0.875rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+    .area-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .area-chip {
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .area-chip:hover {
+        border-color: #667eea;
+    }
+
+    .area-chip.selected {
+        border-color: #667eea;
+        background: #667eea;
+        color: white;
+    }
+
+    .criteria-builder {
+        space-y: 1rem;
+    }
+
+    .criteria-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+
+    .criteria-item input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 0.95rem;
+    }
+
+    .criteria-item .remove-btn {
+        color: #ef4444;
+        cursor: pointer;
+        padding: 0.25rem;
+    }
+
+    .add-criteria-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border: 2px dashed #d1d5db;
+        border-radius: 6px;
+        background: none;
+        color: #6b7280;
+        cursor: pointer;
+        width: 100%;
+        transition: all 0.2s;
+    }
+
+    .add-criteria-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .constraint-section {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .constraint-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .constraint-toggle {
+        margin-left: auto;
+    }
+
+    .constraint-content {
+        display: none;
+    }
+
+    .constraint-content.active {
+        display: block;
+    }
+
+    .validation-summary {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .validation-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: #dc2626;
+    }
+
+    .validation-warning {
+        background: #fffbeb;
+        border: 1px solid #fed7aa;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: #d97706;
+    }
+
+    .spec-preview {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1.5rem;
+        border-radius: 8px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.85rem;
+        overflow-x: auto;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.95rem;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .form-textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        background: white;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .two-column {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .completion-summary {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+
+    .completion-icon {
+        font-size: 4rem;
+        color: #10b981;
+        margin-bottom: 2rem;
+    }
+
+    .completion-title {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #1f2937;
+    }
+
+    .completion-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div class="wizard-header">
+        <h2>
+            <i class="fas fa-magic me-2"></i>
+            MentorSpec Wizard
+        </h2>
+        <p class="text-muted">Create a structured specification for your change request</p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="wizard-progress">
+        <div class="wizard-step active" data-step="1">
+            <div class="wizard-step-number">1</div>
+            <div class="wizard-step-title">Intent & Scope</div>
+            <div class="wizard-step-connector"></div>
+        </div>
+        <div class="wizard-step" data-step="2">
+            <div class="wizard-step-number">2</div>
+            <div class="wizard-step-title">Acceptance Criteria</div>
+            <div class="wizard-step-connector"></div>
+        </div>
+        <div class="wizard-step" data-step="3">
+            <div class="wizard-step-number">3</div>
+            <div class="wizard-step-title">Constraints</div>
+            <div class="wizard-step-connector"></div>
+        </div>
+        <div class="wizard-step" data-step="4">
+            <div class="wizard-step-number">4</div>
+            <div class="wizard-step-title">Validation</div>
+        </div>
+    </div>
+
+    <div class="wizard-content">
+        <!-- Step 1: Intent & Scope -->
+        <div class="wizard-step-content active" data-step="1">
+            <h3 class="mb-4">Define Intent & Scope</h3>
+
+            <div class="form-group">
+                <label class="form-label">Spec ID</label>
+                <input type="text" class="form-input" id="specId" placeholder="e.g., fix-user-auth-bug">
+                <small class="text-muted">Unique identifier for this specification</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" class="form-input" id="specTitle" placeholder="Brief, clear description of the change">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">What type of change is this?</label>
+                <div class="intent-selector">
+                    <div class="intent-card" data-intent="feature">
+                        <div class="intent-icon">✨</div>
+                        <div class="intent-title">Feature</div>
+                        <div class="intent-description">Add new functionality</div>
+                    </div>
+                    <div class="intent-card" data-intent="bugfix">
+                        <div class="intent-icon">🐛</div>
+                        <div class="intent-title">Bug Fix</div>
+                        <div class="intent-description">Fix existing issues</div>
+                    </div>
+                    <div class="intent-card" data-intent="security">
+                        <div class="intent-icon">🔒</div>
+                        <div class="intent-title">Security</div>
+                        <div class="intent-description">Security improvements</div>
+                    </div>
+                    <div class="intent-card" data-intent="performance">
+                        <div class="intent-icon">⚡</div>
+                        <div class="intent-title">Performance</div>
+                        <div class="intent-description">Optimize speed/efficiency</div>
+                    </div>
+                    <div class="intent-card" data-intent="refactor">
+                        <div class="intent-icon">🔧</div>
+                        <div class="intent-title">Refactor</div>
+                        <div class="intent-description">Improve code structure</div>
+                    </div>
+                    <div class="intent-card" data-intent="documentation">
+                        <div class="intent-icon">📚</div>
+                        <div class="intent-title">Documentation</div>
+                        <div class="intent-description">Update docs/comments</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="specDescription"
+                    placeholder="Detailed description of what needs to be changed and why..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Which areas of the codebase will be affected?</label>
+                <div class="area-selector">
+                    <div class="area-chip" data-area="apps/core/">Core</div>
+                    <div class="area-chip" data-area="apps/peoples/">Users</div>
+                    <div class="area-chip" data-area="apps/activity/">Activities</div>
+                    <div class="area-chip" data-area="apps/api/">API</div>
+                    <div class="area-chip" data-area="apps/schedhuler/">Scheduler</div>
+                    <div class="area-chip" data-area="apps/y_helpdesk/">Help Desk</div>
+                    <div class="area-chip" data-area="frontend/">Frontend</div>
+                    <div class="area-chip" data-area="docs/">Documentation</div>
+                </div>
+                <input type="text" class="form-input mt-2" id="customArea"
+                    placeholder="Add custom area (e.g., apps/custom_module/)">
+            </div>
+
+            <div class="two-column">
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <select class="form-select" id="specPriority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Risk Tolerance</label>
+                    <select class="form-select" id="specRiskTolerance">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Acceptance Criteria -->
+        <div class="wizard-step-content" data-step="2">
+            <h3 class="mb-4">Define Success Criteria</h3>
+
+            <p class="text-muted mb-4">
+                What specific outcomes must be achieved for this change to be considered complete and successful?
+            </p>
+
+            <div class="criteria-builder">
+                <div class="criteria-item">
+                    <span class="text-muted">1.</span>
+                    <input type="text" placeholder="e.g., Users should be able to..." data-criteria="0">
+                    <span class="remove-btn" onclick="removeCriteria(0)">×</span>
+                </div>
+            </div>
+
+            <button type="button" class="add-criteria-btn" onclick="addCriteria()">
+                <i class="fas fa-plus"></i>
+                Add Acceptance Criterion
+            </button>
+
+            <div class="form-group mt-4">
+                <label class="form-label">Test Requirements</label>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Required Coverage (%)</label>
+                        <input type="number" class="form-input" id="testCoverage" value="80" min="0" max="100">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Test Types</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="testUnit" checked>
+                            <label class="form-check-label" for="testUnit">Unit Tests</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="testIntegration" checked>
+                            <label class="form-check-label" for="testIntegration">Integration Tests</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="testSecurity">
+                            <label class="form-check-label" for="testSecurity">Security Tests</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="testPerformance">
+                            <label class="form-check-label" for="testPerformance">Performance Tests</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Constraints -->
+        <div class="wizard-step-content" data-step="3">
+            <h3 class="mb-4">Define Constraints & Requirements</h3>
+
+            <!-- Security Constraints -->
+            <div class="constraint-section">
+                <div class="constraint-header">
+                    <i class="fas fa-shield-alt"></i>
+                    <h5 class="mb-0">Security Constraints</h5>
+                    <div class="form-check constraint-toggle">
+                        <input class="form-check-input" type="checkbox" id="enableSecurity" onchange="toggleConstraint('security')">
+                        <label class="form-check-label" for="enableSecurity">Enable</label>
+                    </div>
+                </div>
+                <div class="constraint-content" id="securityConstraints">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="noSecrets" checked>
+                        <label class="form-check-label" for="noSecrets">No hardcoded secrets allowed</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="inputValidation">
+                        <label class="form-check-label" for="inputValidation">Input validation required</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="securityReview">
+                        <label class="form-check-label" for="securityReview">Security team review required</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Constraints -->
+            <div class="constraint-section">
+                <div class="constraint-header">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <h5 class="mb-0">Performance Constraints</h5>
+                    <div class="form-check constraint-toggle">
+                        <input class="form-check-input" type="checkbox" id="enablePerformance" onchange="toggleConstraint('performance')">
+                        <label class="form-check-label" for="enablePerformance">Enable</label>
+                    </div>
+                </div>
+                <div class="constraint-content" id="performanceConstraints">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Response Time (ms)</label>
+                            <input type="number" class="form-input" id="responseTime" placeholder="500">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Memory Usage (MB)</label>
+                            <input type="number" class="form-input" id="memoryUsage" placeholder="100">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">DB Queries (max)</label>
+                            <input type="number" class="form-input" id="dbQueries" placeholder="10">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Migration Requirements -->
+            <div class="constraint-section">
+                <div class="constraint-header">
+                    <i class="fas fa-database"></i>
+                    <h5 class="mb-0">Migration Requirements</h5>
+                    <div class="form-check constraint-toggle">
+                        <input class="form-check-input" type="checkbox" id="enableMigration" onchange="toggleConstraint('migration')">
+                        <label class="form-check-label" for="enableMigration">Migration Needed</label>
+                    </div>
+                </div>
+                <div class="constraint-content" id="migrationConstraints">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backwardCompatible" checked>
+                        <label class="form-check-label" for="backwardCompatible">Backward compatible</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dataMigration">
+                        <label class="form-check-label" for="dataMigration">Data migration required</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">References</label>
+                <textarea class="form-textarea" id="specReferences"
+                    placeholder="Add links to tickets, documentation, or other relevant resources..."></textarea>
+            </div>
+        </div>
+
+        <!-- Step 4: Validation -->
+        <div class="wizard-step-content" data-step="4">
+            <h3 class="mb-4">Review & Validate</h3>
+
+            <div class="validation-summary">
+                <h5><i class="fas fa-check-circle text-success"></i> Specification Summary</h5>
+                <div id="specSummary">
+                    <!-- Summary will be populated here -->
+                </div>
+            </div>
+
+            <div id="validationResults">
+                <!-- Validation results will appear here -->
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Generated Specification Preview</label>
+                <div class="spec-preview" id="specPreview">
+                    <!-- YAML preview will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion Screen -->
+        <div class="wizard-step-content" data-step="5">
+            <div class="completion-summary">
+                <div class="completion-icon">🎉</div>
+                <div class="completion-title">Specification Created!</div>
+                <p class="lead">Your MentorSpec has been successfully created and is ready to use.</p>
+
+                <div class="completion-actions">
+                    <button type="button" class="btn btn-mentor" onclick="generatePlan()">
+                        <i class="fas fa-project-diagram"></i> Generate Plan
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="downloadSpec()">
+                        <i class="fas fa-download"></i> Download Spec
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="createNew()">
+                        <i class="fas fa-plus"></i> Create New
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wizard Actions -->
+    <div class="wizard-actions">
+        <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="previousStep()" disabled>
+            <i class="fas fa-arrow-left"></i> Previous
+        </button>
+        <button type="button" class="btn btn-mentor" id="nextBtn" onclick="nextStep()">
+            Next <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+class MentorSpecWizard {
+    constructor() {
+        this.currentStep = 1;
+        this.totalSteps = 4;
+        this.selectedIntent = null;
+        this.selectedAreas = new Set();
+        this.acceptanceCriteria = [''];
+        this.generatedSpec = null;
+
+        this.initializeEventListeners();
+    }
+
+    initializeEventListeners() {
+        // Intent selection
+        document.querySelectorAll('.intent-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.intent-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                this.selectedIntent = card.dataset.intent;
+            });
+        });
+
+        // Area selection
+        document.querySelectorAll('.area-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                chip.classList.toggle('selected');
+                const area = chip.dataset.area;
+                if (this.selectedAreas.has(area)) {
+                    this.selectedAreas.delete(area);
+                } else {
+                    this.selectedAreas.add(area);
+                }
+            });
+        });
+
+        // Custom area input
+        document.getElementById('customArea').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const area = e.target.value.trim();
+                if (area) {
+                    this.selectedAreas.add(area);
+                    this.addCustomAreaChip(area);
+                    e.target.value = '';
+                }
+            }
+        });
+
+        // Form field updates
+        this.addFormUpdateListeners();
+    }
+
+    addFormUpdateListeners() {
+        const fields = ['specId', 'specTitle', 'specDescription', 'specPriority', 'specRiskTolerance'];
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('input', () => this.updateSpecPreview());
+            }
+        });
+    }
+
+    addCustomAreaChip(area) {
+        const container = document.querySelector('.area-selector');
+        const chip = document.createElement('div');
+        chip.className = 'area-chip selected';
+        chip.dataset.area = area;
+        chip.textContent = area;
+        chip.addEventListener('click', () => {
+            chip.classList.toggle('selected');
+            if (this.selectedAreas.has(area)) {
+                this.selectedAreas.delete(area);
+            } else {
+                this.selectedAreas.add(area);
+            }
+        });
+        container.appendChild(chip);
+    }
+
+    nextStep() {
+        if (this.currentStep < this.totalSteps) {
+            if (this.validateCurrentStep()) {
+                this.currentStep++;
+                this.updateWizardDisplay();
+            }
+        } else {
+            // Final step - create spec
+            this.createSpec();
+        }
+    }
+
+    previousStep() {
+        if (this.currentStep > 1) {
+            this.currentStep--;
+            this.updateWizardDisplay();
+        }
+    }
+
+    updateWizardDisplay() {
+        // Update step indicators
+        document.querySelectorAll('.wizard-step').forEach(step => {
+            const stepNum = parseInt(step.dataset.step);
+            step.classList.remove('active', 'completed');
+
+            if (stepNum === this.currentStep) {
+                step.classList.add('active');
+            } else if (stepNum < this.currentStep) {
+                step.classList.add('completed');
+            }
+        });
+
+        // Update content
+        document.querySelectorAll('.wizard-step-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.querySelector(`[data-step="${this.currentStep}"]`).classList.add('active');
+
+        // Update buttons
+        document.getElementById('prevBtn').disabled = this.currentStep === 1;
+
+        const nextBtn = document.getElementById('nextBtn');
+        if (this.currentStep === this.totalSteps) {
+            nextBtn.innerHTML = '<i class="fas fa-magic"></i> Create Spec';
+        } else {
+            nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+        }
+
+        // Special handling for validation step
+        if (this.currentStep === 4) {
+            this.runValidation();
+        }
+    }
+
+    validateCurrentStep() {
+        switch (this.currentStep) {
+            case 1:
+                return this.validateIntentAndScope();
+            case 2:
+                return this.validateAcceptanceCriteria();
+            case 3:
+                return this.validateConstraints();
+            case 4:
+                return true; // Validation step always passes
+            default:
+                return true;
+        }
+    }
+
+    validateIntentAndScope() {
+        const errors = [];
+
+        if (!document.getElementById('specId').value.trim()) {
+            errors.push('Spec ID is required');
+        }
+
+        if (!document.getElementById('specTitle').value.trim()) {
+            errors.push('Title is required');
+        }
+
+        if (!this.selectedIntent) {
+            errors.push('Please select a change intent');
+        }
+
+        if (!document.getElementById('specDescription').value.trim()) {
+            errors.push('Description is required');
+        }
+
+        if (this.selectedAreas.size === 0) {
+            errors.push('Please select at least one affected area');
+        }
+
+        if (errors.length > 0) {
+            showToast(errors.join('. '), 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    validateAcceptanceCriteria() {
+        const criteria = this.getAcceptanceCriteria();
+
+        if (criteria.length === 0 || criteria.every(c => !c.trim())) {
+            showToast('At least one acceptance criterion is required', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    validateConstraints() {
+        // Constraints are optional, so always valid
+        return true;
+    }
+
+    getAcceptanceCriteria() {
+        return Array.from(document.querySelectorAll('[data-criteria]'))
+            .map(input => input.value.trim())
+            .filter(value => value);
+    }
+
+    runValidation() {
+        const spec = this.buildSpecObject();
+        const summary = this.generateSummary(spec);
+        const errors = this.validateSpec(spec);
+
+        // Update summary
+        document.getElementById('specSummary').innerHTML = summary;
+
+        // Update validation results
+        const resultsContainer = document.getElementById('validationResults');
+        resultsContainer.innerHTML = '';
+
+        if (errors.length > 0) {
+            errors.forEach(error => {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'validation-error';
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error}`;
+                resultsContainer.appendChild(errorDiv);
+            });
+        } else {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success';
+            successDiv.innerHTML = '<i class="fas fa-check-circle"></i> All validation checks passed!';
+            resultsContainer.appendChild(successDiv);
+        }
+
+        // Update preview
+        this.updateSpecPreview();
+    }
+
+    buildSpecObject() {
+        const testTypes = [];
+        if (document.getElementById('testUnit').checked) testTypes.push('unit');
+        if (document.getElementById('testIntegration').checked) testTypes.push('integration');
+        if (document.getElementById('testSecurity').checked) testTypes.push('security');
+        if (document.getElementById('testPerformance').checked) testTypes.push('performance');
+
+        return {
+            id: document.getElementById('specId').value.trim(),
+            title: document.getElementById('specTitle').value.trim(),
+            intent: this.selectedIntent,
+            description: document.getElementById('specDescription').value.trim(),
+            impacted_areas: Array.from(this.selectedAreas),
+            acceptance_criteria: this.getAcceptanceCriteria(),
+            priority: document.getElementById('specPriority').value,
+            risk_tolerance: document.getElementById('specRiskTolerance').value,
+            test_plan: {
+                required_coverage: parseFloat(document.getElementById('testCoverage').value),
+                test_types: testTypes
+            },
+            constraints: this.buildConstraints(),
+            references: document.getElementById('specReferences').value.trim().split('\n').filter(r => r.trim()),
+            created_at: new Date().toISOString(),
+            version: '1.0',
+            status: 'draft'
+        };
+    }
+
+    buildConstraints() {
+        const constraints = {};
+
+        // Security constraints
+        if (document.getElementById('enableSecurity').checked) {
+            constraints.security = [];
+            if (document.getElementById('noSecrets').checked) {
+                constraints.security.push({
+                    type: 'no_secrets',
+                    description: 'No hardcoded secrets allowed',
+                    required: true
+                });
+            }
+            if (document.getElementById('inputValidation').checked) {
+                constraints.security.push({
+                    type: 'input_validation',
+                    description: 'All inputs must be validated',
+                    required: true
+                });
+            }
+        }
+
+        // Performance constraints
+        if (document.getElementById('enablePerformance').checked) {
+            constraints.performance = [];
+            const responseTime = document.getElementById('responseTime').value;
+            const memoryUsage = document.getElementById('memoryUsage').value;
+            const dbQueries = document.getElementById('dbQueries').value;
+
+            if (responseTime) {
+                constraints.performance.push({
+                    metric: 'response_time',
+                    threshold: parseInt(responseTime),
+                    unit: 'ms'
+                });
+            }
+            if (memoryUsage) {
+                constraints.performance.push({
+                    metric: 'memory_usage',
+                    threshold: parseInt(memoryUsage),
+                    unit: 'mb'
+                });
+            }
+            if (dbQueries) {
+                constraints.performance.push({
+                    metric: 'db_queries',
+                    threshold: parseInt(dbQueries),
+                    unit: 'count'
+                });
+            }
+        }
+
+        // Migration constraints
+        if (document.getElementById('enableMigration').checked) {
+            constraints.migration = {
+                required: true,
+                backward_compatible: document.getElementById('backwardCompatible').checked,
+                data_migration_needed: document.getElementById('dataMigration').checked
+            };
+        }
+
+        return constraints;
+    }
+
+    generateSummary(spec) {
+        return `
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>ID:</strong> ${spec.id}<br>
+                    <strong>Intent:</strong> ${spec.intent}<br>
+                    <strong>Priority:</strong> ${spec.priority}
+                </div>
+                <div class="col-md-6">
+                    <strong>Areas:</strong> ${spec.impacted_areas.length}<br>
+                    <strong>Criteria:</strong> ${spec.acceptance_criteria.length}<br>
+                    <strong>Risk:</strong> ${spec.risk_tolerance}
+                </div>
+            </div>
+        `;
+    }
+
+    validateSpec(spec) {
+        const errors = [];
+
+        if (!spec.id || spec.id.length < 3) {
+            errors.push('Spec ID must be at least 3 characters long');
+        }
+
+        if (!spec.title || spec.title.length < 10) {
+            errors.push('Title should be at least 10 characters long');
+        }
+
+        if (!spec.description || spec.description.length < 20) {
+            errors.push('Description should be at least 20 characters long');
+        }
+
+        if (spec.acceptance_criteria.length < 1) {
+            errors.push('At least one acceptance criterion is required');
+        }
+
+        if (spec.intent === 'security' && spec.risk_tolerance === 'low') {
+            errors.push('Security changes should have medium or higher risk tolerance');
+        }
+
+        if (spec.priority === 'urgent' && spec.risk_tolerance === 'low') {
+            errors.push('Urgent changes should have appropriate risk tolerance');
+        }
+
+        return errors;
+    }
+
+    updateSpecPreview() {
+        const spec = this.buildSpecObject();
+        const yaml = this.objectToYaml(spec);
+        document.getElementById('specPreview').textContent = yaml;
+    }
+
+    objectToYaml(obj, indent = 0) {
+        let yaml = '';
+        const spaces = '  '.repeat(indent);
+
+        for (const [key, value] of Object.entries(obj)) {
+            if (value === null || value === undefined) continue;
+
+            yaml += `${spaces}${key}: `;
+
+            if (Array.isArray(value)) {
+                if (value.length === 0) {
+                    yaml += '[]\n';
+                } else {
+                    yaml += '\n';
+                    value.forEach(item => {
+                        if (typeof item === 'object') {
+                            yaml += `${spaces}  -\n${this.objectToYaml(item, indent + 2)}`;
+                        } else {
+                            yaml += `${spaces}  - "${item}"\n`;
+                        }
+                    });
+                }
+            } else if (typeof value === 'object') {
+                yaml += '\n' + this.objectToYaml(value, indent + 1);
+            } else if (typeof value === 'string' && value.includes('\n')) {
+                yaml += '|\n' + value.split('\n').map(line => `${spaces}  ${line}`).join('\n') + '\n';
+            } else {
+                yaml += `"${value}"\n`;
+            }
+        }
+
+        return yaml;
+    }
+
+    async createSpec() {
+        const spec = this.buildSpecObject();
+        this.generatedSpec = spec;
+
+        try {
+            const response = await fetch('/api/mentor/spec/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(spec)
+            });
+
+            if (response.ok) {
+                this.currentStep = 5; // Completion step
+                this.updateWizardDisplay();
+                showToast('MentorSpec created successfully!', 'success');
+            } else {
+                const error = await response.json();
+                showToast(`Failed to create spec: ${error.message}`, 'error');
+            }
+        } catch (error) {
+            showToast(`Error creating spec: ${error.message}`, 'error');
+        }
+    }
+
+    getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    }
+}
+
+// Global functions for wizard actions
+let wizard;
+
+function toggleConstraint(type) {
+    const content = document.getElementById(`${type}Constraints`);
+    const checkbox = document.getElementById(`enable${type.charAt(0).toUpperCase() + type.slice(1)}`);
+
+    if (checkbox.checked) {
+        content.classList.add('active');
+    } else {
+        content.classList.remove('active');
+    }
+}
+
+function addCriteria() {
+    const container = document.querySelector('.criteria-builder');
+    const index = container.children.length;
+
+    const criteriaItem = document.createElement('div');
+    criteriaItem.className = 'criteria-item';
+    criteriaItem.innerHTML = `
+        <span class="text-muted">${index + 1}.</span>
+        <input type="text" placeholder="e.g., System should..." data-criteria="${index}">
+        <span class="remove-btn" onclick="removeCriteria(${index})">×</span>
+    `;
+
+    container.appendChild(criteriaItem);
+}
+
+function removeCriteria(index) {
+    const criteriaItem = document.querySelector(`[data-criteria="${index}"]`).parentElement;
+    criteriaItem.remove();
+
+    // Renumber remaining criteria
+    document.querySelectorAll('.criteria-item').forEach((item, newIndex) => {
+        const number = item.querySelector('.text-muted');
+        const input = item.querySelector('input');
+        const removeBtn = item.querySelector('.remove-btn');
+
+        number.textContent = `${newIndex + 1}.`;
+        input.dataset.criteria = newIndex;
+        removeBtn.onclick = () => removeCriteria(newIndex);
+    });
+}
+
+function nextStep() {
+    wizard.nextStep();
+}
+
+function previousStep() {
+    wizard.previousStep();
+}
+
+function generatePlan() {
+    if (wizard.generatedSpec) {
+        // Redirect to plan generation with the spec
+        window.location.href = `/mentor/plan?spec_id=${wizard.generatedSpec.id}`;
+    }
+}
+
+function downloadSpec() {
+    if (wizard.generatedSpec) {
+        const yaml = wizard.objectToYaml(wizard.generatedSpec);
+        const blob = new Blob([yaml], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${wizard.generatedSpec.id}.yaml`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+}
+
+function createNew() {
+    location.reload();
+}
+
+// Initialize wizard
+document.addEventListener('DOMContentLoaded', () => {
+    wizard = new MentorSpecWizard();
+});
+</script>
+{% endblock %}

@@ -42,7 +42,7 @@ def try_camera(cv2):
             level="warning",
         )
         return False
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError) as e:
         # Unexpected error during camera capture
         from apps.core.error_handling import ErrorHandler
 

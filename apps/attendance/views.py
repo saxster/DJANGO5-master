@@ -9,7 +9,7 @@ import apps.attendance.forms as atf
 import apps.attendance.models as atdm
 import apps.onboarding.models as ob
 from apps.activity import models as am
-from .filters import AttendanceFilter
+from apps.attendance.filters import AttendanceFilter
 import apps.peoples.utils as putils
 from apps.service.utils import save_linestring_and_update_pelrecord
 from apps.core.utils_new.db_utils import get_current_db_name
@@ -142,7 +142,7 @@ class Attendance(LoginRequiredMixin, View):
                     {"geofence_coords": coordinates_list}, status=200
                 )
 
-            except Exception as e:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 return rp.JsonResponse({"error": str(e)}, status=500)
 
         # return attemdance_form empty
@@ -178,7 +178,7 @@ class Attendance(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError):
             resp = utils.handle_Exception(request)
         return resp
 
@@ -186,16 +186,17 @@ class Attendance(LoginRequiredMixin, View):
     def handle_valid_form(form, request, create):
         logger.info("attendance form is valid")
         try:
-            attd = form.save()
-            putils.save_userinfo(attd, request.user, request.session, create)
-            logger.info("attendance form saved")
-            data = {
-                "success": "Record has been saved successfully",
-                "type": attd.peventtype.tacode,
-            }
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                attd = form.save()
+                putils.save_userinfo(attd, request.user, request.session, create)
+                logger.info("attendance form saved")
+                data = {
+                    "success": "Record has been saved successfully",
+                    "type": attd.peventtype.tacode,
+                }
+                return rp.JsonResponse(data, status=200)
         except IntegrityError:
-            return putils.handle_intergrity_error("Attendance")
+            return utils.handle_intergrity_error("Attendance")
 
 
 class Conveyance(LoginRequiredMixin, View):
@@ -313,7 +314,7 @@ class Conveyance(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
             resp = utils.handle_Exception(request)
         return resp
 

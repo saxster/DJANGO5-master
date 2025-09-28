@@ -2,7 +2,6 @@
 Tests for Approver model
 """
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from apps.work_order_management.models import Approver
 

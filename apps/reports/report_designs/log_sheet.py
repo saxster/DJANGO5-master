@@ -4,7 +4,6 @@ from apps.core.queries import ReportQueryRepository
 from apps.onboarding.models import Bt
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
-from apps.peoples.models import People
 from django.conf import settings
 import logging
 

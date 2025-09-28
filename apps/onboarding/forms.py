@@ -3,7 +3,6 @@
 # from django core
 from django import forms
 from django.db.models.query_utils import Q
-from django.utils.translation import gettext_lazy as _
 from apps.core import utils
 
 # from thirdparty apps and packages

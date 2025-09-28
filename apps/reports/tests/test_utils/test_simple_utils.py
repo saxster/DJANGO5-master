@@ -1,10 +1,6 @@
 """
 Simplified Tests for Reports Utils
 """
-import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
-import pandas as pd
 from apps.reports.utils import (
     BaseReportsExport,
     ReportEssentials,

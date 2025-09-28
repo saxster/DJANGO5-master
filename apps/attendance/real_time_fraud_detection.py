@@ -4,28 +4,12 @@ Advanced AI-powered fraud detection with immediate response capabilities
 """
 
 import logging
-import json
 import asyncio
-import time
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
 from enum import Enum
 from django.utils import timezone
-from django.core.cache import cache
-from django.db import transaction
-from django.conf import settings
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 
 from apps.attendance.models import PeopleEventlog
-from apps.attendance.ai_enhanced_models import AIAttendanceRecord, AttendanceAuditTrail
-from apps.behavioral_analytics.models import (
-    UserBehaviorProfile, BehavioralEvent, RiskProfile
 )
-from apps.face_recognition.models import FaceVerificationLog
-from apps.anomaly_detection.models import AnomalyDetectionResult, AnomalyAlert
-
 logger = logging.getLogger(__name__)
 
 
@@ -247,7 +231,7 @@ class RealTimeFraudDetector:
             
             return fraud_result
             
-        except Exception as e:
+        except (ConnectionError, TimeoutError, asyncio.CancelledError) as e:
             logger.error(f"Error in fraud detection: {str(e)}", exc_info=True)
             
             # Return safe failure result
@@ -325,7 +309,7 @@ class RealTimeFraudDetector:
                 'immediate_actions': immediate_actions
             }
             
-        except Exception as e:
+        except (ConnectionError, TimeoutError, asyncio.CancelledError) as e:
             logger.error(f"Error in biometric fraud analysis: {str(e)}")
             return {'fraud_score': 0.5, 'fraud_detected': True, 'error': str(e)}
     
@@ -392,7 +376,7 @@ class RealTimeFraudDetector:
                 'recommendations': recommendations
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, asyncio.CancelledError) as e:
             logger.error(f"Error in behavioral analysis: {str(e)}")
             return {'fraud_score': 0.3, 'fraud_detected': True, 'error': str(e)}
     
@@ -473,7 +457,7 @@ class RealTimeFraudDetector:
                 'immediate_actions': immediate_actions
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, asyncio.CancelledError) as e:
             logger.error(f"Error in temporal analysis: {str(e)}")
             return {'fraud_score': 0.2, 'fraud_detected': False, 'error': str(e)}
     
@@ -547,7 +531,7 @@ class RealTimeFraudDetector:
                 'recommendations': recommendations
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, asyncio.CancelledError) as e:
             logger.error(f"Error in location analysis: {str(e)}")
             return {'fraud_score': 0.2, 'fraud_detected': False, 'error': str(e)}
     
@@ -610,7 +594,7 @@ class RealTimeFraudDetector:
                 'recommendations': recommendations
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, asyncio.CancelledError) as e:
             logger.error(f"Error in device analysis: {str(e)}")
             return {'fraud_score': 0.2, 'fraud_detected': False, 'error': str(e)}
     

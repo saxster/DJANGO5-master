@@ -1,4 +1,3 @@
-from gettext import install
 from django.contrib import admin
 from import_export import resources, fields
 from import_export import widgets as wg
@@ -1270,3 +1269,364 @@ class ShiftResource(resources.ModelResource):
         instance.shiftduration = self.calculate_duration(self._starttime, self._endtime)
         instance.shift_data = self._shift_data
         utils.save_common_stuff(self.request, instance)
+
+
+# =============================================================================
+# AI/CONVERSATIONAL ONBOARDING ADMIN REGISTRATIONS
+# =============================================================================
+
+@admin.register(om.ConversationSession)
+class ConversationSessionAdmin(admin.ModelAdmin):
+    list_display = ('session_id', 'user', 'client', 'current_state', 'conversation_type', 'progress_percentage', 'cdtz', 'mdtz')
+    list_filter = ('current_state', 'conversation_type', 'language', 'cdtz')
+    search_fields = ('session_id', 'user__email', 'client__buname', 'client__bucode')
+    readonly_fields = ('session_id', 'cdtz', 'mdtz', 'cuser', 'muser', 'pretty_context_data', 'pretty_collected_data')
+    date_hierarchy = 'cdtz'
+    actions = ['export_session_data', 'mark_as_completed', 'cancel_sessions']
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('session_id', 'user', 'client', 'current_state', 'conversation_type', 'language')
+        }),
+        ('Data', {
+            'fields': ('context_data', 'collected_data', 'error_message')
+        }),
+        ('Timestamps', {
+            'fields': ('cdtz', 'mdtz', 'cuser', 'muser'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def progress_percentage(self, obj):
+        """Calculate and display progress percentage"""
+        try:
+            from apps.onboarding_api.views import ConversationStatusView
+            view = ConversationStatusView()
+            return f"{view._calculate_progress(obj) * 100:.1f}%"
+        except:
+            return "N/A"
+    progress_percentage.short_description = "Progress"
+
+    def pretty_context_data(self, obj):
+        """Pretty display of context data JSON"""
+        import json
+        from django.utils.html import format_html
+        try:
+            pretty_json = json.dumps(obj.context_data, indent=2)
+            return format_html('<pre style="white-space: pre-wrap;">{}</pre>', pretty_json)
+        except:
+            return str(obj.context_data)
+    pretty_context_data.short_description = "Context Data (Pretty)"
+
+    def pretty_collected_data(self, obj):
+        """Pretty display of collected data JSON"""
+        import json
+        from django.utils.html import format_html
+        try:
+            pretty_json = json.dumps(obj.collected_data, indent=2)
+            return format_html('<pre style="white-space: pre-wrap;">{}</pre>', pretty_json)
+        except:
+            return str(obj.collected_data)
+    pretty_collected_data.short_description = "Collected Data (Pretty)"
+
+    def export_session_data(self, request, queryset):
+        """Export session data to JSON"""
+        import json
+        from django.http import HttpResponse
+
+        sessions_data = []
+        for session in queryset:
+            sessions_data.append({
+                'session_id': str(session.session_id),
+                'user': session.user.email,
+                'client': session.client.buname,
+                'state': session.current_state,
+                'type': session.conversation_type,
+                'context_data': session.context_data,
+                'collected_data': session.collected_data,
+                'created': session.cdtz.isoformat(),
+                'modified': session.mdtz.isoformat()
+            })
+
+        response = HttpResponse(
+            json.dumps(sessions_data, indent=2),
+            content_type='application/json'
+        )
+        response['Content-Disposition'] = 'attachment; filename="conversation_sessions.json"'
+        return response
+    export_session_data.short_description = "Export selected sessions to JSON"
+
+    def mark_as_completed(self, request, queryset):
+        """Mark sessions as completed"""
+        updated = queryset.update(
+            current_state=om.ConversationSession.StateChoices.COMPLETED
+        )
+        self.message_user(request, f"Marked {updated} session(s) as completed.")
+    mark_as_completed.short_description = "Mark selected sessions as completed"
+
+    def cancel_sessions(self, request, queryset):
+        """Cancel selected sessions"""
+        updated = queryset.update(
+            current_state=om.ConversationSession.StateChoices.CANCELLED
+        )
+        self.message_user(request, f"Cancelled {updated} session(s).")
+    cancel_sessions.short_description = "Cancel selected sessions"
+
+
+@admin.register(om.LLMRecommendation)
+class LLMRecommendationAdmin(admin.ModelAdmin):
+    list_display = ('recommendation_id', 'session', 'status', 'user_decision', 'confidence_score', 'cdtz')
+    list_filter = ('status', 'user_decision', 'confidence_score', 'cdtz')
+    search_fields = ('recommendation_id', 'session__session_id', 'trace_id')
+    readonly_fields = ('recommendation_id', 'cdtz', 'mdtz', 'cuser', 'muser', 'pretty_consensus', 'pretty_maker_output', 'pretty_checker_output')
+    date_hierarchy = 'cdtz'
+    actions = ['approve_recommendations', 'reject_recommendations', 'export_recommendations']
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('recommendation_id', 'session', 'status', 'user_decision', 'rejection_reason')
+        }),
+        ('AI Output', {
+            'fields': ('maker_output', 'checker_output', 'consensus', 'confidence_score', 'authoritative_sources')
+        }),
+        ('Performance Metrics', {
+            'fields': ('latency_ms', 'provider_cost_cents', 'eval_scores', 'trace_id')
+        }),
+        ('User Feedback', {
+            'fields': ('rejection_reason', 'user_modifications', 'learning_data')
+        }),
+        ('Timestamps', {
+            'fields': ('cdtz', 'mdtz', 'cuser', 'muser'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def pretty_consensus(self, obj):
+        """Pretty display of consensus JSON"""
+        import json
+        from django.utils.html import format_html
+        try:
+            pretty_json = json.dumps(obj.consensus, indent=2)
+            return format_html('<pre style="white-space: pre-wrap;">{}</pre>', pretty_json)
+        except:
+            return str(obj.consensus)
+    pretty_consensus.short_description = "Consensus (Pretty)"
+
+    def pretty_maker_output(self, obj):
+        """Pretty display of maker output JSON"""
+        import json
+        from django.utils.html import format_html
+        try:
+            pretty_json = json.dumps(obj.maker_output, indent=2)
+            return format_html('<pre style="white-space: pre-wrap;">{}</pre>', pretty_json)
+        except:
+            return str(obj.maker_output)
+    pretty_maker_output.short_description = "Maker Output (Pretty)"
+
+    def pretty_checker_output(self, obj):
+        """Pretty display of checker output JSON"""
+        import json
+        from django.utils.html import format_html
+        try:
+            pretty_json = json.dumps(obj.checker_output, indent=2)
+            return format_html('<pre style="white-space: pre-wrap;">{}</pre>', pretty_json)
+        except:
+            return str(obj.checker_output)
+    pretty_checker_output.short_description = "Checker Output (Pretty)"
+
+    def approve_recommendations(self, request, queryset):
+        """Approve selected recommendations"""
+        updated = queryset.update(
+            user_decision=om.LLMRecommendation.UserDecisionChoices.APPROVED
+        )
+        self.message_user(request, f"Approved {updated} recommendation(s).")
+    approve_recommendations.short_description = "Approve selected recommendations"
+
+    def reject_recommendations(self, request, queryset):
+        """Reject selected recommendations"""
+        updated = queryset.update(
+            user_decision=om.LLMRecommendation.UserDecisionChoices.REJECTED
+        )
+        self.message_user(request, f"Rejected {updated} recommendation(s).")
+    reject_recommendations.short_description = "Reject selected recommendations"
+
+    def export_recommendations(self, request, queryset):
+        """Export recommendations to JSON"""
+        import json
+        from django.http import HttpResponse
+
+        recommendations_data = []
+        for rec in queryset:
+            recommendations_data.append({
+                'recommendation_id': str(rec.recommendation_id),
+                'session_id': str(rec.session.session_id),
+                'status': rec.status,
+                'user_decision': rec.user_decision,
+                'confidence_score': rec.confidence_score,
+                'consensus': rec.consensus,
+                'trace_id': rec.trace_id,
+                'created': rec.cdtz.isoformat()
+            })
+
+        response = HttpResponse(
+            json.dumps(recommendations_data, indent=2),
+            content_type='application/json'
+        )
+        response['Content-Disposition'] = 'attachment; filename="llm_recommendations.json"'
+        return response
+    export_recommendations.short_description = "Export selected recommendations to JSON"
+
+
+class AIChangeRecordInline(admin.TabularInline):
+    model = om.AIChangeRecord
+    extra = 0
+    readonly_fields = ('record_id', 'sequence_order', 'model_name', 'app_label', 'object_id', 'action', 'status')
+    fields = ('record_id', 'sequence_order', 'model_name', 'object_id', 'action', 'status')
+    can_delete = False
+
+
+@admin.register(om.AIChangeSet)
+class AIChangeSetAdmin(admin.ModelAdmin):
+    list_display = ('changeset_id', 'conversation_session', 'status', 'total_changes', 'successful_changes', 'applied_at', 'can_rollback_display')
+    list_filter = ('status', 'applied_at', 'rolled_back_at')
+    search_fields = ('changeset_id', 'conversation_session__session_id', 'description')
+    readonly_fields = ('changeset_id', 'can_rollback', 'get_rollback_complexity')
+    inlines = [AIChangeRecordInline]
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('changeset_id', 'conversation_session', 'status', 'description')
+        }),
+        ('Change Summary', {
+            'fields': ('total_changes', 'successful_changes', 'failed_changes')
+        }),
+        ('Approval & Rollback', {
+            'fields': ('approved_by', 'applied_at', 'rolled_back_by', 'rolled_back_at', 'rollback_reason')
+        }),
+        ('Rollback Status', {
+            'fields': ('can_rollback', 'get_rollback_complexity'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('metadata',),
+            'classes': ('collapse',)
+        })
+    )
+
+    def can_rollback_display(self, obj):
+        return obj.can_rollback()
+    can_rollback_display.boolean = True
+    can_rollback_display.short_description = "Rollback Available"
+
+    actions = ['rollback_changesets']
+
+    def rollback_changesets(self, request, queryset):
+        """Admin action to rollback selected changesets"""
+        rollback_count = 0
+        for changeset in queryset:
+            if changeset.can_rollback():
+                try:
+                    from apps.onboarding_api.integration.mapper import IntegrationAdapter
+                    adapter = IntegrationAdapter()
+                    adapter.rollback_changeset(
+                        changeset=changeset,
+                        rollback_reason=f"Admin rollback by {request.user}",
+                        rollback_user=request.user
+                    )
+                    rollback_count += 1
+                except (ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, TypeError, ValueError, json.JSONDecodeError) as e:
+                    self.message_user(request, f"Failed to rollback changeset {changeset.changeset_id}: {str(e)}", level='ERROR')
+
+        if rollback_count > 0:
+            self.message_user(request, f"Successfully rolled back {rollback_count} changesets", level='SUCCESS')
+
+    rollback_changesets.short_description = "Rollback selected changesets"
+
+
+@admin.register(om.AIChangeRecord)
+class AIChangeRecordAdmin(admin.ModelAdmin):
+    list_display = ('record_id', 'changeset', 'model_name', 'object_id', 'action', 'status', 'sequence_order')
+    list_filter = ('action', 'status', 'model_name', 'app_label')
+    search_fields = ('record_id', 'changeset__changeset_id', 'object_id')
+    readonly_fields = ('record_id', 'changeset', 'model_name', 'app_label', 'object_id')
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('record_id', 'changeset', 'sequence_order')
+        }),
+        ('Target Object', {
+            'fields': ('model_name', 'app_label', 'object_id', 'action', 'status')
+        }),
+        ('Change Data', {
+            'fields': ('before_state', 'after_state', 'field_changes'),
+            'classes': ('collapse',)
+        }),
+        ('Rollback Information', {
+            'fields': ('has_dependencies', 'rollback_attempted_at', 'rollback_success'),
+            'classes': ('collapse',)
+        })
+    )
+
+
+class AuthoritativeKnowledgeChunkInline(admin.TabularInline):
+    model = om.AuthoritativeKnowledgeChunk
+    extra = 0
+    readonly_fields = ('chunk_id', 'sequence_number')
+    fields = ('chunk_id', 'sequence_number', 'content', 'chunk_type')
+
+
+@admin.register(om.AuthoritativeKnowledge)
+class AuthoritativeKnowledgeAdmin(admin.ModelAdmin):
+    list_display = ('knowledge_id', 'document_title', 'source_organization', 'authority_level', 'is_current', 'cdtz')
+    list_filter = ('authority_level', 'is_current', 'language', 'industry', 'cdtz')
+    search_fields = ('knowledge_id', 'document_title', 'source_organization', 'content_summary')
+    readonly_fields = ('knowledge_id', 'last_verified', 'cdtz', 'mdtz', 'cuser', 'muser')
+    inlines = [AuthoritativeKnowledgeChunkInline]
+
+    fieldsets = (
+        ('Document Information', {
+            'fields': ('knowledge_id', 'source_organization', 'document_title', 'document_version', 'authority_level')
+        }),
+        ('Content', {
+            'fields': ('content_summary', 'content_vector', 'tags')
+        }),
+        ('Source Details', {
+            'fields': ('source_url', 'doc_checksum', 'jurisdiction', 'industry', 'language')
+        }),
+        ('Validity', {
+            'fields': ('is_current', 'publication_date', 'last_verified')
+        }),
+        ('Timestamps', {
+            'fields': ('cdtz', 'mdtz', 'cuser', 'muser'),
+            'classes': ('collapse',)
+        })
+    )
+
+
+@admin.register(om.AuthoritativeKnowledgeChunk)
+class AuthoritativeKnowledgeChunkAdmin(admin.ModelAdmin):
+    list_display = ('chunk_id', 'knowledge', 'chunk_type', 'sequence_number', 'vector_embedding_status')
+    list_filter = ('chunk_type', 'knowledge__knowledge_type')
+    search_fields = ('chunk_id', 'knowledge__title', 'content')
+    readonly_fields = ('chunk_id', 'vector_embedding_computed')
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('chunk_id', 'knowledge', 'chunk_type', 'sequence_number')
+        }),
+        ('Content', {
+            'fields': ('content',)
+        }),
+        ('Vector Embedding', {
+            'fields': ('vector_embedding', 'vector_embedding_computed'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('metadata',),
+            'classes': ('collapse',)
+        })
+    )
+
+    def vector_embedding_status(self, obj):
+        return "Computed" if obj.vector_embedding_computed else "Pending"
+    vector_embedding_status.short_description = "Embedding Status"

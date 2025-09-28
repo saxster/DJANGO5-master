@@ -14,14 +14,10 @@ Performance improvements expected:
 - 95%+ cache hit rate for static asset data
 """
 
-from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timedelta
-from django.db.models import Q, F, Value, CharField, TextField, Prefetch, Subquery, OuterRef
-from django.db.models.functions import Concat
-from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
-from django.core.cache import cache
-from django.utils import timezone
-from apps.core.cache_manager import CacheManager
+
+
+__all__ = ['AssetManagerORMOptimized']
 
 
 class AssetManagerORMOptimized:
@@ -431,7 +427,7 @@ class AssetManagerORMOptimized:
             if spatial_assets:
                 warmed_count += 1
                 logger.info(f"Warmed spatial assets cache for BU {bu_id}: {len(spatial_assets)} assets")
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.warning(f"Error warming spatial assets cache for BU {bu_id}: {e}")
         
         try:
@@ -440,7 +436,7 @@ class AssetManagerORMOptimized:
             if hierarchy:
                 warmed_count += 1
                 logger.info(f"Warmed asset hierarchy cache for BU {bu_id}: {len(hierarchy)} nodes")
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.warning(f"Error warming asset hierarchy cache for BU {bu_id}: {e}")
         
         try:
@@ -450,7 +446,7 @@ class AssetManagerORMOptimized:
             if recent_assets:
                 warmed_count += 1
                 logger.info(f"Warmed asset details cache for BU {bu_id}: {len(recent_assets)} assets")
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.warning(f"Error warming asset details cache for BU {bu_id}: {e}")
         
         try:
@@ -470,7 +466,7 @@ class AssetManagerORMOptimized:
                 if qset_mappings:
                     warmed_count += len(qset_mappings)
                     logger.info(f"Warmed questionset mappings for {len(qset_mappings)} assets in BU {bu_id}")
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.warning(f"Error warming asset questionset mappings for BU {bu_id}: {e}")
         
         logger.info(f"Warmed {warmed_count} asset cache entries for BU {bu_id}")
@@ -484,8 +480,6 @@ class AssetManagerORMOptimized:
         This is an additional optimization for dashboard/monitoring views.
         """
         from apps.activity.models.asset_model import Asset
-        from apps.activity.models.job_model import Jobneed
-        from django.db.models import Count, Avg, Q, Case, When, IntegerField
         
         
         # Batch query for asset metrics

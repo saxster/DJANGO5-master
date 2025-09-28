@@ -2,7 +2,6 @@
 Middleware for tracking Information Architecture metrics
 """
 import time
-import uuid
 from django.utils.deprecation import MiddlewareMixin
 from django.urls import resolve, Resolver404
 from django.conf import settings
@@ -106,7 +105,7 @@ class IATrackingMiddleware(MiddlewareMixin):
                 ip_address=self._get_client_ip(request),
                 referer=request.META.get('HTTP_REFERER', '')
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             # Don't let tracking errors break the site
             if settings.DEBUG:
                 print(f"Error tracking page view: {e}")
@@ -124,7 +123,7 @@ class IATrackingMiddleware(MiddlewareMixin):
                 ip_address=self._get_client_ip(request),
                 referer=request.META.get('HTTP_REFERER', '')
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
                 print(f"Error tracking legacy URL: {e}")
     
@@ -147,7 +146,7 @@ class IATrackingMiddleware(MiddlewareMixin):
                 is_legacy_url=is_legacy,
                 suggested_url=suggested_url
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
                 print(f"Error tracking error: {e}")
     
@@ -172,7 +171,7 @@ class IATrackingMiddleware(MiddlewareMixin):
             goal = self._check_goal_completion(path_list)
             if goal:
                 self._save_navigation_path(request, path_list, goal)
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
                 print(f"Error updating navigation path: {e}")
     
@@ -229,7 +228,7 @@ class IATrackingMiddleware(MiddlewareMixin):
             # Reset path tracking
             request.session['ia_navigation_path'] = []
             request.session['ia_session_start'] = timezone.now().isoformat()
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
                 print(f"Error saving navigation path: {e}")
     
@@ -302,7 +301,7 @@ class NavigationClickTrackingMiddleware(MiddlewareMixin):
                 time_to_click=data.get('time_to_click', 0),
                 click_order=session_clicks
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
                 print(f"Error tracking navigation click: {e}")
 
@@ -361,7 +360,7 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
                 'status': 'success',
                 'sessionId': session.session_id
             })
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
                 print(f"Error initializing heatmap session: {e}")
             from django.http import JsonResponse
@@ -381,7 +380,7 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
         except HeatmapSession.DoesNotExist:
             from django.http import JsonResponse
             return JsonResponse({'error': 'Session not found'}, status=404)
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
                 print(f"Error ending heatmap session: {e}")
             from django.http import JsonResponse
@@ -458,7 +457,7 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
         except HeatmapSession.DoesNotExist:
             from django.http import JsonResponse
             return JsonResponse({'error': 'Session not found'}, status=404)
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
                 print(f"Error tracking heatmap data: {e}")
             from django.http import JsonResponse
@@ -499,7 +498,7 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
                 start_date=start_date,
                 end_date=end_date
             )
-        except Exception as e:
+        except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
                 print(f"Error aggregating heatmap data: {e}")
     

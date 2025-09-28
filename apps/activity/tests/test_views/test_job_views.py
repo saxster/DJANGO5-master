@@ -1,13 +1,7 @@
 import pytest
-import json
-from django.test import RequestFactory
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.utils import timezone
-from datetime import datetime, timedelta
 from apps.activity.views.job_views import PPMView
-from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
-from apps.peoples.models import People
 from apps.onboarding.models import Bt
 
 

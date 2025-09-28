@@ -1,0 +1,123 @@
+id: "optimize-dashboard-queries"
+title: "Optimize Dashboard Database Queries"
+intent: "performance"
+description: |
+  Optimize the main dashboard page which currently has poor performance
+  due to N+1 query problems and inefficient database access patterns.
+
+  Current issues:
+  - Dashboard loads in 3-5 seconds for users with many activities
+  - 50+ database queries per dashboard load
+  - No caching of frequently accessed data
+  - Inefficient joins and missing indexes
+
+  Target: Reduce load time to under 500ms with <10 database queries.
+
+impacted_areas:
+  - "apps/activity/"
+  - "apps/peoples/"
+  - "apps/schedhuler/"
+  - "apps/core/utils_new/"
+
+target_files:
+  - "apps/activity/views/dashboard_views.py"
+  - "apps/activity/models/job_model.py"
+  - "apps/core/utils_new/query_optimization.py"
+  - "apps/peoples/models.py"
+
+acceptance_criteria:
+  - "Dashboard loads in under 500ms for typical user (95th percentile)"
+  - "Maximum 10 database queries per dashboard load"
+  - "All N+1 query problems resolved"
+  - "Implement caching for static dashboard elements"
+  - "Add database indexes for frequently queried fields"
+  - "No functionality regression in dashboard features"
+
+test_plan:
+  required_coverage: 80.0
+  test_types:
+    - "unit"
+    - "performance"
+    - "integration"
+  performance_tests:
+    - "test_dashboard_load_time_under_500ms"
+    - "test_dashboard_max_10_queries"
+    - "test_dashboard_memory_usage_acceptable"
+  regression_tests:
+    - "test_all_dashboard_widgets_functional"
+    - "test_dashboard_data_accuracy"
+
+performance_constraints:
+  - metric: "response_time"
+    threshold: 500
+    unit: "ms"
+    description: "95th percentile dashboard load time"
+  - metric: "db_queries"
+    threshold: 10
+    unit: "count"
+    description: "Maximum database queries per page load"
+  - metric: "memory_usage"
+    threshold: 50
+    unit: "mb"
+    description: "Maximum additional memory usage"
+  - metric: "cpu_usage"
+    threshold: 20
+    unit: "percent"
+    description: "Maximum additional CPU usage"
+
+migration_plan:
+  required: true
+  backward_compatible: true
+  data_migration_needed: false
+  migration_window: "maintenance_window"
+  rollback_plan:
+    - "Remove new database indexes"
+    - "Revert query optimizations"
+    - "Clear caching configuration"
+  validation_queries:
+    - "EXPLAIN ANALYZE SELECT * FROM activity_jobmodel WHERE user_id = 1"
+    - "SELECT COUNT(*) FROM pg_stat_user_indexes WHERE schemaname = 'public'"
+
+rollout_plan:
+  strategy: "canary"
+  feature_flags:
+    - "optimized_dashboard_queries"
+    - "dashboard_caching_enabled"
+  environments:
+    - "development"
+    - "staging"
+    - "production_canary_10_percent"
+    - "production"
+  approval_gates:
+    - "Performance test validation"
+    - "Load test approval"
+  monitoring_requirements:
+    - "Monitor dashboard response times"
+    - "Track database query counts"
+    - "Monitor cache hit rates"
+    - "Alert on performance regression"
+
+priority: "high"
+risk_tolerance: "medium"
+estimated_effort_hours: 12.0
+
+references:
+  - "Performance analysis report: PERF-2024-001"
+  - "User complaints: Dashboard too slow (#156, #203, #247)"
+  - "APM data showing 3-5s average load times"
+
+dependencies: []
+related_specs:
+  - "add-redis-caching-infrastructure"
+
+owner: "backend-team@company.com"
+reviewers:
+  - "devops-team@company.com"
+  - "qa-team@company.com"
+approvers:
+  - "tech-lead@company.com"
+
+created_at: "2024-01-17T14:20:00Z"
+updated_at: "2024-01-17T14:20:00Z"
+version: "1.0"
+status: "review"

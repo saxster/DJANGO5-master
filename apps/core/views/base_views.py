@@ -2,17 +2,13 @@
 Unified base view classes for consistent functionality across the application
 Implements DRY principles and standardized patterns
 """
-from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 )
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.utils.translation import gettext_lazy as _
 from django.core.cache import cache
-from django.http import JsonResponse
 import logging
 
 logger = logging.getLogger(__name__)

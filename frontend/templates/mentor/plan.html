@@ -1,0 +1,698 @@
+{% extends 'mentor/base.html' %}
+
+{% block title %}AI Mentor - Plan Changes{% endblock %}
+
+{% block extra_css %}
+<style>
+    .impact-visualization {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        background: #f9fafb;
+    }
+
+    .call-graph {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .graph-node {
+        position: relative;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        min-width: 150px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .graph-node:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .graph-node.affected {
+        border-color: #f59e0b;
+        background: #fffbeb;
+    }
+
+    .graph-node.critical {
+        border-color: #ef4444;
+        background: #fef2f2;
+    }
+
+    .graph-node.safe {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+
+    .node-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    .node-type {
+        font-size: 0.8rem;
+        color: #6b7280;
+        background: #f3f4f6;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+    }
+
+    .node-impact {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .impact-affected { color: #d97706; }
+    .impact-critical { color: #dc2626; }
+    .impact-safe { color: #059669; }
+
+    .risk-matrix {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .risk-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .risk-card.low {
+        border-left: 4px solid #10b981;
+    }
+
+    .risk-card.medium {
+        border-left: 4px solid #f59e0b;
+    }
+
+    .risk-card.high {
+        border-left: 4px solid #ef4444;
+    }
+
+    .risk-card.critical {
+        border-left: 4px solid #dc2626;
+    }
+
+    .confidence-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .confidence-bar {
+        flex: 1;
+        height: 4px;
+        background: #e5e7eb;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+        transition: width 0.3s;
+    }
+
+    .expandable-section {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+
+    .section-header {
+        background: #f9fafb;
+        padding: 1rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        transition: background-color 0.2s;
+    }
+
+    .section-header:hover {
+        background: #f3f4f6;
+    }
+
+    .section-content {
+        padding: 1.5rem;
+        display: none;
+    }
+
+    .section-content.expanded {
+        display: block;
+    }
+
+    .affected-artifacts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .artifact-section {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+
+    .artifact-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        margin-bottom: 0.25rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .artifact-item:hover {
+        background: #f9fafb;
+    }
+
+    .artifact-status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-safe { background: #10b981; }
+    .status-affected { background: #f59e0b; }
+    .status-critical { background: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card card-mentor">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-project-diagram"></i> Plan Changes
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="planForm">
+                    <div class="mb-4">
+                        <label for="requestInput" class="form-label">
+                            <strong>What would you like to change?</strong>
+                        </label>
+                        <textarea class="form-control" id="requestInput" rows="4"
+                                placeholder="Describe your request in natural language. Examples:
+
+• Add user authentication to the GraphQL API
+• Fix N+1 query issues in the task list view
+• Implement caching for expensive database operations
+• Add validation to the user registration form
+• Refactor the payment processing module"></textarea>
+                        <small class="text-muted">
+                            Be specific about what you want to achieve. The more detail you provide, the better the plan will be.
+                        </small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="scopeInput" class="form-label">Scope (Optional)</label>
+                            <input type="text" class="form-control" id="scopeInput"
+                                   placeholder="apps/users/, specific-file.py">
+                            <small class="text-muted">Limit changes to specific directories or files</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="complexityInput" class="form-label">Complexity</label>
+                            <select class="form-select" id="complexityInput">
+                                <option value="">Auto-detect</option>
+                                <option value="simple">Simple</option>
+                                <option value="medium">Medium</option>
+                                <option value="complex">Complex</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="enableImpactAnalysis" checked>
+                        <label class="form-check-label" for="enableImpactAnalysis">
+                            Enable comprehensive impact analysis (recommended)
+                        </label>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-mentor" onclick="generatePlan()">
+                            <i class="fas fa-project-diagram"></i> Generate Plan
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="generatePlanStream()">
+                            <i class="fas fa-stream"></i> Generate with Progress
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="showSpecWizard()">
+                            <i class="fas fa-wand-magic-sparkles"></i> Use Spec Wizard
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearForm()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="card card-mentor mt-4" id="progressCard" style="display: none;">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cogs"></i> Generating Plan...
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                         id="progressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="progressText">Initializing...</div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card card-mentor mt-4" id="resultsCard" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list"></i> Generated Plan
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportPlan()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="applyPlan()">
+                        <i class="fas fa-play"></i> Apply Plan
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="resultsContent">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Tips Card -->
+        <div class="card card-mentor mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-lightbulb"></i> Planning Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>Be specific:</strong> Mention exact models, views, or components
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>Include context:</strong> Describe the current state and desired outcome
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>Set scope:</strong> Limit changes to specific areas if needed
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>Consider impact:</strong> Mention if backward compatibility is important
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Examples Card -->
+        <div class="card card-mentor">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-examples"></i> Example Requests
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-sm btn-outline-info w-100 text-start"
+                            onclick="setExample('Add JWT authentication to the user API endpoints with proper token validation and refresh mechanism')">
+                        <strong>Authentication:</strong> Add JWT auth to API
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-sm btn-outline-info w-100 text-start"
+                            onclick="setExample('Optimize the dashboard query that loads user statistics by adding database indexes and implementing caching')">
+                        <strong>Performance:</strong> Optimize dashboard queries
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-sm btn-outline-info w-100 text-start"
+                            onclick="setExample('Add comprehensive input validation to the user registration form including email format, password strength, and duplicate checking')">
+                        <strong>Validation:</strong> Enhance form validation
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-sm btn-outline-info w-100 text-start"
+                            onclick="setExample('Refactor the payment processing module to use the Strategy pattern and add support for multiple payment providers')">
+                        <strong>Refactoring:</strong> Improve payment system
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentEventSource = null;
+
+// Generate plan (regular)
+async function generatePlan() {
+    const request = document.getElementById('requestInput').value.trim();
+    if (!request) {
+        showToast('Please enter a request description', 'warning');
+        return;
+    }
+
+    showProgressCard();
+    updateProgress(20, 'Generating plan...');
+
+    try {
+        const payload = {
+            request: request,
+            format: 'json'
+        };
+
+        const scope = document.getElementById('scopeInput').value.trim();
+        if (scope) {
+            payload.scope = scope.split(',').map(s => s.trim());
+        }
+
+        const complexity = document.getElementById('complexityInput').value;
+        if (complexity) {
+            payload.complexity = complexity;
+        }
+
+        const response = await fetch('/api/v1/mentor/plan/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        });
+
+        updateProgress(80, 'Processing results...');
+
+        if (response.ok) {
+            const data = await response.json();
+            updateProgress(100, 'Plan generated successfully!');
+            hideProgressCard();
+            displayResults(data);
+            showToast(`Plan generated with ${data.steps.length} steps!`, 'success');
+        } else {
+            const error = await response.json();
+            hideProgressCard();
+            showToast(`Plan generation failed: ${error.error || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Plan generation failed:', error);
+        hideProgressCard();
+        showToast('Plan generation failed', 'error');
+    }
+}
+
+// Generate plan with streaming progress
+function generatePlanStream() {
+    const request = document.getElementById('requestInput').value.trim();
+    if (!request) {
+        showToast('Please enter a request description', 'warning');
+        return;
+    }
+
+    showProgressCard();
+
+    try {
+        const payload = {
+            request: request,
+            format: 'json'
+        };
+
+        const scope = document.getElementById('scopeInput').value.trim();
+        if (scope) {
+            payload.scope = scope.split(',').map(s => s.trim());
+        }
+
+        // Create EventSource for streaming
+        const params = new URLSearchParams();
+        Object.keys(payload).forEach(key => {
+            if (Array.isArray(payload[key])) {
+                payload[key].forEach(item => params.append(key, item));
+            } else {
+                params.append(key, payload[key]);
+            }
+        });
+
+        currentEventSource = new EventSource(`/api/v1/mentor/plan/stream/?${params}`);
+
+        currentEventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'progress') {
+                    updateProgress(data.progress * 100, `${data.stage}...`);
+                } else if (data.type === 'result') {
+                    updateProgress(100, 'Plan generated successfully!');
+                    hideProgressCard();
+                    displayResults(data.plan);
+                    showToast(`Plan generated with ${data.plan.steps.length} steps!`, 'success');
+                    currentEventSource.close();
+                } else if (data.type === 'error') {
+                    hideProgressCard();
+                    showToast(`Plan generation failed: ${data.message}`, 'error');
+                    currentEventSource.close();
+                } else if (data.type === 'complete') {
+                    currentEventSource.close();
+                }
+            } catch (e) {
+                console.error('Error parsing event data:', e);
+            }
+        };
+
+        currentEventSource.onerror = function(event) {
+            console.error('EventSource failed:', event);
+            hideProgressCard();
+            showToast('Plan generation failed', 'error');
+            currentEventSource.close();
+        };
+
+    } catch (error) {
+        console.error('Stream setup failed:', error);
+        hideProgressCard();
+        showToast('Plan generation failed', 'error');
+    }
+}
+
+// Show/hide progress card
+function showProgressCard() {
+    document.getElementById('progressCard').style.display = 'block';
+    document.getElementById('resultsCard').style.display = 'none';
+}
+
+function hideProgressCard() {
+    document.getElementById('progressCard').style.display = 'none';
+}
+
+// Update progress
+function updateProgress(percent, text) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    progressBar.style.width = `${percent}%`;
+    progressText.textContent = text;
+}
+
+// Display results
+function displayResults(data) {
+    const resultsCard = document.getElementById('resultsCard');
+    const resultsContent = document.getElementById('resultsContent');
+
+    let html = `
+        <div class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Plan Overview</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Steps:</strong> ${data.steps.length}</li>
+                        <li><strong>Risk Level:</strong>
+                            <span class="badge bg-${getRiskColor(data.overall_risk)}">${data.overall_risk}</span>
+                        </li>
+                        <li><strong>Estimated Time:</strong> ${data.estimated_total_time} minutes</li>
+                        <li><strong>Files Affected:</strong> ${data.impacted_files.length}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Requirements</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Migration Needed:</strong> ${data.migration_needed ? 'Yes' : 'No'}</li>
+                        <li><strong>Tests Required:</strong> ${data.required_tests.length}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (data.prerequisites && data.prerequisites.length > 0) {
+        html += `
+            <div class="alert alert-warning">
+                <h6><i class="fas fa-exclamation-triangle"></i> Prerequisites</h6>
+                <ul class="mb-0">
+                    ${data.prerequisites.map(prereq => `<li>${prereq}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    html += `<h6>Implementation Steps</h6>`;
+
+    data.steps.forEach((step, index) => {
+        html += `
+            <div class="workflow-step mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6>${index + 1}. ${step.description}</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">
+                                    <strong>Type:</strong> ${step.step_type} |
+                                    <strong>Risk:</strong> <span class="badge bg-${getRiskColor(step.risk_level)}">${step.risk_level}</span>
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">
+                                    <strong>Time:</strong> ${step.estimated_time} min
+                                </small>
+                            </div>
+                        </div>
+                        ${step.target_files.length > 0 ? `
+                            <div class="mt-2">
+                                <small><strong>Files:</strong> ${step.target_files.join(', ')}</small>
+                            </div>
+                        ` : ''}
+                        ${step.dependencies.length > 0 ? `
+                            <div class="mt-1">
+                                <small class="text-muted"><strong>Dependencies:</strong> ${step.dependencies.join(', ')}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    if (data.rollback_plan && data.rollback_plan.length > 0) {
+        html += `
+            <h6 class="mt-4">Rollback Plan</h6>
+            <ol class="list-group list-group-numbered">
+                ${data.rollback_plan.map(step => `<li class="list-group-item">${step}</li>`).join('')}
+            </ol>
+        `;
+    }
+
+    resultsContent.innerHTML = html;
+    resultsCard.style.display = 'block';
+
+    // Store plan data for export/apply
+    window.currentPlan = data;
+}
+
+// Get risk color for badges
+function getRiskColor(risk) {
+    switch(risk.toLowerCase()) {
+        case 'low': return 'success';
+        case 'medium': return 'warning';
+        case 'high': return 'danger';
+        case 'critical': return 'dark';
+        default: return 'secondary';
+    }
+}
+
+// Set example request
+function setExample(text) {
+    document.getElementById('requestInput').value = text;
+    showToast('Example loaded! You can modify it or generate the plan.', 'info');
+}
+
+// Clear form
+function clearForm() {
+    document.getElementById('requestInput').value = '';
+    document.getElementById('scopeInput').value = '';
+    document.getElementById('complexityInput').value = '';
+    hideProgressCard();
+    document.getElementById('resultsCard').style.display = 'none';
+
+    // Close any active EventSource
+    if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+    }
+}
+
+// Export plan
+function exportPlan() {
+    if (!window.currentPlan) {
+        showToast('No plan to export', 'warning');
+        return;
+    }
+
+    const dataStr = JSON.stringify(window.currentPlan, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `mentor-plan-${window.currentPlan.plan_id}.json`;
+    link.click();
+
+    showToast('Plan exported successfully!', 'success');
+}
+
+// Apply plan (placeholder)
+function applyPlan() {
+    if (!window.currentPlan) {
+        showToast('No plan to apply', 'warning');
+        return;
+    }
+
+    showToast('Plan application - Coming soon! This will integrate with the patch system.', 'info');
+}
+
+// Get CSRF token
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (currentEventSource) {
+        currentEventSource.close();
+    }
+});
+</script>
+{% endblock %}

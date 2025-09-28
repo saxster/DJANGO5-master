@@ -5,7 +5,6 @@ from apps.work_order_management.utils import (
     get_sla_report_approvers,
     get_month_number,
 )
-from django.conf import settings
 from datetime import datetime
 
 

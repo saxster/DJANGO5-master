@@ -1,0 +1,117 @@
+name: AI Mentor Analysis
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main ]
+
+jobs:
+  mentor-analysis:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements/*.txt') }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/base.txt
+        pip install libcst==1.1.0
+
+    - name: Run AI Mentor indexing
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        DJANGO_SETTINGS_MODULE: intelliwiz_config.settings
+      run: |
+        python manage.py migrate
+        python manage.py mentor_index --full
+
+    - name: Run impact analysis
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        python manage.py mentor_analyze --pr-mode --github-token ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run security scan
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        python manage.py mentor_security_scan --pr-mode
+
+    - name: Run performance analysis
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        python manage.py mentor_performance_scan --pr-mode
+
+    - name: Generate recommendations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python manage.py mentor_generate_pr_comment --pr-number ${{ github.event.pull_request.number }}
+
+    - name: Post PR comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+
+          try {
+            const comment = fs.readFileSync('.mentor/pr_comment.md', 'utf8');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('No PR comment generated or error:', error.message);
+          }
+
+    - name: Upload analysis artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: mentor-analysis
+        path: |
+          .mentor/
+          coverage_reports/
+        retention-days: 7
+
+    - name: Quality gate check
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        python manage.py mentor_quality_gate --threshold 8.0

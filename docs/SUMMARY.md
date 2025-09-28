@@ -1,0 +1,23 @@
+# Summary
+
+- [Developer’s Guide](README.md)
+- [Architecture Overview](architecture-overview.md)
+- [Security & Compliance](security-and-compliance.md)
+- [People & Authentication](people-and-authentication.md)
+- [Core & Information Architecture](core-and-information-architecture.md)
+- [Attendance & AI Verification](attendance-and-ai-verification.md)
+- [Scheduler](scheduler.md)
+- [Activity, Assets & Work Orders](activity-assets-work-orders.md)
+- [Reports](reports.md)
+- [REST & GraphQL APIs](rest-and-graphql-apis.md)
+- [Real-Time & Mobile Sync](real-time-and-mobile-sync.md)
+- [Journal & Wellness System](journal-and-wellness-system.md)
+- [Conversational Onboarding API](conversational-onboarding-api.md)
+- [Stream Testbench & Issue KB](stream-testbench-and-issue-kb.md)
+- [Monitoring & Health](monitoring-and-health.md)
+- [Data & Migrations](data-and-migrations.md)
+- [Testing & CI](testing-and-ci.md)
+- [Extensibility Patterns](extensibility-patterns.md)
+- [Local Setup Guide](local-setup-guide.md)
+-
+- [Common Developer Tasks](developer-tasks.md)

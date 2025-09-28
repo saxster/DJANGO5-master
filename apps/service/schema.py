@@ -9,7 +9,8 @@ from apps.service.queries.workpermit_queries import WorkPermitQueries
 from apps.service.queries.people_queries import PeopleQueries
 from apps.service.queries.asset_queries import AssetQueries
 from apps.service.queries.bt_queries import BtQueries
-from graphene_django.debug import DjangoDebug
+from apps.journal.graphql_schema import JournalWellnessQueries, JournalWellnessMutations
+from apps.core.graphql_security import GraphQLSecurityIntrospection
 from .mutations import (
     InsertRecord,
     AdhocMutation,
@@ -18,6 +19,7 @@ from .mutations import (
     ReportMutation,
     TaskTourUpdate,
     UploadAttMutaion,
+    SecureFileUploadMutation,
     SyncMutation,
     InsertJsonMutation,
 )
@@ -35,7 +37,10 @@ class Mutation(graphene.ObjectType):
     insert_record = InsertRecord.Field()
     update_task_tour = TaskTourUpdate.Field()
     upload_report = ReportMutation.Field()
-    upload_attachment = UploadAttMutaion.Field()
+    upload_attachment = UploadAttMutaion.Field(
+        deprecation_reason="Security vulnerabilities. Use secure_file_upload instead. Will be removed in v2.0 (2026-06-30). Migration guide: /docs/api-migrations/file-upload-v2/"
+    )
+    secure_file_upload = SecureFileUploadMutation.Field()
     sync_upload = SyncMutation.Field()
     adhoc_record = AdhocMutation.Field()
     insert_json = InsertJsonMutation.Field()
@@ -51,37 +56,68 @@ class Query(
     PeopleQueries,
     AssetQueries,
     BtQueries,
+    JournalWellnessQueries,
     graphene.ObjectType,
 ):
     PELog_by_id = graphene.Field(PELogType, id=graphene.Int())
     trackings = graphene.List(TrackingType)
     testcases = graphene.List(TestGeoType)
     viewer = graphene.String()
+    # Security introspection field for CSRF protection (fixes CVSS 8.1 vulnerability)
+    security_info = graphene.Field(GraphQLSecurityIntrospection)
 
     @staticmethod
+    @login_required
     def resolve_PELog_by_id(info, id):
-        return PeopleEventlog.objects.get(id=id)
+        from django.core.exceptions import PermissionDenied
+        user = info.context.user
+
+        try:
+            eventlog = PeopleEventlog.objects.get(id=id)
+
+            if not user.isadmin and eventlog.peopleid != user.id:
+                raise PermissionDenied("Access denied - can only view own event logs")
+
+            return eventlog
+        except PeopleEventlog.DoesNotExist:
+            raise GraphQLError("Event log not found")
 
     @staticmethod
+    @login_required
     def resolve_trackings(info):
-        return Tracking.objects.all()
+        from django.core.exceptions import PermissionDenied
+        user = info.context.user
+
+        if not user.isadmin:
+            return Tracking.objects.filter(peopleid=user.id)
+
+        return Tracking.objects.filter(client_id=user.client_id)
 
     @staticmethod
-    def resole_testcases(info):
-        objs = TestGeo.objects.all()
-        return list(objs)
+    @login_required
+    def resolve_testcases(info):
+        user = info.context.user
+
+        if not user.isadmin:
+            raise GraphQLError("Admin privileges required")
+
+        return list(TestGeo.objects.filter(client_id=user.client_id))
 
     @login_required
     def resolve_viewer(self, info, **kwargs):
         return "validtoken" if info.context.user.is_authenticated else "tokenexpired"
 
+    @staticmethod
+    def resolve_security_info(info):
+        """Resolver for GraphQL security introspection."""
+        return GraphQLSecurityIntrospection()
+
 
 class RootQuery(Query):
-    debug = graphene.Field(DjangoDebug, name="_debug")
     pass
 
 
-class RootMutation(Mutation):
+class RootMutation(Mutation, JournalWellnessMutations):
     pass
 
 

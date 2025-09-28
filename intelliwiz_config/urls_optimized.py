@@ -7,13 +7,13 @@ from django.conf import settings
 from django.urls import path, include
 from django.conf.urls.static import static
 from django.views.generic import TemplateView, RedirectView
-from django.views.decorators.csrf import csrf_exempt
+# from django.views.decorators.csrf import csrf_exempt  # Removed: CSRF protection now handled by middleware
 from django.contrib.auth.decorators import login_required
 from django_email_verification import urls as email_urls
 from apps.peoples.views import SignIn, SignOut
 from graphene_file_upload.django import FileUploadGraphQLView
 import debug_toolbar
-from apps.service.mutations import UploadFile
+from apps.service.mutations import SecureUploadFile
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.views.dashboard_views import ModernDashboardView
 from apps.core.health_checks import (
@@ -41,31 +41,56 @@ urlpatterns = [
     # ========== CORE BUSINESS DOMAINS ==========
     # Operations (Tasks, Tours, Work Orders, PPM)
     path('operations/', include('apps.core.urls_operations')),
-    
+
     # Assets (Inventory, Maintenance, Locations, Monitoring)
     path('assets/', include('apps.core.urls_assets')),
-    
+
     # People (Directory, Attendance, Groups, Expenses)
     path('people/', include('apps.core.urls_people')),
-    
+
+    # Journal & Wellness (Personal journaling with privacy controls and evidence-based wellness education)
+    path('journal/', include('apps.journal.urls')),
+    path('wellness/', include('apps.wellness.urls')),
+
     # Help Desk (Tickets, Escalations, Requests)
     path('help-desk/', include('apps.core.urls_helpdesk')),
     
     # Reports (All reporting functionality)
     path('reports/', include('apps.reports.urls')),
-    
+
+    # Stream Testbench (Stream testing and anomaly detection)
+    path('streamlab/', include('apps.streamlab.urls')),
+    path('streamlab/ai/', include('apps.ai_testing.urls')),
+
     # ========== ADMINISTRATION ==========
     path('admin/', include('apps.core.urls_admin')),
     
     # ========== API ENDPOINTS ==========
+    # REST API v1 (current stable)
     path('api/v1/', include('apps.service.rest_service.urls')),
-    path('api/graphql/', csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True))),
-    path('graphql/', csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True))),  # With trailing slash
-    path('graphql', csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True))),   # Without trailing slash
-    path('api/upload/att_file/', UploadFile.as_view()),
+    path('api/v1/onboarding/', include('apps.onboarding_api.urls')),  # Conversational Onboarding API (Phase 1 MVP)
+    path('api/v1/journal/', include('apps.journal.urls')),  # Journal & Wellness API endpoints
+    path('api/v1/wellness/', include('apps.wellness.urls')),  # Wellness education API endpoints
+
+    # REST API v2 (planned for 2026-06-30)
+    path('api/v2/', include('apps.service.rest_service.v2.urls')),
+
+    # GraphQL endpoints with CSRF protection (vulnerability fix: CVSS 8.1)
+    # CSRF protection is now handled by GraphQLCSRFProtectionMiddleware
+    path('api/graphql/', FileUploadGraphQLView.as_view(graphiql=True)),
+    path('graphql/', FileUploadGraphQLView.as_view(graphiql=True)),  # With trailing slash
+    path('graphql', FileUploadGraphQLView.as_view(graphiql=True)),   # Without trailing slash
+    path('api/upload/att_file/', SecureUploadFile.as_view()),
     
     # ========== MONITORING & HEALTH ==========
     path('monitoring/', include('monitoring.urls')),
+    path('security/', include('apps.core.urls_security')),  # Security monitoring dashboard (CVSS 8.1 fix)
+
+    # API lifecycle management (Admin-only)
+    path('', include('apps.core.urls_api_lifecycle')),  # API deprecation and versioning dashboards
+
+    # Cache monitoring and management (Admin-only)
+    path('', include('apps.core.urls_cache')),  # Includes /admin/cache/ and /cache/health/ endpoints
 
     # Root-level health endpoints for testing and monitoring
     path('health/', health_check, name='root_health_check'),
@@ -74,7 +99,9 @@ urlpatterns = [
     path('health/detailed/', detailed_health_check, name='root_detailed_health_check'),
     
     # ========== AI & INTELLIGENCE ==========
-    # All AI apps have been removed to reduce complexity
+    # AI Mentor system (development only)
+    path('mentor/', include('apps.mentor_api.urls')),
+    path('api/v1/mentor/', include('apps.mentor_api.urls')),
     
     # ========== UTILITIES ==========
     path('select2/', include('django_select2.urls')),

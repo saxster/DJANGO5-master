@@ -3,8 +3,6 @@ Template tags for Information Architecture optimization
 Provides navigation helpers, breadcrumbs, and URL utilities
 """
 from django import template
-from django.urls import reverse, NoReverseMatch
-from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.conf import settings
 import json

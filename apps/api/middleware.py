@@ -11,8 +11,18 @@ from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
 from django.core.cache import cache
 from django.utils import timezone
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.conf import settings
 
 from apps.api.monitoring.analytics import api_analytics
+from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import (
+    SecurityException,
+    APIException,
+    SystemException,
+    DatabaseException,
+    CacheException
+)
 
 logger = logging.getLogger('api.middleware')
 
@@ -80,8 +90,34 @@ class APIMonitoringMiddleware(MiddlewareMixin):
             # Record analytics
             try:
                 api_analytics.record_request(request, response, execution_time)
-            except Exception as e:
-                logger.error(f"Error recording API analytics: {e}")
+            except (ConnectionError, OSError) as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_analytics_connection', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Analytics service connection failed", extra={'correlation_id': correlation_id})
+            except DatabaseException as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_analytics_database', 'path': request.path},
+                    level='error'
+                )
+                logger.error(f"Analytics database error", extra={'correlation_id': correlation_id})
+            except (ValueError, TypeError) as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_analytics_data', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Analytics data processing error", extra={'correlation_id': correlation_id})
+            except SystemException as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_analytics_system', 'path': request.path},
+                    level='critical'
+                )
+                logger.critical(f"Analytics system error", extra={'correlation_id': correlation_id})
             
             # Add performance headers
             response['X-Response-Time'] = f"{execution_time:.3f}s"
@@ -121,8 +157,27 @@ class APIMonitoringMiddleware(MiddlewareMixin):
             # Record in analytics
             try:
                 api_analytics.record_request(request, error_response, execution_time)
-            except:
-                pass
+            except (ConnectionError, OSError) as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_error_analytics', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Failed to record error analytics - connection issue", extra={'correlation_id': correlation_id})
+            except DatabaseException as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_error_analytics_db', 'path': request.path},
+                    level='error'
+                )
+                logger.error(f"Failed to record error analytics - database issue", extra={'correlation_id': correlation_id})
+            except (ValueError, TypeError) as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_error_analytics_data', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Failed to record error analytics - data issue", extra={'correlation_id': correlation_id})
         
         return None
     
@@ -296,13 +351,32 @@ class APICacheMiddleware(MiddlewareMixin):
                 
                 # Cache the response
                 cache.set(request._cache_key, cache_data, self.cache_timeout)
-                
+
                 # Add cache headers
                 response['X-Cache'] = 'MISS'
                 response['Cache-Control'] = f'max-age={self.cache_timeout}'
-                
-            except:
-                pass
+
+            except CacheException as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_cache_set', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Cache operation failed", extra={'correlation_id': correlation_id})
+            except (json.JSONDecodeError, ValueError) as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_cache_parse', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Failed to parse response for caching", extra={'correlation_id': correlation_id})
+            except (ConnectionError, OSError) as e:
+                correlation_id = ErrorHandler.handle_exception(
+                    e,
+                    context={'operation': 'api_cache_connection', 'path': request.path},
+                    level='warning'
+                )
+                logger.warning(f"Cache connection failed", extra={'correlation_id': correlation_id})
         
         return response
     

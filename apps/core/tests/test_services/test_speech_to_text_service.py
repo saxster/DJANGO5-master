@@ -9,10 +9,6 @@ Test coverage for the speech-to-text service including:
 - Edge cases
 """
 
-import pytest
-import tempfile
-import os
-from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase
 from django.conf import settings
 from apps.core.services.speech_to_text_service import SpeechToTextService

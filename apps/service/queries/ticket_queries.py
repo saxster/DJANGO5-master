@@ -2,11 +2,13 @@ import graphene
 from apps.y_helpdesk.models import Ticket
 from apps.core import utils
 from graphql import GraphQLError
-from apps.service.inputs.ticket_input import TicketFilterInput
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
 from apps.service.pydantic_schemas.ticket_schema import TicketSchema
 from logging import getLogger
 from apps.service.types import SelectOutputType
+from apps.service.decorators import require_authentication, require_tenant_access
 
 log = getLogger("mobile_service_log")
 
@@ -22,6 +24,7 @@ class TicketQueries(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_authentication
     def resolve_get_tickets(self, info, peopleid, mdtz, ctzoffset, buid=None, clientid=None):
         log.info("request for get_tickets")
         try:
@@ -45,8 +48,11 @@ class TicketQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_tickets failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError("something went wrong")
+            log.error("Validation error in get_tickets", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Ticket.DoesNotExist:
+            log.warning("Tickets not found in get_tickets")
+            raise GraphQLError("Tickets not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_tickets", exc_info=True)
+            raise GraphQLError("Database operation failed")

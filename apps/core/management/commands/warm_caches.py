@@ -10,18 +10,17 @@ Usage:
     python manage.py warm_caches --dry-run  # Show what would be warmed
 """
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.core.cache import cache
 from datetime import datetime, timedelta
 import logging
-import sys
 from typing import Dict, Any
 
-from apps.core.cache_strategies import cache_warmer
-from apps.core.cache_manager import CacheManager
 from apps.activity.managers.asset_manager_orm_optimized import AssetManagerORMOptimized
 from apps.activity.managers.job_manager_orm_optimized import JobneedManagerORMOptimized
+from apps.core.caching.utils import warm_cache_pattern, CACHE_PATTERNS
+from apps.core.caching.form_mixins import warm_form_dropdown_caches
 
 logger = logging.getLogger('cache_warming')
 
@@ -121,7 +120,7 @@ class Command(BaseCommand):
                     )
                     break
                     
-            except Exception as e:
+            except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
                 warming_stats['errors'] += 1
                 logger.error(f"Error warming category {category}: {e}")
                 if self.verbosity >= 1:
@@ -158,7 +157,7 @@ class Command(BaseCommand):
             elif category == 'static':
                 stats = self._warm_static_caches(options)
             
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             stats['errors'] += 1
             logger.error(f"Error in _warm_category {category}: {e}")
         
@@ -191,11 +190,11 @@ class Command(BaseCommand):
                     if self.verbosity >= 2:
                         self.stdout.write(f'  Warmed job caches for BU {bu_id}')
                         
-                except Exception as e:
+                except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                     stats['errors'] += 1
                     logger.warning(f"Error warming job caches for BU {bu_id}: {e}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, ValueError) as e:
             stats['errors'] += 1
             logger.error(f"Error in _warm_job_caches: {e}")
         
@@ -228,11 +227,11 @@ class Command(BaseCommand):
                     if self.verbosity >= 2:
                         self.stdout.write(f'  Warmed asset caches for BU {bu_id}')
                         
-                except Exception as e:
+                except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                     stats['errors'] += 1
                     logger.warning(f"Error warming asset caches for BU {bu_id}: {e}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, ValueError) as e:
             stats['errors'] += 1
             logger.error(f"Error in _warm_asset_caches: {e}")
         
@@ -275,11 +274,11 @@ class Command(BaseCommand):
                     if self.verbosity >= 2:
                         self.stdout.write(f'  Warmed user cache for user {user_id}')
                         
-                except Exception as e:
+                except (ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, ValueError) as e:
                     stats['errors'] += 1
                     logger.warning(f"Error warming user cache for {user_id}: {e}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, ValueError) as e:
             stats['errors'] += 1
             logger.error(f"Error in _warm_user_caches: {e}")
         
@@ -315,7 +314,7 @@ class Command(BaseCommand):
                 if self.verbosity >= 2:
                     self.stdout.write('  Warmed dashboard metrics cache')
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, ValueError) as e:
             stats['errors'] += 1
             logger.error(f"Error in _warm_report_caches: {e}")
         
@@ -365,7 +364,7 @@ class Command(BaseCommand):
                     if self.verbosity >= 2:
                         self.stdout.write(f'  Warmed type assist cache for {category}')
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, ValueError) as e:
             stats['errors'] += 1
             logger.error(f"Error in _warm_static_caches: {e}")
         

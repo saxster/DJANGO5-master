@@ -67,7 +67,7 @@ class TenantAwareTestRunner(DiscoverRunner):
                             CREATE INDEX IF NOT EXISTS {table}_tenant_id_idx
                             ON {table}(tenant_id)
                         """)
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     logger.warning(f"Could not add tenant_id to {table}: {e}")
 
     def _ensure_default_tenant_exists(self):
@@ -86,7 +86,7 @@ class TenantAwareTestRunner(DiscoverRunner):
                     """)
                     # Reset sequence to prevent ID conflicts
                     cursor.execute("SELECT setval('tenants_tenant_id_seq', (SELECT MAX(id) FROM tenants_tenant))")
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.warning(f"Could not ensure default tenant: {e}")
 
     def _ensure_session_table_exists(self):
@@ -114,7 +114,7 @@ class TenantAwareTestRunner(DiscoverRunner):
                         CREATE INDEX IF NOT EXISTS django_session_expire_date_idx
                         ON django_session(expire_date)
                     """)
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.warning(f"Could not ensure django_session table: {e}")
 
     def _ensure_reports_tables_exist(self):
@@ -138,5 +138,5 @@ class TenantAwareTestRunner(DiscoverRunner):
                     )
                 """)
                 logger.info("Ensured generatepdf table exists")
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.warning(f"Could not create generatepdf table: {e}")

@@ -4,8 +4,6 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.auth.middleware import AuthenticationMiddleware
 from django.contrib.messages.middleware import MessageMiddleware
-from unittest.mock import patch, Mock, MagicMock
-import json
 import uuid
 
 from apps.y_helpdesk.views import (
@@ -14,10 +12,7 @@ from apps.y_helpdesk.views import (
     PostingOrderView,
     UniformView,
 )
-from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.peoples.models import People, Pgroup
-from apps.activity.models.job_model import Job
-from apps.onboarding.models import Bt, TypeAssist
 
 User = get_user_model()
 

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q, Prefetch
 from django.http import response as rp
@@ -7,7 +6,6 @@ from django.shortcuts import render, get_object_or_404
 from django.views.generic.base import View
 from apps.activity.models.job_model import Jobneed, JobneedDetails
 from apps.activity.models.attachment_model import Attachment
-from apps.core import utils
 
 logger = logging.getLogger("django")
 
@@ -88,7 +86,7 @@ class SiteSurveyListView(LoginRequiredMixin, View):
                 survey = get_object_or_404(Jobneed, id=R["id"], identifier='SITESURVEY')
                 survey.delete()
                 return rp.JsonResponse({"success": True, "message": "Site survey deleted successfully."})
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.error(f"Error deleting site survey: {e}")
                 return rp.JsonResponse({"success": False, "message": "Error deleting site survey."})
 
@@ -215,7 +213,7 @@ class SiteSurveyDetailView(LoginRequiredMixin, View):
                     "success": False,
                     "message": "Site survey not found."
                 })
-            except Exception as e:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 logger.error(f"Error getting site survey detail: {e}")
                 return rp.JsonResponse({
                     "success": False,

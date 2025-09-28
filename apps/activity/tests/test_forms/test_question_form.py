@@ -2,7 +2,6 @@ import pytest
 from django.test import RequestFactory
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
-from unittest.mock import patch
 from apps.activity.forms.question_form import QuestionForm
 
 

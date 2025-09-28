@@ -7,13 +7,21 @@ All raw SQL queries should use these utilities instead of direct string formatti
 
 import re
 import logging
-from typing import List, Tuple, Dict, Any, Optional, Union
-from django.db import connection, connections
+from typing import List, Tuple, Dict, Any, Optional, Union, Set
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger("django")
 
-# Define allowed SQL patterns for function calls (expand as needed)
+
+__all__ = [
+    'ALLOWED_SQL_FUNCTIONS',
+    'ALLOWED_TABLES',
+    'ALLOWED_ORDER_COLUMNS',
+    'SecureSQL',
+    'secure_raw_sql',
+]
+
+
 ALLOWED_SQL_FUNCTIONS = [
     "fun_getjobneed",
     "fun_getexttourjobneed",
@@ -200,6 +208,50 @@ class SecureSQL:
             re.match(pattern, sql_normalized, re.IGNORECASE)
             for pattern in allowed_patterns
         )
+
+    @staticmethod
+    def validate_sqlite_table_name(table_name: str, allowed_tables: Set[str]) -> str:
+        """
+        Validate SQLite table name against whitelist to prevent SQL injection.
+
+        Args:
+            table_name: The table name to validate
+            allowed_tables: Set of allowed table names
+
+        Returns:
+            Validated table name
+
+        Raises:
+            ValidationError: If table name is not in whitelist or contains invalid characters
+        """
+        # Check against whitelist
+        if table_name not in allowed_tables:
+            raise ValidationError(f"Table '{table_name}' is not in allowed tables list")
+
+        # Additional security: validate table name format (alphanumeric + underscore only)
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise ValidationError(f"Table name '{table_name}' contains invalid characters")
+
+        logger.debug(f"Validated SQLite table name: {table_name}")
+        return table_name
+
+    @staticmethod
+    def build_safe_sqlite_count_query(table_name: str, allowed_tables: Set[str]) -> str:
+        """
+        Build a safe COUNT query for SQLite with table name validation.
+
+        Args:
+            table_name: The table name to count records from
+            allowed_tables: Set of allowed table names
+
+        Returns:
+            Safe SQL query string
+
+        Raises:
+            ValidationError: If table name validation fails
+        """
+        validated_table = SecureSQL.validate_sqlite_table_name(table_name, allowed_tables)
+        return f"SELECT COUNT(*) as count FROM {validated_table}"
 
 
 def secure_raw_sql(

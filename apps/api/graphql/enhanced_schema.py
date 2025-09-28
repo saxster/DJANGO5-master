@@ -89,15 +89,17 @@ class PeopleType(OptimizedDjangoObjectType):
     
     def resolve_jobs(self, info):
         """
-        Resolve jobs assigned to this person.
+        Resolve jobs assigned to this person using DataLoader.
         """
-        return Job.objects.filter(people=self).select_related('jobneed', 'asset')
-    
+        loaders = get_loaders(info)
+        return loaders['jobs_by_people'].load(self.id)
+
     def resolve_job_count(self, info):
         """
-        Resolve job count.
+        Resolve job count using DataLoader.
         """
-        return Job.objects.filter(people=self).count()
+        loaders = get_loaders(info)
+        return loaders['job_count_by_people'].load(self.id)
 
 
 class PgroupType(OptimizedDjangoObjectType):
@@ -123,9 +125,10 @@ class PgroupType(OptimizedDjangoObjectType):
     
     def resolve_member_count(self, info):
         """
-        Resolve member count.
+        Resolve member count using DataLoader.
         """
-        return self.members.count()
+        loaders = get_loaders(info)
+        return loaders['people_count_by_group'].load(self.id)
 
 
 class AssetType(OptimizedDjangoObjectType):
@@ -239,15 +242,17 @@ class JobneedType(OptimizedDjangoObjectType):
     
     def resolve_jobs(self, info):
         """
-        Resolve related jobs.
+        Resolve related jobs using DataLoader.
         """
-        return Job.objects.filter(jobneed=self).select_related('asset', 'people')
-    
+        loaders = get_loaders(info)
+        return loaders['jobs_by_jobneed'].load(self.id)
+
     def resolve_job_count(self, info):
         """
-        Resolve job count.
+        Resolve job count using DataLoader.
         """
-        return Job.objects.filter(jobneed=self).count()
+        loaders = get_loaders(info)
+        return loaders['job_count_by_jobneed'].load(self.id)
 
 
 class Query(graphene.ObjectType):
@@ -348,7 +353,6 @@ class Query(graphene.ObjectType):
         """
         Get system statistics.
         """
-        from django.db.models import Count
         from django.utils import timezone
         from datetime import timedelta
         
@@ -403,7 +407,7 @@ class CreatePerson(graphene.Mutation):
         try:
             person = People.objects.create(**kwargs)
             return CreatePerson(person=person, success=True, errors=[])
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error creating person: {e}")
             return CreatePerson(person=None, success=False, errors=[str(e)])
 
@@ -451,7 +455,7 @@ class UpdatePerson(graphene.Mutation):
                 success=False, 
                 errors=['Person not found']
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error updating person: {e}")
             return UpdatePerson(
                 person=None, 
@@ -488,7 +492,7 @@ class DeletePerson(graphene.Mutation):
             return DeletePerson(success=True, errors=[])
         except People.DoesNotExist:
             return DeletePerson(success=False, errors=['Person not found'])
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error deleting person: {e}")
             return DeletePerson(success=False, errors=[str(e)])
 

@@ -5,16 +5,14 @@ from apps.service.pydantic_schemas.job_schema import (
     JobneedDetailsModifiedAfterSchema,
     ExternalTourModifiedAfterSchema,
 )
-from apps.service.inputs.job_input import (
-    JobneedModifiedAfterInput,
-    JobneedDetailsModifiedAfterInput,
-    ExternalTourModifiedAfterInput,
-)
 from apps.service.types import SelectOutputType
 from logging import getLogger
 from apps.core import utils
 from graphql import GraphQLError
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
+from apps.service.decorators import require_authentication, require_tenant_access
 
 log = getLogger("mobile_service_log")
 
@@ -41,6 +39,7 @@ class JobQueries(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_jobneedmodifiedafter(self, info, peopleid, buid, clientid):
         try:
             log.info("request for get_jobneedmodifiedafter")
@@ -60,13 +59,17 @@ class JobQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_jobneedmodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_jobneedmodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_jobneedmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Jobneed.DoesNotExist:
+            log.warning("Job need not found in get_jobneedmodifiedafter")
+            raise GraphQLError("Job need not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_jobneedmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_authentication
     def resolve_get_jndmodifiedafter(self, info, jobneedids, ctzoffset):
         try:
             log.info("request for get_jndmodifiedafter")
@@ -83,13 +86,17 @@ class JobQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_jndmodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_jndmodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_jndmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except JobneedDetails.DoesNotExist:
+            log.warning("Job need details not found")
+            raise GraphQLError("Job need details not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_jndmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_externaltourmodifiedafter(self, info, peopleid, buid, clientid):
         try:
             log.info("request for get_externaltourmodifiedafter")
@@ -109,8 +116,11 @@ class JobQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_externaltourmodifiedafter failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_externaltourmodifiedafter failed: {str(e)}")
+            log.error("Validation error in get_externaltourmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Jobneed.DoesNotExist:
+            log.warning("External tour not found")
+            raise GraphQLError("External tour not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_externaltourmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")

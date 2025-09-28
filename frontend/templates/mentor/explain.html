@@ -1,0 +1,962 @@
+{% extends 'mentor/base.html' %}
+
+{% block title %}AI Mentor - Explain{% endblock %}
+
+{% block extra_css %}
+<style>
+    .explain-interface {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 1.5rem;
+        min-height: 70vh;
+    }
+
+    .explain-sidebar {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        height: fit-content;
+        overflow: hidden;
+    }
+
+    .explain-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-section {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .target-type-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .target-type-btn {
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 6px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+    }
+
+    .target-type-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .target-type-btn:hover {
+        border-color: #667eea;
+    }
+
+    .quick-access {
+        padding: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .quick-access-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.25rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-size: 0.9rem;
+    }
+
+    .quick-access-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .quick-access-item i {
+        width: 16px;
+        margin-right: 0.5rem;
+        color: #6b7280;
+    }
+
+    .code-map {
+        padding: 1rem;
+    }
+
+    .code-map-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .code-map-item:hover {
+        background-color: #f9fafb;
+        border-color: #667eea;
+    }
+
+    .code-map-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 0.75rem;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+
+    .icon-file { background: #ddd6fe; color: #7c3aed; }
+    .icon-class { background: #fecaca; color: #dc2626; }
+    .icon-function { background: #bfdbfe; color: #2563eb; }
+    .icon-model { background: #bbf7d0; color: #16a34a; }
+    .icon-url { background: #fed7aa; color: #ea580c; }
+
+    .explain-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        background: #f8f9fa;
+    }
+
+    .explain-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+
+    .explanation-section {
+        margin-bottom: 2rem;
+    }
+
+    .explanation-section h5 {
+        color: #374151;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .code-block {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 6px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.85rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+    }
+
+    .code-highlight {
+        background-color: rgba(255, 255, 0, 0.2);
+        padding: 0 0.25rem;
+        border-radius: 3px;
+    }
+
+    .dependency-graph {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .dependency-node {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .dependency-node:hover {
+        background: #e5e7eb;
+        border-color: #667eea;
+    }
+
+    .usage-example {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-nav {
+        background: #f8f9fa;
+        padding: 0.75rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    .breadcrumb-nav a {
+        color: #667eea;
+        text-decoration: none;
+    }
+
+    .breadcrumb-nav a:hover {
+        text-decoration: underline;
+    }
+
+    .loading-skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 4px;
+        height: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    @keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .depth-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .depth-slider {
+        width: 80px;
+    }
+
+    .export-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .related-items {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .related-item {
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .related-item:hover {
+        background: #f9fafb;
+        border-color: #667eea;
+    }
+
+    .related-item-title {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .related-item-desc {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #6b7280;
+        padding: 3rem 1rem;
+    }
+
+    .empty-state i {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #d1d5db;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>
+            <i class="fas fa-question-circle me-2"></i>
+            Code Explainer & Documentation
+        </h2>
+        <p class="text-muted">Understand code structure, dependencies, and relationships with AI-powered explanations.</p>
+    </div>
+</div>
+
+<div class="explain-interface">
+    <!-- Sidebar -->
+    <div class="explain-sidebar">
+        <!-- Search Section -->
+        <div class="search-section">
+            <h6 class="mb-3">What would you like to understand?</h6>
+
+            <!-- Target Type Selector -->
+            <div class="target-type-selector">
+                <button type="button" class="target-type-btn active" data-type="auto">
+                    <i class="fas fa-magic"></i><br>
+                    <small>Auto-detect</small>
+                </button>
+                <button type="button" class="target-type-btn" data-type="symbol">
+                    <i class="fas fa-code"></i><br>
+                    <small>Symbol</small>
+                </button>
+                <button type="button" class="target-type-btn" data-type="file">
+                    <i class="fas fa-file-code"></i><br>
+                    <small>File</small>
+                </button>
+                <button type="button" class="target-type-btn" data-type="model">
+                    <i class="fas fa-database"></i><br>
+                    <small>Model</small>
+                </button>
+                <button type="button" class="target-type-btn" data-type="url">
+                    <i class="fas fa-route"></i><br>
+                    <small>URL</small>
+                </button>
+                <button type="button" class="target-type-btn" data-type="query">
+                    <i class="fas fa-search"></i><br>
+                    <small>Query</small>
+                </button>
+            </div>
+
+            <!-- Search Input -->
+            <div class="input-group">
+                <input type="text" class="form-control" id="explainTarget"
+                       placeholder="Enter symbol, file path, model name, URL, or ask a question...">
+                <button class="btn btn-mentor" type="button" id="explainBtn">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+            </div>
+
+            <!-- Context Depth -->
+            <div class="depth-control mt-3">
+                <label for="contextDepth">Context depth:</label>
+                <input type="range" class="form-range depth-slider" id="contextDepth"
+                       min="1" max="5" value="2">
+                <span id="depthValue">2</span>
+            </div>
+        </div>
+
+        <!-- Quick Access -->
+        <div class="quick-access">
+            <h6 class="mb-2">Quick Access</h6>
+            <div class="quick-access-item" data-target="apps/core/models.py">
+                <i class="fas fa-file-code"></i>
+                Core Models
+            </div>
+            <div class="quick-access-item" data-target="apps/api/views.py">
+                <i class="fas fa-file-code"></i>
+                API Views
+            </div>
+            <div class="quick-access-item" data-target="People">
+                <i class="fas fa-database"></i>
+                User Model
+            </div>
+            <div class="quick-access-item" data-target="^api/">
+                <i class="fas fa-route"></i>
+                API Routes
+            </div>
+            <div class="quick-access-item" data-target="authentication system">
+                <i class="fas fa-search"></i>
+                Auth System
+            </div>
+        </div>
+
+        <!-- Code Map -->
+        <div class="code-map">
+            <h6 class="mb-2">Recent & Related</h6>
+            <div id="codeMapContainer">
+                <!-- Code map items will be populated here -->
+                <div class="text-center text-muted py-3">
+                    <small>Explore code to build your map</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="explain-content">
+        <!-- Header -->
+        <div class="explain-header">
+            <div>
+                <h5 class="mb-0">Code Explanation</h5>
+                <div class="breadcrumb-nav" id="breadcrumbNav" style="display: none;">
+                    <!-- Breadcrumb navigation will appear here -->
+                </div>
+            </div>
+            <div class="export-actions">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="exportMd" disabled>
+                    <i class="fas fa-download"></i> Export MD
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="shareExplanation" disabled>
+                    <i class="fas fa-share"></i> Share
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Body -->
+        <div class="explain-body" id="explanationContent">
+            <div class="empty-state">
+                <i class="fas fa-lightbulb"></i>
+                <h5>Ready to explain your code</h5>
+                <p>Enter a symbol, file path, model name, URL pattern, or ask a question to get started.</p>
+
+                <div class="mt-4">
+                    <h6>Examples to try:</h6>
+                    <ul class="list-unstyled text-start" style="max-width: 400px; margin: 0 auto;">
+                        <li><code>User.save</code> - Explain a model method</li>
+                        <li><code>apps/core/views.py</code> - Explain a file</li>
+                        <li><code>People</code> - Explain a Django model</li>
+                        <li><code>^api/users/</code> - Explain URL pattern</li>
+                        <li><code>How does authentication work?</code> - Ask a question</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+class CodeExplainer {
+    constructor() {
+        this.currentTarget = null;
+        this.currentType = 'auto';
+        this.contextDepth = 2;
+        this.history = [];
+        this.codeMap = [];
+
+        this.initializeEventListeners();
+        this.loadHistory();
+    }
+
+    initializeEventListeners() {
+        // Target type selector
+        document.querySelectorAll('.target-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.selectTargetType(btn));
+        });
+
+        // Search input
+        document.getElementById('explainTarget').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.explainTarget();
+            }
+        });
+
+        // Explain button
+        document.getElementById('explainBtn').addEventListener('click', () => {
+            this.explainTarget();
+        });
+
+        // Context depth slider
+        const depthSlider = document.getElementById('contextDepth');
+        depthSlider.addEventListener('input', (e) => {
+            this.contextDepth = parseInt(e.target.value);
+            document.getElementById('depthValue').textContent = this.contextDepth;
+        });
+
+        // Quick access items
+        document.querySelectorAll('.quick-access-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.dataset.target;
+                document.getElementById('explainTarget').value = target;
+                this.explainTarget();
+            });
+        });
+
+        // Export actions
+        document.getElementById('exportMd').addEventListener('click', () => {
+            this.exportExplanation();
+        });
+
+        document.getElementById('shareExplanation').addEventListener('click', () => {
+            this.shareExplanation();
+        });
+    }
+
+    selectTargetType(button) {
+        document.querySelectorAll('.target-type-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        button.classList.add('active');
+        this.currentType = button.dataset.type;
+
+        // Update placeholder text based on type
+        const input = document.getElementById('explainTarget');
+        const placeholders = {
+            'auto': 'Enter symbol, file path, model name, URL, or ask a question...',
+            'symbol': 'e.g., User.save, calculate_tax, UserViewSet.create',
+            'file': 'e.g., apps/core/models.py, frontend/js/app.js',
+            'model': 'e.g., User, Order, Product',
+            'url': 'e.g., ^api/users/, /admin/login/, users/<int:id>/',
+            'query': 'e.g., How does authentication work? What is the user model?'
+        };
+        input.placeholder = placeholders[this.currentType] || placeholders['auto'];
+    }
+
+    async explainTarget() {
+        const target = document.getElementById('explainTarget').value.trim();
+        if (!target) {
+            showToast('Please enter something to explain', 'warning');
+            return;
+        }
+
+        this.currentTarget = target;
+        this.showLoading();
+
+        try {
+            const response = await fetch('/api/mentor/explain/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    target: target,
+                    type: this.currentType === 'auto' ? null : this.currentType,
+                    depth: this.contextDepth,
+                    include_usage: true
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get explanation');
+            }
+
+            const result = await response.json();
+            this.displayExplanation(result);
+            this.addToHistory(target, result.type);
+            this.updateCodeMap(result);
+
+        } catch (error) {
+            this.showError(error.message);
+        }
+    }
+
+    showLoading() {
+        const content = document.getElementById('explanationContent');
+        content.innerHTML = `
+            <div class="p-4">
+                <h5>Analyzing ${this.escapeHtml(this.currentTarget)}...</h5>
+                <div class="loading-skeleton" style="width: 80%;"></div>
+                <div class="loading-skeleton" style="width: 60%;"></div>
+                <div class="loading-skeleton" style="width: 90%;"></div>
+                <div class="loading-skeleton" style="width: 45%;"></div>
+            </div>
+        `;
+
+        // Enable export buttons
+        document.getElementById('exportMd').disabled = false;
+        document.getElementById('shareExplanation').disabled = false;
+    }
+
+    displayExplanation(result) {
+        if (result.error) {
+            this.showError(result.error);
+            return;
+        }
+
+        const explanation = result.explanation;
+        let content = '';
+
+        // Show breadcrumb navigation
+        this.showBreadcrumb(result.target, result.type);
+
+        // Overview section
+        if (explanation.overview) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-info-circle"></i> Overview</h5>
+                    <p>${this.formatText(explanation.overview)}</p>
+                </div>
+            `;
+        }
+
+        // Code section
+        if (explanation.code) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-code"></i> Code</h5>
+                    <div class="code-block">${this.highlightCode(explanation.code)}</div>
+                </div>
+            `;
+        }
+
+        // Parameters/Fields section
+        if (explanation.parameters && explanation.parameters.length > 0) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-list"></i> Parameters</h5>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            ${explanation.parameters.map(param => `
+                                <tr>
+                                    <td><code>${param.name}</code></td>
+                                    <td><span class="badge bg-light text-dark">${param.type || 'Unknown'}</span></td>
+                                    <td>${param.description || 'No description'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Usage examples
+        if (explanation.usage_examples && explanation.usage_examples.length > 0) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-play-circle"></i> Usage Examples</h5>
+                    ${explanation.usage_examples.map(example => `
+                        <div class="usage-example">
+                            <h6>${example.title || 'Example'}</h6>
+                            <div class="code-block">${this.highlightCode(example.code)}</div>
+                            ${example.description ? `<p><small>${example.description}</small></p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Dependencies
+        if (explanation.dependencies && explanation.dependencies.length > 0) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-project-diagram"></i> Dependencies</h5>
+                    <p>This ${result.type} depends on:</p>
+                    <div class="dependency-graph">
+                        ${explanation.dependencies.map(dep => `
+                            <div class="dependency-node" onclick="codeExplainer.explainDependency('${dep.name}')">
+                                <strong>${dep.name}</strong><br>
+                                <small>${dep.type}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Related items
+        if (explanation.related && explanation.related.length > 0) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-link"></i> Related</h5>
+                    <div class="related-items">
+                        ${explanation.related.map(item => `
+                            <div class="related-item" onclick="codeExplainer.explainRelated('${item.name}', '${item.type}')">
+                                <div class="related-item-title">
+                                    <i class="fas fa-${this.getTypeIcon(item.type)}"></i>
+                                    ${item.name}
+                                </div>
+                                <div class="related-item-desc">${item.description || 'No description available'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Tests section
+        if (explanation.tests && explanation.tests.length > 0) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-vials"></i> Tests</h5>
+                    <ul class="list-unstyled">
+                        ${explanation.tests.map(test => `
+                            <li class="mb-2">
+                                <i class="fas fa-test-tube text-success"></i>
+                                <code>${test.name}</code>
+                                ${test.description ? `<br><small class="text-muted ms-3">${test.description}</small>` : ''}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Notes/warnings
+        if (explanation.notes && explanation.notes.length > 0) {
+            content += `
+                <div class="explanation-section">
+                    <h5><i class="fas fa-sticky-note"></i> Notes</h5>
+                    ${explanation.notes.map(note => `
+                        <div class="alert alert-${note.type || 'info'}">
+                            <strong>${note.title || 'Note'}:</strong> ${note.message}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        document.getElementById('explanationContent').innerHTML = content;
+    }
+
+    showError(message) {
+        const content = document.getElementById('explanationContent');
+        content.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                <h5>Explanation Not Available</h5>
+                <p>${this.escapeHtml(message)}</p>
+                <button class="btn btn-mentor btn-sm" onclick="codeExplainer.explainTarget()">
+                    <i class="fas fa-redo"></i> Try Again
+                </button>
+            </div>
+        `;
+
+        document.getElementById('exportMd').disabled = true;
+        document.getElementById('shareExplanation').disabled = true;
+    }
+
+    showBreadcrumb(target, type) {
+        const breadcrumb = document.getElementById('breadcrumbNav');
+        breadcrumb.innerHTML = `
+            <a href="#" onclick="codeExplainer.clearExplanation()">Home</a> /
+            <span class="badge bg-secondary">${type}</span> /
+            <strong>${this.escapeHtml(target)}</strong>
+        `;
+        breadcrumb.style.display = 'block';
+    }
+
+    explainDependency(name) {
+        document.getElementById('explainTarget').value = name;
+        this.explainTarget();
+    }
+
+    explainRelated(name, type) {
+        document.getElementById('explainTarget').value = name;
+        this.currentType = type;
+        this.selectTargetTypeByValue(type);
+        this.explainTarget();
+    }
+
+    selectTargetTypeByValue(type) {
+        document.querySelectorAll('.target-type-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const targetBtn = document.querySelector(`[data-type="${type}"]`);
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+        }
+    }
+
+    addToHistory(target, type) {
+        this.history.unshift({ target, type, timestamp: Date.now() });
+        if (this.history.length > 10) {
+            this.history = this.history.slice(0, 10);
+        }
+        this.saveHistory();
+    }
+
+    updateCodeMap(result) {
+        // Add current item to code map
+        const mapItem = {
+            target: result.target,
+            type: result.type,
+            description: result.explanation.overview || 'No description',
+            timestamp: Date.now()
+        };
+
+        // Remove existing item if present
+        this.codeMap = this.codeMap.filter(item => item.target !== result.target);
+
+        // Add to beginning
+        this.codeMap.unshift(mapItem);
+
+        // Keep only recent items
+        if (this.codeMap.length > 8) {
+            this.codeMap = this.codeMap.slice(0, 8);
+        }
+
+        this.renderCodeMap();
+    }
+
+    renderCodeMap() {
+        const container = document.getElementById('codeMapContainer');
+
+        if (this.codeMap.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <small>Explore code to build your map</small>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = this.codeMap.map(item => `
+            <div class="code-map-item" onclick="codeExplainer.explainFromMap('${item.target}', '${item.type}')">
+                <div class="code-map-icon icon-${item.type}">
+                    <i class="fas fa-${this.getTypeIcon(item.type)}"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 500; font-size: 0.9rem;">${this.truncateText(item.target, 25)}</div>
+                    <small class="text-muted">${this.truncateText(item.description, 35)}</small>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    explainFromMap(target, type) {
+        document.getElementById('explainTarget').value = target;
+        this.currentType = type;
+        this.selectTargetTypeByValue(type);
+        this.explainTarget();
+    }
+
+    clearExplanation() {
+        document.getElementById('explanationContent').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-lightbulb"></i>
+                <h5>Ready to explain your code</h5>
+                <p>Enter a symbol, file path, model name, URL pattern, or ask a question to get started.</p>
+            </div>
+        `;
+
+        document.getElementById('breadcrumbNav').style.display = 'none';
+        document.getElementById('exportMd').disabled = true;
+        document.getElementById('shareExplanation').disabled = true;
+        document.getElementById('explainTarget').value = '';
+    }
+
+    exportExplanation() {
+        if (!this.currentTarget) {
+            showToast('No explanation to export', 'warning');
+            return;
+        }
+
+        // Create markdown content from the current explanation
+        const content = document.getElementById('explanationContent').innerText;
+        const markdown = `# ${this.currentTarget}\n\n${content}`;
+
+        // Create and download file
+        const blob = new Blob([markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.currentTarget.replace(/[^a-z0-9]/gi, '_')}_explanation.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('Explanation exported as Markdown', 'success');
+    }
+
+    shareExplanation() {
+        if (!this.currentTarget) {
+            showToast('No explanation to share', 'warning');
+            return;
+        }
+
+        const url = `${window.location.origin}/mentor/explain?target=${encodeURIComponent(this.currentTarget)}`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: `Code Explanation: ${this.currentTarget}`,
+                url: url
+            });
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Explanation URL copied to clipboard', 'success');
+            }).catch(() => {
+                showToast('Failed to copy URL', 'error');
+            });
+        }
+    }
+
+    getTypeIcon(type) {
+        const icons = {
+            'file': 'file-code',
+            'class': 'cube',
+            'function': 'code',
+            'method': 'code',
+            'model': 'database',
+            'url': 'route',
+            'symbol': 'code',
+            'query': 'search'
+        };
+        return icons[type] || 'question';
+    }
+
+    formatText(text) {
+        // Basic text formatting for explanations
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>');
+    }
+
+    highlightCode(code) {
+        // Basic code highlighting (in a real app, use a proper syntax highlighter)
+        return this.escapeHtml(code)
+            .replace(/(class|def|import|from|return|if|else|try|except)/g, '<span style="color: #c678dd;">$1</span>')
+            .replace(/('.*?'|".*?")/g, '<span style="color: #98c379;">$1</span>')
+            .replace(/(#.*$)/gm, '<span style="color: #5c6370;">$1</span>');
+    }
+
+    truncateText(text, maxLength) {
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
+
+    loadHistory() {
+        const saved = localStorage.getItem('mentor_explain_history');
+        if (saved) {
+            this.history = JSON.parse(saved);
+        }
+
+        const savedCodeMap = localStorage.getItem('mentor_code_map');
+        if (savedCodeMap) {
+            this.codeMap = JSON.parse(savedCodeMap);
+            this.renderCodeMap();
+        }
+    }
+
+    saveHistory() {
+        localStorage.setItem('mentor_explain_history', JSON.stringify(this.history));
+        localStorage.setItem('mentor_code_map', JSON.stringify(this.codeMap));
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    }
+}
+
+// Initialize code explainer
+let codeExplainer;
+document.addEventListener('DOMContentLoaded', () => {
+    codeExplainer = new CodeExplainer();
+
+    // Handle URL parameters for direct links
+    const urlParams = new URLSearchParams(window.location.search);
+    const target = urlParams.get('target');
+    if (target) {
+        document.getElementById('explainTarget').value = target;
+        codeExplainer.explainTarget();
+    }
+});
+</script>
+{% endblock %}

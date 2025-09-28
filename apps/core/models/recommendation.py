@@ -1,7 +1,6 @@
 """
 Recommendation engine models for intelligent navigation suggestions
 """
-import json
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey

@@ -1,0 +1,978 @@
+{% extends "globals/base_modern.html" %}
+
+{% block page_title %}Wellness Resources{% endblock page_title %}
+{% block page_subtitle %}<p class="page-subtitle">Discover evidence-based wellness content personalized for you</p>{% endblock page_subtitle %}
+
+{% block extra_css %}
+<style>
+  /* Wellness Content Discovery Styles */
+  .wellness-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  .wellness-header h2 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: white;
+  }
+
+  .wellness-header p {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 20px;
+  }
+
+  .personalization-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 20px;
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .content-filters {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+  }
+
+  .filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .filters-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .clear-filters {
+    color: #377dff;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: underline;
+  }
+
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    align-items: end;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  .filter-input, .filter-select {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+  }
+
+  .filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #377dff;
+  }
+
+  .category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .category-tag {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .category-tag:hover {
+    background: #e9ecef;
+  }
+
+  .category-tag.active {
+    background: #377dff;
+    color: white;
+    border-color: #377dff;
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 25px;
+  }
+
+  .content-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .content-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .content-header {
+    padding: 25px 25px 15px;
+  }
+
+  .content-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .content-category {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .category-mental_health { background: #e3f2fd; color: #1565c0; }
+  .category-physical_wellness { background: #f1f8e9; color: #558b2f; }
+  .category-workplace_health { background: #fff3e0; color: #ef6c00; }
+  .category-stress_management { background: #fce4ec; color: #c2185b; }
+  .category-mindfulness { background: #f3e5f5; color: #7b1fa2; }
+
+  .evidence-level {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #666;
+  }
+
+  .evidence-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .evidence-who_cdc { background: #4CAF50; }
+  .evidence-peer_reviewed { background: #2196F3; }
+  .evidence-professional { background: #FF9800; }
+  .evidence-established { background: #9C27B0; }
+  .evidence-educational { background: #607D8B; }
+
+  .content-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  .content-summary {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    font-size: 14px;
+  }
+
+  .content-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 15px;
+  }
+
+  .content-tag {
+    padding: 2px 8px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    font-size: 11px;
+    color: #666;
+  }
+
+  .content-body {
+    padding: 0 25px;
+  }
+
+  .content-preview {
+    color: #555;
+    line-height: 1.6;
+    font-size: 14px;
+    margin-bottom: 15px;
+    max-height: 80px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .content-preview.truncated::after {
+    content: '...';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: white;
+    padding-left: 15px;
+  }
+
+  .key-takeaways {
+    margin-bottom: 15px;
+  }
+
+  .takeaways-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+  }
+
+  .takeaway-item {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+    padding-left: 12px;
+    position: relative;
+  }
+
+  .takeaway-item::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #377dff;
+  }
+
+  .content-footer {
+    padding: 15px 25px 25px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .content-info {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #999;
+  }
+
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .content-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .action-btn {
+    padding: 6px 8px;
+    border: none;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .action-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .action-btn.active {
+    color: #377dff;
+  }
+
+  /* Personalized Recommendations Section */
+  .recommendations-section {
+    margin-bottom: 40px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .section-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 15px;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .recommendations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+
+  .recommendation-card {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .recommendation-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ff9a56, #ff6b35);
+  }
+
+  .recommendation-reason {
+    font-size: 11px;
+    color: #8b4513;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .recommendation-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #5d4e37;
+    margin-bottom: 8px;
+  }
+
+  .recommendation-summary {
+    font-size: 13px;
+    color: #8b4513;
+    line-height: 1.5;
+    margin-bottom: 15px;
+  }
+
+  .recommendation-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .rec-btn {
+    padding: 6px 12px;
+    border: 1px solid rgba(139, 69, 19, 0.3);
+    background: rgba(255, 255, 255, 0.7);
+    color: #5d4e37;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .rec-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Loading and Empty States */
+  .loading-state, .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+  }
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #377dff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .wellness-header {
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .personalization-stats {
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .filters-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .content-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .recommendations-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .category-tags {
+      justify-content: center;
+    }
+
+    .content-info {
+      flex-direction: column;
+      gap: 5px;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="wellness-content-container">
+  <!-- Wellness Header -->
+  <div class="wellness-header">
+    <h2>Your Personalized Wellness Library</h2>
+    <p>Evidence-based content curated specifically for your wellbeing journey</p>
+    <div class="personalization-stats">
+      <div class="stat-item">
+        <div class="stat-value">127</div>
+        <div class="stat-label">Content Items</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">85%</div>
+        <div class="stat-label">Match Score</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">12</div>
+        <div class="stat-label">Categories</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personalized Recommendations -->
+  <div class="recommendations-section">
+    <div class="section-header">
+      <div class="section-icon">
+        <i class="material-icons">psychology</i>
+      </div>
+      <h3 class="section-title">Recommended for You</h3>
+    </div>
+
+    <div class="recommendations-grid">
+      <div class="recommendation-card">
+        <div class="recommendation-reason">Based on your stress levels</div>
+        <h4 class="recommendation-title">5-Minute Stress Reset Technique</h4>
+        <p class="recommendation-summary">
+          A quick, scientifically-backed breathing exercise that can reduce stress hormones by up to 23% in just 5 minutes.
+        </p>
+        <div class="recommendation-actions">
+          <button class="rec-btn" onclick="openContent('stress-reset-1')">Read Now</button>
+          <button class="rec-btn" onclick="saveContent('stress-reset-1')">Save for Later</button>
+        </div>
+      </div>
+
+      <div class="recommendation-card">
+        <div class="recommendation-reason">Popular in your category</div>
+        <h4 class="recommendation-title">Workplace Mindfulness Practices</h4>
+        <p class="recommendation-summary">
+          Simple mindfulness techniques you can practice at your desk to improve focus and reduce workplace anxiety.
+        </p>
+        <div class="recommendation-actions">
+          <button class="rec-btn" onclick="openContent('mindfulness-1')">Read Now</button>
+          <button class="rec-btn" onclick="saveContent('mindfulness-1')">Save for Later</button>
+        </div>
+      </div>
+
+      <div class="recommendation-card">
+        <div class="recommendation-reason">Based on your mood patterns</div>
+        <h4 class="recommendation-title">Building Daily Gratitude Habits</h4>
+        <p class="recommendation-summary">
+          Evidence-based strategies to cultivate gratitude that can improve mood and overall life satisfaction by 25%.
+        </p>
+        <div class="recommendation-actions">
+          <button class="rec-btn" onclick="openContent('gratitude-1')">Read Now</button>
+          <button class="rec-btn" onclick="saveContent('gratitude-1')">Save for Later</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Filters -->
+  <div class="content-filters">
+    <div class="filters-header">
+      <h3 class="filters-title">Browse All Content</h3>
+      <span class="clear-filters" onclick="clearAllFilters()">Clear All Filters</span>
+    </div>
+
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">Search Content</label>
+        <input type="text" class="filter-input" placeholder="Search by keyword..." id="contentSearch">
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Category</label>
+        <select class="filter-select" id="categoryFilter">
+          <option value="">All Categories</option>
+          <option value="mental_health">Mental Health</option>
+          <option value="physical_wellness">Physical Wellness</option>
+          <option value="workplace_health">Workplace Health</option>
+          <option value="stress_management">Stress Management</option>
+          <option value="mindfulness">Mindfulness</option>
+          <option value="sleep_hygiene">Sleep Hygiene</option>
+          <option value="nutrition_basics">Nutrition</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Content Length</label>
+        <select class="filter-select" id="lengthFilter">
+          <option value="">Any Length</option>
+          <option value="quick_tip">Quick Tip (1 min)</option>
+          <option value="short_read">Short Read (3 min)</option>
+          <option value="deep_dive">Deep Dive (7 min)</option>
+          <option value="interactive">Interactive (5 min)</option>
+          <option value="video_content">Video Content</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Evidence Level</label>
+        <select class="filter-select" id="evidenceFilter">
+          <option value="">Any Evidence Level</option>
+          <option value="who_cdc">WHO/CDC Guidelines</option>
+          <option value="peer_reviewed">Peer-Reviewed Research</option>
+          <option value="professional">Professional Consensus</option>
+          <option value="established">Established Practice</option>
+          <option value="educational">General Education</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="category-tags">
+      <div class="category-tag active" data-category="">All Topics</div>
+      <div class="category-tag" data-category="mental_health">Mental Health</div>
+      <div class="category-tag" data-category="stress_management">Stress Management</div>
+      <div class="category-tag" data-category="mindfulness">Mindfulness</div>
+      <div class="category-tag" data-category="workplace_health">Workplace Health</div>
+      <div class="category-tag" data-category="physical_wellness">Physical Wellness</div>
+      <div class="category-tag" data-category="sleep_hygiene">Sleep Hygiene</div>
+      <div class="category-tag" data-category="nutrition_basics">Nutrition</div>
+    </div>
+  </div>
+
+  <!-- Content Grid -->
+  <div id="contentContainer">
+    <!-- Loading State -->
+    <div class="loading-state" id="loadingState">
+      <div class="loading-spinner"></div>
+      <div>Loading wellness content...</div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="content-grid" id="contentGrid" style="display: none;">
+      <!-- Sample Content Cards -->
+      <div class="content-card" data-category="stress_management" data-evidence="peer_reviewed">
+        <div class="content-header">
+          <div class="content-meta">
+            <span class="content-category category-stress_management">Stress Management</span>
+            <div class="evidence-level">
+              <span class="evidence-badge evidence-peer_reviewed"></span>
+              <span>Peer-Reviewed</span>
+            </div>
+          </div>
+
+          <h3 class="content-title">The Science of Stress: Understanding Your Body's Response</h3>
+          <p class="content-summary">
+            Learn how stress affects your body and mind, and discover evidence-based techniques to manage stress effectively in daily life.
+          </p>
+
+          <div class="content-tags">
+            <span class="content-tag">stress-response</span>
+            <span class="content-tag">cortisol</span>
+            <span class="content-tag">management-techniques</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <div class="content-preview truncated">
+            Stress is a natural response that helped our ancestors survive dangerous situations. When you perceive a threat, your body releases stress hormones like cortisol and adrenaline. While this response is helpful in emergencies, chronic stress can have serious negative effects on your health, including weakened immunity, sleep problems, and increased risk of anxiety and depression...
+          </div>
+
+          <div class="key-takeaways">
+            <div class="takeaways-title">Key Takeaways:</div>
+            <div class="takeaway-item">Stress is a normal physiological response to perceived threats</div>
+            <div class="takeaway-item">Chronic stress can negatively impact both physical and mental health</div>
+            <div class="takeaway-item">Understanding stress helps you develop better coping strategies</div>
+          </div>
+        </div>
+
+        <div class="content-footer">
+          <div class="content-info">
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">schedule</i>
+              <span>5 min read</span>
+            </div>
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">visibility</i>
+              <span>2.1k views</span>
+            </div>
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">star</i>
+              <span>4.8 rating</span>
+            </div>
+          </div>
+
+          <div class="content-actions">
+            <button class="action-btn" title="Bookmark" onclick="toggleBookmark(this)">
+              <i class="material-icons">bookmark_border</i>
+            </button>
+            <button class="action-btn" title="Share">
+              <i class="material-icons">share</i>
+            </button>
+            <button class="action-btn" title="More">
+              <i class="material-icons">more_vert</i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-card" data-category="mindfulness" data-evidence="who_cdc">
+        <div class="content-header">
+          <div class="content-meta">
+            <span class="content-category category-mindfulness">Mindfulness</span>
+            <div class="evidence-level">
+              <span class="evidence-badge evidence-who_cdc"></span>
+              <span>WHO Guideline</span>
+            </div>
+          </div>
+
+          <h3 class="content-title">Mindful Breathing: Your Gateway to Present Moment Awareness</h3>
+          <p class="content-summary">
+            A step-by-step guide to mindful breathing techniques that can reduce anxiety and improve focus in just a few minutes.
+          </p>
+
+          <div class="content-tags">
+            <span class="content-tag">breathing</span>
+            <span class="content-tag">meditation</span>
+            <span class="content-tag">anxiety-relief</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <div class="content-preview truncated">
+            Mindful breathing is one of the most accessible and effective mindfulness practices. It requires no special equipment or extensive training, yet it can have profound effects on your mental and physical wellbeing. Research shows that just 5 minutes of mindful breathing can activate your parasympathetic nervous system, leading to reduced heart rate, lower blood pressure, and decreased stress hormones...
+          </div>
+
+          <div class="key-takeaways">
+            <div class="takeaways-title">Key Takeaways:</div>
+            <div class="takeaway-item">Mindful breathing activates your body's relaxation response</div>
+            <div class="takeaway-item">Practice can be done anywhere, anytime in just a few minutes</div>
+            <div class="takeaway-item">Regular practice improves emotional regulation and focus</div>
+          </div>
+        </div>
+
+        <div class="content-footer">
+          <div class="content-info">
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">schedule</i>
+              <span>3 min read</span>
+            </div>
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">visibility</i>
+              <span>3.4k views</span>
+            </div>
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">star</i>
+              <span>4.9 rating</span>
+            </div>
+          </div>
+
+          <div class="content-actions">
+            <button class="action-btn" title="Bookmark" onclick="toggleBookmark(this)">
+              <i class="material-icons">bookmark_border</i>
+            </button>
+            <button class="action-btn" title="Share">
+              <i class="material-icons">share</i>
+            </button>
+            <button class="action-btn" title="More">
+              <i class="material-icons">more_vert</i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-card" data-category="workplace_health" data-evidence="professional">
+        <div class="content-header">
+          <div class="content-meta">
+            <span class="content-category category-workplace_health">Workplace Health</span>
+            <div class="evidence-level">
+              <span class="evidence-badge evidence-professional"></span>
+              <span>Professional</span>
+            </div>
+          </div>
+
+          <h3 class="content-title">Ergonomic Basics: Setting Up Your Workspace for Health</h3>
+          <p class="content-summary">
+            Simple adjustments to your workspace that can prevent injury, reduce fatigue, and improve productivity throughout your workday.
+          </p>
+
+          <div class="content-tags">
+            <span class="content-tag">ergonomics</span>
+            <span class="content-tag">workplace-health</span>
+            <span class="content-tag">injury-prevention</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <div class="content-preview truncated">
+            Poor workspace ergonomics is one of the leading causes of workplace injury and discomfort. Whether you work from home or in an office, the way you set up your workspace can have significant impacts on your physical health, energy levels, and productivity. This guide covers the essential principles of ergonomic workspace design, from monitor height to keyboard positioning...
+          </div>
+
+          <div class="key-takeaways">
+            <div class="takeaways-title">Key Takeaways:</div>
+            <div class="takeaway-item">Proper ergonomics prevents injury and increases comfort</div>
+            <div class="takeaway-item">Small adjustments can make big differences</div>
+            <div class="takeaway-item">Regular movement breaks are essential for health</div>
+          </div>
+        </div>
+
+        <div class="content-footer">
+          <div class="content-info">
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">schedule</i>
+              <span>7 min read</span>
+            </div>
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">visibility</i>
+              <span>1.8k views</span>
+            </div>
+            <div class="info-item">
+              <i class="material-icons" style="font-size: 14px;">star</i>
+              <span>4.6 rating</span>
+            </div>
+          </div>
+
+          <div class="content-actions">
+            <button class="action-btn" title="Bookmark" onclick="toggleBookmark(this)">
+              <i class="material-icons">bookmark_border</i>
+            </button>
+            <button class="action-btn" title="Share">
+              <i class="material-icons">share</i>
+            </button>
+            <button class="action-btn" title="More">
+              <i class="material-icons">more_vert</i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-icon">🔍</div>
+      <h3>No content matches your filters</h3>
+      <p>Try adjusting your search criteria or browse all content.</p>
+      <button class="btn btn-primary" onclick="clearAllFilters()">Clear Filters</button>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+  // Initialize the page
+  setTimeout(() => {
+    $('#loadingState').hide();
+    $('#contentGrid').show();
+  }, 1500);
+
+  // Filter functionality
+  $('#contentSearch, #categoryFilter, #lengthFilter, #evidenceFilter').on('input change', function() {
+    filterContent();
+  });
+
+  // Category tags
+  $('.category-tag').click(function() {
+    $('.category-tag').removeClass('active');
+    $(this).addClass('active');
+    const category = $(this).data('category');
+    $('#categoryFilter').val(category);
+    filterContent();
+  });
+
+  // Content card click
+  $('.content-card').click(function(e) {
+    // Don't trigger if clicking on action buttons
+    if (!$(e.target).closest('.content-actions').length) {
+      openContentDetail($(this));
+    }
+  });
+});
+
+function filterContent() {
+  const searchTerm = $('#contentSearch').val().toLowerCase();
+  const category = $('#categoryFilter').val();
+  const length = $('#lengthFilter').val();
+  const evidence = $('#evidenceFilter').val();
+
+  let visibleCount = 0;
+
+  $('.content-card').each(function() {
+    const card = $(this);
+    const title = card.find('.content-title').text().toLowerCase();
+    const summary = card.find('.content-summary').text().toLowerCase();
+    const cardCategory = card.data('category');
+    const cardEvidence = card.data('evidence');
+
+    let visible = true;
+
+    // Text search
+    if (searchTerm && !title.includes(searchTerm) && !summary.includes(searchTerm)) {
+      visible = false;
+    }
+
+    // Category filter
+    if (category && cardCategory !== category) {
+      visible = false;
+    }
+
+    // Evidence filter
+    if (evidence && cardEvidence !== evidence) {
+      visible = false;
+    }
+
+    // Length filter would need additional data attributes
+
+    if (visible) {
+      card.show();
+      visibleCount++;
+    } else {
+      card.hide();
+    }
+  });
+
+  // Show empty state if no results
+  if (visibleCount === 0) {
+    $('#contentGrid').hide();
+    $('#emptyState').show();
+  } else {
+    $('#emptyState').hide();
+    $('#contentGrid').show();
+  }
+
+  // Update category tag selection
+  $('.category-tag').each(function() {
+    if ($(this).data('category') === category) {
+      $('.category-tag').removeClass('active');
+      $(this).addClass('active');
+    }
+  });
+}
+
+function clearAllFilters() {
+  $('#contentSearch').val('');
+  $('#categoryFilter').val('');
+  $('#lengthFilter').val('');
+  $('#evidenceFilter').val('');
+  $('.category-tag').removeClass('active');
+  $('.category-tag[data-category=""]').addClass('active');
+  filterContent();
+}
+
+function toggleBookmark(btn) {
+  const icon = $(btn).find('i');
+  if (icon.text() === 'bookmark_border') {
+    icon.text('bookmark');
+    $(btn).addClass('active');
+    // TODO: Send bookmark request to API
+  } else {
+    icon.text('bookmark_border');
+    $(btn).removeClass('active');
+    // TODO: Send unbookmark request to API
+  }
+}
+
+function openContent(contentId) {
+  // TODO: Open content in modal or navigate to content detail page
+  console.log('Opening content:', contentId);
+  alert('Content detail view would open here. Content ID: ' + contentId);
+}
+
+function saveContent(contentId) {
+  // TODO: Save content for later reading
+  console.log('Saving content for later:', contentId);
+  alert('Content saved for later reading!');
+}
+
+function openContentDetail(card) {
+  // TODO: Open content detail view
+  const title = card.find('.content-title').text();
+  console.log('Opening content detail:', title);
+  alert('Content detail view would open here for: ' + title);
+}
+</script>
+{% endblock extra_scripts %}

@@ -5,7 +5,6 @@ from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.http import response as rp
-from django.shortcuts import render
 from django.views.generic.base import View
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
@@ -44,28 +43,83 @@ class Attachments(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         R, P = request.GET, self.params
         if R.get("action") == "delete_att" and R.get("id"):
-            res = P["model"].objects.filter(id=R["id"]).delete()
+            result = P["model"].objects.optimized_delete_by_id(R["id"])
+            if not result:
+                return rp.JsonResponse({"error": "Attachment not found"}, status=404)
+
             if R["ownername"].lower() in ["ticket", "jobneed", "jobneeddetails"]:
-                # update attachment count
                 model = get_model_or_form(R["ownername"].lower())
                 model.objects.filter(uuid=R["ownerid"]).update(
                     attachmentcount=P["model"]
                     .objects.filter(owner=R["ownerid"])
                     .count()
                 )
-            return rp.JsonResponse({"result": res}, status=200)
+            return rp.JsonResponse({"result": result['deleted']}, status=200)
 
         if R.get("action") == "get_attachments_of_owner" and R.get("owner"):
             objs = P["model"].objects.get_att_given_owner(R["owner"])
             return rp.JsonResponse({"data": list(objs)}, status=200)
 
         if R.get("action") == "download" and R.get("filepath") and R.get("filename"):
-            file = f"{settings.MEDIA_URL}{R['filepath'].replace('youtility4_media/', '')}/{R['filename']}"
-            file = open(file, "r")
-            mime_type, _ = mimetypes.guess_type(R["filepath"])
-            response = HttpResponse(file, content_type=mime_type)
-            response["Content-Disposition"] = f"attachment; filename={R['filename']}"
-            return response
+            # SECURE FILE DOWNLOAD - prevent path traversal attacks
+            from apps.core.services.secure_file_download_service import SecureFileDownloadService
+            from django.core.exceptions import PermissionDenied, SuspiciousFileOperation
+            from django.http import Http404
+
+            try:
+                # Use SecureFileDownloadService for safe file retrieval
+                response = SecureFileDownloadService.validate_and_serve_file(
+                    filepath=R.get("filepath"),
+                    filename=R.get("filename"),
+                    user=request.user,
+                    owner_id=R.get("ownerid")  # Optional: for access control
+                )
+                return response
+
+            except (PermissionDenied, SuspiciousFileOperation) as e:
+                logger.error(
+                    "Security violation during file download",
+                    extra={
+                        'user_id': request.user.id if request.user else None,
+                        'filepath': R.get("filepath"),
+                        'filename': R.get("filename"),
+                        'error': str(e)
+                    }
+                )
+                return rp.JsonResponse(
+                    {"error": "Access denied"},
+                    status=403
+                )
+
+            except Http404 as e:
+                logger.warning(
+                    "File not found during download request",
+                    extra={
+                        'user_id': request.user.id if request.user else None,
+                        'filepath': R.get("filepath"),
+                        'filename': R.get("filename")
+                    }
+                )
+                return rp.JsonResponse(
+                    {"error": "File not found"},
+                    status=404
+                )
+
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
+                logger.error(
+                    "Unexpected error during file download",
+                    extra={
+                        'user_id': request.user.id if request.user else None,
+                        'filepath': R.get("filepath"),
+                        'filename': R.get("filename"),
+                        'error': str(e)
+                    },
+                    exc_info=True
+                )
+                return rp.JsonResponse(
+                    {"error": "File download failed"},
+                    status=500
+                )
 
     def post(self, request, *args, **kwargs):
         R, P = request.POST, self.params
@@ -123,7 +177,7 @@ class Attachments(LoginRequiredMixin, View):
 
         except JobneedDetails.DoesNotExist:
             logger.error(f"JobneedDetails not found for UUID: {jobneed_detail_uuid}")
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Failed to trigger audio transcription: {str(e)}", exc_info=True)
 
 
@@ -228,41 +282,68 @@ class PreviewImage(LoginRequiredMixin, View):
                 logger.error(f"Model not found for uuid: {R.get('uuid')}")
                 return rp.JsonResponse({"error": "Data not found"}, status=404)
 
-            except Exception as e:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
                 logger.error(f"Unexpected error: {e}")
                 return rp.JsonResponse({"error": "Internal server error"}, status=500)
 
         # Handle general attachment preview by ID
         if R.get("id"):
+            from apps.core.services.secure_file_download_service import SecureFileDownloadService
+            from django.core.exceptions import PermissionDenied, SuspiciousFileOperation
+            from django.http import Http404
+
             try:
-                attachment = self.P["model"].objects.get(id=R["id"])
+                # Validate attachment access using secure service
+                attachment = SecureFileDownloadService.validate_attachment_access(
+                    attachment_id=R["id"],
+                    user=request.user
+                )
 
-                # Build the file path
-                file_path = f"{settings.MEDIA_ROOT}/{attachment.filepath}/{attachment.filename}"
+                # Get file path components from attachment
+                filepath = str(attachment.filepath) if attachment.filepath else ""
+                filename = str(attachment.filename.name if hasattr(attachment.filename, 'name') else attachment.filename)
 
-                try:
-                    with open(file_path, "rb") as file:
-                        mime_type, _ = mimetypes.guess_type(file_path)
-                        response = HttpResponse(file.read(), content_type=mime_type or 'application/octet-stream')
+                # Use SecureFileDownloadService for safe file retrieval
+                response = SecureFileDownloadService.validate_and_serve_file(
+                    filepath=filepath,
+                    filename=filename,
+                    user=request.user,
+                    owner_id=attachment.owner if hasattr(attachment, 'owner') else None
+                )
 
-                        # For images, display inline; for others, download
-                        if mime_type and mime_type.startswith('image/'):
-                            response["Content-Disposition"] = f"inline; filename={attachment.filename.name}"
-                        else:
-                            response["Content-Disposition"] = f"attachment; filename={attachment.filename.name}"
+                return response
 
-                        return response
+            except (PermissionDenied, SuspiciousFileOperation) as e:
+                logger.error(
+                    "Security violation during attachment preview",
+                    extra={
+                        'user_id': request.user.id if request.user else None,
+                        'attachment_id': R.get("id"),
+                        'error': str(e)
+                    }
+                )
+                return rp.JsonResponse({"error": "Access denied"}, status=403)
 
-                except FileNotFoundError:
-                    return rp.JsonResponse({"error": "File not found"}, status=404)
-                except Exception as e:
-                    logger.error(f"Error serving file: {e}")
-                    return rp.JsonResponse({"error": "Error serving file"}, status=500)
-
-            except self.P["model"].DoesNotExist:
+            except Http404:
+                logger.warning(
+                    "Attachment not found",
+                    extra={
+                        'user_id': request.user.id if request.user else None,
+                        'attachment_id': R.get("id")
+                    }
+                )
                 return rp.JsonResponse({"error": "Attachment not found"}, status=404)
-            except Exception as e:
-                logger.error(f"Error retrieving attachment: {e}")
+
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+                logger.error(
+                    "Error retrieving attachment",
+                    extra={
+                        'user_id': request.user.id if request.user else None,
+                        'attachment_id': R.get("id"),
+                        'error': str(e)
+                    },
+                    exc_info=True
+                )
                 return rp.JsonResponse({"error": "Error retrieving attachment"}, status=500)
 
         return rp.JsonResponse({"error": "Invalid request"}, status=400)

@@ -43,7 +43,7 @@
 #         SU.save()
 #         log.debug(f"Dummy client: 'SPS' and site: 'YTPL' created successfully...{pformat(utils.ok(self))}")
 #         log.debug(f"Superuser with this loginid: 'SUPERADMIN' and password: 'superadmin@@2022@@' created successfully...{pformat(utils.ok(self))}")
-#     except Exception as e:
+#     except (DatabaseError, IntegrityError, ValueError, TypeError, ObjectDoesNotExist) as e:
 #         if type(e) != IntegrityError:
 #             log.error("Failed create_dummy_clientandsite", exc_info= True)
 #         raise
@@ -69,7 +69,7 @@
 #             # TODO in production set raise_errors = False
 #             res = res.import_data(dataset = default_types, dry_run = False, raise_errors = True, collect_failed_rows = True, use_transactions = True)
 #             log.debug(f"Default Entries in table TypeAssist created successfully...{pformat(utils.ok(self))}")
-#     except Exception as e:
+#     except (DatabaseError, IntegrityError, ValueError, TypeError, ObjectDoesNotExist) as e:
 #         if type(e) != IntegrityError:
 #             log.error('FAILED insert_default_entries', exc_info = True)
 #         raise
@@ -111,7 +111,7 @@
 #                 break
 #             except IntegrityError as e:
 #                 continue
-#             except Exception as e:
+#             except (DatabaseError, IntegrityError, ValueError, TypeError, ObjectDoesNotExist) as e:
 #                 if type(e) != IntegrityError:
 #                     self.stdout.write(self.style.ERROR("something went wrong...!"))
 #                     log.error('FAILED init_intelliwiz', exc_info = True)

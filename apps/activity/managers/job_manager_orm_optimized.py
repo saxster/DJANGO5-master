@@ -25,6 +25,9 @@ from apps.core.queries import TreeTraversal
 from apps.core.cache_manager import CacheManager, invalidate_user_cache
 
 
+__all__ = ['JobneedManagerORMOptimized']
+
+
 class JobneedManagerORMOptimized:
     """Optimized Django ORM implementations for complex Jobneed queries"""
     
@@ -662,7 +665,7 @@ class JobneedManagerORMOptimized:
                     if external_jobs:
                         warmed_count += 1
                         
-                except Exception as e:
+                except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                     logger.warning(f"Error warming job cache for people {people_id}: {e}")
                     continue
             
@@ -671,13 +674,13 @@ class JobneedManagerORMOptimized:
                 try:
                     cls._get_person_groups_cached(people_id)
                     warmed_count += 1
-                except Exception as e:
+                except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                     logger.warning(f"Error warming person groups for {people_id}: {e}")
                     continue
             
             logger.info(f"Warmed {warmed_count} job cache entries for BU {bu_id}")
             return warmed_count
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error in warm_job_caches for BU {bu_id}: {e}")
             return 0

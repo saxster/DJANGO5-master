@@ -1,5 +1,4 @@
 import pytest
-from apps.activity.forms.asset_form import (
     AssetForm,
     AssetExtrasForm,
     MasterAssetForm,

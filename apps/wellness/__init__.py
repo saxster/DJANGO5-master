@@ -1,0 +1,1 @@
+# Wellness App for IntelliWiz - Evidence-based wellness education system

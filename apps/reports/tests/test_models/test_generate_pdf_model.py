@@ -2,8 +2,6 @@
 Tests for GeneratePDF model
 """
 import pytest
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from apps.reports.models import GeneratePDF
 
 

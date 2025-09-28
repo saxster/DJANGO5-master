@@ -6,8 +6,6 @@ from django.test import RequestFactory
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.utils import timezone
 from django.contrib.gis.geos import Point
-from datetime import datetime, timedelta, date
-from apps.work_order_management.models import Wom, Vendor, WomDetails, Approver
 from apps.onboarding.models import Bt, TypeAssist
 from apps.peoples.models import People
 from apps.activity.models.asset_model import Asset

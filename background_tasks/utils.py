@@ -4,6 +4,10 @@ from apps.core import utils
 from apps.core.queries import QueryRepository
 import traceback as tb
 from django.apps import apps
+from django.db import transaction, DatabaseError, OperationalError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
+from apps.core.error_handling import ErrorHandler
 from PIL import Image
 import re
 import base64
@@ -39,7 +43,7 @@ def validate_and_clean_email(email):
             decoded = base64.b64decode(email_str, validate=True)
             log.warning(f"Filtered out base64-encoded corrupted email data: {email_str[:20]}...")
             return None
-    except Exception:
+    except (TypeError, ValidationError, ValueError):
         pass  # Not base64, continue with other validation
 
     # Basic email format validation using regex
@@ -149,7 +153,7 @@ def make_square(path1, path2):
         log.error("Error: One or both of the provided file paths do not exist.")
     except IOError:
         log.error("Error: One or both of the provided files are not images.")
-    except Exception as e:
+    except (FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValidationError, ValueError) as e:
         log.error("Error: An unknown error occurred. while performing make_square(path1, path2)", e)
 
 
@@ -196,50 +200,56 @@ def get_email_recipents_for_ticket(ticket):
 
 
 def update_ticket_data(tickets, result):
+    """
+    Atomically escalate tickets with race condition protection.
+
+    Prevents concurrent escalations from corrupting ticket level and assignments.
+    Uses distributed lock + atomic F() expression for level increment.
+
+    Args:
+        tickets: List of ticket dicts with escalation data
+        result: Result dict to accumulate updates
+
+    Returns:
+        Updated result dict
+    """
     from django.utils import timezone
-    now = timezone.now().replace(microsecond=0, second=0)
+    from django.db.models import F
     import json
+
+    now = timezone.now().replace(microsecond=0, second=0)
+
     if tickets:
-        result['story'] += "updating ticket data started"
+        result['story'] += "updating ticket data started\\n"
+
     for tkt in tickets:
         Ticket = apps.get_model('y_helpdesk', 'Ticket')
-        # update tkt level, mdtz, modigiedon
-        if tkt['escgrpid'] in [1, '1', None] and tkt['escpersonid'] in [1, '1', None]:
-            assignedperson_id = tkt['assignedtopeople']
-            assignedtogroup_id = tkt['assignedtogroup']
-        else:
-            assignedperson_id = tkt['escpersonid']
-            assignedtogroup_id = tkt['escgrpid']
-        # Handle ticketlog - it might already be a dict or might be a JSON string
-        if isinstance(tkt['ticketlog'], dict):
-            ticketlog = tkt['ticketlog']
-        else:
-            ticketlog = json.loads(tkt['ticketlog']) if tkt['ticketlog'] else {'ticket_history': []}
-            
-        history_item = {
-            "people_id": tkt['cuser_id'],
-            "when": str(now),
-            "who": tkt['who'],
-            "action": "created",
-            "details": [f"Ticket is escalated from level {tkt['level']} to {tkt['level']+1}"],
-            "previous_state": ticketlog['ticket_history'][-1]['previous_state'] if ticketlog.get('ticket_history') else {},
-        }
+        lock_key = f"ticket_escalation:{tkt['id']}"
 
-        if t := Ticket.objects.filter(id=tkt['id']).update(
-            mdtz=tkt['exp_time'],
-            modifieddatetime=tkt['exp_time'],
-            level=tkt['level'] + 1,
-            assignedtopeople_id=assignedperson_id,
-            assignedtogroup_id=assignedtogroup_id,
-            isescalated=True,
-        ):
+        try:
+            with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
+                with transaction.atomic():
+                    ticket_obj = Ticket.objects.select_for_update().get(id=tkt['id'])
 
-            result['story'] += f"ticket updated with these values mdtz & modifieddatetime \
-            {tkt['exp_time']} {tkt['level'] = } {assignedperson_id = } {assignedtogroup_id = } level= {tkt['level']+1}"
-            result = update_ticket_log(tkt['id'], history_item, result)
-            result = send_escalation_ticket_email(tkt, result)
-            result['id'].append(tkt['id'])
-    return result
+                    if tkt['escgrpid'] in [1, '1', None] and tkt['escpersonid'] in [1, '1', None]:
+                        assignedperson_id = tkt['assignedtopeople']
+                        assignedtogroup_id = tkt['assignedtogroup']
+                    else:
+                        assignedperson_id = tkt['escpersonid']
+                        assignedtogroup_id = tkt['escgrpid']
+
+                    old_level = ticket_obj.level
+
+                    Ticket.objects.filter(id=tkt['id']).update(
+                        mdtz=tkt['exp_time'],
+                        modifieddatetime=tkt['exp_time'],
+                        level=F('level') + 1,
+                        assignedtopeople_id=assignedperson_id,
+                        assignedtogroup_id=assignedtogroup_id,
+                        isescalated=True,
+                    )
+
+                    result['story'] += (\n                        f\"Ticket {tkt['id']} escalated: \"\n                        f\"level {old_level} → {old_level + 1}, \"\n                        f\"assigned_person={assignedperson_id}, \"\n                        f\"assigned_group={assignedtogroup_id}\\n\"\n                    )\n\n                    ticketlog = tkt.get('ticketlog', {'ticket_history': []})\n                    if isinstance(ticketlog, str):\n                        ticketlog = json.loads(ticketlog) if ticketlog else {'ticket_history': []}\n\n                    history_item = {\n                        "people_id": tkt['cuser_id'],\n                        "when": str(now),\n                        "who": tkt.get('who', 'System'),\n                        "action": "escalated",\n                        "details": [f"Ticket escalated from level {old_level} to {old_level + 1}"],\n                        "previous_state": ticketlog['ticket_history'][-1].get('previous_state', {}) if ticketlog.get('ticket_history') else {},\n                    }\n\n                    result = update_ticket_log(tkt['id'], history_item, result)\n                    result = send_escalation_ticket_email(tkt, result)\n                    result['id'].append(tkt['id'])\n\n        except LockAcquisitionError as e:\n            log.warning(\n                f\"Failed to acquire lock for ticket escalation: {tkt['id']}\",\n                exc_info=True\n            )\n            result['story'] += f\"Ticket {tkt['id']} escalation skipped (system busy)\\n\"\n            continue\n\n        except ObjectDoesNotExist as e:\n            log.error(f\"Ticket {tkt['id']} not found during escalation\", exc_info=True)\n            result['story'] += f\"Ticket {tkt['id']} not found\\n\"\n            continue\n\n        except (DatabaseError, OperationalError) as e:\n            correlation_id = ErrorHandler.handle_exception(\n                e,\n                context={'operation': 'ticket_escalation', 'ticket_id': tkt['id']},\n                level='error'\n            )\n            log.critical(\n                f\"Database error in ticket escalation: {tkt['id']}\",\n                extra={'correlation_id': correlation_id},\n                exc_info=True\n            )\n            result['story'] += f\"Ticket {tkt['id']} failed (database error)\\n\"\n            continue\n\n        except (ValidationError, ValueError, KeyError) as e:\n            log.error(\n                f\"Validation error in ticket escalation: {tkt['id']}\",\n                extra={'error': str(e)},\n                exc_info=True\n            )\n            result['story'] += f\"Ticket {tkt['id']} failed (validation error)\\n\"\n            continue\n\n    return result
 
 
 
@@ -291,7 +301,7 @@ def send_escalation_ticket_email(tkt, result):
             msg.to = toemails
             msg.send()
             log.info(f"mail sent, record_id:{rec['id']}")
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         log.critical(
             "something went wrong while sending escalation email", exc_info=True)
         result['traceback'] = tb.format_exc()
@@ -300,56 +310,220 @@ def send_escalation_ticket_email(tkt, result):
 
 
 def update_ticket_log(id, item, result):
+    """
+    Atomically append to ticket history log with race condition protection.
+
+    Prevents concurrent updates from losing history entries in ticketlog JSON field.
+    Uses distributed lock + select_for_update + transaction.
+
+    Args:
+        id: Ticket ID
+        item: History item to append
+        result: Result dict to update
+
+    Returns:
+        Updated result dict
+    """
     try:
         Ticket = apps.get_model('y_helpdesk', 'Ticket')
-        t = Ticket.objects.get(id=id)
-        t.ticketlog['ticket_history'].append(item)
-        t.save()
-        result['story'] += "ticketlog saved"
-    except Exception as e:
-        log.critical("something went wron while saving ticketlog", exc_info=True)
-        result['traceback'] = f"{tb.format_exc()}"
+        lock_key = f"ticket_log_update:{id}"
+
+        with distributed_lock(lock_key, timeout=10, blocking_timeout=5):
+            with transaction.atomic():
+                t = Ticket.objects.select_for_update().get(id=id)
+
+                ticketlog = dict(t.ticketlog)
+                if 'ticket_history' not in ticketlog:
+                    ticketlog['ticket_history'] = []
+
+                ticketlog['ticket_history'].append(item)
+                t.ticketlog = ticketlog
+                t.mdtz = datetime.now(timezone.utc)
+                t.save(update_fields=['ticketlog', 'mdtz'])
+
+                result['story'] += "ticketlog saved"
+                log.info(f"Ticket {id} log updated successfully")
+
+    except LockAcquisitionError as e:
+        log.warning(
+            f"Failed to acquire lock for ticket log update: {id}",
+            exc_info=True
+        )
+        result['story'] += f"Ticket {id} log update skipped (system busy)"
+
+    except ObjectDoesNotExist as e:
+        log.error(f"Ticket {id} not found", exc_info=True)
+        result['traceback'] = f"Ticket not found: {str(e)}"
+
+    except (DatabaseError, OperationalError) as e:
+        log.critical(
+            f"Database error updating ticket log: {id}",
+            exc_info=True
+        )
+        result['traceback'] = f"Database error: {str(e)}"
+
+    except (ValidationError, ValueError, KeyError) as e:
+        log.error(
+            f"Validation error updating ticket log: {id}",
+            exc_info=True
+        )
+        result['traceback'] = f"Validation error: {str(e)}"
+
     return result
 
 
 def check_for_checkpoints_status(obj, Jobneed):
-    for checkpoint in Jobneed.objects.filter(parent_id = obj.id, identifier__in = ['INTERNALTOUR','EXTERNALTOUR']):
-        log.info(f'checkpoint status {checkpoint.jobstatus = }')
-        if checkpoint.jobstatus == 'ASSIGNED':
+    """
+    Atomically auto-close all assigned checkpoints of a parent job.
+
+    Uses row-level locking to prevent race conditions.
+    Multiple concurrent workers could attempt to autoclose same checkpoints.
+
+    Args:
+        obj: Parent Jobneed object
+        Jobneed: Jobneed model class
+
+    Returns:
+        None (updates checkpoints in-place)
+    """
+    with transaction.atomic():
+        assigned_checkpoints = Jobneed.objects.select_for_update().filter(
+            parent_id=obj.id,
+            identifier__in=['INTERNALTOUR', 'EXTERNALTOUR'],
+            jobstatus='ASSIGNED'
+        )
+
+        checkpoint_count = 0
+        for checkpoint in assigned_checkpoints:
+            log.info(f'Checkpoint {checkpoint.id} status: {checkpoint.jobstatus}')
+
+            other_info = dict(checkpoint.other_info)
+            other_info['autoclosed_by_server'] = True
+
             checkpoint.jobstatus = 'AUTOCLOSED'
-            checkpoint.other_info['autoclosed_by_server'] = True
-            checkpoint.save()
-            log.info(f'checkpoint status after update {checkpoint.jobstatus = }')
+            checkpoint.other_info = other_info
+            checkpoint.mdtz = datetime.now(timezone.utc)
+            checkpoint.save(update_fields=['jobstatus', 'other_info', 'mdtz'])
+
+            checkpoint_count += 1
+            log.info(f'Checkpoint {checkpoint.id} auto-closed successfully')
+
+        if checkpoint_count > 0:
+            log.info(f'Successfully auto-closed {checkpoint_count} checkpoints for job {obj.id}')
 
 def check_child_of_jobneed_status(obj,Jobneed):
     pass
 
 
 def update_job_autoclose_status(record, resp):
-    Jobneed = apps.get_model('activity', 'Jobneed')
-    obj = Jobneed.objects.get(id=record['id'])
-    obj.mdtz = datetime.now(timezone.utc)
-    log.info(f'Before status update of job with id {record['id']}  is {obj.jobstatus = }')
-    if obj.jobstatus == 'INPROGRESS':
-        checkpoints = Jobneed.objects.filter(parent_id=obj.id, identifier__in=['INTERNALTOUR', 'EXTERNALTOUR'])
-        total = checkpoints.count()
-        completed = checkpoints.filter(jobstatus='COMPLETED').count()
-        if completed > 0 and completed < total:
-            obj.jobstatus='PARTIALLYCOMPLETED'
-            obj.save()
-            log.info(f'The Status is updated to {obj.jobstatus}')
-    if obj.jobstatus != 'PARTIALLYCOMPLETED' and obj.jobstatus!='COMPLETED':
-        obj.jobstatus = 'AUTOCLOSED'
-        obj.other_info['email_sent'] = record['ticketcategory__tacode'] == 'AUTOCLOSENOTIFY'
-        obj.other_info['ticket_generated'] = record['ticketcategory__tacode'] == 'RAISETICKETNOTIFY'
-        obj.other_info['autoclosed_by_server'] = True
-        obj.save()
-        log.info(f'After status update {obj.jobstatus = }')
+    """
+    Atomically update job autoclose status with race condition protection.
 
-    check_for_checkpoints_status(obj, Jobneed)
-    log.info(f'jobneed object with id = {record["id"]} is {obj.jobstatus = } {obj.other_info["email_sent"] = } {obj.other_info["ticket_generated"] = } {obj.other_info["autoclosed_by_server"] = }')
-    resp['id'].append(record['id'])
-    return resp
+    Prevents concurrent autoclose operations from corrupting job state.
+    Uses distributed lock + select_for_update + transaction for multi-layer protection.
+
+    Args:
+        record: Dict with job data from expired jobs query
+        resp: Response dict to accumulate results
+
+    Returns:
+        Updated response dict with processed job IDs
+
+    Raises:
+        LockAcquisitionError: If cannot acquire distributed lock
+        DatabaseError: On database failures
+    """
+    Jobneed = apps.get_model('activity', 'Jobneed')
+    lock_key = f"autoclose_job:{record['id']}"
+
+    try:
+        with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
+            with transaction.atomic():
+                obj = Jobneed.objects.select_for_update().get(id=record['id'])
+
+                log.info(f'Before status update of job {record["id"]}: jobstatus={obj.jobstatus}')
+
+                if obj.jobstatus == 'INPROGRESS':
+                    checkpoints = Jobneed.objects.filter(
+                        parent_id=obj.id,
+                        identifier__in=['INTERNALTOUR', 'EXTERNALTOUR']
+                    )
+                    total = checkpoints.count()
+                    completed = checkpoints.filter(jobstatus='COMPLETED').count()
+
+                    if completed > 0 and completed < total:
+                        obj.jobstatus = 'PARTIALLYCOMPLETED'
+                        obj.mdtz = datetime.now(timezone.utc)
+                        obj.save(update_fields=['jobstatus', 'mdtz'])
+                        log.info(f'Status updated to {obj.jobstatus}')
+
+                if obj.jobstatus not in ['PARTIALLYCOMPLETED', 'COMPLETED']:
+                    other_info = dict(obj.other_info)
+                    other_info['email_sent'] = record['ticketcategory__tacode'] == 'AUTOCLOSENOTIFY'
+                    other_info['ticket_generated'] = record['ticketcategory__tacode'] == 'RAISETICKETNOTIFY'
+                    other_info['autoclosed_by_server'] = True
+
+                    obj.jobstatus = 'AUTOCLOSED'
+                    obj.other_info = other_info
+                    obj.mdtz = datetime.now(timezone.utc)
+                    obj.save(update_fields=['jobstatus', 'other_info', 'mdtz'])
+                    log.info(f'Status updated to {obj.jobstatus}')
+
+                check_for_checkpoints_status(obj, Jobneed)
+
+                log.info(
+                    f'Jobneed {record["id"]}: status={obj.jobstatus}, '
+                    f'email_sent={obj.other_info.get("email_sent")}, '
+                    f'ticket_generated={obj.other_info.get("ticket_generated")}, '
+                    f'autoclosed_by_server={obj.other_info.get("autoclosed_by_server")}'
+                )
+
+                resp['id'].append(record['id'])
+                return resp
+
+    except LockAcquisitionError as e:
+        correlation_id = ErrorHandler.handle_exception(
+            e,
+            context={'operation': 'autoclose_job', 'job_id': record['id']},
+            level='warning'
+        )
+        log.warning(
+            f"Failed to acquire lock for job autoclose: {record['id']}",
+            extra={'correlation_id': correlation_id}
+        )
+        resp['story'] += f"Job {record['id']} skipped (system busy)\n"
+        return resp
+
+    except ObjectDoesNotExist as e:
+        log.error(
+            f"Jobneed {record['id']} not found during autoclose",
+            exc_info=True
+        )
+        resp['story'] += f"Job {record['id']} not found\n"
+        return resp
+
+    except (DatabaseError, OperationalError) as e:
+        correlation_id = ErrorHandler.handle_exception(
+            e,
+            context={'operation': 'autoclose_job', 'job_id': record['id']},
+            level='error'
+        )
+        log.critical(
+            f"Database error in job autoclose: {record['id']}",
+            extra={'correlation_id': correlation_id},
+            exc_info=True
+        )
+        resp['story'] += f"Job {record['id']} failed (database error)\n"
+        return resp
+
+    except (ValidationError, ValueError, KeyError) as e:
+        log.error(
+            f"Validation error in job autoclose: {record['id']}",
+            extra={'error': str(e)},
+            exc_info=True
+        )
+        resp['story'] += f"Job {record['id']} failed (validation error)\n"
+        return resp
 
 
 def get_escalation_of_ticket(tkt):
@@ -370,7 +544,9 @@ def get_escalation_of_ticket(tkt):
 def create_ticket_for_autoclose(jobneedrecord, ticketdesc):
     try:
         Ticket = apps.get_model('y_helpdesk', 'Ticket')
-        tkt, _ = Ticket.objects.get_or_create(
+        People = apps.get_model('peoples', 'People')
+
+        tkt, created = Ticket.objects.get_or_create(
             bu_id=jobneedrecord['bu_id'],
             status="NEW",
             client_id=jobneedrecord['client_id'],
@@ -383,13 +559,22 @@ def create_ticket_for_autoclose(jobneedrecord, ticketdesc):
             assignedtogroup_id=jobneedrecord['pgroup_id'],
             qset_id = jobneedrecord['qset_id']
         )
+
+        # Add initial history entry for new system-generated tickets
+        if created:
+            try:
+                system_user = People.objects.get(id=1)  # NONE user for system actions
+                utils.store_ticket_history(tkt, user=system_user)
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as history_error:
+                log.warning(f"Failed to create history entry for system ticket {tkt.id}: {history_error}")
+
         return Ticket.objects.filter(
             id=tkt.id
         ).select_related('bu', 'client', 'escalationtemplate').values(
             'ticketcategory_id', 'client_id', 'level', 'bu_id', 'ticketno',
             'cdtz', 'ctzoffset'
         ).first()
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         log.critical(
             "something went wrong in create_ticket_for_autoclose", exc_info=True)
 
@@ -475,11 +660,18 @@ def alert_observation(jobneed, atts=False):
             msg.send()
             log.info(f"Alert mail sent to {recipents} with subject {subject}")
             result['story'] += 'Mail sent'
-            jobneed.ismailsent=True
-            jobneed.save()
+
+            from apps.activity.models.job_model import Jobneed as JobneedModel
+            with transaction.atomic():
+                JobneedModel.objects.filter(pk=jobneed.id).update(
+                    ismailsent=True,
+                    mdtz=datetime.now(timezone.utc)
+                )
+            log.info(f"Jobneed {jobneed.id} marked as mail sent")
+
         else:
             result['story'] += "Alerts not found"
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         log.critical("Error while sending alert mail", exc_info=True)
         result['traceback'] += tb.format_exc()
     return result

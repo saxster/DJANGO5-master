@@ -348,10 +348,17 @@ Schedule Tour
     function deleteCheckpointRequest(checpointid, checklistid, job) {
         var deleted = false
         const params = {
-            'url': `{{ url('schedhuler:delete_checkpointTour') }}?checkpointid=${checpointid}&checklistid=${checklistid}&job=${job}&datasource = job`,
+            'url': `{{ url('schedhuler:delete_checkpointTour') }}`,
+            'data': {
+                'checkpointid': checpointid,
+                'checklistid': checklistid,
+                'job': job,
+                'datasource': 'job',
+                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+            },
             'beforeSend': function () {}
         }
-        fire_ajax_get(params)
+        fire_ajax_post(params)
             .done((data, status, xhr) => {
                 show_successful_delete_alert()
                 deleted = true
@@ -377,13 +384,21 @@ Schedule Tour
         show_alert_before_delete('Guard Tour')
 		.then((result) => {
 			if(result.isConfirmed){ //delete requested by user
-				let urlname = "/operations/schedules/tours/internal/"
-                const params = {url:`${urlname}?action=delete&id=${id}`, 'beforeSend':function (){} }
-                fire_ajax_get(params)
+				let urlname = "{% url 'schedhuler:retrieve_tours' %}"
+                const params = {
+                    url: urlname,
+                    data: {
+                        'action': 'delete',
+                        'id': id,
+                        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+                    },
+                    'beforeSend': function (){}
+                }
+                fire_ajax_post(params)
                 .done((data, status, xhr) => {
                     show_successful_delete_alert() //defined in customjs
                     window.setTimeout(function() {
-                        window.location.href = "/operations/schedules/tours/internal/?action=form";
+                        window.location.href = "{% url 'schedhuler:retrieve_tours' %}?action=form";
                     }, 2000);
                 })
                 .fail((xhr, status, error) => {

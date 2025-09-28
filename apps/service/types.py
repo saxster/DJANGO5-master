@@ -1,9 +1,6 @@
 import graphene
 from graphene_django.types import DjangoObjectType
 from graphene_file_upload.scalars import Upload
-from .converters import (
-    convert_point_field,
-    convert_linestring_field,
     convert_polygon_field,
 )
 from apps.activity.models.asset_model import Asset

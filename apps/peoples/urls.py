@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.urls import path
-from django.urls.conf import include
 from django.conf.urls.static import static
 from apps.peoples import views
 

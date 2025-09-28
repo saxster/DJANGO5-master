@@ -1,7 +1,5 @@
 from django.db import models
 from datetime import datetime, timezone, timedelta
-import json
-import urllib.parse
 from django.db.models import (
     Q,
     When,
@@ -78,7 +76,6 @@ class TicketManager(models.Manager):
         )
 
     def get_tickets_for_mob(self, peopleid, buid, clientid, mdtz, ctzoffset):
-        from apps.activity.models.attachment_model import Attachment
 
         if not isinstance(mdtz, datetime):
             mdtz = datetime.strptime(mdtz, "%Y-%m-%d %H:%M:%S") - timedelta(
@@ -279,7 +276,7 @@ class ESCManager(models.Manager):
                 "notify", "frequency", "frequencyvalue", "id"
             )
             return {"data": list(qset)}
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             log.critical("Unexpected error", exc_info=True)
             if "frequencyvalue_gte_0_ck" in str(e):
                 return {
@@ -391,7 +388,7 @@ class ESCManager(models.Manager):
                 "assignedgroup_id",
             )
             return {"data": list(qset)}
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             log.critical("Unexpected error", exc_info=True)
             if "frequencyvalue_gte_0_ck" in str(e):
                 return {

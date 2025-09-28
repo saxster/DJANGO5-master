@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Conversational Onboarding</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/conversational_onboarding.css' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="onboarding-container">
+        <!-- Header -->
+        <div class="onboarding-header">
+            <div class="header-content">
+                <h1><i class="fas fa-robot"></i> AI Onboarding Assistant</h1>
+                <p class="subtitle">Let's set up your facility management system together</p>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+                <span class="progress-text" id="progressText">0% Complete</span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="onboarding-content">
+            <!-- Welcome Screen -->
+            <div class="screen active" id="welcomeScreen">
+                <div class="welcome-card">
+                    <div class="welcome-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h2>Welcome to Intelligent Facility Setup</h2>
+                    <p>I'm your AI assistant and I'll help you configure your facility management system based on your specific needs and industry best practices.</p>
+
+                    <div class="feature-highlights">
+                        <div class="feature">
+                            <i class="fas fa-users"></i>
+                            <span>Team & Access Management</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-clock"></i>
+                            <span>Shift Scheduling</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Security Configuration</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-cogs"></i>
+                            <span>System Integration</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-large" onclick="startConversation()">
+                        <i class="fas fa-play"></i> Start Setup
+                    </button>
+                </div>
+            </div>
+
+            <!-- Conversation Screen -->
+            <div class="screen" id="conversationScreen">
+                <div class="conversation-area">
+                    <div class="messages-container" id="messagesContainer">
+                        <!-- Messages will be dynamically added here -->
+                    </div>
+
+                    <div class="input-area">
+                        <div class="input-group">
+                            <input type="text" id="userInput" placeholder="Type your answer here..." disabled>
+                            <button id="sendButton" onclick="sendMessage()" disabled>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="input-help" id="inputHelp"></div>
+                    </div>
+                </div>
+
+                <div class="sidebar">
+                    <div class="session-info">
+                        <h3>Session Info</h3>
+                        <div class="info-item">
+                            <label>Session ID:</label>
+                            <span id="sessionId">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Status:</label>
+                            <span id="sessionStatus" class="status-badge">-</span>
+                        </div>
+                    </div>
+
+                    <div class="ai-status" id="aiStatus">
+                        <div class="status-indicator">
+                            <div class="pulse-dot"></div>
+                            <span>AI is thinking...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations Screen -->
+            <div class="screen" id="recommendationsScreen">
+                <div class="recommendations-header">
+                    <h2><i class="fas fa-lightbulb"></i> AI Recommendations</h2>
+                    <p>Based on our conversation, here are my recommendations for your facility setup:</p>
+                </div>
+
+                <div class="recommendations-content">
+                    <div class="recommendations-list" id="recommendationsList">
+                        <!-- Recommendations will be dynamically added here -->
+                    </div>
+
+                    <div class="recommendations-actions">
+                        <div class="action-buttons">
+                            <button class="btn btn-outline" onclick="previewChanges()">
+                                <i class="fas fa-eye"></i> Preview Changes
+                            </button>
+                            <button class="btn btn-primary" onclick="applyRecommendations()">
+                                <i class="fas fa-check"></i> Apply Recommendations
+                            </button>
+                        </div>
+
+                        <div class="dry-run-toggle">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="dryRunMode" checked>
+                                <span class="slider"></span>
+                            </label>
+                            <span>Dry Run Mode (Preview Only)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Screen -->
+            <div class="screen" id="resultsScreen">
+                <div class="results-content">
+                    <div class="results-header">
+                        <div class="success-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h2>Setup Complete!</h2>
+                        <p>Your facility management system has been successfully configured.</p>
+                    </div>
+
+                    <div class="results-summary" id="resultsSummary">
+                        <!-- Results will be dynamically added here -->
+                    </div>
+
+                    <div class="results-actions">
+                        <button class="btn btn-primary" onclick="goToDashboard()">
+                            <i class="fas fa-tachometer-alt"></i> Go to Dashboard
+                        </button>
+                        <button class="btn btn-outline" onclick="downloadReport()">
+                            <i class="fas fa-download"></i> Download Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <h3>Processing your request...</h3>
+                <p id="loadingMessage">Please wait while I analyze your requirements</p>
+            </div>
+        </div>
+
+        <!-- Error Modal -->
+        <div class="modal" id="errorModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                    <button class="close-btn" onclick="closeErrorModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorMessage">An error occurred during the process.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="closeErrorModal()">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Global variables
+        let currentSession = null;
+        let currentScreen = 'welcomeScreen';
+        let eventSource = null;
+        let currentRecommendations = [];
+        let pollingInterval = null;
+
+        // CSRF token for Django
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                         document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+    </script>
+    <script src="{% static 'js/conversational_onboarding.js' %}"></script>
+</body>
+</html>

@@ -5,18 +5,20 @@ import apps.onboarding.utils as ob_utils
 from apps.core import utils
 from django_select2 import forms as s2forms
 from django.db.models import Q
-from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
-from apps.activity.models.asset_model import Asset
-from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
 import apps.peoples.models as pm
 import apps.onboarding.models as ob
 from django.utils import timezone as dtimezone
 from datetime import datetime
 from apps.core.utils_new.business_logic import initailize_form_fields
+from apps.core.caching.form_mixins import CachedDropdownMixin, OptimizedModelForm
+from apps.core.utils_new.cron_utilities import validate_cron_for_form
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class Schd_I_TourJobForm(JobForm):
+class Schd_I_TourJobForm(CachedDropdownMixin, JobForm):
     ASSIGNTO_CHOICES = [("PEOPLE", "People"), ("GROUP", "Group")]
     assign_to = forms.ChoiceField(choices=ASSIGNTO_CHOICES, initial="PEOPLE")
     istimebound = forms.BooleanField(
@@ -24,6 +26,28 @@ class Schd_I_TourJobForm(JobForm):
     )
     isdynamic = forms.BooleanField(initial=False, required=False, label="Is Dynamic")
     required_css_class = "required"
+
+    # Configure cached dropdown fields - this replaces expensive set_options_for_dropdowns calls
+    cached_dropdown_fields = {
+        'ticketcategory': {
+            'model': ob.TypeAssist,
+            'filter_method': 'filter_for_dd_notifycategory_field',
+            'sitewise': True,
+            'version': '1.0'
+        },
+        'pgroup': {
+            'model': pm.Pgroup,
+            'filter_method': 'filter_for_dd_pgroup_field',
+            'sitewise': True,
+            'version': '1.0'
+        },
+        'people': {
+            'model': pm.People,
+            'filter_method': 'filter_for_dd_people_field',
+            'sitewise': False,  # People field doesn't use sitewise parameter
+            'version': '1.0'
+        }
+    }
 
     class Meta(JobForm.Meta):
         exclude = ["shift"]
@@ -37,16 +61,19 @@ class Schd_I_TourJobForm(JobForm):
         )
 
     def __init__(self, *args, **kwargs):
-        """Initializes form add atttibutes and classes here."""
-        self.request = kwargs.pop("request", None)
-        S = self.request
+        """Initializes form with cached dropdown optimization."""
+        self.request = kwargs.get("request", None)
         super().__init__(*args, **kwargs)
         self.set_initial_values()
         self.set_required_false_for_dynamic()
         self.set_display_none()
         self.fields["fromdate"].input_formats = settings.DATETIME_INPUT_FORMATS
         self.fields["uptodate"].input_formats = settings.DATETIME_INPUT_FORMATS
-        self.set_options_for_dropdowns(S)
+
+        # The cached dropdown mixin handles dropdown setup automatically
+        # No need for manual set_options_for_dropdowns call
+        logger.debug(f"Initialized {self.__class__.__name__} with cached dropdowns")
+
         # Make ticketcategory field required
         self.fields["ticketcategory"].required = True
         initailize_form_fields(self)
@@ -82,7 +109,16 @@ class Schd_I_TourJobForm(JobForm):
             cd["planduration"] = cd["gracetime"] = cd["expirytime"] = 0
         return cd
 
+    # DEPRECATED: set_options_for_dropdowns method replaced by cached_dropdown_fields
+    # This expensive method has been replaced by the CachedDropdownMixin for performance
+    # The cached dropdown configuration above provides the same functionality with caching
     def set_options_for_dropdowns(self, S):
+        """
+        DEPRECATED: This method is now handled by CachedDropdownMixin
+        Left for backward compatibility but no longer called
+        """
+        logger.warning("set_options_for_dropdowns called - this should be handled by caching mixin")
+        # Keep original logic for fallback if needed
         self.fields[
             "ticketcategory"
         ].queryset = ob.TypeAssist.objects.filter_for_dd_notifycategory_field(
@@ -179,14 +215,14 @@ class Schd_I_TourJobForm(JobForm):
         if not val:
             raise forms.ValidationError("Invalid Cron")
 
+        # Use centralized cron validation
+        error = validate_cron_for_form(val)
+        if error:
+            raise forms.ValidationError(error)
+
+        # Additional business rule: block "* * * * *"
         parts = val.strip().split()
-        if len(parts) != 5:
-            raise forms.ValidationError("Invalid Cron format: must have 5 fields")
-
-        minute_field = parts[0]
-
-        # Block if minute is exactly "*" (every minute)
-        if minute_field == "*":
+        if len(parts) == 5 and parts[0] == "*":
             raise forms.ValidationError(
                 "Warning: Scheduling every minute is not allowed!"
             )
@@ -280,7 +316,7 @@ class I_TourFormJobneed(JobNeedForm):  # jobneed
             return val
 
     def clean_expirydatetime(self):
-        if val := self.cleaned_data.get("plandatetime"):
+        if val := self.cleaned_data.get("expirydatetime"):
             val = ob_utils.to_utc(val)
             return val
 
@@ -445,14 +481,14 @@ class Schd_E_TourJobForm(JobForm):
         if not val:
             raise forms.ValidationError("Invalid Cron")
 
+        # Use centralized cron validation
+        error = validate_cron_for_form(val)
+        if error:
+            raise forms.ValidationError(error)
+
+        # Additional business rule: block "* * * * *"
         parts = val.strip().split()
-        if len(parts) != 5:
-            raise forms.ValidationError("Invalid Cron format: must have 5 fields")
-
-        minute_field = parts[0]
-
-        # Block if minute is exactly "*" (every minute)
-        if minute_field == "*":
+        if len(parts) == 5 and parts[0] == "*":
             raise forms.ValidationError(
                 "Warning: Scheduling every minute is not allowed!"
             )
@@ -595,14 +631,14 @@ class SchdTaskFormJob(JobForm):
         if not val:
             raise forms.ValidationError("Invalid Cron")
 
+        # Use centralized cron validation
+        error = validate_cron_for_form(val)
+        if error:
+            raise forms.ValidationError(error)
+
+        # Additional business rule: block "* * * * *"
         parts = val.strip().split()
-        if len(parts) != 5:
-            raise forms.ValidationError("Invalid Cron format: must have 5 fields")
-
-        minute_field = parts[0]
-
-        # Block if minute is exactly "*" (every minute)
-        if minute_field == "*":
+        if len(parts) == 5 and parts[0] == "*":
             raise forms.ValidationError(
                 "Warning: Scheduling every minute is not allowed!"
             )
@@ -682,7 +718,7 @@ class TicketForm(JobNeedForm):
             return val
 
     def clean_expirydatetime(self):
-        if val := self.cleaned_data.get("plandatetime"):
+        if val := self.cleaned_data.get("expirydatetime"):
             val = ob_utils.to_utc(val)
             return val
 
@@ -732,7 +768,7 @@ class E_TourFormJobneed(JobNeedForm):
             return val
 
     def clean_expirydatetime(self):
-        if val := self.cleaned_data.get("plandatetime"):
+        if val := self.cleaned_data.get("expirydatetime"):
             val = ob_utils.to_utc(val)
             return val
 

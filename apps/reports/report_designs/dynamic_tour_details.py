@@ -2,11 +2,9 @@ from apps.reports.utils import BaseReportsExport
 from apps.core.utils import get_timezone
 from django.utils import timezone as dtimezone
 from datetime import timezone as dt_timezone
-from apps.core.report_queries import get_query
 from apps.onboarding.models import Bt
 from apps.activity.models.job_model import Jobneed
 from django.conf import settings
-import pandas as pd
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,7 +43,6 @@ class DynamicTourDetailReport(BaseReportsExport):
 
     def get_data(self):
         from django.db.models import Prefetch
-        from datetime import datetime, timedelta
 
         # Your imports here
 
@@ -226,7 +223,6 @@ class DynamicTourDetailReport(BaseReportsExport):
             }
         )
 
-        import xlsxwriter
 
         worksheet.autofit()
         header_format = workbook.add_format(

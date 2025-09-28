@@ -1,8 +1,5 @@
 import pytest
 from apps.activity.models.attachment_model import Attachment
-from django.contrib.gis.geos import Point
-from django.db import IntegrityError
-from django.core.exceptions import ValidationError
 from apps.onboarding.models import TypeAssist
 from django.core.files.uploadedfile import SimpleUploadedFile
 

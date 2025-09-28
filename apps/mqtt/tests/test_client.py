@@ -1,9 +1,5 @@
-import os
 import json
-import unittest
-from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase
-from django.conf import settings
 from paho.mqtt.enums import CallbackAPIVersion
 
 from apps.mqtt.client import MqttClient, get_task_status

@@ -5,15 +5,8 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Avg, Count, Sum, Max, Min, Q, F
-from django.utils import timezone
-from django.core.cache import cache
-from datetime import datetime, timedelta
-import json
-import numpy as np
 from collections import defaultdict
 
-from apps.core.models.heatmap import (
     HeatmapSession, ClickHeatmap, ScrollHeatmap, 
     AttentionHeatmap, ElementInteraction, HeatmapAggregation
 )

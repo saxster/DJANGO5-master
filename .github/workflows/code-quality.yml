@@ -1,0 +1,269 @@
+name: 🛡️ Django Code Quality & Security Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.10'
+  DJANGO_SETTINGS_MODULE: 'intelliwiz_config.settings_test'
+
+jobs:
+  # =============================================================================
+  # 🔒 CRITICAL SECURITY SCANNING
+  # =============================================================================
+  security-scan:
+    name: 🔒 Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: 📦 Install Security Tools
+      run: |
+        pip install bandit[toml] safety semgrep
+        pip install -r requirements/base.txt
+
+    - name: 🔍 Bandit Security Scan
+      run: |
+        echo "🔍 Running Bandit security analysis..."
+        bandit -r apps/ intelliwiz_config/ -f json -o bandit-report.json || true
+        bandit -r apps/ intelliwiz_config/ -f txt
+      continue-on-error: true
+
+    - name: 🛡️ Safety Check (Dependencies)
+      run: |
+        echo "🛡️ Checking for vulnerable dependencies..."
+        safety check --json > safety-report.json || true
+        safety check
+      continue-on-error: true
+
+    - name: 🔎 Semgrep Security Rules
+      run: |
+        echo "🔎 Running Semgrep security analysis..."
+        semgrep --config=auto --json --output=semgrep-report.json . || true
+        semgrep --config=auto .
+      continue-on-error: true
+
+    - name: 📊 Upload Security Reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+          semgrep-report.json
+
+  # =============================================================================
+  # 📐 ARCHITECTURE & CODE QUALITY
+  # =============================================================================
+  architecture-validation:
+    name: 📐 Architecture Rules
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 📏 Check Settings File Size Limits
+      run: |
+        echo "📏 Validating settings file sizes..."
+        violations=0
+        for settings_file in $(find . -name "*settings*.py" -not -path "./venv/*" -not -path "./.env/*"); do
+          lines=$(wc -l < "$settings_file")
+          if [ "$lines" -gt 200 ]; then
+            echo "❌ VIOLATION: $settings_file has $lines lines (limit: 200)"
+            violations=$((violations + 1))
+          else
+            echo "✅ PASS: $settings_file has $lines lines"
+          fi
+        done
+        if [ $violations -gt 0 ]; then
+          echo "💥 Architecture Rule #6 violated: Split large settings files"
+          echo "📖 See .claude/rules.md Rule #6 for guidance"
+          exit 1
+        fi
+
+    - name: 📊 Check Model Complexity
+      run: |
+        echo "📊 Validating model file complexity..."
+        violations=0
+        for model_file in $(find apps/ -name "models.py" -o -name "*models*.py"); do
+          if grep -q "class.*Model\|models\.Model" "$model_file" 2>/dev/null; then
+            lines=$(wc -l < "$model_file")
+            if [ "$lines" -gt 150 ]; then
+              echo "❌ VIOLATION: $model_file has $lines lines (limit: 150)"
+              violations=$((violations + 1))
+            else
+              echo "✅ PASS: $model_file has $lines lines"
+            fi
+          fi
+        done
+        if [ $violations -gt 0 ]; then
+          echo "💥 Architecture Rule #7 violated: Apply single responsibility to models"
+          echo "📖 See .claude/rules.md Rule #7 for guidance"
+          exit 1
+        fi
+
+  # =============================================================================
+  # 🚫 FORBIDDEN PATTERN DETECTION
+  # =============================================================================
+  pattern-enforcement:
+    name: 🚫 Pattern Enforcement
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 🔍 Critical Pattern Violations
+      run: |
+        echo "🔍 Scanning for forbidden patterns..."
+        violations=0
+
+        echo "🔒 Checking for GraphQL security bypass..."
+        if grep -r "def _is_graphql_request.*return True" apps/ intelliwiz_config/ 2>/dev/null; then
+          echo "❌ CRITICAL: GraphQL security bypass detected!"
+          echo "📖 See .claude/rules.md Rule #1"
+          violations=$((violations + 1))
+        fi
+
+        echo "🚨 Checking for generic exception handling..."
+        if grep -r "except Exception" apps/ 2>/dev/null; then
+          echo "❌ VIOLATION: Generic exception handling found!"
+          echo "📖 Use specific exception types - see .claude/rules.md Rule #11"
+          violations=$((violations + 1))
+        fi
+
+        echo "🔐 Checking for CSRF exemptions on GraphQL..."
+        if grep -B5 -A5 "@csrf_exempt" apps/ 2>/dev/null | grep -i "graphql" >/dev/null; then
+          echo "❌ CRITICAL: CSRF exempt GraphQL endpoints detected!"
+          echo "📖 See .claude/rules.md Rule #3"
+          violations=$((violations + 1))
+        fi
+
+        echo "📝 Checking for sensitive data in logs..."
+        if grep -r "log.*password\|logger.*password\|log.*token\|logger.*token" apps/ 2>/dev/null; then
+          echo "❌ VIOLATION: Sensitive data in logs detected!"
+          echo "📖 See .claude/rules.md Rule #15"
+          violations=$((violations + 1))
+        fi
+
+        if [ $violations -gt 0 ]; then
+          echo ""
+          echo "💥 CRITICAL VIOLATIONS FOUND: $violations"
+          echo "🚨 These patterns WILL cause security vulnerabilities!"
+          echo "📖 Review .claude/rules.md for required fixes"
+          exit 1
+        else
+          echo "✅ No critical pattern violations found!"
+        fi
+
+  # =============================================================================
+  # 📋 QUALITY REPORT GENERATION
+  # =============================================================================
+  quality-report:
+    name: 📋 Quality Report
+    runs-on: ubuntu-latest
+    needs: [security-scan, architecture-validation, pattern-enforcement]
+    if: always()
+
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 📊 Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: security-reports
+        path: reports/
+      continue-on-error: true
+
+    - name: 📈 Generate Quality Summary
+      run: |
+        echo "# 📊 Code Quality Report" > quality-report.md
+        echo "" >> quality-report.md
+        echo "## 🏆 Pipeline Results" >> quality-report.md
+        echo "" >> quality-report.md
+
+        # Job status summary
+        echo "| Check | Status | Description |" >> quality-report.md
+        echo "|-------|--------|-------------|" >> quality-report.md
+        echo "| 🔒 Security Scan | ${{ needs.security-scan.result }} | Bandit, Safety, Semgrep analysis |" >> quality-report.md
+        echo "| 📐 Architecture | ${{ needs.architecture-validation.result }} | File size & complexity limits |" >> quality-report.md
+        echo "| 🚫 Pattern Enforcement | ${{ needs.pattern-enforcement.result }} | Forbidden pattern detection |" >> quality-report.md
+        echo "" >> quality-report.md
+
+        echo "## 📖 Rule Reference" >> quality-report.md
+        echo "All checks enforce rules defined in \`.claude/rules.md\`" >> quality-report.md
+
+    - name: 📤 Upload Quality Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: quality-report
+        path: quality-report.md
+
+    - name: 💬 Comment PR with Quality Report
+      uses: actions/github-script@v6
+      if: github.event_name == 'pull_request' && always()
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const report = fs.readFileSync('quality-report.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+          } catch (error) {
+            console.log('Could not read quality report:', error.message);
+          }
+
+  # =============================================================================
+  # 🎯 OVERALL PIPELINE STATUS
+  # =============================================================================
+  pipeline-status:
+    name: 🎯 Pipeline Status
+    runs-on: ubuntu-latest
+    needs: [security-scan, architecture-validation, pattern-enforcement]
+    if: always()
+
+    steps:
+    - name: 📊 Pipeline Summary
+      run: |
+        echo "🎯 Django Code Quality Pipeline Results:"
+        echo "========================================"
+        echo "🔒 Security Scan: ${{ needs.security-scan.result }}"
+        echo "📐 Architecture: ${{ needs.architecture-validation.result }}"
+        echo "🚫 Pattern Enforcement: ${{ needs.pattern-enforcement.result }}"
+        echo ""
+
+        # Determine overall status
+        if [[ "${{ needs.pattern-enforcement.result }}" == "failure" ]]; then
+          echo "💥 PIPELINE FAILED: Critical security patterns detected!"
+          echo "🚨 Code contains patterns that WILL cause vulnerabilities"
+          echo "📖 Review .claude/rules.md for required fixes"
+          exit 1
+        elif [[ "${{ needs.architecture-validation.result }}" == "failure" ]]; then
+          echo "⚠️ PIPELINE FAILED: Architecture rules violated!"
+          echo "📐 Code violates size/complexity limits"
+          echo "📖 Review .claude/rules.md for guidance"
+          exit 1
+        else
+          echo "✅ PIPELINE PASSED: All quality checks successful!"
+          echo "🎉 Code meets all quality and security standards"
+        fi

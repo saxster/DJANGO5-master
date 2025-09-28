@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Generate Test: {{ gap.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .test-generation-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+
+    .framework-card {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .framework-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 4px 15px rgba(0,123,255,0.15);
+        transform: translateY(-2px);
+    }
+
+    .framework-card.selected {
+        border-color: #28a745;
+        background-color: rgba(40,167,69,0.1);
+    }
+
+    .framework-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+
+    .generation-progress {
+        display: none;
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .code-preview {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .preview-container {
+        display: none;
+        margin-top: 30px;
+    }
+
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .step {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin: 0 10px;
+        position: relative;
+    }
+
+    .step.completed { background-color: #28a745; }
+    .step.active { background-color: #007bff; }
+    .step.pending { background-color: #6c757d; }
+
+    .step-line {
+        width: 60px;
+        height: 2px;
+        background-color: #e9ecef;
+        margin: 0 5px;
+    }
+
+    .step-line.completed { background-color: #28a745; }
+
+    .generation-stats {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 10px;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .file-meta {
+        background: #e9f4ff;
+        border: 1px solid #b8daff;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Back Navigation -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <a href="{% url 'ai_testing:coverage_gap_detail' gap.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Gap Details
+            </a>
+        </div>
+    </div>
+
+    <!-- Generation Header -->
+    <div class="test-generation-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h3 mb-2"><i class="fas fa-magic"></i> Generate Test Code</h1>
+                <h5 class="mb-3">{{ gap.title }}</h5>
+                <p class="mb-0">{{ gap.description|truncatechars:200 }}</p>
+                <div class="mt-2">
+                    <span class="badge bg-light text-dark me-2">{{ gap.get_coverage_type_display }}</span>
+                    <span class="badge bg-{{ gap.priority }} me-2">{{ gap.get_priority_display }}</span>
+                    <span class="badge bg-info">{{ gap.confidence_score|floatformat:0 }}% confidence</span>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="stat-value">~{{ gap.estimated_implementation_time }}h</div>
+                <div class="small">Estimated Implementation</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="step active" id="step-1">1</div>
+        <div class="step-line"></div>
+        <div class="step pending" id="step-2">2</div>
+        <div class="step-line"></div>
+        <div class="step pending" id="step-3">3</div>
+    </div>
+
+    <!-- Generation Stats -->
+    <div class="generation-stats">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-value">{{ gap.affected_platforms|length|default:1 }}</div>
+                    <div class="small text-muted">Platform{{ gap.affected_platforms|length|pluralize }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-value">{{ gap.affected_endpoints|length|default:1 }}</div>
+                    <div class="small text-muted">Endpoint{{ gap.affected_endpoints|length|pluralize }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-value">{{ gap.impact_score|floatformat:1 }}</div>
+                    <div class="small text-muted">Impact Score</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-value">{{ gap.similar_gaps_count|default:0 }}</div>
+                    <div class="small text-muted">Similar Gap{{ gap.similar_gaps_count|pluralize }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Framework Selection -->
+        <div class="col-lg-8">
+            <div id="framework-selection" class="mb-4">
+                <h4>Step 1: Select Test Framework</h4>
+                <p class="text-muted mb-4">Choose the testing framework that best fits your project structure and requirements.</p>
+
+                <div class="row">
+                    {% for value, label in framework_choices %}
+                        <div class="col-md-6">
+                            <div class="framework-card" data-framework="{{ value }}" onclick="selectFramework('{{ value }}', '{{ label }}')">
+                                <div class="text-center">
+                                    <div class="framework-icon">
+                                        {% if 'Android' in label or 'kotlin' in value %}
+                                            <i class="fab fa-android text-success"></i>
+                                        {% elif 'iOS' in label or 'swift' in value %}
+                                            <i class="fab fa-apple text-primary"></i>
+                                        {% else %}
+                                            <i class="fas fa-code text-info"></i>
+                                        {% endif %}
+                                    </div>
+                                    <h6 class="mb-2">{{ label }}</h6>
+                                    <p class="small text-muted mb-0">
+                                        {% if value == 'paparazzi' %}
+                                            Visual regression testing for Android UI components
+                                        {% elif value == 'macrobenchmark' %}
+                                            Performance testing and benchmarking for Android
+                                        {% elif value == 'espresso' %}
+                                            UI testing framework for Android applications
+                                        {% elif value == 'junit' %}
+                                            Unit testing framework for Java/Kotlin
+                                        {% elif value == 'robolectric' %}
+                                            Unit testing framework that runs on JVM
+                                        {% elif value == 'ui_testing' %}
+                                            SwiftUI and UIKit testing for iOS applications
+                                        {% elif value == 'xctest' %}
+                                            Apple's testing framework for iOS/macOS
+                                        {% else %}
+                                            Custom testing framework integration
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% if value == gap.recommended_framework %}
+                                    <div class="text-center mt-2">
+                                        <span class="badge bg-success">AI Recommended</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="text-center mt-4">
+                    <button id="generate-btn" class="btn btn-primary btn-lg" disabled onclick="generateTestCode()">
+                        <i class="fas fa-magic"></i> Generate Test Code
+                    </button>
+                </div>
+            </div>
+
+            <!-- Generation Progress -->
+            <div id="generation-progress" class="generation-progress">
+                <div class="mb-4">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Generating...</span>
+                    </div>
+                </div>
+                <h5>Generating Test Code...</h5>
+                <p class="text-muted">AI is analyzing the coverage gap and creating optimized test code</p>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="progress-text" class="mt-2 small text-muted">Initializing generation...</div>
+            </div>
+
+            <!-- Test Code Preview -->
+            <div id="preview-container" class="preview-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>Step 3: Review & Download</h4>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary" onclick="copyToClipboard()">
+                            <i class="fas fa-copy"></i> Copy Code
+                        </button>
+                        <button class="btn btn-success" onclick="downloadTest()">
+                            <i class="fas fa-download"></i> Download Test File
+                        </button>
+                    </div>
+                </div>
+
+                <div class="file-meta">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <strong id="file-name">test_file.kt</strong>
+                            <div class="small text-muted mt-1">
+                                Framework: <span id="selected-framework-name">Selected Framework</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="small text-muted">
+                                Lines: <span id="code-lines">0</span> |
+                                Size: <span id="code-size">0 KB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-preview">
+                    <pre id="generated-code"><code id="code-content" class="language-kotlin"></code></pre>
+                </div>
+
+                <div class="mt-3 text-center">
+                    <button class="btn btn-outline-secondary me-2" onclick="regenerateTest()">
+                        <i class="fas fa-redo"></i> Regenerate
+                    </button>
+                    <button class="btn btn-success" onclick="saveAndImplement()">
+                        <i class="fas fa-check"></i> Save & Mark for Implementation
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Information -->
+        <div class="col-lg-4">
+            <!-- Affected Components -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-bullseye"></i> Target Components</h6>
+                </div>
+                <div class="card-body">
+                    {% if gap.affected_endpoints %}
+                        <div class="mb-3">
+                            <strong class="small">Endpoints/Components</strong>
+                            <div class="mt-1">
+                                {% for endpoint in gap.affected_endpoints %}
+                                    <div class="small text-muted mb-1">
+                                        <i class="fas fa-link"></i> {{ endpoint }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if gap.affected_platforms %}
+                        <div class="mb-3">
+                            <strong class="small">Platforms</strong>
+                            <div class="mt-1">
+                                {% for platform in gap.affected_platforms %}
+                                    <span class="badge bg-secondary me-1">{{ platform|capfirst }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Generation Tips -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Generation Tips</h6>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <div class="mb-2">
+                            <strong>Best Practices:</strong>
+                        </div>
+                        <ul class="small mb-3">
+                            <li>Review generated test logic before implementation</li>
+                            <li>Adapt assertions to your specific requirements</li>
+                            <li>Consider edge cases not covered automatically</li>
+                            <li>Integrate with your existing test structure</li>
+                        </ul>
+
+                        <div class="mb-2">
+                            <strong>Framework Selection:</strong>
+                        </div>
+                        <p class="small mb-0">
+                            The AI recommendation is based on your gap type ({{ gap.get_coverage_type_display }})
+                            and detected patterns. You can override this selection if needed.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Related Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <div class="mb-2">
+                            <strong>Source Anomaly:</strong>
+                        </div>
+                        <p class="mb-3">{{ gap.anomaly_signature.anomaly_type|title }} - {{ gap.anomaly_signature.occurrence_count }} occurrences</p>
+
+                        <div class="mb-2">
+                            <strong>Implementation Priority:</strong>
+                        </div>
+                        <p class="mb-3">{{ gap.get_priority_display }} priority with {{ gap.confidence_score|floatformat:0 }}% AI confidence</p>
+
+                        {% if gap.similar_gaps_count %}
+                            <div class="mb-2">
+                                <strong>Pattern Recognition:</strong>
+                            </div>
+                            <p class="mb-0">{{ gap.similar_gaps_count }} similar gap{{ gap.similar_gaps_count|pluralize }} detected, enabling pattern-based optimization</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFramework = '{{ gap.recommended_framework }}';
+let selectedFrameworkName = '';
+let generatedCode = null;
+let gapId = '{{ gap.id }}';
+
+// Pre-select recommended framework
+document.addEventListener('DOMContentLoaded', function() {
+    if (selectedFramework) {
+        const frameworkCard = document.querySelector(`[data-framework="${selectedFramework}"]`);
+        if (frameworkCard) {
+            frameworkCard.click();
+        }
+    }
+});
+
+function selectFramework(framework, frameworkName) {
+    // Remove selection from all cards
+    document.querySelectorAll('.framework-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+
+    // Select clicked card
+    document.querySelector(`[data-framework="${framework}"]`).classList.add('selected');
+
+    selectedFramework = framework;
+    selectedFrameworkName = frameworkName;
+
+    // Enable generate button
+    document.getElementById('generate-btn').disabled = false;
+
+    // Update step indicator
+    document.getElementById('step-1').classList.add('completed');
+    document.getElementById('step-1').classList.remove('active');
+    document.getElementById('step-2').classList.add('active');
+    document.querySelector('.step-line').classList.add('completed');
+}
+
+function generateTestCode() {
+    if (!selectedFramework) {
+        showToast('Please select a test framework first', 'warning');
+        return;
+    }
+
+    // Show progress
+    document.getElementById('framework-selection').style.display = 'none';
+    document.getElementById('generation-progress').style.display = 'block';
+
+    // Update step indicator
+    document.getElementById('step-2').classList.add('completed');
+    document.getElementById('step-2').classList.remove('active');
+    document.querySelectorAll('.step-line')[1].classList.add('completed');
+
+    // Simulate progress updates
+    simulateProgress();
+
+    // Make actual request
+    fetch(`/streamlab/ai/coverage-gaps/${gapId}/generate-test/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: `framework=${selectedFramework}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            generatedCode = data.test_code;
+            showPreview(data);
+        } else {
+            showError(data.error || 'Failed to generate test code');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('An error occurred while generating test code');
+    });
+}
+
+function simulateProgress() {
+    let progress = 0;
+    const progressBar = document.querySelector('.progress-bar');
+    const progressText = document.getElementById('progress-text');
+
+    const messages = [
+        'Analyzing coverage gap pattern...',
+        'Identifying test scenarios...',
+        'Generating test structure...',
+        'Optimizing assertions and logic...',
+        'Finalizing test code...'
+    ];
+
+    const interval = setInterval(() => {
+        progress += Math.random() * 20;
+        if (progress > 95) progress = 95;
+
+        progressBar.style.width = progress + '%';
+
+        const messageIndex = Math.floor((progress / 100) * messages.length);
+        if (messageIndex < messages.length) {
+            progressText.textContent = messages[messageIndex];
+        }
+    }, 800);
+
+    // Clear interval after completion
+    setTimeout(() => {
+        clearInterval(interval);
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Completing generation...';
+    }, 5000);
+}
+
+function showPreview(data) {
+    // Hide progress
+    document.getElementById('generation-progress').style.display = 'none';
+
+    // Update step indicator
+    document.getElementById('step-3').classList.add('active');
+
+    // Show preview
+    document.getElementById('preview-container').style.display = 'block';
+
+    // Update file information
+    document.getElementById('file-name').textContent = data.file_name || 'test_file.kt';
+    document.getElementById('selected-framework-name').textContent = selectedFrameworkName;
+
+    // Set code content
+    const codeElement = document.getElementById('code-content');
+    codeElement.textContent = data.test_code;
+
+    // Update code stats
+    const lines = data.test_code.split('\n').length;
+    const size = Math.round(data.test_code.length / 1024 * 10) / 10;
+    document.getElementById('code-lines').textContent = lines;
+    document.getElementById('code-size').textContent = size + ' KB';
+
+    // Update language class for syntax highlighting
+    const language = data.framework?.includes('swift') ? 'swift' : 'kotlin';
+    codeElement.className = `language-${language}`;
+
+    // Trigger syntax highlighting
+    Prism.highlightElement(codeElement);
+
+    // Scroll to preview
+    document.getElementById('preview-container').scrollIntoView({ behavior: 'smooth' });
+
+    showToast('Test code generated successfully!', 'success');
+}
+
+function showError(message) {
+    // Hide progress
+    document.getElementById('generation-progress').style.display = 'none';
+
+    // Show framework selection again
+    document.getElementById('framework-selection').style.display = 'block';
+
+    // Reset step indicator
+    document.getElementById('step-2').classList.remove('completed');
+    document.getElementById('step-2').classList.add('active');
+
+    showToast(message, 'danger');
+}
+
+function copyToClipboard() {
+    if (!generatedCode) {
+        showToast('No code to copy', 'warning');
+        return;
+    }
+
+    navigator.clipboard.writeText(generatedCode).then(() => {
+        showToast('Test code copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy to clipboard', 'danger');
+    });
+}
+
+function downloadTest() {
+    if (!generatedCode) {
+        showToast('No test code to download', 'warning');
+        return;
+    }
+
+    window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/download-generated-test/?framework=${selectedFramework}`;
+    showToast('Test file downloaded!', 'success');
+}
+
+function regenerateTest() {
+    // Reset to framework selection
+    document.getElementById('preview-container').style.display = 'none';
+    document.getElementById('framework-selection').style.display = 'block';
+
+    // Reset step indicators
+    document.getElementById('step-2').classList.remove('completed');
+    document.getElementById('step-2').classList.add('active');
+    document.getElementById('step-3').classList.remove('active');
+    document.querySelector('.step-line:nth-child(3)').classList.remove('completed');
+
+    generatedCode = null;
+}
+
+function saveAndImplement() {
+    if (!generatedCode) {
+        showToast('No test code to save', 'warning');
+        return;
+    }
+
+    // Mark gap as test_generated and redirect to detail page
+    fetch(`/streamlab/ai/coverage-gaps/${gapId}/update-status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: `status=test_generated&notes=Test code generated using ${selectedFrameworkName}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Test saved successfully! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/`;
+            }, 1500);
+        } else {
+            showToast(data.error || 'Failed to save test', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while saving', 'danger');
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

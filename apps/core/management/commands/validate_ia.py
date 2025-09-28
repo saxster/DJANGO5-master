@@ -2,18 +2,8 @@
 Management command for Information Architecture validation
 Validates URL mappings, checks for dead links, and reports migration status
 """
-from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
-from django.urls import reverse, NoReverseMatch
-from django.core.cache import cache
-from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.utils import timezone
-from datetime import datetime, timedelta
-import requests
-import sys
-from typing import List, Dict, Tuple
-
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.middleware.navigation_tracking import NavigationTrackingMiddleware
 
@@ -190,7 +180,7 @@ class Command(BaseCommand):
                         else:
                             self.results['redirects']['passed'] += 1
                     
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValidationError, ValueError) as e:
                 failed_redirects.append(f"{old_url} -> Error: {str(e)}")
                 self.results['redirects']['failed'] += 1
         
@@ -236,7 +226,7 @@ class Command(BaseCommand):
                     if item['url'].startswith('http'):
                         continue  # Skip external URLs
                     # Could add URL resolution check here
-                except Exception as e:
+                except (TypeError, ValidationError, ValueError) as e:
                     menu_issues.append(f"Invalid URL in menu: {item['url']}")
             
             if menu_issues:
@@ -248,7 +238,7 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.SUCCESS('✅ Navigation structure is valid'))
                 
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValidationError, ValueError) as e:
             self.results['navigation']['issues'].append(f"Navigation validation error: {str(e)}")
             self.results['navigation']['failed'] += 1
             self.stdout.write(
@@ -292,7 +282,7 @@ class Command(BaseCommand):
             
             self.stdout.write(self.style.SUCCESS('✅ Performance tracking validated'))
             
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValidationError, ValueError) as e:
             self.results['performance']['issues'].append(f"Performance validation error: {str(e)}")
             self.results['performance']['failed'] += 1
             self.stdout.write(
@@ -339,7 +329,7 @@ class Command(BaseCommand):
                 self.results['structure']['passed'] = 1
                 self.stdout.write(self.style.SUCCESS('✅ URL structure is valid'))
                 
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValidationError, ValueError) as e:
             self.results['structure']['issues'].append(f"Structure validation error: {str(e)}")
             self.results['structure']['failed'] += 1
             self.stdout.write(

@@ -1,5 +1,4 @@
 from graphene import Scalar
-from django.contrib.gis.geos import GEOSGeometry, Point, LineString, Polygon
 
 
 class PointScalar(Scalar):

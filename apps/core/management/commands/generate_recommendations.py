@@ -83,7 +83,7 @@ class Command(BaseCommand):
                 self.style.SUCCESS('Successfully generated recommendations')
             )
             
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError) as e:
             logger.error(f"Error in generate_recommendations command: {str(e)}")
             raise CommandError(f'Error generating recommendations: {str(e)}')
 
@@ -139,7 +139,7 @@ class Command(BaseCommand):
                             if not existing:
                                 rec.save()
                                 saved_count += 1
-                        except Exception as e:
+                        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                             logger.error(f"Error saving recommendation for user {user.id}: {str(e)}")
                     
                     if self.verbose:
@@ -150,7 +150,7 @@ class Command(BaseCommand):
                     if self.verbose:
                         self.stdout.write(f'  No recommendations generated for {user.username}')
                 
-            except Exception as e:
+            except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                 logger.error(f"Error processing user {user.id}: {str(e)}")
                 if self.verbose:
                     self.stdout.write(f'  Error processing {user.username}: {str(e)}')
@@ -192,7 +192,7 @@ class Command(BaseCommand):
                         if self.verbose:
                             self.stdout.write(f'  Generated: {rec.title}')
                 
-                except Exception as e:
+                except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                     logger.error(f"Error saving navigation recommendation: {str(e)}")
             
             # Generate page-specific recommendations for popular pages
@@ -227,14 +227,14 @@ class Command(BaseCommand):
                             if self.verbose:
                                 self.stdout.write(f'  Generated for {page_url}: {rec.title}')
                 
-                except Exception as e:
+                except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                     logger.error(f"Error generating recommendations for page {page_url}: {str(e)}")
             
             self.stdout.write(
                 self.style.SUCCESS(f'Generated {saved_count} navigation recommendations total')
             )
             
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
             logger.error(f"Error generating navigation recommendations: {str(e)}")
             self.stdout.write(
                 self.style.ERROR(f'Error generating navigation recommendations: {str(e)}')
@@ -283,7 +283,7 @@ class Command(BaseCommand):
                     if self.verbose:
                         self.stdout.write(f'  Built profile for {user.username}')
             
-            except Exception as e:
+            except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
                 logger.error(f"Error building profile for user {user.id}: {str(e)}")
         
         self.stdout.write(

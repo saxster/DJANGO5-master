@@ -1,0 +1,438 @@
+<!-- Test Generator Widget - Reusable Component -->
+<div class="test-generator-widget" id="test-generator-{{ gap.id }}">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-magic"></i> Test Generation
+            </h6>
+            <span class="badge bg-{{ gap.priority }}">{{ gap.get_priority_display }}</span>
+        </div>
+        <div class="card-body">
+            {% if gap.auto_generated_test_code %}
+                <!-- Existing Test Code -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong class="small">Generated Test Available</strong>
+                        <span class="badge bg-success small">Ready</span>
+                    </div>
+                    <div class="small text-muted mb-2">
+                        Framework: {{ gap.get_recommended_framework_display }}<br>
+                        Generated: {{ gap.updated_at|timesince }} ago
+                    </div>
+                    <div class="btn-group w-100">
+                        <button class="btn btn-sm btn-outline-primary" onclick="previewTest('{{ gap.id }}')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <a href="{% url 'ai_testing:download_generated_test' %}?gap_id={{ gap.id }}&framework={{ gap.recommended_framework }}"
+                           class="btn btn-sm btn-success">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="regenerateTest('{{ gap.id }}')">
+                            <i class="fas fa-redo"></i> Regenerate
+                        </button>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Generate New Test -->
+                <div class="mb-3">
+                    <div class="small text-muted mb-2">
+                        No test code generated yet for this coverage gap.
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Framework</label>
+                        <select class="form-select form-select-sm" id="framework-{{ gap.id }}">
+                            {% for value, label in framework_choices|default:gap.TEST_FRAMEWORKS %}
+                                <option value="{{ value }}" {% if value == gap.recommended_framework %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button class="btn btn-sm btn-primary w-100" onclick="quickGenerateTest('{{ gap.id }}')">
+                        <i class="fas fa-magic"></i> Generate Test
+                    </button>
+                </div>
+            {% endif %}
+
+            <!-- Generation Stats -->
+            <div class="row text-center small">
+                <div class="col-4">
+                    <div class="text-muted">Confidence</div>
+                    <div class="fw-bold text-primary">{{ gap.confidence_score|floatformat:0 }}%</div>
+                </div>
+                <div class="col-4">
+                    <div class="text-muted">Impact</div>
+                    <div class="fw-bold text-warning">{{ gap.impact_score|floatformat:1 }}/10</div>
+                </div>
+                <div class="col-4">
+                    <div class="text-muted">Est. Time</div>
+                    <div class="fw-bold text-info">{{ gap.estimated_implementation_time }}h</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Preview Modal -->
+<div class="modal fade" id="testPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-code"></i> Generated Test Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Loading State -->
+                <div id="preview-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div>Loading test preview...</div>
+                </div>
+
+                <!-- Preview Content -->
+                <div id="preview-content" style="display: none;">
+                    <!-- Test Metadata -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <h6 id="preview-title">Test Title</h6>
+                            <div class="small text-muted" id="preview-description">Test description</div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="copyPreviewCode()">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="downloadFromPreview()">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Information -->
+                    <div class="alert alert-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>File:</strong> <span id="preview-filename">test_file.kt</span><br>
+                                <strong>Framework:</strong> <span id="preview-framework">Framework</span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Lines:</strong> <span id="preview-lines">0</span><br>
+                                <strong>Size:</strong> <span id="preview-size">0 KB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Code Preview -->
+                    <div class="code-preview-container">
+                        <pre class="bg-light border rounded p-3" style="max-height: 500px; overflow-y: auto;"><code id="preview-code-display" class="language-kotlin"></code></pre>
+                    </div>
+
+                    <!-- Test Features -->
+                    <div class="mt-4">
+                        <h6>Generated Test Features:</h6>
+                        <div id="test-features" class="small">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="preview-error" style="display: none;" class="text-center py-5">
+                    <div class="text-danger mb-3">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <h6>Preview Error</h6>
+                    <div class="text-muted" id="error-message">Failed to load test preview</div>
+                    <button class="btn btn-outline-primary mt-3" onclick="retryPreview()">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-warning" onclick="regenerateFromPreview()">
+                    <i class="fas fa-redo"></i> Regenerate
+                </button>
+                <button type="button" class="btn btn-success" onclick="acceptAndSave()">
+                    <i class="fas fa-check"></i> Accept & Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.test-generator-widget {
+    margin-bottom: 20px;
+}
+
+.code-preview-container {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.test-feature-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.test-feature-item:last-child {
+    border-bottom: none;
+}
+
+.loading-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+</style>
+
+<script>
+let currentPreviewGapId = null;
+let currentPreviewCode = null;
+
+function quickGenerateTest(gapId) {
+    const framework = document.getElementById(`framework-${gapId}`).value;
+    const button = event.target;
+    const originalText = button.innerHTML;
+
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+    fetch(`/streamlab/ai/coverage-gaps/${gapId}/generate-test/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: `framework=${framework}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Test code generated successfully!', 'success');
+
+            // Refresh the widget to show the generated test
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast(data.error || 'Failed to generate test code', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while generating test code', 'danger');
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function previewTest(gapId) {
+    currentPreviewGapId = gapId;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('testPreviewModal'));
+    modal.show();
+
+    // Reset modal state
+    document.getElementById('preview-loading').style.display = 'block';
+    document.getElementById('preview-content').style.display = 'none';
+    document.getElementById('preview-error').style.display = 'none';
+
+    // Fetch preview data
+    fetch(`/streamlab/ai/test-generation/preview/?gap_id=${gapId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showPreviewContent(data);
+        } else {
+            showPreviewError(data.error || 'Failed to load preview');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showPreviewError('An error occurred while loading preview');
+    });
+}
+
+function showPreviewContent(data) {
+    document.getElementById('preview-loading').style.display = 'none';
+    document.getElementById('preview-error').style.display = 'none';
+    document.getElementById('preview-content').style.display = 'block';
+
+    // Update preview content
+    document.getElementById('preview-title').textContent = `Test for: ${data.description || 'Coverage Gap'}`;
+    document.getElementById('preview-description').textContent = data.description || '';
+    document.getElementById('preview-filename').textContent = data.file_name || 'test_file.kt';
+    document.getElementById('preview-framework').textContent = data.framework || 'Unknown';
+
+    const codeElement = document.getElementById('preview-code-display');
+    codeElement.textContent = data.test_code;
+    currentPreviewCode = data.test_code;
+
+    // Update stats
+    const lines = data.test_code.split('\n').length;
+    const size = Math.round(data.test_code.length / 1024 * 10) / 10;
+    document.getElementById('preview-lines').textContent = lines;
+    document.getElementById('preview-size').textContent = size + ' KB';
+
+    // Update language class for syntax highlighting
+    const language = data.framework?.includes('swift') ? 'swift' : 'kotlin';
+    codeElement.className = `language-${language}`;
+
+    // Generate test features
+    const features = generateTestFeatures(data);
+    document.getElementById('test-features').innerHTML = features;
+
+    // Trigger syntax highlighting if available
+    if (typeof Prism !== 'undefined') {
+        Prism.highlightElement(codeElement);
+    }
+}
+
+function showPreviewError(message) {
+    document.getElementById('preview-loading').style.display = 'none';
+    document.getElementById('preview-content').style.display = 'none';
+    document.getElementById('preview-error').style.display = 'block';
+    document.getElementById('error-message').textContent = message;
+}
+
+function generateTestFeatures(data) {
+    const features = [
+        'Automated test assertions based on gap analysis',
+        'Framework-optimized test structure',
+        'Error scenario coverage',
+        'Platform-specific test configurations'
+    ];
+
+    if (data.coverage_type === 'visual') {
+        features.push('Visual regression testing setup');
+    } else if (data.coverage_type === 'performance') {
+        features.push('Performance benchmarking assertions');
+    } else if (data.coverage_type === 'functional') {
+        features.push('End-to-end functional test coverage');
+    }
+
+    return features.map(feature => `
+        <div class="test-feature-item">
+            <i class="fas fa-check-circle text-success me-2"></i>
+            ${feature}
+        </div>
+    `).join('');
+}
+
+function copyPreviewCode() {
+    if (!currentPreviewCode) {
+        showToast('No code to copy', 'warning');
+        return;
+    }
+
+    navigator.clipboard.writeText(currentPreviewCode).then(() => {
+        showToast('Test code copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy to clipboard', 'danger');
+    });
+}
+
+function downloadFromPreview() {
+    if (!currentPreviewGapId) {
+        showToast('No test to download', 'warning');
+        return;
+    }
+
+    const framework = document.getElementById(`framework-${currentPreviewGapId}`)?.value || 'junit';
+    window.location.href = `/streamlab/ai/coverage-gaps/${currentPreviewGapId}/download-generated-test/?framework=${framework}`;
+    showToast('Test file downloaded!', 'success');
+}
+
+function regenerateTest(gapId) {
+    // Redirect to full generation page
+    window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/generate-test/`;
+}
+
+function regenerateFromPreview() {
+    if (currentPreviewGapId) {
+        regenerateTest(currentPreviewGapId);
+    }
+}
+
+function retryPreview() {
+    if (currentPreviewGapId) {
+        previewTest(currentPreviewGapId);
+    }
+}
+
+function acceptAndSave() {
+    if (!currentPreviewGapId) {
+        showToast('No test to save', 'warning');
+        return;
+    }
+
+    // Update gap status and close modal
+    fetch(`/streamlab/ai/coverage-gaps/${currentPreviewGapId}/update-status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: 'status=test_generated&notes=Test code accepted from preview'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('testPreviewModal')).hide();
+            showToast('Test accepted and saved!', 'success');
+
+            // Refresh the widget
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast(data.error || 'Failed to save test', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while saving', 'danger');
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+           document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>

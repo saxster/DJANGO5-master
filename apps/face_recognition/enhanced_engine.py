@@ -9,15 +9,14 @@ import cv2
 import os
 import time
 import hashlib
-from typing import Dict, List, Optional, Tuple, Any, Union
-from django.conf import settings
-from django.utils import timezone
-from django.db import transaction
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 
-from .models import (
+from apps.face_recognition.models import (
     FaceRecognitionModel, FaceEmbedding, FaceVerificationLog,
     AntiSpoofingModel, FaceQualityMetrics
 )
+from apps.core.exceptions import SecurityException, IntegrationException
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ class EnhancedFaceRecognitionEngine:
                 
             logger.info("Face recognition configuration loaded")
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error loading configuration: {str(e)}")
             # Use defaults
     
@@ -91,7 +90,7 @@ class EnhancedFaceRecognitionEngine:
             
             logger.info("Face recognition models initialized")
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error initializing models: {str(e)}")
     
     def verify_face(
@@ -188,7 +187,7 @@ class EnhancedFaceRecognitionEngine:
             
             return self._finalize_result(result, start_time, user_id, attendance_record_id)
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error in face verification: {str(e)}", exc_info=True)
             processing_time = (time.time() - start_time) * 1000
             
@@ -237,41 +236,62 @@ class EnhancedFaceRecognitionEngine:
                     'error': 'Could not load image'
                 }
             
-            # Basic quality metrics
+            # Convert to grayscale for analysis
             height, width = image.shape[:2]
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            # Detect face first for ROI-based quality assessment
+            face_roi, face_confidence = self._detect_face_roi(image)
+
+            if face_roi is not None:
+                # Extract face region for quality assessment
+                x, y, w, h = face_roi
+                face_gray = gray[y:y+h, x:x+w]
+                face_color = image[y:y+h, x:x+w]
+
+                # Face-specific quality metrics
+                sharpness_score = self._calculate_roi_sharpness(face_gray)
+                brightness_score = self._calculate_roi_brightness(face_gray)
+                contrast_score = self._calculate_roi_contrast(face_gray)
+                face_size_score = self._calculate_face_size_score(w, h, width, height)
+                pose_score = self._estimate_face_pose_quality(face_color)
+                eye_visibility = self._check_eye_visibility(face_color, face_roi)
+
+                overall_quality = np.mean([
+                    sharpness_score, brightness_score, contrast_score,
+                    face_size_score, pose_score, eye_visibility
+                ])
+            else:
+                # Fallback to whole-image assessment if no face detected
+                sharpness_score = self._calculate_roi_sharpness(gray)
+                brightness_score = self._calculate_roi_brightness(gray)
+                contrast_score = self._calculate_roi_contrast(gray)
+                face_size_score = 0.0  # No face detected
+                pose_score = 0.0
+                eye_visibility = 0.0
+                face_confidence = 0.0
+
+                overall_quality = 0.1  # Very low quality if no face
             
-            # Sharpness (Laplacian variance)
-            laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-            sharpness_score = min(1.0, laplacian_var / 100.0)  # Normalize
-            
-            # Brightness (mean intensity)
-            mean_brightness = np.mean(gray)
-            brightness_score = 1.0 - abs(mean_brightness - 127) / 127.0  # Optimal around 127
-            
-            # Contrast (standard deviation)
-            contrast = np.std(gray)
-            contrast_score = min(1.0, contrast / 64.0)  # Normalize
-            
-            # Face size assessment (mock for now)
-            face_size_score = 0.8 if min(width, height) >= 200 else 0.5
-            
-            # Overall quality
-            overall_quality = (sharpness_score * 0.3 + 
-                             brightness_score * 0.25 + 
-                             contrast_score * 0.25 + 
-                             face_size_score * 0.2)
-            
-            # Identify issues
+            # Identify issues based on face ROI assessment
             quality_issues = []
-            if sharpness_score < 0.5:
-                quality_issues.append('LOW_SHARPNESS')
-            if brightness_score < 0.5:
-                quality_issues.append('POOR_LIGHTING')
-            if contrast_score < 0.4:
-                quality_issues.append('LOW_CONTRAST')
-            if face_size_score < 0.7:
-                quality_issues.append('SMALL_FACE_SIZE')
+            if face_roi is None:
+                quality_issues.append('NO_FACE_DETECTED')
+            else:
+                if sharpness_score < 0.5:
+                    quality_issues.append('LOW_SHARPNESS')
+                if brightness_score < 0.5:
+                    quality_issues.append('POOR_LIGHTING')
+                if contrast_score < 0.4:
+                    quality_issues.append('LOW_CONTRAST')
+                if face_size_score < 0.7:
+                    quality_issues.append('SMALL_FACE_SIZE')
+                if pose_score < 0.6:
+                    quality_issues.append('POOR_FACE_POSE')
+                if eye_visibility < 0.5:
+                    quality_issues.append('EYES_NOT_VISIBLE')
+                if face_confidence < 0.7:
+                    quality_issues.append('LOW_DETECTION_CONFIDENCE')
             
             # Save quality metrics
             try:
@@ -283,17 +303,17 @@ class EnhancedFaceRecognitionEngine:
                     brightness_score=brightness_score,
                     contrast_score=contrast_score,
                     face_size_score=face_size_score,
-                    face_pose_score=0.8,  # Mock value
-                    eye_visibility_score=0.8,  # Mock value
+                    face_pose_score=pose_score if face_roi else 0.0,
+                    eye_visibility_score=eye_visibility if face_roi else 0.0,
                     resolution_width=width,
                     resolution_height=height,
-                    file_size_bytes=os.path.getsize(image_path),
-                    face_detection_confidence=0.9,  # Mock value
-                    landmark_quality={'quality': 'good'},
+                    file_size_bytes=os.path.getsize(image_path) if os.path.exists(image_path) else 0,
+                    face_detection_confidence=face_confidence,
+                    landmark_quality={'detected': face_roi is not None},
                     quality_issues=quality_issues,
-                    improvement_suggestions=[]
+                    improvement_suggestions=self._generate_improvement_suggestions(quality_issues)
                 )
-            except Exception as e:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 logger.warning(f"Could not save quality metrics: {str(e)}")
             
             return {
@@ -306,13 +326,144 @@ class EnhancedFaceRecognitionEngine:
                 'cached': False
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error assessing image quality: {str(e)}")
             return {
                 'overall_quality': 0.0,
                 'error': str(e)
             }
-    
+
+    def _detect_face_roi(self, image) -> tuple:
+        """Detect face region of interest using Haar cascades"""
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            # Use Haar cascade for face detection (lightweight)
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+            if len(faces) > 0:
+                # Return the largest face
+                largest_face = max(faces, key=lambda face: face[2] * face[3])
+                x, y, w, h = largest_face
+                confidence = 0.8  # Mock confidence for Haar cascade
+                return (x, y, w, h), confidence
+
+            return None, 0.0
+
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
+            logger.error(f"Error detecting face ROI: {str(e)}")
+            return None, 0.0
+
+    def _calculate_roi_sharpness(self, roi_gray):
+        """Calculate sharpness score for a specific ROI using Laplacian variance"""
+        try:
+            laplacian_var = cv2.Laplacian(roi_gray, cv2.CV_64F).var()
+            # Normalize to 0-1 range (100 is empirically good threshold)
+            return min(1.0, laplacian_var / 100.0)
+        except:
+            return 0.0
+
+    def _calculate_roi_brightness(self, roi_gray):
+        """Calculate brightness adequacy score for ROI"""
+        try:
+            mean_brightness = np.mean(roi_gray)
+            # Optimal brightness around 127 (middle gray)
+            return 1.0 - abs(mean_brightness - 127) / 127.0
+        except:
+            return 0.0
+
+    def _calculate_roi_contrast(self, roi_gray):
+        """Calculate contrast score for ROI"""
+        try:
+            contrast = np.std(roi_gray)
+            # Normalize (64 is empirically good threshold)
+            return min(1.0, contrast / 64.0)
+        except:
+            return 0.0
+
+    def _calculate_face_size_score(self, face_w, face_h, img_w, img_h):
+        """Calculate face size adequacy score"""
+        try:
+            face_area = face_w * face_h
+            img_area = img_w * img_h
+            face_ratio = face_area / img_area
+
+            # Optimal face ratio between 0.1 and 0.4 (10-40% of image)
+            if 0.1 <= face_ratio <= 0.4:
+                return 1.0
+            elif face_ratio < 0.1:
+                return face_ratio / 0.1  # Scale from 0 to 1
+            else:
+                return max(0.1, 1.0 - (face_ratio - 0.4) / 0.6)  # Decrease for very large faces
+        except:
+            return 0.0
+
+    def _estimate_face_pose_quality(self, face_color):
+        """Estimate face pose quality (simplified implementation)"""
+        try:
+            # Convert to grayscale for analysis
+            gray = cv2.cvtColor(face_color, cv2.COLOR_BGR2GRAY)
+
+            # Simple symmetry check as pose quality indicator
+            height, width = gray.shape
+            left_half = gray[:, :width//2]
+            right_half = cv2.flip(gray[:, width//2:], 1)
+
+            # Resize to ensure same dimensions
+            min_width = min(left_half.shape[1], right_half.shape[1])
+            left_half = left_half[:, :min_width]
+            right_half = right_half[:, :min_width]
+
+            # Calculate correlation between halves
+            correlation = np.corrcoef(left_half.flatten(), right_half.flatten())[0, 1]
+
+            # Convert correlation to 0-1 score
+            return max(0.0, min(1.0, (correlation + 1) / 2))
+        except:
+            return 0.5  # Default neutral score
+
+    def _check_eye_visibility(self, face_color, face_roi):
+        """Check if eyes are visible in the face (simplified implementation)"""
+        try:
+            # Use eye cascade to detect eyes
+            gray = cv2.cvtColor(face_color, cv2.COLOR_BGR2GRAY)
+            eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+            eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(10, 10))
+
+            # Score based on number of eyes detected (2 is optimal)
+            if len(eyes) >= 2:
+                return 1.0
+            elif len(eyes) == 1:
+                return 0.7
+            else:
+                return 0.2  # Some visibility assumed even without detection
+        except:
+            return 0.5  # Default score
+
+    def _generate_improvement_suggestions(self, quality_issues):
+        """Generate actionable suggestions based on quality issues"""
+        suggestions = []
+
+        if 'NO_FACE_DETECTED' in quality_issues:
+            suggestions.append("Ensure face is clearly visible in the image")
+        if 'LOW_SHARPNESS' in quality_issues:
+            suggestions.append("Reduce camera shake and ensure proper focus")
+        if 'POOR_LIGHTING' in quality_issues:
+            suggestions.append("Improve lighting conditions - avoid overexposure or underexposure")
+        if 'LOW_CONTRAST' in quality_issues:
+            suggestions.append("Increase image contrast or improve lighting uniformity")
+        if 'SMALL_FACE_SIZE' in quality_issues:
+            suggestions.append("Move closer to camera or use higher resolution image")
+        if 'POOR_FACE_POSE' in quality_issues:
+            suggestions.append("Face the camera more directly")
+        if 'EYES_NOT_VISIBLE' in quality_issues:
+            suggestions.append("Ensure eyes are clearly visible and not obstructed")
+        if 'LOW_DETECTION_CONFIDENCE' in quality_issues:
+            suggestions.append("Improve overall image quality and face visibility")
+
+        return suggestions
+
     def _detect_spoofing(self, image_path: str) -> Dict[str, Any]:
         """Detect spoofing attempts using anti-spoofing models"""
         try:
@@ -347,7 +498,7 @@ class EnhancedFaceRecognitionEngine:
                 'fraud_indicators': fraud_indicators
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error in anti-spoofing detection: {str(e)}")
             return {
                 'spoof_detected': False,
@@ -357,19 +508,46 @@ class EnhancedFaceRecognitionEngine:
             }
     
     def _get_user_embeddings(self, user_id: int) -> List[FaceEmbedding]:
-        """Get face embeddings for a user"""
+        """Get face embeddings for a user with caching"""
+        from django.core.cache import cache
+
+        # Cache key with user ID and version for cache invalidation
+        cache_key = f"fr_embeddings:{user_id}"
+
         try:
+            # Try to get from cache first
+            cached_embeddings = cache.get(cache_key)
+            if cached_embeddings is not None:
+                logger.debug(f"Cache hit for user embeddings: {user_id}")
+                return cached_embeddings
+
+            # Cache miss - query database
+            logger.debug(f"Cache miss for user embeddings: {user_id}")
             embeddings = FaceEmbedding.objects.filter(
                 user_id=user_id,
                 is_validated=True
             ).select_related('extraction_model')
-            
-            return list(embeddings)
-            
-        except Exception as e:
+
+            embedding_list = list(embeddings)
+
+            # Cache for 5 minutes (300 seconds)
+            if embedding_list:
+                cache.set(cache_key, embedding_list, timeout=300)
+                logger.debug(f"Cached {len(embedding_list)} embeddings for user {user_id}")
+
+            return embedding_list
+
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error getting user embeddings: {str(e)}")
             return []
-    
+
+    def invalidate_user_embedding_cache(self, user_id: int):
+        """Invalidate cached embeddings for a user"""
+        from django.core.cache import cache
+        cache_key = f"fr_embeddings:{user_id}"
+        cache.delete(cache_key)
+        logger.debug(f"Invalidated embedding cache for user {user_id}")
+
     def _extract_features(self, image_path: str) -> Dict[str, np.ndarray]:
         """Extract features using multiple models"""
         try:
@@ -380,13 +558,13 @@ class EnhancedFaceRecognitionEngine:
                     feature_vector = model.extract_features(image_path)
                     if feature_vector is not None:
                         features[model_name] = feature_vector
-                except Exception as e:
+                except (AttributeError, TypeError, ValueError) as e:
                     logger.warning(f"Error extracting features with {model_name}: {str(e)}")
                     continue
             
             return features
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error extracting features: {str(e)}")
             return {}
     
@@ -425,11 +603,15 @@ class EnhancedFaceRecognitionEngine:
                 best_similarity = max(similarities) if similarities else 0.0
                 best_embedding_idx = similarities.index(best_similarity) if similarities else 0
                 
+                # Use distance threshold consistently
+                distance_threshold = self.config.get('similarity_threshold', 0.3)
+                best_distance = 1.0 - best_similarity
+
                 model_results[model_name] = {
                     'similarity': best_similarity,
-                    'distance': 1.0 - best_similarity,
+                    'distance': best_distance,
                     'matched_embedding_id': model_embeddings[best_embedding_idx].id if similarities else None,
-                    'threshold_met': best_similarity >= (1.0 - self.config.get('similarity_threshold', 0.3))
+                    'threshold_met': best_distance <= distance_threshold
                 }
                 
                 # Add to weighted average
@@ -445,7 +627,8 @@ class EnhancedFaceRecognitionEngine:
                 ensemble_confidence = self._calculate_confidence(model_results, ensemble_similarity)
                 
                 # Determine if verification passed
-                threshold_met = ensemble_distance <= self.config.get('similarity_threshold', 0.3)
+                distance_threshold = self.config.get('similarity_threshold', 0.3)
+                threshold_met = ensemble_distance <= distance_threshold
                 confidence_met = ensemble_confidence >= self.config.get('confidence_threshold', 0.7)
                 
                 return {
@@ -469,7 +652,7 @@ class EnhancedFaceRecognitionEngine:
                     'error': 'No models produced valid results'
                 }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error in ensemble verification: {str(e)}")
             return {
                 'ensemble_similarity': 0.0,
@@ -538,7 +721,7 @@ class EnhancedFaceRecognitionEngine:
                 }
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error in single model verification: {str(e)}")
             return {
                 'similarity_score': 0.0,
@@ -562,7 +745,7 @@ class EnhancedFaceRecognitionEngine:
             
             return float(similarity)
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error calculating cosine similarity: {str(e)}")
             return 0.0
     
@@ -611,7 +794,7 @@ class EnhancedFaceRecognitionEngine:
             
             return max(0.0, min(1.0, confidence))
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error calculating confidence: {str(e)}")
             return 0.0
     
@@ -658,7 +841,7 @@ class EnhancedFaceRecognitionEngine:
                     fraud_score += 0.3
                     fraud_indicators.append('RECENT_FRAUD_HISTORY')
                     
-            except Exception as e:
+            except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
                 logger.warning(f"Error checking fraud history: {str(e)}")
             
             return {
@@ -666,7 +849,7 @@ class EnhancedFaceRecognitionEngine:
                 'fraud_indicators': fraud_indicators
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error assessing fraud risk: {str(e)}")
             return {
                 'fraud_risk_score': 0.0,
@@ -702,7 +885,7 @@ class EnhancedFaceRecognitionEngine:
             
             return verified
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error making verification decision: {str(e)}")
             return False
     
@@ -727,7 +910,7 @@ class EnhancedFaceRecognitionEngine:
             
             return result
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error finalizing result: {str(e)}")
             result['processing_time_ms'] = (time.time() - start_time) * 1000
             return result
@@ -782,7 +965,7 @@ class EnhancedFaceRecognitionEngine:
             
             logger.info(f"Verification attempt logged: {log_entry.id}")
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error logging verification attempt: {str(e)}")
     
     def _update_model_statistics(self, result: Dict[str, Any]):
@@ -807,7 +990,7 @@ class EnhancedFaceRecognitionEngine:
                 except FaceRecognitionModel.DoesNotExist:
                     continue
                     
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error updating model statistics: {str(e)}")
     
     def _calculate_image_hash(self, image_path: str) -> str:
@@ -821,7 +1004,7 @@ class EnhancedFaceRecognitionEngine:
             
             return file_hash[:16]  # Truncate for storage
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, LLMServiceException, OSError, ObjectDoesNotExist, PermissionError, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error calculating image hash: {str(e)}")
             return hashlib.sha256(str(time.time()).encode()).hexdigest()[:16]
 
@@ -829,12 +1012,15 @@ class EnhancedFaceRecognitionEngine:
 # Mock models for development/testing
 class MockFaceNetModel:
     """Mock FaceNet model for development"""
-    
+
     def extract_features(self, image_path: str) -> Optional[np.ndarray]:
-        """Extract features using mock FaceNet model"""
+        """Extract features using mock FaceNet model with image-dependent seeds"""
         try:
-            # Return mock 512-dimensional vector
-            np.random.seed(42)  # Consistent results for testing
+            # Generate image-dependent seed from image path/content hash
+            image_hash = self._calculate_image_dependent_seed(image_path)
+            np.random.seed(image_hash)  # Different seed for different images
+
+            # Generate mock 512-dimensional vector
             features = np.random.normal(0, 1, 512)
             # Normalize
             features = features / np.linalg.norm(features)
@@ -842,35 +1028,88 @@ class MockFaceNetModel:
         except:
             return None
 
+    def _calculate_image_dependent_seed(self, image_path: str) -> int:
+        """Calculate a deterministic seed based on image content or path"""
+        import hashlib
+        try:
+            if os.path.exists(image_path):
+                # Use first 1KB of file for hash (efficient for large images)
+                with open(image_path, 'rb') as f:
+                    content = f.read(1024)
+                hash_obj = hashlib.sha256(content)
+            else:
+                # Fallback to path-based hash if file doesn't exist
+                hash_obj = hashlib.sha256(image_path.encode())
+
+            # Convert first 4 bytes of hash to integer seed
+            return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
+        except:
+            # Ultimate fallback: use path hash
+            return hash(image_path) & 0xFFFFFFFF
+
 
 class MockArcFaceModel:
     """Mock ArcFace model for development"""
-    
+
     def extract_features(self, image_path: str) -> Optional[np.ndarray]:
-        """Extract features using mock ArcFace model"""
+        """Extract features using mock ArcFace model with image-dependent seeds"""
         try:
-            # Return mock 512-dimensional vector with different seed
-            np.random.seed(43)
+            # Generate image-dependent seed (offset by 100 for model differentiation)
+            image_hash = self._calculate_image_dependent_seed(image_path) + 100
+            np.random.seed(image_hash)
+
+            # Generate mock 512-dimensional vector
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
         except:
             return None
+
+    def _calculate_image_dependent_seed(self, image_path: str) -> int:
+        """Calculate a deterministic seed based on image content or path"""
+        import hashlib
+        try:
+            if os.path.exists(image_path):
+                with open(image_path, 'rb') as f:
+                    content = f.read(1024)
+                hash_obj = hashlib.sha256(content)
+            else:
+                hash_obj = hashlib.sha256(image_path.encode())
+            return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
+        except:
+            return hash(image_path) & 0xFFFFFFFF
 
 
 class MockInsightFaceModel:
     """Mock InsightFace model for development"""
-    
+
     def extract_features(self, image_path: str) -> Optional[np.ndarray]:
-        """Extract features using mock InsightFace model"""
+        """Extract features using mock InsightFace model with image-dependent seeds"""
         try:
-            # Return mock 512-dimensional vector with different seed
-            np.random.seed(44)
+            # Generate image-dependent seed (offset by 200 for model differentiation)
+            image_hash = self._calculate_image_dependent_seed(image_path) + 200
+            np.random.seed(image_hash)
+
+            # Generate mock 512-dimensional vector
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
         except:
             return None
+
+    def _calculate_image_dependent_seed(self, image_path: str) -> int:
+        """Calculate a deterministic seed based on image content or path"""
+        import hashlib
+        try:
+            if os.path.exists(image_path):
+                with open(image_path, 'rb') as f:
+                    content = f.read(1024)
+                hash_obj = hashlib.sha256(content)
+            else:
+                hash_obj = hashlib.sha256(image_path.encode())
+            return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
+        except:
+            return hash(image_path) & 0xFFFFFFFF
 
 
 class MockAntiSpoofingModel:

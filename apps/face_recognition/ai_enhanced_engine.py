@@ -11,24 +11,19 @@ Incorporates cutting-edge AI technologies:
 import logging
 import numpy as np
 import cv2
-import os
 import time
 import hashlib
-import json
-from typing import Dict, List, Optional, Tuple, Any, Union
-from datetime import datetime, timedelta
-from django.conf import settings
-from django.utils import timezone
-from django.db import transaction
 from django.core.cache import cache
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 import asyncio
 import concurrent.futures
 from dataclasses import dataclass
 
-from .models import (
-    FaceRecognitionModel, FaceEmbedding, FaceVerificationLog,
+from apps.face_recognition.models import (
     AntiSpoofingModel, FaceQualityMetrics
 )
+from apps.core.exceptions import SecurityException, IntegrationException
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +142,7 @@ class AIEnhancedFaceRecognitionEngine:
             
             logger.info("AI-enhanced models initialized successfully")
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error initializing AI models: {str(e)}")
     
     def _setup_caching(self):
@@ -324,7 +319,7 @@ class AIEnhancedFaceRecognitionEngine:
             
             return biometric_result
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in AI-enhanced verification: {str(e)}", exc_info=True)
             processing_time = (time.time() - start_time) * 1000
             
@@ -423,7 +418,7 @@ class AIEnhancedFaceRecognitionEngine:
             
             return result
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in AI quality assessment: {str(e)}")
             return {
                 'overall_quality': 0.0,
@@ -449,7 +444,7 @@ class AIEnhancedFaceRecognitionEngine:
                     if result['deepfake_detected']:
                         fraud_indicators.append(f'DEEPFAKE_{model_name.upper()}')
                         
-                except Exception as e:
+                except (ConnectionError, TimeoutError, asyncio.CancelledError) as e:
                     logger.warning(f"Deepfake model {model_name} failed: {str(e)}")
                     continue
             
@@ -475,7 +470,7 @@ class AIEnhancedFaceRecognitionEngine:
                 'authenticity_score': 1.0 - avg_deepfake_score
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in deepfake detection: {str(e)}")
             return {
                 'deepfake_detected': False,
@@ -510,7 +505,7 @@ class AIEnhancedFaceRecognitionEngine:
                 'fraud_indicators': ['2D_IMAGE_DETECTED'] if not is_3d else []
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in 3D liveness detection: {str(e)}")
             return {
                 '3d_liveness_detected': True,  # Fail open for compatibility
@@ -578,7 +573,7 @@ class AIEnhancedFaceRecognitionEngine:
                 'fraud_indicators': ['LOW_LIVENESS_SCORE'] if overall_liveness < 0.4 else []
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in advanced liveness analysis: {str(e)}")
             return {
                 'advanced_liveness_score': 0.5,
@@ -891,7 +886,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
                     'error': 'No valid model matches found'
                 }
                 
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in enhanced face recognition: {str(e)}")
             return {
                 'modality': 'face_recognition',
@@ -938,7 +933,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
                 'natural_speech': liveness_result['natural_speech']
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in voice verification: {str(e)}")
             return {
                 'modality': 'voice_recognition',
@@ -1002,7 +997,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
                 'patterns_analyzed': len(pattern_matches)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in behavioral verification: {str(e)}")
             return {
                 'modality': 'behavioral_biometrics',
@@ -1108,7 +1103,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
                 }
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in multi-modal decision fusion: {str(e)}")
             return {
                 'verified': False,
@@ -1122,7 +1117,6 @@ class AIEnhancedFaceRecognitionEngineExtensions:
         """Predictive analytics for attendance and fraud detection"""
         try:
             # Removed: behavioral_analytics import - app removed
-            from datetime import datetime, timedelta
             
             # Get user behavior profile
             try:
@@ -1197,7 +1191,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
                 'confidence_deviation': current_verification_confidence - regularity_score
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in predictive analysis: {str(e)}")
             return {
                 'high_fraud_risk': False,
@@ -1270,7 +1264,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
             
             logger.info(f"Enhanced verification logged: {log_entry.id}")
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error logging enhanced verification: {str(e)}")
     
     # Helper methods
@@ -1325,7 +1319,7 @@ class AIEnhancedFaceRecognitionEngineExtensions:
             
             return float(similarity)
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error calculating cosine similarity: {str(e)}")
             return 0.0
     

@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook to prevent generic exception handling patterns
+# Blocks commits containing "except Exception:" patterns
+#
+# Installation:
+#   cp .githooks/pre-commit-exception-check .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}🔍 Checking for generic exception handling patterns...${NC}"
+
+# Get list of staged Python files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+
+if [ -z "$STAGED_FILES" ]; then
+    echo -e "${GREEN}✅ No Python files to check${NC}"
+    exit 0
+fi
+
+# Initialize violation counter
+VIOLATIONS=0
+VIOLATION_DETAILS=""
+
+# Check each staged file
+for FILE in $STAGED_FILES; do
+    # Skip migrations and test files (allow temporary exceptions in tests)
+    if [[ "$FILE" == *"/migrations/"* ]] || [[ "$FILE" == *"__pycache__"* ]]; then
+        continue
+    fi
+
+    # Check for "except Exception:" pattern
+    MATCHES=$(git diff --cached "$FILE" | grep '^+.*except Exception' || true)
+
+    if [ ! -z "$MATCHES" ]; then
+        VIOLATIONS=$((VIOLATIONS + 1))
+        VIOLATION_DETAILS="${VIOLATION_DETAILS}\n${RED}❌ $FILE${NC}"
+        VIOLATION_DETAILS="${VIOLATION_DETAILS}\n${MATCHES}\n"
+    fi
+done
+
+# Report results
+if [ $VIOLATIONS -gt 0 ]; then
+    echo -e "${RED}================================================================================================${NC}"
+    echo -e "${RED}🚨 COMMIT BLOCKED: Generic Exception Handling Detected${NC}"
+    echo -e "${RED}================================================================================================${NC}"
+    echo -e ""
+    echo -e "${YELLOW}Found $VIOLATIONS file(s) with generic 'except Exception:' patterns:${NC}"
+    echo -e "$VIOLATION_DETAILS"
+    echo -e ""
+    echo -e "${YELLOW}📋 REQUIRED ACTION:${NC}"
+    echo -e "  Replace generic 'except Exception:' with specific exception types:"
+    echo -e ""
+    echo -e "  ${GREEN}✅ CORRECT:${NC}"
+    echo -e "     except (ValidationError, AuthenticationError) as e:"
+    echo -e "     except (DatabaseError, IntegrityError) as e:"
+    echo -e "     except (ValueError, TypeError, AttributeError) as e:"
+    echo -e ""
+    echo -e "  ${RED}❌ FORBIDDEN:${NC}"
+    echo -e "     except Exception as e:"
+    echo -e "     except BaseException as e:"
+    echo -e ""
+    echo -e "${YELLOW}📚 Available Exception Types:${NC}"
+    echo -e "  - Authentication: AuthenticationError, WrongCredsError, PermissionDeniedError"
+    echo -e "  - Validation: ValidationError, EnhancedValidationException, FormValidationException"
+    echo -e "  - Database: DatabaseError, IntegrityError, DoesNotExist"
+    echo -e "  - Business Logic: BusinessLogicException, BusinessRuleValidationException"
+    echo -e "  - Security: SecurityException, CSRFException, RateLimitException"
+    echo -e ""
+    echo -e "${YELLOW}🛠️  TOOLS TO HELP:${NC}"
+    echo -e "  1. Automated fixer: python scripts/exception_fixer.py --file <filename> --dry-run"
+    echo -e "  2. Scanner report: python scripts/exception_scanner.py --path apps"
+    echo -e "  3. Review guidelines: .claude/rules.md (Rule 11)"
+    echo -e ""
+    echo -e "${YELLOW}⚠️  TO BYPASS (NOT RECOMMENDED):${NC}"
+    echo -e "  git commit --no-verify -m \"your message\""
+    echo -e "  Note: Bypassing requires code review justification"
+    echo -e ""
+    exit 1
+fi
+
+echo -e "${GREEN}✅ No generic exception patterns detected${NC}"
+echo -e "${GREEN}✅ Exception handling check passed${NC}"
+exit 0

@@ -1,20 +1,23 @@
 """
 Views for recommendation system interactions
+
+CSRF Protection Compliance (Rule #3):
+RecommendationInteractionView uses csrf_protect_ajax for POST operations
+that record user interactions (clicks, dismissals, feedback). This remediates
+CVSS 8.1 CSRF vulnerability on recommendation mutation endpoints.
 """
 import json
 import logging
-from typing import Dict, List, Any
-
-from django.http import JsonResponse, Http404
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.core.paginator import Paginator
-from django.shortcuts import render, get_object_or_404
 from django.contrib import messages
 from django.utils import timezone
+from django.shortcuts import redirect
+from django.http import Http404
 
+from apps.core.decorators import csrf_protect_ajax, rate_limit
 from apps.core.recommendation_engine import RecommendationEngine
 from apps.core.models.recommendation import (
     UserBehaviorProfile, ContentRecommendation, NavigationRecommendation,
@@ -67,7 +70,7 @@ class RecommendationAPIView(LoginRequiredMixin, View):
             
             return JsonResponse(result)
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error in RecommendationAPIView: {str(e)}")
             return JsonResponse({'error': 'Internal server error'}, status=500)
     
@@ -100,10 +103,19 @@ class RecommendationAPIView(LoginRequiredMixin, View):
         }
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='post')
+@method_decorator(rate_limit(max_requests=100, window_seconds=300), name='post')
 class RecommendationInteractionView(LoginRequiredMixin, View):
-    """Handle recommendation interactions (clicks, dismissals, feedback)"""
-    
+    """
+    Handle recommendation interactions (clicks, dismissals, feedback).
+
+    Security:
+    - CSRF protected via csrf_protect_ajax decorator (Rule #3 compliant)
+    - Rate limited to 100 requests per 5 minutes
+    - Authenticated users only via LoginRequiredMixin
+    - Tracks user interactions for recommendation improvement
+    """
+
     def post(self, request):
         """Record recommendation interaction"""
         try:
@@ -145,7 +157,7 @@ class RecommendationInteractionView(LoginRequiredMixin, View):
             
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error recording recommendation interaction: {str(e)}")
             return JsonResponse({'error': 'Internal server error'}, status=500)
     
@@ -172,7 +184,7 @@ class RecommendationInteractionView(LoginRequiredMixin, View):
                 }
             )
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error recording feedback: {str(e)}")
 
 
@@ -353,7 +365,7 @@ class RecommendationManagementView(LoginRequiredMixin, View):
                     self._add_quick_feedback(request.user, rec_id, 'not_helpful')
                 messages.success(request, f'Marked {len(rec_ids)} recommendations as not helpful')
         
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error in recommendation management: {str(e)}")
             messages.error(request, 'An error occurred while processing your request')
         
@@ -371,7 +383,7 @@ class RecommendationManagementView(LoginRequiredMixin, View):
                 user=user,
                 defaults={'feedback_type': feedback_type}
             )
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error adding quick feedback: {str(e)}")
 
 
@@ -428,7 +440,7 @@ class AdminRecommendationView(LoginRequiredMixin, View):
             
         except NavigationRecommendation.DoesNotExist:
             messages.error(request, 'Recommendation not found')
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error in admin recommendation action: {str(e)}")
             messages.error(request, 'An error occurred')
         

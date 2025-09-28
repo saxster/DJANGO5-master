@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Encryption Security Compliance{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">🔒 Encryption Security Compliance Dashboard</h1>
+            <p class="text-muted">Real-time monitoring • Updated: {{ timestamp|date:"Y-m-d H:i:s" }}</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-{% if metrics.operational %}success{% else %}danger{% endif %}">
+                <div class="card-body text-center">
+                    <h5 class="card-title">System Health</h5>
+                    <h2 class="display-3">{% if metrics.operational %}✅{% else %}❌{% endif %}</h2>
+                    <p class="text-muted">{{ metrics.status }}</p>
+                    <small>Latency: {{ metrics.latency_ms }}ms</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-{% if migration_status.compliance_percentage == 100 %}success{% else %}warning{% endif %}">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Migration Progress</h5>
+                    <h2 class="display-3">{{ migration_status.compliance_percentage|floatformat:0 }}%</h2>
+                    <p class="text-muted">{{ migration_status.secure_encrypted }}/{{ migration_status.users_with_email }}</p>
+                    <small>Records Migrated</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-{% if key_status.needs_rotation %}warning{% else %}success{% endif %}">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Key Rotation</h5>
+                    <h2 class="display-3">{% if key_status.needs_rotation %}⚠️{% else %}✅{% endif %}</h2>
+                    <p class="text-muted">{{ key_status.active_keys_count }} Active Keys</p>
+                    <small>Last: {{ key_status.last_rotation }}</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-{% if compliance_summary.overall_compliant %}success{% else %}danger{% endif %}">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Compliance Status</h5>
+                    <h2 class="display-3">{% if compliance_summary.overall_compliant %}✅{% else %}❌{% endif %}</h2>
+                    <p class="text-muted">{{ compliance_summary.certification_status }}</p>
+                    <small>Next Audit: {{ compliance_summary.next_audit|date:"Y-m-d" }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    📊 Migration Status Breakdown
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>✅ Secure (FERNET_V1)</span>
+                            <strong class="text-success">{{ migration_status.secure_encrypted }}</strong>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ migration_status.compliance_percentage }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>⚠️ Legacy (ENC_V1)</span>
+                            <strong class="text-warning">{{ migration_status.legacy_encrypted }}</strong>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {% widthratio migration_status.legacy_encrypted migration_status.users_with_email 100 %}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>🚨 Plaintext</span>
+                            <strong class="text-danger">{{ migration_status.plaintext }}</strong>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" style="width: {% widthratio migration_status.plaintext migration_status.users_with_email 100 %}%"></div>
+                        </div>
+                    </div>
+
+                    {% if migration_status.records_needing_migration > 0 %}
+                    <div class="alert alert-warning mt-3">
+                        <strong>⚠️ Action Required:</strong>
+                        {{ migration_status.records_needing_migration }} records need migration.
+                        <br/>
+                        <code>python manage.py migrate_secure_encryption</code>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    🏆 Regulatory Compliance
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Framework</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GDPR (Art. 32)</td>
+                                <td>{% if compliance_summary.gdpr_compliant %}<span class="badge bg-success">✅ COMPLIANT</span>{% else %}<span class="badge bg-danger">❌ FAIL</span>{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <td>HIPAA §164.312</td>
+                                <td>{% if compliance_summary.hipaa_compliant %}<span class="badge bg-success">✅ COMPLIANT</span>{% else %}<span class="badge bg-danger">❌ FAIL</span>{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <td>SOC2 CC6.6</td>
+                                <td>{% if compliance_summary.soc2_compliant %}<span class="badge bg-success">✅ COMPLIANT</span>{% else %}<span class="badge bg-danger">❌ FAIL</span>{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <td>PCI-DSS Req. 3.4</td>
+                                <td>{% if compliance_summary.overall_compliant %}<span class="badge bg-success">✅ COMPLIANT</span>{% else %}<span class="badge bg-danger">❌ FAIL</span>{% endif %}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="mt-3">
+                        <strong>Certification Period:</strong><br/>
+                        <small>{{ compliance_summary.last_audit|date:"Y-m-d" }} to {{ compliance_summary.next_audit|date:"Y-m-d" }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if recent_violations %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    🚨 Recent Security Violations
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>IP Address</th>
+                                <th>Violation Type</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for violation in recent_violations %}
+                            <tr>
+                                <td>{{ violation.timestamp|date:"Y-m-d H:i:s" }}</td>
+                                <td>{{ violation.user }}</td>
+                                <td>{{ violation.ip_address }}</td>
+                                <td>{{ violation.violation_type }}</td>
+                                <td><span class="badge bg-{{ violation.severity|lower }}">{{ violation.severity }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    ⚙️ System Information
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Encryption Algorithm</dt>
+                        <dd class="col-sm-8">{{ metrics.algorithm }}</dd>
+
+                        <dt class="col-sm-4">Current Key ID</dt>
+                        <dd class="col-sm-8"><code>{{ key_status.current_key_id }}</code></dd>
+
+                        <dt class="col-sm-4">Active Keys</dt>
+                        <dd class="col-sm-8">{{ key_status.active_keys_count }}</dd>
+
+                        <dt class="col-sm-4">Avg Encryption Latency</dt>
+                        <dd class="col-sm-8">{{ metrics.latency_ms }}ms</dd>
+
+                        <dt class="col-sm-4">Total Users</dt>
+                        <dd class="col-sm-8">{{ migration_status.total_users }}</dd>
+                    </dl>
+
+                    <div class="mt-3">
+                        <a href="{% url 'admin:index' %}" class="btn btn-secondary">← Back to Admin</a>
+                        <button class="btn btn-primary" onclick="location.reload()">🔄 Refresh</button>
+                        <a href="/api/admin/encryption/metrics/" class="btn btn-info">📊 API Metrics</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+setInterval(function() {
+    fetch('/api/admin/encryption/metrics/')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Encryption metrics updated:', data);
+        })
+        .catch(error => console.error('Metrics refresh failed:', error));
+}, 60000);
+</script>
+{% endblock %}

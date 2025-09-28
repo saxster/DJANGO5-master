@@ -1,12 +1,6 @@
-from django.db.models import Q, F, Subquery
-from django.core.exceptions import EmptyResultSet
-from django.db import transaction, DatabaseError
 from django.http import response as rp
 import apps.activity.models as am
-from apps.y_helpdesk.models import Ticket, EscalationMatrix
-from logging import getLogger
 from pprint import pformat
-from random import shuffle
 from apps.core import utils
 from datetime import datetime, timezone, timedelta
 from django.utils import timezone as dtimezone
@@ -14,9 +8,15 @@ from django.db.models.query import QuerySet
 from apps.reminder.models import Reminder
 import random
 import traceback as tb
-from intelliwiz_config.celery import app
 from celery import shared_task
 from celery.utils.log import get_task_logger
+
+from apps.core.utils_new.datetime_utilities import (
+    convert_to_utc,
+    get_current_utc,
+    format_time_delta,
+)
+
 log = get_task_logger('__main__')
 
 def create_dynamic_job(jobids=None):
@@ -58,7 +58,7 @@ def create_dynamic_job(jobids=None):
                     insert_update_jobneeddetails(jn.id, job, parent = True)
                     resp = create_child_dynamic_tasks(job,people, jn.id, jobstatus, jobtype, jn.other_info)
                     return resp
-    except Exception as e:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
         log.error("something went wrong in dynamic tour scheduling", exc_info=True)
         return {"errors":"Something Went Wrong!"}
     
@@ -110,7 +110,7 @@ def create_job(jobids = None):
                         "Jobneed will going to create for all this datetimes\n %s", (pformat(get_readable_dates(DT))))
                     status, resp = insert_into_jn_and_jnd(job, DT, resp)
                     result['story'].append(resp)
-        except Exception as e:
+        except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             log.critical("something went wrong!", exc_info=True)
     return resp, result
 
@@ -176,7 +176,7 @@ def get_datetime_list(cron_exp, startdtz, enddtz, resp):
         isValidCron = False
         log.warning('Bad Cron error', exc_info = True)
         resp =  {"errors": "Bad Cron Error"}
-    except Exception as ex:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as ex:
         log.critical(
             'get_datetime_list(cron_exp, startdtz, enddtz) \
             Exc(eption: [cronexp:= %s]croniter bad cron error:= %s', cron_exp, str(ex), exc_info=True)
@@ -238,13 +238,14 @@ def insert_into_jn_and_jnd(job, DT, resp):
                         edtz = create_child_tasks(
                             job, pdtz, people, jn.id, jobstatus, jobtype, jn.other_info)
                         if edtz is not None:
-                            jn = am.Jobneed.objects.filter(id = jn.id).update(
-                                expirydatetime = edtz
-                            )
-                            if jn <= 0:
-                                raise ValueError
+                            with transaction.atomic():
+                                jn_obj = am.Jobneed.objects.select_for_update().get(id=jn.id)
+                                jn_obj.expirydatetime = edtz
+                                jn_obj.mdtz = dtimezone.now()
+                                jn_obj.save(update_fields=['expirydatetime', 'mdtz'])
+                                log.info(f"Updated jobneed {jn.id} expirydatetime to {edtz}")
             update_lastgeneratedon(job, pdtz)
-        except Exception as ex:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as ex:
             status = 'failed'
             tracebackExp = tb.format_exc()
             log.critical('insert_into_jn_and_jnd() ERROR', exc_info = True)
@@ -350,7 +351,7 @@ def insert_update_jobneeddetails(jnid, job, parent=False):
         if qsb:
             log.info(f'Checklist found with {len(qsb) if isinstance(qsb, QuerySet) else 1} questions in it.')
             insert_into_jnd(qsb, job, jnid, parent)
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         raise
     log.info("insert_update_jobneeddetails() [END]")
     
@@ -411,7 +412,7 @@ def create_child_tasks(job, _pdtz, _people, jnid, _jobstatus, _jobtype, parent_o
             params['idx'] = idx
             jn = insert_into_jn_for_child(job, params, r)
             insert_update_jobneeddetails(jn.id, r)
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         log.critical(
             "create_child_tasks() ERROR failed to create task's", exc_info = True)
         raise
@@ -454,7 +455,7 @@ def create_child_dynamic_tasks(job,  _people, jnid, _jobstatus, _jobtype, parent
             params['idx'] = idx
             jn = insert_into_jn_for_child(job, params, r)
             insert_update_jobneeddetails(jn.id, r)
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         log.critical(
             "create_child_tasks() ERROR failed to create task's", exc_info = True)
         return {'errors':"Failed to schedule Tour"}
@@ -677,7 +678,7 @@ def create_ppm_reminder(jobs):
                         ctzoffset      = jn.ctzoffset,
                         mailids        = r.notify
                     )
-    except Exception as e:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
         log.critical("something went wrong inside create_ppm_reminder", exc_info=True)
 
 
@@ -729,7 +730,7 @@ def create_ppm_job(jobid=None):
                     log.info(f"create_ppm_job Failed job schedule list:={pformat(F)}")
                     for key, value in list(F.items()):
                         log.info(f"create_ppm_job job_id: {key} | cron: {value}")
-    except Exception as e:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
         log.critical("something went wrong create_ppm_job", exc_info=True)
         
                 
@@ -758,7 +759,7 @@ def send_reminder_email():
             msg.content_subtype = 'html'
             msg.send()
             log.info(f"Reminder mail sent to {recipents} with subject {subject}")
-    except Exception as e:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
         log.critical("Error while sending reminder email", exc_info=True)
         
         
@@ -804,7 +805,7 @@ def delete_from_job(job, checkpointId, checklistId):
             parent     = int(job),
             asset_id = int(checkpointId),
             qset_id  = int(checklistId)).delete()
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         log.critical('delete_from_job() raised  error', exc_info=True)
         raise
 
@@ -814,7 +815,7 @@ def delete_from_jobneed(parentjob, checkpointId, checklistId):
             parent     = int(parentjob),
             asset_id = int(checkpointId),
             qset_id  = int(checklistId)).delete()
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         log.critical("delete_from_jobneed() raised error", exc_info=True)
         raise
 
@@ -826,7 +827,7 @@ def update_lastgeneratedon(job, pdtz):
         ):
             log.info(f"after lastgenreatedon:={pdtz}")
         log.info('update_lastgeneratedon [end]')
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         log.critical("update_lastgeneratedon() raised error", exc_info=True)
         raise
     
@@ -872,7 +873,7 @@ def  insert_into_jn_for_child(job, params, r):
                 people_id      = params['_people'],          other_info = params['parent_other_info'],
                 sgroup_id = job['sgroup_id']
             )
-    except Exception:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError):
         log.error("insert_into_jn_for_child[]", exc_info=True)
         raise
     else:

@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from apps.activity.models.question_model import QuestionSetBelonging
-import json
 
 
 class Command(BaseCommand):
@@ -101,7 +100,7 @@ class Command(BaseCommand):
             self.stdout.write("Question 5 (Suspicious person?) - Always visible")
             self.stdout.write("Question 6 (Any damage?) - Always visible")
             
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
             self.stdout.write(
                 self.style.ERROR(f"Error setting up conditions: {str(e)}")
             )

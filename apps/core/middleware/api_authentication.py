@@ -5,12 +5,12 @@ Provides secure API key-based authentication for API endpoints
 
 import hashlib
 import hmac
-import json
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from django.conf import settings
 from django.core.cache import cache
+from django.db import DatabaseError, IntegrityError
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth import get_user_model
@@ -194,9 +194,12 @@ class APIAuthenticationMiddleware(MiddlewareMixin):
                 # Cache negative result for 1 minute
                 cache.set(cache_key, False, 60)
                 return None
-                
-        except Exception as e:
-            logger.error(f"Error validating API key: {e}")
+
+        except (DatabaseError, ConnectionError) as e:
+            logger.error(f"Database/cache error validating API key: {e}", exc_info=True)
+            return None
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.warning(f"Invalid API key data: {e}")
             return None
             
     def _is_api_key_expired(self, api_key_obj):
@@ -340,9 +343,11 @@ class APIAuthenticationMiddleware(MiddlewareMixin):
                 response_time=0,  # Will be updated in process_response
                 timestamp=datetime.now()
             )
-            
-        except Exception as e:
-            logger.error(f"Failed to log API access: {e}")
+
+        except (DatabaseError, IntegrityError) as e:
+            logger.error(f"Database error logging API access: {e}", exc_info=True)
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.warning(f"Invalid API access log data: {e}")
             
     def _get_client_ip(self, request):
         """

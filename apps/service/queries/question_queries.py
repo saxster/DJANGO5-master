@@ -11,16 +11,13 @@ from apps.service.pydantic_schemas.question_schema import (
     QuestionSetModifiedSchema,
     QuestionSetBelongingModifiedSchema,
 )
-
-from apps.service.inputs.questions_input import (
-    QuestionModifiedFilterInput,
-    QuestionSetModifiedFilterInput,
-    QuestionSetBelongingModifiedFilterInput,
-)
 from apps.service.types import SelectOutputType
 from logging import getLogger
 from apps.core import utils
 from pydantic import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import PermissionDenied
+from apps.service.decorators import require_authentication, require_tenant_access
 
 log = getLogger("mobile_service_log")
 
@@ -60,6 +57,7 @@ class QuestionQueries(graphene.ObjectType):
     )
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_questionsmodifiedafter(self, info, mdtz, ctzoffset, clientid):
         try:
             log.info("request for get_questions_modified_after")
@@ -77,13 +75,17 @@ class QuestionQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_questions_modified_after failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_questions_modified_after failed: {str(e)}")
+            log.error("Validation error in get_questionsmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except Question.DoesNotExist:
+            log.warning("Questions not found")
+            raise GraphQLError("Questions not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_questionsmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_qsetmodifiedafter(self, info, mdtz, ctzoffset, buid, clientid, peopleid):
         try:
             log.info("request for get_questionset_modified_after")
@@ -106,13 +108,17 @@ class QuestionQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_questionset_modified_after failed: {str(ve)}")
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(f"get_questionset_modified_after failed: {str(e)}")
+            log.error("Validation error in get_qsetmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except QuestionSet.DoesNotExist:
+            log.warning("Question sets not found")
+            raise GraphQLError("Question sets not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_qsetmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_qsetbelongingmodifiedafter(self, info, mdtz, ctzoffset, buid, clientid, peopleid, includeDependencyLogic=False):
         try:
             log.info(f"request for get_questionsetbelonging_modified_after (includeDependencyLogic={includeDependencyLogic})")
@@ -172,7 +178,7 @@ class QuestionQueries(graphene.ObjectType):
                             record['dependency_map'] = clean_dependency_map
                             record['has_conditional_logic'] = bool(has_conditional_logic)
                             enhanced_records.append(record)
-                    except Exception as dep_error:
+                    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as dep_error:
                         log.warning(f"Could not process dependencies for qset {qset_id}: {str(dep_error)}")
                         # Add records without dependency data
                         for record in questions:
@@ -197,7 +203,7 @@ class QuestionQueries(graphene.ObjectType):
                                 # Convert complex objects to string representation
                                 clean_record[key] = str(value) if value is not None else None
                         serializable_data.append(clean_record)
-                    except Exception as serialize_error:
+                    except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as serialize_error:
                         log.warning(f"Could not serialize record: {str(serialize_error)}")
                         # Skip problematic records
                         continue
@@ -211,17 +217,20 @@ class QuestionQueries(graphene.ObjectType):
             log.info(f"{count} objects returned...")
             return SelectOutputType(nrows=count, records=records, msg=msg)
         except ValidationError as ve:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(
-                f"get_questionsetbelonging_modified_after failed: {str(ve)}"
-            )
-        except Exception as e:
-            log.error("something went wrong", exc_info=True)
-            raise GraphQLError(
-                f"get_questionsetbelonging_modified_after failed: {str(e)}"
-            )
+            log.error("Validation error in get_qsetbelongingmodifiedafter", exc_info=True)
+            raise GraphQLError(f"Invalid input parameters: {str(ve)}")
+        except QuestionSetBelonging.DoesNotExist:
+            log.warning("QuestionSet belongings not found")
+            raise GraphQLError("QuestionSet belongings not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error("Database error in get_qsetbelongingmodifiedafter", exc_info=True)
+            raise GraphQLError("Database operation failed")
+        except (TypeError, KeyError, json.JSONDecodeError) as e:
+            log.error("Data serialization error in get_qsetbelongingmodifiedafter", exc_info=True)
+            raise GraphQLError("Data processing failed")
 
     @staticmethod
+    @require_tenant_access
     def resolve_get_questionset_with_conditional_logic(self, info, qset_id, clientid, buid):
         """
         Dedicated GraphQL resolver for fetching a questionset with full conditional logic support.
@@ -250,8 +259,15 @@ class QuestionQueries(graphene.ObjectType):
             
             return SelectOutputType(nrows=count, records=records, msg=msg)
             
-        except Exception as e:
-            log.error(f"get_questionset_with_conditional_logic failed for qset_id={qset_id}", exc_info=True)
-            raise GraphQLError(
-                f"get_questionset_with_conditional_logic failed: {str(e)}"
-            )
+        except ValidationError as ve:
+            log.error("Validation error in get_questionset_with_conditional_logic", exc_info=True)
+            raise GraphQLError(f"Invalid question set ID: {str(ve)}")
+        except QuestionSetBelonging.DoesNotExist:
+            log.warning(f"QuestionSet {qset_id} not found")
+            raise GraphQLError("Question set not found")
+        except (DatabaseError, IntegrityError) as e:
+            log.error(f"Database error in get_questionset_with_conditional_logic for qset_id={qset_id}", exc_info=True)
+            raise GraphQLError("Database operation failed")
+        except (TypeError, KeyError, json.JSONDecodeError) as e:
+            log.error(f"Data processing error in get_questionset_with_conditional_logic for qset_id={qset_id}", exc_info=True)
+            raise GraphQLError("Data processing failed")

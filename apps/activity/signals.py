@@ -38,6 +38,22 @@ def convert_dates(obj):
 
 @receiver(post_save, sender=Asset)
 def create_asset_log(sender, instance, created, **kwargs):
+    """
+    Automatically create AssetLog entry when Asset status changes.
+
+    TRANSACTION BEHAVIOR:
+    - This signal fires WITHIN the parent transaction if the caller uses transaction.atomic
+    - If the parent transaction rolls back, this AssetLog will also be rolled back
+    - DO NOT add transaction.atomic here - it would create unnecessary savepoints
+
+    Complies with: .claude/rules.md - Transaction Management Requirements
+
+    Args:
+        sender: The model class (Asset)
+        instance: The actual instance being saved
+        created: Boolean; True if a new record was created
+        **kwargs: Additional keyword arguments
+    """
     if not created:
         last_log = (
             AssetLog.objects.filter(asset_id=instance.id).order_by("-cdtz").first()

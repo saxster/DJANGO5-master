@@ -20,16 +20,11 @@ import hashlib
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Any
-from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
-from django.contrib.staticfiles import finders
-from django.contrib.staticfiles.management.commands.collectstatic import Command as CollectStaticCommand
 
 logger = logging.getLogger('static_optimization')
 
 try:
-    from PIL import Image, ImageOpt
     PIL_AVAILABLE = True
 except ImportError:
     try:
@@ -144,7 +139,7 @@ class Command(BaseCommand):
         for task in tasks:
             try:
                 getattr(self, task)()
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stats['errors'] += 1
                 self.stderr.write(
                     self.style.ERROR(f'Error in {task}: {str(e)}')
@@ -179,7 +174,7 @@ class Command(BaseCommand):
             try:
                 self._compress_image(file_path)
                 self.stats['images_compressed'] += 1
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stats['errors'] += 1
                 if self.verbosity >= 2:
                     self.stderr.write(f'Error compressing {file_path}: {e}')
@@ -205,7 +200,7 @@ class Command(BaseCommand):
             try:
                 self._create_webp_version(file_path)
                 self.stats['webp_created'] += 1
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stats['errors'] += 1
                 if self.verbosity >= 2:
                     self.stderr.write(f'Error creating WebP for {file_path}: {e}')
@@ -223,7 +218,7 @@ class Command(BaseCommand):
             try:
                 self._minify_css_file(file_path)
                 self.stats['assets_minified'] += 1
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stats['errors'] += 1
                 if self.verbosity >= 2:
                     self.stderr.write(f'Error minifying CSS {file_path}: {e}')
@@ -237,7 +232,7 @@ class Command(BaseCommand):
             try:
                 self._minify_js_file(file_path)
                 self.stats['assets_minified'] += 1
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stats['errors'] += 1
                 if self.verbosity >= 2:
                     self.stderr.write(f'Error minifying JS {file_path}: {e}')
@@ -257,7 +252,7 @@ class Command(BaseCommand):
             try:
                 self._pre_compress_file(file_path)
                 self.stats['files_precompressed'] += 1
-            except Exception as e:
+            except (FileNotFoundError, IOError, OSError, PermissionError) as e:
                 self.stats['errors'] += 1
                 if self.verbosity >= 2:
                     self.stderr.write(f'Error pre-compressing {file_path}: {e}')

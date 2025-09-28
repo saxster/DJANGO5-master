@@ -4,6 +4,18 @@ from rest_framework.utils.encoders import JSONEncoder
 from django.contrib.gis.measure import Distance
 
 
+__all__ = [
+    'CustomJsonEncoderWithDistance',
+    'encrypt',
+    'decrypt',
+    'clean_record',
+    'getformatedjson',
+    'sumDig',
+    'orderedRandom',
+    'format_data',
+]
+
+
 class CustomJsonEncoderWithDistance(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Distance):
@@ -12,19 +24,85 @@ class CustomJsonEncoderWithDistance(JSONEncoder):
 
 
 def encrypt(data: bytes) -> bytes:
-    import zlib
-    from base64 import urlsafe_b64encode as b64e
+    """
+    HARD DEPRECATED - DO NOT USE THIS FUNCTION.
 
-    data = bytes(data, "utf-8")
-    return b64e(zlib.compress(data, 9))
+    CRITICAL SECURITY VULNERABILITY (CVSS 7.5):
+    This function uses zlib compression, NOT real encryption!
+    - NOT cryptographically secure
+    - Trivially reversible (anyone can decompress)
+    - NO authentication or integrity protection
+    - NO key management
+    - Violates .claude/rules.md Rule #2
+
+    MIGRATION REQUIRED:
+    Use apps.core.services.secure_encryption_service.encrypt() instead.
+
+    Raises:
+        RuntimeError: ALWAYS - This function is blocked in ALL environments
+    """
+    import logging
+
+    logger = logging.getLogger("security")
+    logger.critical(
+        "SECURITY VIOLATION: Attempted to use HARD DEPRECATED insecure encrypt()",
+        extra={
+            'function': 'string_utils.encrypt',
+            'security_level': 'CRITICAL',
+            'cvss_score': 7.5,
+            'rule_violation': '.claude/rules.md Rule #2',
+            'migration_path': 'apps.core.services.secure_encryption_service.encrypt()'
+        }
+    )
+    raise RuntimeError(
+        "CRITICAL SECURITY ERROR: This encrypt() function is HARD DEPRECATED and blocked in ALL environments.\n"
+        "It uses insecure zlib compression instead of real encryption (CVSS 7.5).\n\n"
+        "REQUIRED MIGRATION:\n"
+        "  from apps.core.services.secure_encryption_service import SecureEncryptionService\n"
+        "  encrypted = SecureEncryptionService.encrypt(data)\n\n"
+        "See .claude/rules.md Rule #2 for details."
+    )
 
 
 def decrypt(obscured: bytes) -> bytes:
-    from zlib import decompress
-    from base64 import urlsafe_b64decode as b64d
+    """
+    HARD DEPRECATED - DO NOT USE THIS FUNCTION.
 
-    byte_val = decompress(b64d(obscured))
-    return byte_val.decode("utf-8")
+    CRITICAL SECURITY VULNERABILITY (CVSS 7.5):
+    This function uses zlib decompression, NOT real decryption!
+    - NOT cryptographically secure
+    - Trivially reversible (anyone can decompress)
+    - NO authentication or integrity protection
+    - NO key management
+    - Violates .claude/rules.md Rule #2
+
+    MIGRATION REQUIRED:
+    Use apps.core.services.secure_encryption_service.decrypt() instead.
+
+    Raises:
+        RuntimeError: ALWAYS - This function is blocked in ALL environments
+    """
+    import logging
+
+    logger = logging.getLogger("security")
+    logger.critical(
+        "SECURITY VIOLATION: Attempted to use HARD DEPRECATED insecure decrypt()",
+        extra={
+            'function': 'string_utils.decrypt',
+            'security_level': 'CRITICAL',
+            'cvss_score': 7.5,
+            'rule_violation': '.claude/rules.md Rule #2',
+            'migration_path': 'apps.core.services.secure_encryption_service.decrypt()'
+        }
+    )
+    raise RuntimeError(
+        "CRITICAL SECURITY ERROR: This decrypt() function is HARD DEPRECATED and blocked in ALL environments.\n"
+        "It uses insecure zlib decompression instead of real decryption (CVSS 7.5).\n\n"
+        "REQUIRED MIGRATION:\n"
+        "  from apps.core.services.secure_encryption_service import SecureEncryptionService\n"
+        "  decrypted = SecureEncryptionService.decrypt(encrypted_data)\n\n"
+        "See .claude/rules.md Rule #2 for details."
+    )
 
 
 def clean_record(record):

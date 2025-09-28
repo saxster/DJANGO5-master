@@ -12,16 +12,13 @@ Usage:
     >>> exec(open('apps/core/validate_queries.py').read())
 """
 
-import os
 import sys
 import time
-from datetime import datetime, timedelta
 from django.utils import timezone
 from django.core.cache import cache
 
 # Import the new query modules
 try:
-    from apps.core.queries import QueryRepository, TreeTraversal, get_query
     from apps.core.raw_queries import get_query as raw_get_query
 except ImportError as e:
     print(f"Import error: {e}")
@@ -119,7 +116,7 @@ def validate_capabilities():
         else:
             print("✗ Cached results don't match")
             
-    except Exception as e:
+    except (TypeError, ValidationError, ValueError) as e:
         print(f"✗ Error testing capabilities: {e}")
 
 def validate_business_units():
@@ -141,7 +138,7 @@ def validate_business_units():
         else:
             print("? No business units found (may be expected if no data)")
             
-    except Exception as e:
+    except (TypeError, ValidationError, ValueError) as e:
         print(f"✗ Error testing business units: {e}")
 
 def validate_reports():
@@ -175,7 +172,7 @@ def validate_reports():
         
         print("✓ Report queries working")
         
-    except Exception as e:
+    except (TypeError, ValidationError, ValueError) as e:
         print(f"✗ Error testing reports: {e}")
 
 def validate_tickets():
@@ -201,7 +198,7 @@ def validate_tickets():
         
         print("✓ Ticket queries working")
         
-    except Exception as e:
+    except (TypeError, ValidationError, ValueError) as e:
         print(f"✗ Error testing tickets: {e}")
 
 def validate_task_summary():
@@ -226,7 +223,7 @@ def validate_task_summary():
         
         print("✓ Task summary query working")
         
-    except Exception as e:
+    except (TypeError, ValidationError, ValueError) as e:
         print(f"✗ Error testing task summary: {e}")
 
 def validate_assets():
@@ -253,7 +250,7 @@ def validate_assets():
         
         print("✓ Asset queries working")
         
-    except Exception as e:
+    except (TypeError, ValidationError, ValueError) as e:
         print(f"✗ Error testing assets: {e}")
 
 def performance_comparison():
@@ -294,11 +291,11 @@ def performance_comparison():
                 else:
                     print("  ? New implementation is slower")
                     
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 print(f"  Could not test old implementation: {e}")
                 print(f"  New ORM: {new_time:.3f}s")
                 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             print(f"  ✗ Error testing {query_name}: {e}")
 
 def main():
@@ -325,7 +322,7 @@ def main():
         try:
             validate_func()
             passed += 1
-        except Exception as e:
+        except (TypeError, ValidationError, ValueError) as e:
             print(f"\n✗ Validation function {validate_func.__name__} failed: {e}")
     
     print_section("Validation Summary")

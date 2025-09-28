@@ -138,6 +138,18 @@
     min-height: 300px;
   }
 
+  /* Quick Actions Widget (Row 3, Left) */
+  .quick-actions-widget {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  /* Daily Tip Widget (Row 3, Center) */
+  .daily-tip-widget {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
   .ticket-chart {
     width: 200px;
     height: 200px;
@@ -213,28 +225,144 @@
     color: #f44336;
   }
 
-  /* Empty center bottom widget */
-  .center-widget {
+  /* Wellness Metrics Widget (Center Bottom) */
+  .wellness-widget {
     grid-column: 2;
     grid-row: 2;
+    min-height: 300px;
+  }
+
+  .wellness-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+  }
+
+  .wellness-stat {
+    text-align: center;
+    flex: 1;
+    padding: 10px;
+  }
+
+  .wellness-stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .wellness-stat-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mood-value { color: #4CAF50; }
+  .stress-value { color: #FF9800; }
+  .energy-value { color: #2196F3; }
+
+  .wellness-chart {
+    height: 150px;
+    margin-top: 20px;
+  }
+
+  /* Quick Actions Widget */
+  .quick-actions-widget {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .quick-actions-widget .widget-title {
+    color: white;
+    margin-bottom: 15px;
+  }
+
+  .quick-action-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: #999;
-    font-style: italic;
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-size: 14px;
+  }
+
+  .quick-action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+
+  .quick-action-btn i {
+    margin-right: 10px;
+    font-size: 18px;
+  }
+
+  /* Daily Tip Widget */
+  .daily-tip-widget {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    border: none;
+  }
+
+  .tip-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #5d4e37;
+    margin-bottom: 15px;
+  }
+
+  .tip-category {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(93, 78, 55, 0.1);
+    border-radius: 12px;
+    font-size: 11px;
+    color: #5d4e37;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  .tip-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+  }
+
+  .tip-btn {
+    padding: 6px 12px;
+    border: 1px solid rgba(93, 78, 55, 0.3);
+    background: rgba(255, 255, 255, 0.7);
+    color: #5d4e37;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .tip-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
   }
 
   /* Responsive Design */
   @media (max-width: 1200px) {
     .dashboard-grid {
       grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto auto auto;
+      grid-template-rows: auto auto auto auto;
     }
-    
+
     .tours-widget { grid-column: 2; grid-row: 1; }
-    .ticket-widget { grid-column: 1; grid-row: 2; }
-    .alerts-widget { grid-column: 2; grid-row: 2; }
-    .center-widget { grid-column: 1 / -1; grid-row: 3; }
+    .wellness-widget { grid-column: 1 / -1; grid-row: 2; }
+    .ticket-widget { grid-column: 1; grid-row: 3; }
+    .alerts-widget { grid-column: 2; grid-row: 3; }
+    .quick-actions-widget { grid-column: 1; grid-row: 4; }
+    .daily-tip-widget { grid-column: 2; grid-row: 4; }
   }
 
   @media (max-width: 768px) {
@@ -363,9 +491,24 @@
       </div>
     </div>
 
-    <!-- Center Widget (Empty) -->
-    <div class="widget center-widget">
-      <span>Additional metrics can be added here</span>
+    <!-- Wellness Metrics Widget (Center Bottom) -->
+    <div class="widget wellness-widget">
+      <h3 class="widget-title">Wellness Overview</h3>
+      <div class="wellness-stats">
+        <div class="wellness-stat">
+          <div class="wellness-stat-value mood-value" id="moodValue">7.2</div>
+          <div class="wellness-stat-label">Avg Mood</div>
+        </div>
+        <div class="wellness-stat">
+          <div class="wellness-stat-value stress-value" id="stressValue">2.8</div>
+          <div class="wellness-stat-label">Stress Level</div>
+        </div>
+        <div class="wellness-stat">
+          <div class="wellness-stat-value energy-value" id="energyValue">6.5</div>
+          <div class="wellness-stat-label">Energy Level</div>
+        </div>
+      </div>
+      <canvas id="wellnessChart" class="wellness-chart"></canvas>
     </div>
 
     <!-- Alerts Widget (Right Side) -->
@@ -407,6 +550,41 @@
         <span class="alert-count">19</span>
       </div>
     </div>
+
+    <!-- Quick Actions Widget (Row 3, Left) -->
+    <div class="widget quick-actions-widget">
+      <h3 class="widget-title">Quick Actions</h3>
+      <a href="/journal/entry/new/" class="quick-action-btn">
+        <i class="material-icons">edit_note</i>
+        <span>New Journal Entry</span>
+      </a>
+      <a href="/journal/entries/" class="quick-action-btn">
+        <i class="material-icons">book</i>
+        <span>View My Journal</span>
+      </a>
+      <a href="/wellness/content/" class="quick-action-btn">
+        <i class="material-icons">psychology</i>
+        <span>Wellness Resources</span>
+      </a>
+      <a href="/journal/analytics/" class="quick-action-btn">
+        <i class="material-icons">insights</i>
+        <span>Wellness Insights</span>
+      </a>
+    </div>
+
+    <!-- Daily Wellness Tip Widget (Row 3, Center) -->
+    <div class="widget daily-tip-widget">
+      <h3 class="widget-title">Daily Wellness Tip</h3>
+      <div class="tip-category">Stress Management</div>
+      <div class="tip-content" id="dailyTipContent">
+        Take a 5-minute breathing break every 2 hours. Deep breathing activates your parasympathetic nervous system, helping reduce stress hormones and improving focus throughout your workday.
+      </div>
+      <div class="tip-actions">
+        <button class="tip-btn" onclick="markTipHelpful()">Helpful</button>
+        <button class="tip-btn" onclick="getNewTip()">New Tip</button>
+        <a href="/wellness/content/" class="tip-btn" style="text-decoration: none; color: inherit;">More Tips</a>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock content %}
@@ -438,7 +616,7 @@ function initializeYOUTILITYCharts() {
           data: [1547, 89, 211],
           backgroundColor: [
             '#4CAF50',  // Green for Working
-            '#FF9800',  // Orange for Maintenance  
+            '#FF9800',  // Orange for Maintenance
             '#2196F3'   // Blue for Standby
           ],
           borderWidth: 2,
@@ -468,7 +646,120 @@ function initializeYOUTILITYCharts() {
     });
   }
 
+  // Wellness Trends Line Chart
+  const wellnessCtx = document.getElementById('wellnessChart');
+  if (wellnessCtx) {
+    new Chart(wellnessCtx, {
+      type: 'line',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Mood',
+          data: [7, 6, 8, 7, 7, 8, 7],
+          borderColor: '#4CAF50',
+          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+          fill: false,
+          tension: 0.4
+        }, {
+          label: 'Stress',
+          data: [3, 4, 2, 3, 3, 2, 3],
+          borderColor: '#FF9800',
+          backgroundColor: 'rgba(255, 152, 0, 0.1)',
+          fill: false,
+          tension: 0.4
+        }, {
+          label: 'Energy',
+          data: [6, 5, 7, 6, 7, 8, 6],
+          borderColor: '#2196F3',
+          backgroundColor: 'rgba(33, 150, 243, 0.1)',
+          fill: false,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 0
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 10,
+            grid: {
+              color: 'rgba(0,0,0,0.1)'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              font: {
+                size: 11
+              }
+            }
+          }
+        },
+        elements: {
+          point: {
+            radius: 3
+          }
+        }
+      }
+    });
+  }
+
   // Ticket chart is now pure CSS - no JavaScript needed
+}
+
+// Wellness dashboard functions
+function markTipHelpful() {
+  // Track that user found tip helpful
+  // TODO: Send to backend API
+  const btn = event.target;
+  btn.textContent = 'Thanks!';
+  btn.style.background = 'rgba(76, 175, 80, 0.7)';
+  btn.style.color = 'white';
+  setTimeout(() => {
+    btn.textContent = 'Helpful';
+    btn.style.background = '';
+    btn.style.color = '';
+  }, 2000);
+}
+
+function getNewTip() {
+  // Get a new wellness tip
+  // TODO: Fetch from API
+  const tips = [
+    {
+      category: 'Mental Health',
+      content: 'Practice the 5-4-3-2-1 grounding technique: identify 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.'
+    },
+    {
+      category: 'Physical Wellness',
+      content: 'Stand up and stretch for 2 minutes every hour. Simple desk stretches can reduce muscle tension and improve circulation.'
+    },
+    {
+      category: 'Productivity',
+      content: 'Use the Pomodoro technique: work for 25 minutes, then take a 5-minute break. This helps maintain focus and prevents burnout.'
+    },
+    {
+      category: 'Mindfulness',
+      content: 'Before starting a challenging task, take 3 deep breaths and set a positive intention. This helps center your mind and approach work mindfully.'
+    }
+  ];
+
+  const randomTip = tips[Math.floor(Math.random() * tips.length)];
+  document.querySelector('.tip-category').textContent = randomTip.category;
+  document.getElementById('dailyTipContent').textContent = randomTip.content;
 }
 </script>
 {% endblock extra_scripts %}

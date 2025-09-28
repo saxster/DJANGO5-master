@@ -1,0 +1,127 @@
+#!/bin/bash
+#
+# Pre-commit hook: Validate Model Complexity
+#
+# This hook enforces .claude/rules.md Rule #7 and Rule #14:
+# - Model files must be < 150 lines (with 200 line absolute max)
+# - Utility functions must be < 50 lines
+# - Settings files must be < 200 lines
+#
+# Installation:
+#   cp .githooks/validate-model-complexity .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "🔍 Validating model complexity compliance..."
+
+# Configuration
+MODEL_LINE_LIMIT=150
+MODEL_MAX_LIMIT=200
+UTILITY_LINE_LIMIT=50
+SETTINGS_LINE_LIMIT=200
+
+VIOLATIONS=0
+
+# Function to count lines in a file
+count_lines() {
+    wc -l < "$1" | tr -d ' '
+}
+
+# Function to check model files
+check_model_file() {
+    local file="$1"
+    local line_count=$(count_lines "$file")
+    local filename=$(basename "$file")
+
+    if [ "$line_count" -gt "$MODEL_MAX_LIMIT" ]; then
+        echo -e "${RED}❌ FAIL:${NC} $file has $line_count lines (absolute max: $MODEL_MAX_LIMIT)"
+        VIOLATIONS=$((VIOLATIONS + 1))
+    elif [ "$line_count" -gt "$MODEL_LINE_LIMIT" ]; then
+        echo -e "${YELLOW}⚠️  WARN:${NC} $file has $line_count lines (target: <$MODEL_LINE_LIMIT)"
+    else
+        echo -e "${GREEN}✓${NC} $file ($line_count lines)"
+    fi
+}
+
+# Check staged Python files in models directories
+echo ""
+echo "📋 Checking model files..."
+
+for file in apps/*/models.py; do
+    if [ -f "$file" ] && git diff --cached --name-only | grep -q "^$file$"; then
+        check_model_file "$file"
+    fi
+done
+
+for file in apps/*/models/*.py; do
+    if [ -f "$file" ] && [ "$(basename "$file")" != "__init__.py" ]; then
+        if git diff --cached --name-only | grep -q "^$file$"; then
+            check_model_file "$file"
+        fi
+    fi
+done
+
+# Check mixin files
+echo ""
+echo "🔧 Checking mixin files..."
+
+for file in apps/*/mixins/*.py; do
+    if [ -f "$file" ] && [ "$(basename "$file")" != "__init__.py" ]; then
+        if git diff --cached --name-only | grep -q "^$file$"; then
+            local line_count=$(count_lines "$file")
+            if [ "$line_count" -gt "$MODEL_LINE_LIMIT" ]; then
+                echo -e "${RED}❌ FAIL:${NC} $file has $line_count lines (limit: $MODEL_LINE_LIMIT)"
+                VIOLATIONS=$((VIOLATIONS + 1))
+            else
+                echo -e "${GREEN}✓${NC} $file ($line_count lines)"
+            fi
+        fi
+    fi
+done
+
+# Check settings files
+echo ""
+echo "⚙️  Checking settings files..."
+
+for file in */settings.py */settings/*.py; do
+    if [ -f "$file" ] && [ "$(basename "$file")" != "__init__.py" ]; then
+        if git diff --cached --name-only | grep -q "^$file$"; then
+            local line_count=$(count_lines "$file")
+            if [ "$line_count" -gt "$SETTINGS_LINE_LIMIT" ]; then
+                echo -e "${RED}❌ FAIL:${NC} $file has $line_count lines (limit: $SETTINGS_LINE_LIMIT)"
+                VIOLATIONS=$((VIOLATIONS + 1))
+            else
+                echo -e "${GREEN}✓${NC} $file ($line_count lines)"
+            fi
+        fi
+    fi
+done
+
+# Summary
+echo ""
+if [ "$VIOLATIONS" -eq 0 ]; then
+    echo -e "${GREEN}✅ All model complexity checks passed!${NC}"
+    echo ""
+    exit 0
+else
+    echo -e "${RED}❌ Found $VIOLATIONS violations of code complexity rules${NC}"
+    echo ""
+    echo "Please refactor the files above to comply with .claude/rules.md:"
+    echo "  - Model files: < 150 lines (absolute max: 200)"
+    echo "  - Utility functions: < 50 lines"
+    echo "  - Settings files: < 200 lines"
+    echo ""
+    echo "Consider:"
+    echo "  1. Extract methods to mixins"
+    echo "  2. Move business logic to service classes"
+    echo "  3. Split large files into focused modules"
+    echo ""
+    exit 1
+fi

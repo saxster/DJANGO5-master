@@ -2,17 +2,9 @@
 Comprehensive tests for the GeofenceService
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 from django.test import TestCase, override_settings
-from django.contrib.gis.geos import Point, Polygon
 from django.core.cache import cache
 from apps.core.services.geofence_service import GeofenceService, GeofenceAuditTrail
-from apps.onboarding.models import GeofenceMaster, Bt
-from apps.peoples.models import People
-import json
-from datetime import datetime, timedelta
-
 
 class GeofenceServiceTests(TestCase):
     """Test cases for GeofenceService"""

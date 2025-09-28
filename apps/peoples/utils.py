@@ -1,9 +1,8 @@
 import logging
 from apps.peoples import models as pm
-from apps.tenants.models import Tenant
-from apps.peoples import utils as putils
-from apps.core import utils
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 
 logger = logging.getLogger("django")
 error_logger = logging.getLogger("error_logger")
@@ -32,9 +31,9 @@ def save_jsonform(peoplepref_form, p):
             "userfor",
         ]:
             p.people_extras[k] = peoplepref_form.cleaned_data.get(k)
-    except Exception:
+    except (KeyError, AttributeError, TypeError) as e:
         logger.critical("save_jsonform(peoplepref_form, p)... FAILED", exc_info=True)
-        raise
+        raise ValueError("Failed to save JSON form data") from e
     else:
         logger.info("jsonform saved DONE ... ")
         return True
@@ -69,9 +68,9 @@ def get_people_prefform(people, request):
             )
         }
 
-    except Exception:
+    except (KeyError, AttributeError) as e:
         logger.critical("get_people_prefform(people)... FAILED", exc_info=True)
-        raise
+        raise ValueError("Failed to retrieve people preference form") from e
     else:
         logger.info("people prefform (json form) retrieved... DONE")
         return PeopleExtrasForm(initial=d, request=request)
@@ -137,9 +136,9 @@ def save_userinfo(instance, user, session, client=None, bu=None, create=True):
         except (KeyError, ObjectDoesNotExist):
             instance.tenant = None
             instance.client = None
-        except Exception:
+        except (AttributeError, ValueError) as e:
             logger.critical("something went wrong !!!", exc_info=True)
-            raise
+            raise ValueError("Failed to save user info") from e
         return instance
 
 
@@ -151,9 +150,9 @@ def validate_emailadd(val):
         user = People.objects.filter(email__exact=val)
         if not user.exists():
             raise forms.ValidationError("User with this email doesn't exist")
-    except Exception:
+    except (ValidationError, AttributeError, ValueError) as e:
         logger.critical("validate_emailadd(val)... FAILED", exc_info=True)
-        raise
+        raise ValidationError("Email validation failed") from e
 
 
 def validate_mobileno(val):
@@ -164,22 +163,21 @@ def validate_mobileno(val):
         user = People.objects.filter(mobno__exact=val)
         if not user.exists():
             raise forms.ValidationError("User with this mobile no doesn't exist")
-    except Exception:
+    except (ValidationError, AttributeError, ValueError) as e:
         error_logger.error("validate_mobileno(val)... FAILED", exc_info=True)
-        raise
+        raise ValidationError("Mobile number validation failed") from e
 
 
 def save_tenant_client_info(request):
-    from apps.onboarding.models import Bt
 
     try:
         logger.info("saving tenant & client info into the session...STARTED")
         request.session["client_id"] = request.user.client.id
         request.session["bu_id"] = request.user.bu.id
         logger.info("saving tenant & client info into the session...DONE")
-    except Exception:
+    except (AttributeError, KeyError) as e:
         logger.critical("save_tenant_client_info failed", exc_info=True)
-        raise
+        raise ValueError("Failed to save tenant and client info to session") from e
 
 
 def get_caps_from_db():
@@ -418,7 +416,7 @@ def get_caps_choices(client=None, cfor=None, session=None, people=None):
 
 
 def save_user_paswd(user):
-    logger.info("Password is created by system... DONE")
+    logger.info("System-generated credentials saved", extra={'user_id': user.id if hasattr(user, 'id') else None})
     paswd = f"{user.loginid}@youtility"
     user.set_password(paswd)
     user.save()
@@ -437,7 +435,6 @@ def get_choices_for_peoplevsgrp(request):
 
 def save_pgroupbelonging(pg, request):
     debug_logger.debug("saving pgbelonging for pgroup %s", (pg))
-    from apps.onboarding.models import Bt
 
     peoples = request.POST.getlist("peoples[]")
     S = request.session
@@ -455,9 +452,41 @@ def save_pgroupbelonging(pg, request):
                 if request.session.get("wizard_data"):
                     request.session["wizard_data"]["pgbids"].append(pgb.id)
                 save_cuser_muser(pgb, request.user)
-        except Exception:
+        except (IntegrityError, ValueError, AttributeError) as e:
             debug_logger.debug("saving pgbelonging for pgroup %s FAILED", (pg))
             logger.critical("somthing went wrong", exc_info=True)
-            raise
+            raise ValueError("Failed to save PG belonging") from e
         else:
             debug_logger.debug("saving pgbelonging for pgroup %s DONE", (pg))
+
+
+def verified_callback(user):
+    """
+    Email verification callback - verify all users with same email.
+
+    When multiple users have the same email, verify all of them.
+    This is used by django-email-verification package.
+    """
+    from apps.peoples.models import People
+
+    logger = logging.getLogger("django")
+
+    # Get all users with this email
+    users_with_email = People.objects.filter(email=user.email)
+    # SECURITY FIX: Use safe user reference instead of exposing email in logs
+    from apps.core.middleware.logging_sanitization import LogSanitizationService
+    safe_user_ref = LogSanitizationService.create_safe_user_reference(user.id, user.peoplename)
+    logger.info(f"[VERIFY] Found {users_with_email.count()} users for {safe_user_ref}")
+
+    # Verify all users with this email
+    for u in users_with_email:
+        if not u.isverified:
+            logger.info(f"[VERIFY] Verifying user ID {u.id}, loginid: {u.loginid}")
+            u.isverified = True
+            u.is_staff = True
+            u.save()
+
+    # Also update the passed user object
+    user.isverified = True
+    user.is_staff = True
+    user.save()

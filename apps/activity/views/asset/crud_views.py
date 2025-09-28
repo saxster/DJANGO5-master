@@ -6,13 +6,15 @@ This module contains views for basic asset operations.
 
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError
-from django.http import QueryDict
 from django.http import response as rp
 from django.shortcuts import render
 from django.views.generic.base import View
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
+from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import ActivityManagementException, DatabaseException, SystemException
 
 from apps.activity.forms.asset_form import AssetForm, AssetExtrasForm
 from apps.activity.models.asset_model import Asset
@@ -134,8 +136,26 @@ class AssetView(LoginRequiredMixin, View):
                 if jsonform.errors:
                     cxt.update({"errors": jsonform.errors})
                 resp = utils.handle_invalid_form(request, self.P, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            logger.warning(f"AssetView form validation error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Asset form validation failed")
+            resp = rp.JsonResponse({"error": "Invalid form data", "details": str(e)}, status=400)
+        except ActivityManagementException as e:
+            logger.error(f"AssetView activity management error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Asset activity management error")
+            resp = rp.JsonResponse({"error": "Activity management error", "correlation_id": error_data.get("correlation_id")}, status=422)
+        except PermissionDenied as e:
+            logger.warning(f"AssetView permission denied: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Asset access denied")
+            resp = rp.JsonResponse({"error": "Access denied", "correlation_id": error_data.get("correlation_id")}, status=403)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"AssetView data processing error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Asset data processing error")
+            resp = rp.JsonResponse({"error": "Invalid data format", "correlation_id": error_data.get("correlation_id")}, status=400)
+        except SystemException as e:
+            logger.error(f"AssetView system error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Asset system error")
+            resp = rp.JsonResponse({"error": "System error occurred", "correlation_id": error_data.get("correlation_id")}, status=500)
         return resp
 
     @staticmethod
@@ -172,7 +192,7 @@ class AssetView(LoginRequiredMixin, View):
                 force_reassessment=not is_new
             )
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             # Log error but don't fail asset creation
             import logging
             logger = logging.getLogger(__name__)
@@ -186,7 +206,7 @@ class AssetDeleteView(LoginRequiredMixin, View):
     def post(self, request, pk):
         """Delete an asset."""
         try:
-            asset = Asset.objects.get(id=pk)
+            asset = Asset.objects.optimized_get_with_relations(pk)
             asset_code = asset.assetcode
             asset.delete()
 
@@ -207,7 +227,7 @@ class AssetDeleteView(LoginRequiredMixin, View):
                 {"errors": "Cannot delete asset - it is referenced by other records"},
                 status=422
             )
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.critical(f"Unexpected error deleting asset: {e}", exc_info=True)
             return rp.JsonResponse(
                 {"errors": ResponseConstants.Error.OPERATION_FAILED},

@@ -3,13 +3,10 @@ Comprehensive test suite for authentication views and security
 Tests login, logout, session management, and security features
 """
 import pytest
-from unittest.mock import patch, Mock
 from django.test import Client, RequestFactory
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.contrib.messages import get_messages
-from apps.peoples.views import SignIn, SignOut
 from apps.peoples.forms import LoginForm
 from apps.onboarding.models import Bt
 from datetime import date

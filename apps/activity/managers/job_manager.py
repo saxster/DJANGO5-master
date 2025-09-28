@@ -1,17 +1,21 @@
-from django.db import models
-from django.utils.translation import gettext as _
+from django.db import models, transaction, DatabaseError, OperationalError
 from django.db.models.functions import Concat, Cast
 from django.db.models import CharField, Value as V,IntegerField
 from django.db.models import Q, F, Count, Case, When
 from django.contrib.gis.db.models.functions import  AsGeoJSON
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from datetime import datetime, timedelta, timezone
 from apps.core import utils
 import apps.peoples.models as pm
+from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
+from apps.core.exceptions import ActivityManagementException, DatabaseIntegrityException
+from apps.core.error_handling import ErrorHandler
 
 import logging
 import json
 logger = logging.getLogger('__main__')
 from django.conf import settings
+from apps.core.constants import JobConstants
 log = logger
 
 class JobManager(models.Manager):
@@ -172,15 +176,27 @@ class JobManager(models.Manager):
                 qset_id = PostData['qset_id'], parent_id = PostData['parent_id'],
                 identifier='GEOFENCE').exists():
                 return {'data':list(self.none()), 'error':'Warning: Record already added!'}
-            ID = self.create(**PostData).id
+
+            with transaction.atomic():
+                ID = self.create(**PostData).id
+                log.info(f"Created geofence job {ID}")
+
         elif R['action'] == 'edit':
             PostData.pop('cdtz')
             PostData.pop('cuser')
-            if updated := self.filter(pk=R['pk']).update(**PostData):
+
+            with transaction.atomic():
+                job_obj = self.select_for_update().get(pk=R['pk'])
+                for field, value in PostData.items():
+                    setattr(job_obj, field, value)
+                job_obj.save()
                 ID = R['pk']
+                log.info(f"Updated geofence job {ID}")
+
         else:
             self.filter(pk = R['pk']).delete()
             return {'data':list(self.none()),}
+
         qset = self.filter(pk = ID).values('people__peoplename', 'people_id', 'fromdate', 'uptodate',
                                             'starttime', 'endtime', 'people__peoplecode', 'pk')
         return {'data':list(qset)}
@@ -201,15 +217,17 @@ class JobManager(models.Manager):
         return qset or self.none()
     
     def handle_save_checkpoint_guardtour(self, request):
+        """Handle checkpoint save with race condition protection"""
         R, S = request.POST, request.session
-        """handle post data submitted from geofence add people form"""
         from apps.schedhuler import utils as sutils
+
         parent_job = self.filter(id = R['parentid']).select_related('bu').values(
             'id', 'jobname', 'cron', 'identifier', 'priority', 'pgroup_id', 'geofence_id',
             'fromdate', 'uptodate', 'planduration', 'gracetime', 'frequency', 'people_id',
             'scantype', 'ctzoffset', 'bu_id', 'client_id', 'ticketcategory_id', 'lastgeneratedon',
             'bu__buname'
         ).first()
+
         cdtz = datetime.now(tz = timezone.utc)
         mdtz = datetime.now(tz = timezone.utc)
         checkpoint = {
@@ -220,48 +238,142 @@ class JobManager(models.Manager):
             'qsetname':R['qsetname'],
             'bu__buname': parent_job['bu__buname']
         }
-        # ic(R)
+
         if not  R['action'] == 'remove':
             child_job = sutils.job_fields(parent_job, checkpoint)
+
+        # Use distributed lock to prevent concurrent parent updates
+        lock_key = f"parent_job_update:{R['parentid']}"
+
         try:
-            if R['action'] == 'create':
-                if self.filter(
-                    qset_id = checkpoint['qsetid'], asset_id = checkpoint['assetid'],
-                    parent_id = parent_job['id']).exists():
-                    return {'data':list(self.none()), 'error':'Warning: Record already added!'}
-                # ic("creating checkpoint with following data:", child_job)
-                ID = self.create(**child_job, cuser = request.user, muser = request.user,
-                                 cdtz = cdtz, mdtz = mdtz).id
-            elif R['action'] == 'edit':
-                if updated := self.filter(pk=R['pk']).update(**child_job, muser = request.user, mdtz = mdtz):
-                    ID = R['pk']
-                    self.filter(pk=R['parentid']).update(mdtz=datetime.utcnow())
-            else:
-                self.filter(pk = R['pk']).delete()
-                return {'data':list(self.none()),}
-            qset = self.filter(pk = ID).values('seqno', 'qset__qsetname', 'asset__assetname', 'expirytime', 'pk', 'asset_id', 'qset_id')
-            return {'data':list(qset)}
-        except Exception as e:
-            log.critical("Unexpected error: %s", str(e), exc_info=True)
+            with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
+                with transaction.atomic():
+                    if R['action'] == 'create':
+                        if self.filter(
+                            qset_id = checkpoint['qsetid'], asset_id = checkpoint['assetid'],
+                            parent_id = parent_job['id']).exists():
+                            return {'data':list(self.none()), 'error':'Warning: Record already added!'}
+
+                        ID = self.create(**child_job, cuser = request.user, muser = request.user,
+                                         cdtz = cdtz, mdtz = mdtz).id
+                    elif R['action'] == 'edit':
+                        if updated := self.filter(pk=R['pk']).update(**child_job, muser = request.user, mdtz = mdtz):
+                            ID = R['pk']
+                        else:
+                            return {'data': [], 'error': 'Update failed'}
+                    else:
+                        self.filter(pk = R['pk']).delete()
+                        return {'data':list(self.none()),}
+
+                    # Update parent timestamp atomically within same lock and transaction
+                    parent_obj = self.select_for_update().get(pk=R['parentid'])
+                    parent_obj.mdtz = timezone.now()
+                    parent_obj.muser = request.user
+                    parent_obj.save(update_fields=['mdtz', 'muser'])
+
+                    qset = self.filter(pk = ID).values('seqno', 'qset__qsetname', 'asset__assetname', 'expirytime', 'pk', 'asset_id', 'qset_id')
+                    return {'data':list(qset)}
+
+        except LockAcquisitionError as e:
+            log.error("Failed to acquire lock for parent job update: %s", str(e), exc_info=True)
+            return {'data': [], 'error': 'System busy, please try again'}
+        except IntegrityError as e:
+            log.error("Integrity error in checkpoint save: %s", str(e), exc_info=True)
             if 'expirytime_gte_0_ck' in str(e):
                 return {'data': [], 'error': "Invalid Expiry Time. It must be greater than or equal to 0."}
-            return {'data': [], 'error': "Something went wrong!"}
+            return {'data': [], 'error': 'Data integrity error'}
+        except (DatabaseError, OperationalError) as e:
+            correlation_id = ErrorHandler.handle_exception(
+                e,
+                context={
+                    'operation': 'save_checkpoint_guardtour',
+                    'parent_id': R['parentid'],
+                    'action': R['action']
+                },
+                level='error'
+            )
+            log.critical(
+                "Database error in checkpoint save: %s",
+                str(e),
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return {'data': [], 'error': 'Database service unavailable, please try again'}
+        except (ValidationError, ValueError, TypeError) as e:
+            log.error(
+                "Validation error in checkpoint save: %s",
+                str(e),
+                extra={'parent_id': R['parentid']},
+                exc_info=True
+            )
+            return {'data': [], 'error': f'Invalid checkpoint data: {str(e)}'}
+        except ObjectDoesNotExist as e:
+            log.error(
+                "Parent job not found: %s",
+                str(e),
+                extra={'parent_id': R['parentid']}
+            )
+            return {'data': [], 'error': 'Parent job not found'}
     
     def handle_save_checkpoint_sitetour(self, request):
+        """Handle site tour checkpoint save with race condition protection"""
         R, S = request.POST, request.session
-        """handle post data submitted from route plan edit adgn checkpoint form"""
+
+        lock_key = f"parent_job_update:{R['parent_id']}"
+
         try:
-            mdtz = datetime.now(tz = timezone.utc)
-            if R['action'] == 'edit':
-                child_job_post_data = {'seqno':R['seqno'], 'qset_id':R['qset_id']}
-                if updated := self.filter(id=R['jobid']).update(**child_job_post_data, muser = request.user, mdtz = mdtz):
-                    ID = R['jobid']
-                    qset = self.get_sitecheckpoints_exttour({'id':R['parent_id']}, ID)
-                    return {'data':list(qset)}
-                return {'data':[]}
-        except Exception  as e:
-            log.critical("something went wrong", exc_info=True)
-            return {'data':[], 'error':"Somthing went Wrong!"}
+            with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
+                with transaction.atomic():
+                    mdtz = datetime.now(tz = timezone.utc)
+                    if R['action'] == 'edit':
+                        child_job_post_data = {'seqno':R['seqno'], 'qset_id':R['qset_id']}
+                        if updated := self.filter(id=R['jobid']).update(**child_job_post_data, muser = request.user, mdtz = mdtz):
+                            ID = R['jobid']
+
+                            # Update parent timestamp atomically
+                            parent_obj = self.select_for_update().get(pk=R['parent_id'])
+                            parent_obj.mdtz = timezone.now()
+                            parent_obj.muser = request.user
+                            parent_obj.save(update_fields=['mdtz', 'muser'])
+
+                            qset = self.get_sitecheckpoints_exttour({'id':R['parent_id']}, ID)
+                            return {'data':list(qset)}
+                        return {'data':[]}
+        except LockAcquisitionError as e:
+            log.error("Failed to acquire lock for site tour update: %s", str(e), exc_info=True)
+            return {'data':[], 'error': 'System busy, please try again'}
+        except (DatabaseError, OperationalError) as e:
+            correlation_id = ErrorHandler.handle_exception(
+                e,
+                context={
+                    'operation': 'save_checkpoint_sitetour',
+                    'parent_id': R['parent_id'],
+                    'job_id': R.get('jobid')
+                },
+                level='error'
+            )
+            log.critical(
+                "Database error in site tour checkpoint: %s",
+                str(e),
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return {'data':[], 'error': 'Database service unavailable, please try again'}
+        except (ValidationError, ValueError, KeyError) as e:
+            log.error(
+                "Validation error in site tour checkpoint: %s",
+                str(e),
+                extra={'parent_id': R.get('parent_id')},
+                exc_info=True
+            )
+            return {'data':[], 'error': f'Invalid request data: {str(e)}'}
+        except ObjectDoesNotExist as e:
+            log.error(
+                "Job not found for site tour update: %s",
+                str(e),
+                extra={'job_id': R.get('jobid')}
+            )
+            return {'data':[], 'error': 'Job not found'}
     
 
 class JobneedManager(models.Manager):
@@ -449,7 +561,7 @@ class JobneedManager(models.Manager):
         from apps.activity.models import JobneedDetails
         details = {}
         for i in qset:
-            ques_ans = JobneedDetails.objects.filter(jobneed_id=i['id']).select_related('question').values(
+            ques_ans = JobneedDetails.objects.filter(jobneed_id=i['id']).select_related('question', 'question__qset', 'jobneed').values(
                 'question__quesname', 'answertype', 'answer', 'min', 'max',
                 'alerton', 'ismandatory', 'options', 'question_id', 'pk',
                 'ctzoffset', 'seqno'
@@ -666,7 +778,7 @@ class JobneedManager(models.Manager):
                 plandatetime__date__lte = P['to'],
                 client_id = S['client_id'],
                 alerts=True,
-                identifier="EXTERNALTOUR"
+                identifier=JobConstants.Identifier.EXTERNALTOUR
             ).select_related(*related)
             alert_qset_parents = list(set(alert_qset.values_list('parent_id', flat=True)))
             qset = self.filter(
@@ -1158,7 +1270,7 @@ class JobneedManager(models.Manager):
             
         elif site_tour_parent.jobstatus ==  self.model.JobStatus.INPROGRESS:
             from apps.attendance.models import Tracking
-            between_latlngs = Tracking.objects.filter(reference = site_tour_parent.uuid).order_by('receiveddate')
+            between_latlngs = Tracking.objects.select_related('people', 'people__bu').filter(reference = site_tour_parent.uuid).order_by('receiveddate')
             return [[obj.gpslocation.y , obj.gpslocation.x] for obj in between_latlngs]
         else:
             return None
@@ -1174,8 +1286,8 @@ class JobneedManager(models.Manager):
             people = site_tour.people
         else:
             people = site_tour.sgroup.grouplead
-        devl = DeviceEventlog.objects.filter(people_id=people.id).order_by('-receivedon').first()
-        trac = Tracking.objects.filter(people_id=people.id).order_by('-receiveddate').first()
+        devl = DeviceEventlog.objects.select_related('people', 'people__bu', 'people__client').filter(people_id=people.id).order_by('-receivedon').first()
+        trac = Tracking.objects.select_related('people', 'people__bu').filter(people_id=people.id).order_by('-receiveddate').first()
         # Choose the most recent event based on timestamp
         if not devl and not trac:
             return None
@@ -1276,12 +1388,31 @@ class JobneedManager(models.Manager):
             other_info__isdynamic=True,
             parent_id__in = [1,-1,None],
             identifier='INTERNALTOUR',
-            client_id = S['client_id'], 
+            client_id = S['client_id'],
             bu_id__in = S['assignedsites']
         ).count()
         data = jobneeds
         return data
-    
+
+    def optimized_get_with_relations(self, jobneed_id):
+        """
+        Get Jobneed with all commonly accessed relationships preloaded.
+        Prevents N+1 queries when accessing performedby, asset, bu, qset, etc.
+        """
+        return self.select_related(
+            'performedby', 'asset', 'bu', 'qset', 'job',
+            'people', 'pgroup', 'client', 'parent'
+        ).get(id=jobneed_id)
+
+    def optimized_filter_with_relations(self, **kwargs):
+        """
+        Filter Jobneeds with all commonly accessed relationships preloaded.
+        """
+        return self.select_related(
+            'performedby', 'asset', 'bu', 'qset', 'job',
+            'people', 'pgroup', 'client', 'parent'
+        ).filter(**kwargs)
+
 
 class JobneedDetailsManager(models.Manager):
     use_in_migrations = True
@@ -1479,3 +1610,13 @@ class JobneedDetailsManager(models.Manager):
             )
         # ic(series)
         return series
+
+    def optimized_get_with_relations(self, jobneed_detail_id):
+        """
+        Get JobneedDetails with all commonly accessed relationships preloaded.
+        Prevents N+1 queries when accessing question, jobneed, etc.
+        """
+        return self.select_related(
+            'question', 'jobneed', 'cuser', 'muser',
+            'jobneed__performedby', 'jobneed__asset'
+        ).get(id=jobneed_detail_id)

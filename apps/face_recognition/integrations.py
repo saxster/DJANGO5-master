@@ -4,17 +4,12 @@ Connects anomaly detection, behavioral analytics, and face recognition
 """
 
 import logging
-import asyncio
-from typing import Dict, List, Optional, Tuple, Any, Union
-from datetime import datetime, timedelta
 from django.utils import timezone
-from django.db import transaction
 from django.core.signals import Signal
 from django.dispatch import receiver
 from celery import shared_task
 
 from apps.attendance.models import PeopleEventlog
-from apps.peoples.models import People
 from .enhanced_engine import EnhancedFaceRecognitionEngine
 from .analytics import AttendanceAnalyticsEngine
 # Removed: anomaly_detection imports - app removed
@@ -162,7 +157,7 @@ class AIAttendanceIntegration:
             logger.info(f"AI processing completed for attendance {attendance.id}")
             return results
             
-        except Exception as e:
+        except (DatabaseError, IntegrationException, ValueError) as e:
             logger.error(f"Error in AI attendance processing: {str(e)}", exc_info=True)
             return {
                 'attendance_id': attendance.id,
@@ -171,149 +166,150 @@ class AIAttendanceIntegration:
             }
     
     def _update_behavioral_profile(
-        self, 
-        attendance: PeopleEventlog, 
+        self,
+        attendance: PeopleEventlog,
         results: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Update user behavioral profile with new attendance data"""
+        """Update user behavioral profile with race condition protection"""
+        from django.db import transaction
+        from apps.core.utils_new.distributed_locks import distributed_lock
+
         try:
             if not attendance.people_id:
                 return {'error': 'No user ID available'}
-            
-            # Get or create behavioral profile
-            profile, created = UserBehaviorProfile.objects.get_or_create(
-                user_id=attendance.people_id,
-                defaults={
-                    'attendance_regularity_score': 0.5,
-                    'fraud_risk_score': 0.0,
-                    'anomaly_history': [],
-                    'last_analysis_date': timezone.now()
-                }
-            )
-            
-            # Update profile based on current analysis
-            updates = {}
-            
-            # Update fraud risk score
-            fraud_probability = results.get('fraud_analysis', {}).get('fraud_probability', 0)
-            if fraud_probability > 0:
-                # Weighted average with historical fraud risk
-                current_weight = 0.3  # Weight for current event
-                historical_weight = 0.7  # Weight for historical average
-                
-                new_fraud_score = (
-                    current_weight * fraud_probability + 
-                    historical_weight * profile.fraud_risk_score
-                )
-                updates['fraud_risk_score'] = min(1.0, new_fraud_score)
-            
-            # Update anomaly history
-            if results.get('anomaly_detection', {}).get('is_anomaly', False):
-                anomaly_history = profile.anomaly_history or []
-                anomaly_record = {
-                    'timestamp': timezone.now().isoformat(),
-                    'anomaly_type': results['anomaly_detection'].get('anomaly_type', 'UNKNOWN'),
-                    'confidence_score': results['anomaly_detection'].get('confidence_score', 0),
-                    'attendance_id': attendance.id
-                }
-                
-                # Keep only last 50 anomaly records
-                anomaly_history.append(anomaly_record)
-                if len(anomaly_history) > 50:
-                    anomaly_history = anomaly_history[-50:]
-                
-                updates['anomaly_history'] = anomaly_history
-            
-            # Calculate attendance regularity
-            regularity_score = self._calculate_attendance_regularity(attendance.people_id)
-            if regularity_score is not None:
-                updates['attendance_regularity_score'] = regularity_score
-            
-            # Update timing patterns
-            if attendance.punchintime:
-                updates['last_attendance_time'] = attendance.punchintime
-                
-                # Update average arrival time
-                if profile.avg_arrival_time:
-                    # Weighted average of historical and current time
-                    current_minutes = attendance.punchintime.hour * 60 + attendance.punchintime.minute
-                    avg_minutes = profile.avg_arrival_time.hour * 60 + profile.avg_arrival_time.minute
-                    
-                    new_avg_minutes = int(0.9 * avg_minutes + 0.1 * current_minutes)
-                    new_avg_time = datetime.time(
-                        hour=new_avg_minutes // 60,
-                        minute=new_avg_minutes % 60
+
+            # Use distributed lock to prevent concurrent profile updates
+            with distributed_lock(f"behavioral_profile:{attendance.people_id}", timeout=20):
+                with transaction.atomic():
+                    # Get or create with locking
+                    profile, created = UserBehaviorProfile.objects.select_for_update().get_or_create(
+                        user_id=attendance.people_id,
+                        defaults={
+                            'attendance_regularity_score': 0.5,
+                            'fraud_risk_score': 0.0,
+                            'anomaly_history': [],
+                            'last_analysis_date': timezone.now()
+                        }
                     )
-                    updates['avg_arrival_time'] = new_avg_time
-                else:
-                    updates['avg_arrival_time'] = attendance.punchintime.time()
-            
-            # Update location patterns
-            if attendance.startlocation:
-                location_history = profile.frequent_locations or []
-                location_key = f"{attendance.startlocation.y:.6f},{attendance.startlocation.x:.6f}"
-                
-                # Update location frequency
-                found = False
-                for loc in location_history:
-                    if loc.get('location') == location_key:
-                        loc['count'] = loc.get('count', 0) + 1
-                        loc['last_used'] = timezone.now().isoformat()
-                        found = True
-                        break
-                
-                if not found:
-                    location_history.append({
-                        'location': location_key,
-                        'count': 1,
-                        'first_used': timezone.now().isoformat(),
-                        'last_used': timezone.now().isoformat()
-                    })
-                
-                # Keep only top 10 locations
-                location_history.sort(key=lambda x: x['count'], reverse=True)
-                updates['frequent_locations'] = location_history[:10]
-            
-            # Apply updates
-            updates['last_analysis_date'] = timezone.now()
-            for field, value in updates.items():
-                setattr(profile, field, value)
-            
-            profile.save()
-            
-            # Create behavioral event record
-            BehavioralEvent.objects.create(
-                user_id=attendance.people_id,
-                event_type='ATTENDANCE_PROCESSED',
-                event_data={
-                    'attendance_id': attendance.id,
-                    'processing_results': {
-                        'fraud_probability': fraud_probability,
-                        'anomaly_detected': results.get('anomaly_detection', {}).get('is_anomaly', False),
-                        'face_verified': results.get('face_verification', {}).get('verified', False)
-                    }
-                },
-                risk_impact=fraud_probability,
-                confidence_score=results.get('face_verification', {}).get('confidence', 0.5)
-            )
-            
-            # Emit behavioral pattern update signal
-            behavioral_pattern_updated.send(
-                sender=self.__class__,
-                user_id=attendance.people_id,
-                profile=profile,
-                updates=updates
-            )
-            
-            return {
-                'profile_updated': True,
-                'profile_created': created,
-                'updates_applied': list(updates.keys()),
-                'new_fraud_risk_score': updates.get('fraud_risk_score', profile.fraud_risk_score),
-                'new_regularity_score': updates.get('attendance_regularity_score', profile.attendance_regularity_score)
-            }
-            
-        except Exception as e:
+
+                    # Update profile based on current analysis
+                    updates = {}
+
+                    # Update fraud risk score
+                    fraud_probability = results.get('fraud_analysis', {}).get('fraud_probability', 0)
+                    if fraud_probability > 0:
+                        # Weighted average with historical fraud risk
+                        current_weight = 0.3
+                        historical_weight = 0.7
+
+                        new_fraud_score = (
+                            current_weight * fraud_probability +
+                            historical_weight * profile.fraud_risk_score
+                        )
+                        updates['fraud_risk_score'] = min(1.0, new_fraud_score)
+
+                    # Update anomaly history
+                    if results.get('anomaly_detection', {}).get('is_anomaly', False):
+                        anomaly_history = profile.anomaly_history or []
+                        anomaly_record = {
+                            'timestamp': timezone.now().isoformat(),
+                            'anomaly_type': results['anomaly_detection'].get('anomaly_type', 'UNKNOWN'),
+                            'confidence_score': results['anomaly_detection'].get('confidence_score', 0),
+                            'attendance_id': attendance.id
+                        }
+
+                        anomaly_history.append(anomaly_record)
+                        if len(anomaly_history) > 50:
+                            anomaly_history = anomaly_history[-50:]
+
+                        updates['anomaly_history'] = anomaly_history
+
+                    # Calculate attendance regularity
+                    regularity_score = self._calculate_attendance_regularity(attendance.people_id)
+                    if regularity_score is not None:
+                        updates['attendance_regularity_score'] = regularity_score
+
+                    # Update timing patterns
+                    if attendance.punchintime:
+                        updates['last_attendance_time'] = attendance.punchintime
+
+                        if profile.avg_arrival_time:
+                            current_minutes = attendance.punchintime.hour * 60 + attendance.punchintime.minute
+                            avg_minutes = profile.avg_arrival_time.hour * 60 + profile.avg_arrival_time.minute
+
+                            new_avg_minutes = int(0.9 * avg_minutes + 0.1 * current_minutes)
+                            new_avg_time = datetime.time(
+                                hour=new_avg_minutes // 60,
+                                minute=new_avg_minutes % 60
+                            )
+                            updates['avg_arrival_time'] = new_avg_time
+                        else:
+                            updates['avg_arrival_time'] = attendance.punchintime.time()
+
+                    # Update location patterns
+                    if attendance.startlocation:
+                        location_history = profile.frequent_locations or []
+                        location_key = f"{attendance.startlocation.y:.6f},{attendance.startlocation.x:.6f}"
+
+                        found = False
+                        for loc in location_history:
+                            if loc.get('location') == location_key:
+                                loc['count'] = loc.get('count', 0) + 1
+                                loc['last_used'] = timezone.now().isoformat()
+                                found = True
+                                break
+
+                        if not found:
+                            location_history.append({
+                                'location': location_key,
+                                'count': 1,
+                                'first_used': timezone.now().isoformat(),
+                                'last_used': timezone.now().isoformat()
+                            })
+
+                        location_history.sort(key=lambda x: x['count'], reverse=True)
+                        updates['frequent_locations'] = location_history[:10]
+
+                    # Apply updates
+                    updates['last_analysis_date'] = timezone.now()
+                    for field, value in updates.items():
+                        setattr(profile, field, value)
+
+                    profile.save()
+
+                    # Create behavioral event record
+                    BehavioralEvent.objects.create(
+                        user_id=attendance.people_id,
+                        event_type='ATTENDANCE_PROCESSED',
+                        event_data={
+                            'attendance_id': attendance.id,
+                            'processing_results': {
+                                'fraud_probability': fraud_probability,
+                                'anomaly_detected': results.get('anomaly_detection', {}).get('is_anomaly', False),
+                                'face_verified': results.get('face_verification', {}).get('verified', False)
+                            }
+                        },
+                        risk_impact=fraud_probability,
+                        confidence_score=results.get('face_verification', {}).get('confidence', 0.5)
+                    )
+
+                # Emit behavioral pattern update signal (outside transaction)
+                behavioral_pattern_updated.send(
+                    sender=self.__class__,
+                    user_id=attendance.people_id,
+                    profile=profile,
+                    updates=updates
+                )
+
+                return {
+                    'profile_updated': True,
+                    'profile_created': created,
+                    'updates_applied': list(updates.keys()),
+                    'new_fraud_risk_score': updates.get('fraud_risk_score', profile.fraud_risk_score),
+                    'new_regularity_score': updates.get('attendance_regularity_score', profile.attendance_regularity_score)
+                }
+
+        except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error updating behavioral profile: {str(e)}")
             return {'error': str(e)}
     
@@ -349,7 +345,7 @@ class AIAttendanceIntegration:
             
             return regularity_score
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error calculating attendance regularity: {str(e)}")
             return None
     
@@ -366,7 +362,7 @@ class AIAttendanceIntegration:
             total_risk = sum(risk_components.values())
             return min(1.0, total_risk)
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error calculating overall risk score: {str(e)}")
             return 0.0
     
@@ -436,28 +432,34 @@ class AIAttendanceIntegration:
                     ]
                 })
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error generating recommendations: {str(e)}")
         
         return recommendations
     
     def _store_processing_results(self, attendance: PeopleEventlog, results: Dict[str, Any]):
-        """Store AI processing results for future analysis"""
+        """Store AI processing results with race condition protection"""
+        from django.db import transaction
+        from apps.core.utils_new.distributed_locks import distributed_lock
+
         try:
-            # Update attendance record with AI results
-            if not hasattr(attendance, 'ai_processing_results'):
-                # Add AI results to existing extras or create new field
-                if attendance.peventlogextras:
-                    attendance.peventlogextras['ai_processing_results'] = results
-                else:
-                    attendance.peventlogextras = {'ai_processing_results': results}
-                
-                attendance.save(update_fields=['peventlogextras'])
-            
+            # Use same lock as main update to prevent conflicts
+            with distributed_lock(f"attendance_update:{attendance.uuid}", timeout=5):
+                with transaction.atomic():
+                    # Refresh from database to get latest state
+                    attendance = PeopleEventlog.objects.select_for_update().get(pk=attendance.pk)
+
+                    # Update with AI results
+                    extras = dict(attendance.peventlogextras or {})
+                    extras['ai_processing_results'] = results
+
+                    attendance.peventlogextras = extras
+                    attendance.save(update_fields=['peventlogextras'])
+
             logger.info(f"AI processing results stored for attendance {attendance.id}")
-            
-        except Exception as e:
-            logger.error(f"Error storing processing results: {str(e)}")
+
+        except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
+            logger.error(f"Error storing processing results: {str(e)}", exc_info=True)
 
 
 # Celery task for asynchronous AI processing
@@ -480,7 +482,7 @@ def process_attendance_async(self, attendance_id: int, image_path: Optional[str]
     except PeopleEventlog.DoesNotExist:
         logger.error(f"Attendance record {attendance_id} not found")
         return {'error': 'Attendance record not found'}
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error in async AI processing: {str(e)}")
         # Retry the task
         raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
@@ -498,7 +500,7 @@ def handle_attendance_verification(sender, attendance, verification_result, **kw
             # Schedule enhanced monitoring for this user
             pass
             
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error handling attendance verification: {str(e)}")
 
 
@@ -518,7 +520,7 @@ def handle_fraud_detection(sender, attendance, fraud_result, **kwargs):
             # Temporarily suspend user access
             # Log security incident
             
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error handling fraud detection: {str(e)}")
 
 
@@ -535,7 +537,7 @@ def handle_anomaly_detection(sender, attendance, anomaly_result, **kwargs):
             # High-confidence anomaly - investigate further
             logger.warning(f"High-confidence anomaly: {confidence:.2%}")
             
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error handling anomaly detection: {str(e)}")
 
 
@@ -550,5 +552,5 @@ def handle_behavioral_update(sender, user_id, profile, updates, **kwargs):
             logger.warning(f"User {user_id} now has high fraud risk: {profile.fraud_risk_score:.2%}")
             # Implement enhanced monitoring
             
-    except Exception as e:
+    except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
         logger.error(f"Error handling behavioral update: {str(e)}")

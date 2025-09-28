@@ -1,12 +1,9 @@
 from django import forms
-from apps.activity import models as am
 from apps.onboarding import models as om
 from apps.peoples import models as pm
-from apps.core import utils
 from django_select2 import forms as s2forms
 from django.db.models import Q
 from datetime import datetime, timedelta
-from django.conf import settings
 from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.asset_model import Asset

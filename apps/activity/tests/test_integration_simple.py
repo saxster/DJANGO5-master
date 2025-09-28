@@ -3,7 +3,6 @@ Simplified integration tests for Activity app
 Tests basic model creation and relationships without complex dependencies
 """
 import pytest
-from django.test import TestCase
 from django.utils import timezone
 from datetime import date, timedelta
 from apps.peoples.models import People

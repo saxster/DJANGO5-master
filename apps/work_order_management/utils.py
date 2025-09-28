@@ -184,7 +184,6 @@ def extract_data(wp_answers):
 
 
 def handle_valid_form(form, R, request, create):
-    from urllib.parse import parse_qs
 
     S = request.session
     sla = form.save(commit=False)

@@ -1,4 +1,3 @@
-from django.urls import path, include
 from apps.onboarding import views
 
 

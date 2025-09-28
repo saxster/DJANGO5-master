@@ -3,7 +3,6 @@ Context processors for Information Architecture optimization
 Provides IA-related context variables to all templates
 """
 from django.conf import settings
-from django.core.cache import cache
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.middleware.navigation_tracking import NavigationTrackingMiddleware
 
@@ -41,14 +40,14 @@ def ia_context(request):
                 user=request.user,
                 menu_type='admin'
             )
-    except Exception:
+    except (ValueError, TypeError):
         pass  # Fail silently
     
     # Get breadcrumbs for current page
     breadcrumbs = []
     try:
         breadcrumbs = OptimizedURLRouter.get_breadcrumbs(request.path)
-    except Exception:
+    except (ValueError, TypeError):
         pass  # Fail silently
     
     # Get migration status
@@ -60,7 +59,7 @@ def ia_context(request):
             'total_redirects': migration_report['summary']['total_redirects'],
             'phase': ia_settings['migration_phase'],
         }
-    except Exception:
+    except (ValueError, TypeError):
         pass  # Fail silently
     
     # Check if current URL is deprecated
@@ -74,7 +73,7 @@ def ia_context(request):
                     'old_url': request.path,
                     'new_url': '/' + OptimizedURLRouter.get_new_url(current_url),
                 }
-        except Exception:
+        except (ValueError, TypeError):
             pass  # Fail silently
     
     # Get quick navigation statistics
@@ -87,7 +86,7 @@ def ia_context(request):
                 'recent_errors': analytics.get('dead_urls', {}).get('top_dead_urls', [])[:3],
                 'active_sessions': analytics.get('user_flows', {}).get('active_sessions', 0),
             }
-    except Exception:
+    except (ValueError, TypeError):
         pass  # Fail silently
     
     return {

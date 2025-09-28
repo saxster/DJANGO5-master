@@ -2,10 +2,7 @@
 Tests for Tracking model
 """
 import pytest
-from django.core.exceptions import ValidationError
-from django.contrib.gis.geos import Point
 from django.utils import timezone
-from datetime import datetime, timedelta
 from apps.attendance.models import Tracking
 
 

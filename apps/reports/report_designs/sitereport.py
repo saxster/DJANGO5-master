@@ -2,7 +2,6 @@ from apps.reports.utils import BaseReportsExport
 from apps.core.utils import get_timezone
 from apps.core.queries import ReportQueryRepository
 from apps.onboarding.models import Bt
-from apps.peoples.models import Pgroup
 from django.conf import settings
 
 

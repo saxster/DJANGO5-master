@@ -1,7 +1,6 @@
 from django.test import TestCase, RequestFactory
 from django.http import Http404
 from django.conf import settings
-from unittest.mock import patch, Mock, MagicMock
 
 from apps.tenants.middlewares import TenantMiddleware, TenantDbRouter
 from apps.core.utils import THREAD_LOCAL

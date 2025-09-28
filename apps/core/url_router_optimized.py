@@ -2,11 +2,9 @@
 Optimized URL Router for Information Architecture
 Implements domain-driven URL structure with comprehensive legacy support
 """
-from django.urls import path, include
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.core.cache import cache
-from typing import Dict, List, Optional
 import logging
 from datetime import datetime, timedelta
 

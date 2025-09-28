@@ -5,12 +5,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.db import connection
 from django.test.utils import override_settings
-from apps.onboarding.models import TypeAssist, Bt, GeofenceMaster, Shift
-from apps.onboarding.views import (
-    SuperTypeAssist,
-    TypeAssistView,
-    BtView,
-    ContractView,
     GeoFence,
     ShiftView,
     DashboardView,

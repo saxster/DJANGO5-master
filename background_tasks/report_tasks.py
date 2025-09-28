@@ -224,7 +224,7 @@ def save_report_to_tmp_folder(filename, ext, report_output, dir=None):
                 else:
                     log.error(f"No data to write for {filename}.{ext}")
                     return None  # Return None to indicate no file was saved
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError) as e:
             log.error(f"Error while saving file {filename}.{ext}: {e}")
             return None  # Return None on error
     else:
@@ -260,7 +260,7 @@ def save_report_to_tmp_folder(filename, ext, report_output, dir=None):
 #                 else:
 #                     log.error(f"No data to write for {filename}.{ext}")
 #                     return None  # Return None to indicate no file was saved
-#         except Exception as e:
+#         except (DatabaseError, IntegrityError, ValueError, TypeError, ObjectDoesNotExist) as e:
 #             log.error(f"Error while saving file {filename}.{ext}: {e}")
 #             return None  # Return None on error
 #     else:
@@ -390,7 +390,7 @@ def check_time_of_report(filename):
         if time_diff <= timedelta(minutes=30):
             return True, filename_without_extension
 
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         log.warning(f"Time parse error for file {filename}: {e}")
 
     return False, None
@@ -429,7 +429,7 @@ def remove_reportfile(file, story=None):
     try:
         os.remove(file)
         log.info(f"Successfully deleted file: {os.path.basename(file)}")
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         log.critical(f"Error deleting file {os.path.basename(file)}: {e}")
         if story:
             story["errors"].append(str(e))

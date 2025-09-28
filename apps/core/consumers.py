@@ -169,7 +169,7 @@ class HeatmapRealtimeConsumer(AsyncWebsocketConsumer):
                     'interaction_summary': aggregation.interaction_summary,
                     'last_updated': aggregation.created_at.isoformat()
                 }
-        except Exception:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValueError, asyncio.CancelledError, json.JSONDecodeError):
             pass
         
         # Fallback to real-time calculation
@@ -522,7 +522,7 @@ class UnifiedDashboardConsumer(AsyncWebsocketConsumer):
                 
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except (ConnectionError, TimeoutError, TypeError, ValueError, asyncio.CancelledError, json.JSONDecodeError):
                 # Continue on any error
                 pass
     
@@ -587,7 +587,7 @@ class UnifiedDashboardConsumer(AsyncWebsocketConsumer):
                 'disk_free': disk.free,
                 'timestamp': timezone.now().isoformat()
             }
-        except Exception:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValueError, asyncio.CancelledError, json.JSONDecodeError):
             return {
                 'error': 'System metrics not available',
                 'timestamp': timezone.now().isoformat()

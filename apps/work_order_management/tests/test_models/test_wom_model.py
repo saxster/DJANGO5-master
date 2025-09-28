@@ -2,11 +2,7 @@
 Tests for Wom (Work Order Management) model
 """
 import pytest
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-from django.contrib.gis.geos import Point
 from django.utils import timezone
-from datetime import datetime, timedelta
 from apps.work_order_management.models import Wom
 
 

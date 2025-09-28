@@ -1,0 +1,713 @@
+{% extends "admin/base_site.html" %}
+{% load static admin_urls %}
+
+{% block title %}{{ title }} | {% trans 'Django site admin' %}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .dashboard-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+
+    .metric {
+        text-align: center;
+    }
+
+    .metric-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #0073aa;
+        display: block;
+    }
+
+    .metric-label {
+        color: #666;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        margin-top: 5px;
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+
+    .status-healthy { background-color: #28a745; }
+    .status-warning { background-color: #ffc107; }
+    .status-critical { background-color: #dc3545; }
+    .status-unknown { background-color: #6c757d; }
+
+    .progress-bar {
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        transition: width 0.3s ease;
+    }
+
+    .chart-container {
+        height: 300px;
+        margin: 20px 0;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+    }
+
+    .quick-action-btn {
+        padding: 8px 16px;
+        background: #007cba;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+
+    .quick-action-btn:hover {
+        background: #005a87;
+    }
+
+    .alert-item {
+        padding: 10px;
+        margin: 5px 0;
+        border-left: 4px solid;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    .alert-critical { border-left-color: #dc3545; }
+    .alert-warning { border-left-color: #ffc107; }
+    .alert-info { border-left-color: #17a2b8; }
+
+    .auto-refresh-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        z-index: 1000;
+    }
+
+    .rollout-stage {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .stage-pilot { background: #fff3cd; color: #856404; }
+    .stage-early_rollout { background: #d4edda; color: #155724; }
+    .stage-active_rollout { background: #cce5ff; color: #004085; }
+    .stage-late_rollout { background: #e2e3e5; color: #383d41; }
+    .stage-complete { background: #d1ecf1; color: #0c5460; }
+
+    .status-healthy { background-color: #46b450; }
+    .status-warning { background-color: #ffb900; }
+    .status-error { background-color: #dc3232; }
+
+    .action-buttons {
+        margin: 20px 0;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background: #0073aa;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 0 5px;
+        display: inline-block;
+    }
+
+    .btn-primary:hover {
+        background: #005177;
+        color: white;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #f1f1f1;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #46b450 0%, #0073aa 100%);
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    {% if auto_refresh_enabled %}
+    <div class="auto-refresh-indicator" id="refresh-indicator">
+        Auto-refresh: <span id="refresh-countdown">{{ refresh_interval_seconds }}</span>s
+    </div>
+    {% endif %}
+
+    <h1>{{ title }}</h1>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% else %}
+
+    <!-- Live Rollout Overview -->
+    <div class="dashboard-grid">
+        <div class="dashboard-card metric">
+            <span class="metric-value">{{ dashboard_data.rollout_overview.progress.total_clients|default:0 }}</span>
+            <div class="metric-label">Total Clients</div>
+        </div>
+
+        <div class="dashboard-card metric">
+            <span class="metric-value">{{ dashboard_data.rollout_overview.progress.clients_with_sessions|default:0 }}</span>
+            <div class="metric-label">Active Clients</div>
+        </div>
+
+        <div class="dashboard-card metric">
+            <span class="metric-value">{{ dashboard_data.rollout_overview.progress.adoption_rate|floatformat:1|default:0 }}%</span>
+            <div class="metric-label">Adoption Rate</div>
+        </div>
+
+        <div class="dashboard-card metric">
+            <span class="metric-value">{{ dashboard_data.rollout_overview.progress.completion_rate|floatformat:1|default:0 }}%</span>
+            <div class="metric-label">Completion Rate</div>
+        </div>
+    </div>
+
+    <!-- Current Rollout Stage -->
+    <div class="dashboard-card">
+        <h2>Rollout Status</h2>
+        <div style="margin: 20px 0;">
+            <span class="rollout-stage stage-{{ dashboard_data.rollout_overview.current_stage }}">
+                {{ dashboard_data.rollout_overview.current_stage|title|replace:"_":" " }}
+            </span>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ dashboard_data.rollout_overview.progress.adoption_rate|default:0 }}%"></div>
+        </div>
+
+        <p>
+            <strong>Next Milestone:</strong> {{ dashboard_data.rollout_overview.next_milestone.description|default:"Continue monitoring" }}
+            ({{ dashboard_data.rollout_overview.next_milestone.target_percentage|default:100 }}%)
+        </p>
+    </div>
+
+    <!-- Funnel Analytics -->
+    <div class="dashboard-card">
+        <h2>Onboarding Funnel (Live Data)</h2>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.funnel_analytics.weekly_summary.total_sessions|default:0 }}</span>
+                <div class="metric-label">Total Sessions</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.funnel_analytics.weekly_summary.completion_rate|floatformat:1|default:0 }}%</span>
+                <div class="metric-label">Completion Rate</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.funnel_analytics.weekly_summary.avg_completion_time|floatformat:1|default:0 }}</span>
+                <div class="metric-label">Avg Time (min)</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.funnel_analytics.real_time.active_sessions|default:0 }}</span>
+                <div class="metric-label">Active Now</div>
+            </div>
+        </div>
+
+        {% if dashboard_data.funnel_analytics.stage_breakdown %}
+        <h3>Stage Breakdown</h3>
+        <div class="chart-container">
+            {% for stage in dashboard_data.funnel_analytics.stage_breakdown %}
+            <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>{{ stage.name|title|replace:"_":" " }}</strong>
+                    <span>{{ stage.count }} sessions</span>
+                </div>
+                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                    Conversion: {{ stage.conversion_rate|floatformat:1 }}% |
+                    Drop-off: {{ stage.drop_off_rate|floatformat:1 }}%
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Template Usage -->
+    <div class="dashboard-card">
+        <h2>Industry Template Performance</h2>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.template_usage.analytics.total_templates|default:0 }}</span>
+                <div class="metric-label">Available Templates</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.feature_adoption.template_adoption.usage_count|default:0 }}</span>
+                <div class="metric-label">Deployments</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.feature_adoption.template_adoption.adoption_rate|floatformat:1|default:0 }}%</span>
+                <div class="metric-label">Adoption Rate</div>
+            </div>
+        </div>
+
+        {% if dashboard_data.template_usage.most_popular %}
+        <h3>Most Popular Templates</h3>
+        {% for template in dashboard_data.template_usage.most_popular %}
+        <div style="margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+            <strong>{{ template.template_id|title|replace:"_":" " }}:</strong>
+            {{ template.usage_count }} deployments ({{ template.success_rate|floatformat:1 }}% success)
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- System Health -->
+    <div class="dashboard-card">
+        <h2>System Health & Performance</h2>
+
+        <div style="margin: 20px 0;">
+            <div style="margin: 15px 0;">
+                <span class="status-indicator {% if dashboard_data.feature_adoption.feature_flags_status.conversational_onboarding %}status-healthy{% else %}status-warning{% endif %}"></span>
+                <strong>Conversational Onboarding:</strong>
+                {% if dashboard_data.feature_adoption.feature_flags_status.conversational_onboarding %}Enabled{% else %}Disabled{% endif %}
+            </div>
+
+            <div style="margin: 15px 0;">
+                <span class="status-indicator {% if dashboard_data.feature_adoption.feature_flags_status.production_embeddings %}status-healthy{% else %}status-warning{% endif %}"></span>
+                <strong>Production Embeddings:</strong>
+                {% if dashboard_data.feature_adoption.feature_flags_status.production_embeddings %}Enabled{% else %}Disabled{% endif %}
+            </div>
+
+            <div style="margin: 15px 0;">
+                <span class="status-indicator {% if dashboard_data.feature_adoption.feature_flags_status.webhook_notifications %}status-healthy{% else %}status-warning{% endif %}"></span>
+                <strong>Webhook Notifications:</strong>
+                {% if dashboard_data.feature_adoption.feature_flags_status.webhook_notifications %}Enabled{% else %}Disabled{% endif %}
+            </div>
+
+            <div style="margin: 15px 0;">
+                <span class="status-indicator {% if dashboard_data.feature_adoption.feature_flags_status.production_llm %}status-healthy{% else %}status-warning{% endif %}"></span>
+                <strong>Production LLM:</strong>
+                {% if dashboard_data.feature_adoption.feature_flags_status.production_llm %}Enabled{% else %}Disabled{% endif %}
+            </div>
+        </div>
+
+        {% if dashboard_data.system_performance.last_24_hours.error_rate > 5 %}
+        <div class="alert-item alert-warning">
+            <strong>Warning:</strong> Error rate ({{ dashboard_data.system_performance.last_24_hours.error_rate|floatformat:1 }}%) is elevated
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Cost Overview -->
+    {% if dashboard_data.cost_overview %}
+    <div class="dashboard-card">
+        <h2>Cost Overview</h2>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-card metric">
+                <span class="metric-value">${{ dashboard_data.cost_overview.daily_costs.total_costs_cents|default:0|floatformat:2 }}</span>
+                <div class="metric-label">Daily Costs</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">${{ dashboard_data.cost_overview.monthly_projection.projected_costs_cents|default:0|floatformat:2 }}</span>
+                <div class="metric-label">Monthly Projection</div>
+            </div>
+
+            <div class="dashboard-card metric">
+                <span class="metric-value">{{ dashboard_data.cost_overview.monthly_projection.budget_utilization_percentage|floatformat:1|default:0 }}%</span>
+                <div class="metric-label">Budget Utilization</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Administrative Actions -->
+    <div class="dashboard-card">
+        <h2>Administrative Actions</h2>
+        <div class="quick-actions">
+            {% for action in dashboard_data.quick_actions %}
+            <button class="quick-action-btn"
+                    onclick="executeQuickAction('{{ action.id }}', '{{ action.action_url }}', '{{ action.method }}', {{ action.data|default:"{}"|escapejs }})"
+                    title="{{ action.description }} ({{ action.estimated_time }})">
+                {{ action.title }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top: 20px;">
+            <a href="{% url 'admin:onboarding_conversationsession_changelist' %}" class="btn-primary">
+                View All Sessions
+            </a>
+            <a href="{% url 'admin:onboarding_aichangeset_changelist' %}" class="btn-primary">
+                Manage Changesets
+            </a>
+            <a href="/api/v1/onboarding/admin/analytics/export/" class="btn-primary" target="_blank">
+                Export Analytics
+            </a>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <h2>Quick Actions</h2>
+        <div class="action-buttons">
+            <a href="{% url 'admin:peoples_people_changelist' %}?onboarding_capabilities=none" class="btn-primary">
+                Manage User Capabilities
+            </a>
+            <a href="{% url 'admin:onboarding_bt_changelist' %}" class="btn-primary">
+                Tenant Rollout Control
+            </a>
+            <a href="{% url 'admin:onboarding_conversationsession_changelist' %}" class="btn-primary">
+                View Active Sessions
+            </a>
+            <a href="{% url 'admin:onboarding_aichangeset_changelist' %}" class="btn-primary">
+                Review Changesets
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="dashboard-card">
+        <h2>Recent Activity</h2>
+        <div id="recent-activity">
+            <!-- This would be populated with recent onboarding activities -->
+            <p><em>Loading recent activity...</em></p>
+        </div>
+    </div>
+
+    <!-- Feature Flags Status -->
+    <div class="dashboard-card">
+        <h2>Feature Flags Status</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f9f9f9;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Feature</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Status</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Conversational Onboarding</td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+                        <span class="status-indicator status-healthy"></span>
+                        Enabled
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Core conversational onboarding feature</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">AI Checker LLM</td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+                        <span class="status-indicator status-warning"></span>
+                        Partial
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">AI recommendation validation</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Knowledge Base</td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+                        <span class="status-indicator status-healthy"></span>
+                        Enabled
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Knowledge base integration</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Server-Sent Events</td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+                        <span class="status-indicator status-healthy"></span>
+                        Enabled
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Real-time updates</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Enhanced dashboard with live data updates
+class RolloutDashboard {
+    constructor() {
+        this.refreshInterval = {{ refresh_interval_seconds|default:30 }} * 1000;
+        this.autoRefreshEnabled = {{ auto_refresh_enabled|default:"false"|lower }};
+        this.countdownTimer = null;
+        this.refreshTimer = null;
+
+        this.init();
+    }
+
+    init() {
+        if (this.autoRefreshEnabled) {
+            this.startAutoRefresh();
+            this.initCountdown();
+        }
+
+        this.bindQuickActions();
+        this.loadRecentActivity();
+    }
+
+    startAutoRefresh() {
+        this.refreshTimer = setInterval(() => {
+            this.refreshDashboardData();
+        }, this.refreshInterval);
+    }
+
+    initCountdown() {
+        let countdown = {{ refresh_interval_seconds|default:30 }};
+        const countdownElement = document.getElementById('refresh-countdown');
+
+        this.countdownTimer = setInterval(() => {
+            countdown--;
+            if (countdownElement) {
+                countdownElement.textContent = countdown;
+            }
+
+            if (countdown <= 0) {
+                countdown = {{ refresh_interval_seconds|default:30 }};
+            }
+        }, 1000);
+    }
+
+    async refreshDashboardData() {
+        try {
+            const response = await fetch('/api/v1/onboarding/admin/rollout-dashboard-data/', {
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.updateDashboardElements(data);
+                console.log('Dashboard data refreshed successfully');
+            } else {
+                console.warn('Failed to refresh dashboard data:', response.status);
+            }
+        } catch (error) {
+            console.error('Error refreshing dashboard:', error);
+        }
+    }
+
+    updateDashboardElements(data) {
+        // Update key metrics
+        this.updateMetricValue('.rollout-overview .total-clients', data.rollout_overview?.progress?.total_clients);
+        this.updateMetricValue('.rollout-overview .active-clients', data.rollout_overview?.progress?.clients_with_sessions);
+        this.updateMetricValue('.rollout-overview .adoption-rate', data.rollout_overview?.progress?.adoption_rate);
+        this.updateMetricValue('.rollout-overview .completion-rate', data.rollout_overview?.progress?.completion_rate);
+
+        // Update progress bars
+        const adoptionRate = data.rollout_overview?.progress?.adoption_rate || 0;
+        const progressFills = document.querySelectorAll('.progress-fill');
+        progressFills.forEach(fill => {
+            fill.style.width = adoptionRate + '%';
+        });
+
+        // Update funnel metrics
+        if (data.funnel_analytics) {
+            this.updateFunnelMetrics(data.funnel_analytics);
+        }
+
+        // Update last updated timestamp
+        const lastUpdatedElements = document.querySelectorAll('.last-updated');
+        lastUpdatedElements.forEach(element => {
+            element.textContent = new Date().toLocaleTimeString();
+        });
+    }
+
+    updateMetricValue(selector, value) {
+        const element = document.querySelector(selector + ' .metric-value');
+        if (element && value !== undefined) {
+            element.textContent = typeof value === 'number' ? value.toFixed(1) : value;
+        }
+    }
+
+    updateFunnelMetrics(funnelData) {
+        // Update funnel stage breakdown
+        if (funnelData.stage_breakdown) {
+            funnelData.stage_breakdown.forEach((stage, index) => {
+                const stageElement = document.querySelector(`[data-stage="${stage.name}"]`);
+                if (stageElement) {
+                    stageElement.querySelector('.stage-count').textContent = stage.count;
+                    stageElement.querySelector('.stage-conversion').textContent = stage.conversion_rate.toFixed(1) + '%';
+                }
+            });
+        }
+    }
+
+    bindQuickActions() {
+        // Bind quick action buttons
+        document.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('quick-action-btn')) {
+                const actionId = e.target.dataset.actionId;
+                const actionUrl = e.target.dataset.actionUrl;
+                const actionMethod = e.target.dataset.actionMethod || 'GET';
+                const actionData = e.target.dataset.actionData ? JSON.parse(e.target.dataset.actionData) : {};
+
+                await this.executeQuickAction(actionId, actionUrl, actionMethod, actionData);
+            }
+        });
+    }
+
+    async executeQuickAction(actionId, actionUrl, method, data) {
+        const button = document.querySelector(`[data-action-id="${actionId}"]`);
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Processing...';
+        }
+
+        try {
+            const requestOptions = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            };
+
+            if (method === 'POST' && data) {
+                requestOptions.body = JSON.stringify(data);
+            }
+
+            const response = await fetch(actionUrl, requestOptions);
+            const result = await response.json();
+
+            if (response.ok) {
+                this.showActionResult(actionId, 'success', result);
+                // Refresh dashboard data after action
+                setTimeout(() => this.refreshDashboardData(), 2000);
+            } else {
+                this.showActionResult(actionId, 'error', result);
+            }
+
+        } catch (error) {
+            this.showActionResult(actionId, 'error', { error: error.message });
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.textContent = button.dataset.originalText || button.textContent.replace('Processing...', 'Execute');
+            }
+        }
+    }
+
+    showActionResult(actionId, type, result) {
+        // Show temporary notification
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'}`;
+        notification.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 1000; max-width: 300px;';
+        notification.innerHTML = `
+            <strong>${type === 'success' ? 'Success' : 'Error'}:</strong>
+            ${result.message || result.error || 'Action completed'}
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    loadRecentActivity() {
+        // Load recent activity via API
+        setTimeout(async () => {
+            try {
+                // This would load real recent activity data
+                const activityHTML = `
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <div style="margin: 5px 0; padding: 8px; background: #f0f8ff; border-radius: 4px;">
+                            <strong>Template Deployed:</strong> Office template deployed to TechCorp
+                            <div style="font-size: 0.8em; color: #666;">2 minutes ago</div>
+                        </div>
+                        <div style="margin: 5px 0; padding: 8px; background: #f0fff0; border-radius: 4px;">
+                            <strong>Approval Completed:</strong> AI recommendations approved by jane@acme.com
+                            <div style="font-size: 0.8em; color: #666;">8 minutes ago</div>
+                        </div>
+                        <div style="margin: 5px 0; padding: 8px; background: #fff8f0; border-radius: 4px;">
+                            <strong>Session Started:</strong> New onboarding session for RetailCorp
+                            <div style="font-size: 0.8em; color: #666;">15 minutes ago</div>
+                        </div>
+                        <div style="margin: 5px 0; padding: 8px; background: #f8f0ff; border-radius: 4px;">
+                            <strong>Knowledge Updated:</strong> Security guidelines refreshed in knowledge base
+                            <div style="font-size: 0.8em; color: #666;">1 hour ago</div>
+                        </div>
+                    </div>
+                `;
+
+                const activityContainer = document.getElementById('recent-activity');
+                if (activityContainer) {
+                    activityContainer.innerHTML = activityHTML;
+                }
+            } catch (error) {
+                console.error('Error loading recent activity:', error);
+            }
+        }, 1500);
+    }
+
+    getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    }
+}
+
+// Initialize dashboard when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    window.rolloutDashboard = new RolloutDashboard();
+});
+
+// Global function for quick actions (backward compatibility)
+function executeQuickAction(actionId, actionUrl, method, data) {
+    if (window.rolloutDashboard) {
+        return window.rolloutDashboard.executeQuickAction(actionId, actionUrl, method, data);
+    }
+}
+</script>
+{% endblock %}

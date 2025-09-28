@@ -1,295 +1,77 @@
 """
 Production Health Check System for YOUTILITY3
-Provides comprehensive health monitoring for production deployment
+Provides comprehensive health monitoring for production deployment.
+
+Refactored to use modular health check system from apps.core.health_checks.
+Maintains backward compatibility with existing endpoints.
+
+CSRF Exemption Note (Rule 3 compliance):
+Health check endpoints use @csrf_exempt because:
+1. They are read-only operations
+2. They do not modify system state
+3. They are public endpoints for monitoring systems
+4. No user authentication is required
 """
 
-import json
-import time
 import logging
-from datetime import datetime, timedelta
 from django.http import JsonResponse, HttpResponse
-from django.db import connection, connections
-from django.core.cache import cache
-from django.conf import settings
-from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from apps.core.services.health_check_service import HealthCheckService
 
 logger = logging.getLogger(__name__)
 
-
-class HealthCheckManager:
-    """Centralized health check management"""
-
-    def __init__(self):
-        self.checks = {}
-        self.start_time = time.time()
-
-    def register_check(self, name, check_func, critical=True):
-        """Register a health check function"""
-        self.checks[name] = {
-            "func": check_func,
-            "critical": critical,
-            "last_run": None,
-            "last_result": None,
-        }
-
-    def run_check(self, name):
-        """Run a specific health check"""
-        if name not in self.checks:
-            return {"status": "error", "message": f"Unknown check: {name}"}
-
-        check = self.checks[name]
-        start_time = time.time()
-
-        try:
-            result = check["func"]()
-            result["duration_ms"] = round((time.time() - start_time) * 1000, 2)
-            result["timestamp"] = timezone.now().isoformat()
-
-            check["last_run"] = timezone.now()
-            check["last_result"] = result
-
-            return result
-        except Exception as e:
-            logger.exception(f"Health check '{name}' failed")
-            error_result = {
-                "status": "error",
-                "message": str(e),
-                "duration_ms": round((time.time() - start_time) * 1000, 2),
-                "timestamp": timezone.now().isoformat(),
-            }
-            check["last_result"] = error_result
-            return error_result
-
-    def run_all_checks(self):
-        """Run all registered health checks"""
-        results = {}
-        overall_status = "healthy"
-
-        for name, check in self.checks.items():
-            result = self.run_check(name)
-            results[name] = result
-
-            if result["status"] != "healthy" and check["critical"]:
-                overall_status = "unhealthy"
-            elif result["status"] != "healthy" and overall_status == "healthy":
-                overall_status = "degraded"
-
-        return {
-            "status": overall_status,
-            "timestamp": timezone.now().isoformat(),
-            "uptime_seconds": round(time.time() - self.start_time, 2),
-            "checks": results,
-        }
+health_service = HealthCheckService()
 
 
-# Global health check manager
-health_manager = HealthCheckManager()
-
-
-def check_database():
-    """Check PostgreSQL database connectivity and performance"""
-    try:
-        start_time = time.time()
-
-        # Test main database connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-
-        # Check database version and status
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT version()")
-            db_version = cursor.fetchone()[0]
-
-        # Test performance with a simple query
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT COUNT(*) FROM django_session")
-            session_count = cursor.fetchone()[0]
-
-        query_time = round((time.time() - start_time) * 1000, 2)
-
-        return {
-            "status": "healthy",
-            "database_version": db_version.split()[0:2],  # PostgreSQL version
-            "session_count": session_count,
-            "query_time_ms": query_time,
-            "connection_status": "connected",
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Database connection failed: {str(e)}",
-            "connection_status": "failed",
-        }
-
-
-def check_postgresql_functions():
-    """Check if custom PostgreSQL functions are available"""
-    try:
-        functions_to_check = [
-            "cleanup_expired_sessions",
-            "cleanup_select2_cache",
-            "refresh_select2_materialized_views",
-        ]
-
-        function_status = {}
-
-        with connection.cursor() as cursor:
-            for func_name in functions_to_check:
-                cursor.execute(
-                    """
-                    SELECT EXISTS (
-                        SELECT 1 FROM pg_proc
-                        WHERE proname = %s
-                    )
-                """,
-                    [func_name],
-                )
-                exists = cursor.fetchone()[0]
-                function_status[func_name] = "available" if exists else "missing"
-
-        all_functions_available = all(
-            status == "available" for status in function_status.values()
-        )
-
-        return {
-            "status": "healthy" if all_functions_available else "error",
-            "functions": function_status,
-            "message": "All PostgreSQL functions available"
-            if all_functions_available
-            else "Some functions missing",
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Function check failed: {str(e)}"}
-
-
-def check_cache():
-    """Check cache backend functionality"""
-    try:
-        # Test cache write and read
-        test_key = f"health_check_{int(time.time())}"
-        test_value = {"test": True, "timestamp": timezone.now().isoformat()}
-
-        cache.set(test_key, test_value, 10)
-        retrieved_value = cache.get(test_key)
-
-        if retrieved_value == test_value:
-            cache.delete(test_key)
-            return {
-                "status": "healthy",
-                "backend": cache.__class__.__name__,
-                "message": "Cache read/write successful",
-            }
-        else:
-            return {
-                "status": "error",
-                "backend": cache.__class__.__name__,
-                "message": "Cache read/write failed",
-            }
-    except Exception as e:
-        return {"status": "error", "message": f"Cache check failed: {str(e)}"}
-
-
-def check_task_queue():
-    """Check PostgreSQL task queue status"""
-    try:
-        # Check if task queue tables exist and are accessible
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT COUNT(*) FROM information_schema.tables
-                WHERE table_name LIKE '%task%'
-            """
-            )
-            table_count = cursor.fetchone()[0]
-
-        return {
-            "status": "healthy",
-            "task_tables_available": table_count > 0,
-            "message": "PostgreSQL task queue system operational",
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Task queue check failed: {str(e)}"}
-
-
-def check_application_status():
-    """Check overall application health"""
-    try:
-        # Check if DEBUG is disabled in production
-        debug_status = getattr(settings, "DEBUG", True)
-
-        # Check if required settings are configured
-        required_settings = ["SECRET_KEY", "ALLOWED_HOSTS", "DATABASES"]
-        missing_settings = [
-            setting for setting in required_settings if not hasattr(settings, setting)
-        ]
-
-        # Check installed apps
-        critical_apps = ["django.contrib.auth", "django.contrib.sessions", "apps.core"]
-        missing_apps = [
-            app for app in critical_apps if app not in settings.INSTALLED_APPS
-        ]
-
-        issues = []
-        if debug_status:
-            issues.append("DEBUG is enabled (should be False in production)")
-        if missing_settings:
-            issues.append(f"Missing settings: {missing_settings}")
-        if missing_apps:
-            issues.append(f"Missing critical apps: {missing_apps}")
-
-        return {
-            "status": "healthy" if not issues else "warning",
-            "debug_enabled": debug_status,
-            "missing_settings": missing_settings,
-            "missing_apps": missing_apps,
-            "issues": issues,
-            "message": "Application configuration OK"
-            if not issues
-            else f"{len(issues)} configuration issues",
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Application status check failed: {str(e)}",
-        }
-
-
-# Register all health checks
-health_manager.register_check("database", check_database, critical=True)
-health_manager.register_check(
-    "postgresql_functions", check_postgresql_functions, critical=True
-)
-health_manager.register_check("cache", check_cache, critical=False)
-health_manager.register_check("task_queue", check_task_queue, critical=True)
-health_manager.register_check("application", check_application_status, critical=False)
 
 
 @csrf_exempt
 @require_http_methods(["GET"])
 def health_check(request):
     """
-    Basic health check endpoint
-    Returns 200 if application is healthy, 503 if unhealthy
+    Basic health check endpoint.
+    Returns 200 if application is healthy, 503 if unhealthy.
+    Uses comprehensive health check service with all dependency checks.
     """
     try:
-        result = health_manager.run_all_checks()
+        result = health_service.run_all_checks(
+            log_results=False, update_availability=False
+        )
 
         status_code = 200
         if result["status"] == "unhealthy":
             status_code = 503
         elif result["status"] == "degraded":
-            status_code = 200  # Still operational
+            status_code = 200
 
         return JsonResponse(result, status=status_code)
-    except Exception as e:
-        logger.exception("Health check failed")
+
+    except (ConnectionError, TimeoutError) as e:
+        logger.error(
+            f"Health check connection error: {e}",
+            extra={"error_type": type(e).__name__},
+        )
         return JsonResponse(
             {
                 "status": "error",
-                "message": f"Health check system error: {str(e)}",
+                "message": "Health check system unavailable",
+                "error_type": type(e).__name__,
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=503,
+        )
+
+    except RuntimeError as e:
+        logger.error(
+            f"Health check runtime error: {e}", extra={"error_type": "RuntimeError"}
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Health check system error",
+                "error_type": "RuntimeError",
                 "timestamp": timezone.now().isoformat(),
             },
             status=503,
@@ -300,13 +82,13 @@ def health_check(request):
 @require_http_methods(["GET"])
 def readiness_check(request):
     """
-    Readiness check endpoint for container orchestration
-    Returns 200 only if all critical systems are operational
+    Readiness check endpoint for container orchestration.
+    Returns 200 only if all critical systems are operational.
+    Runs only critical checks for faster response.
     """
     try:
-        result = health_manager.run_all_checks()
+        result = health_service.run_critical_checks_only()
 
-        # For readiness, we're stricter - any critical system failure = not ready
         if result["status"] in ["healthy", "degraded"]:
             return JsonResponse(
                 {
@@ -326,12 +108,32 @@ def readiness_check(request):
                 },
                 status=503,
             )
-    except Exception as e:
-        logger.exception("Readiness check failed")
+
+    except (ConnectionError, TimeoutError) as e:
+        logger.error(
+            f"Readiness check connection error: {e}",
+            extra={"error_type": type(e).__name__},
+        )
         return JsonResponse(
             {
                 "status": "not_ready",
-                "message": f"Readiness check system error: {str(e)}",
+                "message": "Readiness check system unavailable",
+                "error_type": type(e).__name__,
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=503,
+        )
+
+    except RuntimeError as e:
+        logger.error(
+            f"Readiness check runtime error: {e}",
+            extra={"error_type": "RuntimeError"},
+        )
+        return JsonResponse(
+            {
+                "status": "not_ready",
+                "message": "Readiness check system error",
+                "error_type": "RuntimeError",
                 "timestamp": timezone.now().isoformat(),
             },
             status=503,
@@ -342,21 +144,32 @@ def readiness_check(request):
 @require_http_methods(["GET"])
 def liveness_check(request):
     """
-    Liveness check endpoint for container orchestration
-    Simple check to verify the application process is alive
+    Liveness check endpoint for container orchestration.
+    Simple check to verify the application process is alive.
+    Minimal dependencies - just process aliveness verification.
     """
     try:
+        import time
+
+        uptime = round(
+            time.time() - health_service.manager.start_time, 2
+        )
+
         return JsonResponse(
             {
                 "status": "alive",
                 "timestamp": timezone.now().isoformat(),
-                "uptime_seconds": round(time.time() - health_manager.start_time, 2),
+                "uptime_seconds": uptime,
                 "message": "Application process is alive",
             },
             status=200,
         )
-    except Exception as e:
-        logger.exception("Liveness check failed")
+
+    except RuntimeError as e:
+        logger.error(
+            f"Liveness check runtime error: {e}",
+            extra={"error_type": "RuntimeError"},
+        )
         return HttpResponse("Application process error", status=503)
 
 
@@ -364,29 +177,54 @@ def liveness_check(request):
 @require_http_methods(["GET"])
 def detailed_health_check(request):
     """
-    Detailed health check with all system information
-    For monitoring systems and debugging
+    Detailed health check with all system information.
+    For monitoring systems and debugging.
+    Includes historical metrics and service availability data.
     """
     try:
-        result = health_manager.run_all_checks()
+        from django.conf import settings
+        import sys
 
-        # Add system information
+        result = health_service.run_all_checks(
+            log_results=True, update_availability=True
+        )
+
         result["system_info"] = {
             "django_version": getattr(settings, "DJANGO_VERSION", "unknown"),
-            "python_version": f"{settings.VERSION_INFO[0]}.{settings.VERSION_INFO[1]}"
-            if hasattr(settings, "VERSION_INFO")
-            else "unknown",
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
             "debug_mode": getattr(settings, "DEBUG", True),
             "environment": getattr(settings, "ENVIRONMENT", "unknown"),
         }
 
+        result["service_availability"] = health_service.get_service_health_summary()
+
         return JsonResponse(result, status=200)
-    except Exception as e:
-        logger.exception("Detailed health check failed")
+
+    except (ConnectionError, TimeoutError) as e:
+        logger.error(
+            f"Detailed health check connection error: {e}",
+            extra={"error_type": type(e).__name__},
+        )
         return JsonResponse(
             {
                 "status": "error",
-                "message": f"Detailed health check failed: {str(e)}",
+                "message": "Detailed health check system unavailable",
+                "error_type": type(e).__name__,
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=503,
+        )
+
+    except RuntimeError as e:
+        logger.error(
+            f"Detailed health check runtime error: {e}",
+            extra={"error_type": "RuntimeError"},
+        )
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Detailed health check system error",
+                "error_type": "RuntimeError",
                 "timestamp": timezone.now().isoformat(),
             },
             status=503,

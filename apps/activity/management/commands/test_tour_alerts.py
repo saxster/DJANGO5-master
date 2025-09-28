@@ -6,9 +6,7 @@ Usage: python manage.py test_tour_alerts
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
-from datetime import datetime, timedelta
 from decimal import Decimal
-import json
 
 class Command(BaseCommand):
     help = 'Test Tour/Task alert functionality by creating a tour with test data'
@@ -311,7 +309,7 @@ class Command(BaseCommand):
                 
                 self.stdout.write(self.style.SUCCESS('='*60))
                 
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
             self.stdout.write(self.style.ERROR(f'Error: {str(e)}'))
             import traceback
             self.stdout.write(self.style.ERROR(traceback.format_exc()))

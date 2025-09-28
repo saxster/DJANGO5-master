@@ -12,7 +12,6 @@ from datetime import timedelta
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-from apps.core.models.heatmap import HeatmapSession, HeatmapAggregation
 from apps.ab_testing.models import Experiment, Assignment, Conversion
 from apps.core.consumers import send_heatmap_update, send_ab_test_update, send_dashboard_alert
 
@@ -378,7 +377,7 @@ class SystemHealthView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'connections': len(connection.queries) if hasattr(connection, 'queries') else 0
             }
             
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             return {
                 'status': 'unhealthy',
                 'error': str(e)
@@ -400,7 +399,7 @@ class SystemHealthView(LoginRequiredMixin, UserPassesTestMixin, View):
             else:
                 return {'status': 'unhealthy', 'error': 'Cache read/write failed'}
                 
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             return {
                 'status': 'unhealthy',
                 'error': str(e)
@@ -416,7 +415,7 @@ class SystemHealthView(LoginRequiredMixin, UserPassesTestMixin, View):
             
             return {'status': 'available', 'backend': str(type(channel_layer).__name__)}
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             return {
                 'status': 'unhealthy',
                 'error': str(e)

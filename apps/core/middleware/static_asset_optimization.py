@@ -18,20 +18,6 @@ Performance improvements expected:
 import os
 import hashlib
 import gzip
-import mimetypes
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
-from urllib.parse import urlparse
-from django.conf import settings
-from django.http import HttpRequest, HttpResponse, FileResponse, Http404
-from django.utils.deprecation import MiddlewareMixin
-from django.core.files.storage import default_storage
-from django.core.cache import cache
-from django.views.static import serve
-from django.utils.cache import add_never_cache_headers, patch_response_headers
-from django.shortcuts import redirect
-import logging
-
 logger = logging.getLogger('static_optimization')
 
 try:
@@ -189,7 +175,7 @@ class StaticAssetOptimizer:
             
             return HttpResponse(webp_content, content_type='image/webp')
             
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.warning(f"Failed to convert {original_path} to WebP: {e}")
             return None
     
@@ -242,7 +228,7 @@ class StaticAssetOptimizer:
             
             return new_response
             
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.warning(f"Brotli compression failed: {e}")
             return response
     
@@ -272,7 +258,7 @@ class StaticAssetOptimizer:
             
             return new_response
             
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.warning(f"Gzip compression failed: {e}")
             return response
     
@@ -331,7 +317,7 @@ class AssetBundler:
             full_path = os.path.join(settings.STATIC_ROOT or settings.STATICFILES_DIRS[0], path)
             with open(full_path, 'r', encoding='utf-8') as f:
                 return f.read()
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.warning(f"Could not read asset {path}: {e}")
             return None
     
@@ -342,7 +328,7 @@ class AssetBundler:
                 return self._minify_css(content)
             elif asset_type == 'js':
                 return self._minify_js(content)
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.warning(f"Minification failed for {asset_type}: {e}")
         
         return content
@@ -416,7 +402,7 @@ class StaticOptimizationMiddleware(MiddlewareMixin):
             
             return optimized_response
             
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.error(f"Static optimization failed: {e}")
             return response
     
@@ -441,7 +427,7 @@ class StaticOptimizationMiddleware(MiddlewareMixin):
         try:
             if request.path.startswith(settings.STATIC_URL):
                 return request.path[len(settings.STATIC_URL):]
-        except Exception:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError):
             pass
         
         return None
@@ -484,7 +470,7 @@ class LazyLoadingInjector:
             response.content = content.encode('utf-8')
             response['Content-Length'] = len(response.content)
             
-        except Exception as e:
+        except (ConnectionError, FileNotFoundError, IOError, OSError, PermissionError, ValueError) as e:
             logger.warning(f"Failed to inject lazy loading: {e}")
         
         return response

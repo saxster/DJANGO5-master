@@ -1,5 +1,4 @@
 import graphene
-from apps.service.types import GetPdfUrl
 
 
 class WomPdfUrlFilterInput(graphene.InputObjectType):

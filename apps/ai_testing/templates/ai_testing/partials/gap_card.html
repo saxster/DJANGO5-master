@@ -1,0 +1,258 @@
+<!-- Coverage Gap Card Partial for HTMX Updates -->
+<div class="card gap-card priority-{{ gap.priority }}" id="gap-card-{{ gap.id }}">
+    <div class="card-header d-flex justify-content-between align-items-start">
+        <div>
+            <h6 class="mb-1">
+                <a href="{% url 'ai_testing:coverage_gap_detail' gap.id %}" class="text-decoration-none">
+                    {{ gap.title|truncatechars:60 }}
+                </a>
+            </h6>
+            <div class="d-flex align-items-center gap-2">
+                <span class="coverage-type-badge badge bg-primary">{{ gap.get_coverage_type_display }}</span>
+                <span class="status-badge badge bg-{% if gap.status == 'identified' %}warning{% elif gap.status == 'test_generated' %}info{% elif gap.status == 'test_implemented' %}success{% else %}secondary{% endif %}">
+                    {{ gap.get_status_display }}
+                </span>
+            </div>
+        </div>
+        <span class="badge bg-{{ gap.priority }}">
+            {{ gap.get_priority_display }}
+        </span>
+    </div>
+
+    <div class="card-body">
+        <p class="text-muted small mb-3">{{ gap.description|truncatechars:120 }}</p>
+
+        <!-- Confidence and Impact Scores -->
+        <div class="row mb-3">
+            <div class="col-6">
+                <div class="small text-muted mb-1">Confidence</div>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" style="width: {{ gap.confidence_score|floatformat:0 }}%"></div>
+                </div>
+                <div class="small text-center">{{ gap.confidence_score|floatformat:1 }}%</div>
+            </div>
+            <div class="col-6">
+                <div class="small text-muted mb-1">Impact</div>
+                <div class="text-center">
+                    <span class="h5 mb-0">{{ gap.impact_score|floatformat:1 }}</span>
+                    <small class="text-muted">/10</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Affected Platforms -->
+        {% if gap.affected_platforms %}
+        <div class="mb-3">
+            <div class="small text-muted mb-1">Platforms</div>
+            <div class="platform-badges">
+                {% for platform in gap.affected_platforms %}
+                    <span class="platform-badge">{{ platform|capfirst }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Meta Information -->
+        <div class="row text-muted small">
+            <div class="col-6">
+                <i class="fas fa-clock"></i> {{ gap.identified_at|timesince }} ago
+            </div>
+            <div class="col-6 text-end">
+                <i class="fas fa-wrench"></i> ~{{ gap.estimated_implementation_time }}h
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer bg-transparent">
+        <div class="btn-group w-100" role="group">
+            <a href="{% url 'ai_testing:coverage_gap_detail' gap.id %}"
+               class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye"></i> View
+            </a>
+
+            {% if gap.status == 'identified' %}
+                <button class="btn btn-sm btn-outline-success"
+                        onclick="generateTest('{{ gap.id }}')">
+                    <i class="fas fa-code"></i> Generate Test
+                </button>
+            {% elif gap.status == 'test_generated' %}
+                <a href="{% url 'ai_testing:download_generated_test' %}?gap_id={{ gap.id }}&framework={{ gap.recommended_framework }}"
+                   class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-download"></i> Download Test
+                </a>
+            {% endif %}
+
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                        type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <button class="dropdown-item" onclick="updateGapStatus('{{ gap.id }}', 'test_implemented')">
+                            <i class="fas fa-check"></i> Mark Implemented
+                        </button>
+                    </li>
+                    <li>
+                        <button class="dropdown-item" onclick="updateGapStatus('{{ gap.id }}', 'dismissed')">
+                            <i class="fas fa-times"></i> Dismiss
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'ai_testing:coverage_gap_detail' gap.id %}">
+                            <i class="fas fa-info-circle"></i> Details
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.gap-card {
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.gap-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.gap-card.priority-critical {
+    border-left-color: #dc3545;
+}
+
+.gap-card.priority-high {
+    border-left-color: #fd7e14;
+}
+
+.gap-card.priority-medium {
+    border-left-color: #ffc107;
+}
+
+.gap-card.priority-low {
+    border-left-color: #6c757d;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
+.confidence-bar {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+    transition: width 0.3s ease;
+}
+
+.coverage-type-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 12px;
+}
+
+.platform-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.platform-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #e9ecef;
+    color: #495057;
+}
+</style>
+
+<script>
+function generateTest(gapId) {
+    // Navigate to test generation page
+    window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/generate-test/`;
+}
+
+function updateGapStatus(gapId, newStatus) {
+    // This should trigger a status update modal or direct update
+    if (typeof window.updateStatus === 'function') {
+        window.updateStatus(gapId, newStatus);
+    } else {
+        // Fallback: direct status update
+        updateGapStatusDirect(gapId, newStatus);
+    }
+}
+
+function updateGapStatusDirect(gapId, newStatus) {
+    const confirmMessage = newStatus === 'dismissed'
+        ? 'Are you sure you want to dismiss this coverage gap?'
+        : `Are you sure you want to mark this gap as ${newStatus.replace('_', ' ')}?`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    fetch(`/streamlab/ai/coverage-gaps/${gapId}/update-status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: `status=${newStatus}&notes=Updated from gap card`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+
+            // Refresh the specific card via HTMX if available
+            if (typeof htmx !== 'undefined') {
+                htmx.trigger(`#gap-card-${gapId}`, 'refresh');
+            } else {
+                // Fallback: reload the page
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            }
+        } else {
+            showToast(data.error || 'Failed to update status', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while updating status', 'danger');
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+           document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>

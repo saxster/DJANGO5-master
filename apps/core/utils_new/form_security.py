@@ -15,6 +15,14 @@ from django.utils.translation import gettext_lazy as _
 from apps.core.constants import ValidationConstants, MediaConstants
 
 
+__all__ = [
+    'InputSanitizer',
+    'FileSecurityValidator',
+    'FormValidators',
+    'SecureFormMixin',
+]
+
+
 class InputSanitizer:
     """Utilities for sanitizing user input."""
 
@@ -284,7 +292,7 @@ class FormValidators:
                 if any(host in hostname for host in dangerous_hosts):
                     raise ValidationError(_('Localhost URLs are not allowed.'))
 
-        except Exception:
+        except (TypeError, ValidationError, ValueError):
             raise ValidationError(_('Invalid URL format.'))
 
     @staticmethod

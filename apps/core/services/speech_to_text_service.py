@@ -13,9 +13,6 @@ import os
 import tempfile
 import subprocess
 import logging
-from typing import Optional, Dict, Any, List, Tuple
-from django.conf import settings
-from django.core.files.base import ContentFile
 from google.cloud import speech
 from google.cloud.speech import RecognitionConfig, RecognitionAudio
 
@@ -68,7 +65,7 @@ class SpeechToTextService:
             self.client = speech.SpeechClient.from_service_account_file(credentials_path)
             logger.info("Google Cloud Speech client initialized successfully")
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             error_logger.error(f"Failed to initialize Google Cloud Speech client: {str(e)}")
             self.client = None
 
@@ -134,7 +131,7 @@ class SpeechToTextService:
                     except OSError:
                         pass
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             error_logger.error(f"Error in transcribe_audio for JobneedDetails {jobneed_detail.id}: {str(e)}")
             return None
 
@@ -157,7 +154,7 @@ class SpeechToTextService:
 
             return None
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             error_logger.error(f"Error getting audio attachment: {str(e)}")
             return None
 
@@ -175,7 +172,7 @@ class SpeechToTextService:
                 str(attachment.filename)
             )
             return file_path
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             error_logger.error(f"Error building file path: {str(e)}")
             return None
 
@@ -225,7 +222,7 @@ class SpeechToTextService:
         except FileNotFoundError:
             error_logger.error("FFmpeg not found - please install ffmpeg")
             return None
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             error_logger.error(f"Error converting audio: {str(e)}")
             return None
 
@@ -247,7 +244,7 @@ class SpeechToTextService:
                 logger.warning(f"Could not get audio duration: {result.stderr}")
                 return 0.0
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.warning(f"Error getting audio duration: {str(e)}")
             return 0.0
 
@@ -269,7 +266,7 @@ class SpeechToTextService:
             # Default to English for now
             return self.DEFAULT_LANGUAGE
 
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist):
             return self.DEFAULT_LANGUAGE
 
     def _transcribe_short_audio(self, wav_path: str, language_code: str) -> Optional[str]:
@@ -309,7 +306,7 @@ class SpeechToTextService:
                 logger.warning("No transcription results returned")
                 return None
 
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
             error_logger.error(f"Error in short audio transcription: {str(e)}")
             return None
 
@@ -346,7 +343,7 @@ class SpeechToTextService:
                     logger.error("No transcripts from any chunks")
                     return None
 
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
             error_logger.error(f"Error in long audio transcription: {str(e)}")
             return None
 
@@ -386,7 +383,7 @@ class SpeechToTextService:
             logger.info(f"Audio split into {len(chunk_files)} chunks")
             return chunk_files
 
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
             error_logger.error(f"Error splitting audio: {str(e)}")
             return []
 

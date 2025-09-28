@@ -5,17 +5,8 @@ Real-time analytics and insights for attendance patterns using face recognition 
 
 import logging
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any, Union
-from datetime import datetime, timedelta
 from django.utils import timezone
-from django.db.models import Q, Count, Avg, Max, Min, F, Case, When, IntegerField
-from django.db.models.functions import Extract, TruncDate, TruncHour
-from django.core.cache import cache
-
 from apps.attendance.models import PeopleEventlog
-from apps.peoples.models import People
-from .models import FaceVerificationLog, FaceEmbedding
 # Removed: anomaly_detection imports - app removed
 # Removed: behavioral_analytics imports - app removed
 
@@ -114,7 +105,7 @@ class AttendanceAnalyticsEngine:
             logger.info("Attendance insights generated successfully")
             return insights
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error generating attendance insights: {str(e)}", exc_info=True)
             return {'error': str(e)}
     
@@ -169,7 +160,7 @@ class AttendanceAnalyticsEngine:
                 'peak_days': self._identify_peak_days(daily_distribution)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error analyzing overall metrics: {str(e)}")
             return {'error': str(e)}
     
@@ -213,7 +204,7 @@ class AttendanceAnalyticsEngine:
                 'recognition_reliability_score': self._calculate_reliability_score(face_records)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error analyzing face recognition patterns: {str(e)}")
             return {'error': str(e)}
     
@@ -267,7 +258,7 @@ class AttendanceAnalyticsEngine:
                 'anomaly_trends': self._calculate_anomaly_trends(anomalies)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error analyzing anomaly patterns: {str(e)}")
             return {'error': str(e)}
     
@@ -324,7 +315,7 @@ class AttendanceAnalyticsEngine:
                 'behavioral_insights': self._generate_behavioral_insights(profiles)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error analyzing behavioral patterns: {str(e)}")
             return {'error': str(e)}
     
@@ -389,7 +380,7 @@ class AttendanceAnalyticsEngine:
                 'high_risk_user_profiles': list(user_fraud_profiles)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error analyzing fraud patterns: {str(e)}")
             return {'error': str(e)}
     
@@ -416,7 +407,7 @@ class AttendanceAnalyticsEngine:
                 'prediction_confidence': self._calculate_prediction_confidence(queryset)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error generating predictive insights: {str(e)}")
             return {'error': str(e)}
     
@@ -490,7 +481,7 @@ class AttendanceAnalyticsEngine:
                     ]
                 })
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error generating recommendations: {str(e)}")
         
         return recommendations
@@ -540,7 +531,7 @@ class AttendanceAnalyticsEngine:
                 }
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error analyzing face distances: {str(e)}")
             return {'error': str(e)}
     
@@ -566,7 +557,7 @@ class AttendanceAnalyticsEngine:
                 'total_evaluations': recent_logs.count()
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error analyzing model performance: {str(e)}")
             return {'error': str(e)}
     
@@ -583,7 +574,7 @@ class AttendanceAnalyticsEngine:
             
             return round(successful_attempts / total_attempts, 3)
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error calculating reliability score: {str(e)}")
             return 0.0
     

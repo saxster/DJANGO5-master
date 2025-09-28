@@ -1,9 +1,7 @@
 import pytest
 from django.utils import timezone
-from datetime import timedelta, datetime
 from unittest.mock import Mock
 
-from apps.schedhuler.models import *
 from apps.peoples.models import People, Pgroup
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job, Jobneed

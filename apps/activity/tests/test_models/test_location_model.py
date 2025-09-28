@@ -1,5 +1,4 @@
 import pytest
-from apps.activity.models.location_model import Location
 
 
 @pytest.mark.django_db

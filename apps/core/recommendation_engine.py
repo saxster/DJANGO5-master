@@ -1,21 +1,11 @@
 """
 Advanced recommendation engine for intelligent navigation and content suggestions
 """
-import math
 import numpy as np
-from typing import List, Dict, Tuple, Optional, Any
-from collections import defaultdict, Counter
-from datetime import timedelta, datetime
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Avg, Q, F
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import KMeans
-import logging
 
 from apps.core.models.heatmap import HeatmapSession, ClickHeatmap, ScrollHeatmap
-from apps.core.models.recommendation import (
     UserBehaviorProfile, NavigationRecommendation, ContentRecommendation,
     UserSimilarity, RecommendationFeedback
 )
@@ -53,7 +43,7 @@ class RecommendationEngine:
             
             return ranked_recommendations[:limit]
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error generating user recommendations: {str(e)}")
             return []
     
@@ -61,7 +51,7 @@ class RecommendationEngine:
         """Generate navigation improvement recommendations"""
         try:
             return self.navigation_analyzer.analyze_navigation_patterns(page_url)
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error generating navigation recommendations: {str(e)}")
             return []
     
@@ -75,7 +65,7 @@ class RecommendationEngine:
             if created or self._should_recalculate_similarity(profile):
                 self.collaborative_filter.calculate_user_similarities(user)
                 
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error updating user behavior: {str(e)}")
     
     def _rank_recommendations(self, recommendations: List[ContentRecommendation], user: User) -> List[ContentRecommendation]:
@@ -152,7 +142,7 @@ class CollaborativeFilteringEngine:
             
             return recommendations
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error in collaborative filtering: {str(e)}")
             return []
     
@@ -271,7 +261,7 @@ class CollaborativeFilteringEngine:
                             }
                         )
         
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error calculating user similarities: {str(e)}")
     
     def _calculate_cosine_similarity(self, profile1: UserBehaviorProfile, profile2: UserBehaviorProfile) -> float:
@@ -296,7 +286,7 @@ class CollaborativeFilteringEngine:
             similarity = dot_product / norm_product
             return float(np.clip(similarity, -1.0, 1.0))
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error calculating cosine similarity: {str(e)}")
             return 0.0
 
@@ -334,7 +324,7 @@ class ContentBasedEngine:
             
             return recommendations
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error in content-based filtering: {str(e)}")
             return []
     
@@ -422,7 +412,7 @@ class NavigationAnalyzer:
             
             return recommendations
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error analyzing navigation patterns: {str(e)}")
             return []
     
@@ -563,7 +553,6 @@ class NavigationAnalyzer:
     
     def _find_high_bounce_pages(self) -> List[Dict]:
         """Find pages with high bounce rates"""
-        from django.db.models import Count, F
         
         # Calculate bounce rate for each page
         page_stats = []
@@ -679,7 +668,7 @@ class BehaviorAnalyzer:
             
             profile.save()
             
-        except Exception as e:
+        except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
             logger.error(f"Error building user profile: {str(e)}")
     
     def _analyze_session_patterns(self, profile: UserBehaviorProfile, sessions):

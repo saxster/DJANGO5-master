@@ -7,12 +7,9 @@ import django
 django.setup()
 
 from paho.mqtt import client as mqtt
-from base64 import b64decode
-from io import BytesIO
 from paho.mqtt.enums import CallbackAPIVersion
 import json
 import logging
-from pprint import pformat
 
 log = logging.getLogger("mobile_service_log")
 from django.conf import settings

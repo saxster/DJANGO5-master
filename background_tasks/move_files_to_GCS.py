@@ -24,11 +24,11 @@ def get_files(path, skipDays=60):
                     if os.path.getmtime(file_path) < skipTimestamp:
                         old_files.append(file_path)
                         log.debug(f"Old file found: {file_path}")
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     log.error(f"Error processing file {file_path}: {e}", exc_info=True)
 
         log.info(f"Found {len(old_files)} old files in {path}")
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         log.error(f"Error in get_files: {e}", exc_info=True)
 
     return old_files
@@ -67,9 +67,9 @@ def move_files_to_GCS(file_paths, bucket_name, target_dir="", test_env=False):
                         f"File {file_path} moved to GCS and deleted locally"
                     )  # Consider log level
 
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 log.error(f"Error moving file {file_path}: {e}", exc_info=True)
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         log.error(f"Error in move_files_to_GCS: {e}", exc_info=True)
 
 
@@ -92,6 +92,6 @@ def del_empty_dir(path):
                     log.info(f"Deleted empty directory: {dir_path}")
 
         return 0
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         log.error(f"Error in del_empty_dir: {e}", exc_info=True)
         return -1

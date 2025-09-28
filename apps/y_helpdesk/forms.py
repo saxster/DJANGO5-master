@@ -91,9 +91,45 @@ class TicketForm(forms.ModelForm):
     def clean(self):
         super().clean()
         cd = self.cleaned_data
+
+        # Validate state transitions
+        if self.instance and self.instance.pk:  # Existing ticket being updated
+            current_status = self.instance.status
+            new_status = cd.get("status")
+
+            if current_status and new_status and current_status != new_status:
+                # Define allowed transitions
+                allowed_transitions = {
+                    Ticket.Status.NEW.value: [Ticket.Status.OPEN.value, Ticket.Status.CANCEL.value],
+                    Ticket.Status.OPEN.value: [Ticket.Status.RESOLVED.value, Ticket.Status.ONHOLD.value, Ticket.Status.CANCEL.value],
+                    Ticket.Status.ONHOLD.value: [Ticket.Status.OPEN.value, Ticket.Status.RESOLVED.value, Ticket.Status.CANCEL.value],
+                    Ticket.Status.RESOLVED.value: [Ticket.Status.CLOSED.value],
+                    # Terminal states - no transitions allowed
+                    Ticket.Status.CLOSED.value: [],
+                    Ticket.Status.CANCEL.value: [],
+                }
+
+                if new_status not in allowed_transitions.get(current_status, []):
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(
+                        f"Invalid status transition from '{current_status}' to '{new_status}'. "
+                        f"Allowed transitions: {allowed_transitions.get(current_status, [])}"
+                    )
+
+        # Require comments for terminal states
+        new_status = cd.get("status")
+        terminal_states = [Ticket.Status.RESOLVED.value, Ticket.Status.CLOSED.value, Ticket.Status.CANCEL.value]
+
+        if new_status in terminal_states and not cd.get("comments"):
+            from django.core.exceptions import ValidationError
+            raise ValidationError({
+                "comments": f"Comments are required when setting status to '{new_status}'"
+            })
+
+        # Auto-assign if neither user nor group is assigned
         if cd.get("assignedtopeople") is None and cd.get("assignedtogroup") is None:
-            # Auto-assign to current user if neither user nor group is assigned
             cd["assignedtopeople"] = self.request.user
+
         self.cleaned_data = self.check_nones(self.cleaned_data)
 
     def clean_ticketdesc(self):

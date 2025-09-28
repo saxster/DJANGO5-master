@@ -4,9 +4,7 @@ High-performance PostgreSQL caching optimized for Select2 widgets
 """
 
 import json
-import time
 import logging
-from typing import Any, Dict, List, Optional, Union
 
 from django.core.cache.backends.base import BaseCache
 from django.db import connection, transaction
@@ -108,7 +106,7 @@ class PostgreSQLSelect2Cache(BaseCache):
                         # Always release the lock
                         cursor.execute("SELECT pg_advisory_unlock(12345678);")
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error creating Select2 cache table: {e}")
             # Don't mark as initialized if there was an error
 
@@ -152,7 +150,7 @@ class PostgreSQLSelect2Cache(BaseCache):
                 if result:
                     return json.loads(result[0])
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache get error for key {key}: {e}")
 
         return default
@@ -195,7 +193,7 @@ class PostgreSQLSelect2Cache(BaseCache):
 
             return True
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache set error for key {key}: {e}")
             return False
 
@@ -216,7 +214,7 @@ class PostgreSQLSelect2Cache(BaseCache):
 
                 return cursor.rowcount > 0
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache delete error for key {key}: {e}")
             return False
 
@@ -235,7 +233,7 @@ class PostgreSQLSelect2Cache(BaseCache):
 
             return True
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache clear error: {e}")
             return False
 
@@ -272,7 +270,7 @@ class PostgreSQLSelect2Cache(BaseCache):
 
                 return results
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache get_many error: {e}")
             return {}
 
@@ -316,7 +314,7 @@ class PostgreSQLSelect2Cache(BaseCache):
                     batch_data,
                 )
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache set_many error: {e}")
             failed_keys = list(data.keys())
 
@@ -343,7 +341,7 @@ class PostgreSQLSelect2Cache(BaseCache):
 
             return True
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache delete_many error: {e}")
             return False
 
@@ -362,7 +360,7 @@ class PostgreSQLSelect2Cache(BaseCache):
 
                 return deleted_count
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache cleanup error: {e}")
             return 0
 
@@ -395,7 +393,7 @@ class PostgreSQLSelect2Cache(BaseCache):
                         "tenant_id": tenant_id,
                     }
 
-        except Exception as e:
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Select2 cache stats error: {e}")
 
         return {

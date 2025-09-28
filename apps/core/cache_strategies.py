@@ -19,20 +19,16 @@ Performance targets:
 import json
 import hashlib
 import logging
-from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Dict, List, Optional, Union, Callable, Type
 from django.core.cache import cache
 from django.core.cache.utils import make_template_fragment_key
 from django.db.models import Model, QuerySet
-from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.http import HttpResponse, JsonResponse
 from django.template import Context, Template
 from django.utils import timezone
-from django.utils.cache import get_cache_key
 from django.conf import settings
 from django.dispatch import receiver
-import redis
 
 logger = logging.getLogger('cache_strategies')
 
@@ -129,7 +125,7 @@ class MultiLevelCache:
                 if self.level == 'hot':
                     self._update_access_time(key)
             return value
-        except Exception as e:
+        except (ConnectionError, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Cache get failed for key {key}: {e}")
             return default
     
@@ -142,7 +138,7 @@ class MultiLevelCache:
             # Store metadata for cache warming
             self._store_cache_metadata(key, cache_timeout)
             return True
-        except Exception as e:
+        except (ConnectionError, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Cache set failed for key {key}: {e}")
             return False
     
@@ -152,7 +148,7 @@ class MultiLevelCache:
             cache.delete(key)
             self._remove_cache_metadata(key)
             return True
-        except Exception as e:
+        except (ConnectionError, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Cache delete failed for key {key}: {e}")
             return False
     
@@ -281,7 +277,7 @@ class SmartQueryCache:
             else:
                 # Fallback for non-Redis backends
                 logger.warning(f"Pattern deletion not supported for cache backend")
-        except Exception as e:
+        except (ConnectionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Error deleting cache pattern {pattern}: {e}")
 
 
@@ -375,7 +371,7 @@ class TemplateFragmentCache:
                     logger.info(f"Invalidated {invalidated_count} template fragments for {fragment_name}")
                 else:
                     logger.warning(f"No template fragments found to invalidate for {fragment_name}")
-        except Exception as e:
+        except (ConnectionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Could not invalidate template fragments for {fragment_name}: {e}")
 
 
@@ -482,7 +478,7 @@ class CacheWarmer:
                 items_warmed = task()
                 self.warming_stats['items_warmed'] += items_warmed
                 logger.info(f"Warmed {items_warmed} items with {task.__name__}")
-            except Exception as e:
+            except (ConnectionError, TypeError, ValidationError, ValueError) as e:
                 self.warming_stats['errors'] += 1
                 logger.error(f"Error in {task.__name__}: {e}")
         
@@ -526,9 +522,9 @@ class CacheWarmer:
                             }
                             self.cache_level.set(cache_key, permissions, 3600)
                             warmed += 1
-                    except Exception as perm_error:
+                    except (DatabaseError, IntegrityError, ObjectDoesNotExist) as perm_error:
                         logger.warning(f"Error loading permissions for user {user_id}: {perm_error}")
-            except Exception as e:
+            except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
                 logger.warning(f"Error warming permissions for user {user_id}: {e}")
         
         return warmed
@@ -568,9 +564,9 @@ class CacheWarmer:
                         hierarchy = self._build_asset_tree(assets)
                         self.cache_level.set(cache_key, hierarchy, 3600)
                         warmed += 1
-                    except Exception as asset_error:
+                    except (DatabaseError, IntegrityError, ObjectDoesNotExist) as asset_error:
                         logger.warning(f"Error loading asset hierarchy for BU {bu_id}: {asset_error}")
-            except Exception as e:
+            except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
                 logger.warning(f"Error warming asset hierarchy for BU {bu_id}: {e}")
         
         return warmed
@@ -586,7 +582,7 @@ class CacheWarmer:
                 capabilities = list(Capability.objects.all().values('id', 'capname', 'parent_id'))
                 self.cache_level.set(cache_key, capabilities, 7200)
                 return len(capabilities)
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Error warming capability tree: {e}")
         
         return 0
@@ -601,7 +597,6 @@ class CacheWarmer:
             if not self.cache_level.get(cache_key):
                 from apps.activity.models.job_model import Jobneed
                 from apps.activity.models.asset_model import Asset
-                from django.db.models import Count
                 
                 metrics = {
                     'total_jobs': Jobneed.objects.filter(enable=True).count(),
@@ -642,7 +637,7 @@ class CacheWarmer:
                 self.cache_level.set(cache_key, activity, 900)  # 15 minutes
                 warmed += 1
                 
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Error warming report caches: {e}")
         
         return warmed
@@ -682,7 +677,7 @@ class CacheWarmer:
                 self.cache_level.set(cache_key, config, 86400)  # 24 hours
                 warmed += 1
                 
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
             logger.warning(f"Error warming static data caches: {e}")
         
         return warmed

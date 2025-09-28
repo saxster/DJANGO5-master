@@ -2,11 +2,6 @@
 Tests for PeopleEventlog model
 """
 import pytest
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-from django.contrib.gis.geos import Point, LineString
-from django.utils import timezone
-from datetime import datetime, timedelta, date
 from apps.attendance.models import PeopleEventlog
 
 

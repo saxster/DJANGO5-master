@@ -11,17 +11,8 @@ from django.test import TestCase
 from django.core.cache import cache
 from django.utils import timezone
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
 
 from apps.core.queries import QueryRepository, TreeTraversal, AttachmentHelper, get_query
-from apps.peoples.models import People, Pgroup, Pgbelonging, Capability
-from apps.onboarding.models import Bt, TypeAssist
-from apps.activity.models.job_model import Jobneed, JobneedDetails
-from apps.activity.models.question_model import Question, QuestionSet
-from apps.activity.models.asset_model import Asset, AssetLog
-from apps.activity.models.attachment_model import Attachment
-from apps.y_helpdesk.models import Ticket, EscalationMatrix
-
 
 class TreeTraversalTestCase(TestCase):
     """Test cases for the TreeTraversal utility class."""

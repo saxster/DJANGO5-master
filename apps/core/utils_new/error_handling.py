@@ -15,6 +15,13 @@ from functools import wraps
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    'ErrorHandler',
+    'handle_exceptions',
+    'safe_property',
+]
+
+
 class ErrorHandler:
     """Centralized error handling utility."""
 
@@ -83,7 +90,7 @@ def handle_exceptions(error_type="form", redirect_url="/dashboard"):
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
+            except (TypeError, ValidationError, ValueError) as e:
                 # Get logger for the module
                 module_logger = logging.getLogger(func.__module__)
 

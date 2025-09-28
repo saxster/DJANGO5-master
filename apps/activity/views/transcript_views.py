@@ -37,7 +37,7 @@ class TranscriptStatusView(LoginRequiredMixin, View):
 
             if R.get("jobneed_detail_id"):
                 try:
-                    jobneed_detail = JobneedDetails.objects.get(id=R["jobneed_detail_id"])
+                    jobneed_detail = JobneedDetails.objects.optimized_get_with_relations(R["jobneed_detail_id"])
                 except JobneedDetails.DoesNotExist:
                     return rp.JsonResponse({"error": "JobneedDetails not found"}, status=404)
 
@@ -72,7 +72,7 @@ class TranscriptStatusView(LoginRequiredMixin, View):
 
             return rp.JsonResponse(response_data, status=200)
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error in TranscriptStatusView: {str(e)}", exc_info=True)
             return rp.JsonResponse({"error": "Internal server error"}, status=500)
 
@@ -98,7 +98,7 @@ class TranscriptManagementView(LoginRequiredMixin, View):
             jobneed_detail = None
             if R.get("jobneed_detail_id"):
                 try:
-                    jobneed_detail = JobneedDetails.objects.get(id=R["jobneed_detail_id"])
+                    jobneed_detail = JobneedDetails.objects.optimized_get_with_relations(R["jobneed_detail_id"])
                 except JobneedDetails.DoesNotExist:
                     return rp.JsonResponse({"error": "JobneedDetails not found"}, status=404)
             else:
@@ -111,7 +111,7 @@ class TranscriptManagementView(LoginRequiredMixin, View):
             else:
                 return rp.JsonResponse({"error": f"Unknown action: {action}"}, status=400)
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error in TranscriptManagementView: {str(e)}", exc_info=True)
             return rp.JsonResponse({"error": "Internal server error"}, status=500)
 
@@ -137,7 +137,7 @@ class TranscriptManagementView(LoginRequiredMixin, View):
                 "transcript_status": "PENDING"
             }, status=200)
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error retrying transcription: {str(e)}", exc_info=True)
             return rp.JsonResponse({"error": "Failed to retry transcription"}, status=500)
 
@@ -158,7 +158,7 @@ class TranscriptManagementView(LoginRequiredMixin, View):
                 "transcript_status": None
             }, status=200)
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error clearing transcript: {str(e)}", exc_info=True)
             return rp.JsonResponse({"error": "Failed to clear transcript"}, status=500)
 
@@ -193,6 +193,6 @@ class SpeechServiceStatusView(LoginRequiredMixin, View):
 
             return rp.JsonResponse(response_data, status=200)
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Error in SpeechServiceStatusView: {str(e)}", exc_info=True)
             return rp.JsonResponse({"error": "Internal server error"}, status=500)

@@ -8,8 +8,6 @@ from apps.activity.models.question_model import (
     QuestionSet,
     QuestionSetBelonging,
 )
-from apps.activity.models.asset_model import Asset
-from apps.activity.models.location_model import Location
 from apps.core.utils_new.business_logic import initailize_form_fields
 import apps.activity.utils as ac_utils
 import apps.onboarding.models as om
@@ -364,7 +362,7 @@ class QsetBelongingForm(forms.ModelForm):
                         values = depends.get('values', [])
                         if values:
                             self.fields['depends_on_value'].initial = values[0]
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error populating dependency values: {e}")

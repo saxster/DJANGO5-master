@@ -1,8 +1,6 @@
 from apps.reports.utils import BaseReportsExport
 from apps.core.utils import get_timezone
 from apps.core.queries import ReportQueryRepository
-from apps.onboarding.models import Bt
-from apps.peoples.models import Pgroup
 from django.conf import settings
 import logging
 
@@ -72,7 +70,6 @@ class RP_SITEVISITREPORT(BaseReportsExport):
         }
 
     def set_extra_data(self):
-        from decimal import Decimal
         from collections import defaultdict
 
         self.data = ReportQueryRepository.rp_sitevisitreport_report(

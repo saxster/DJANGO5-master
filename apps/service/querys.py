@@ -115,7 +115,7 @@ class Query(graphene.ObjectType):
         except ValueError as e:
             log.error(f"url not found for the specified {clientcode=}")
             return VerifyClientOutput(msg="INVALID", url=None, rc=1)
-        except Exception as ex:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as ex:
             log.critical("something went wrong!", exc_info=True)
             return VerifyClientOutput(msg="INVALID", url=None, rc=1)
 

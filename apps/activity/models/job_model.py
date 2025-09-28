@@ -80,7 +80,7 @@ class Job(BaseModel, TenantAwareModel):
     uptodate = models.DateTimeField(_("To date"), auto_now=False, auto_now_add=False)
     cron = models.CharField(_("Cron Exp."), max_length=200, default="* * * * *")
     identifier = models.CharField(
-        _("Job Type"), max_length=100, choices=Identifier.choices, null=True
+        _("Job Type"), max_length=100, choices=Identifier.choices, null=True, db_index=True
     )
     planduration = models.IntegerField(_("Plan duration (min)"))
     gracetime = models.IntegerField(_("Grace Time"))
@@ -379,7 +379,7 @@ class Jobneed(BaseModel, TenantAwareModel):
         related_name="jobneed_sgroup",
     )
     identifier = models.CharField(
-        _("Jobneed Type"), max_length=50, choices=Identifier.choices, null=True
+        _("Jobneed Type"), max_length=50, choices=Identifier.choices, null=True, db_index=True
     )
     parent = models.ForeignKey(
         "self",

@@ -9,19 +9,26 @@ from channels.auth import AuthMiddlewareStack
 
 from .mobile_consumers import MobileSyncConsumer, MobileSystemConsumer
 
+# Import dashboard consumers
+from apps.streamlab.consumers import StreamMetricsConsumer, AnomalyAlertsConsumer
+
 # Mobile WebSocket URL patterns
 mobile_websocket_urlpatterns = [
     # Mobile sync WebSocket - for real-time synchronization
     path('ws/mobile/sync/', MobileSyncConsumer.as_asgi()),
-    
+
     # System monitoring WebSocket - for admin/monitoring
     path('ws/mobile/system/', MobileSystemConsumer.as_asgi()),
-    
+
     # Device-specific WebSocket connections
     re_path(r'ws/mobile/device/(?P<device_id>[\w-]+)/$', MobileSyncConsumer.as_asgi()),
-    
+
     # User-specific WebSocket connections
     re_path(r'ws/mobile/user/(?P<user_id>\d+)/$', MobileSyncConsumer.as_asgi()),
+
+    # Dashboard WebSocket connections
+    path('ws/streamlab/metrics/', StreamMetricsConsumer.as_asgi()),
+    path('ws/streamlab/anomalies/', AnomalyAlertsConsumer.as_asgi()),
 ]
 
 # Complete mobile routing with authentication

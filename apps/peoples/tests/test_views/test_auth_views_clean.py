@@ -3,7 +3,6 @@ Clean authentication view tests - only working tests without POST issues
 """
 import pytest
 from django.test import Client
-from django.contrib.auth import get_user
 from apps.peoples.forms import LoginForm
 
 

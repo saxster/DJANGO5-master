@@ -6,25 +6,18 @@ Integrates cutting-edge biometric authentication and analytics
 import logging
 import json
 import asyncio
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.utils import IntegrityError
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
 from django.utils import timezone
-from django.core.cache import cache
-from django.conf import settings
 
 from apps.face_recognition.ai_enhanced_engine import AIEnhancedFaceRecognitionEngine, BiometricResult
 from apps.attendance import models as atdm
 from apps.attendance import forms as atf
-from apps.behavioral_analytics.models import UserBehaviorProfile, BehavioralEvent, BehavioralAnalysis
-from apps.peoples.models import People
 from apps.core.utils import handle_Exception
-from apps.peoples import utils as putils
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +115,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                 
                 return JsonResponse(response_data, status=200)
                 
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error in AI-enhanced attendance: {str(e)}", exc_info=True)
             return handle_Exception(request)
     
@@ -173,7 +166,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                 }
                 return render(request, self.params["template_form"], context)
                 
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error in GET request: {str(e)}", exc_info=True)
             return handle_Exception(request)
     
@@ -224,7 +217,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             return verification_result
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error in AI verification: {str(e)}")
             # Return failed result
             return BiometricResult(
@@ -281,7 +274,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             logger.info(f"Attendance record {attendance_record.id} updated with AI results")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error updating attendance with AI results: {str(e)}")
     
     async def _log_behavioral_event(
@@ -330,7 +323,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             logger.info(f"Behavioral event logged: {behavioral_event.id}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error logging behavioral event: {str(e)}")
     
     async def _update_behavior_profile(
@@ -394,7 +387,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             logger.info(f"Behavior profile updated for user {user_id}")
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error updating behavior profile: {str(e)}")
     
     def _generate_response(
@@ -497,7 +490,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                 'recommendations': self._generate_system_recommendations(recent_verifications, behavior_stats)
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error generating AI dashboard data: {str(e)}")
             return {'error': str(e)}
     
@@ -520,7 +513,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                     'stable_users': 156
                 }
             }
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error getting behavior analytics: {str(e)}")
             return {'error': str(e)}
     
@@ -539,7 +532,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                 ],
                 'false_positive_rate': 2.1
             }
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error getting fraud detection stats: {str(e)}")
             return {'error': str(e)}
     
@@ -604,7 +597,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                 'last_updated': timezone.now().isoformat()
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error getting fraud alerts: {str(e)}")
             return {'error': str(e)}
     
@@ -649,7 +642,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             return insights
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error getting behavior insights: {str(e)}")
             return {'error': str(e)}
     
@@ -721,7 +714,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             return enhanced_list
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error getting enhanced attendance list: {str(e)}")
             return []
     
@@ -777,7 +770,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                 'ai_ready': embeddings_count > 0 and profile_data['profile_confidence'] > 0.1
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
             logger.error(f"Error getting user AI profile: {str(e)}")
             return {
                 'embeddings_count': 0,

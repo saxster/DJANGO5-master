@@ -7,4 +7,3 @@ class FaceRecognitionConfig(AppConfig):
     verbose_name = 'Enhanced Face Recognition'
 
     def ready(self):
-        import apps.face_recognition.signals

@@ -1,8 +1,5 @@
 from django import forms
-from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Vendor, Wom, WomDetails, Vendor
-from apps.core import utils
 from django.http import QueryDict
 from django.contrib.gis.geos import GEOSGeometry
 import django_select2.forms as s2forms

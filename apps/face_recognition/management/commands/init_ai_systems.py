@@ -7,7 +7,6 @@ import logging
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from datetime import datetime, timedelta
 
 from apps.face_recognition.models import (
     FaceRecognitionModel, FaceRecognitionConfig, AntiSpoofingModel
@@ -76,7 +75,7 @@ class Command(BaseCommand):
                     )
                 )
                 
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error initializing AI systems: {str(e)}", exc_info=True)
             raise CommandError(f"Initialization failed: {str(e)}")
     
@@ -630,7 +629,7 @@ class Command(BaseCommand):
             
             self.stdout.write(self.style.SUCCESS('All AI engines initialized successfully'))
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, FileNotFoundError, IOError, IntegrityError, LLMServiceException, OSError, ObjectDoesNotExist, PermissionError, TimeoutError, TypeError, ValidationError, ValueError) as e:
             self.stdout.write(
                 self.style.ERROR(f'AI engine initialization failed: {str(e)}')
             )

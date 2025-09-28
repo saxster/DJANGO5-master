@@ -3,10 +3,7 @@ Tests for core app utilities and PostgreSQL functions
 """
 import pytest
 import json
-import logging
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
-from django.test import RequestFactory
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db import connection

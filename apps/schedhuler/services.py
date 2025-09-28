@@ -13,10 +13,7 @@ database references throughout the codebase.
 import logging
 from django.db import transaction
 from django.db.utils import IntegrityError
-from apps.activity.models.job_model import Job, Jobneed
 from apps.core.utils_new.db_utils import get_current_db_name
-from apps.core.utils_new.error_handling import ErrorHandler
-from apps.core.constants import JobConstants, DatabaseConstants
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +64,7 @@ class TourJobService:
         except (ValueError, KeyError) as e:
             logger.error(f"Invalid data for tour job creation: {e}", exc_info=True)
             raise
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.critical(f"Unexpected error creating tour job: {e}", exc_info=True)
             raise
 
@@ -147,7 +144,7 @@ class TaskJobService:
         except IntegrityError as e:
             logger.error(f"Database integrity error creating task job: {e}", exc_info=True)
             raise
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.critical(f"Unexpected error creating task job: {e}", exc_info=True)
             raise
 
@@ -188,7 +185,7 @@ class ScheduleService:
             logger.debug(f"Generated {len(schedule_dates)} schedule dates for cron: {cron_expression}")
             return schedule_dates
 
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error generating schedule preview: {e}", exc_info=True)
             raise ValueError(f"Failed to generate schedule preview: {str(e)}")
 

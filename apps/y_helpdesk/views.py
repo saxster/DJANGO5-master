@@ -8,7 +8,6 @@ from django.views import View
 from django.http import response as rp
 from apps.core import utils
 from django.db import transaction
-from django.http.request import QueryDict
 from apps.peoples import utils as putils
 from apps.peoples import models as pm
 from apps.core.utils_new.db_utils import get_current_db_name
@@ -107,13 +106,22 @@ class TicketView(LoginRequiredMixin, View):
             return rp.JsonResponse({"data": objs}, status=200)
 
         if R.get("id"):
-            ticket = utils.get_model_obj(R["id"], request, P)
+            try:
+                ticket = Ticket.objects.get(
+                    id=R["id"],
+                    client_id=request.session["client_id"],
+                    bu_id__in=request.session["assignedsites"]
+                )
+            except Ticket.DoesNotExist:
+                return utils.handle_DoesNotExist(request)
+
             if (
                 ticket.status == Ticket.Status.NEW.value
                 and ticket.cuser != request.user
             ):
                 ticket.status, ticket.muser = Ticket.Status.OPEN.value, request.user
                 ticket.save()
+                utils.store_ticket_history(ticket, request)
             cxt = {
                 "ticketform": P["form"](instance=ticket, request=request),
                 "ownerid": ticket.uuid,
@@ -124,36 +132,48 @@ class TicketView(LoginRequiredMixin, View):
         from apps.core.utils_new.http_utils import get_clean_form_data
         R, P, data = request.POST, self.params, get_clean_form_data(request)
         try:
-            with transaction.atomic(using=get_current_db_name()):
-                if pk := R.get("pk"):
-                    msg = "ticket_view"
-                    ticket = utils.get_model_obj(pk, request, P)
-                    form = P["form"](data, request=request, instance=ticket)
-                else:
-                    form = P["form"](data, request=request)
-                if form.is_valid():
-                    return self.handle_valid_form(form, request)
-                cxt = {"errors": form.errors}
-                return utils.handle_invalid_form(request, P, cxt)
-        except Exception as e:
+            if pk := R.get("pk"):
+                msg = "ticket_view"
+                try:
+                    ticket = Ticket.objects.get(
+                        id=pk,
+                        client_id=request.session["client_id"],
+                        bu_id__in=request.session["assignedsites"]
+                    )
+                except Ticket.DoesNotExist:
+                    return utils.handle_DoesNotExist(request)
+                form = P["form"](data, request=request, instance=ticket)
+            else:
+                form = P["form"](data, request=request)
+            if form.is_valid():
+                return self.handle_valid_form(form, request)
+            cxt = {"errors": form.errors}
+            return utils.handle_invalid_form(request, P, cxt)
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
             return utils.handle_Exception(request)
 
     def handle_valid_form(self, form, request):
-        try:
-            ticket = form.save(commit=False)
-            ticket.uuid = request.POST.get("uuid")
-            bu = ticket.bu_id if request.POST.get("pk") else None
-            ticket = putils.save_userinfo(ticket, request.user, request.session, bu=bu)
-            utils.store_ticket_history(ticket, request)
-            
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with transaction.atomic(using=get_current_db_name()):
+                    ticket = form.save(commit=False)
+                    ticket.uuid = request.POST.get("uuid")
+                    bu = ticket.bu_id if request.POST.get("pk") else None
+                    ticket = putils.save_userinfo(ticket, request.user, request.session, bu=bu)
+                    utils.store_ticket_history(ticket, request)
 
-            
-            return rp.JsonResponse({"pk": ticket.id}, status=200)
-        except IntegrityError as e:
-            return utils.handle_intergrity_error("Ticket")
+                    return rp.JsonResponse({"pk": ticket.id}, status=200)
+            except IntegrityError as e:
+                if "ticketno" in str(e) and attempt < max_retries - 1:
+                    import time
+                    import random
+                    time.sleep(random.uniform(0.01, 0.05))
+                    continue
+                else:
+                    return utils.handle_intergrity_error("Ticket")
     
 class PostingOrderView(LoginRequiredMixin, View):
-    from apps.activity.models.job_model import Jobneed, JobneedDetails
 
     params = {
         "template_list": "y_helpdesk/posting_order_list.html",

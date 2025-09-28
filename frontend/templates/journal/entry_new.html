@@ -1,0 +1,734 @@
+{% extends "globals/base_modern.html" %}
+
+{% block page_title %}New Journal Entry{% endblock page_title %}
+{% block page_subtitle %}<p class="page-subtitle">Record your thoughts, track your wellbeing, and reflect on your day</p>{% endblock page_subtitle %}
+
+{% block extra_css %}
+<style>
+  /* Journal Entry Form Styles */
+  .journal-form-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+  }
+
+  .entry-type-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+  }
+
+  .entry-type-card {
+    padding: 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+  }
+
+  .entry-type-card:hover {
+    border-color: #377dff;
+    background: #f8faff;
+  }
+
+  .entry-type-card.active {
+    border-color: #377dff;
+    background: #377dff;
+    color: white;
+  }
+
+  .entry-type-card i {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .entry-type-card .type-name {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+  }
+
+  .section-title i {
+    margin-right: 10px;
+    color: #377dff;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: #377dff;
+    box-shadow: 0 0 0 3px rgba(55, 125, 255, 0.1);
+  }
+
+  .form-control-lg {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  /* Wellbeing Metrics */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .metric-item {
+    text-align: center;
+    padding: 20px;
+    background: #f8fafd;
+    border-radius: 8px;
+  }
+
+  .metric-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .metric-scale {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 15px 0;
+  }
+
+  .metric-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+  }
+
+  .metric-number.active {
+    border-color: #377dff;
+    background: #377dff;
+    color: white;
+  }
+
+  .metric-number:hover {
+    border-color: #377dff;
+    background: #f8faff;
+  }
+
+  .mood-scale .metric-number.active { background: #4CAF50; border-color: #4CAF50; }
+  .stress-scale .metric-number.active { background: #FF9800; border-color: #FF9800; }
+  .energy-scale .metric-number.active { background: #2196F3; border-color: #2196F3; }
+
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #999;
+    margin-top: 5px;
+  }
+
+  /* Privacy Controls */
+  .privacy-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+  }
+
+  .privacy-option {
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+  }
+
+  .privacy-option:hover {
+    border-color: #377dff;
+  }
+
+  .privacy-option.active {
+    border-color: #377dff;
+    background: #377dff;
+    color: white;
+  }
+
+  .privacy-option i {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 16px;
+  }
+
+  /* Media Upload */
+  .media-upload-area {
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .media-upload-area:hover {
+    border-color: #377dff;
+    background: #f8faff;
+  }
+
+  .media-upload-area.dragover {
+    border-color: #377dff;
+    background: #f8faff;
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    color: #ccc;
+    margin-bottom: 15px;
+  }
+
+  .upload-text {
+    color: #666;
+    margin-bottom: 10px;
+  }
+
+  .upload-hint {
+    font-size: 12px;
+    color: #999;
+  }
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    margin-top: 30px;
+    padding-top: 30px;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn i {
+    margin-right: 8px;
+  }
+
+  .btn-primary {
+    background: #377dff;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #2c63e6;
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-secondary {
+    background: #f8f9fa;
+    color: #666;
+    border: 1px solid #dee2e6;
+  }
+
+  .btn-secondary:hover {
+    background: #e9ecef;
+    text-decoration: none;
+    color: #666;
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: #377dff;
+    border: 1px solid #377dff;
+  }
+
+  .btn-outline:hover {
+    background: #377dff;
+    color: white;
+    text-decoration: none;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .journal-form-container {
+      margin: 0;
+      padding: 20px;
+      border-radius: 0;
+    }
+
+    .entry-type-selector {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
+
+    .btn {
+      justify-content: center;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="journal-form-container">
+  <form id="journalEntryForm" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Entry Type Selection -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <i class="material-icons">category</i>
+        What type of entry is this?
+      </h3>
+      <div class="entry-type-selector">
+        <div class="entry-type-card" data-type="PERSONAL_REFLECTION">
+          <i class="material-icons">psychology</i>
+          <div class="type-name">Personal Reflection</div>
+        </div>
+        <div class="entry-type-card" data-type="MOOD_CHECK_IN">
+          <i class="material-icons">sentiment_satisfied</i>
+          <div class="type-name">Mood Check-in</div>
+        </div>
+        <div class="entry-type-card" data-type="GRATITUDE">
+          <i class="material-icons">favorite</i>
+          <div class="type-name">Gratitude</div>
+        </div>
+        <div class="entry-type-card" data-type="STRESS_LOG">
+          <i class="material-icons">monitor_heart</i>
+          <div class="type-name">Stress Log</div>
+        </div>
+        <div class="entry-type-card active" data-type="THREE_GOOD_THINGS">
+          <i class="material-icons">star</i>
+          <div class="type-name">3 Good Things</div>
+        </div>
+        <div class="entry-type-card" data-type="DAILY_INTENTION">
+          <i class="material-icons">track_changes</i>
+          <div class="type-name">Daily Intention</div>
+        </div>
+      </div>
+      <input type="hidden" name="entry_type" id="entryType" value="THREE_GOOD_THINGS">
+    </div>
+
+    <!-- Basic Entry Information -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <i class="material-icons">edit_note</i>
+        Entry Details
+      </h3>
+
+      <div class="form-group">
+        <label class="form-label" for="title">Title</label>
+        <input type="text" id="title" name="title" class="form-control"
+               placeholder="Give your entry a meaningful title..." required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="subtitle">Subtitle (optional)</label>
+        <input type="text" id="subtitle" name="subtitle" class="form-control"
+               placeholder="Add a subtitle if needed...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="content">Content</label>
+        <textarea id="content" name="content" class="form-control form-control-lg"
+                  placeholder="Share your thoughts, experiences, or reflections..." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="timestamp">Date & Time</label>
+        <input type="datetime-local" id="timestamp" name="timestamp" class="form-control" required>
+      </div>
+    </div>
+
+    <!-- Wellbeing Metrics -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <i class="material-icons">favorite</i>
+        How are you feeling?
+      </h3>
+
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <div class="metric-label">Mood</div>
+          <div class="metric-scale mood-scale">
+            <div class="metric-number" data-value="1">1</div>
+            <div class="metric-number" data-value="2">2</div>
+            <div class="metric-number" data-value="3">3</div>
+            <div class="metric-number" data-value="4">4</div>
+            <div class="metric-number" data-value="5">5</div>
+            <div class="metric-number" data-value="6">6</div>
+            <div class="metric-number active" data-value="7">7</div>
+            <div class="metric-number" data-value="8">8</div>
+            <div class="metric-number" data-value="9">9</div>
+            <div class="metric-number" data-value="10">10</div>
+          </div>
+          <div class="scale-labels">
+            <span>Very Low</span>
+            <span>Excellent</span>
+          </div>
+          <input type="hidden" name="mood_rating" id="moodRating" value="7">
+        </div>
+
+        <div class="metric-item">
+          <div class="metric-label">Stress Level</div>
+          <div class="metric-scale stress-scale">
+            <div class="metric-number" data-value="1">1</div>
+            <div class="metric-number" data-value="2">2</div>
+            <div class="metric-number active" data-value="3">3</div>
+            <div class="metric-number" data-value="4">4</div>
+            <div class="metric-number" data-value="5">5</div>
+          </div>
+          <div class="scale-labels">
+            <span>Very Low</span>
+            <span>Very High</span>
+          </div>
+          <input type="hidden" name="stress_level" id="stressLevel" value="3">
+        </div>
+
+        <div class="metric-item">
+          <div class="metric-label">Energy Level</div>
+          <div class="metric-scale energy-scale">
+            <div class="metric-number" data-value="1">1</div>
+            <div class="metric-number" data-value="2">2</div>
+            <div class="metric-number" data-value="3">3</div>
+            <div class="metric-number" data-value="4">4</div>
+            <div class="metric-number" data-value="5">5</div>
+            <div class="metric-number" data-value="6">6</div>
+            <div class="metric-number active" data-value="7">7</div>
+            <div class="metric-number" data-value="8">8</div>
+            <div class="metric-number" data-value="9">9</div>
+            <div class="metric-number" data-value="10">10</div>
+          </div>
+          <div class="scale-labels">
+            <span>Exhausted</span>
+            <span>Energized</span>
+          </div>
+          <input type="hidden" name="energy_level" id="energyLevel" value="7">
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy Settings -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <i class="material-icons">lock</i>
+        Privacy Settings
+      </h3>
+
+      <div class="privacy-selector">
+        <div class="privacy-option active" data-privacy="private">
+          <i class="material-icons">lock</i>
+          <div>Private</div>
+          <small>Only visible to me</small>
+        </div>
+        <div class="privacy-option" data-privacy="team">
+          <i class="material-icons">groups</i>
+          <div>Team</div>
+          <small>Visible to my team</small>
+        </div>
+        <div class="privacy-option" data-privacy="manager">
+          <i class="material-icons">supervisor_account</i>
+          <div>Manager</div>
+          <small>Visible to manager</small>
+        </div>
+        <div class="privacy-option" data-privacy="aggregate">
+          <i class="material-icons">analytics</i>
+          <div>Anonymous</div>
+          <small>Anonymous statistics only</small>
+        </div>
+      </div>
+      <input type="hidden" name="privacy_scope" id="privacyScope" value="private">
+    </div>
+
+    <!-- Media Upload -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <i class="material-icons">attach_file</i>
+        Attachments (optional)
+      </h3>
+
+      <div class="media-upload-area" onclick="document.getElementById('mediaFiles').click();">
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">Click to upload files or drag and drop</div>
+        <div class="upload-hint">Photos, documents, or audio files (max 10MB each)</div>
+      </div>
+      <input type="file" id="mediaFiles" name="media_files" multiple accept="image/*,audio/*,.pdf,.doc,.docx"
+             style="display: none;" onchange="handleFileSelect(this)">
+      <div id="selectedFiles" class="mt-3"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <a href="/journal/entries/" class="btn btn-secondary">
+        <i class="material-icons">cancel</i>
+        Cancel
+      </a>
+      <button type="button" class="btn btn-outline" onclick="saveDraft()">
+        <i class="material-icons">save</i>
+        Save Draft
+      </button>
+      <button type="submit" class="btn btn-primary">
+        <i class="material-icons">publish</i>
+        Save Entry
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+  // Set current date/time
+  const now = new Date();
+  const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+  $('#timestamp').val(localDateTime);
+
+  // Entry type selection
+  $('.entry-type-card').click(function() {
+    $('.entry-type-card').removeClass('active');
+    $(this).addClass('active');
+    $('#entryType').val($(this).data('type'));
+
+    // Update placeholder text based on entry type
+    updatePlaceholdersForEntryType($(this).data('type'));
+  });
+
+  // Metric scale selection
+  $('.metric-number').click(function() {
+    const scale = $(this).closest('.metric-scale');
+    scale.find('.metric-number').removeClass('active');
+    $(this).addClass('active');
+
+    const value = $(this).data('value');
+    const metricType = scale.hasClass('mood-scale') ? 'moodRating' :
+                     scale.hasClass('stress-scale') ? 'stressLevel' : 'energyLevel';
+    $('#' + metricType).val(value);
+  });
+
+  // Privacy selection
+  $('.privacy-option').click(function() {
+    $('.privacy-option').removeClass('active');
+    $(this).addClass('active');
+    $('#privacyScope').val($(this).data('privacy'));
+  });
+
+  // Form submission
+  $('#journalEntryForm').on('submit', function(e) {
+    e.preventDefault();
+    submitJournalEntry();
+  });
+
+  // Drag and drop for file upload
+  setupDragAndDrop();
+});
+
+function updatePlaceholdersForEntryType(entryType) {
+  const placeholders = {
+    'PERSONAL_REFLECTION': {
+      title: 'Personal Reflection - ',
+      content: 'What insights or thoughts would you like to capture today? Take a moment to reflect on your experiences...'
+    },
+    'MOOD_CHECK_IN': {
+      title: 'Mood Check-in - ',
+      content: 'How are you feeling right now? What emotions are present, and what might be influencing your mood?'
+    },
+    'GRATITUDE': {
+      title: 'Gratitude Entry - ',
+      content: 'What are you grateful for today? List the people, experiences, or moments that brought you joy...'
+    },
+    'STRESS_LOG': {
+      title: 'Stress Log - ',
+      content: 'What stressors are you experiencing? How are you handling them, and what coping strategies are helping?'
+    },
+    'THREE_GOOD_THINGS': {
+      title: 'Three Good Things - ',
+      content: '1. What was the first good thing that happened today?\n2. What was the second good thing?\n3. What was the third good thing?\n\nFor each, reflect on why this was meaningful to you...'
+    },
+    'DAILY_INTENTION': {
+      title: 'Daily Intention - ',
+      content: 'What is your intention for today? How do you want to show up, and what mindset will guide your actions?'
+    }
+  };
+
+  const today = new Date().toLocaleDateString();
+  const placeholder = placeholders[entryType] || placeholders['PERSONAL_REFLECTION'];
+
+  $('#title').attr('placeholder', placeholder.title + today);
+  $('#content').attr('placeholder', placeholder.content);
+}
+
+function setupDragAndDrop() {
+  const uploadArea = $('.media-upload-area');
+
+  uploadArea.on('dragover', function(e) {
+    e.preventDefault();
+    $(this).addClass('dragover');
+  });
+
+  uploadArea.on('dragleave', function(e) {
+    e.preventDefault();
+    $(this).removeClass('dragover');
+  });
+
+  uploadArea.on('drop', function(e) {
+    e.preventDefault();
+    $(this).removeClass('dragover');
+    const files = e.originalEvent.dataTransfer.files;
+    handleFiles(files);
+  });
+}
+
+function handleFileSelect(input) {
+  handleFiles(input.files);
+}
+
+function handleFiles(files) {
+  const fileList = $('#selectedFiles');
+  fileList.empty();
+
+  Array.from(files).forEach((file, index) => {
+    const fileItem = $(`
+      <div class="file-item" style="display: flex; align-items: center; padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 5px;">
+        <i class="material-icons" style="margin-right: 10px; color: #666;">insert_drive_file</i>
+        <div style="flex: 1;">
+          <div style="font-weight: 500;">${file.name}</div>
+          <div style="font-size: 12px; color: #666;">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+        </div>
+        <button type="button" onclick="removeFile(${index})" style="background: none; border: none; color: #ff4444; cursor: pointer;">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+    `);
+    fileList.append(fileItem);
+  });
+}
+
+function removeFile(index) {
+  // Implementation for removing file from the list
+  const fileInput = document.getElementById('mediaFiles');
+  const dt = new DataTransfer();
+  const files = fileInput.files;
+
+  for (let i = 0; i < files.length; i++) {
+    if (i !== index) {
+      dt.items.add(files[i]);
+    }
+  }
+
+  fileInput.files = dt.files;
+  handleFiles(fileInput.files);
+}
+
+function saveDraft() {
+  const formData = new FormData($('#journalEntryForm')[0]);
+  formData.append('is_draft', 'true');
+
+  // Show loading state
+  const btn = event.target;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="material-icons">hourglass_empty</i>Saving Draft...';
+  btn.disabled = true;
+
+  // TODO: Send to backend API
+  setTimeout(() => {
+    btn.innerHTML = '<i class="material-icons">check</i>Draft Saved';
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }, 2000);
+  }, 1000);
+}
+
+function submitJournalEntry() {
+  const formData = new FormData($('#journalEntryForm')[0]);
+
+  // Show loading state
+  const submitBtn = $('button[type="submit"]');
+  const originalText = submitBtn.html();
+  submitBtn.html('<i class="material-icons">hourglass_empty</i>Saving Entry...');
+  submitBtn.prop('disabled', true);
+
+  // TODO: Send to backend API
+  // For now, just show success message
+  setTimeout(() => {
+    submitBtn.html('<i class="material-icons">check_circle</i>Entry Saved!');
+    setTimeout(() => {
+      window.location.href = '/journal/entries/';
+    }, 1500);
+  }, 1000);
+}
+
+// Initialize with default entry type
+updatePlaceholdersForEntryType('THREE_GOOD_THINGS');
+</script>
+{% endblock extra_scripts %}

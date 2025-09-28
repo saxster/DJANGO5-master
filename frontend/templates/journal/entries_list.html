@@ -1,0 +1,833 @@
+{% extends "globals/base_modern.html" %}
+
+{% block page_title %}My Journal{% endblock page_title %}
+{% block page_subtitle %}<p class="page-subtitle">Browse and search through your journal entries</p>{% endblock page_subtitle %}
+
+{% block extra_css %}
+<style>
+  /* Journal Entries List Styles */
+  .journal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .journal-stats {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #377dff;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .journal-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .filter-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .filter-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  .filter-input:focus {
+    outline: none;
+    border-color: #377dff;
+  }
+
+  .view-toggle {
+    display: flex;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .view-toggle-btn {
+    padding: 8px 12px;
+    border: none;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    transition: all 0.2s ease;
+  }
+
+  .view-toggle-btn.active {
+    background: #377dff;
+    color: white;
+  }
+
+  .view-toggle-btn:hover:not(.active) {
+    background: #f8f9fa;
+  }
+
+  /* Timeline View */
+  .timeline-view {
+    position: relative;
+  }
+
+  .timeline-line {
+    position: absolute;
+    left: 30px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e0e0e0;
+    z-index: 1;
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 80px;
+  }
+
+  .timeline-date {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 60px;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: 24px;
+    top: 15px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #377dff;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #e0e0e0;
+    z-index: 2;
+  }
+
+  .entry-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .entry-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+  }
+
+  .entry-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+  }
+
+  .entry-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+  }
+
+  .entry-type-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-personal_reflection { background: #e3f2fd; color: #1565c0; }
+  .badge-mood_check_in { background: #f3e5f5; color: #7b1fa2; }
+  .badge-gratitude { background: #fce4ec; color: #c2185b; }
+  .badge-stress_log { background: #fff3e0; color: #ef6c00; }
+  .badge-three_good_things { background: #f1f8e9; color: #558b2f; }
+  .badge-daily_intention { background: #e8f5e8; color: #2e7d32; }
+
+  .entry-content {
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    max-height: 100px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .entry-content.truncated::after {
+    content: '...';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: white;
+    padding-left: 10px;
+  }
+
+  .entry-metrics {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+  }
+
+  .metric {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+  }
+
+  .metric-icon {
+    font-size: 16px;
+  }
+
+  .mood-metric { color: #4CAF50; }
+  .stress-metric { color: #FF9800; }
+  .energy-metric { color: #2196F3; }
+
+  .entry-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 12px;
+    color: #999;
+  }
+
+  .entry-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .action-btn {
+    padding: 6px 8px;
+    border: none;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .action-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .privacy-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* Grid View */
+  .grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+  }
+
+  .grid-view .entry-card {
+    margin-bottom: 0;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+  }
+
+  .empty-icon {
+    font-size: 64px;
+    color: #ddd;
+    margin-bottom: 20px;
+  }
+
+  .empty-title {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .empty-subtitle {
+    margin-bottom: 30px;
+    line-height: 1.6;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: #377dff;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #2c63e6;
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: #377dff;
+    border: 1px solid #377dff;
+  }
+
+  .btn-outline:hover {
+    background: #377dff;
+    color: white;
+    text-decoration: none;
+  }
+
+  /* Loading State */
+  .loading-state {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+  }
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #377dff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .journal-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .journal-stats {
+      justify-content: space-around;
+    }
+
+    .search-filters {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filter-group {
+      width: 100%;
+    }
+
+    .timeline-item {
+      padding-left: 60px;
+    }
+
+    .timeline-date {
+      position: static;
+      width: auto;
+      text-align: left;
+      margin-bottom: 10px;
+    }
+
+    .timeline-dot {
+      left: 20px;
+    }
+
+    .timeline-line {
+      left: 26px;
+    }
+
+    .entry-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .entry-metrics {
+      flex-wrap: wrap;
+    }
+
+    .entry-footer {
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .grid-view {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="journal-container">
+  <!-- Journal Header -->
+  <div class="journal-header">
+    <div class="journal-stats">
+      <div class="stat-item">
+        <div class="stat-value" id="totalEntries">24</div>
+        <div class="stat-label">Total Entries</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="currentStreak">7</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="avgMood">7.2</div>
+        <div class="stat-label">Avg Mood</div>
+      </div>
+    </div>
+
+    <div class="journal-controls">
+      <a href="/journal/entry/new/" class="btn btn-primary">
+        <i class="material-icons">add</i>
+        New Entry
+      </a>
+      <a href="/journal/analytics/" class="btn btn-outline">
+        <i class="material-icons">insights</i>
+        View Insights
+      </a>
+    </div>
+  </div>
+
+  <!-- Search and Filters -->
+  <div class="search-filters">
+    <div class="filter-group">
+      <label class="filter-label">Search</label>
+      <input type="text" class="filter-input" placeholder="Search entries..." id="searchInput">
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Entry Type</label>
+      <select class="filter-input" id="typeFilter">
+        <option value="">All Types</option>
+        <option value="PERSONAL_REFLECTION">Personal Reflection</option>
+        <option value="MOOD_CHECK_IN">Mood Check-in</option>
+        <option value="GRATITUDE">Gratitude</option>
+        <option value="STRESS_LOG">Stress Log</option>
+        <option value="THREE_GOOD_THINGS">3 Good Things</option>
+        <option value="DAILY_INTENTION">Daily Intention</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Date Range</label>
+      <input type="date" class="filter-input" id="dateFrom">
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">to</label>
+      <input type="date" class="filter-input" id="dateTo">
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">View</label>
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" onclick="switchView('timeline')">
+          <i class="material-icons">timeline</i>
+        </button>
+        <button class="view-toggle-btn" onclick="switchView('grid')">
+          <i class="material-icons">grid_view</i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entries Container -->
+  <div id="entriesContainer">
+    <!-- Loading State -->
+    <div class="loading-state" id="loadingState">
+      <div class="loading-spinner"></div>
+      <div>Loading your journal entries...</div>
+    </div>
+
+    <!-- Timeline View -->
+    <div class="timeline-view" id="timelineView" style="display: none;">
+      <div class="timeline-line"></div>
+
+      <!-- Sample Timeline Items -->
+      <div class="timeline-item">
+        <div class="timeline-date">
+          <div>Dec</div>
+          <div>15</div>
+        </div>
+        <div class="timeline-dot"></div>
+        <div class="entry-card" onclick="openEntry('entry-1')">
+          <div class="entry-header">
+            <div>
+              <h3 class="entry-title">Three Good Things from Today</h3>
+              <p class="entry-subtitle">Reflecting on positive moments</p>
+            </div>
+            <span class="entry-type-badge badge-three_good_things">3 Good Things</span>
+          </div>
+
+          <div class="entry-content truncated">
+            1. Had a great team meeting where everyone was engaged and collaborative. It felt really productive and energizing.
+            2. Received positive feedback on the project I've been working on. It's nice to see the effort paying off.
+            3. Enjoyed a peaceful lunch break outside. The weather was perfect and it helped me recharge for the afternoon...
+          </div>
+
+          <div class="entry-metrics">
+            <div class="metric mood-metric">
+              <i class="material-icons metric-icon">sentiment_satisfied</i>
+              <span>Mood: 8</span>
+            </div>
+            <div class="metric stress-metric">
+              <i class="material-icons metric-icon">monitor_heart</i>
+              <span>Stress: 2</span>
+            </div>
+            <div class="metric energy-metric">
+              <i class="material-icons metric-icon">battery_charging_full</i>
+              <span>Energy: 7</span>
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="privacy-indicator">
+              <i class="material-icons">lock</i>
+              <span>Private</span>
+            </div>
+            <div class="entry-actions">
+              <button class="action-btn" title="Edit">
+                <i class="material-icons">edit</i>
+              </button>
+              <button class="action-btn" title="Bookmark">
+                <i class="material-icons">bookmark_border</i>
+              </button>
+              <button class="action-btn" title="Share">
+                <i class="material-icons">share</i>
+              </button>
+              <button class="action-btn" title="More">
+                <i class="material-icons">more_vert</i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-date">
+          <div>Dec</div>
+          <div>14</div>
+        </div>
+        <div class="timeline-dot"></div>
+        <div class="entry-card" onclick="openEntry('entry-2')">
+          <div class="entry-header">
+            <div>
+              <h3 class="entry-title">Stress Log - Busy Day</h3>
+              <p class="entry-subtitle">Managing workload stress</p>
+            </div>
+            <span class="entry-type-badge badge-stress_log">Stress Log</span>
+          </div>
+
+          <div class="entry-content">
+            Today was particularly stressful with multiple deadlines converging. I noticed tension in my shoulders and felt overwhelmed around 3 PM. Used deep breathing techniques and took a short walk which helped. Need to be better at time management and breaking larger tasks into smaller chunks.
+          </div>
+
+          <div class="entry-metrics">
+            <div class="metric mood-metric">
+              <i class="material-icons metric-icon">sentiment_satisfied</i>
+              <span>Mood: 5</span>
+            </div>
+            <div class="metric stress-metric">
+              <i class="material-icons metric-icon">monitor_heart</i>
+              <span>Stress: 4</span>
+            </div>
+            <div class="metric energy-metric">
+              <i class="material-icons metric-icon">battery_charging_full</i>
+              <span>Energy: 4</span>
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="privacy-indicator">
+              <i class="material-icons">lock</i>
+              <span>Private</span>
+            </div>
+            <div class="entry-actions">
+              <button class="action-btn" title="Edit">
+                <i class="material-icons">edit</i>
+              </button>
+              <button class="action-btn" title="Bookmark">
+                <i class="material-icons">bookmark</i>
+              </button>
+              <button class="action-btn" title="Share">
+                <i class="material-icons">share</i>
+              </button>
+              <button class="action-btn" title="More">
+                <i class="material-icons">more_vert</i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-date">
+          <div>Dec</div>
+          <div>13</div>
+        </div>
+        <div class="timeline-dot"></div>
+        <div class="entry-card" onclick="openEntry('entry-3')">
+          <div class="entry-header">
+            <div>
+              <h3 class="entry-title">Gratitude Practice</h3>
+              <p class="entry-subtitle">Appreciating the simple things</p>
+            </div>
+            <span class="entry-type-badge badge-gratitude">Gratitude</span>
+          </div>
+
+          <div class="entry-content">
+            Today I'm grateful for the support of my colleagues, the warmth of morning coffee, and the satisfaction of completing a challenging task. It's amazing how taking time to acknowledge these moments can shift my entire perspective on the day.
+          </div>
+
+          <div class="entry-metrics">
+            <div class="metric mood-metric">
+              <i class="material-icons metric-icon">sentiment_satisfied</i>
+              <span>Mood: 9</span>
+            </div>
+            <div class="metric stress-metric">
+              <i class="material-icons metric-icon">monitor_heart</i>
+              <span>Stress: 1</span>
+            </div>
+            <div class="metric energy-metric">
+              <i class="material-icons metric-icon">battery_charging_full</i>
+              <span>Energy: 8</span>
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="privacy-indicator">
+              <i class="material-icons">lock</i>
+              <span>Private</span>
+            </div>
+            <div class="entry-actions">
+              <button class="action-btn" title="Edit">
+                <i class="material-icons">edit</i>
+              </button>
+              <button class="action-btn" title="Bookmark">
+                <i class="material-icons">bookmark_border</i>
+              </button>
+              <button class="action-btn" title="Share">
+                <i class="material-icons">share</i>
+              </button>
+              <button class="action-btn" title="More">
+                <i class="material-icons">more_vert</i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid View -->
+    <div class="grid-view" id="gridView" style="display: none;">
+      <!-- Grid items would be populated here -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-icon">📝</div>
+      <h3 class="empty-title">No entries found</h3>
+      <p class="empty-subtitle">
+        You haven't created any journal entries yet.<br>
+        Start your wellness journey by creating your first entry.
+      </p>
+      <a href="/journal/entry/new/" class="btn btn-primary">
+        <i class="material-icons">add</i>
+        Create Your First Entry
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+  // Initialize the page
+  setTimeout(() => {
+    $('#loadingState').hide();
+    $('#timelineView').show();
+  }, 1000);
+
+  // Search functionality
+  $('#searchInput').on('input', function() {
+    const searchTerm = $(this).val().toLowerCase();
+    filterEntries();
+  });
+
+  // Filter functionality
+  $('#typeFilter, #dateFrom, #dateTo').on('change', function() {
+    filterEntries();
+  });
+});
+
+function switchView(view) {
+  $('.view-toggle-btn').removeClass('active');
+  event.target.closest('.view-toggle-btn').classList.add('active');
+
+  if (view === 'timeline') {
+    $('#gridView').hide();
+    $('#timelineView').show();
+  } else {
+    $('#timelineView').hide();
+    $('#gridView').show();
+    // Populate grid view
+    populateGridView();
+  }
+}
+
+function populateGridView() {
+  // Convert timeline items to grid format
+  const gridView = $('#gridView');
+  gridView.empty();
+
+  $('.timeline-item .entry-card').each(function() {
+    const clonedCard = $(this).clone();
+    gridView.append(clonedCard);
+  });
+}
+
+function filterEntries() {
+  const searchTerm = $('#searchInput').val().toLowerCase();
+  const typeFilter = $('#typeFilter').val();
+  const dateFrom = $('#dateFrom').val();
+  const dateTo = $('#dateTo').val();
+
+  let visibleCount = 0;
+
+  $('.timeline-item').each(function() {
+    const card = $(this);
+    const title = card.find('.entry-title').text().toLowerCase();
+    const content = card.find('.entry-content').text().toLowerCase();
+    const type = card.find('.entry-type-badge').attr('class').split('-').pop();
+
+    let visible = true;
+
+    // Text search
+    if (searchTerm && !title.includes(searchTerm) && !content.includes(searchTerm)) {
+      visible = false;
+    }
+
+    // Type filter
+    if (typeFilter && !type.includes(typeFilter.toLowerCase())) {
+      visible = false;
+    }
+
+    // Date filters would need actual dates from backend
+
+    if (visible) {
+      card.show();
+      visibleCount++;
+    } else {
+      card.hide();
+    }
+  });
+
+  // Show empty state if no results
+  if (visibleCount === 0) {
+    $('#timelineView, #gridView').hide();
+    $('#emptyState').show();
+    $('#emptyState .empty-title').text('No entries match your filters');
+    $('#emptyState .empty-subtitle').html('Try adjusting your search or filter criteria.<br>Or create a new entry to get started.');
+  } else {
+    $('#emptyState').hide();
+    if ($('.view-toggle-btn.active').text().trim().includes('timeline') || $('.view-toggle-btn.active i').text() === 'timeline') {
+      $('#timelineView').show();
+    } else {
+      $('#gridView').show();
+    }
+  }
+}
+
+function openEntry(entryId) {
+  // TODO: Open entry detail view or edit mode
+  console.log('Opening entry:', entryId);
+  // For now, just show an alert
+  alert('Entry detail view would open here. Entry ID: ' + entryId);
+}
+
+// Initialize date inputs with reasonable defaults
+const today = new Date();
+const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+
+$('#dateTo').val(today.toISOString().split('T')[0]);
+$('#dateFrom').val(oneMonthAgo.toISOString().split('T')[0]);
+</script>
+{% endblock extra_scripts %}

@@ -7,9 +7,12 @@ This module contains views for listing and filtering assets.
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.gis.db.models.functions import AsWKT
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.shortcuts import render
 from django.views.generic.base import View
 from django.http import response as rp
+from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import ActivityManagementException, DatabaseException, SystemException
 
 from apps.activity.filters import MasterAssetFilter
 from apps.activity.models.asset_model import Asset
@@ -108,8 +111,26 @@ class MasterAsset(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            logger.warning(f"MasterAsset form validation error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Master asset form validation failed")
+            resp = rp.JsonResponse({"error": "Invalid form data", "details": str(e)}, status=400)
+        except ActivityManagementException as e:
+            logger.error(f"MasterAsset activity management error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Master asset activity management error")
+            resp = rp.JsonResponse({"error": "Activity management error", "correlation_id": error_data.get("correlation_id")}, status=422)
+        except PermissionDenied as e:
+            logger.warning(f"MasterAsset permission denied: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Master asset access denied")
+            resp = rp.JsonResponse({"error": "Access denied", "correlation_id": error_data.get("correlation_id")}, status=403)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"MasterAsset data processing error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Master asset data processing error")
+            resp = rp.JsonResponse({"error": "Invalid data format", "correlation_id": error_data.get("correlation_id")}, status=400)
+        except SystemException as e:
+            logger.error(f"MasterAsset system error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Master asset system error")
+            resp = rp.JsonResponse({"error": "System error occurred", "correlation_id": error_data.get("correlation_id")}, status=500)
         return resp
 
     def handle_valid_form(self, form, request, create):

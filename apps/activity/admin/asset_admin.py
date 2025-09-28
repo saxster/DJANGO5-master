@@ -1,7 +1,5 @@
 import re
 from math import isnan
-from django.apps import apps
-from django.contrib import admin
 from django.core.exceptions import ValidationError
 from import_export import fields, resources
 from import_export import widgets as wg
@@ -16,7 +14,6 @@ from apps.core.utils_new.db_utils import (
 )
 
 logger = logging.getLogger(__name__)
-from apps.core.widgets import EnabledTypeAssistWidget, ClientAwareTypeAssistWidget
 from apps.service.validators import clean_point_field, clean_string
 import math
 

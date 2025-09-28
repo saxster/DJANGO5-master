@@ -1,0 +1,23 @@
+{% comment %}
+Template for cached widget inclusion tag
+This template is used by the cached_widget template tag
+{% endcomment %}
+
+{% if error %}
+    <div class="cache-error alert alert-warning" style="display: none;">
+        <!-- Error: {{ error }} -->
+    </div>
+{% else %}
+    {% if content %}
+        {{ content }}
+        {% if cached %}
+            <!-- Cached content loaded -->
+        {% else %}
+            <!-- Fresh content generated and cached -->
+        {% endif %}
+    {% else %}
+        <div class="cache-placeholder">
+            <!-- No content available -->
+        </div>
+    {% endif %}
+{% endif %}

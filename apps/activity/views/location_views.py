@@ -1,12 +1,13 @@
 import logging
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError
-from django.http import QueryDict
 from django.http import response as rp
 from django.shortcuts import render
 from django.views.generic.base import View
-import apps.activity.forms as af
+from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import ActivityManagementException, DatabaseException, SystemException
 from apps.activity.models.location_model import Location
 from apps.activity.forms.location_form import LocationForm
 import apps.peoples.utils as putils
@@ -99,8 +100,26 @@ class LocationView(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.P, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            logger.warning(f"LocationView form validation error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Location form validation failed")
+            resp = rp.JsonResponse({"error": "Invalid form data", "details": str(e)}, status=400)
+        except ActivityManagementException as e:
+            logger.error(f"LocationView activity management error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Location activity management error")
+            resp = rp.JsonResponse({"error": "Activity management error", "correlation_id": error_data.get("correlation_id")}, status=422)
+        except PermissionDenied as e:
+            logger.warning(f"LocationView permission denied: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Location access denied")
+            resp = rp.JsonResponse({"error": "Access denied", "correlation_id": error_data.get("correlation_id")}, status=403)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"LocationView data processing error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Location data processing error")
+            resp = rp.JsonResponse({"error": "Invalid data format", "correlation_id": error_data.get("correlation_id")}, status=400)
+        except SystemException as e:
+            logger.error(f"LocationView system error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Location system error")
+            resp = rp.JsonResponse({"error": "System error occurred", "correlation_id": error_data.get("correlation_id")}, status=500)
         return resp
 
     @staticmethod

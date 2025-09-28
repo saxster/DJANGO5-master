@@ -2,9 +2,7 @@
 Tests for Vendor model
 """
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.contrib.gis.geos import Point
 from apps.work_order_management.models import Vendor
 
 

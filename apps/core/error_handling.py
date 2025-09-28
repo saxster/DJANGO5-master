@@ -6,13 +6,23 @@ import logging
 import traceback
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any, Union
 from django.http import JsonResponse, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError, DatabaseError
 from django.shortcuts import render
+from django.template import TemplateDoesNotExist, TemplateSyntaxError
+from typing import Optional, Dict, Any
+
+from apps.core.exceptions import (
+    ExceptionFactory,
+    convert_django_validation_error,
+    EnhancedValidationException,
+    DatabaseException,
+    SecurityException
+)
+from apps.core.middleware.logging_sanitization import LogSanitizationService
 
 logger = logging.getLogger("error_handler")
 
@@ -57,20 +67,26 @@ class GlobalExceptionMiddleware(MiddlewareMixin):
         """Handle uncaught exceptions with structured responses."""
         correlation_id = getattr(request, "correlation_id", str(uuid.uuid4()))
 
-        # Log the exception with correlation ID
+        raw_traceback = traceback.format_exc()
+        sanitized_traceback = LogSanitizationService.sanitize_message(raw_traceback)
+
         error_context = {
             "correlation_id": correlation_id,
             "path": request.path,
             "method": request.method,
-            "user": str(request.user) if request.user.is_authenticated else "Anonymous",
+            "user_id": request.user.id if request.user.is_authenticated else None,
             "ip": self._get_client_ip(request),
-            "user_agent": request.META.get("HTTP_USER_AGENT", ""),
             "exception_type": type(exception).__name__,
-            "exception_message": str(exception),
-            "traceback": traceback.format_exc(),
+            "exception_message": LogSanitizationService.sanitize_message(str(exception)),
         }
 
-        logger.error(f"Unhandled exception: {error_context}")
+        logger.error(
+            "Unhandled exception occurred",
+            extra={
+                **error_context,
+                'sanitized_traceback': sanitized_traceback
+            }
+        )
 
         # Determine response type based on request
         if self._is_api_request(request):
@@ -124,13 +140,6 @@ class GlobalExceptionMiddleware(MiddlewareMixin):
             }
         }
 
-        # Add debug info in development
-        if settings.DEBUG:
-            error_response["error"]["debug"] = {
-                "exception_type": type(exception).__name__,
-                "exception_message": str(exception),
-            }
-
         return JsonResponse(error_response, status=status_code)
 
     def _create_web_error_response(self, request, exception, correlation_id):
@@ -153,17 +162,33 @@ class GlobalExceptionMiddleware(MiddlewareMixin):
             ),
         }
 
-        # Add debug info in development
-        if settings.DEBUG:
-            context["debug_info"] = {
-                "exception_type": type(exception).__name__,
-                "exception_message": str(exception),
-            }
-
         try:
             return render(request, template, context, status=status_code)
-        except Exception:
-            # Fallback if template rendering fails
+        except (TemplateDoesNotExist, TemplateSyntaxError) as e:
+            # Template rendering failed - use simple fallback
+            logger.error(
+                f"Template rendering failed for error page: {type(e).__name__}",
+                extra={
+                    'correlation_id': correlation_id,
+                    'template': template,
+                    'error_message': str(e)
+                }
+            )
+            return HttpResponse(
+                f"Error {status_code}: An error occurred. Correlation ID: {correlation_id}",
+                status=status_code,
+            )
+        except (TypeError, ValidationError, ValueError) as e:
+            # Unexpected template rendering error - this should be very rare
+            logger.critical(
+                f"Critical error in template rendering: {type(e).__name__}",
+                extra={
+                    'correlation_id': correlation_id,
+                    'template': template,
+                    'error_message': str(e)
+                },
+                exc_info=True
+            )
             return HttpResponse(
                 f"Error {status_code}: An error occurred. Correlation ID: {correlation_id}",
                 status=status_code,
@@ -174,6 +199,11 @@ class ErrorHandler:
     """
     Centralized error handling utility class.
     """
+
+    @staticmethod
+    def get_timestamp() -> str:
+        """Get current timestamp in ISO format."""
+        return datetime.now().isoformat()
 
     @staticmethod
     def handle_exception(
@@ -238,7 +268,45 @@ class ErrorHandler:
         try:
             return func()
         except exception_types as e:
-            ErrorHandler.handle_exception(e, context=context, level=log_level)
+            # Use specific exception handling instead of generic
+            if isinstance(e, (ValidationError, TypeError, ValueError)):
+                correlation_id = ErrorHandler.handle_exception(
+                    e, context=context, level='warning'
+                )
+                # Convert to enhanced validation exception for consistency
+                enhanced_exception = ExceptionFactory.create_validation_error(
+                    str(e), correlation_id=correlation_id
+                )
+                # Log the enhanced exception
+                logger.warning(
+                    f"Validation error in safe_execute: {enhanced_exception.message}",
+                    extra=enhanced_exception.to_dict()
+                )
+            elif isinstance(e, (DatabaseError, IntegrityError)):
+                correlation_id = ErrorHandler.handle_exception(
+                    e, context=context, level='error'
+                )
+                enhanced_exception = ExceptionFactory.create_database_error(
+                    "Database operation failed", correlation_id=correlation_id
+                )
+                logger.error(
+                    f"Database error in safe_execute: {enhanced_exception.message}",
+                    extra=enhanced_exception.to_dict()
+                )
+            else:
+                # Handle other specific exception types
+                correlation_id = ErrorHandler.handle_exception(
+                    e, context=context, level=log_level
+                )
+                logger.error(
+                    f"Unexpected error in safe_execute: {type(e).__name__}",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'error_type': type(e).__name__,
+                        'error_message': str(e),
+                        'context': context
+                    }
+                )
             return default_return
 
     @staticmethod
@@ -278,6 +346,129 @@ class ErrorHandler:
             error_response["error"]["details"] = details
 
         return JsonResponse(error_response, status=status_code)
+
+    @staticmethod
+    def create_secure_task_response(
+        success: bool = True,
+        message: str = "Task completed successfully",
+        data: Optional[Dict[str, Any]] = None,
+        error_code: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create a secure task response that never exposes stack traces.
+
+        Args:
+            success: Whether the task was successful
+            message: User-safe message about the task result
+            data: Additional data to include in response
+            error_code: Error code if task failed
+            correlation_id: Correlation ID for tracking
+
+        Returns:
+            Dictionary with secure task response data
+        """
+        if correlation_id is None:
+            correlation_id = str(uuid.uuid4())
+
+        response = {
+            "success": success,
+            "message": message,
+            "correlation_id": correlation_id,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        if data:
+            response["data"] = data
+
+        if error_code and not success:
+            response["error_code"] = error_code
+
+        # NEVER include traceback or detailed error info in task responses
+        return response
+
+    @staticmethod
+    def handle_task_exception(
+        exception: Exception,
+        task_name: str,
+        task_params: Optional[Dict[str, Any]] = None,
+        correlation_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Handle exceptions in background tasks with secure response.
+
+        This method:
+        1. Logs full exception details (including stack trace) for debugging
+        2. Returns sanitized response without sensitive information
+        3. Uses correlation IDs for tracking
+
+        Args:
+            exception: The exception that occurred
+            task_name: Name of the task that failed
+            task_params: Parameters passed to the task (sensitive data will be redacted)
+            correlation_id: Optional correlation ID
+
+        Returns:
+            Secure task response dictionary
+        """
+        if correlation_id is None:
+            correlation_id = str(uuid.uuid4())
+
+        # Sanitize task parameters for logging (remove sensitive data)
+        safe_params = ErrorHandler._sanitize_task_params(task_params) if task_params else {}
+
+        # Log full exception details (including stack trace) for debugging
+        error_context = {
+            "correlation_id": correlation_id,
+            "task_name": task_name,
+            "task_params": safe_params,
+            "exception_type": type(exception).__name__,
+            "exception_message": str(exception),
+            "traceback": traceback.format_exc(),  # Full stack trace for logs only
+        }
+
+        logger.error(f"Background task failed: {error_context}")
+
+        # Return secure response without stack trace
+        return ErrorHandler.create_secure_task_response(
+            success=False,
+            message="Task execution failed",
+            error_code="TASK_EXECUTION_ERROR",
+            correlation_id=correlation_id,
+        )
+
+    @staticmethod
+    def _sanitize_task_params(params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize task parameters to remove sensitive information before logging.
+
+        Args:
+            params: Original task parameters
+
+        Returns:
+            Sanitized parameters safe for logging
+        """
+        if not isinstance(params, dict):
+            return {"params": str(type(params).__name__)}
+
+        sanitized = {}
+        sensitive_keys = {
+            'password', 'passwd', 'pwd', 'secret', 'key', 'token', 'auth',
+            'credential', 'cert', 'api_key', 'access_token', 'refresh_token'
+        }
+
+        for key, value in params.items():
+            key_lower = str(key).lower()
+            if any(sensitive in key_lower for sensitive in sensitive_keys):
+                sanitized[key] = "[REDACTED]"
+            elif isinstance(value, (str, int, float, bool)):
+                sanitized[key] = value
+            elif isinstance(value, (dict, list)):
+                sanitized[key] = f"<{type(value).__name__}>"
+            else:
+                sanitized[key] = str(type(value).__name__)
+
+        return sanitized
 
     @staticmethod
     def handle_api_error(
@@ -330,13 +521,6 @@ class ErrorHandler:
                 "timestamp": datetime.now().isoformat(),
             }
         }
-
-        # Add debug info in development
-        if settings.DEBUG:
-            error_response["error"]["debug"] = {
-                "exception_type": type(exception).__name__,
-                "exception_message": str(exception),
-            }
 
         return JsonResponse(error_response, status=status_code)
 

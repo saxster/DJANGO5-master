@@ -11,7 +11,6 @@ from django.db.models.functions import Cast
 from itertools import chain
 import json
 import logging
-import urllib.parse
 
 logger = logging.getLogger("django")
 Q = models.Q
@@ -120,104 +119,141 @@ class PELManager(models.Manager):
             return False
 
     def update_fr_results(self, result, uuid, peopleid, db):
+        """
+        Update face recognition results with race condition protection
+
+        Uses distributed lock + row-level locking to prevent concurrent updates
+        from corrupting verification data.
+
+        Args:
+            result: Dict containing 'verified' (bool) and 'distance' (float)
+            uuid: UUID of the attendance record
+            peopleid: ID of the person
+            db: Database alias to use
+
+        Returns:
+            bool: True if update successful, False otherwise
+
+        Raises:
+            Exception: On database or locking errors
+        """
+        from django.db import transaction
+        from apps.core.utils_new.distributed_locks import distributed_lock
+
         logger.info("update_fr_results started results:%s", result)
 
-        if obj := self.filter(uuid=uuid).using(db):
-            logger.info(
-                "retrived obj punchintime: %s and punchoutime: %s and start location:%s and end location %s and peopleid %s",
-                obj[0].punchintime,
-                obj[0].punchouttime,
-                obj[0].startlocation,
-                obj[0].endlocation,
-                peopleid,
-            )
-            extras = obj[0].peventlogextras
-            logger.info(f"theh extrsa logs {extras}")
-            if obj[0].punchintime and extras["distance_in"] is None:
-                extras["verified_in"] = bool(result["verified"])
-                extras["distance_in"] = result["distance"]
-            elif obj[0].punchouttime and extras["distance_out"] is None:
-                logger.info("no punchintime found")
-                extras["verified_out"] = bool(result["verified"])
-                extras["distance_out"] = result["distance"]
+        try:
+            with distributed_lock(f"attendance_update:{uuid}", timeout=10), transaction.atomic():
+                obj = self.select_for_update().filter(uuid=uuid).using(db).first()
 
-            # geofenc_marked_in_or_out_updating
-            get_people = Job.objects.filter(
-                people_id=peopleid, identifier="GEOFENCE"
-            ).values()
-            if get_people:
-                get_geofence_data = (
-                    GeofenceMaster.objects.filter(
-                        id=get_people[0]["geofence_id"], enable=True
+                if not obj:
+                    logger.warning(f"No attendance record found for uuid: {uuid}")
+                    return False
+
+                logger.info(
+                    "Retrieved locked obj punchintime: %s punchouttime: %s startlocation: %s endlocation: %s peopleid: %s",
+                    obj.punchintime,
+                    obj.punchouttime,
+                    obj.startlocation,
+                    obj.endlocation,
+                    peopleid,
+                )
+
+                extras = dict(obj.peventlogextras)
+                logger.info(f"Current extras: {extras}")
+
+                update_fields = ['peventlogextras']
+
+                if obj.punchintime and extras.get("distance_in") is None:
+                    extras["verified_in"] = bool(result["verified"])
+                    extras["distance_in"] = result["distance"]
+                    obj.facerecognitionin = extras["verified_in"]
+                    update_fields.append('facerecognitionin')
+                    logger.info("Updated punch-in verification data")
+
+                elif obj.punchouttime and extras.get("distance_out") is None:
+                    extras["verified_out"] = bool(result["verified"])
+                    extras["distance_out"] = result["distance"]
+                    obj.facerecognitionout = extras["verified_out"]
+                    update_fields.append('facerecognitionout')
+                    logger.info("Updated punch-out verification data")
+
+                get_people = Job.objects.filter(
+                    people_id=peopleid, identifier="GEOFENCE"
+                ).values()
+
+                if get_people:
+                    get_geofence_data = (
+                        GeofenceMaster.objects.filter(
+                            id=get_people[0]["geofence_id"], enable=True
+                        )
+                        .exclude(id=1)
+                        .values()
                     )
-                    .exclude(id=1)
-                    .values()
-                )
-                geofence_data = get_geofence_data[0]["geofence"]
-                if geofence_data:
-                    start_location = obj[0].startlocation
-                    end_location = obj[0].endlocation
 
-                    if start_location:
-                        start_location_arr = self.get_lat_long(start_location)
-                        longitude, latitude = (
-                            start_location_arr[0],
-                            start_location_arr[1],
-                        )
-                        isStartLocationInGeofence = self.is_point_in_geofence(
-                            latitude, longitude, geofence_data
-                        )
-                        logger.info(
-                            f"Is Start Location Inside of the geofence: {isStartLocationInGeofence}"
-                        )
+                    if get_geofence_data:
+                        geofence_data = get_geofence_data[0]["geofence"]
 
-                    if end_location:
-                        end_location_arr = self.get_lat_long(end_location)
-                        longitude, latitude = end_location_arr[0], end_location_arr[1]
-                        isEndLocationInGeofence = self.is_point_in_geofence(
-                            latitude, longitude, geofence_data
-                        )
-                        logger.info(
-                            f"Is End Location Inside of the geofence: {isEndLocationInGeofence}"
-                        )
+                        if geofence_data:
+                            start_location = obj.startlocation
+                            end_location = obj.endlocation
 
-                    if start_location:
-                        obj[0].peventlogextras[
-                            "isStartLocationInGeofence"
-                        ] = isStartLocationInGeofence
+                            if start_location:
+                                start_location_arr = self.get_lat_long(start_location)
+                                longitude, latitude = (
+                                    start_location_arr[0],
+                                    start_location_arr[1],
+                                )
+                                isStartLocationInGeofence = self.is_point_in_geofence(
+                                    latitude, longitude, geofence_data
+                                )
+                                logger.info(
+                                    f"Is Start Location Inside of the geofence: {isStartLocationInGeofence}"
+                                )
+                                extras["isStartLocationInGeofence"] = isStartLocationInGeofence
 
-                    if end_location:
-                        obj[0].peventlogextras[
-                            "isEndLocationInGeofence"
-                        ] = isEndLocationInGeofence
-            if obj[0].punchintime and obj[0].shift_id == 1:
-                logger.info(f"records punchintime {obj[0].punchintime}")
-                punchintime = obj[0].punchintime
-                # log_starttime = datetime.fromisoformat(punchintime)
-                client_id = obj[0].client_id
-                site_id = obj[0].bu_id
-                all_shifts_under_site = Shift.objects.filter(
-                    client_id=client_id, bu_id=site_id
-                )
-                logger.info(
-                    f"records of shift in the site where person marked attendance {all_shifts_under_site}"
-                )
-                updated_shift_id = utils.find_closest_shift(
-                    punchintime, all_shifts_under_site
-                )
-                logger.info(f"the updated shift_id {updated_shift_id}")
-                # Update the shift_id for obj[0]
-                obj[0].shift_id = updated_shift_id
-                obj[0].save(update_fields=["shift_id"])
-                logger.info(
-                    f"Successfully updated shift_id to {updated_shift_id} for obj[0]"
-                )
-            obj[0].peventlogextras = extras
-            obj[0].facerecognitionin = extras["verified_in"]
-            obj[0].facerecognitionout = extras["verified_out"]
-            obj[0].save()
-            return True
-        return False
+                            if end_location:
+                                end_location_arr = self.get_lat_long(end_location)
+                                longitude, latitude = end_location_arr[0], end_location_arr[1]
+                                isEndLocationInGeofence = self.is_point_in_geofence(
+                                    latitude, longitude, geofence_data
+                                )
+                                logger.info(
+                                    f"Is End Location Inside of the geofence: {isEndLocationInGeofence}"
+                                )
+                                extras["isEndLocationInGeofence"] = isEndLocationInGeofence
+
+                if obj.punchintime and obj.shift_id == 1:
+                    logger.info(f"Auto-detecting shift for punchintime {obj.punchintime}")
+                    punchintime = obj.punchintime
+                    client_id = obj.client_id
+                    site_id = obj.bu_id
+                    all_shifts_under_site = Shift.objects.filter(
+                        client_id=client_id, bu_id=site_id
+                    )
+                    logger.info(
+                        f"Found {all_shifts_under_site.count()} shifts at site"
+                    )
+                    updated_shift_id = utils.find_closest_shift(
+                        punchintime, all_shifts_under_site
+                    )
+                    logger.info(f"Detected shift_id: {updated_shift_id}")
+
+                    obj.shift_id = updated_shift_id
+                    update_fields.append('shift_id')
+
+                obj.peventlogextras = extras
+                obj.save(update_fields=update_fields)
+
+                logger.info(f"Successfully updated attendance {obj.id} with FR results")
+                return True
+
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
+            logger.error(
+                f"Error updating FR results for uuid {uuid}: {str(e)}",
+                exc_info=True
+            )
+            raise
 
     def get_fr_status(self, R):
         "return fr images and status"

@@ -2,13 +2,6 @@
 Tests for core app models
 """
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import patch, Mock
-from django.utils import timezone
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-
-# Note: RateLimitAttempt model has been removed from the codebase
 # These tests are kept as comments for reference if the model is re-implemented
 
 # @pytest.mark.django_db

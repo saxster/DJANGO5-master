@@ -72,7 +72,7 @@ class BaseReportsExport(WeasyTemplateResponseMixin):
                 "Content-Disposition"
             ] = f'attachment; filename="{self.filename}.pdf"'
             return response
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             error_log.error("Error generating PDF", exc_info=True)
 
     def write_temporary_pdf(self, pdf_output, workpermit_file_name):
@@ -582,7 +582,7 @@ def process_sendingreport_on_email(fileresponse, formdata, email):
         send_generated_report_onfly_email.delay(
             filepath, email, formdata["to_addr"], formdata["cc"], formdata["ctzoffset"]
         )
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
         log.critical(
             "something went wrong while sending report on email", exc_info=True
         )

@@ -108,7 +108,7 @@ class AttachmentManager(models.Manager):
         try:
             qset = self.create(**PostData)
             count = self.filter(owner=R["ownerid"]).count()
-        except Exception:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist):
             log.critical("Attachment record creation failed...", exc_info=True)
             return {"error": "Upload attachment Failed"}
         return (
@@ -198,3 +198,31 @@ class AttachmentManager(models.Manager):
             )
         ).values_list("file", flat=True)
         return qset or self.none()
+
+    def optimized_delete_by_id(self, attachment_id):
+        """
+        Optimized delete operation that minimizes queries.
+        Returns: (deleted_count, deleted_dict)
+        """
+        try:
+            attachment = self.select_related('ownername', 'bu').get(id=attachment_id)
+            owner_id = attachment.owner
+            ownername_code = attachment.ownername.tacode if attachment.ownername else None
+            deleted_result = attachment.delete()
+
+            return {
+                'deleted': deleted_result,
+                'owner_id': owner_id,
+                'ownername_code': ownername_code
+            }
+        except self.model.DoesNotExist:
+            log.warning(f"Attachment {attachment_id} not found for deletion")
+            return None
+
+    def optimized_get_with_relations(self, attachment_id):
+        """
+        Get attachment with all related objects preloaded.
+        """
+        return self.select_related(
+            'ownername', 'bu', 'cuser', 'muser'
+        ).get(id=attachment_id)

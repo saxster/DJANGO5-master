@@ -9,8 +9,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache
 from apps.core.middleware.navigation_tracking import NavigationTrackingMiddleware
 from apps.core.url_router_optimized import OptimizedURLRouter
-import json
-from datetime import datetime, timedelta
 from collections import Counter
 
 
@@ -69,7 +67,7 @@ class IAAnalyticsAPIView(LoginRequiredMixin, UserPassesTestMixin, View):
             
             return JsonResponse(analytics_data)
             
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             return JsonResponse({
                 'error': f'Failed to load analytics: {str(e)}',
                 'timestamp': datetime.now().isoformat()

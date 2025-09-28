@@ -20,6 +20,6 @@ def cleanup_expired_sessions_task():
         call_command("cleanup_sessions")
         logger.info("Session cleanup task completed successfully")
         return "Session cleanup completed"
-    except Exception as e:
+    except (DatabaseError, IntegrationException, ValueError) as e:
         logger.error(f"Session cleanup task failed: {str(e)}")
         raise

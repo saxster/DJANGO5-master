@@ -7,11 +7,8 @@ import logging
 import json
 import time
 import os
-from datetime import datetime, timedelta
-from django.conf import settings
 from django.utils import timezone
 from django.db import connection
-from django.core.management.base import BaseCommand
 import threading
 
 
@@ -122,7 +119,7 @@ class ProductionLoggingMiddleware:
 
             return response
 
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             # Log error
             duration = round((time.time() - start_time) * 1000, 2)
             production_monitor.increment_metric("errors")
@@ -363,7 +360,7 @@ def start_metrics_logging():
             try:
                 log_system_metrics()
                 time.sleep(300)  # Log every 5 minutes
-            except Exception as e:
+            except (TypeError, ValueError, json.JSONDecodeError) as e:
                 logging.getLogger("production.metrics").error(
                     f"Metrics logging failed: {e}"
                 )

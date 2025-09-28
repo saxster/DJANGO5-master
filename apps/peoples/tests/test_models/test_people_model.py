@@ -2,7 +2,6 @@
 Tests for People model
 """
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.contrib.auth import authenticate
 from apps.peoples.models import People

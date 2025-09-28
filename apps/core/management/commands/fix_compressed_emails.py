@@ -78,7 +78,7 @@ class Command(BaseCommand):
                         )
                         failed_count += 1
 
-                except Exception as e:
+                except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError) as e:
                     self.stdout.write(
                         self.style.ERROR(
                             f'Person ID {person.id}: Failed to decompress - {e}'
@@ -110,7 +110,7 @@ class Command(BaseCommand):
             decompressed = zlib.decompress(decoded)
             # Convert to string
             return decompressed.decode('utf-8')
-        except Exception as e:
+        except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError) as e:
             raise ValueError(f"Failed to decompress: {e}")
 
     def is_valid_email(self, email):

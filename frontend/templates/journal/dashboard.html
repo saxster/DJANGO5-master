@@ -1,0 +1,1036 @@
+{% extends "globals/base_modern.html" %}
+
+{% block page_title %}Wellness Dashboard{% endblock page_title %}
+{% block page_subtitle %}<p class="page-subtitle">Your comprehensive wellness overview and daily insights</p>{% endblock page_subtitle %}
+
+{% block extra_css %}
+<style>
+  /* Wellness Dashboard Styles */
+  .wellness-dashboard {
+    padding: 20px 0;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 25px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Widget base styles */
+  .wellness-widget {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+
+  .wellness-widget:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .widget-header {
+    padding: 25px 25px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .widget-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+  }
+
+  .widget-title i {
+    margin-right: 10px;
+    color: #377dff;
+  }
+
+  .widget-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .widget-action {
+    padding: 6px 8px;
+    border: none;
+    background: #f8f9fa;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .widget-action:hover {
+    background: #e9ecef;
+  }
+
+  .widget-body {
+    padding: 25px;
+  }
+
+  /* Today's Overview Widget (Top Left) */
+  .todays-overview {
+    grid-column: 1;
+    grid-row: 1;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .todays-overview .widget-title {
+    color: white;
+  }
+
+  .todays-overview .widget-action {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  .todays-overview .widget-action:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .today-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+  }
+
+  .today-stat {
+    text-align: center;
+  }
+
+  .today-stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .today-stat-label {
+    font-size: 11px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .quick-entry {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+  }
+
+  .quick-entry-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .quick-entry-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Wellness Trends Widget (Top Center) */
+  .wellness-trends {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .trends-chart {
+    height: 350px;
+    margin-top: 20px;
+  }
+
+  .trend-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .trend-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+
+  .trend-value {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .trend-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+
+  .trend-change {
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .trend-up { color: #4CAF50; }
+  .trend-down { color: #f44336; }
+  .trend-stable { color: #666; }
+
+  .mood-value { color: #4CAF50; }
+  .stress-value { color: #FF9800; }
+  .energy-value { color: #2196F3; }
+
+  /* Daily Wellness Tip Widget (Top Right) */
+  .daily-tip {
+    grid-column: 3;
+    grid-row: 1;
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+  }
+
+  .tip-content {
+    color: #5d4e37;
+    line-height: 1.6;
+    margin-bottom: 15px;
+  }
+
+  .tip-category {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(93, 78, 55, 0.1);
+    border-radius: 12px;
+    font-size: 10px;
+    color: #5d4e37;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 15px;
+  }
+
+  .tip-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .tip-btn {
+    padding: 6px 12px;
+    border: 1px solid rgba(93, 78, 55, 0.3);
+    background: rgba(255, 255, 255, 0.7);
+    color: #5d4e37;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .tip-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Recent Entries Widget (Bottom Left) */
+  .recent-entries {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .entry-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .entry-item:last-child {
+    border-bottom: none;
+  }
+
+  .entry-item:hover {
+    background: #f8f9fa;
+    margin: 0 -15px;
+    padding: 15px;
+    border-radius: 8px;
+  }
+
+  .entry-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .icon-personal_reflection { background: #2196F3; }
+  .icon-mood_check_in { background: #9C27B0; }
+  .icon-gratitude { background: #E91E63; }
+  .icon-stress_log { background: #FF9800; }
+  .icon-three_good_things { background: #4CAF50; }
+
+  .entry-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .entry-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entry-meta {
+    font-size: 11px;
+    color: #999;
+    margin-bottom: 5px;
+  }
+
+  .entry-metrics {
+    display: flex;
+    gap: 10px;
+    font-size: 10px;
+  }
+
+  .entry-metric {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #666;
+  }
+
+  /* Achievements Widget (Bottom Right) */
+  .achievements {
+    grid-column: 3;
+    grid-row: 2;
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  }
+
+  .achievement-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .achievement-item:last-child {
+    border-bottom: none;
+  }
+
+  .achievement-icon {
+    font-size: 20px;
+  }
+
+  .achievement-info {
+    flex: 1;
+  }
+
+  .achievement-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+  }
+
+  .achievement-description {
+    font-size: 10px;
+    color: #666;
+  }
+
+  .achievement-new {
+    background: #ff4444;
+    color: white;
+    border-radius: 50%;
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Goals Widget (Bottom Center) */
+  .wellness-goals {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .goals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+  }
+
+  .goal-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .goal-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #377dff;
+  }
+
+  .goal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+  }
+
+  .goal-progress {
+    width: 100%;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+
+  .goal-progress-bar {
+    height: 100%;
+    background: #4CAF50;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .goal-status {
+    font-size: 11px;
+    color: #666;
+  }
+
+  /* Loading States */
+  .widget-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: #666;
+  }
+
+  .loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #377dff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 15px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto auto;
+    }
+
+    .todays-overview { grid-column: 1; grid-row: 1; }
+    .daily-tip { grid-column: 2; grid-row: 1; }
+    .wellness-trends { grid-column: 1 / -1; grid-row: 2; }
+    .recent-entries { grid-column: 1; grid-row: 3; }
+    .achievements { grid-column: 2; grid-row: 3; }
+    .wellness-goals { grid-column: 1 / -1; grid-row: 4; }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .wellness-dashboard {
+      padding: 15px;
+    }
+
+    .widget-header {
+      padding: 20px 20px 10px;
+    }
+
+    .widget-body {
+      padding: 20px;
+    }
+
+    .today-stats {
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .trend-summary {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .goals-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="wellness-dashboard">
+  <div class="dashboard-grid">
+
+    <!-- Today's Overview Widget (Top Left) -->
+    <div class="wellness-widget todays-overview">
+      <div class="widget-header">
+        <h3 class="widget-title">
+          <i class="material-icons">today</i>
+          Today's Overview
+        </h3>
+        <div class="widget-actions">
+          <button class="widget-action" title="Refresh">
+            <i class="material-icons">refresh</i>
+          </button>
+        </div>
+      </div>
+      <div class="widget-body">
+        <div class="today-stats">
+          <div class="today-stat">
+            <div class="today-stat-value" id="todayMood">8.5</div>
+            <div class="today-stat-label">Current Mood</div>
+          </div>
+          <div class="today-stat">
+            <div class="today-stat-value" id="todayStress">2.0</div>
+            <div class="today-stat-label">Stress Level</div>
+          </div>
+          <div class="today-stat">
+            <div class="today-stat-value" id="todayEnergy">7.8</div>
+            <div class="today-stat-label">Energy Level</div>
+          </div>
+        </div>
+
+        <div class="quick-entry">
+          <p style="margin-bottom: 15px; font-size: 14px; opacity: 0.9;">How are you feeling right now?</p>
+          <button class="quick-entry-btn" onclick="quickMoodCheck()">
+            <i class="material-icons" style="margin-right: 8px;">sentiment_satisfied</i>
+            Quick Mood Check-in
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wellness Trends Widget (Top Center, spans 2 rows) -->
+    <div class="wellness-widget wellness-trends">
+      <div class="widget-header">
+        <h3 class="widget-title">
+          <i class="material-icons">show_chart</i>
+          Wellness Trends
+        </h3>
+        <div class="widget-actions">
+          <button class="widget-action" title="Settings" onclick="openTrendSettings()">
+            <i class="material-icons">settings</i>
+          </button>
+          <button class="widget-action" title="Full Analysis" onclick="openFullAnalytics()">
+            <i class="material-icons">open_in_new</i>
+          </button>
+        </div>
+      </div>
+      <div class="widget-body">
+        <div class="trend-summary">
+          <div class="trend-item">
+            <div class="trend-value mood-value">7.2</div>
+            <div class="trend-label">Avg Mood</div>
+            <div class="trend-change trend-up">↑ +0.3 this week</div>
+          </div>
+          <div class="trend-item">
+            <div class="trend-value stress-value">2.8</div>
+            <div class="trend-label">Avg Stress</div>
+            <div class="trend-change trend-stable">→ stable</div>
+          </div>
+          <div class="trend-item">
+            <div class="trend-value energy-value">6.9</div>
+            <div class="trend-label">Avg Energy</div>
+            <div class="trend-change trend-up">↑ +0.5 this week</div>
+          </div>
+        </div>
+
+        <div class="trends-chart">
+          <canvas id="wellnessTrendsChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Wellness Tip Widget (Top Right) -->
+    <div class="wellness-widget daily-tip">
+      <div class="widget-header">
+        <h3 class="widget-title">
+          <i class="material-icons">lightbulb</i>
+          Today's Tip
+        </h3>
+        <div class="widget-actions">
+          <button class="widget-action" title="New Tip" onclick="getNewTip()">
+            <i class="material-icons">refresh</i>
+          </button>
+        </div>
+      </div>
+      <div class="widget-body">
+        <div class="tip-category">Stress Management</div>
+        <div class="tip-content" id="tipContent">
+          Take a 5-minute breathing break every 2 hours. Deep breathing activates your parasympathetic nervous system, helping reduce stress hormones and improving focus throughout your workday.
+        </div>
+        <div class="tip-actions">
+          <button class="tip-btn" onclick="markTipHelpful()">Helpful</button>
+          <button class="tip-btn" onclick="saveTipForLater()">Save</button>
+          <button class="tip-btn" onclick="shareTip()">Share</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Entries Widget (Bottom Left) -->
+    <div class="wellness-widget recent-entries">
+      <div class="widget-header">
+        <h3 class="widget-title">
+          <i class="material-icons">history</i>
+          Recent Entries
+        </h3>
+        <div class="widget-actions">
+          <button class="widget-action" title="View All" onclick="viewAllEntries()">
+            <i class="material-icons">open_in_new</i>
+          </button>
+        </div>
+      </div>
+      <div class="widget-body">
+        <div class="entry-item" onclick="openEntry('entry-1')">
+          <div class="entry-icon icon-three_good_things">
+            <i class="material-icons">star</i>
+          </div>
+          <div class="entry-content">
+            <div class="entry-title">Three Good Things from Today</div>
+            <div class="entry-meta">2 hours ago</div>
+            <div class="entry-metrics">
+              <span class="entry-metric">Mood: 8</span>
+              <span class="entry-metric">Energy: 7</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="entry-item" onclick="openEntry('entry-2')">
+          <div class="entry-icon icon-stress_log">
+            <i class="material-icons">monitor_heart</i>
+          </div>
+          <div class="entry-content">
+            <div class="entry-title">Stress Management Check</div>
+            <div class="entry-meta">Yesterday, 3:30 PM</div>
+            <div class="entry-metrics">
+              <span class="entry-metric">Stress: 4</span>
+              <span class="entry-metric">Mood: 5</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="entry-item" onclick="openEntry('entry-3')">
+          <div class="entry-icon icon-gratitude">
+            <i class="material-icons">favorite</i>
+          </div>
+          <div class="entry-content">
+            <div class="entry-title">Gratitude Practice</div>
+            <div class="entry-meta">2 days ago</div>
+            <div class="entry-metrics">
+              <span class="entry-metric">Mood: 9</span>
+              <span class="entry-metric">Energy: 8</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+          <a href="/journal/entries/" style="color: #377dff; font-size: 12px; text-decoration: none;">
+            View all entries →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements Widget (Bottom Right) -->
+    <div class="wellness-widget achievements">
+      <div class="widget-header">
+        <h3 class="widget-title">
+          <i class="material-icons">emoji_events</i>
+          Recent Achievements
+        </h3>
+        <div class="widget-actions">
+          <button class="widget-action" title="View All">
+            <i class="material-icons">open_in_new</i>
+          </button>
+        </div>
+      </div>
+      <div class="widget-body">
+        <div class="achievement-item">
+          <div class="achievement-icon">🏆</div>
+          <div class="achievement-info">
+            <div class="achievement-name">Week Warrior</div>
+            <div class="achievement-description">7-day streak completed</div>
+          </div>
+          <div class="achievement-new"></div>
+        </div>
+
+        <div class="achievement-item">
+          <div class="achievement-icon">📚</div>
+          <div class="achievement-info">
+            <div class="achievement-name">Content Explorer</div>
+            <div class="achievement-description">50+ articles read</div>
+          </div>
+        </div>
+
+        <div class="achievement-item">
+          <div class="achievement-icon">💙</div>
+          <div class="achievement-info">
+            <div class="achievement-name">Mindful Journaler</div>
+            <div class="achievement-description">25 reflective entries</div>
+          </div>
+        </div>
+
+        <div class="achievement-item">
+          <div class="achievement-icon">🌟</div>
+          <div class="achievement-info">
+            <div class="achievement-name">Consistency Champion</div>
+            <div class="achievement-description">30-day habit formed</div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+          <a href="/wellness/settings/#progress" style="color: #377dff; font-size: 12px; text-decoration: none;">
+            View all achievements →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wellness Goals Widget (Bottom Center) -->
+    <div class="wellness-widget wellness-goals">
+      <div class="widget-header">
+        <h3 class="widget-title">
+          <i class="material-icons">track_changes</i>
+          Wellness Goals
+        </h3>
+        <div class="widget-actions">
+          <button class="widget-action" title="Add Goal">
+            <i class="material-icons">add</i>
+          </button>
+          <button class="widget-action" title="Settings">
+            <i class="material-icons">settings</i>
+          </button>
+        </div>
+      </div>
+      <div class="widget-body">
+        <div class="goals-grid">
+          <div class="goal-card">
+            <div class="goal-icon">📝</div>
+            <div class="goal-title">Daily Journaling</div>
+            <div class="goal-progress">
+              <div class="goal-progress-bar" style="width: 85%;"></div>
+            </div>
+            <div class="goal-status">17/20 days this month</div>
+          </div>
+
+          <div class="goal-card">
+            <div class="goal-icon">😊</div>
+            <div class="goal-title">Mood Tracking</div>
+            <div class="goal-progress">
+              <div class="goal-progress-bar" style="width: 70%;"></div>
+            </div>
+            <div class="goal-status">14/20 entries logged</div>
+          </div>
+
+          <div class="goal-card">
+            <div class="goal-icon">🧘</div>
+            <div class="goal-title">Stress Management</div>
+            <div class="goal-progress">
+              <div class="goal-progress-bar" style="width: 60%;"></div>
+            </div>
+            <div class="goal-status">6/10 techniques tried</div>
+          </div>
+
+          <div class="goal-card">
+            <div class="goal-icon">📖</div>
+            <div class="goal-title">Wellness Learning</div>
+            <div class="goal-progress">
+              <div class="goal-progress-bar" style="width: 90%;"></div>
+            </div>
+            <div class="goal-status">9/10 articles read</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+let trendsChart;
+
+$(document).ready(function() {
+  initializeWellnessDashboard();
+});
+
+function initializeWellnessDashboard() {
+  // Initialize trends chart
+  initializeTrendsChart();
+
+  // Load real-time data
+  loadDashboardData();
+
+  // Set up auto-refresh
+  setInterval(loadDashboardData, 300000); // Refresh every 5 minutes
+}
+
+function initializeTrendsChart() {
+  const ctx = document.getElementById('wellnessTrendsChart').getContext('2d');
+
+  // Generate sample data for the last 30 days
+  const data = generateRecentTrendData();
+
+  trendsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Mood',
+          data: data.mood,
+          borderColor: '#4CAF50',
+          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+          fill: false,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5
+        },
+        {
+          label: 'Stress',
+          data: data.stress,
+          borderColor: '#FF9800',
+          backgroundColor: 'rgba(255, 152, 0, 0.1)',
+          fill: false,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'Energy',
+          data: data.energy,
+          borderColor: '#2196F3',
+          backgroundColor: 'rgba(33, 150, 243, 0.1)',
+          fill: false,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'day',
+            displayFormats: {
+              day: 'MMM dd'
+            }
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.1)'
+          }
+        },
+        y: {
+          beginAtZero: false,
+          min: 1,
+          max: 10,
+          grid: {
+            color: 'rgba(0,0,0,0.1)'
+          },
+          title: {
+            display: true,
+            text: 'Mood / Energy (1-10)'
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          min: 1,
+          max: 5,
+          title: {
+            display: true,
+            text: 'Stress (1-5)'
+          },
+          grid: {
+            drawOnChartArea: false,
+          },
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            font: {
+              size: 11
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          titleColor: '#333',
+          bodyColor: '#666',
+          borderColor: '#ddd',
+          borderWidth: 1,
+          cornerRadius: 8,
+          displayColors: true
+        }
+      }
+    }
+  });
+}
+
+function generateRecentTrendData() {
+  const now = new Date();
+  const data = { labels: [], mood: [], stress: [], energy: [] };
+
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    data.labels.push(date);
+
+    // Generate realistic sample data with weekly patterns
+    const dayOfWeek = date.getDay();
+    const weekProgress = (7 - dayOfWeek) / 7; // Higher early in week
+
+    data.mood.push(Math.max(1, Math.min(10, 6.5 + weekProgress * 2 + (Math.random() - 0.5) * 2)));
+    data.stress.push(Math.max(1, Math.min(5, 3.2 - weekProgress * 0.8 + (Math.random() - 0.5) * 1.2)));
+    data.energy.push(Math.max(1, Math.min(10, 6.8 + weekProgress * 1.5 + (Math.random() - 0.5) * 1.8)));
+  }
+
+  return data;
+}
+
+function loadDashboardData() {
+  // TODO: Fetch real data from API endpoints
+  // /api/v1/journal/analytics_summary/
+  // /api/v1/wellness/progress/
+  // /api/v1/wellness/daily-tip/
+
+  console.log('Loading dashboard data...');
+}
+
+function quickMoodCheck() {
+  // TODO: Open quick mood check modal or navigate to simple form
+  window.location.href = '/journal/entry/new/?type=MOOD_CHECK_IN';
+}
+
+function openTrendSettings() {
+  // TODO: Open trend customization modal
+  alert('Trend settings would open here - select which metrics to display, time ranges, etc.');
+}
+
+function openFullAnalytics() {
+  window.location.href = '/journal/analytics/';
+}
+
+function getNewTip() {
+  // TODO: Fetch new tip from API
+  const tips = [
+    {
+      category: 'Mental Health',
+      content: 'Practice the 5-4-3-2-1 grounding technique: identify 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.'
+    },
+    {
+      category: 'Physical Wellness',
+      content: 'Stand up and stretch for 2 minutes every hour. Simple desk stretches can reduce muscle tension and improve circulation.'
+    },
+    {
+      category: 'Mindfulness',
+      content: 'Before starting a challenging task, take 3 deep breaths and set a positive intention. This helps center your mind and approach work mindfully.'
+    }
+  ];
+
+  const randomTip = tips[Math.floor(Math.random() * tips.length)];
+  $('.tip-category').text(randomTip.category);
+  $('#tipContent').text(randomTip.content);
+}
+
+function markTipHelpful() {
+  // TODO: Send feedback to API
+  const btn = event.target;
+  btn.textContent = 'Thanks!';
+  btn.style.background = 'rgba(76, 175, 80, 0.7)';
+  btn.style.color = 'white';
+  setTimeout(() => {
+    btn.textContent = 'Helpful';
+    btn.style.background = '';
+    btn.style.color = '';
+  }, 2000);
+}
+
+function saveTipForLater() {
+  // TODO: Save tip to user's saved content
+  alert('Tip saved to your reading list!');
+}
+
+function shareTip() {
+  // TODO: Open sharing options
+  if (navigator.share) {
+    navigator.share({
+      title: 'Wellness Tip',
+      text: document.getElementById('tipContent').textContent,
+      url: window.location.href
+    });
+  } else {
+    // Fallback for browsers without Web Share API
+    alert('Sharing options would open here.');
+  }
+}
+
+function viewAllEntries() {
+  window.location.href = '/journal/entries/';
+}
+
+function openEntry(entryId) {
+  // TODO: Open entry detail view
+  console.log('Opening entry:', entryId);
+  alert('Entry detail view would open here. Entry ID: ' + entryId);
+}
+</script>
+{% endblock extra_scripts %}

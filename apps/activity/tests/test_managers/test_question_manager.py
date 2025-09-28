@@ -1,6 +1,5 @@
 import pytest
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory
 from datetime import datetime
 from apps.activity.models.question_model import (
     QuestionSet,

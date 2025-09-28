@@ -1,10 +1,7 @@
 """
 Recommendation middleware for intelligent content and navigation suggestions
 """
-import json
 import logging
-from datetime import timedelta
-from typing import Dict, List, Optional, Any
 
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth import get_user_model
@@ -73,7 +70,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             # Update user behavior tracking
             self._track_page_visit(request)
             
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error in recommendation middleware process_request: {str(e)}")
             request.recommendations = {'content': [], 'navigation': [], 'personalized': False}
     
@@ -92,7 +89,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             
             return response
             
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error in recommendation middleware process_response: {str(e)}")
             return response
     
@@ -155,7 +152,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             
             return recommendations
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error generating recommendations for user {user.id}: {str(e)}")
             return self._get_default_recommendations(user)
     
@@ -228,7 +225,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             for rec in recommendations:
                 if not rec.id:  # Only save new recommendations
                     rec.save()
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error saving content recommendations: {str(e)}")
     
     def _track_page_visit(self, request):
@@ -248,7 +245,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             # Update user behavior asynchronously (in a real app, use Celery)
             self.engine.update_user_behavior(user, session_data)
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error tracking page visit: {str(e)}")
     
     def _detect_device_type(self, request) -> str:
@@ -272,7 +269,7 @@ class RecommendationMiddleware(MiddlewareMixin):
                         shown_count=models.F('shown_count') + 1,
                         last_shown=timezone.now()
                     )
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error updating recommendation shown counts: {str(e)}")
     
     def _track_recommendation_interactions(self, request, response):
@@ -296,7 +293,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             
             # Track dismissals via AJAX (would be handled separately in views)
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error tracking recommendation interactions: {str(e)}")
     
     def _should_inject_recommendations(self, request, response) -> bool:
@@ -337,7 +334,7 @@ class RecommendationMiddleware(MiddlewareMixin):
             
             return response
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error injecting recommendations: {str(e)}")
             return response
     
@@ -525,7 +522,7 @@ class RecommendationAPIMiddleware:
                 'user_profile': self._get_user_profile_summary(user)
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error getting API recommendations: {str(e)}")
             return {'content_recommendations': [], 'navigation_recommendations': [], 'user_profile': {}}
     
@@ -545,6 +542,6 @@ class RecommendationAPIMiddleware:
                 'last_updated': profile.last_updated.isoformat() if profile.last_updated else None
             }
             
-        except Exception as e:
+        except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
             logger.error(f"Error getting user profile summary: {str(e)}")
             return {}

@@ -1,14 +1,12 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from datetime import datetime, timedelta
 from unittest.mock import patch, Mock
 
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.y_helpdesk.managers import TicketManager, ESCManager
 from apps.peoples.models import People, Pgroup
 from apps.activity.models.job_model import Job
-from apps.onboarding.models import Bt, TypeAssist
 
 User = get_user_model()
 

@@ -7,10 +7,13 @@ people near assets, and asset logs.
 
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError
 from django.shortcuts import render
 from django.views.generic.base import View
 from django.http import response as rp
+from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import ActivityManagementException, DatabaseException, SystemException
 
 from apps.activity.forms.asset_form import CheckpointForm
 from apps.activity.models.asset_model import Asset, AssetLog
@@ -150,8 +153,26 @@ class Checkpoint(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, P, cxt)
-        except Exception:
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            logger.warning(f"Checkpoint form validation error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Checkpoint form validation failed")
+            resp = rp.JsonResponse({"error": "Invalid form data", "details": str(e)}, status=400)
+        except ActivityManagementException as e:
+            logger.error(f"Checkpoint activity management error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Checkpoint activity management error")
+            resp = rp.JsonResponse({"error": "Activity management error", "correlation_id": error_data.get("correlation_id")}, status=422)
+        except PermissionDenied as e:
+            logger.warning(f"Checkpoint permission denied: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Checkpoint access denied")
+            resp = rp.JsonResponse({"error": "Access denied", "correlation_id": error_data.get("correlation_id")}, status=403)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Checkpoint data processing error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Checkpoint data processing error")
+            resp = rp.JsonResponse({"error": "Invalid data format", "correlation_id": error_data.get("correlation_id")}, status=400)
+        except SystemException as e:
+            logger.error(f"Checkpoint system error: {e}")
+            error_data = ErrorHandler.handle_exception(request, e, "Checkpoint system error")
+            resp = rp.JsonResponse({"error": "System error occurred", "correlation_id": error_data.get("correlation_id")}, status=500)
         return resp
 
     def handle_valid_form(self, form, request, create):

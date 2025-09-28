@@ -1,13 +1,10 @@
 from apps.reports.utils import BaseReportsExport
-from apps.core.utils import get_timezone
 # Note: runrawsql and get_query are deprecated - using Django ORM instead
 import qrcode
 from qrcode.image.svg import SvgImage
-from tempfile import NamedTemporaryFile
 import os, io, base64
 from django.db.models import F
 import shutil
-from django.conf import settings
 
 # Folder for temporary files
 TEMP_FOLDER = "temp_qr_codes"

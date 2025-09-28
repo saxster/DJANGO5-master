@@ -4,25 +4,16 @@ Tests for core app health check system
 import pytest
 import time
 import json
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
-from django.test import RequestFactory, Client
-from django.http import JsonResponse
+from unittest.mock import Mock, patch
 from django.utils import timezone
-from django.core.cache import cache
+from apps.core.health_checks.manager import HealthCheckManager
 from apps.core.health_checks import (
-    HealthCheckManager,
-    health_manager,
-    check_database,
-    check_postgresql_functions,
-    check_cache,
+    check_database_connectivity,
+    check_custom_postgresql_functions,
+    check_default_cache,
     check_task_queue,
-    check_application_status,
-    health_check,
-    readiness_check,
-    liveness_check,
-    detailed_health_check,
 )
+from apps.core.health_checks import health_check, readiness_check, liveness_check, detailed_health_check
 
 
 @pytest.mark.django_db
@@ -188,25 +179,27 @@ class TestDatabaseHealthCheck:
             (150,),  # session count
         ]
 
-        result = check_database()
+        result = check_database_connectivity()
 
         assert result["status"] == "healthy"
-        assert "database_version" in result
-        assert "session_count" in result
-        assert result["session_count"] == 150
-        assert "query_time_ms" in result
-        assert result["connection_status"] == "connected"
+        assert "database_version" in result.get("details", {})
+        assert "session_count" in result.get("details", {})
+        assert result["details"]["session_count"] == 150
+        assert "duration_ms" in result
+        assert result["details"]["connection_status"] == "connected"
 
     @patch("django.db.connection.cursor")
     def test_check_database_failure(self, mock_cursor):
         """Test database health check failure"""
-        mock_cursor.side_effect = Exception("Connection refused")
+        from django.db import OperationalError
 
-        result = check_database()
+        mock_cursor.side_effect = OperationalError("Connection refused")
+
+        result = check_database_connectivity()
 
         assert result["status"] == "error"
         assert "Connection refused" in result["message"]
-        assert result["connection_status"] == "failed"
+        assert result["details"]["connection_status"] == "failed"
 
 
 @pytest.mark.django_db
@@ -226,11 +219,11 @@ class TestPostgreSQLFunctionsCheck:
             (True,),  # refresh_select2_materialized_views
         ]
 
-        result = check_postgresql_functions()
+        result = check_custom_postgresql_functions()
 
         assert result["status"] == "healthy"
-        assert "functions" in result
-        assert all(status == "available" for status in result["functions"].values())
+        assert "functions" in result.get("details", {})
+        assert all(status == "available" for status in result["details"]["functions"].values())
         assert "All PostgreSQL functions available" in result["message"]
 
     @patch("django.db.connection.cursor")
@@ -246,12 +239,12 @@ class TestPostgreSQLFunctionsCheck:
             (False,),  # refresh_select2_materialized_views (missing)
         ]
 
-        result = check_postgresql_functions()
+        result = check_custom_postgresql_functions()
 
         assert result["status"] == "error"
-        assert result["functions"]["cleanup_expired_sessions"] == "missing"
-        assert result["functions"]["cleanup_select2_cache"] == "available"
-        assert result["functions"]["refresh_select2_materialized_views"] == "missing"
+        assert result["details"]["functions"]["cleanup_expired_sessions"] == "missing"
+        assert result["details"]["functions"]["cleanup_select2_cache"] == "available"
+        assert result["details"]["functions"]["refresh_select2_materialized_views"] == "missing"
         assert "Some functions missing" in result["message"]
 
     @patch("django.db.connection.cursor")
@@ -259,10 +252,10 @@ class TestPostgreSQLFunctionsCheck:
         """Test PostgreSQL functions check error"""
         mock_cursor.side_effect = Exception("Database error")
 
-        result = check_postgresql_functions()
+        result = check_custom_postgresql_functions()
 
         assert result["status"] == "error"
-        assert "Database error" in result["message"]
+        assert "Function check failed" in result["message"]
 
 
 class TestCacheHealthCheck:
@@ -287,11 +280,12 @@ class TestCacheHealthCheck:
         mock_cache.delete.return_value = True
         mock_cache.__class__.__name__ = "DatabaseCache"
 
-        result = check_cache()
+        result = check_default_cache()
 
         assert result["status"] == "healthy"
-        assert result["backend"] == "DatabaseCache"
-        assert "Cache read/write successful" in result["message"]
+        assert "backend" in result.get("details", {})
+        assert "Cache" in result.get("details", {}).get("backend", "")
+        assert "operational" in result["message"] or "successful" in result["message"]
 
     @patch("apps.core.health_checks.cache")
     def test_check_cache_read_write_failure(self, mock_cache):
@@ -302,20 +296,20 @@ class TestCacheHealthCheck:
         mock_cache.get.return_value = {"different": "value"}
         mock_cache.__class__.__name__ = "DatabaseCache"
 
-        result = check_cache()
+        result = check_default_cache()
 
         assert result["status"] == "error"
-        assert "Cache read/write failed" in result["message"]
+        assert "verification failed" in result["message"]
 
     @patch("apps.core.health_checks.cache")
     def test_check_cache_exception(self, mock_cache):
         """Test cache check exception"""
         mock_cache.set.side_effect = Exception("Cache connection failed")
 
-        result = check_cache()
+        result = check_default_cache()
 
         assert result["status"] == "error"
-        assert "Cache connection failed" in result["message"]
+        assert "failed" in result["message"]
 
 
 @pytest.mark.django_db
@@ -397,7 +391,9 @@ class TestHealthCheckViews:
 
     def test_health_check_view_healthy(self, client):
         """Test health check view with healthy status"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
+        from apps.core.health_checks import health_service
+
+        with patch.object(health_service, "run_all_checks") as mock_run:
             mock_run.return_value = {
                 "status": "healthy",
                 "timestamp": timezone.now().isoformat(),
@@ -413,7 +409,9 @@ class TestHealthCheckViews:
 
     def test_health_check_view_unhealthy(self, client):
         """Test health check view with unhealthy status"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
+        from apps.core.health_checks import health_service
+
+        with patch.object(health_service, "run_all_checks") as mock_run:
             mock_run.return_value = {
                 "status": "unhealthy",
                 "timestamp": timezone.now().isoformat(),
@@ -429,7 +427,9 @@ class TestHealthCheckViews:
 
     def test_health_check_view_degraded(self, client):
         """Test health check view with degraded status"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
+        from apps.core.health_checks import health_service
+
+        with patch.object(health_service, "run_all_checks") as mock_run:
             mock_run.return_value = {
                 "status": "degraded",
                 "timestamp": timezone.now().isoformat(),
@@ -445,7 +445,9 @@ class TestHealthCheckViews:
 
     def test_readiness_check_view_ready(self, client):
         """Test readiness check view when ready"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
+        from apps.core.health_checks import health_service
+
+        with patch.object(health_service, "run_critical_checks_only") as mock_run:
             mock_run.return_value = {
                 "status": "healthy",
                 "timestamp": timezone.now().isoformat(),
@@ -460,7 +462,9 @@ class TestHealthCheckViews:
 
     def test_readiness_check_view_not_ready(self, client):
         """Test readiness check view when not ready"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
+        from apps.core.health_checks import health_service
+
+        with patch.object(health_service, "run_critical_checks_only") as mock_run:
             mock_run.return_value = {
                 "status": "unhealthy",
                 "timestamp": timezone.now().isoformat(),
@@ -485,24 +489,32 @@ class TestHealthCheckViews:
 
     def test_detailed_health_check_view(self, client):
         """Test detailed health check view"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
-            mock_run.return_value = {
-                "status": "healthy",
-                "timestamp": timezone.now().isoformat(),
-                "uptime_seconds": 3600,
-                "checks": {},
-            }
+        from apps.core.health_checks import health_service
 
-            response = client.get("/health/detailed/")
+        with patch.object(health_service, "run_all_checks") as mock_run:
+            with patch.object(health_service, "get_service_health_summary") as mock_summary:
+                mock_summary.return_value = {'total_services': 0, 'services': []}
+                mock_run.return_value = {
+                    "status": "healthy",
+                    "timestamp": timezone.now().isoformat(),
+                    "uptime_seconds": 3600,
+                    "checks": {},
+                    "summary": {"total_checks": 5, "healthy": 5},
+                }
 
-            assert response.status_code == 200
-            data = json.loads(response.content)
-            assert data["status"] == "healthy"
-            assert "system_info" in data
+                response = client.get("/health/detailed/")
+
+                assert response.status_code == 200
+                data = json.loads(response.content)
+                assert data["status"] == "healthy"
+                assert "system_info" in data
+                assert "service_availability" in data
 
     def test_health_check_view_exception(self, client):
         """Test health check view with exception"""
-        with patch.object(health_manager, "run_all_checks") as mock_run:
+        from apps.core.health_checks import health_service
+
+        with patch.object(health_service, "run_all_checks") as mock_run:
             mock_run.side_effect = Exception("Health check system error")
 
             response = client.get("/health/")
@@ -518,37 +530,35 @@ class TestHealthCheckIntegration:
 
     def test_global_health_manager_registration(self):
         """Test that global health manager has checks registered"""
-        # The global health_manager should have checks registered from module import
-        assert "database" in health_manager.checks
-        assert "postgresql_functions" in health_manager.checks
-        assert "cache" in health_manager.checks
-        assert "task_queue" in health_manager.checks
-        assert "application" in health_manager.checks
+        from apps.core.health_checks import global_health_manager
 
-        # Check critical flags
-        assert health_manager.checks["database"]["critical"] is True
-        assert health_manager.checks["postgresql_functions"]["critical"] is True
-        assert health_manager.checks["cache"]["critical"] is False
-        assert health_manager.checks["task_queue"]["critical"] is True
-        assert health_manager.checks["application"]["critical"] is False
+        assert "database_connectivity" in global_health_manager.checks
+        assert "postgresql_functions" in global_health_manager.checks
+        assert "default_cache" in global_health_manager.checks
+        assert "task_queue" in global_health_manager.checks
+
+        assert global_health_manager.checks["database_connectivity"]["critical"] is True
+        assert global_health_manager.checks["postgresql_functions"]["critical"] is True
+        assert global_health_manager.checks["default_cache"]["critical"] is True
+        assert global_health_manager.checks["task_queue"]["critical"] is True
 
     def test_health_check_performance(self):
         """Test health check performance"""
+        from apps.core.health_checks import global_health_manager
+
         start_time = time.time()
 
-        # Mock all checks to be fast
-        with patch.object(health_manager, "run_check") as mock_run:
+        with patch.object(global_health_manager, "run_check") as mock_run:
             mock_run.return_value = {
                 "status": "healthy",
                 "duration_ms": 10.0,
                 "timestamp": timezone.now().isoformat(),
             }
 
-            result = health_manager.run_all_checks()
+            result = global_health_manager.run_all_checks()
 
         end_time = time.time()
         duration = end_time - start_time
 
-        # Health checks should complete quickly
-        assert duration < 1.0  # Less than 1 second
+        assert duration < 1.0
         assert result["status"] == "healthy"

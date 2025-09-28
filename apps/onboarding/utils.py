@@ -6,7 +6,6 @@ import requests
 import pandas as pd
 from tablib import Dataset
 import logging
-from intelliwiz_config.settings import (
     BULK_IMPORT_GOOGLE_DRIVE_API_KEY as api_key,
     MEDIA_ROOT,
     GOOGLE_MAP_SECRET_KEY as google_map_key,
@@ -53,7 +52,7 @@ def save_json_from_bu_prefsform(bt, buprefsform):
                 "no_of_users_allowed_mob",
             ):
                 bt.bupreferences[k] = buprefsform.cleaned_data.get(k)
-    except Exception:
+    except (ValueError, TypeError):
         logger.critical("save json from buprefsform... FAILED", exc_info=True)
         return False
     else:
@@ -87,7 +86,7 @@ def update_children_tree(instance, newcode, newtype, whole=False):
                     newtree = bt.butree.replace(oldtreepart, newtreepart)
                     bt.butree = newtree
                     bt.save()
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical(
             "update_children_tree(instance, newcode, newtype)... FAILED", exc_info=True
         )
@@ -159,7 +158,7 @@ def get_bt_prefform(bt):
         }
 
         return ClentForm(data=d)
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical("get_bt_prefform(bt)... FAILED", exc_info=True)
     else:
         logger.info("get_bt_prefform success")
@@ -182,7 +181,7 @@ def create_bt_tree(bucode, indentifier, instance, parent=None):
                 update_children_tree(instance, bucode, indentifier.tacode)
                 instance.butree = ""
                 instance.butree += f"{parent.butree} > {indentifier.tacode} :: {bucode}"
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical(
             f"Something went wrong while creating Bt tree for instance {instance.bucode}",
             exc_info=True,
@@ -231,7 +230,7 @@ def create_tenant(buname, bucode):
         _, _ = Tenant.objects.update_or_create(
             defaults={"tenantname": buname}, subdomain_prefix=bucode.lower()
         )
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical(
             "Something went wrong while creating tenant for the client %s",
             (bucode),
@@ -266,7 +265,7 @@ def create_default_admin_for_client(client):
             isadmin=True,
         )
         logger.info("Default user-admin created for the client... DONE")
-    except Exception:
+    except (DatabaseError, IntegrityError, ObjectDoesNotExist):
         logger.critical(
             "Something went wrong while creating default user-admin for client... FAILED",
             exc_info=True,
@@ -391,7 +390,6 @@ def download_image_from_drive(file_id, destination_path):
 
 
 import concurrent.futures
-from functools import partial
 import os
 import requests
 from typing import List, Dict, Tuple
@@ -418,7 +416,7 @@ class BulkImageUploader:
                 for chunk in response.iter_content(chunk_size=8192):
                     image_file.write(chunk)
             return True, destination_path
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
             error_logger.error(
                 f"Error downloading image {image_data['name']}: {str(e)}"
             )
@@ -430,7 +428,7 @@ class BulkImageUploader:
             people_obj.peopleimg = image_path
             people_obj.save(update_fields=["peopleimg"])
             return True
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
             error_logger.error(
                 f"Error saving to database for {people_obj.peoplecode}: {str(e)}"
             )
@@ -439,13 +437,73 @@ class BulkImageUploader:
     def process_single_image(
         self, image_data: Dict, base_path: str, people_obj
     ) -> Dict:
-        """Process a single image including download and database update"""
+        """
+        Process a single image including download and database update.
+
+        SECURITY: Implements filename sanitization to prevent path traversal.
+        Complies with Rule #14 from .claude/rules.md - File Upload Security.
+        """
         result = {"peoplecode": people_obj.peoplecode, "success": False, "error": None}
 
         try:
+            from django.utils.text import get_valid_filename
+            import uuid
+
+            original_filename = image_data.get('name', '')
+            if not original_filename:
+                result["error"] = "No filename provided in image data"
+                return result
+
+            safe_filename = get_valid_filename(original_filename)
+            if not safe_filename:
+                result["error"] = f"Invalid filename: {original_filename}"
+                return result
+
+            if '..' in safe_filename or '/' in safe_filename or '\\' in safe_filename:
+                logger.warning(
+                    "Path traversal attempt detected in bulk image upload",
+                    extra={
+                        'original_filename': original_filename,
+                        'peoplecode': people_obj.peoplecode
+                    }
+                )
+                safe_filename = f"{uuid.uuid4()}.jpg"
+
+            ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+            file_extension = os.path.splitext(safe_filename)[1].lower()
+
+            if file_extension not in ALLOWED_IMAGE_EXTENSIONS:
+                logger.warning(
+                    "Invalid file extension in bulk upload",
+                    extra={
+                        'filename': safe_filename,
+                        'extension': file_extension,
+                        'peoplecode': people_obj.peoplecode
+                    }
+                )
+                safe_filename = f"{os.path.splitext(safe_filename)[0]}.jpg"
+
+            safe_peoplecode = get_valid_filename(str(people_obj.peoplecode))[:50]
+
             image_path = os.path.join(
-                base_path, f"people/{people_obj.peoplecode}/{image_data['name']}"
+                base_path, f"people/{safe_peoplecode}/{safe_filename}"
             )
+
+            abs_image_path = os.path.abspath(image_path)
+            abs_base_path = os.path.abspath(base_path)
+
+            if not abs_image_path.startswith(abs_base_path):
+                logger.error(
+                    "Path traversal detected - path outside base directory",
+                    extra={
+                        'image_path': image_path,
+                        'base_path': base_path,
+                        'peoplecode': people_obj.peoplecode
+                    }
+                )
+                result["error"] = "Security validation failed"
+                return result
+
             download_success, download_result = self.download_single_image(
                 image_data, image_path
             )
@@ -459,7 +517,7 @@ class BulkImageUploader:
             else:
                 result["error"] = download_result
 
-        except Exception as e:
+        except (FileNotFoundError, IOError, OSError, PermissionError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
             result["error"] = str(e)
 
         return result
@@ -508,7 +566,7 @@ def save_image_and_image_path(
         successful_uploads = sum(1 for r in results if r["success"])
         return successful_uploads, results
 
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
         error_logger.error(f"Error in bulk image upload: {str(e)}")
         raise
 
@@ -524,7 +582,7 @@ def save_correct_image(correct_image_data):
             file_path = download_image(image_id, image_name)
             db_image_path = "/".join(file_path.split("/")[4:])
             save_image_in_db(db_image_path, image_name)
-        except Exception as e:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             error_logger.error(f"Failed to save Image {image_name}: {e}")
 
 
@@ -694,7 +752,7 @@ def polygon_to_address(polygon):
         if reverse_geocode_result:
             return reverse_geocode_result[0]["formatted_address"]
         return "Address not found"
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValueError, json.JSONDecodeError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
         return f"Error getting address: {str(e)}"
 
 
@@ -781,7 +839,7 @@ def bulk_create_geofence(gpslocation, radius):
 
     except ValidationError as ve:
         logger.info("Validation Error:", ve)
-    except Exception as e:
+    except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
         logger.info("Error processing geometry:", e)
 
 

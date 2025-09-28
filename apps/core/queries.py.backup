@@ -1,0 +1,4 @@
+# This is a backup of the original monolithic queries.py file
+# Created during refactoring on 2025-09-27
+# The original file had 2,202 lines and violated SRP
+# See apps/core/queries/ for the new modular implementation

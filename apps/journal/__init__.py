@@ -1,0 +1,1 @@
+# Journal App for IntelliWiz - Complete journaling and wellness integration

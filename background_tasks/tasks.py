@@ -1,25 +1,36 @@
-from intelliwiz_config.celery import app
+# Standard library imports
+import base64
+import json
+import logging
+import os
+import time
+import traceback as tb
+from datetime import timedelta, datetime
+from logging import getLogger
+from pprint import pformat
+from typing import Dict, Any, Optional, List, Union
+
+# Third-party imports
 from celery import shared_task
+
+# Django imports
+from django.apps import apps
+from django.conf import settings
+from django.core.mail import EmailMessage
+from django.db import transaction
+from django.db.models import Q
+from django.templatetags.static import static
+from django.utils import timezone
+
+# Local application imports
+from intelliwiz_config.celery import app
 from background_tasks import utils as butils
 from apps.core import utils
-from django.apps import apps
-from logging import getLogger
-from django.db import transaction
-from datetime import timedelta, datetime
-import traceback as tb
 from apps.core.queries import QueryRepository
-from pprint import pformat
-from django.db.models import Q
-from django.conf import settings
-from django.utils import timezone
-import base64, os, json
-from django.core.mail import EmailMessage
+from apps.core.utils_new.db_utils import get_current_db_name
 from apps.reports.models import ScheduleReport
 from apps.reports import utils as rutils
-from django.templatetags.static import static
-import logging
-import time
-from apps.core.utils_new.db_utils import get_current_db_name
+from apps.core.services.async_pdf_service import AsyncPDFGenerationService
 
 
 mqlog = getLogger("message_q")
@@ -37,62 +48,287 @@ from .report_tasks import (
     remove_reportfile,
     save_report_to_tmp_folder,
 )
+
+
+@shared_task(name='cache_warming_scheduled')
+def cache_warming_scheduled():
+    """
+    Scheduled task for automatic cache warming.
+
+    Runs daily at 2 AM to warm critical caches during off-peak hours.
+    """
+    try:
+        from apps.core.services.cache_warming_service import warm_critical_caches_task
+
+        result = warm_critical_caches_task()
+
+        logger.info(
+            f"Scheduled cache warming completed: {result.get('total_keys_warmed', 0)} keys warmed",
+            extra={'result': result}
+        )
+
+        return result
+
+    except ImportError as e:
+        logger.error(f"Cache warming service not found: {e}")
+        return {'error': str(e)}
+    except (DatabaseError, IntegrationException, ValueError) as e:
+        logger.error(f"Cache warming task failed: {e}")
+        return {'error': str(e)}
 from io import BytesIO
 
 from celery import shared_task
 from scripts.utilities.mqtt_utils import publish_message
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=30, name="publish_mqtt")
-def publish_mqtt(self, topic, payload):
+def validate_mqtt_topic(topic: str) -> str:
+    """
+    Validate MQTT topic for security and format compliance.
+
+    Args:
+        topic: MQTT topic string
+
+    Returns:
+        Validated topic string
+
+    Raises:
+        ValidationError: If topic validation fails
+    """
+    from django.core.exceptions import ValidationError
+    import re
+
+    if not topic or not isinstance(topic, str):
+        raise ValidationError("MQTT topic must be a non-empty string")
+
+    # MQTT topic length limit (MQTT spec allows up to 65535 bytes)
+    if len(topic.encode('utf-8')) > 1000:  # Reasonable limit for our use case
+        raise ValidationError("MQTT topic exceeds maximum length")
+
+    # MQTT topic format validation
+    # - Must not contain null characters
+    # - Must not contain wildcards in publish topics
+    # - Must follow MQTT topic conventions
+    if '\x00' in topic:
+        raise ValidationError("MQTT topic cannot contain null characters")
+
+    if '#' in topic or '+' in topic:
+        raise ValidationError("MQTT publish topics cannot contain wildcards (# or +)")
+
+    # Check for malicious content
+    dangerous_patterns = [
+        r'[<>"\']',  # Potential injection characters
+        r'javascript:',  # JavaScript injection
+        r'<script',  # Script tags
+    ]
+
+    for pattern in dangerous_patterns:
+        if re.search(pattern, topic, re.IGNORECASE):
+            raise ValidationError("MQTT topic contains potentially malicious content")
+
+    # Validate topic structure (should follow youtility conventions)
+    topic_pattern = re.compile(r'^[a-zA-Z0-9/_\-\.]+$')
+    if not topic_pattern.match(topic):
+        raise ValidationError("MQTT topic contains invalid characters")
+
+    return topic.strip()
+
+
+def validate_mqtt_payload(payload: Union[str, Dict[str, Any], List[Any], int, float, bool]) -> Union[str, Dict[str, Any], List[Any], int, float, bool]:
+    """
+    Validate and sanitize MQTT payload for security.
+
+    Args:
+        payload: MQTT payload (can be string, dict, or other JSON-serializable type)
+
+    Returns:
+        Validated payload
+
+    Raises:
+        ValidationError: If payload validation fails
+    """
+    import json
+    from django.core.exceptions import ValidationError
+    from apps.core.validation import XSSPrevention
+
+    if payload is None:
+        return payload
+
+    # Size limit (1MB for MQTT payload is generous)
     try:
-        publish_message(topic, payload)
-        logger.info(f"[Celery] Task completed: topic={topic}")
-    except Exception as e:
-        logger.error(f"[Celery] Task failed! Will retry. Error: {e}", exc_info=True)
+        payload_str = json.dumps(payload) if not isinstance(payload, str) else payload
+        if len(payload_str.encode('utf-8')) > 1024 * 1024:  # 1MB limit
+            raise ValidationError("MQTT payload exceeds maximum size")
+    except (TypeError, ValueError) as e:
+        raise ValidationError(f"MQTT payload is not JSON serializable: {e}")
+
+    # Sanitize payload if it's a string or contains strings
+    if isinstance(payload, str):
+        # Check for malicious content
+        sanitized = XSSPrevention.sanitize_input(payload)
+        return sanitized
+    elif isinstance(payload, dict):
+        # Recursively sanitize dictionary values
+        sanitized_payload = {}
+        for key, value in payload.items():
+            # Sanitize key
+            if not isinstance(key, str):
+                key = str(key)
+            sanitized_key = XSSPrevention.sanitize_input(key)
+
+            # Sanitize value
+            sanitized_value = XSSPrevention.sanitize_input(value)
+            sanitized_payload[sanitized_key] = sanitized_value
+
+        return sanitized_payload
+    elif isinstance(payload, (list, tuple)):
+        # Sanitize list items
+        return [XSSPrevention.sanitize_input(item) for item in payload]
+    else:
+        # For other types (int, float, bool), return as-is
+        return payload
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=30, name="publish_mqtt")
+def publish_mqtt(self, topic: str, payload: Union[str, Dict[str, Any], List[Any], int, float, bool]) -> Dict[str, Any]:
+    """
+    Securely publish MQTT message with comprehensive input validation.
+
+    Args:
+        topic: MQTT topic string
+        payload: MQTT payload (JSON-serializable)
+
+    Returns:
+        Secure task response dictionary
+    """
+    from apps.core.error_handling import ErrorHandler
+    from django.core.exceptions import ValidationError
+
+    # Generate correlation ID for tracking
+    import uuid
+    correlation_id = str(uuid.uuid4())
+
+    try:
+        # Comprehensive input validation
+        validated_topic = validate_mqtt_topic(topic)
+        validated_payload = validate_mqtt_payload(payload)
+
+        # Publish the message
+        publish_message(validated_topic, validated_payload)
+
+        logger.info(
+            f"[MQTT] Task completed successfully",
+            extra={
+                "correlation_id": correlation_id,
+                "topic": validated_topic,
+                "payload_type": type(validated_payload).__name__
+            }
+        )
+
+        return ErrorHandler.create_secure_task_response(
+            success=True,
+            message="MQTT message published successfully",
+            data={"topic": validated_topic, "correlation_id": correlation_id},
+            correlation_id=correlation_id
+        )
+
+    except ValidationError as e:
+        # Input validation failed - log and return secure error
+        return ErrorHandler.handle_task_exception(
+            e,
+            task_name="publish_mqtt",
+            task_params={"topic": topic, "payload_type": type(payload).__name__},
+            correlation_id=correlation_id
+        )
+
+    except (DatabaseError, IntegrationException, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        # Other errors - log securely and retry if appropriate
+        error_response = ErrorHandler.handle_task_exception(
+            e,
+            task_name="publish_mqtt",
+            task_params={"topic": topic, "payload_type": type(payload).__name__},
+            correlation_id=correlation_id
+        )
+
+        # For non-validation errors, attempt retry
+        logger.error(f"[MQTT] Task failed, attempting retry", extra={"correlation_id": correlation_id})
         raise self.retry(exc=e)
 
 
 @app.task(bind=True, default_retry_delay=300, max_retries=5, name="send_ticket_email")
 def send_ticket_email(self, ticket=None, id=None):
+    """
+    Send ticket notification email with secure error handling.
+
+    Args:
+        ticket: Ticket object (optional)
+        id: Ticket ID to look up (optional)
+
+    Returns:
+        Secure task response dictionary
+    """
     from apps.y_helpdesk.models import Ticket
     from django.conf import settings
     from django.template.loader import render_to_string
+    from apps.core.error_handling import ErrorHandler
+
+    # Generate correlation ID for tracking
+    import uuid
+    correlation_id = str(uuid.uuid4())
 
     try:
+        # Validate input parameters
+        if not ticket and not id:
+            return ErrorHandler.create_secure_task_response(
+                success=False,
+                message="Either ticket object or ticket ID must be provided",
+                error_code="INVALID_PARAMETERS",
+                correlation_id=correlation_id
+            )
+
+        # Get ticket if ID provided
         if not ticket and id:
-            ticket = Ticket.objects.get(id=id)
+            try:
+                ticket = Ticket.objects.get(id=id)
+            except Ticket.DoesNotExist:
+                return ErrorHandler.create_secure_task_response(
+                    success=False,
+                    message="Ticket not found",
+                    error_code="TICKET_NOT_FOUND",
+                    correlation_id=correlation_id
+                )
+
         if ticket:
-            logger.info(f"ticket found with ticket id: {ticket.ticketno}")
-            logger.info("ticket email sending start ")
-            resp = {}
+            logger.info(f"Processing ticket email for ticket: {ticket.ticketno}",
+                       extra={"correlation_id": correlation_id})
+
             emails = butils.get_email_recipents_for_ticket(ticket)
-            logger.info(f"email addresses of recipents: {emails}")
+            logger.info(f"Email recipients found: {len(emails) if emails else 0}",
+                       extra={"correlation_id": correlation_id})
+
             updated_or_created = "Created" if ticket.cdtz == ticket.mdtz else "Updated"
-            
-            # Handle potential null values
+
+            # Handle potential null values securely
             site_name = ticket.bu.buname if ticket.bu else "Unknown Site"
             subject = f"Ticket with #{ticket.ticketno} is {updated_or_created}"
             if ticket.bu:
                 subject += f" at site: {site_name}"
-            
+
             context = {
                 "subject": subject,
-                "desc": ticket.ticketdesc,
+                "desc": ticket.ticketdesc or "",
                 "template": ticket.ticketcategory.taname if ticket.ticketcategory else "General",
-                "status": ticket.status,
-                "createdon": ticket.cdtz.strftime("%Y-%m-%d %H:%M:%S"),
-                "modifiedon": ticket.mdtz.strftime("%Y-%m-%d %H:%M:%S"),
+                "status": ticket.status or "Unknown",
+                "createdon": ticket.cdtz.strftime("%Y-%m-%d %H:%M:%S") if ticket.cdtz else "Unknown",
+                "modifiedon": ticket.mdtz.strftime("%Y-%m-%d %H:%M:%S") if ticket.mdtz else "Unknown",
                 "modifiedby": ticket.muser.peoplename if ticket.muser else "System",
                 "assignedto": (ticket.assignedtogroup.groupname if ticket.assignedtogroup else "Unassigned")
                 if ticket.assignedtopeople_id in [None, 1]
                 else (ticket.assignedtopeople.peoplename if ticket.assignedtopeople else "Unassigned"),
-                "comments": ticket.comments,
-                "priority": ticket.priority,
-                "level": ticket.level,
+                "comments": ticket.comments or "",
+                "priority": ticket.priority or "Normal",
+                "level": ticket.level or "Standard",
             }
-            logger.info(f"context for email template: {context}")
-            
+
             # Only send email if there are valid recipients
             if emails:
                 # Final safety validation to prevent SMTP failures
@@ -108,19 +344,50 @@ def send_ticket_email(self, ticket=None, id=None):
                     msg.from_email = settings.DEFAULT_FROM_EMAIL
                     msg.content_subtype = "html"
 
-                    logger.info(f"Sending ticket email to validated recipients: {validated_emails}")
                     msg.send()
-                    logger.info("ticket email sent successfully")
+                    logger.info("Ticket email sent successfully",
+                               extra={"correlation_id": correlation_id, "recipient_count": len(validated_emails)})
+
+                    return ErrorHandler.create_secure_task_response(
+                        success=True,
+                        message="Ticket email sent successfully",
+                        data={"ticket_no": ticket.ticketno, "recipient_count": len(validated_emails)},
+                        correlation_id=correlation_id
+                    )
                 else:
-                    logger.warning(f"All email recipients failed final validation for ticket {ticket.ticketno}, skipping email")
+                    logger.warning(f"All email recipients failed validation for ticket {ticket.ticketno}",
+                                  extra={"correlation_id": correlation_id})
+                    return ErrorHandler.create_secure_task_response(
+                        success=False,
+                        message="No valid email recipients found",
+                        error_code="NO_VALID_RECIPIENTS",
+                        correlation_id=correlation_id
+                    )
             else:
-                logger.warning("No email recipients found for ticket, skipping email")
+                logger.warning("No email recipients found for ticket",
+                              extra={"correlation_id": correlation_id})
+                return ErrorHandler.create_secure_task_response(
+                    success=False,
+                    message="No email recipients configured for ticket",
+                    error_code="NO_RECIPIENTS",
+                    correlation_id=correlation_id
+                )
         else:
-            logger.info("ticket not found no emails will send")
-    except Exception as e:
-        logger.critical("Error while sending ticket email", exc_info=True)
-        resp["traceback"] = tb.format_exc()
-    return resp
+            return ErrorHandler.create_secure_task_response(
+                success=False,
+                message="Ticket not found",
+                error_code="TICKET_NOT_FOUND",
+                correlation_id=correlation_id
+            )
+
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        # Use secure error handling - logs full details but returns sanitized response
+        return ErrorHandler.handle_task_exception(
+            e,
+            task_name="send_ticket_email",
+            task_params={"ticket_id": id, "has_ticket_object": ticket is not None},
+            correlation_id=correlation_id
+        )
 
 
 @shared_task(name="auto_close_jobs")
@@ -151,8 +418,9 @@ def autoclose_job(jobneedid=None):
                     edate = rec["expirydatetime"] + timedelta(minutes=rec["ctzoffset"])
                     edate = edate.strftime("%d-%b-%Y %H:%M")
 
-                    subject = f'AUTOCLOSE {"TOUR" if rec["identifier"] in  ["INTERNALTOUR", "EXTERNALTOUR"] else rec["identifier"] } planned on \
-                    {pdate} not reported in time'
+                    # Determine task type for better readability
+                    task_type = "TOUR" if rec["identifier"] in ["INTERNALTOUR", "EXTERNALTOUR"] else rec["identifier"]
+                    subject = f"AUTOCLOSE {task_type} planned on {pdate} not reported in time"
                     context = {
                         "subject": subject,
                         "buname": rec["bu__buname"],
@@ -166,8 +434,8 @@ def autoclose_job(jobneedid=None):
                     }
 
                     emails = butils.get_email_recipients(rec["bu_id"], rec["client_id"])
-                    resp["story"] += f"email recipents are as follows {emails}\n"
-                    logger.info(f"recipents are as follows...{emails}")
+                    resp["story"] += f"email recipients: {len(emails) if emails else 0} users\n"
+                    logger.info(f"Email recipients count: {len(emails) if emails else 0}")
                     msg = EmailMessage()
                     msg.subject = subject
                     msg.from_email = settings.DEFAULT_FROM_EMAIL
@@ -213,12 +481,17 @@ def autoclose_job(jobneedid=None):
                     logger.info(f"mail sent, record_id:{rec['id']}")
                 resp = butils.update_job_autoclose_status(rec, resp)
 
-    except Exception as e:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(f"context in the template:{context}", exc_info=True)
         logger.error(
             "something went wrong while running autoclose_job()", exc_info=True
         )
-        resp["traceback"] += f"{tb.format_exc()}"
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "autoclose_job"}, correlation_id=correlation_id)
+        resp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return resp
 
 
@@ -227,14 +500,21 @@ def ticket_escalation():
     result = {"story": "", "traceback": "", "id": []}
     try:
         # get all records of tickets which can be escalated
-        # Use new Django ORM implementation
-        tickets = QueryRepository.get_ticketlist_for_escalation()
-        result["story"] = f"Total tickets found for escalation are {len(tickets)}\n"
-        # update ticket_history, assignments to people & groups, level, mdtz, modifiedon
-        result = butils.update_ticket_data(tickets, result)
-    except Exception as e:
+        # Use new Django ORM implementation with atomic transaction for data consistency
+        with transaction.atomic(using=get_current_db_name()):
+            result["story"] += f"using database: {get_current_db_name()}\n"
+            tickets = QueryRepository.get_ticketlist_for_escalation()
+            result["story"] = f"Total tickets found for escalation are {len(tickets)}\n"
+            # update ticket_history, assignments to people & groups, level, mdtz, modifiedon
+            result = butils.update_ticket_data(tickets, result)
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical("somwthing went wrong while ticket escalation", exc_info=True)
-        result["traceback"] = tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "ticket_escalation"}, correlation_id=correlation_id)
+        result["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return result
 
 
@@ -245,54 +525,64 @@ def send_reminder_email():
     from apps.reminder.models import Reminder
 
     resp = {"story": "", "traceback": "", "id": []}
-    # get all reminders which are not sent
-    reminders = Reminder.objects.get_all_due_reminders()
-    resp["story"] += f"total due reminders are: {len(reminders)}\n"
-    logger.info(f"total due reminders are {len(reminders)}")
     try:
-        for rem in reminders:
-            resp["story"] += f"processing reminder with id: {rem['id']}"
-            emails = utils.get_email_addresses(
-                [rem["people_id"], rem["cuser_id"], rem["muser_id"]], [rem["group_id"]]
-            )
-            resp["story"] += f"emails recipents are as follows {emails}\n"
-            recipents = list(set(emails + rem["mailids"].split(",")))
-            subject = f"Reminder For {rem['job__jobname']}"
-            context = {
-                "job": rem["job__jobname"],
-                "plandatetime": rem["pdate"],
-                "jobdesc": rem["job__jobdesc"],
-                "sitename": rem["bu__buname"],
-                "creator": rem["cuser__peoplename"],
-                "modifier": rem["muser__peoplename"],
-                "subject": subject,
-            }
-            html_message = render_to_string(
-                "activity/reminder_mail.html", context=context
-            )
-            resp["story"] += f"context in email template is {context}\n"
-            logger.info(f"Sending reminder mail with subject {subject}")
+        # Use atomic transaction for reminder processing to ensure data consistency
+        with transaction.atomic(using=get_current_db_name()):
+            resp["story"] += f"using database: {get_current_db_name()}\n"
+            # get all reminders which are not sent
+            reminders = Reminder.objects.get_all_due_reminders()
+            resp["story"] += f"total due reminders are: {len(reminders)}\n"
+            logger.info(f"total due reminders are {len(reminders)}")
 
-            msg = EmailMessage()
-            msg.subject = subject
-            msg.body = html_message
-            msg.from_email = settings.DEFAULT_FROM_EMAIL
-            msg.to = recipents
-            msg.content_subtype = "html"
-            # returns 1 if mail sent successfully else 0
-            if is_mail_sent := msg.send(fail_silently=True):
-                Reminder.objects.filter(id=rem["id"]).update(
-                    status="SUCCESS", mdtz=timezone.now()
+            for rem in reminders:
+                resp["story"] += f"processing reminder with id: {rem['id']}"
+                emails = utils.get_email_addresses(
+                    [rem["people_id"], rem["cuser_id"], rem["muser_id"]], [rem["group_id"]]
                 )
-            else:
-                Reminder.objects.filter(id=rem["id"]).update(
-                    status="FAILED", mdtz=timezone.now()
+                resp["story"] += f"emails recipents are as follows {emails}\n"
+                recipents = list(set(emails + rem["mailids"].split(",")))
+                subject = f"Reminder For {rem['job__jobname']}"
+                context = {
+                    "job": rem["job__jobname"],
+                    "plandatetime": rem["pdate"],
+                    "jobdesc": rem["job__jobdesc"],
+                    "sitename": rem["bu__buname"],
+                    "creator": rem["cuser__peoplename"],
+                    "modifier": rem["muser__peoplename"],
+                    "subject": subject,
+                }
+                html_message = render_to_string(
+                    "activity/reminder_mail.html", context=context
                 )
-            resp["id"].append(rem["id"])
-            logger.info(f"Reminder mail sent to {recipents} with subject {subject}")
-    except Exception as e:
+                resp["story"] += f"context in email template is {context}\n"
+                logger.info(f"Sending reminder mail with subject {subject}")
+
+                msg = EmailMessage()
+                msg.subject = subject
+                msg.body = html_message
+                msg.from_email = settings.DEFAULT_FROM_EMAIL
+                msg.to = recipents
+                msg.content_subtype = "html"
+                # returns 1 if mail sent successfully else 0
+                # Email sending and DB update wrapped in transaction for consistency
+                if is_mail_sent := msg.send(fail_silently=True):
+                    Reminder.objects.filter(id=rem["id"]).update(
+                        status="SUCCESS", mdtz=timezone.now()
+                    )
+                else:
+                    Reminder.objects.filter(id=rem["id"]).update(
+                        status="FAILED", mdtz=timezone.now()
+                    )
+                resp["id"].append(rem["id"])
+                logger.info(f"Reminder mail sent to {recipents} with subject {subject}")
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical("Error while sending reminder email", exc_info=True)
-        resp["traceback"] = tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "send_reminder_email"}, correlation_id=correlation_id)
+        resp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return resp
 
 
@@ -385,9 +675,14 @@ def create_ppm_job(jobid=None):
                     )
                     for key, value in list(F.items()):
                         logger.info(f"create_ppm_job job_id: {key} | cron: {value}")
-    except Exception as e:
+    except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical("something went wrong create_ppm_job", exc_info=True)
-        F[str(job["id"])] = {"tb": tb.format_exc()}
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "create_ppm_job", "job_id": job.get("id")}, correlation_id=correlation_id)
+        F[str(job["id"])] = {"error": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
 
     return resp, F, d, result
 
@@ -402,8 +697,20 @@ def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
     result = {"story": "perform_facerecognition_bgt()\n", "traceback": ""}
     result["story"] += f"inputs are {pel_uuid = } {peopleid = }, {db = }\n"
     starttime = time.time()
-    # Threshold for 85% similarity (0.15 in cosine distance metric)
-    threshold = 0.15
+
+    # Load distance threshold from FaceRecognitionModel (defaults to 0.3 if not found)
+    FaceRecognitionModel = apps.get_model("face_recognition", "FaceRecognitionModel")
+    try:
+        face_model = FaceRecognitionModel.objects.filter(
+            model_type='FACENET512',
+            status='ACTIVE'
+        ).first()
+        distance_threshold = face_model.similarity_threshold if face_model else 0.3
+    except (AttributeError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
+        distance_threshold = 0.3  # Fallback to default
+
+    logger.info(f"Using distance threshold: {distance_threshold}")
+    result["story"] += f"Using distance threshold: {distance_threshold}\n"
 
     try:
         logger.info("perform_facerecognition ...start [+]")
@@ -447,58 +754,68 @@ def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
                     logger.info(f"{images_info}")
                     result["story"] += f"{images_info}\n"
 
-                    # Perform face verification using DeepFace
-                    from deepface import DeepFace
+                    # Perform face verification using Unified Service
+                    from apps.face_recognition.services import get_face_recognition_service
+                    import uuid
 
-                    fr_results = DeepFace.verify(
-                        img1_path=default_peopleimg,
-                        img2_path=pel_att.people_event_pic,
-                        threshold=0.4,
-                        enforce_detection=True,
-                        detector_backend="mtcnn",
-                        model_name="Facenet512",  # Using a stronger model
-                        distance_metric="cosine",  # Cosine distance metric for similarity comparison
+                    correlation_id = str(uuid.uuid4())
+                    face_service = get_face_recognition_service()
+
+                    # Use the unified service for verification
+                    verification_result = face_service.verify_face(
+                        user_id=peopleid,
+                        image_path=pel_att.people_event_pic,
+                        correlation_id=correlation_id
                     )
 
-                    logger.info(
-                        f"deepface verification completed and results are {fr_results}"
-                    )
-                    result[
-                        "story"
-                    ] += f"deepface verification completed and results are {fr_results}\n"
+                    logger.info(f"Face verification completed: {verification_result}")
+                    result["story"] += f"Face verification completed via unified service\n"
+                    result["story"] += f"Verified: {verification_result.verified}, "
+                    result["story"] += f"Similarity: {verification_result.similarity_score:.4f}, "
+                    result["story"] += f"Distance: {verification_result.distance:.4f}, "
+                    result["story"] += f"Confidence: {verification_result.confidence_score:.4f}\n"
 
-                    # Manually check the distance against the 85% threshold (0.15)
-                    if fr_results["distance"] <= threshold:
-                        logger.info(f"Faces match with at least 85% similarity")
-                        result["story"] += f"Faces match with at least 85% similarity\n"
+                    if verification_result.error_message:
+                        result["story"] += f"Error: {verification_result.error_message}\n"
+
+                    if verification_result.quality_issues:
+                        result["story"] += f"Quality issues detected: {', '.join(verification_result.quality_issues)}\n"
+
+                    # Update attendance record using unified service
+                    updated = face_service.update_attendance_with_result(
+                        pel_uuid=pel_uuid,
+                        user_id=peopleid,
+                        result=verification_result,
+                        database=db
+                    )
+
+                    if updated:
+                        logger.info("Face recognition results updated in attendance record")
+                        result["story"] += "Attendance record updated successfully\n"
                     else:
-                        logger.info(
-                            f"Faces do not match (distance {fr_results['distance']} > {threshold})"
-                        )
-                        result[
-                            "story"
-                        ] += f"Faces do not match (distance {fr_results['distance']} > {threshold})\n"
-
-                    # Update the face recognition results in the event logger
-                    PeopleEventlog = apps.get_model("attendance", "PeopleEventlog")
-                    logger.info("%s %s %s", fr_results, pel_uuid, peopleid)
-                    if PeopleEventlog.objects.update_fr_results(
-                        fr_results, pel_uuid, peopleid, db
-                    ):
-                        logger.info(
-                            "updation of fr_results in peopleeventlog is completed..."
-                        )
+                        logger.warning("Failed to update attendance record")
+                        result["story"] += "Failed to update attendance record\n"
     except ValueError as v:
         logger.error(
             "face recognition image not found or face is not there...", exc_info=True
         )
-        result["traceback"] += f"{tb.format_exc()}"
-    except Exception as e:
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(v, context={"task": "face_recognition"}, correlation_id=correlation_id)
+        result["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
+    except (AttributeError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong! while performing face-recognition in background",
             exc_info=True,
         )
-        result["traceback"] += f"{tb.format_exc()}"
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "face_recognition"}, correlation_id=correlation_id)
+        result["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
         self.retry(e)
         raise
     endtime = time.time()
@@ -558,11 +875,16 @@ def send_report_on_email(self, formdata, json_report):
         )
         email.send()
         jsonresp["story"] += "email sent"
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong while sending report on email", exc_info=True
         )
-        jsonresp["traceback"] = tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_report"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -570,25 +892,33 @@ def send_report_on_email(self, formdata, json_report):
 def create_report_history(self, formdata, userid, buid, EI):
     jsonresp = {"story": "", "traceback": ""}
     try:
-        ReportHistory = apps.get_model("reports", "ReportHistory")
-        obj = ReportHistory.objects.create(
-            traceback=EI[2] if EI[0] else None,
-            user_id=userid,
-            report_name=formdata["report_name"],
-            params={"params": f"{formdata}"},
-            export_type=formdata["export_type"],
-            bu_id=buid,
-            ctzoffset=formdata["ctzoffset"],
-            cc_mails=formdata["cc"],
-            to_mails=formdata["to_addr"],
-            email_body=formdata["email_body"],
-        )
-        jsonresp["story"] += f"A Report history object created with pk: {obj.pk}"
-    except Exception as e:
+        # Use atomic transaction for report history creation to ensure data consistency
+        with transaction.atomic(using=get_current_db_name()):
+            jsonresp["story"] += f"using database: {get_current_db_name()}\n"
+            ReportHistory = apps.get_model("reports", "ReportHistory")
+            obj = ReportHistory.objects.create(
+                traceback=EI[2] if EI[0] else None,
+                user_id=userid,
+                report_name=formdata["report_name"],
+                params={"params": f"{formdata}"},
+                export_type=formdata["export_type"],
+                bu_id=buid,
+                ctzoffset=formdata["ctzoffset"],
+                cc_mails=formdata["cc"],
+                to_mails=formdata["to_addr"],
+                email_body=formdata["email_body"],
+            )
+            jsonresp["story"] += f"A Report history object created with pk: {obj.pk}"
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wron while running create_report_history()", exc_info=True
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -622,7 +952,7 @@ def send_email_notification_for_workpermit_approval(
             qset = People.objects.filter(peoplecode__in=approvers_code)
             logger.info(f"Qset {qset}")
             for p in qset.values("email", "id"):
-                logger.info(f"Sending Email to {p['email'] = }")
+                logger.info(f"Sending email to user", extra={'user_id': p['id']})
                 logger.info(
                     f"{permit_name}-{wp_obj.other_data['wp_seqno']}-{sitename}-Approval Pending"
                 )
@@ -650,15 +980,20 @@ def send_email_notification_for_workpermit_approval(
                 logger.info(f"Attachment {workpermit_attachment}")
                 msg.attach_file(workpermit_attachment, mimetype="application/pdf")
                 msg.send()
-                logger.info(f"Email sent to {p['email'] = }")
-                jsonresp["story"] += f"Email sent to {p['email'] = }"
+                logger.info(f"Email sent successfully", extra={'user_id': p['id']})
+                jsonresp["story"] += f"Email sent to user {p['id']}"
         jsonresp["story"] += f"A {permit_name} email sent of pk: {womid}: "
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "Something went wrong while running send_email_notification_for_wp_verifier",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -688,7 +1023,7 @@ def send_email_notification_for_wp_verifier(
         if wp_details:
             qset = People.objects.filter(peoplecode__in=verifiers)
             for p in qset.values("email", "id"):
-                logger.info(f"Sending Email to {p['email'] = }")
+                logger.info(f"Sending email to user", extra={'user_id': p['id']})
                 msg = EmailMessage()
                 msg.subject = f"{permit_name}-{wp_obj.other_data['wp_seqno']}-{sitename}-Verification Pending"
                 msg.to = [p["email"]]
@@ -711,15 +1046,20 @@ def send_email_notification_for_wp_verifier(
                 msg.content_subtype = "html"
                 msg.attach_file(workpermit_attachment, mimetype="application/pdf")
                 msg.send()
-                logger.info(f"Email sent to {p['email'] = }")
-                jsonresp["story"] += f"Email sent to {p['email'] = }"
+                logger.info(f"Email sent successfully", extra={'user_id': p['id']})
+                jsonresp["story"] += f"Email sent to user {p['id']}"
         jsonresp["story"] += f"A {permit_name} email sent of pk: {womid}: "
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "Something went wrong while running send_email_notification_for_wp_verifier",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -749,7 +1089,7 @@ def send_email_notification_for_wp_from_mobile_for_verifier(
         if wp_details:
             qset = People.objects.filter(peoplecode__in=verifiers)
             for p in qset.values("email", "id"):
-                logger.info(f"Sending Email to {p['email'] = }")
+                logger.info(f"Sending email to user", extra={'user_id': p['id']})
                 msg = EmailMessage()
                 msg.subject = f"{permit_name}-{wp_obj.other_data['wp_seqno']}-{sitename}-Verification Pending"
                 msg.to = [p["email"]]
@@ -772,15 +1112,20 @@ def send_email_notification_for_wp_from_mobile_for_verifier(
                 msg.content_subtype = "html"
                 msg.attach_file(workpermit_attachment, mimetype="application/pdf")
                 msg.send()
-                logger.info(f"Email sent to {p['email'] = }")
-                jsonresp["story"] += f"Email sent to {p['email'] = }"
+                logger.info(f"Email sent successfully", extra={'user_id': p['id']})
+                jsonresp["story"] += f"Email sent to user {p['id']}"
         jsonresp["story"] += f"A {permit_name} email sent of pk: {womid}: "
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "Something went wrong while running send_email_notification_for_wp_verifier",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -810,8 +1155,8 @@ def send_email_notification_for_wp(
             qset = People.objects.filter(peoplecode__in=approvers)
             logger.info("Qset: ", qset)
             for p in qset.values("email", "id"):
-                logger.info(f"sending email to {p['email'] = }")
-                jsonresp["story"] += f"sending email to {p['email'] = }"
+                logger.info("Sending email to user", extra={'user_id': p['id']})
+                jsonresp["story"] += f"sending email to user {p['id']}"
                 msg = EmailMessage()
                 msg.subject = f"General Work Permit #{wp_obj.other_data['wp_seqno']} needs your approval"
                 msg.to = [p["email"]]
@@ -834,15 +1179,20 @@ def send_email_notification_for_wp(
                 msg.content_subtype = "html"
                 # msg.attach_file(workpermit_attachment, mimetype='application/pdf')
                 msg.send()
-                logger.info(f"email sent to {p['email'] = }")
-                jsonresp["story"] += f"email sent to {p['email'] = }"
+                logger.info("Email sent successfully", extra={'user_id': p['id']})
+                jsonresp["story"] += f"email sent to user {p['id']}"
         jsonresp["story"] += f"A Workpermit email sent of pk: {womid}"
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wron while running send_email_notification_for_wp",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -888,7 +1238,7 @@ def send_email_notification_for_vendor_and_security_of_wp_cancellation(
         vendor_email = Vendor.objects.get(id=wom[0].vendor.id).email
         wom_detail_email_section = WomDetails.objects.filter(wom_id=wom_detail)
         logger.info(f"WOM Detail Answer Section: {wom_detail_email_section}")
-        logger.info(f"Vendor Email: {vendor_email}")
+        logger.info("Vendor email notification prepared")
         logger.info(f"WOM Detail Email Section: {wom_detail_email_section}")
         parent_wom = Wom.objects.get(id=wom_id).remarks
         cancelled_by = People.objects.get(
@@ -898,7 +1248,7 @@ def send_email_notification_for_vendor_and_security_of_wp_cancellation(
             "remarks",
         )
         for emailsection in wom_detail_email_section:
-            logger.info(f"email: {emailsection.answer}")
+            logger.info("Email section processed")
             emails = emailsection.answer.split(",")
             for email in emails:
                 msg = EmailMessage()
@@ -922,13 +1272,18 @@ def send_email_notification_for_vendor_and_security_of_wp_cancellation(
                 msg.body = html
                 msg.content_subtype = "html"
                 msg.send()
-                logger.info(f"email sent to {email}")
-    except Exception as e:
+                logger.info("Email sent successfully")
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong while sending email to vendor and security",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -968,10 +1323,10 @@ def send_email_notification_for_vendor_and_security_for_rwp(
         vendor_email = Vendor.objects.get(id=wom[0].vendor.id).email
         wom_detail_email_section = WomDetails.objects.filter(wom_id=wom_detail)
         logger.info(f"WOM Detail Answer Section: {wom_detail_email_section}")
-        logger.info(f"Vendor Email: {vendor_email}")
+        logger.info("Vendor email notification prepared")
         logger.info(f"WOM Detail Email Section: {wom_detail_email_section}")
         for emailsection in wom_detail_email_section:
-            logger.info(f"email: {emailsection.answer}")
+            logger.info("Email section processed")
             emails = emailsection.answer.split(",")
             for email in emails:
                 msg = EmailMessage()
@@ -994,13 +1349,18 @@ def send_email_notification_for_vendor_and_security_for_rwp(
                 msg.content_subtype = "html"
                 msg.attach_file(pdf_path, mimetype="application/pdf")
                 msg.send()
-                logger.info(f"email sent to {email}")
-    except Exception as e:
+                logger.info("Email sent successfully")
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong while sending email to vendor and security",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -1036,10 +1396,10 @@ def send_email_notification_for_vendor_and_security_after_approval(
         vendor_email = Vendor.objects.get(id=wom[0].vendor.id).email
         wom_detail_email_section = WomDetails.objects.filter(wom_id=wom_detail)
         logger.info(f"WOM Detail Answer Section: {wom_detail_email_section}")
-        logger.info(f"Vendor Email: {vendor_email}")
+        logger.info("Vendor email notification prepared")
         logger.info(f"WOM Detail Email Section: {wom_detail_email_section}")
         for emailsection in wom_detail_email_section:
-            logger.info(f"email: {emailsection.answer}")
+            logger.info("Email section processed")
             emails = emailsection.answer.split(",")
             for email in emails:
                 msg = EmailMessage()
@@ -1062,13 +1422,18 @@ def send_email_notification_for_vendor_and_security_after_approval(
                 msg.content_subtype = "html"
                 msg.attach_file(pdf_path, mimetype="application/pdf")
                 msg.send()
-                logger.info(f"email sent to {email}")
-    except Exception as e:
+                logger.info("Email sent successfully")
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong while sending email to vendor and security",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -1134,12 +1499,17 @@ def send_email_notification_for_sla_vendor(self, wom_id, report_attachment, site
         msg.attach_file(report_attachment, mimetype="application/pdf")
         msg.send()
         logger.info(f"email sent to {vendor_email}")
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong while sending email to vendor and security",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -1153,11 +1523,16 @@ def move_media_to_cloud_storage():
         move_files_to_GCS(path_list, settings.BUCKET)
         del_empty_dir(directory_path)
         pass
-    except Exception as exc:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as exc:
         logger.critical(
             "something went wron while running create_report_history()", exc_info=True
         )
-        resp["traceback"] = tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "send_reminder_email"}, correlation_id=correlation_id)
+        resp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     else:
         resp["msg"] = "Completed without any errors"
     return resp
@@ -1175,8 +1550,13 @@ def create_scheduled_reports():
             for record in data:
                 state_map = generate_scheduled_report(record, state_map)
         resp["msg"] = f"Total {len(data)} report/reports processed at {timezone.now()}"
-    except Exception as e:
-        resp["traceback"] = tb.format_exc()
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "send_reminder_email"}, correlation_id=correlation_id)
+        resp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
         logger.critical("Error while creating report:", exc_info=True)
     state_map["processed"] = len(data)
     resp["state_map"] = state_map
@@ -1213,7 +1593,7 @@ def send_generated_report_on_mail():
                     logger.info(f"No record found for file {os.path.basename(file)}")
             else:
                 logger.info("No files to send at this moment")
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         story["errors"].append(handle_error(e))
         logger.critical("something went wrong", exc_info=True)
     story["end_time"] = timezone.now()
@@ -1237,7 +1617,7 @@ def send_generated_report_onfly_email(self, filepath, fromemail, to, cc, ctzoffs
         story["msg"].append("Email Sent")
         remove_reportfile(filepath, story)
         story["msg"].append("send_generated_report_onfly_email [ended]")
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong in bg task send_generated_report_onfly_email",
             exc_info=True,
@@ -1273,7 +1653,7 @@ def process_graphql_mutation_async(self, payload):
         else:
             mqlog.warning("Invalid records or query in the payload.")
             resp = json.dumps({"errors": ["No file data found"]})
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         mqlog.error(f"Error processing payload: {e}", exc_info=True)
         resp = json.dumps({"errors": [str(e)]})
         raise e
@@ -1346,7 +1726,7 @@ def create_save_report_async(self, formdata, client_id, user_email, user_id):
         Please check your entries and try generating the report again",
                 "alert": "alert-warning",
             }
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.error(f"Error generating report: {e}")
         return {
             "status": 500,
@@ -1370,7 +1750,7 @@ def cleanup_reports_which_are_12hrs_old(self, dir_path, hours_old=12):
                         logger.info(
                             f"Deleted file: {file_path} as it was older than {hours_old} hours"
                         )
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.error(f"Error deleting file {file_path}: {e}")
 
 
@@ -1401,7 +1781,7 @@ def process_graphql_download_async(self, payload):
         else:
             mqlog.warning("Invalid records or query in the payload.")
             resp = json.dumps({"errors": ["No file data found"]})
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         mqlog.error(f"Error processing payload: {e}", exc_info=True)
         resp = json.dumps({"errors": [str(e)]})
         raise e
@@ -1475,8 +1855,8 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
         if sla_details:
             qset = People.objects.filter(peoplecode__in=approvers)
             for p in qset.values("email", "id"):
-                logger.info(f"sending email to {p['email'] = }")
-                jsonresp["story"] += f"sending email to {p['email'] = }"
+                logger.info("Sending email to user", extra={'user_id': p['id']})
+                jsonresp["story"] += f"sending email to user {p['id']}"
                 msg = EmailMessage()
                 msg.subject = f"{sitename} Vendor Performance {vendor_name} of {month_name}-{year}: Approval Pending"
                 msg.to = [p["email"]]
@@ -1505,15 +1885,20 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
                 msg.content_subtype = "html"
                 msg.attach_file(attachment_path, mimetype="application/pdf")
                 msg.send()
-                logger.info(f"email sent to {p['email'] = }")
-                jsonresp["story"] += f"email sent to {p['email'] = }"
+                logger.info("Email sent successfully", extra={'user_id': p['id']})
+                jsonresp["story"] += f"email sent to user {p['id']}"
             jsonresp["story"] += f"A Workpermit email sent of pk: {slaid}"
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         logger.critical(
             "something went wrong while runing sending email to approvers",
             exc_info=True,
         )
-        jsonresp["traceback"] += tb.format_exc()
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "email_notification"}, correlation_id=correlation_id)
+        jsonresp["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
     return jsonresp
 
 
@@ -1601,10 +1986,15 @@ def process_audio_transcript(self, jobneed_detail_id):
             result["story"] += "WARNING: Transcription failed - no transcript returned\n"
             result["status"] = "FAILED"
 
-    except Exception as e:
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
         # Handle unexpected errors
         logger.error(f"Error processing audio transcript for JobneedDetails {jobneed_detail_id}: {str(e)}", exc_info=True)
-        result["traceback"] += f"{tb.format_exc()}"
+        # Stack trace exposure security fix - log error securely without exposing details
+        from apps.core.error_handling import ErrorHandler
+        import uuid
+        correlation_id = str(uuid.uuid4())
+        ErrorHandler.handle_exception(e, context={"task": "face_recognition"}, correlation_id=correlation_id)
+        result["error"] = {"code": "TASK_EXECUTION_ERROR", "correlation_id": correlation_id}
 
         try:
             # Try to update status to FAILED
@@ -1612,7 +2002,7 @@ def process_audio_transcript(self, jobneed_detail_id):
             jobneed_detail.transcript_status = 'FAILED'
             jobneed_detail.transcript_processed_at = timezone.now()
             jobneed_detail.save()
-        except Exception as save_error:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as save_error:
             logger.error(f"Could not update failed status: {save_error}")
 
         # Retry the task if we haven't exceeded max retries
@@ -1624,3 +2014,245 @@ def process_audio_transcript(self, jobneed_detail_id):
             result["status"] = "FAILED_PERMANENTLY"
 
     return result
+
+
+# ============================================================================
+# ASYNC PDF GENERATION TASKS
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_pdf_async(
+    self,
+    task_id: str,
+    template_name: str,
+    context_data: Dict[str, Any],
+    user_id: int,
+    filename: Optional[str] = None,
+    css_files: Optional[List[str]] = None,
+    output_format: str = 'pdf'
+) -> Dict[str, Any]:
+    """
+    Generate PDF asynchronously using AsyncPDFGenerationService.
+
+    This task moves heavy PDF generation operations out of the request cycle,
+    providing better user experience and system performance.
+
+    Args:
+        task_id: Unique task identifier
+        template_name: Django template path
+        context_data: Template context data
+        user_id: ID of requesting user
+        filename: Optional custom filename
+        css_files: Optional list of CSS file paths
+        output_format: Output format (pdf, html)
+
+    Returns:
+        Dict containing generation results
+    """
+    pdf_service = AsyncPDFGenerationService()
+
+    try:
+        logger.info(f"Starting PDF generation task {task_id} for user {user_id}")
+
+        # Update task status to processing
+        pdf_service._update_task_status(task_id, 'processing', 'Starting PDF generation')
+
+        # Generate PDF content
+        result = pdf_service.generate_pdf_content(
+            task_id=task_id,
+            template_name=template_name,
+            context_data=context_data,
+            css_files=css_files,
+            output_format=output_format
+        )
+
+        if result['status'] == 'completed':
+            logger.info(f"PDF generation completed successfully: {task_id}")
+            pdf_service._update_task_status(
+                task_id,
+                'completed',
+                f"PDF generated successfully: {result.get('file_path', '')}"
+            )
+        else:
+            logger.error(f"PDF generation failed: {task_id} - {result.get('error', 'Unknown error')}")
+
+        return result
+
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        error_msg = f"PDF generation task failed: {str(e)}"
+        logger.error(f"Task {task_id} failed: {error_msg}", exc_info=True)
+
+        pdf_service._update_task_status(task_id, 'failed', error_msg)
+
+        # Retry logic
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying PDF generation task {task_id}, attempt {self.request.retries + 1}")
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
+        else:
+            logger.error(f"PDF generation task {task_id} failed permanently after {self.max_retries} retries")
+            return {
+                'status': 'failed',
+                'error': error_msg,
+                'task_id': task_id
+            }
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def external_api_call_async(
+    self,
+    url: str,
+    method: str = 'GET',
+    headers: Optional[Dict[str, str]] = None,
+    data: Optional[Dict[str, Any]] = None,
+    timeout: int = 30,
+    user_id: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Make external API calls asynchronously to prevent blocking request cycle.
+
+    Features:
+    - Configurable timeout and retry logic
+    - Secure header handling
+    - Response validation
+    - Error recovery
+
+    Args:
+        url: Target API URL
+        method: HTTP method (GET, POST, PUT, DELETE)
+        headers: Optional HTTP headers
+        data: Optional request data
+        timeout: Request timeout in seconds
+        user_id: Optional user ID for logging
+
+    Returns:
+        Dict containing API response or error information
+    """
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    try:
+        logger.info(f"Starting external API call to {url} for user {user_id}")
+
+        # Configure requests session with retry strategy
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            status_forcelist=[429, 500, 502, 503, 504],
+            method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
+            backoff_factor=1
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+
+        # Prepare request parameters
+        request_params = {
+            'timeout': timeout,
+            'headers': headers or {}
+        }
+
+        # Add data for POST/PUT requests
+        if method.upper() in ['POST', 'PUT', 'PATCH'] and data:
+            request_params['json'] = data
+
+        # Make the API call
+        response = session.request(method.upper(), url, **request_params)
+
+        # Validate response
+        response.raise_for_status()
+
+        # Parse response
+        try:
+            response_data = response.json()
+        except ValueError:
+            response_data = response.text
+
+        result = {
+            'status': 'success',
+            'status_code': response.status_code,
+            'data': response_data,
+            'headers': dict(response.headers),
+            'url': url,
+            'method': method.upper()
+        }
+
+        logger.info(f"External API call completed successfully: {url}")
+        return result
+
+    except requests.exceptions.Timeout:
+        error_msg = f"API call timeout after {timeout}s: {url}"
+        logger.warning(error_msg)
+
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying API call to {url}, attempt {self.request.retries + 1}")
+            raise self.retry(exc=requests.exceptions.Timeout(error_msg))
+
+        return {
+            'status': 'error',
+            'error': 'timeout',
+            'message': error_msg,
+            'url': url
+        }
+
+    except requests.exceptions.RequestException as e:
+        error_msg = f"API call failed: {str(e)}"
+        logger.error(f"External API call to {url} failed: {error_msg}", exc_info=True)
+
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying API call to {url}, attempt {self.request.retries + 1}")
+            raise self.retry(exc=e)
+
+        return {
+            'status': 'error',
+            'error': 'request_failed',
+            'message': error_msg,
+            'url': url
+        }
+
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
+        error_msg = f"Unexpected error in API call: {str(e)}"
+        logger.error(f"Unexpected error in external API call to {url}: {error_msg}", exc_info=True)
+
+        return {
+            'status': 'error',
+            'error': 'unexpected_error',
+            'message': error_msg,
+            'url': url
+        }
+
+
+@shared_task(bind=True)
+def cleanup_expired_pdf_tasks(self) -> Dict[str, Any]:
+    """
+    Clean up expired PDF generation tasks and temporary files.
+
+    This task should be run periodically via Celery beat scheduler.
+
+    Returns:
+        Dict containing cleanup statistics
+    """
+    try:
+        logger.info("Starting PDF task cleanup")
+
+        pdf_service = AsyncPDFGenerationService()
+        cleaned_count = pdf_service.cleanup_expired_tasks()
+
+        result = {
+            'status': 'success',
+            'cleaned_tasks': cleaned_count,
+            'timestamp': timezone.now().isoformat()
+        }
+
+        logger.info(f"PDF task cleanup completed: {cleaned_count} tasks cleaned")
+        return result
+
+    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:
+        error_msg = f"PDF task cleanup failed: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+
+        return {
+            'status': 'error',
+            'error': error_msg,
+            'timestamp': timezone.now().isoformat()
+        }

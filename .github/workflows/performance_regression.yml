@@ -1,0 +1,380 @@
+name: Performance Regression Detection
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ main ]
+
+env:
+  DJANGO_SETTINGS_MODULE: intelliwiz_config.settings
+  DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/perf_test_db
+
+jobs:
+  performance-test:
+    name: "🏁 Performance Regression Test"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:14-3.2
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: perf_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: 📥 Checkout current branch
+      uses: actions/checkout@v4
+      with:
+        path: current
+
+    - name: 📥 Checkout main branch (baseline)
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        path: baseline
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: ☕ Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: 📊 Load baseline performance data
+      id: baseline-data
+      run: |
+        # Download baseline performance data from previous runs
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "Fetching baseline performance data..."
+
+          # Try to get baseline from artifacts of main branch
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
+            | jq '.artifacts[] | select(.name=="performance-baseline") | .archive_download_url' \
+            | head -1 | xargs -I {} curl -s -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" {} \
+            > baseline.zip || echo "No baseline found"
+
+          if [ -f "baseline.zip" ]; then
+            unzip -q baseline.zip
+            echo "baseline_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "baseline_exists=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "baseline_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: 🧪 Run current branch performance test
+      run: |
+        cd current
+
+        # Install dependencies
+        python -m pip install --upgrade pip
+        pip install -r requirements/base.txt
+
+        # Setup database
+        python manage.py migrate --run-syncdb
+        python manage.py collectstatic --noinput
+
+        # Start Django server
+        daphne -b 0.0.0.0 -p 8000 intelliwiz_config.asgi:application &
+        sleep 15
+
+        # Build Kotlin generator
+        cd intelliwiz_kotlin
+        ./gradlew fatJar
+        cd ..
+
+        # Create performance test scenario
+        cat > performance_test.json << 'EOF'
+        {
+          "name": "Performance Regression Test",
+          "protocol": "WEBSOCKET",
+          "endpoint": "localhost:8000/ws/mobile/sync/",
+          "duration_seconds": 120,
+          "connections": 25,
+          "rates": {
+            "messagesPerSecond": 10.0,
+            "burstMultiplier": 2.0,
+            "rampUpSeconds": 20,
+            "rampDownSeconds": 20
+          },
+          "payloads": [
+            "VOICE_DATA",
+            "BEHAVIORAL_DATA",
+            "SESSION_DATA",
+            "METRICS"
+          ],
+          "validation": {
+            "validateResponses": true,
+            "maxLatencyMs": 1000
+          }
+        }
+        EOF
+
+        # Run performance test
+        java -jar intelliwiz_kotlin/build/libs/intelliwiz_kotlin-1.0.0-fat.jar \
+          run --scenario performance_test.json --output current_performance.json
+
+        # Extract key metrics
+        python << 'EOF'
+        import json
+        with open('current_performance.json', 'r') as f:
+            result = json.load(f)
+
+        metrics = {
+            "averageLatencyMs": result.get('averageLatencyMs', 0),
+            "p95LatencyMs": result.get('p95LatencyMs', 0),
+            "p99LatencyMs": result.get('p99LatencyMs', 0),
+            "throughputQps": result.get('throughputQps', 0),
+            "errorRate": result.get('errorRate', 0),
+            "totalMessages": result.get('totalMessages', 0)
+        }
+
+        with open('current_metrics.json', 'w') as f:
+            json.dump(metrics, f, indent=2)
+
+        print("Current branch metrics:")
+        print(json.dumps(metrics, indent=2))
+        EOF
+
+    - name: 🧪 Run baseline performance test
+      if: steps.baseline-data.outputs.baseline_exists == 'false'
+      run: |
+        cd baseline
+
+        # Install dependencies
+        pip install -r requirements/base.txt
+
+        # Setup database (use different port to avoid conflicts)
+        export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/baseline_db"
+        python manage.py migrate --run-syncdb
+        python manage.py collectstatic --noinput
+
+        # Start Django server on different port
+        daphne -b 0.0.0.0 -p 8001 intelliwiz_config.asgi:application &
+        sleep 15
+
+        # Build Kotlin generator
+        cd intelliwiz_kotlin
+        ./gradlew fatJar
+        cd ..
+
+        # Update scenario for baseline port
+        sed 's/localhost:8000/localhost:8001/' ../current/performance_test.json > baseline_performance_test.json
+
+        # Run baseline test
+        java -jar intelliwiz_kotlin/build/libs/intelliwiz_kotlin-1.0.0-fat.jar \
+          run --scenario baseline_performance_test.json --output baseline_performance.json
+
+        # Extract baseline metrics
+        python << 'EOF'
+        import json
+        with open('baseline_performance.json', 'r') as f:
+            result = json.load(f)
+
+        metrics = {
+            "averageLatencyMs": result.get('averageLatencyMs', 0),
+            "p95LatencyMs": result.get('p95LatencyMs', 0),
+            "p99LatencyMs": result.get('p99LatencyMs', 0),
+            "throughputQps": result.get('throughputQps', 0),
+            "errorRate": result.get('errorRate', 0),
+            "totalMessages": result.get('totalMessages', 0)
+        }
+
+        with open('baseline_metrics.json', 'w') as f:
+            json.dump(metrics, f, indent=2)
+
+        print("Baseline metrics:")
+        print(json.dumps(metrics, indent=2))
+        EOF
+
+    - name: 📊 Compare performance and detect regressions
+      run: |
+        python << 'EOF'
+        import json
+        import sys
+        import os
+
+        # Load current metrics
+        with open('current/current_metrics.json', 'r') as f:
+            current = json.load(f)
+
+        # Load baseline metrics
+        baseline_file = 'baseline_metrics.json' if os.path.exists('baseline_metrics.json') else 'baseline/baseline_metrics.json'
+        if os.path.exists(baseline_file):
+            with open(baseline_file, 'r') as f:
+                baseline = json.load(f)
+        else:
+            print("⚠️  No baseline metrics available, skipping regression detection")
+            sys.exit(0)
+
+        print("📊 Performance Comparison Report")
+        print("=" * 50)
+
+        regressions = []
+        improvements = []
+
+        # Define regression thresholds
+        thresholds = {
+            "averageLatencyMs": 1.15,   # 15% increase is a regression
+            "p95LatencyMs": 1.20,       # 20% increase is a regression
+            "p99LatencyMs": 1.25,       # 25% increase is a regression
+            "errorRate": 1.50,          # 50% increase in error rate is a regression
+            "throughputQps": 0.85       # 15% decrease in throughput is a regression
+        }
+
+        for metric, threshold in thresholds.items():
+            current_val = current.get(metric, 0)
+            baseline_val = baseline.get(metric, 0)
+
+            if baseline_val == 0:
+                continue
+
+            ratio = current_val / baseline_val
+            change_percent = (ratio - 1) * 100
+
+            print(f"{metric}:")
+            print(f"  Baseline: {baseline_val:.2f}")
+            print(f"  Current:  {current_val:.2f}")
+            print(f"  Change:   {change_percent:+.1f}%")
+
+            # Check for regression (higher is worse for all metrics except throughput)
+            if metric == "throughputQps":
+                if ratio < threshold:  # Throughput decreased significantly
+                    regressions.append(f"{metric}: {change_percent:.1f}% decrease")
+                elif ratio > 1.10:  # Throughput improved by more than 10%
+                    improvements.append(f"{metric}: {change_percent:.1f}% improvement")
+            else:
+                if ratio > threshold:  # Metric got worse
+                    regressions.append(f"{metric}: {change_percent:.1f}% increase")
+                elif ratio < 0.85:  # Metric improved by more than 15%
+                    improvements.append(f"{metric}: {change_percent:.1f}% improvement")
+
+            print()
+
+        # Generate summary
+        with open('performance_comparison.md', 'w') as f:
+            f.write("# Performance Comparison Report\n\n")
+            f.write("## Metrics Comparison\n\n")
+            f.write("| Metric | Baseline | Current | Change |\n")
+            f.write("|--------|----------|---------|--------|\n")
+
+            for metric in ['averageLatencyMs', 'p95LatencyMs', 'p99LatencyMs', 'throughputQps', 'errorRate']:
+                current_val = current.get(metric, 0)
+                baseline_val = baseline.get(metric, 0)
+
+                if baseline_val != 0:
+                    change_percent = ((current_val / baseline_val) - 1) * 100
+                    f.write(f"| {metric} | {baseline_val:.2f} | {current_val:.2f} | {change_percent:+.1f}% |\n")
+
+            if regressions:
+                f.write("\n## 🚨 Performance Regressions Detected\n\n")
+                for regression in regressions:
+                    f.write(f"- {regression}\n")
+
+            if improvements:
+                f.write("\n## ✅ Performance Improvements\n\n")
+                for improvement in improvements:
+                    f.write(f"- {improvement}\n")
+
+        print("📈 Summary:")
+        if regressions:
+            print("❌ Performance regressions detected:")
+            for regression in regressions:
+                print(f"   • {regression}")
+
+            # Set failure status for significant regressions
+            significant_regressions = [r for r in regressions if any(x in r for x in ['30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%'])]
+            if significant_regressions:
+                print("\n💥 SIGNIFICANT regressions found! Failing the check.")
+                with open('regression_failure.txt', 'w') as f:
+                    f.write("Significant performance regressions detected")
+                sys.exit(1)
+            else:
+                print("\nℹ️  Minor regressions - not blocking merge")
+
+        if improvements:
+            print("✅ Performance improvements:")
+            for improvement in improvements:
+                print(f"   • {improvement}")
+
+        if not regressions and not improvements:
+            print("📊 Performance is stable (no significant changes)")
+        EOF
+
+    - name: 💾 Save performance baseline
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # Save current metrics as new baseline
+        cp current/current_metrics.json performance_baseline.json
+
+    - name: 📄 Upload performance artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-comparison-${{ github.run_number }}
+        path: |
+          current/current_performance.json
+          current/current_metrics.json
+          baseline/baseline_performance.json
+          baseline/baseline_metrics.json
+          performance_comparison.md
+          performance_baseline.json
+        retention-days: 90
+
+    - name: 📄 Upload performance baseline
+      if: github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-baseline
+        path: performance_baseline.json
+        retention-days: 90
+
+    - name: 📝 Comment PR with performance results
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+
+          try {
+            const report = fs.readFileSync('performance_comparison.md', 'utf8');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🏁 Performance Comparison Results\n\n${report}\n\n---\n*Generated by workflow run: ${{ github.run_id }}*`
+            });
+          } catch (error) {
+            console.log('Could not post performance results:', error.message);
+          }
+
+    - name: ❌ Fail on significant regressions
+      run: |
+        if [ -f "regression_failure.txt" ]; then
+          echo "💥 Build failed due to significant performance regressions"
+          exit 1
+        fi

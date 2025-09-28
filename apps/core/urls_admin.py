@@ -9,7 +9,6 @@ from apps.core.views import ia_dashboard_views
 
 # Import clientbilling views if available
 try:
-    from apps.clientbilling import views as billing_views
 except ImportError:
     billing_views = None
 

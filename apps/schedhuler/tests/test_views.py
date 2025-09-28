@@ -1,14 +1,8 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
-from django.urls import reverse
-from django.http import JsonResponse, HttpResponse
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.auth.middleware import AuthenticationMiddleware
-from unittest.mock import patch, Mock, MagicMock
 import json
-from datetime import datetime, time, timedelta, date
-
-from apps.schedhuler.views import (
     Schd_I_TourFormJob,
     Update_I_TourFormJob,
     Retrive_I_ToursJob,
@@ -16,7 +10,6 @@ from apps.schedhuler.views import (
     SchdTaskFormJob,
     RetriveSchdTasksJob,
 )
-from apps.activity.models.job_model import Job, Jobneed
 from apps.peoples.models import People, Pgroup
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet

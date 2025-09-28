@@ -1,6 +1,5 @@
 
 from django.db import models
-from django.utils.translation import gettext as _
 from django.db.models.functions import Concat
 from django.db.models import Value as V
 from django.db.models import Q, F, Count
@@ -215,8 +214,8 @@ class AssetManager(models.Manager):
         if not qset: return f"The Asset has not yet undergone any {status.lower()} period."
         if qset and  qset[0]['total_duration']:
             return utils.format_timedelta(qset[0]['total_duration'])
-        
-    
+
+
     def get_asset_checkpoints_for_tour(self, request):
         R, S = request.GET, request.session
         search_term = R.get('search')
@@ -226,6 +225,25 @@ class AssetManager(models.Manager):
                 text = F('assetname')).values(
                     'id', 'text')
         return qset or self.none()
+
+    def optimized_get_with_relations(self, asset_id):
+        """
+        Get Asset with all commonly accessed relationships preloaded.
+        Prevents N+1 queries when accessing parent, type, category, location, etc.
+        """
+        return self.select_related(
+            'parent', 'type', 'category', 'subcategory',
+            'bu', 'client', 'brand', 'unit', 'location'
+        ).get(id=asset_id)
+
+    def optimized_filter_with_relations(self, **kwargs):
+        """
+        Filter Assets with all commonly accessed relationships preloaded.
+        """
+        return self.select_related(
+            'parent', 'type', 'category', 'subcategory',
+            'bu', 'client', 'brand', 'unit', 'location'
+        ).filter(**kwargs)
     
 
 

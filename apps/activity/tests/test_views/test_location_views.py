@@ -1,13 +1,9 @@
 import pytest
-import json
-from django.test import RequestFactory
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.gis.geos import Point
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from apps.activity.views.location_views import LocationView
 from apps.activity.models.location_model import Location
-from apps.peoples.models import People
 from apps.onboarding.models import Bt
 
 
@@ -314,7 +310,6 @@ class TestLocationViews:
         # Basic distance test (if GeoDjango methods are available)
         try:
             from django.contrib.gis.measure import Distance
-            from django.contrib.gis.db.models.functions import Distance as DistanceFunc
 
             # Test if we can query by distance
             nearby_locations = Location.objects.filter(

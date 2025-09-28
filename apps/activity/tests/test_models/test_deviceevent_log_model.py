@@ -1,6 +1,5 @@
 import pytest
 from apps.activity.models.deviceevent_log_model import DeviceEventlog
-from django.contrib.gis.geos import Point
 
 
 @pytest.mark.django_db

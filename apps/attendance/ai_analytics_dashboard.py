@@ -4,26 +4,15 @@ Provides comprehensive insights, predictions, and fraud detection
 """
 
 import logging
-import json
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
 from django.utils import timezone
-from django.core.cache import cache
-from django.db.models import Count, Avg, Q, F
-from django.db import transaction
-
-from apps.attendance import models as atdm
-# Removed: behavioral_analytics imports - app removed
 # Removed: anomaly_detection imports - app removed
 from apps.face_recognition.models import FaceVerificationLog, FaceEmbedding
 from apps.peoples.models import People
-from apps.onboarding.models import Bt  # Business units
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +63,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 }
                 return render(request, 'attendance/ai_analytics_dashboard.html', context)
                 
-        except Exception as e:
+        except (AttributeError, ConnectionError, LLMServiceException, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error in AI dashboard: {str(e)}", exc_info=True)
             return JsonResponse({'error': str(e)}, status=500)
     
@@ -155,7 +144,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'last_updated': now.isoformat()
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting overview metrics: {str(e)}")
             return {'error': str(e)}
     
@@ -196,7 +185,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'recommendations': self._generate_fraud_recommendations(fraud_by_type)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting fraud analytics: {str(e)}")
             return {'error': str(e)}
     
@@ -236,7 +225,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'bottleneck_analysis': self._identify_performance_bottlenecks(processing_stats)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting performance metrics: {str(e)}")
             return {'error': str(e)}
     
@@ -273,7 +262,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'model_confidence': self._get_prediction_model_confidence()
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting predictive insights: {str(e)}")
             return {'error': str(e)}
     
@@ -310,7 +299,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'intervention_recommendations': self._generate_intervention_recommendations(high_risk_users)
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting user risk analysis: {str(e)}")
             return {'error': str(e)}
     
@@ -354,7 +343,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'recommendations': overall_health['recommendations']
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting system health: {str(e)}")
             return {'error': str(e)}
     
@@ -391,7 +380,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'forecasts': self._generate_trend_forecasts()
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting trends analysis: {str(e)}")
             return {'error': str(e)}
     
@@ -437,7 +426,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'implementation_roadmap': self._generate_implementation_roadmap()
             }
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error getting AI recommendations: {str(e)}")
             return {'error': str(e)}
     
@@ -458,7 +447,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 return sum(recent_logs) / len(recent_logs)
             return 0.0
             
-        except Exception as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error calculating processing time: {str(e)}")
             return 0.0
     
@@ -493,7 +482,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
             return UserBehaviorProfile.objects.filter(
                 fraud_risk_score__gte=0.6
             ).count()
-        except Exception:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError):
             return 0
     
     def _get_system_anomalies_count(self) -> int:
@@ -503,7 +492,7 @@ class AIAnalyticsDashboardView(LoginRequiredMixin, UserPassesTestMixin, View):
                 analysis_timestamp__gte=timezone.now() - timedelta(days=1),
                 severity__in=['HIGH', 'CRITICAL']
             ).count()
-        except Exception:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError):
             return 0
     
     # Additional helper methods would continue here...

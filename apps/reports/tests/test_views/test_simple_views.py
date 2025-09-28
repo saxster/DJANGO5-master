@@ -3,8 +3,6 @@ Simplified Tests for Reports Views
 """
 import pytest
 import json
-from unittest.mock import Mock, patch, MagicMock
-from django.test import RequestFactory, Client
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware

@@ -4,8 +4,6 @@ Replaces PostgreSQL functions for Business Territory (BT) hierarchy traversal.
 """
 
 from typing import List, Dict, Any, Union, Optional
-from django.db.models import Q, F
-import json
 
 
 class BtManagerORM:
@@ -279,7 +277,6 @@ class BtManagerORM:
             Space-separated string of business unit IDs
         """
         # Import here to avoid circular import
-        from apps.onboarding.models import Bt, TypeAssist
         from apps.core.queries import TreeTraversal
         
         # Get all business units for tree building

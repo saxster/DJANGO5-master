@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Coverage Gap Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gap-card {
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+
+    .gap-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    .gap-card.priority-critical {
+        border-left-color: #dc3545;
+    }
+
+    .gap-card.priority-high {
+        border-left-color: #fd7e14;
+    }
+
+    .gap-card.priority-medium {
+        border-left-color: #ffc107;
+    }
+
+    .gap-card.priority-low {
+        border-left-color: #6c757d;
+    }
+
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+
+    .confidence-bar {
+        height: 4px;
+        background: #e9ecef;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+        transition: width 0.3s ease;
+    }
+
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        border: 1px solid #e9ecef;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+
+    .coverage-type-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 12px;
+    }
+
+    .platform-badges {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .platform-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #e9ecef;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2"><i class="fas fa-bug"></i> Coverage Gap Management</h1>
+                    <p class="text-muted">AI-identified test coverage gaps and recommendations</p>
+                </div>
+                <div class="btn-group">
+                    <a href="{% url 'ai_testing:test_generation_dashboard' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-code"></i> Test Generation
+                    </a>
+                    <button class="btn btn-outline-secondary" onclick="refreshGapsList()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ stats.total }}</div>
+            <div class="stat-label">Total Gaps</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-danger">{{ stats.critical }}</div>
+            <div class="stat-label">Critical Priority</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-warning">{{ stats.high }}</div>
+            <div class="stat-label">High Priority</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ stats.implemented }}</div>
+            <div class="stat-label">Implemented</div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="filter-card">
+        <form method="GET" id="filter-form">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Coverage Type</label>
+                    <select name="coverage_type" class="form-select" onchange="document.getElementById('filter-form').submit()">
+                        <option value="">All Types</option>
+                        {% for value, label in coverage_type_choices %}
+                            <option value="{{ value }}" {% if current_filters.coverage_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Priority</label>
+                    <select name="priority" class="form-select" onchange="document.getElementById('filter-form').submit()">
+                        <option value="">All Priorities</option>
+                        {% for value, label in priority_choices %}
+                            <option value="{{ value }}" {% if current_filters.priority == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select" onchange="document.getElementById('filter-form').submit()">
+                        <option value="">Active Only</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Sort By</label>
+                    <select name="sort" class="form-select" onchange="document.getElementById('filter-form').submit()">
+                        <option value="-confidence_score" {% if current_filters.sort == '-confidence_score' %}selected{% endif %}>Confidence (High to Low)</option>
+                        <option value="-impact_score" {% if current_filters.sort == '-impact_score' %}selected{% endif %}>Impact (High to Low)</option>
+                        <option value="-identified_at" {% if current_filters.sort == '-identified_at' %}selected{% endif %}>Recently Identified</option>
+                        <option value="priority" {% if current_filters.sort == 'priority' %}selected{% endif %}>Priority</option>
+                        <option value="coverage_type" {% if current_filters.sort == 'coverage_type' %}selected{% endif %}>Coverage Type</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <input type="text"
+                               name="search"
+                               class="form-control"
+                               placeholder="Search gaps by title, description, or affected endpoints..."
+                               value="{{ current_filters.search|default:'' }}">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'ai_testing:coverage_gaps_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Coverage Gaps List -->
+    <div class="row" id="gaps-container">
+        {% for gap in page_obj %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card gap-card priority-{{ gap.priority }}" id="gap-card-{{ gap.id }}">
+                <div class="card-header d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <a href="{% url 'ai_testing:coverage_gap_detail' gap.id %}" class="text-decoration-none">
+                                {{ gap.title|truncatechars:60 }}
+                            </a>
+                        </h6>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="coverage-type-badge badge bg-primary">{{ gap.get_coverage_type_display }}</span>
+                            <span class="status-badge badge bg-{% if gap.status == 'identified' %}warning{% elif gap.status == 'test_generated' %}info{% elif gap.status == 'test_implemented' %}success{% else %}secondary{% endif %}">
+                                {{ gap.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <span class="badge bg-{{ gap.priority }}">
+                        {{ gap.get_priority_display }}
+                    </span>
+                </div>
+
+                <div class="card-body">
+                    <p class="text-muted small mb-3">{{ gap.description|truncatechars:120 }}</p>
+
+                    <!-- Confidence and Impact Scores -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="small text-muted mb-1">Confidence</div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: {{ gap.confidence_score|floatformat:0 }}%"></div>
+                            </div>
+                            <div class="small text-center">{{ gap.confidence_score|floatformat:1 }}%</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted mb-1">Impact</div>
+                            <div class="text-center">
+                                <span class="h5 mb-0">{{ gap.impact_score|floatformat:1 }}</span>
+                                <small class="text-muted">/10</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Affected Platforms -->
+                    {% if gap.affected_platforms %}
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">Platforms</div>
+                        <div class="platform-badges">
+                            {% for platform in gap.affected_platforms %}
+                                <span class="platform-badge">{{ platform|capfirst }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Meta Information -->
+                    <div class="row text-muted small">
+                        <div class="col-6">
+                            <i class="fas fa-clock"></i> {{ gap.identified_at|timesince }} ago
+                        </div>
+                        <div class="col-6 text-end">
+                            <i class="fas fa-wrench"></i> ~{{ gap.estimated_implementation_time }}h
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-transparent">
+                    <div class="btn-group w-100" role="group">
+                        <a href="{% url 'ai_testing:coverage_gap_detail' gap.id %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+
+                        {% if gap.status == 'identified' %}
+                            <button class="btn btn-sm btn-outline-success"
+                                    onclick="generateTest('{{ gap.id }}')">
+                                <i class="fas fa-code"></i> Generate Test
+                            </button>
+                        {% elif gap.status == 'test_generated' %}
+                            <a href="{% url 'ai_testing:download_generated_test' %}?gap_id={{ gap.id }}&framework={{ gap.recommended_framework }}"
+                               class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-download"></i> Download Test
+                            </a>
+                        {% endif %}
+
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                    type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <button class="dropdown-item" onclick="updateStatus('{{ gap.id }}', 'test_implemented')">
+                                        <i class="fas fa-check"></i> Mark Implemented
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="updateStatus('{{ gap.id }}', 'dismissed')">
+                                        <i class="fas fa-times"></i> Dismiss
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'ai_testing:coverage_gap_detail' gap.id %}">
+                                        <i class="fas fa-info-circle"></i> Details
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-search text-muted mb-3" style="font-size: 3rem;"></i>
+                <h5 class="text-muted">No Coverage Gaps Found</h5>
+                <p class="text-muted">
+                    {% if current_filters.search or current_filters.coverage_type or current_filters.priority or current_filters.status %}
+                        Try adjusting your filters or search terms.
+                    {% else %}
+                        Great! No critical coverage gaps have been identified yet.
+                    {% endif %}
+                </p>
+                {% if current_filters.search or current_filters.coverage_type or current_filters.priority or current_filters.status %}
+                    <a href="{% url 'ai_testing:coverage_gaps_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-times"></i> Clear All Filters
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Coverage gaps pagination">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_filters.coverage_type %}&coverage_type={{ current_filters.coverage_type }}{% endif %}{% if current_filters.priority %}&priority={{ current_filters.priority }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.sort %}&sort={{ current_filters.sort }}{% endif %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:-3 and num < page_obj.number|add:3 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if current_filters.coverage_type %}&coverage_type={{ current_filters.coverage_type }}{% endif %}{% if current_filters.priority %}&priority={{ current_filters.priority }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.sort %}&sort={{ current_filters.sort }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_filters.coverage_type %}&coverage_type={{ current_filters.coverage_type }}{% endif %}{% if current_filters.priority %}&priority={{ current_filters.priority }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}{% if current_filters.sort %}&sort={{ current_filters.sort }}{% endif %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Gap Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="statusForm">
+                    <input type="hidden" id="gapId" name="gap_id">
+                    <input type="hidden" id="newStatus" name="status">
+
+                    <div class="mb-3" id="notesField" style="display: none;">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3" id="implementationFields" style="display: none;">
+                        <label for="testFilePath" class="form-label">Test File Path</label>
+                        <input type="text" class="form-control" id="testFilePath" name="test_file_path" placeholder="/path/to/test/file.kt">
+
+                        <label for="commitSha" class="form-label mt-2">Commit SHA</label>
+                        <input type="text" class="form-control" id="commitSha" name="commit_sha" placeholder="abc123...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitStatusUpdate()">Update Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshGapsList() {
+    window.location.reload();
+}
+
+function generateTest(gapId) {
+    // Navigate to test generation
+    window.location.href = `/streamlab/ai/coverage-gaps/${gapId}/generate-test/`;
+}
+
+function updateStatus(gapId, newStatus) {
+    document.getElementById('gapId').value = gapId;
+    document.getElementById('newStatus').value = newStatus;
+
+    // Show appropriate fields based on status
+    const notesField = document.getElementById('notesField');
+    const implementationFields = document.getElementById('implementationFields');
+
+    notesField.style.display = 'none';
+    implementationFields.style.display = 'none';
+
+    if (newStatus === 'dismissed') {
+        notesField.style.display = 'block';
+        document.querySelector('#notesField label').textContent = 'Reason for dismissal';
+    } else if (newStatus === 'test_implemented') {
+        implementationFields.style.display = 'block';
+        notesField.style.display = 'block';
+        document.querySelector('#notesField label').textContent = 'Implementation notes';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+    modal.show();
+}
+
+function submitStatusUpdate() {
+    const formData = new FormData(document.getElementById('statusForm'));
+    const gapId = formData.get('gap_id');
+
+    fetch(`/streamlab/ai/coverage-gaps/${gapId}/update-status/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
+
+            // Show success message
+            showToast(data.message, 'success');
+
+            // Refresh the page to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast(data.error || 'Failed to update status', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while updating status', 'danger');
+    });
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+
+// Add CSRF token to all forms
+document.addEventListener('DOMContentLoaded', function() {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrftoken) {
+        // Create CSRF token input for AJAX requests
+        const token = '{{ csrf_token }}';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrfmiddlewaretoken';
+        input.value = token;
+        document.body.appendChild(input);
+    }
+});
+</script>
+{% endblock %}
