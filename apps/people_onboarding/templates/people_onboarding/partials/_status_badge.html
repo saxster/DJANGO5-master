@@ -1,0 +1,83 @@
+{% comment %}
+========================================
+STATUS BADGE PARTIAL
+========================================
+Reusable status badge component with dynamic colors and icons
+
+Usage:
+    {% include "people_onboarding/partials/_status_badge.html" with state=request.current_state %}
+
+Parameters:
+    - state: WorkflowState value (required)
+    - size: Badge size - 'sm', 'md', 'lg' (default: 'md')
+    - show_icon: Boolean to show/hide icon (default: True)
+
+Features:
+    - Dynamic color based on workflow state
+    - Icon integration (Bootstrap Icons)
+    - Accessibility (aria-labels)
+    - Responsive design
+
+Edge Cases:
+    - Invalid states fallback to gray
+    - Long status text uses ellipsis
+    - Missing data shows "Unknown"
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if not size %}{% with size='md' %}{% endwith %}{% endif %}
+{% if show_icon is None %}{% with show_icon=True %}{% endwith %}{% endif %}
+
+{% comment %}State to badge mapping{% endcomment %}
+{% if state == 'DRAFT' %}
+    {% with badge_class='badge-light-info' icon='bi-pencil-square' display_text='Draft' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'SUBMITTED' %}
+    {% with badge_class='badge-light-primary' icon='bi-send-check' display_text='Submitted' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'DOCUMENT_VERIFICATION' %}
+    {% with badge_class='badge-light-warning' icon='bi-file-earmark-check' display_text='Document Verification' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'BACKGROUND_CHECK' %}
+    {% with badge_class='badge-light-info' icon='bi-shield-check' display_text='Background Check' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'PENDING_APPROVAL' %}
+    {% with badge_class='badge-light-warning' icon='bi-hourglass-split' display_text='Pending Approval' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'APPROVED' %}
+    {% with badge_class='badge-light-success' icon='bi-check-circle' display_text='Approved' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'PROVISIONING' %}
+    {% with badge_class='badge-light-primary' icon='bi-gear' display_text='Provisioning Access' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'TRAINING' %}
+    {% with badge_class='badge-light-info' icon='bi-book' display_text='Training Phase' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'COMPLETED' %}
+    {% with badge_class='badge-success' icon='bi-check-circle-fill' display_text='Completed' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'REJECTED' %}
+    {% with badge_class='badge-danger' icon='bi-x-circle-fill' display_text='Rejected' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% elif state == 'CANCELLED' %}
+    {% with badge_class='badge-secondary' icon='bi-slash-circle' display_text='Cancelled' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% else %}
+    {% comment %}Fallback for unknown states{% endcomment %}
+    {% with badge_class='badge-secondary' icon='bi-question-circle' display_text='Unknown' %}
+        {% include "people_onboarding/partials/_badge_render.html" %}
+    {% endwith %}
+{% endif %}

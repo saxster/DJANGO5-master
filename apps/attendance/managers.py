@@ -1,13 +1,15 @@
 from datetime import timedelta, datetime, date
 from django.db import models
-from django.contrib.gis.db.models.functions import AsGeoJSON, AsWKT
+from django.contrib.gis.db.models.functions import AsGeoJSON, AsWKT, Distance, Area, Centroid
+from django.contrib.gis.db.models import Extent, Union
+from django.contrib.gis.geos import Point, Polygon
+from django.db.models import F, Q, Exists, CharField, OuterRef, Count, Avg, Max, Min, Sum
+from django.db.models.functions import Cast, Extract
 from apps.core import utils
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
 from apps.onboarding.models import Shift
 from apps.onboarding.models import GeofenceMaster
-from django.db.models import F,Q,Exists,CharField,OuterRef
-from django.db.models.functions import Cast
 from itertools import chain
 import json
 import logging
@@ -32,90 +34,72 @@ class PELManager(models.Manager):
         return qset or self.none()
 
     def get_people_attachment(self, pelogid, db=None):
-        # Define valid attachments subquery
+        """
+        Optimized query to get attendance record with valid attachments
+        """
+        # Define valid attachments subquery with optimized exclusion pattern
         valid_attachments = Attachment.objects.filter(
             owner=Cast(OuterRef('uuid'), CharField())
         ).exclude(
-            Q(filename__iendswith='.3gp') | 
-            Q(filename__iendswith='.mp4') | 
-            Q(filename__iendswith='.csv') | 
-            Q(filename__iendswith='.txt')
+            filename__iregex=r'\.(3gp|mp4|csv|txt)$'  # More efficient regex pattern
         )
 
-        # Build main query
-        queryset = self.filter(
-            uuid=pelogid,
-            peventtype__tacode__in=['MARK', 'SELF', 'TAKE', 'AUDIT']
-        ).annotate(
-            has_valid_attachments=Exists(valid_attachments)
-        ).filter(
-            has_valid_attachments=True
+        # Build main query with select_related for foreign key optimization
+        queryset = (
+            self.select_related('peventtype')  # Optimize peventtype lookup
+            .filter(
+                uuid=pelogid,
+                peventtype__tacode__in=['MARK', 'SELF', 'TAKE', 'AUDIT']
+            )
+            .annotate(
+                has_valid_attachments=Exists(valid_attachments)
+            )
+            .filter(has_valid_attachments=True)
         )
+
         # Apply database routing if specified
         if db:
             queryset = queryset.using(db)
-        # Return first result or none
+
+        # Return first result or none with optimized field selection
         result = queryset.values('people_id', 'id', 'uuid').first()
         return result if result else self.none()
 
     def get_lat_long(self, location):
-        import re
+        """
+        Extract coordinates from geometry using centralized geospatial service.
 
-        match = re.search(r"POINT \(([-\d.]+) ([-\d.]+)\)", str(location))
-        if match:
-            longitude = float(match.group(1))
-            latitude = float(match.group(2))
-        return [longitude, latitude]
+        DEPRECATED: Use GeospatialService.extract_coordinates() directly.
+        """
+        try:
+            from apps.attendance.services.geospatial_service import GeospatialService
+            lon, lat = GeospatialService.extract_coordinates(location)
+            return [lon, lat]
+        except Exception as e:
+            logger.error(f"Failed to extract coordinates from {location}: {str(e)}")
+            return [0.0, 0.0]  # Return default coordinates on failure
 
     def is_point_in_geofence(self, lat, lon, geofence):
         """
         Check if a point is within a geofence using centralized service.
-        Deprecated: Use apps.core.services.geofence_service instead.
-        
+
+        DEPRECATED: Use GeospatialService.is_point_in_geofence() directly.
+
         Args:
             lat (float): Latitude of the point to check.
             lon (float): Longitude of the point to check.
-            geofence (Polygon or tuple): Polygon object representing geofence or a tuple (center_lat, center_lon, radius_km) for a circular geofence.
+            geofence (Polygon or tuple): Polygon or (center_lat, center_lon, radius_km) tuple
+
         Returns:
             bool: True if the point is inside the geofence, False otherwise.
         """
         try:
-            from apps.core.services.geofence_service import geofence_service
-            return geofence_service.is_point_in_geofence(lat, lon, geofence, use_hysteresis=True)
-        except ImportError:
-            # Fallback to legacy implementation if service not available
-            from math import radians, sin, cos, sqrt, atan2
-            from django.contrib.gis.geos import Point, Polygon
-
-            # Create a Point object from the lat, lon
-            point = Point(lon, lat)  # Note: Point expects (longitude, latitude)
-
-            # Case 1: Geofence is a polygon (Django GEOS Polygon object)
-            if isinstance(geofence, Polygon):
-                return geofence.contains(point)
-
-            # Case 2: Geofence is circular (tuple with center lat, lon, and radius in km)
-            elif isinstance(geofence, tuple) and len(geofence) == 3:
-                geofence_lat, geofence_lon, radius_km = geofence
-
-                # Calculate distance using Haversine formula
-                # Convert lat/lon from degrees to radians
-                lat1 = radians(lat)
-                lon1 = radians(lon)
-                lat2 = radians(geofence_lat)
-                lon2 = radians(geofence_lon)
-
-                # Haversine formula
-                dlat = lat2 - lat1
-                dlon = lon2 - lon1
-                a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-                c = 2 * atan2(sqrt(a), sqrt(1 - a))
-                distance_km = 6371 * c  # Radius of Earth in kilometers
-
-                # Check if the distance is within the geofence radius
-                return distance_km <= radius_km
-
-            # If geofence is neither a polygon nor a circular geofence, return False
+            from apps.attendance.services.geospatial_service import GeospatialService
+            return GeospatialService.is_point_in_geofence(
+                lat, lon, geofence, use_hysteresis=True
+            )
+        except Exception as e:
+            logger.error(f"Geofence validation failed for ({lat}, {lon}): {str(e)}")
             return False
 
     def update_fr_results(self, result, uuid, peopleid, db):
@@ -291,8 +275,12 @@ class PELManager(models.Manager):
     def get_lastmonth_conveyance(self, request, fields, related):
         R, S = request.GET, request.session
         P = safe_json_parse_params(R)
+
+        # Combine all related fields to avoid redundant select_related calls
+        all_related = set(["bu", "people"] + list(related))
+
         qset = (
-            self.select_related("bu", "people")
+            self.select_related(*all_related)
             .annotate(start=AsGeoJSON("startlocation"), end=AsGeoJSON("endlocation"))
             .filter(
                 peventtype__tacode="CONVEYANCE",
@@ -301,7 +289,6 @@ class PELManager(models.Manager):
                 client_id=S["client_id"],
             )
             .exclude(endlocation__isnull=True)
-            .select_related(*related)
             .values(*fields)
             .order_by("-punchintime")
         )
@@ -342,33 +329,55 @@ class PELManager(models.Manager):
         return qset or self.none()
 
     def get_geofencetracking(self, request):
-        "List View"
+        """
+        Optimized list view for geofence tracking with improved query performance
+        """
         qobjs, dir, fields, length, start = utils.get_qobjs_dir_fields_start_length(
             request.GET
         )
         last8days = date.today() - timedelta(days=8)
-        qset = (
-            self.annotate(
-                slocation=AsWKT("startlocation"),
-                elocation=AsWKT("endlocation"),
-            )
+
+        # Build base queryset with optimized order: select_related first, then filter, then annotate
+        base_qset = (
+            self.select_related("people", "peventtype", "geofence")
             .filter(
                 peventtype__tacode="GEOFENCE",
                 datefor__gte=last8days,
                 bu_id=request.session["bu_id"],
             )
-            .select_related("people", "peventtype", "geofence")
-            .values(*fields)
-            .order_by(dir)
+            .annotate(
+                slocation=AsWKT("startlocation"),
+                elocation=AsWKT("endlocation"),
+            )
         )
-        total = qset.count()
+
+        # Apply additional filters if they exist
         if qobjs:
-            filteredqset = qset.filter(qobjs)
-            fcount = filteredqset.count()
-            filteredqset = filteredqset[start : start + length]
-            return total, fcount, filteredqset
-        qset = qset[start : start + length]
-        return total, total, qset
+            filtered_qset = base_qset.filter(qobjs)
+
+            # Use separate count query to avoid expensive operations
+            total = base_qset.count()
+            fcount = filtered_qset.count()
+
+            # Apply ordering and pagination to the final query
+            result_qset = (
+                filtered_qset
+                .values(*fields)
+                .order_by(dir)[start : start + length]
+            )
+
+            return total, fcount, result_qset
+        else:
+            # No additional filters
+            total = base_qset.count()
+
+            result_qset = (
+                base_qset
+                .values(*fields)
+                .order_by(dir)[start : start + length]
+            )
+
+            return total, total, result_qset
 
     def get_sos_count_forcard(self, request):
         R, S = request.GET, request.session
@@ -676,3 +685,398 @@ class PELManager(models.Manager):
             )
             or self.none()
         )
+
+    # ========================================
+    # SPATIAL AGGREGATION QUERIES (Enhanced GeoDjango)
+    # ========================================
+
+    def get_spatial_attendance_summary(self, client_id, date_from, date_to, bu_ids=None):
+        """
+        Get comprehensive spatial summary of attendance data with aggregations.
+
+        Returns:
+            Dictionary with spatial statistics, distance analytics, and coverage metrics
+        """
+        base_query = self.filter(
+            client_id=client_id,
+            datefor__range=(date_from, date_to),
+            startlocation__isnull=False
+        ).exclude(id=1)
+
+        if bu_ids:
+            base_query = base_query.filter(bu_id__in=bu_ids)
+
+        # Spatial extent and coverage
+        extent_data = base_query.aggregate(
+            spatial_extent=Extent('startlocation'),
+            total_records=Count('id'),
+            unique_people=Count('people_id', distinct=True),
+            avg_distance=Avg('distance'),
+            total_distance=Sum('distance'),
+            max_distance=Max('distance'),
+            min_distance=Min('distance')
+        )
+
+        # Center point calculation
+        center_data = base_query.aggregate(
+            center_point=Centroid(Union('startlocation'))
+        )
+
+        # Distance distribution by business unit
+        bu_distance_stats = (base_query
+            .filter(distance__isnull=False)
+            .values('bu_id', 'bu__buname')
+            .annotate(
+                avg_distance=Avg('distance'),
+                max_distance=Max('distance'),
+                count=Count('id'),
+                total_distance=Sum('distance')
+            )
+            .order_by('-avg_distance')
+        )
+
+        return {
+            'spatial_extent': extent_data['spatial_extent'],
+            'center_point': center_data.get('center_point'),
+            'total_records': extent_data['total_records'],
+            'unique_people': extent_data['unique_people'],
+            'distance_stats': {
+                'avg': extent_data['avg_distance'],
+                'total': extent_data['total_distance'],
+                'max': extent_data['max_distance'],
+                'min': extent_data['min_distance']
+            },
+            'bu_distance_distribution': list(bu_distance_stats)
+        }
+
+    def get_attendance_within_radius(self, center_lat, center_lon, radius_km,
+                                   date_from=None, date_to=None, client_id=None):
+        """
+        Get attendance records within specified radius of a center point.
+
+        Args:
+            center_lat: Center latitude
+            center_lon: Center longitude
+            radius_km: Radius in kilometers
+            date_from: Optional start date filter
+            date_to: Optional end date filter
+            client_id: Optional client filter
+
+        Returns:
+            QuerySet of attendance records within radius with distance annotations
+        """
+        center_point = Point(center_lon, center_lat, srid=4326)
+
+        query = (self.filter(startlocation__isnull=False)
+                 .annotate(
+                     distance_from_center=Distance('startlocation', center_point),
+                     start_coords=AsGeoJSON('startlocation'),
+                     end_coords=AsGeoJSON('endlocation')
+                 )
+                 .filter(startlocation__distance_lte=(center_point, radius_km * 1000))  # meters
+                 .select_related('people', 'bu', 'peventtype')
+                 .order_by('distance_from_center')
+        )
+
+        if date_from and date_to:
+            query = query.filter(datefor__range=(date_from, date_to))
+
+        if client_id:
+            query = query.filter(client_id=client_id)
+
+        return query.values(
+            'id', 'uuid', 'people_id', 'people__peoplename',
+            'bu_id', 'bu__buname', 'datefor', 'punchintime', 'punchouttime',
+            'distance', 'distance_from_center', 'start_coords', 'end_coords'
+        )
+
+    def get_geofence_compliance_analytics(self, client_id, date_from, date_to, bu_ids=None):
+        """
+        Analyze geofence compliance patterns and statistics.
+
+        Returns:
+            Dictionary with compliance rates, violation patterns, and trends
+        """
+        base_query = self.filter(
+            client_id=client_id,
+            datefor__range=(date_from, date_to),
+            peventtype__tacode__in=['SELF', 'SELFATTENDANCE', 'MARK', 'MARKATTENDANCE'],
+            startlocation__isnull=False
+        )
+
+        if bu_ids:
+            base_query = base_query.filter(bu_id__in=bu_ids)
+
+        # Overall compliance statistics
+        total_records = base_query.count()
+
+        # Parse JSON extras for geofence compliance data
+        compliance_data = base_query.extra(
+            select={
+                'start_in_geofence': "peventlogextras->>'isStartLocationInGeofence'",
+                'end_in_geofence': "peventlogextras->>'isEndLocationInGeofence'"
+            }
+        ).values(
+            'bu_id', 'bu__buname', 'people_id', 'people__peoplename',
+            'start_in_geofence', 'end_in_geofence', 'datefor'
+        )
+
+        # Compliance by business unit
+        bu_compliance = {}
+        people_compliance = {}
+        daily_compliance = {}
+
+        for record in compliance_data:
+            bu_id = record['bu_id']
+            people_id = record['people_id']
+            date_key = record['datefor'].strftime('%Y-%m-%d')
+
+            # Initialize counters
+            if bu_id not in bu_compliance:
+                bu_compliance[bu_id] = {
+                    'name': record['bu__buname'],
+                    'total': 0, 'compliant_start': 0, 'compliant_end': 0
+                }
+
+            if people_id not in people_compliance:
+                people_compliance[people_id] = {
+                    'name': record['people__peoplename'],
+                    'total': 0, 'compliant_start': 0, 'compliant_end': 0
+                }
+
+            if date_key not in daily_compliance:
+                daily_compliance[date_key] = {
+                    'total': 0, 'compliant_start': 0, 'compliant_end': 0
+                }
+
+            # Count compliance
+            bu_compliance[bu_id]['total'] += 1
+            people_compliance[people_id]['total'] += 1
+            daily_compliance[date_key]['total'] += 1
+
+            if record['start_in_geofence'] == 'true':
+                bu_compliance[bu_id]['compliant_start'] += 1
+                people_compliance[people_id]['compliant_start'] += 1
+                daily_compliance[date_key]['compliant_start'] += 1
+
+            if record['end_in_geofence'] == 'true':
+                bu_compliance[bu_id]['compliant_end'] += 1
+                people_compliance[people_id]['compliant_end'] += 1
+                daily_compliance[date_key]['compliant_end'] += 1
+
+        # Calculate compliance percentages
+        for bu_data in bu_compliance.values():
+            if bu_data['total'] > 0:
+                bu_data['start_compliance_rate'] = (bu_data['compliant_start'] / bu_data['total']) * 100
+                bu_data['end_compliance_rate'] = (bu_data['compliant_end'] / bu_data['total']) * 100
+
+        return {
+            'total_records': total_records,
+            'bu_compliance': bu_compliance,
+            'people_compliance': dict(list(people_compliance.items())[:20]),  # Top 20 for performance
+            'daily_trends': daily_compliance,
+            'overall_compliance_rate': (
+                sum(data['compliant_start'] for data in bu_compliance.values()) /
+                max(sum(data['total'] for data in bu_compliance.values()), 1)
+            ) * 100 if bu_compliance else 0
+        }
+
+    def get_spatial_journey_analytics(self, client_id, date_from, date_to, people_ids=None):
+        """
+        Analyze journey patterns using spatial data.
+
+        Returns:
+            Dictionary with journey statistics, route analysis, and travel patterns
+        """
+        base_query = (self.filter(
+            client_id=client_id,
+            datefor__range=(date_from, date_to),
+            journeypath__isnull=False,
+            startlocation__isnull=False,
+            endlocation__isnull=False,
+            distance__isnull=False,
+            duration__isnull=False
+        ).exclude(distance=0))
+
+        if people_ids:
+            base_query = base_query.filter(people_id__in=people_ids)
+
+        # Journey aggregations
+        journey_stats = base_query.aggregate(
+            total_journeys=Count('id'),
+            avg_distance=Avg('distance'),
+            total_distance=Sum('distance'),
+            max_distance=Max('distance'),
+            min_distance=Min('distance'),
+            avg_duration=Avg('duration'),
+            total_duration=Sum('duration'),
+            max_duration=Max('duration'),
+            min_duration=Min('duration'),
+            unique_travelers=Count('people_id', distinct=True)
+        )
+
+        # Journey efficiency (distance/duration ratio)
+        efficiency_data = base_query.extra(
+            select={'efficiency': 'distance / NULLIF(duration, 0)'}
+        ).aggregate(
+            avg_efficiency=Avg('efficiency'),
+            max_efficiency=Max('efficiency'),
+            min_efficiency=Min('efficiency')
+        )
+
+        # People-wise journey patterns
+        people_patterns = (base_query
+            .values('people_id', 'people__peoplename')
+            .annotate(
+                journey_count=Count('id'),
+                total_distance=Sum('distance'),
+                avg_distance=Avg('distance'),
+                total_duration=Sum('duration'),
+                avg_duration=Avg('duration'),
+                avg_efficiency=Avg(F('distance') / F('duration'))
+            )
+            .filter(journey_count__gte=2)  # Only people with multiple journeys
+            .order_by('-total_distance')[:20]
+        )
+
+        # Transport mode analysis
+        transport_analysis = []
+        transport_records = base_query.values_list('transportmodes', flat=True)
+
+        transport_counts = {}
+        for modes in transport_records:
+            if modes:
+                for mode in modes:
+                    transport_counts[mode] = transport_counts.get(mode, 0) + 1
+
+        transport_analysis = [
+            {'mode': mode, 'count': count, 'percentage': (count/len(transport_records))*100}
+            for mode, count in sorted(transport_counts.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        return {
+            'journey_stats': journey_stats,
+            'efficiency_metrics': efficiency_data,
+            'people_patterns': list(people_patterns),
+            'transport_mode_analysis': transport_analysis
+        }
+
+    def get_attendance_heatmap_data(self, client_id, date_from, date_to, bu_ids=None, grid_size=0.01):
+        """
+        Generate spatial heatmap data for attendance locations.
+
+        Args:
+            client_id: Client ID
+            date_from, date_to: Date range
+            bu_ids: Optional business unit filter
+            grid_size: Grid size in degrees for aggregation
+
+        Returns:
+            List of coordinate grids with attendance counts
+        """
+        query = (self.filter(
+            client_id=client_id,
+            datefor__range=(date_from, date_to),
+            startlocation__isnull=False
+        ).exclude(id=1))
+
+        if bu_ids:
+            query = query.filter(bu_id__in=bu_ids)
+
+        # Extract coordinates and create grid
+        coords_data = query.extra(
+            select={
+                'lat': 'ST_Y(startlocation::geometry)',
+                'lon': 'ST_X(startlocation::geometry)'
+            }
+        ).values('lat', 'lon', 'people_id', 'datefor')
+
+        # Grid aggregation
+        grid_data = {}
+        for record in coords_data:
+            if record['lat'] and record['lon']:
+                # Round to grid
+                grid_lat = round(record['lat'] / grid_size) * grid_size
+                grid_lon = round(record['lon'] / grid_size) * grid_size
+                grid_key = f"{grid_lat},{grid_lon}"
+
+                if grid_key not in grid_data:
+                    grid_data[grid_key] = {
+                        'lat': grid_lat,
+                        'lon': grid_lon,
+                        'count': 0,
+                        'unique_people': set()
+                    }
+
+                grid_data[grid_key]['count'] += 1
+                grid_data[grid_key]['unique_people'].add(record['people_id'])
+
+        # Convert sets to counts and prepare final data
+        heatmap_points = []
+        for grid_point in grid_data.values():
+            heatmap_points.append({
+                'lat': grid_point['lat'],
+                'lon': grid_point['lon'],
+                'count': grid_point['count'],
+                'unique_people_count': len(grid_point['unique_people']),
+                'intensity': min(grid_point['count'] / 10.0, 1.0)  # Normalize for heatmap
+            })
+
+        return sorted(heatmap_points, key=lambda x: x['count'], reverse=True)
+
+    def find_attendance_outliers(self, client_id, date_from, date_to, std_deviation_threshold=2):
+        """
+        Find spatial and temporal outliers in attendance data.
+
+        Returns:
+            Dictionary with location outliers, time outliers, and anomaly patterns
+        """
+        base_query = self.filter(
+            client_id=client_id,
+            datefor__range=(date_from, date_to),
+            startlocation__isnull=False,
+            distance__isnull=False
+        ).exclude(id=1)
+
+        # Calculate statistical baselines
+        stats = base_query.aggregate(
+            avg_distance=Avg('distance'),
+            distance_std=models.StdDev('distance'),
+            distance_variance=models.Variance('distance')
+        )
+
+        # Distance outliers
+        distance_threshold = stats['avg_distance'] + (std_deviation_threshold * (stats['distance_std'] or 0))
+        distance_outliers = base_query.filter(
+            distance__gt=distance_threshold
+        ).select_related('people', 'bu').values(
+            'id', 'uuid', 'people_id', 'people__peoplename',
+            'bu_id', 'bu__buname', 'datefor', 'distance',
+            'punchintime', 'punchouttime'
+        ).annotate(
+            start_coords=AsGeoJSON('startlocation'),
+            end_coords=AsGeoJSON('endlocation')
+        )
+
+        # Time-based outliers (unusual punch times)
+        time_outliers = base_query.extra(
+            select={
+                'punch_hour': 'EXTRACT(hour FROM punchintime)',
+                'punch_dow': 'EXTRACT(dow FROM punchintime)'  # Day of week
+            }
+        ).exclude(
+            punch_hour__range=(6, 22)  # Normal working hours
+        ).values(
+            'id', 'uuid', 'people_id', 'people__peoplename',
+            'datefor', 'punchintime', 'punch_hour', 'punch_dow'
+        )
+
+        return {
+            'distance_outliers': list(distance_outliers),
+            'time_outliers': list(time_outliers),
+            'statistical_baseline': stats,
+            'thresholds': {
+                'distance_threshold': distance_threshold,
+                'std_deviation_threshold': std_deviation_threshold
+            }
+        }

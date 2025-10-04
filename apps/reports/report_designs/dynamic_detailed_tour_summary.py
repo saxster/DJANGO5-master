@@ -82,7 +82,7 @@ class DynamicDetailedTourSummaryReport(BaseReportsExport):
         for i in self.data:
             i["Start Time"] = i["Start Time"].strftime("%d/%m/%Y")
             i["End Time"] = i["End Time"].strftime("%d/%m/%Y")
-            i["Percentage"] = str(i["Percentage"]) + "%"
+            i["Percentage"] = f"{i['Percentage']}%"
         return len(self.data) > 0
 
     def set_additional_content(self):

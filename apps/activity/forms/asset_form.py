@@ -159,7 +159,7 @@ class AssetForm(SecureFormMixin, forms.ModelForm):
         if gps := val:
             if gps == "NONE":
                 return GEOSGeometry(f"SRID=4326;POINT({0.0} {0.0})")
-            regex = "^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
+            regex = r"^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
             gps = gps.replace("(", "").replace(")", "")
             if not re.match(regex, gps):
                 raise forms.ValidationError(self.error_msg["invalid_latlng"])
@@ -376,7 +376,7 @@ class MasterAssetForm(forms.ModelForm):
 
     def clean_assetname(self):
         if value := self.cleaned_data.get("assetname"):
-            regex = "^[a-zA-Z0-9\-_@#\[\]\(\|\)\{\} ]*$"
+            regex = r"^[a-zA-Z0-9\-_@#\[\]\(\|\)\{\} ]*$"
             if not re.match(regex, value):
                 raise forms.ValidationError(
                     "[Invalid name] Only these special characters [-, _, @, #] are allowed in name field"
@@ -438,7 +438,7 @@ class SmartPlaceForm(forms.ModelForm):
         if gps := val:
             if gps == "NONE":
                 return GEOSGeometry(f"SRID=4326;POINT({0.0} {0.0})")
-            regex = "^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
+            regex = r"^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
             gps = gps.replace("(", "").replace(")", "")
             if not re.match(regex, gps):
                 raise forms.ValidationError(self.error_msg["invalid_latlng"])
@@ -535,7 +535,7 @@ class CheckpointForm(forms.ModelForm):
         import re
 
         if value := self.cleaned_data.get("assetcode"):
-            regex = "^[a-zA-Z0-9\-_()#)]*$"
+            regex = r"^[a-zA-Z0-9\-_()#)]*$"
             if " " in value:
                 raise forms.ValidationError(self.error_msg["invalid_assetcode"])
             if not re.match(regex, value):
@@ -550,7 +550,7 @@ class CheckpointForm(forms.ModelForm):
         if gps := val:
             if gps == "NONE":
                 return None
-            regex = "^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
+            regex = r"^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
             gps = gps.replace("(", "").replace(")", "")
             if not re.match(regex, gps):
                 raise forms.ValidationError(self.error_msg["invalid_latlng"])

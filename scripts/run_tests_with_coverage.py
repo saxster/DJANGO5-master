@@ -10,6 +10,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+from apps.core.constants.datetime_constants import FILE_TIMESTAMP_FORMAT
+
 
 class TestRunner:
     """Manages test execution and coverage reporting"""
@@ -18,7 +20,7 @@ class TestRunner:
         self.project_root = Path(__file__).parent
         self.python_path = "/home/redmine/DJANGO5/django5-env/bin/python"
         self.coverage_dir = self.project_root / "coverage_reports"
-        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.timestamp = datetime.now().strftime(FILE_TIMESTAMP_FORMAT)
 
     def ensure_coverage_dir(self):
         """Create coverage directory if it doesn't exist"""

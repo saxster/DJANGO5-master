@@ -1,0 +1,919 @@
+{% load i18n %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+  <!-- Essential Meta Tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+
+  <!-- Performance Hints -->
+  <meta name="color-scheme" content="light dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+
+  <!-- Page Title -->
+  <title>
+    {%- block title -%}
+      {% block page_title %}Dashboard{% endblock page_title %} - {{ request.session.sitename|default:'YOUTILITY' }}
+    {% endblock title %}
+  </title>
+
+  <!-- Meta Description -->
+  <meta name="description" content="{% block meta_description %}Enterprise facility management platform for efficient operations, asset management, and team coordination.{% endblock meta_description %}">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="{{ static('assets/media/images/favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ static('assets/media/images/apple-touch-icon.png') }}">
+
+  <!-- Design System CSS -->
+  <link href="{{ static('css/design-system.css') }}" rel="stylesheet" type="text/css">
+
+  <!-- Core Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+  <!-- Core CSS -->
+  <link href="{{ static('assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet" type="text/css">
+  <link href="{{ static('assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css">
+
+  <!-- Component Styles -->
+  <style>
+    /* Base Layout using Design System */
+    body {
+      font-family: var(--yt-font-sans);
+      background-color: var(--yt-bg-primary);
+      color: var(--yt-text-primary);
+      font-size: var(--yt-text-base);
+      line-height: var(--yt-leading-normal);
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Skip Links for Accessibility */
+    .skip-links {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: var(--yt-z-toast);
+    }
+
+    .skip-link {
+      position: absolute;
+      top: calc(-1 * var(--yt-space-12));
+      left: var(--yt-space-4);
+      background: var(--yt-interactive-primary);
+      color: var(--yt-text-inverse);
+      padding: var(--yt-space-3) var(--yt-space-6);
+      text-decoration: none;
+      border-radius: var(--yt-radius-lg);
+      font-weight: var(--yt-font-medium);
+      font-size: var(--yt-text-sm);
+      transition: top var(--yt-duration-200) var(--yt-ease-out);
+      white-space: nowrap;
+    }
+
+    .skip-link:focus {
+      top: var(--yt-space-4);
+      outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+      outline-offset: var(--yt-focus-ring-offset);
+    }
+
+    /* Main Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: var(--yt-sidebar-width);
+      height: 100vh;
+      background: linear-gradient(180deg, var(--yt-gray-900) 0%, var(--yt-gray-800) 100%);
+      color: var(--yt-text-inverse);
+      z-index: var(--yt-z-fixed);
+      overflow-y: auto;
+      transition: transform var(--yt-duration-300) var(--yt-ease-in-out);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: var(--yt-radius-base);
+    }
+
+    .sidebar-collapsed .sidebar {
+      width: var(--yt-sidebar-collapsed-width);
+    }
+
+    /* Sidebar Header */
+    .sidebar-header {
+      padding: var(--yt-space-6);
+      border-bottom: var(--yt-border-1) solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      color: var(--yt-text-inverse);
+      font-size: var(--yt-text-xl);
+      font-weight: var(--yt-font-semibold);
+    }
+
+    .sidebar-brand:focus {
+      outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+      outline-offset: var(--yt-focus-ring-offset);
+      border-radius: var(--yt-radius-md);
+    }
+
+    .sidebar-brand-icon {
+      margin-right: var(--yt-space-3);
+      color: var(--yt-primary-400);
+      font-size: var(--yt-text-2xl);
+    }
+
+    /* Navigation */
+    .sidebar-nav {
+      padding: var(--yt-space-4) 0;
+    }
+
+    .nav-section {
+      margin-top: var(--yt-space-8);
+      padding: 0 var(--yt-space-6) var(--yt-space-2);
+      color: var(--yt-gray-400);
+      font-size: var(--yt-text-xs);
+      font-weight: var(--yt-font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .nav-item {
+      margin-bottom: var(--yt-space-1);
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: var(--yt-space-3) var(--yt-space-6);
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      border-radius: 0;
+      font-weight: var(--yt-font-medium);
+      font-size: var(--yt-text-sm);
+      transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+      position: relative;
+    }
+
+    .nav-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--yt-text-inverse);
+    }
+
+    .nav-link:focus {
+      outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+      outline-offset: calc(-1 * var(--yt-focus-ring-width));
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--yt-text-inverse);
+    }
+
+    .nav-link.active {
+      background: var(--yt-primary-600);
+      color: var(--yt-text-inverse);
+    }
+
+    .nav-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--yt-primary-300);
+    }
+
+    .nav-icon {
+      margin-right: var(--yt-space-3);
+      width: 20px;
+      text-align: center;
+      font-size: var(--yt-text-lg);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      margin-left: var(--yt-sidebar-width);
+      min-height: 100vh;
+      transition: margin-left var(--yt-duration-300) var(--yt-ease-in-out);
+    }
+
+    .sidebar-collapsed .main-content {
+      margin-left: var(--yt-sidebar-collapsed-width);
+    }
+
+    /* Header */
+    .header {
+      background: var(--yt-bg-surface);
+      padding: var(--yt-space-4) var(--yt-space-6);
+      border-bottom: var(--yt-border-1) solid var(--yt-border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: var(--yt-z-sticky);
+      height: var(--yt-header-height);
+      box-sizing: border-box;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .header-toggle {
+      background: none;
+      border: none;
+      color: var(--yt-text-secondary);
+      font-size: var(--yt-text-xl);
+      margin-right: var(--yt-space-4);
+      cursor: pointer;
+      padding: var(--yt-space-2);
+      border-radius: var(--yt-radius-md);
+      transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    }
+
+    .header-toggle:hover {
+      background: var(--yt-bg-secondary);
+      color: var(--yt-text-primary);
+    }
+
+    .header-toggle:focus {
+      outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+      outline-offset: var(--yt-focus-ring-offset);
+      background: var(--yt-bg-secondary);
+      color: var(--yt-text-primary);
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: var(--yt-text-sm);
+    }
+
+    .breadcrumb-item {
+      color: var(--yt-text-secondary);
+    }
+
+    .breadcrumb-item:not(:last-child)::after {
+      content: "›";
+      margin: 0 var(--yt-space-2);
+      color: var(--yt-text-tertiary);
+    }
+
+    .breadcrumb-item.active {
+      color: var(--yt-text-primary);
+      font-weight: var(--yt-font-medium);
+    }
+
+    .breadcrumb-link {
+      color: var(--yt-text-secondary);
+      text-decoration: none;
+      transition: color var(--yt-duration-200) var(--yt-ease-in-out);
+    }
+
+    .breadcrumb-link:hover {
+      color: var(--yt-interactive-primary);
+    }
+
+    .breadcrumb-link:focus {
+      outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+      outline-offset: var(--yt-focus-ring-offset);
+      border-radius: var(--yt-radius-base);
+    }
+
+    /* Header Right */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: var(--yt-space-4);
+    }
+
+    .site-info {
+      font-size: var(--yt-text-sm);
+      color: var(--yt-text-secondary);
+    }
+
+    .site-info-label {
+      color: var(--yt-text-primary);
+      font-weight: var(--yt-font-medium);
+    }
+
+    /* User Menu */
+    .user-menu {
+      position: relative;
+    }
+
+    .user-trigger {
+      display: flex;
+      align-items: center;
+      gap: var(--yt-space-3);
+      padding: var(--yt-space-2);
+      border-radius: var(--yt-radius-lg);
+      background: none;
+      border: none;
+      color: var(--yt-text-primary);
+      cursor: pointer;
+      transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    }
+
+    .user-trigger:hover {
+      background: var(--yt-bg-secondary);
+    }
+
+    .user-trigger:focus {
+      outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+      outline-offset: var(--yt-focus-ring-offset);
+      background: var(--yt-bg-secondary);
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--yt-radius-full);
+      background: var(--yt-primary-500);
+      color: var(--yt-text-inverse);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--yt-font-medium);
+      font-size: var(--yt-text-sm);
+    }
+
+    /* Content Area */
+    .content-wrapper {
+      padding: var(--yt-space-6);
+    }
+
+    .page-header {
+      margin-bottom: var(--yt-space-8);
+    }
+
+    .page-title {
+      font-size: var(--yt-text-3xl);
+      font-weight: var(--yt-font-semibold);
+      color: var(--yt-text-primary);
+      margin: 0 0 var(--yt-space-2) 0;
+      line-height: var(--yt-leading-tight);
+    }
+
+    .page-subtitle {
+      color: var(--yt-text-secondary);
+      font-size: var(--yt-text-lg);
+      margin: 0;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar-open .sidebar {
+        transform: translateX(0);
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: calc(var(--yt-z-fixed) - 1);
+        opacity: 0;
+        visibility: hidden;
+        transition: all var(--yt-duration-300) var(--yt-ease-in-out);
+      }
+
+      .sidebar-open .sidebar-overlay {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .content-wrapper {
+        padding: var(--yt-space-4);
+      }
+
+      .site-info {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page-title {
+        font-size: var(--yt-text-2xl);
+      }
+
+      .content-wrapper {
+        padding: var(--yt-space-3);
+      }
+
+      .header {
+        padding: var(--yt-space-3) var(--yt-space-4);
+      }
+    }
+
+    /* Loading States */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.95);
+      z-index: var(--yt-z-modal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--yt-border-primary);
+      border-top: 3px solid var(--yt-primary-500);
+      border-radius: var(--yt-radius-full);
+      animation: spin var(--yt-duration-1000) linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Focus Management */
+    .js-focus-visible :focus:not(.focus-visible) {
+      outline: none;
+    }
+
+    /* Announcements for Screen Readers */
+    .sr-announcements {
+      position: absolute;
+      left: -10000px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+
+    /* High Contrast Mode */
+    @media (prefers-contrast: high) {
+      .nav-link {
+        border: var(--yt-border-1) solid transparent;
+      }
+
+      .nav-link:focus,
+      .nav-link.active {
+        border-color: currentColor;
+      }
+    }
+  </style>
+
+  <!-- Extra CSS Block -->
+  {% block extra_css %}{% endblock extra_css %}
+</head>
+
+<body id="app-body" class="{% block body_class %}{% endblock body_class %}" data-theme="{% block theme %}light{% endblock theme %}">
+
+  <!-- Skip Links for Accessibility -->
+  <div class="skip-links">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#sidebar-nav" class="skip-link">Skip to navigation</a>
+    <a href="#user-menu" class="skip-link">Skip to user menu</a>
+  </div>
+
+  <!-- Screen Reader Announcements -->
+  <div class="sr-announcements" aria-live="polite" aria-atomic="true" id="sr-announcements"></div>
+
+  <!-- App Container -->
+  <div class="app-container" id="app-container">
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-header">
+        <a href="{% block brand_url %}{{ url('onboarding:rp_dashboard') }}{% endblock brand_url %}" class="sidebar-brand" aria-label="YOUTILITY Home">
+          <i class="sidebar-brand-icon material-icons" aria-hidden="true">dashboard</i>
+          <span class="sidebar-brand-text">YOUTILITY</span>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebar-nav" role="navigation" aria-label="Main menu">
+        {% block sidebar_content %}
+        {% include "globals/components/sidebar_menu.html" %}
+        {% endblock sidebar_content %}
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-content" role="main">
+
+      <!-- Header -->
+      <header class="header" role="banner">
+        <div class="header-left">
+          <button
+            class="header-toggle"
+            id="sidebar-toggle"
+            type="button"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="sidebar"
+          >
+            <i class="material-icons" aria-hidden="true">menu</i>
+          </button>
+
+          <!-- Breadcrumb Navigation -->
+          <nav aria-label="Breadcrumb">
+            <ol class="breadcrumb">
+              {% block breadcrumb %}
+              <li class="breadcrumb-item">
+                <a href="{{ url('onboarding:rp_dashboard') }}" class="breadcrumb-link">Home</a>
+              </li>
+              {% endblock breadcrumb %}
+            </ol>
+          </nav>
+        </div>
+
+        <div class="header-right">
+          <!-- Site Information -->
+          {% if request.session.sitename %}
+          <div class="site-info">
+            <span class="site-info-label">Site:</span> {{ request.session.sitename }}
+          </div>
+          {% endif %}
+
+          <!-- Language Switcher -->
+          {% include "globals/components/language_switcher.html" %}
+
+          <!-- User Menu -->
+          <div class="user-menu" id="user-menu">
+            <button
+              class="user-trigger"
+              type="button"
+              aria-label="User menu"
+              aria-expanded="false"
+              aria-haspopup="true"
+              id="user-menu-trigger"
+            >
+              <div class="user-avatar">
+                {% if request.user.is_authenticated and request.user.peoplename %}
+                  {{ request.user.peoplename.0|upper }}
+                {% else %}
+                  U
+                {% endif %}
+              </div>
+              <span class="user-name">
+                {% if request.user.is_authenticated %}
+                  {{ request.user.peoplename|default:request.user.loginid|default:'User' }}
+                {% else %}
+                  Guest
+                {% endif %}
+              </span>
+              <i class="material-icons" aria-hidden="true">keyboard_arrow_down</i>
+            </button>
+
+            <!-- User Dropdown Menu -->
+            <div class="user-dropdown" id="user-dropdown" role="menu" aria-labelledby="user-menu-trigger">
+              {% block user_menu %}
+              {% include "globals/components/user_menu.html" %}
+              {% endblock user_menu %}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Wrapper -->
+      <div class="content-wrapper">
+
+        <!-- Page Header -->
+        {% block page_header %}
+        <div class="page-header">
+          <h1 class="page-title" id="page-title">{% block page_title %}Dashboard{% endblock page_title %}</h1>
+          {% block page_subtitle %}{% endblock page_subtitle %}
+        </div>
+        {% endblock page_header %}
+
+        <!-- Flash Messages -->
+        {% if messages %}
+        <div class="messages" role="alert" aria-live="polite">
+          {% for message in messages %}
+          {% include "globals/components/alert.html" with message=message %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Main Content -->
+        <div class="main-content-area">
+          {% block content %}
+          <div class="yt-card">
+            <div class="yt-card-body">
+              <p>Welcome to your accessible dashboard!</p>
+            </div>
+          </div>
+          {% endblock content %}
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay" style="display: none;" aria-hidden="true">
+    <div class="loading-spinner" role="status" aria-label="Loading"></div>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="{{ static('assets/plugins/global/plugins.bundle.js') }}"></script>
+  <script src="{{ static('assets/js/scripts.bundle.js') }}"></script>
+
+  <!-- Accessibility Enhancement Script -->
+  <script>
+    // Enhanced accessibility features
+    (function() {
+      'use strict';
+
+      // Focus management
+      let lastFocusedElement = null;
+
+      // Announce messages to screen readers
+      function announceToScreenReader(message) {
+        const announcer = document.getElementById('sr-announcements');
+        if (announcer) {
+          announcer.textContent = message;
+          setTimeout(() => {
+            announcer.textContent = '';
+          }, 1000);
+        }
+      }
+
+      // Sidebar toggle functionality
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      const sidebar = document.getElementById('sidebar');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const appContainer = document.getElementById('app-container');
+
+      if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function() {
+          const isOpen = appContainer.classList.contains('sidebar-open');
+
+          if (isOpen) {
+            closeSidebar();
+          } else {
+            openSidebar();
+          }
+        });
+
+        function openSidebar() {
+          appContainer.classList.add('sidebar-open');
+          sidebarToggle.setAttribute('aria-expanded', 'true');
+          sidebar.setAttribute('aria-hidden', 'false');
+          if (sidebarOverlay) {
+            sidebarOverlay.setAttribute('aria-hidden', 'false');
+          }
+          announceToScreenReader('Navigation menu opened');
+        }
+
+        function closeSidebar() {
+          appContainer.classList.remove('sidebar-open');
+          sidebarToggle.setAttribute('aria-expanded', 'false');
+          sidebar.setAttribute('aria-hidden', 'true');
+          if (sidebarOverlay) {
+            sidebarOverlay.setAttribute('aria-hidden', 'true');
+          }
+          announceToScreenReader('Navigation menu closed');
+        }
+
+        // Close sidebar when clicking overlay
+        if (sidebarOverlay) {
+          sidebarOverlay.addEventListener('click', closeSidebar);
+        }
+
+        // Close sidebar on escape key
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && appContainer.classList.contains('sidebar-open')) {
+            closeSidebar();
+            sidebarToggle.focus();
+          }
+        });
+      }
+
+      // User menu functionality
+      const userMenuTrigger = document.getElementById('user-menu-trigger');
+      const userDropdown = document.getElementById('user-dropdown');
+
+      if (userMenuTrigger && userDropdown) {
+        userMenuTrigger.addEventListener('click', function() {
+          const isOpen = userDropdown.style.display === 'block';
+
+          if (isOpen) {
+            closeUserMenu();
+          } else {
+            openUserMenu();
+          }
+        });
+
+        function openUserMenu() {
+          userDropdown.style.display = 'block';
+          userMenuTrigger.setAttribute('aria-expanded', 'true');
+          userDropdown.setAttribute('aria-hidden', 'false');
+
+          // Focus first menu item
+          const firstMenuItem = userDropdown.querySelector('a, button');
+          if (firstMenuItem) {
+            firstMenuItem.focus();
+          }
+        }
+
+        function closeUserMenu() {
+          userDropdown.style.display = 'none';
+          userMenuTrigger.setAttribute('aria-expanded', 'false');
+          userDropdown.setAttribute('aria-hidden', 'true');
+        }
+
+        // Close user menu on escape or outside click
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && userDropdown.style.display === 'block') {
+            closeUserMenu();
+            userMenuTrigger.focus();
+          }
+        });
+
+        document.addEventListener('click', function(e) {
+          if (!userMenuTrigger.contains(e.target) && !userDropdown.contains(e.target)) {
+            closeUserMenu();
+          }
+        });
+      }
+
+      // Enhanced keyboard navigation
+      document.addEventListener('keydown', function(e) {
+        // Skip to main content with Alt+M
+        if (e.altKey && e.key === 'm') {
+          e.preventDefault();
+          const mainContent = document.getElementById('main-content');
+          if (mainContent) {
+            mainContent.focus();
+            announceToScreenReader('Jumped to main content');
+          }
+        }
+
+        // Skip to navigation with Alt+N
+        if (e.altKey && e.key === 'n') {
+          e.preventDefault();
+          const sidebarNav = document.getElementById('sidebar-nav');
+          if (sidebarNav) {
+            const firstNavLink = sidebarNav.querySelector('a');
+            if (firstNavLink) {
+              firstNavLink.focus();
+              announceToScreenReader('Jumped to navigation');
+            }
+          }
+        }
+      });
+
+      // Active navigation highlighting
+      const currentPath = window.location.pathname;
+      const navLinks = document.querySelectorAll('.nav-link');
+
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        link.removeAttribute('aria-current');
+
+        const href = link.getAttribute('href');
+        if (href && (currentPath === href || currentPath.startsWith(href + '/'))) {
+          link.classList.add('active');
+          link.setAttribute('aria-current', 'page');
+        }
+      });
+
+      // Loading state management
+      window.showLoading = function(message) {
+        const overlay = document.getElementById('loading-overlay');
+        const spinner = overlay.querySelector('.loading-spinner');
+
+        if (overlay) {
+          overlay.style.display = 'flex';
+          overlay.setAttribute('aria-hidden', 'false');
+
+          if (message && spinner) {
+            spinner.setAttribute('aria-label', message);
+          }
+
+          announceToScreenReader(message || 'Loading');
+        }
+      };
+
+      window.hideLoading = function() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+          overlay.style.display = 'none';
+          overlay.setAttribute('aria-hidden', 'true');
+          announceToScreenReader('Loading complete');
+        }
+      };
+
+      // Form enhancement
+      const forms = document.querySelectorAll('form');
+      forms.forEach(form => {
+        form.addEventListener('submit', function() {
+          showLoading('Submitting form');
+        });
+      });
+
+      // Initialize focus management
+      document.addEventListener('focusin', function(e) {
+        lastFocusedElement = e.target;
+      });
+
+      // Restore focus when needed
+      window.restoreFocus = function() {
+        if (lastFocusedElement && document.body.contains(lastFocusedElement)) {
+          lastFocusedElement.focus();
+        }
+      };
+
+      // Announce page changes for SPA-like behavior
+      let currentTitle = document.title;
+      const titleObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'childList' || mutation.type === 'characterData') {
+            const newTitle = document.title;
+            if (newTitle !== currentTitle) {
+              currentTitle = newTitle;
+              announceToScreenReader(`Page changed to ${newTitle}`);
+            }
+          }
+        });
+      });
+
+      titleObserver.observe(document.querySelector('title'), {
+        childList: true,
+        characterData: true,
+        subtree: true
+      });
+
+    })();
+  </script>
+
+  <!-- Internationalization Framework -->
+  <script src="{% static 'js/modules/core/i18n.js' %}"></script>
+
+  <!-- Extra Scripts Block -->
+  {% block extra_scripts %}{% endblock extra_scripts %}
+
+  <!-- Development Tools -->
+  {% if debug %}
+  <script>
+    console.log('🎯 YOUTILITY Accessible Template Loaded');
+    console.log('📋 Session:', {
+      site: '{{ request.session.sitename|default:"Unknown" }}',
+      user: '{{ request.user.peoplename|default:"Guest" }}',
+      isAdmin: {% if request.user.is_authenticated and request.user.isadmin %}true{% else %}false{% endif %}
+    });
+  </script>
+  {% endif %}
+
+</body>
+</html>

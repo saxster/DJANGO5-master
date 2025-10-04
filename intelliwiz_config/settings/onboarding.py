@@ -98,6 +98,34 @@ LEARNING_ASYNC_PROCESSING = env.bool('LEARNING_ASYNC_PROCESSING', default=True)
 LEARNING_BATCH_SIZE = env.int('LEARNING_BATCH_SIZE', default=100)
 LEARNING_IMPLICIT_SIGNALS = env.bool('LEARNING_IMPLICIT_SIGNALS', default=True)
 LEARNING_COST_TRACKING = env.bool('LEARNING_COST_TRACKING', default=True)
+
+# VOICE INPUT CONFIGURATION
+
+# Enable/Disable Voice Input for Conversational Onboarding
+ENABLE_ONBOARDING_VOICE_INPUT = env.bool('ENABLE_ONBOARDING_VOICE_INPUT', default=True)
+
+# Voice Processing Settings
+ONBOARDING_VOICE_MAX_DURATION_SECONDS = env.int('ONBOARDING_VOICE_MAX_DURATION', default=60)
+ONBOARDING_VOICE_MAX_FILE_SIZE_MB = env.int('ONBOARDING_VOICE_MAX_FILE_SIZE', default=10)
+ONBOARDING_VOICE_DEFAULT_LANGUAGE = env('ONBOARDING_VOICE_DEFAULT_LANGUAGE', default='en-US')
+
+# Voice Quality Settings
+ONBOARDING_VOICE_MIN_CONFIDENCE = env.float('ONBOARDING_VOICE_MIN_CONFIDENCE', default=0.6)
+ONBOARDING_VOICE_AUTO_FALLBACK_TO_TEXT = env.bool('ONBOARDING_VOICE_AUTO_FALLBACK', default=True)
+
+# Supported Languages for Voice Input (inherit from SpeechToTextService)
+ONBOARDING_VOICE_SUPPORTED_LANGUAGES = [
+    'en-US',  # English (US)
+    'hi-IN',  # Hindi (India)
+    'mr-IN',  # Marathi (India)
+    'ta-IN',  # Tamil (India)
+    'te-IN',  # Telugu (India)
+    'kn-IN',  # Kannada (India)
+    'gu-IN',  # Gujarati (India)
+    'bn-IN',  # Bengali (India)
+    'ml-IN',  # Malayalam (India)
+    'or-IN'   # Odia (India)
+]
 LEARNING_UPDATE_THRESHOLD = env.int('LEARNING_UPDATE_THRESHOLD', default=5)
 LEARNING_FEATURE_CACHE_TIMEOUT = env.int('LEARNING_FEATURE_CACHE_TIMEOUT', default=300)
 
@@ -184,3 +212,44 @@ PERSONALIZATION_FEATURE_FLAGS = {
 
 # Tenant-specific Overrides (if needed)
 TENANT_PERSONALIZATION_OVERRIDES = env.json('TENANT_PERSONALIZATION_OVERRIDES', default={})
+
+# =============================================================================
+# PHASE D: SITE AUDIT FEATURE FLAGS (Integration & Polish)
+# =============================================================================
+
+# Main Feature Flags
+ENABLE_SITE_AUDIT = env.bool('ENABLE_SITE_AUDIT', default=True)
+ENABLE_ONBOARDING_TTS = env.bool('ENABLE_ONBOARDING_TTS', default=False)  # opt-in for TTS
+ENABLE_SITE_AUDIT_WEBSOCKET = env.bool('ENABLE_SITE_AUDIT_WEBSOCKET', default=False)
+ENABLE_OFFLINE_SYNC = env.bool('ENABLE_OFFLINE_SYNC', default=True)
+
+# Compliance and Citation Settings
+ENABLE_AUTO_COMPLIANCE_VALIDATION = env.bool('ENABLE_AUTO_COMPLIANCE_VALIDATION', default=True)
+CITATION_MIN_RELEVANCE_SCORE = env.float('CITATION_MIN_RELEVANCE_SCORE', default=0.7)
+ENABLE_CITATION_KB_INTEGRATION = env.bool('ENABLE_CITATION_KB_INTEGRATION', default=True)
+
+# Mobile Optimization Settings
+MOBILE_IMAGE_MAX_SIZE_MB = env.int('MOBILE_IMAGE_MAX_SIZE_MB', default=25)
+MOBILE_AUDIO_MAX_DURATION_SEC = env.int('MOBILE_AUDIO_MAX_DURATION_SEC', default=120)
+MOBILE_SYNC_BATCH_SIZE = env.int('MOBILE_SYNC_BATCH_SIZE', default=10)
+MOBILE_RETRY_MAX_ATTEMPTS = env.int('MOBILE_RETRY_MAX_ATTEMPTS', default=3)
+
+# Site Audit Performance Settings
+SITE_AUDIT_TARGET_DURATION_MINUTES = env.int('SITE_AUDIT_TARGET_DURATION_MINUTES', default=45)
+SITE_AUDIT_CRITICAL_ZONE_COVERAGE_MIN = env.float('SITE_AUDIT_CRITICAL_ZONE_COVERAGE_MIN', default=0.9)
+SITE_AUDIT_OVERALL_COVERAGE_MIN = env.float('SITE_AUDIT_OVERALL_COVERAGE_MIN', default=0.85)
+
+# System Mapper Configuration
+ENABLE_AUTO_SHIFT_GENERATION = env.bool('ENABLE_AUTO_SHIFT_GENERATION', default=True)
+ENABLE_AUTO_TYPEASSIST_GENERATION = env.bool('ENABLE_AUTO_TYPEASSIST_GENERATION', default=True)
+SHIFT_CONFLICT_RESOLUTION_STRATEGY = env('SHIFT_CONFLICT_RESOLUTION_STRATEGY', default='review_required')
+
+# Report Generation Settings
+ENABLE_BILINGUAL_REPORTS = env.bool('ENABLE_BILINGUAL_REPORTS', default=True)
+REPORT_INCLUDE_CITATIONS_DEFAULT = env.bool('REPORT_INCLUDE_CITATIONS_DEFAULT', default=True)
+REPORT_MAX_SIZE_MB = env.int('REPORT_MAX_SIZE_MB', default=50)
+
+# Metrics and Monitoring
+ENABLE_SITE_AUDIT_METRICS = env.bool('ENABLE_SITE_AUDIT_METRICS', default=True)
+METRICS_REALTIME_DASHBOARD = env.bool('METRICS_REALTIME_DASHBOARD', default=True)
+METRICS_EXPORT_FORMATS = env.list('METRICS_EXPORT_FORMATS', default=['json', 'csv'])

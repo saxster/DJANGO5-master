@@ -6,8 +6,11 @@ Implements intelligent caching for hierarchical data and frequently accessed que
 import json
 import hashlib
 from functools import wraps
+from typing import Optional, Dict, Any, List, Callable
+from datetime import datetime
 
 from django.core.cache import cache
+from django.db.models import Model
 
 
 class CacheManager:
@@ -315,6 +318,192 @@ def warm_critical_caches():
     
     for client_id in active_clients:
         QueryRepository.get_childrens_of_bt(client_id)
+
+
+# Cache stampede protection
+class StampedeProtection:
+    """
+    Prevents cache stampede (thundering herd) with distributed locking.
+
+    Cache Stampede Problem:
+    When a popular cache key expires, multiple requests simultaneously try to
+    regenerate it, causing database overload.
+
+    Solution Strategy:
+    1. Distributed locking - Only one request regenerates the cache
+    2. Probabilistic early refresh - Refresh before expiry to prevent mass misses
+    3. Stale-while-revalidate - Serve stale data while refreshing
+    """
+
+    LOCK_TIMEOUT = 5  # seconds
+    LOCK_PREFIX = 'cache_lock'
+    STALE_SUFFIX = '_stale'
+
+    @classmethod
+    def cache_with_stampede_protection(
+        cls,
+        cache_key: str,
+        ttl: int,
+        stale_ttl: Optional[int] = None,
+        refresh_probability: float = 0.05
+    ):
+        """
+        Decorator for cache with stampede protection.
+
+        Args:
+            cache_key: Base cache key
+            ttl: Time to live for fresh cache
+            stale_ttl: Time to keep stale cache (default: ttl * 2)
+            refresh_probability: Probability of early refresh (default: 5%)
+        """
+        stale_ttl = stale_ttl or (ttl * 2)
+
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                # Try to get fresh cache
+                result = cache.get(cache_key)
+
+                if result is not None:
+                    # Probabilistic early refresh
+                    if cls._should_refresh_early(cache_key, ttl, refresh_probability):
+                        cls._async_refresh(func, cache_key, ttl, stale_ttl, args, kwargs)
+                    return result
+
+                # Cache miss - try to acquire lock
+                if cls._acquire_lock(cache_key):
+                    try:
+                        # Double-check cache (another request might have populated it)
+                        result = cache.get(cache_key)
+                        if result is not None:
+                            return result
+
+                        # Generate fresh data
+                        result = func(*args, **kwargs)
+
+                        # Store fresh and stale copies
+                        cache.set(cache_key, result, ttl)
+                        cache.set(f"{cache_key}{cls.STALE_SUFFIX}", result, stale_ttl)
+
+                        return result
+                    finally:
+                        cls._release_lock(cache_key)
+                else:
+                    # Lock held by another request - try stale cache
+                    stale_result = cache.get(f"{cache_key}{cls.STALE_SUFFIX}")
+                    if stale_result is not None:
+                        return stale_result
+
+                    # No stale cache - wait and retry
+                    import time
+                    time.sleep(0.1)
+                    result = cache.get(cache_key)
+                    if result is not None:
+                        return result
+
+                    # Still no cache - generate directly (fallback)
+                    return func(*args, **kwargs)
+
+            return wrapper
+        return decorator
+
+    @classmethod
+    def _acquire_lock(cls, cache_key: str) -> bool:
+        """
+        Acquire distributed lock using Redis SETNX.
+
+        Returns:
+            True if lock acquired, False otherwise
+        """
+        lock_key = f"{cls.LOCK_PREFIX}:{cache_key}"
+
+        # Try to set lock (SETNX pattern)
+        # Returns True if key was set, False if key already exists
+        if hasattr(cache, '_cache'):  # Redis backend
+            try:
+                # Use Redis SETNX with timeout
+                return cache._cache.set(
+                    lock_key,
+                    '1',
+                    nx=True,  # Only set if not exists
+                    ex=cls.LOCK_TIMEOUT  # Expire after timeout
+                )
+            except AttributeError:
+                pass
+
+        # Fallback for non-Redis backends
+        existing = cache.get(lock_key)
+        if existing is None:
+            cache.set(lock_key, '1', cls.LOCK_TIMEOUT)
+            return True
+        return False
+
+    @classmethod
+    def _release_lock(cls, cache_key: str):
+        """Release distributed lock."""
+        lock_key = f"{cls.LOCK_PREFIX}:{cache_key}"
+        cache.delete(lock_key)
+
+    @classmethod
+    def _should_refresh_early(
+        cls,
+        cache_key: str,
+        ttl: int,
+        probability: float
+    ) -> bool:
+        """
+        Probabilistically decide if cache should be refreshed early.
+
+        This prevents all keys from expiring at once and causing a stampede.
+        """
+        import random
+
+        # Get remaining TTL from Redis
+        if hasattr(cache, '_cache'):
+            try:
+                remaining_ttl = cache._cache.ttl(cache_key)
+                if remaining_ttl < 0:  # Key doesn't exist or no expiry
+                    return False
+
+                # Refresh if in last 5% of TTL
+                refresh_window = ttl * probability
+                return remaining_ttl <= refresh_window
+            except (AttributeError, TypeError):
+                pass
+
+        # Fallback: probabilistic refresh
+        return random.random() < probability
+
+    @classmethod
+    def _async_refresh(
+        cls,
+        func: Callable,
+        cache_key: str,
+        ttl: int,
+        stale_ttl: int,
+        args: tuple,
+        kwargs: dict
+    ):
+        """
+        Asynchronously refresh cache in background.
+
+        Uses Celery if available, otherwise skips background refresh.
+        """
+        try:
+            from background_tasks.tasks import refresh_cache_task
+
+            refresh_cache_task.delay(
+                func.__module__,
+                func.__name__,
+                cache_key,
+                ttl,
+                stale_ttl,
+                args,
+                kwargs
+            )
+        except (ImportError, AttributeError):
+            # Celery not available - skip background refresh
+            pass
 
 
 # Cache statistics and monitoring

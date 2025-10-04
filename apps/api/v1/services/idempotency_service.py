@@ -1,13 +1,4 @@
-"""
-Idempotency Service for Mobile Sync
-
-Provides batch and item-level idempotency for sync operations.
-Prevents duplicate processing when mobile clients retry requests.
-
-Compliance:
-- Rule #7: Service class <150 lines
-- Rule #11: Specific exception handling
-"""
+"""Idempotency Service - batch and item-level deduplication for mobile sync."""
 
 import hashlib
 import json
@@ -23,29 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class IdempotencyService:
-    """
-    Manages idempotency keys for sync operations.
-
-    Features:
-    - Batch-level idempotency (entire sync request)
-    - Item-level idempotency (individual records)
-    - 24-hour TTL on idempotency records
-    - Automatic cleanup of expired records
-    """
+    """Manages idempotency keys for sync operations with 24-hour TTL."""
 
     @staticmethod
     def generate_idempotency_key(operation_type: str, data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> str:
-        """
-        Generate idempotency key from operation data.
-
-        Args:
-            operation_type: Type of operation (e.g., 'sync_voice', 'sync_tasks')
-            data: Request payload data
-            context: Additional context (user_id, device_id, etc.)
-
-        Returns:
-            str: SHA256 hash (truncated to 64 chars)
-        """
+        """Generate SHA256 idempotency key from operation data."""
         payload = {
             'operation': operation_type,
             'data': data,
@@ -61,15 +34,7 @@ class IdempotencyService:
 
     @staticmethod
     def check_duplicate(idempotency_key: str) -> Optional[Dict[str, Any]]:
-        """
-        Check if this idempotency key has been processed before.
-
-        Args:
-            idempotency_key: The idempotency key to check
-
-        Returns:
-            dict: Cached response if duplicate, None if first occurrence
-        """
+        """Check if key was processed before. Returns cached response or None."""
         try:
             record = SyncIdempotencyRecord.objects.filter(
                 idempotency_key=idempotency_key,
@@ -94,30 +59,10 @@ class IdempotencyService:
             return None
 
     @staticmethod
-    def store_response(
-        idempotency_key: str,
-        request_hash: str,
-        response_data: Dict[str, Any],
-        user_id: Optional[str] = None,
-        device_id: Optional[str] = None,
-        endpoint: str = '',
-        scope: str = 'batch'
-    ) -> bool:
-        """
-        Store response for future idempotency checks.
-
-        Args:
-            idempotency_key: The idempotency key
-            request_hash: Hash of full request
-            response_data: Response to cache
-            user_id: User ID
-            device_id: Device ID
-            endpoint: API endpoint
-            scope: 'batch' or 'item'
-
-        Returns:
-            bool: True if stored successfully
-        """
+    def store_response(idempotency_key: str, request_hash: str, response_data: Dict[str, Any],
+                      user_id: Optional[str] = None, device_id: Optional[str] = None,
+                      endpoint: str = '', scope: str = 'batch') -> bool:
+        """Store response for future idempotency checks."""
         try:
             SyncIdempotencyRecord.objects.create(
                 idempotency_key=idempotency_key,
@@ -142,12 +87,7 @@ class IdempotencyService:
 
     @staticmethod
     def cleanup_expired_records() -> int:
-        """
-        Remove expired idempotency records.
-
-        Returns:
-            int: Number of records removed
-        """
+        """Remove expired idempotency records."""
         try:
             return SyncIdempotencyRecord.cleanup_expired()
         except (DatabaseError, IntegrityError) as e:

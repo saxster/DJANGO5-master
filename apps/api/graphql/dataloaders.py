@@ -167,26 +167,70 @@ class JobsByAssetLoader(DataLoader, BatchLoadMixin):
         ])
 
 
-class JobneedByJobLoader(DataLoader, BatchLoadMixin):
+class LatestJobneedByJobLoader(DataLoader, BatchLoadMixin):
     """
-    DataLoader for loading jobneed by job ID.
+    DataLoader for loading the most recent jobneed by job ID.
+
+    Job has 1-to-many relationship with Jobneed.
+    This loader returns the latest (by plandatetime) jobneed for each job.
     """
-    
+
     def batch_load_fn(self, job_ids):
         """
-        Batch load jobneeds for jobs.
+        Batch load latest jobneeds for jobs.
+
+        Returns the most recent jobneed (by plandatetime) for each job.
         """
+        from apps.activity.models import Jobneed
+
         job_ids = [int(id) for id in job_ids]
-        
-        # Fetch all jobs with jobneed
-        jobs = Job.objects.filter(
-            id__in=job_ids
-        ).select_related('jobneed')
-        
-        job_dict = {job.id: job.jobneed for job in jobs}
-        
+
+        # Use the manager's efficient batch method
+        current_dict = Jobneed.objects.current_for_jobs(job_ids)
+
         return Promise.resolve([
-            job_dict.get(job_id) for job_id in job_ids
+            current_dict.get(job_id) for job_id in job_ids
+        ])
+
+
+class JobneedsByJobLoader(DataLoader, BatchLoadMixin):
+    """
+    DataLoader for loading jobneed history by job ID.
+
+    Returns multiple jobneeds per job, ordered by plandatetime (desc).
+    """
+
+    def batch_load_fn(self, job_id_limit_pairs):
+        """
+        Batch load jobneed history for jobs.
+
+        Args:
+            job_id_limit_pairs: List of (job_id, limit) tuples
+
+        Returns:
+            List of lists: Each element is a list of jobneeds for that job
+        """
+        from apps.activity.models import Jobneed
+        from collections import defaultdict
+
+        jobneeds_by_job = defaultdict(list)
+
+        # Extract unique job_ids
+        job_ids = list(set([int(jid) for jid, _ in job_id_limit_pairs]))
+
+        # Fetch all jobneeds for these jobs
+        jobneeds = Jobneed.objects.filter(
+            job_id__in=job_ids
+        ).select_related('performedby', 'people', 'bu').order_by('-plandatetime')
+
+        # Group by job_id
+        for jobneed in jobneeds:
+            jobneeds_by_job[jobneed.job_id].append(jobneed)
+
+        # Return results respecting the limit parameter
+        return Promise.resolve([
+            jobneeds_by_job.get(int(jid), [])[:limit]
+            for jid, limit in job_id_limit_pairs
         ])
 
 
@@ -353,17 +397,17 @@ class DataLoaderRegistry:
 def get_loaders(info):
     """
     Get DataLoader instances for a GraphQL request.
-    
+
     Usage in GraphQL resolvers:
         loaders = get_loaders(info)
-        person = await loaders.people_by_id.load(person_id)
+        person = await loaders['people_by_id'].load(person_id)
     """
     # Get or create loader registry in context
     if not hasattr(info.context, 'dataloaders'):
         info.context.dataloaders = DataLoaderRegistry()
-    
+
     registry = info.context.dataloaders
-    
+
     # Return loader instances
     return {
         'people_by_id': registry.get_loader(PeopleByIdLoader),
@@ -373,7 +417,13 @@ def get_loaders(info):
         'jobs_by_asset': registry.get_loader(JobsByAssetLoader),
         'jobs_by_people': registry.get_loader(JobsByPeopleLoader),
         'jobs_by_jobneed': registry.get_loader(JobsByJobneedLoader),
-        'jobneed_by_job': registry.get_loader(JobneedByJobLoader),
+
+        # NEW: Latest jobneed for job (1-to-many relationship fix)
+        'latest_jobneed_by_job': registry.get_loader(LatestJobneedByJobLoader),
+
+        # NEW: Jobneed history for job
+        'jobneeds_by_job': registry.get_loader(JobneedsByJobLoader),
+
         'shift_by_id': registry.get_loader(ShiftByIdLoader),
         'bt_by_id': registry.get_loader(BTByIdLoader),
 
@@ -419,7 +469,8 @@ __all__ = [
     'JobsByAssetLoader',
     'JobsByPeopleLoader',
     'JobsByJobneedLoader',
-    'JobneedByJobLoader',
+    'LatestJobneedByJobLoader',
+    'JobneedsByJobLoader',
     'ShiftByIdLoader',
     'BTByIdLoader',
     'CountLoader',

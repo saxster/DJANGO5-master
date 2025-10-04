@@ -1,0 +1,655 @@
+<!-- User Dropdown Menu Component -->
+<!-- Accessible dropdown with keyboard navigation and screen reader support -->
+
+<div class="user-dropdown-menu"
+     role="menu"
+     aria-labelledby="user-menu-trigger"
+     style="display: none;"
+     id="user-dropdown-content">
+
+  <!-- User Profile Section -->
+  <div class="user-menu-header" role="group" aria-labelledby="user-profile-heading">
+    <h3 id="user-profile-heading" class="yt-sr-only">User Profile</h3>
+
+    <div class="user-menu-profile">
+      <div class="user-menu-avatar">
+        {% if request.user.is_authenticated and request.user.peoplename %}
+          {{ request.user.peoplename.0|upper }}
+        {% else %}
+          U
+        {% endif %}
+      </div>
+
+      <div class="user-menu-info">
+        <div class="user-menu-name">
+          {% if request.user.is_authenticated %}
+            {{ request.user.peoplename|default:request.user.loginid|default:'User' }}
+          {% else %}
+            Guest
+          {% endif %}
+        </div>
+
+        {% if request.user.is_authenticated and request.user.email %}
+        <div class="user-menu-email">
+          {{ request.user.email }}
+        </div>
+        {% endif %}
+
+        {% if request.session.sitename %}
+        <div class="user-menu-site">
+          <i class="material-icons" aria-hidden="true">business</i>
+          {{ request.session.sitename }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="user-menu-divider" role="separator" aria-hidden="true"></div>
+
+  <!-- User Actions -->
+  <div class="user-menu-section" role="group" aria-labelledby="user-actions-heading">
+    <h3 id="user-actions-heading" class="yt-sr-only">User Actions</h3>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="View and edit your profile">
+      <i class="user-menu-icon material-icons" aria-hidden="true">person</i>
+      <span class="user-menu-text">Profile</span>
+      <span class="user-menu-shortcut" aria-hidden="true">Alt+P</span>
+    </a>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="Account settings and preferences">
+      <i class="user-menu-icon material-icons" aria-hidden="true">settings</i>
+      <span class="user-menu-text">Settings</span>
+      <span class="user-menu-shortcut" aria-hidden="true">Alt+S</span>
+    </a>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="Change your password">
+      <i class="user-menu-icon material-icons" aria-hidden="true">lock</i>
+      <span class="user-menu-text">Change Password</span>
+    </a>
+  </div>
+
+  <div class="user-menu-divider" role="separator" aria-hidden="true"></div>
+
+  <!-- Site Actions -->
+  {% if request.user.is_authenticated %}
+  <div class="user-menu-section" role="group" aria-labelledby="site-actions-heading">
+    <h3 id="site-actions-heading" class="yt-sr-only">Site Actions</h3>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="Switch to a different site"
+       onclick="changeSiteReq(); return false;">
+      <i class="user-menu-icon material-icons" aria-hidden="true">swap_horiz</i>
+      <span class="user-menu-text">Switch Site</span>
+    </a>
+
+    <!-- Theme Toggle -->
+    <button type="button"
+            class="user-menu-item"
+            role="menuitem"
+            aria-label="Toggle dark mode"
+            onclick="toggleTheme(); return false;">
+      <i class="user-menu-icon material-icons" aria-hidden="true" id="theme-icon">dark_mode</i>
+      <span class="user-menu-text">Dark Mode</span>
+      <span class="user-menu-toggle" aria-hidden="true">
+        <input type="checkbox" id="theme-toggle" class="yt-sr-only">
+        <span class="toggle-slider"></span>
+      </span>
+    </button>
+  </div>
+
+  <div class="user-menu-divider" role="separator" aria-hidden="true"></div>
+  {% endif %}
+
+  <!-- Help & Support -->
+  <div class="user-menu-section" role="group" aria-labelledby="help-actions-heading">
+    <h3 id="help-actions-heading" class="yt-sr-only">Help & Support</h3>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="Help documentation and tutorials"
+       onclick="openHelpCenter(); return false;">
+      <i class="user-menu-icon material-icons" aria-hidden="true">help</i>
+      <span class="user-menu-text">Help Center</span>
+      <span class="user-menu-shortcut" aria-hidden="true">F1</span>
+    </a>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="Keyboard shortcuts reference">
+      <i class="user-menu-icon material-icons" aria-hidden="true">keyboard</i>
+      <span class="user-menu-text">Keyboard Shortcuts</span>
+      <span class="user-menu-shortcut" aria-hidden="true">?</span>
+    </a>
+
+    <a href="#"
+       class="user-menu-item"
+       role="menuitem"
+       aria-label="Submit feedback or report issues">
+      <i class="user-menu-icon material-icons" aria-hidden="true">feedback</i>
+      <span class="user-menu-text">Send Feedback</span>
+    </a>
+  </div>
+
+  <div class="user-menu-divider" role="separator" aria-hidden="true"></div>
+
+  <!-- Logout -->
+  <div class="user-menu-section" role="group" aria-labelledby="logout-actions-heading">
+    <h3 id="logout-actions-heading" class="yt-sr-only">Session Actions</h3>
+
+    <a href="{{ url('logout') }}"
+       class="user-menu-item user-menu-item-danger"
+       role="menuitem"
+       aria-label="Sign out of your account">
+      <i class="user-menu-icon material-icons" aria-hidden="true">logout</i>
+      <span class="user-menu-text">Sign Out</span>
+      <span class="user-menu-shortcut" aria-hidden="true">Ctrl+Alt+Q</span>
+    </a>
+  </div>
+</div>
+
+<!-- User Menu Styles -->
+<style>
+  .user-dropdown-menu {
+    position: absolute;
+    top: calc(100% + var(--yt-space-2));
+    right: 0;
+    min-width: 280px;
+    background: var(--yt-bg-surface);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+    border-radius: var(--yt-radius-xl);
+    box-shadow: var(--yt-shadow-xl);
+    padding: var(--yt-space-2);
+    z-index: var(--yt-z-dropdown);
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: userMenuSlideIn var(--yt-duration-200) var(--yt-ease-out);
+  }
+
+  @keyframes userMenuSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* User Profile Header */
+  .user-menu-header {
+    padding: var(--yt-space-4);
+    background: var(--yt-bg-secondary);
+    border-radius: var(--yt-radius-lg);
+    margin-bottom: var(--yt-space-2);
+  }
+
+  .user-menu-profile {
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-3);
+  }
+
+  .user-menu-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--yt-radius-full);
+    background: var(--yt-primary-500);
+    color: var(--yt-text-inverse);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--yt-font-semibold);
+    font-size: var(--yt-text-lg);
+    flex-shrink: 0;
+  }
+
+  .user-menu-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .user-menu-name {
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    font-size: var(--yt-text-base);
+    margin-bottom: var(--yt-space-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-menu-email {
+    color: var(--yt-text-secondary);
+    font-size: var(--yt-text-sm);
+    margin-bottom: var(--yt-space-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-menu-site {
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-1);
+    color: var(--yt-text-tertiary);
+    font-size: var(--yt-text-xs);
+  }
+
+  .user-menu-site i {
+    font-size: var(--yt-text-sm);
+  }
+
+  /* Menu Divider */
+  .user-menu-divider {
+    height: var(--yt-border-1);
+    background: var(--yt-border-primary);
+    margin: var(--yt-space-2) 0;
+  }
+
+  /* Menu Sections */
+  .user-menu-section {
+    margin-bottom: var(--yt-space-1);
+  }
+
+  /* Menu Items */
+  .user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-3);
+    padding: var(--yt-space-3) var(--yt-space-4);
+    color: var(--yt-text-primary);
+    text-decoration: none;
+    border-radius: var(--yt-radius-lg);
+    font-size: var(--yt-text-sm);
+    font-weight: var(--yt-font-medium);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .user-menu-item:hover {
+    background: var(--yt-bg-secondary);
+    color: var(--yt-text-primary);
+  }
+
+  .user-menu-item:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: calc(-1 * var(--yt-focus-ring-width));
+    background: var(--yt-bg-secondary);
+    color: var(--yt-text-primary);
+  }
+
+  .user-menu-item-danger {
+    color: var(--yt-danger-600);
+  }
+
+  .user-menu-item-danger:hover,
+  .user-menu-item-danger:focus {
+    background: var(--yt-danger-50);
+    color: var(--yt-danger-700);
+  }
+
+  .user-menu-icon {
+    width: 20px;
+    height: 20px;
+    font-size: var(--yt-text-lg);
+    flex-shrink: 0;
+    color: var(--yt-text-secondary);
+  }
+
+  .user-menu-item:hover .user-menu-icon,
+  .user-menu-item:focus .user-menu-icon {
+    color: var(--yt-text-primary);
+  }
+
+  .user-menu-item-danger .user-menu-icon {
+    color: var(--yt-danger-600);
+  }
+
+  .user-menu-text {
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .user-menu-shortcut {
+    color: var(--yt-text-tertiary);
+    font-size: var(--yt-text-xs);
+    font-weight: var(--yt-font-normal);
+    background: var(--yt-bg-secondary);
+    padding: var(--yt-space-1) var(--yt-space-2);
+    border-radius: var(--yt-radius-base);
+  }
+
+  /* Theme Toggle */
+  .user-menu-toggle {
+    position: relative;
+    width: 40px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--yt-gray-300);
+    border-radius: var(--yt-radius-full);
+    transition: background-color var(--yt-duration-200) var(--yt-ease-in-out);
+    cursor: pointer;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 2px;
+    background: white;
+    border-radius: var(--yt-radius-full);
+    transition: transform var(--yt-duration-200) var(--yt-ease-in-out);
+    box-shadow: var(--yt-shadow-sm);
+  }
+
+  .dark .toggle-slider {
+    background: var(--yt-primary-500);
+  }
+
+  .dark .toggle-slider::before {
+    transform: translateX(20px);
+  }
+
+  /* High Contrast Mode */
+  @media (prefers-contrast: high) {
+    .user-menu-item {
+      border: var(--yt-border-1) solid transparent;
+    }
+
+    .user-menu-item:focus {
+      border-color: var(--yt-focus-ring-color);
+    }
+
+    .user-menu-divider {
+      background: var(--yt-text-primary);
+    }
+  }
+
+  /* Dark Mode Adjustments */
+  .dark .user-menu-header {
+    background: var(--yt-gray-800);
+  }
+
+  .dark .user-menu-shortcut {
+    background: var(--yt-gray-700);
+    color: var(--yt-gray-300);
+  }
+
+  /* Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    .user-dropdown-menu {
+      animation: none;
+    }
+
+    .toggle-slider,
+    .toggle-slider::before {
+      transition: none;
+    }
+  }
+
+  /* Mobile Responsiveness */
+  @media (max-width: 640px) {
+    .user-dropdown-menu {
+      position: fixed;
+      top: auto;
+      bottom: var(--yt-space-4);
+      left: var(--yt-space-4);
+      right: var(--yt-space-4);
+      min-width: auto;
+      max-height: 60vh;
+    }
+
+    .user-menu-shortcut {
+      display: none;
+    }
+  }
+</style>
+
+<!-- User Menu JavaScript Enhancement -->
+<script>
+(function() {
+  'use strict';
+
+  const userMenu = document.getElementById('user-dropdown-content');
+  const menuItems = userMenu ? userMenu.querySelectorAll('.user-menu-item') : [];
+  let currentFocusIndex = -1;
+
+  // Keyboard navigation for user menu
+  if (userMenu) {
+    userMenu.addEventListener('keydown', function(e) {
+      switch(e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          navigateMenu(1);
+          break;
+
+        case 'ArrowUp':
+          e.preventDefault();
+          navigateMenu(-1);
+          break;
+
+        case 'Home':
+          e.preventDefault();
+          focusMenuItem(0);
+          break;
+
+        case 'End':
+          e.preventDefault();
+          focusMenuItem(menuItems.length - 1);
+          break;
+
+        case 'Escape':
+          e.preventDefault();
+          closeUserMenu();
+          break;
+      }
+    });
+
+    // Track current focus
+    menuItems.forEach((item, index) => {
+      item.addEventListener('focus', function() {
+        currentFocusIndex = index;
+      });
+    });
+  }
+
+  function navigateMenu(direction) {
+    if (menuItems.length === 0) return;
+
+    if (currentFocusIndex === -1) {
+      focusMenuItem(0);
+    } else {
+      const nextIndex = (currentFocusIndex + direction + menuItems.length) % menuItems.length;
+      focusMenuItem(nextIndex);
+    }
+  }
+
+  function focusMenuItem(index) {
+    if (menuItems[index]) {
+      menuItems[index].focus();
+      currentFocusIndex = index;
+    }
+  }
+
+  function closeUserMenu() {
+    const userMenuTrigger = document.getElementById('user-menu-trigger');
+    const userDropdown = document.getElementById('user-dropdown');
+
+    if (userDropdown) {
+      userDropdown.style.display = 'none';
+    }
+
+    if (userMenuTrigger) {
+      userMenuTrigger.setAttribute('aria-expanded', 'false');
+      userMenuTrigger.focus();
+    }
+
+    // Announce to screen readers
+    const announcer = document.getElementById('sr-announcements');
+    if (announcer) {
+      announcer.textContent = 'User menu closed';
+    }
+  }
+
+  // Theme toggle functionality
+  window.toggleTheme = function() {
+    const body = document.body;
+    const themeIcon = document.getElementById('theme-icon');
+    const themeToggle = document.getElementById('theme-toggle');
+    const currentTheme = body.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+    // Update theme
+    body.setAttribute('data-theme', newTheme);
+    body.classList.toggle('dark', newTheme === 'dark');
+
+    // Update icon
+    if (themeIcon) {
+      themeIcon.textContent = newTheme === 'dark' ? 'light_mode' : 'dark_mode';
+    }
+
+    // Update toggle state
+    if (themeToggle) {
+      themeToggle.checked = newTheme === 'dark';
+    }
+
+    // Save preference
+    localStorage.setItem('theme', newTheme);
+
+    // Announce to screen readers
+    const announcer = document.getElementById('sr-announcements');
+    if (announcer) {
+      announcer.textContent = `Switched to ${newTheme} mode`;
+    }
+
+    // Close menu after toggle
+    closeUserMenu();
+  };
+
+  // Initialize theme from localStorage
+  document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme = savedTheme !== 'light' ? savedTheme : (prefersDark ? 'dark' : 'light');
+
+    if (initialTheme === 'dark') {
+      document.body.setAttribute('data-theme', 'dark');
+      document.body.classList.add('dark');
+
+      const themeIcon = document.getElementById('theme-icon');
+      const themeToggle = document.getElementById('theme-toggle');
+
+      if (themeIcon) {
+        themeIcon.textContent = 'light_mode';
+      }
+
+      if (themeToggle) {
+        themeToggle.checked = true;
+      }
+    }
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    // Help Center (F1)
+    if (e.key === 'F1') {
+      e.preventDefault();
+      openHelpCenter();
+    }
+
+    // Keyboard shortcuts reference (?)
+    if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.contentEditable === 'true'
+      );
+
+      if (!isInputFocused) {
+        e.preventDefault();
+        showKeyboardShortcuts();
+      }
+    }
+
+    // Profile shortcut (Alt+P)
+    if (e.altKey && e.key === 'p') {
+      e.preventDefault();
+      // Navigate to profile page
+      console.log('Profile shortcut activated');
+    }
+
+    // Settings shortcut (Alt+S)
+    if (e.altKey && e.key === 's') {
+      e.preventDefault();
+      // Navigate to settings page
+      console.log('Settings shortcut activated');
+    }
+
+    // Logout shortcut (Ctrl+Alt+Q)
+    if (e.ctrlKey && e.altKey && e.key === 'q') {
+      e.preventDefault();
+      if (confirm('Are you sure you want to sign out?')) {
+        window.location.href = '{{ url("logout") }}';
+      }
+    }
+  });
+
+  // Keyboard shortcuts modal
+  function showKeyboardShortcuts() {
+    const shortcuts = [
+      { keys: 'Alt + M', description: 'Jump to main content' },
+      { keys: 'Alt + N', description: 'Jump to navigation' },
+      { keys: 'Alt + P', description: 'Open profile' },
+      { keys: 'Alt + S', description: 'Open settings' },
+      { keys: 'F1', description: 'Open help center' },
+      { keys: '?', description: 'Show keyboard shortcuts' },
+      { keys: 'Escape', description: 'Close modal or menu' },
+      { keys: 'Ctrl + Alt + Q', description: 'Sign out' }
+    ];
+
+    // This would open a modal with the shortcuts
+    // For now, just announce to screen readers
+    const announcer = document.getElementById('sr-announcements');
+    if (announcer) {
+      announcer.textContent = 'Keyboard shortcuts reference opened';
+    }
+
+    console.log('Keyboard shortcuts:', shortcuts);
+  }
+
+  // Export functions for use elsewhere
+  window.closeUserMenu = closeUserMenu;
+  window.showKeyboardShortcuts = showKeyboardShortcuts;
+
+})();
+</script>

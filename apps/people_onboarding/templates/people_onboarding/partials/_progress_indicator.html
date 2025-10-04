@@ -1,0 +1,126 @@
+{% comment %}
+========================================
+PROGRESS INDICATOR PARTIAL
+========================================
+Progress bar with percentage
+
+Usage:
+    {% include "people_onboarding/partials/_progress_indicator.html" with percentage=75 label="Profile Completion" %}
+
+Parameters:
+    - percentage: Progress percentage (0-100, required)
+    - label: Progress label (default: "Progress")
+    - show_percentage: Boolean to show percentage text (default: True)
+    - size: Size - 'sm', 'md', 'lg' (default: 'md')
+    - animated: Boolean for animated striped progress (default: False)
+    - color: Color theme - 'primary', 'success', 'warning', 'danger', 'info' (default: auto based on percentage)
+
+Features:
+    - Dynamic color based on percentage
+    - Smooth animations
+    - Accessibility (aria attributes)
+    - Responsive design
+
+Edge Cases:
+    - Percentage > 100 capped at 100
+    - Percentage < 0 set to 0
+    - Invalid values default to 0
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults and validations{% endcomment %}
+{% if not percentage and percentage != 0 %}{% with percentage=0 %}{% endwith %}{% endif %}
+{% if percentage > 100 %}{% with percentage=100 %}{% endwith %}{% endif %}
+{% if percentage < 0 %}{% with percentage=0 %}{% endwith %}{% endif %}
+
+{% if show_percentage is None %}{% with show_percentage=True %}{% endwith %}{% endif %}
+{% if not label %}{% with label="Progress" %}{% endwith %}{% endif %}
+{% if not size %}{% with size='md' %}{% endwith %}{% endif %}
+{% if animated is None %}{% with animated=False %}{% endwith %}{% endif %}
+
+{% comment %}Auto-determine color if not specified{% endcomment %}
+{% if not color %}
+    {% if percentage >= 100 %}
+        {% with color='success' %}{% endwith %}
+    {% elif percentage >= 75 %}
+        {% with color='primary' %}{% endwith %}
+    {% elif percentage >= 50 %}
+        {% with color='info' %}{% endwith %}
+    {% elif percentage >= 25 %}
+        {% with color='warning' %}{% endwith %}
+    {% else %}
+        {% with color='danger' %}{% endwith %}
+    {% endif %}
+{% endif %}
+
+{% comment %}Size mapping{% endcomment %}
+{% if size == 'sm' %}
+    {% with height='10px' text_size='fs-8' %}{% endwith %}
+{% elif size == 'lg' %}
+    {% with height='25px' text_size='fs-5' %}{% endwith %}
+{% else %}
+    {% with height='20px' text_size='fs-6' %}{% endwith %}
+{% endif %}
+
+<div class="progress-indicator"
+     data-percentage="{{ percentage }}"
+     role="region"
+     aria-label="{{ label }}">
+
+    {% comment %}Label and Percentage Text{% endcomment %}
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="progress-label {{ text_size }} fw-semibold text-gray-700">
+            {{ label }}
+        </span>
+        {% if show_percentage %}
+            <span class="progress-percentage {{ text_size }} fw-bold text-{{ color }}">
+                {{ percentage|floatformat:0 }}%
+            </span>
+        {% endif %}
+    </div>
+
+    {% comment %}Progress Bar{% endcomment %}
+    <div class="progress progress-{{ size }}"
+         style="height: {{ height }};"
+         role="progressbar"
+         aria-label="{{ label }}"
+         aria-valuenow="{{ percentage }}"
+         aria-valuemin="0"
+         aria-valuemax="100">
+        <div class="progress-bar bg-{{ color }}
+                    {% if animated %}progress-bar-striped progress-bar-animated{% endif %}
+                    transition-all"
+             style="width: {{ percentage }}%;">
+            {% if not show_percentage and size == 'lg' %}
+                <span class="px-2">{{ percentage|floatformat:0 }}%</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% comment %}Milestone Indicators (optional){% endcomment %}
+    {% if show_milestones %}
+        <div class="progress-milestones d-flex justify-content-between mt-2">
+            <span class="milestone-marker {% if percentage >= 0 %}text-{{ color }}{% else %}text-muted{% endif %}"
+                  style="font-size: 10px;">
+                0%
+            </span>
+            <span class="milestone-marker {% if percentage >= 25 %}text-{{ color }}{% else %}text-muted{% endif %}"
+                  style="font-size: 10px;">
+                25%
+            </span>
+            <span class="milestone-marker {% if percentage >= 50 %}text-{{ color }}{% else %}text-muted{% endif %}"
+                  style="font-size: 10px;">
+                50%
+            </span>
+            <span class="milestone-marker {% if percentage >= 75 %}text-{{ color }}{% else %}text-muted{% endif %}"
+                  style="font-size: 10px;">
+                75%
+            </span>
+            <span class="milestone-marker {% if percentage >= 100 %}text-{{ color }}{% else %}text-muted{% endif %}"
+                  style="font-size: 10px;">
+                100%
+            </span>
+        </div>
+    {% endif %}
+</div>

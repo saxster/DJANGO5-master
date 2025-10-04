@@ -218,7 +218,7 @@ class MasterQsetForm(forms.ModelForm):
     
     def clean_qsetname(self):
         if value := self.cleaned_data.get('qsetname'):
-            regex = "^[a-zA-Z0-9\-_@#\[\]\(\|\)\{\} ]*$"
+            regex = r"^[a-zA-Z0-9\-_@#\[\]\(\|\)\{\} ]*$"
             if not re.match(regex, value):
                 raise forms.ValidationError("[Invalid name] Only these special characters [-, _, @, #] are allowed in name field")
         return value

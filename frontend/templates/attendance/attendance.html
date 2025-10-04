@@ -155,7 +155,8 @@ tr{
 {% endblock popup_alerts %}
 <!--------- BEGIN EXTRA SCRIPTS ------------------------------>
 {% block extra_scripts %}
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACeVI4lSa34BKqfTHGJyxyZkJ6w0yyW7A&libraries=geometry"></script>
+{% load google_maps_tags %}
+{% google_maps_script callback='initGoogleMaps' %}
 <script>
 
     function getLocationStatus(buName, peopleId, peoplename, people_mobno, siteincharge_peoplename, siteincharge_mobno, siteincharge_email, startLocationStr, endLocationStr) {

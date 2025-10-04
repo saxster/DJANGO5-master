@@ -21,6 +21,14 @@ FILE_UPLOAD_RATE_LIMITING = {
 FILE_UPLOAD_PATHS = [
     '/api/upload/att_file/',
     '/api/upload/',
+    # Conversational Onboarding - Voice input (Rule #14 compliance)
+    '/api/v1/onboarding/conversation/',  # Voice uploads for transcription
+    # Site Audit - Image and document uploads (Rule #14 compliance)
+    '/api/v1/onboarding/site-audit/',     # Image uploads for analysis
+    '/api/v1/onboarding/documents/',      # Document uploads for OCR
+    # Admin onboarding uploads
+    '/admin/onboarding/',                  # Admin file uploads
+    '/admin/onboarding_api/',              # Admin API file uploads
 ]
 
 # File upload CSRF protection
@@ -30,6 +38,14 @@ FILE_UPLOAD_CSRF_PROTECTION = {
     'ALLOWED_CONTENT_TYPES': [
         'multipart/form-data',
         'application/octet-stream',
+        # Audio formats for voice input (conversational onboarding)
+        'audio/webm',
+        'audio/wav',
+        'audio/mp3',
+        'audio/ogg',
+        'audio/m4a',
+        'audio/aac',
+        'audio/flac',
     ]
 }
 

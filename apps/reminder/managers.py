@@ -1,4 +1,7 @@
 from django.db import models
+from django.db.models import Q, F, ExpressionWrapper, Cast
+from django.utils import timezone
+from datetime import datetime, timezone as dt_timezone, timedelta
 
 class ReminderManager(models.Manager):
     use_in_migrations = True
@@ -18,7 +21,7 @@ class ReminderManager(models.Manager):
         ),
         ).filter(
             ~Q(status='SUCCESS'),
-            reminderdate__gt = datetime.now(timezone.utc),
+            reminderdate__gt = timezone.now(),
         ).values(
             'rdate', 'pdate', 'job__jobname', 'bu__buname', 'asset__assetname', 'job__jobdesc',
             'qset__qsetname', 'priority', 'reminderin', 'people__peoplename', 'cuser__peoplename',

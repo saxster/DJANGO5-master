@@ -1,13 +1,16 @@
+import logging
 from import_export import resources, fields, widgets as wg
 from apps.activity.models.job_model import Job
 from django.db.models import Q
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
+from apps.core.validators.field_validators import (
     clean_point_field,
     clean_string,
     validate_cron,
 )
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, OperationalError
 from apps.peoples import models as pm
 from apps.onboarding import models as om
 from apps.core.widgets import (
@@ -19,8 +22,13 @@ from apps.core.widgets import (
     PeopleFKWUpdate,
     PgroupFKWUpdate,
 )
-from datetime import time
+from datetime import time, datetime, timezone as dt_timezone, timedelta
+from django.utils import timezone
+from typing import Any
 import math
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
 from apps.core.utils_new.db_utils import (
     get_or_create_none_typeassist,
     get_or_create_none_job,
@@ -38,16 +46,14 @@ import logging
 logger = logging.getLogger("django")
 
 
-def default_ta():
+def default_ta() -> Any:
     return get_or_create_none_typeassist()[0]
 
-def default_fromdate():
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc)
+def default_fromdate() -> datetime:
+    return timezone.now()
 
-def default_uptodate():
-    from datetime import datetime, timezone, timedelta
-    return datetime.now(timezone.utc) + timedelta(days=365)
+def default_uptodate() -> datetime:
+    return timezone.now() + timedelta(days=365)
 
 
 class PeopleFKW(wg.ForeignKeyWidget):
@@ -111,11 +117,13 @@ class ParentFKW(wg.ForeignKeyWidget):
         client_code = row.get("Client*")
         site_code = row.get("Site*")
         
+        from django.db.models import Q
+
         qset = Job.objects.select_related().filter(
+            Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling (must be first)
             client__bucode=client_code,
             bu__bucode=site_code,
             identifier="INTERNALTOUR",
-            parent_id=1,  # Only top-level tours can be parents
             enable=True   # Only enabled tours
         ).exclude(jobname="NONE")
         
@@ -324,8 +332,7 @@ class TaskResource(BaseJobResource):
         if scan_type not in valid_scantypes:
             raise ValidationError(
                 {
-                    "Scan Type*": "%(type)s is not a valid Scan Type. Please select a valid Scan Type from %(valid)s"
-                    % {"type": scan_type, "valid": valid_scantypes}
+                    "Scan Type*": f"{scan_type} is not a valid Scan Type. Please select a valid Scan Type from {valid_scantypes}"
                 }
             )
 
@@ -335,8 +342,7 @@ class TaskResource(BaseJobResource):
         if priority not in valid_priorities:
             raise ValidationError(
                 {
-                    "Priority*": "%(priority)s is not a valid Priority. Please select a valid Priority from %(valid)s"
-                    % {"priority": priority, "valid": valid_priorities}
+                    "Priority*": f"{priority} is not a valid Priority. Please select a valid Priority from {valid_priorities}"
                 }
             )
 
@@ -650,7 +656,7 @@ class TourResource(resources.ModelResource):
             raise ValidationError("Record Already with these values are already exist")
 
     def before_save_instance(self, instance, row, **kwargs):
-        from datetime import datetime, timezone, timedelta, time
+        # Imports moved to top of file
         
         # Set the identifier for tours
         instance.identifier = 'INTERNALTOUR'
@@ -685,15 +691,15 @@ class TourResource(resources.ModelResource):
             instance.planduration = 0  # Plan duration in minutes
             instance.gracetime = 0  # Grace time in minutes  
             instance.cron = '* * * * *'  # Default cron expression
-            now = datetime.now(timezone.utc)
+            now = timezone.now()
             instance.fromdate = now  # Current UTC time
             instance.uptodate = now + timedelta(days=365)  # One year from now
         else:
             # Static tour - ensure dates are properly set if missing
             if not instance.fromdate:
-                instance.fromdate = datetime.now(timezone.utc)
+                instance.fromdate = timezone.now()
             if not instance.uptodate:
-                instance.uptodate = datetime.now(timezone.utc) + timedelta(days=365)
+                instance.uptodate = timezone.now() + timedelta(days=365)
         
         # Foreign Key Defaults - Set to default records if null or missing
         if not instance.asset_id:
@@ -704,19 +710,22 @@ class TourResource(resources.ModelResource):
             # Use the function or fallback to ID=1 for "None" person
             try:
                 instance.people = get_or_create_none_people()
-            except:
+            except (DatabaseError, OperationalError, ObjectDoesNotExist, ValidationError, AttributeError) as e:
+                logger.warning(f"Failed to create default people object: {e}")
                 instance.people_id = 1  # Default "None" person ID
         if not instance.pgroup_id:
             instance.pgroup_id = 1  # Default "None" group ID
         if not hasattr(instance, 'geofence_id') or not instance.geofence_id:
             try:
                 instance.geofence = get_or_create_none_gf()
-            except:
+            except (DatabaseError, OperationalError, ObjectDoesNotExist, ValidationError, AttributeError) as e:
+                logger.warning(f"Failed to create default geofence object: {e}")
                 instance.geofence_id = 1  # Default geofence ID
         if not hasattr(instance, 'tenant_id') or not instance.tenant_id:
             try:
                 instance.tenant = get_or_create_none_tenant()
-            except:
+            except (DatabaseError, OperationalError, ObjectDoesNotExist, ValidationError, AttributeError) as e:
+                logger.warning(f"Failed to create default tenant object: {e}")
                 instance.tenant_id = 1  # Default tenant ID
         
         # Additional system defaults for fields that might be missing
@@ -1230,14 +1239,17 @@ class TourCheckpointResource(resources.ModelResource):
     def check_parent_exists(self, row):
         """Validate that parent tour exists and is enabled"""
         try:
-            parent_tour = Job.objects.get(
+            parent_tour = Job.objects.filter(
+                Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling (must be first)
                 jobname=row['Belongs To*'],
                 client__bucode=row['Client*'],
                 bu__bucode=row['Site*'],
                 identifier='INTERNALTOUR',
-                parent_id=1,  # Must be top-level tour
                 enable=True   # Must be enabled
-            )
+            ).first()
+
+            if not parent_tour:
+                raise Job.DoesNotExist
             # Store parent reference for before_save_instance
             row['_parent_tour'] = parent_tour
         except Job.DoesNotExist:
@@ -1247,7 +1259,7 @@ class TourCheckpointResource(resources.ModelResource):
 
     def before_save_instance(self, instance, row, **kwargs):
         """Set up checkpoint-specific instance data with comprehensive null handling"""
-        from datetime import time
+        # Import moved to top of file
         
         # Set identifier for checkpoint (System Field Default)
         instance.identifier = 'INTERNALTOUR'
@@ -1324,7 +1336,8 @@ class TourCheckpointResource(resources.ModelResource):
         if not hasattr(instance, 'geofence_id') or not instance.geofence_id:
             try:
                 instance.geofence = get_or_create_none_gf()
-            except:
+            except (DatabaseError, OperationalError, ObjectDoesNotExist, ValidationError, AttributeError) as e:
+                logger.warning(f"Failed to create default geofence object: {e}")
                 instance.geofence_id = 1  # Default geofence ID
         
         if not hasattr(instance, 'sgroup_id') or not instance.sgroup_id:
@@ -1336,7 +1349,8 @@ class TourCheckpointResource(resources.ModelResource):
         if not hasattr(instance, 'tenant_id') or not instance.tenant_id:
             try:
                 instance.tenant = get_or_create_none_tenant()
-            except:
+            except (DatabaseError, OperationalError, ObjectDoesNotExist, ValidationError, AttributeError) as e:
+                logger.warning(f"Failed to create default tenant object: {e}")
                 instance.tenant_id = 1  # Default tenant ID
         
         utils.save_common_stuff(self.request, instance, self.is_superuser, self.ctzoffset)

@@ -6,6 +6,7 @@ from django.shortcuts import render, get_object_or_404
 from django.views.generic.base import View
 from apps.activity.models.job_model import Jobneed, JobneedDetails
 from apps.activity.models.attachment_model import Attachment
+from apps.attendance.services.geospatial_service import GeospatialService
 
 logger = logging.getLogger("django")
 
@@ -141,11 +142,17 @@ class SiteSurveyDetailView(LoginRequiredMixin, View):
                     "seqno": survey.seqno,
                     "remarks": survey.remarks,
                     "attachment_count": survey.attachmentcount,
-                    "gpslocation": {
-                        "lat": survey.gpslocation.y if survey.gpslocation else None,
-                        "lng": survey.gpslocation.x if survey.gpslocation else None
-                    } if survey.gpslocation else None,
+                    "gpslocation": None,
                 }
+
+                # Extract GPS coordinates using centralized service
+                if survey.gpslocation:
+                    try:
+                        lon, lat = GeospatialService.extract_coordinates(survey.gpslocation)
+                        survey_data["gpslocation"] = {"lat": lat, "lng": lon}
+                    except Exception as e:
+                        logger.warning(f"Failed to extract coordinates for survey {survey.id}: {e}")
+                        survey_data["gpslocation"] = None
 
                 # Get survey details (questions and answers)
                 details_data = []
@@ -194,11 +201,17 @@ class SiteSurveyDetailView(LoginRequiredMixin, View):
                             "owner": attachment.owner,
                             "ownername": attachment.ownername.taname if attachment.ownername else "",
                             "bu_name": attachment.bu.buname if attachment.bu else "",
-                            "gpslocation": {
-                                "lat": attachment.gpslocation.y if attachment.gpslocation else None,
-                                "lng": attachment.gpslocation.x if attachment.gpslocation else None
-                            } if attachment.gpslocation else None,
+                            "gpslocation": None,
                         }
+
+                        # Extract GPS coordinates using centralized service
+                        if attachment.gpslocation:
+                            try:
+                                lon, lat = GeospatialService.extract_coordinates(attachment.gpslocation)
+                                attachment_info["gpslocation"] = {"lat": lat, "lng": lon}
+                            except Exception as e:
+                                logger.warning(f"Failed to extract coordinates for attachment {attachment.id}: {e}")
+
                         attachments_data.append(attachment_info)
 
                 return rp.JsonResponse({

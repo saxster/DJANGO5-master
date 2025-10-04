@@ -1,0 +1,10 @@
+{% comment %}Internal badge rendering partial - do not use directly{% endcomment %}
+<span class="badge {{ badge_class }} badge-{{ size|default:'md' }} onboarding-status-badge"
+      data-state="{{ state }}"
+      role="status"
+      aria-label="Status: {{ display_text }}">
+    {% if show_icon %}
+        <i class="bi {{ icon }} me-1"></i>
+    {% endif %}
+    <span class="badge-text">{{ display_text }}</span>
+</span>

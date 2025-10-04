@@ -1,0 +1,304 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+
+{% block page_title %}Request #{{ request.request_number }}{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item text-muted">
+    <a href="{% url 'people_onboarding:request_list' %}" class="text-muted text-hover-primary">Requests</a>
+</li>
+<li class="breadcrumb-item text-muted">{{ request.request_number }}</li>
+{% endblock %}
+
+{% block content %}
+<!-- BEGIN: Candidate Profile Card -->
+<div class="card mb-5 mb-xl-10">
+    <div class="card-header border-0">
+        <div class="card-title m-0">
+            <h3 class="fw-bold m-0">Candidate Profile</h3>
+        </div>
+    </div>
+    <div class="card-body border-top p-9">
+        <div class="row mb-7">
+            <div class="col-lg-8">
+                <div class="row mb-7">
+                    <label class="col-lg-4 fw-semibold text-muted">Full Name</label>
+                    <div class="col-lg-8">
+                        <span class="fw-bold fs-6 text-gray-800">{{ request.candidate_profile.full_name }}</span>
+                    </div>
+                </div>
+                <div class="row mb-7">
+                    <label class="col-lg-4 fw-semibold text-muted">Person Type</label>
+                    <div class="col-lg-8">
+                        <span class="badge badge-light-info fs-7">{{ request.get_person_type_display }}</span>
+                    </div>
+                </div>
+                <div class="row mb-7">
+                    <label class="col-lg-4 fw-semibold text-muted">Email</label>
+                    <div class="col-lg-8 fv-row">
+                        <span class="fw-semibold text-gray-800 fs-6">{{ request.candidate_profile.primary_email }}</span>
+                    </div>
+                </div>
+                <div class="row mb-7">
+                    <label class="col-lg-4 fw-semibold text-muted">Phone</label>
+                    <div class="col-lg-8 d-flex align-items-center">
+                        <span class="fw-bold fs-6 text-gray-800 me-2">{{ request.candidate_profile.primary_phone }}</span>
+                    </div>
+                </div>
+                <div class="row mb-7">
+                    <label class="col-lg-4 fw-semibold text-muted">Start Date</label>
+                    <div class="col-lg-8">
+                        <span class="fw-bold fs-6 text-gray-800">{{ request.start_date|date:"d F Y" }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="image-input image-input-outline" data-kt-image-input="true">
+                    <div class="image-input-wrapper w-125px h-125px" style="background-image: url({{ request.candidate_profile.photo.url|default:'/static/assets/media/avatars/blank.png' }})"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END: Candidate Profile Card -->
+
+<!-- BEGIN: Workflow Timeline -->
+<div class="card mb-5 mb-xl-10">
+    <div class="card-header border-0">
+        <div class="card-title m-0">
+            <h3 class="fw-bold m-0">Workflow Progress</h3>
+        </div>
+    </div>
+    <div class="card-body border-top p-9">
+        <div class="timeline">
+            {% with current_state=request.current_state %}
+
+            <!-- Draft -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px {% if current_state == 'DRAFT' %}bg-primary{% else %}bg-light-success{% endif %}">
+                    <i class="bi bi-pencil-fill text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Draft</div>
+                        <div class="d-flex align-items-center mt-1 fs-6">
+                            <div class="text-muted me-2 fs-7">Created on {{ request.cdtz|date:"d M Y H:i" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submitted -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'SUBMITTED' %}bg-primary
+                    {% elif current_state != 'DRAFT' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-check-circle-fill text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Submitted</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document Verification -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'DOCUMENT_VERIFICATION' %}bg-primary
+                    {% elif current_state in 'BACKGROUND_CHECK,PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-file-earmark-check-fill text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Document Verification</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Background Check -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'BACKGROUND_CHECK' %}bg-primary
+                    {% elif current_state in 'PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-shield-check-fill text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Background Check</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Approval -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'PENDING_APPROVAL' %}bg-warning
+                    {% elif current_state in 'APPROVED,PROVISIONING,TRAINING,COMPLETED' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-hourglass-split text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Pending Approval</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Approved -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'APPROVED' %}bg-primary
+                    {% elif current_state in 'PROVISIONING,TRAINING,COMPLETED' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-check2-circle text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Approved</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Provisioning -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'PROVISIONING' %}bg-primary
+                    {% elif current_state in 'TRAINING,COMPLETED' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-gear-fill text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Access Provisioning</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'TRAINING' %}bg-primary
+                    {% elif current_state == 'COMPLETED' %}bg-light-success
+                    {% else %}bg-light{% endif %}">
+                    <i class="bi bi-book-fill text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Training</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completed -->
+            <div class="timeline-item">
+                <div class="timeline-line w-40px"></div>
+                <div class="timeline-icon symbol symbol-circle symbol-40px
+                    {% if current_state == 'COMPLETED' %}bg-success{% else %}bg-light{% endif %}">
+                    <i class="bi bi-check-all text-white"></i>
+                </div>
+                <div class="timeline-content mb-10 mt-n1">
+                    <div class="pe-3 mb-5">
+                        <div class="fs-5 fw-semibold mb-2">Completed</div>
+                        {% if request.actual_completion_date %}
+                        <div class="d-flex align-items-center mt-1 fs-6">
+                            <div class="text-muted me-2 fs-7">{{ request.actual_completion_date|date:"d M Y" }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% endwith %}
+        </div>
+    </div>
+</div>
+<!-- END: Workflow Timeline -->
+
+<!-- BEGIN: Tabs -->
+<div class="card mb-5 mb-xl-10">
+    <div class="card-body pt-9 pb-0">
+        <ul class="nav nav-stretch nav-line-tabs nav-line-tabs-2x border-transparent fs-5 fw-bold">
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary ms-0 me-10 py-5 active" href="#tab-documents" data-bs-toggle="tab">
+                    <i class="bi bi-file-earmark-text me-2"></i>Documents
+                </a>
+            </li>
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary me-10 py-5" href="#tab-approvals" data-bs-toggle="tab">
+                    <i class="bi bi-check-circle me-2"></i>Approvals
+                </a>
+            </li>
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary me-10 py-5" href="#tab-tasks" data-bs-toggle="tab">
+                    <i class="bi bi-list-task me-2"></i>Tasks
+                </a>
+            </li>
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary me-10 py-5" href="#tab-activity" data-bs-toggle="tab">
+                    <i class="bi bi-activity me-2"></i>Activity Log
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+<!-- END: Tabs -->
+
+<!-- BEGIN: Tab Content -->
+<div class="tab-content">
+    <!-- Documents Tab -->
+    <div class="tab-pane fade show active" id="tab-documents">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-5">Uploaded Documents</h5>
+                <div class="alert alert-info">
+                    Document management functionality will be implemented here.
+                    <a href="{% url 'people_onboarding:document_upload' request.uuid %}" class="btn btn-sm btn-primary ms-3">Upload Documents</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approvals Tab -->
+    <div class="tab-pane fade" id="tab-approvals">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-5">Approval Workflow</h5>
+                <p class="text-muted">Approval workflow details will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks Tab -->
+    <div class="tab-pane fade" id="tab-tasks">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-5">Onboarding Tasks</h5>
+                <a href="{% url 'people_onboarding:task_list' request.uuid %}" class="btn btn-primary">View Task Checklist</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Log Tab -->
+    <div class="tab-pane fade" id="tab-activity">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-5">Activity Log</h5>
+                <p class="text-muted">Activity timeline will appear here.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END: Tab Content -->
+
+{% endblock %}

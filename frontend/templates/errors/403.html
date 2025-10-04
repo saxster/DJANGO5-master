@@ -1,130 +1,154 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Access Denied - YOUTILITY3</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .error-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            padding: 40px;
-            text-align: center;
-            max-width: 500px;
-            margin: 20px;
-        }
-        .error-code {
-            font-size: 72px;
-            font-weight: bold;
-            color: #e67e22;
-            margin: 0;
-            line-height: 1;
-        }
-        .error-title {
-            font-size: 24px;
-            color: #2c3e50;
-            margin: 20px 0 10px;
-        }
-        .error-message {
-            color: #7f8c8d;
-            font-size: 16px;
-            line-height: 1.5;
-            margin-bottom: 30px;
-        }
-        .correlation-id {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 5px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 12px;
-            color: #6c757d;
-            margin: 20px 0;
-        }
-        .btn {
-            background: #3498db;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 16px;
-            display: inline-block;
-            transition: background 0.3s;
-            margin: 0 10px;
-        }
-        .btn:hover {
-            background: #2980b9;
-            color: white;
-            text-decoration: none;
-        }
-        .btn-secondary {
-            background: #95a5a6;
-        }
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-        .icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-        .debug-info {
-            background: #f8f9fa;
-            border-left: 4px solid #17a2b8;
-            padding: 15px;
-            margin-top: 20px;
-            text-align: left;
-            font-family: monospace;
-            font-size: 12px;
-        }
-    </style>
-</head>
-<body>
-    <div class="error-container">
-        <div class="icon">🔒</div>
-        <h1 class="error-code">403</h1>
-        <h2 class="error-title">Access Denied</h2>
-        <p class="error-message">
-            {{ error_message|default:"You don't have permission to access this resource." }}
-        </p>
+{% extends "globals/base_accessible.html" %}
+{% load static %}
+{% load i18n %}
 
-        {% if correlation_id %}
-        <div class="correlation-id">
-            <strong>Correlation ID:</strong> {{ correlation_id }}
-        </div>
-        {% endif %}
+{% block title %}{% trans "Access Denied" %} (403) - {{ block.super }}{% endblock title %}
 
-        <p>If you believe this is an error, please contact your administrator or support team.</p>
+{% block extra_css %}
+{{ block.super }}
+<link href="{{ static('css/design-system.css') }}" rel="stylesheet">
+<style>
+  .error-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--yt-warning-50) 0%, var(--yt-info-50) 100%);
+    padding: var(--yt-space-4);
+  }
 
-        <div style="margin-top: 30px;">
-            <a href="/" class="btn">Return to Home</a>
-            <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
-        </div>
+  .error-container {
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-2xl);
+    padding: var(--yt-space-8);
+    box-shadow: var(--yt-shadow-xl);
+  }
 
-        {% if support_email %}
-        <p style="margin-top: 20px; font-size: 14px; color: #7f8c8d;">
-            Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a>
-        </p>
-        {% endif %}
+  .error-illustration {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto var(--yt-space-6);
+    background: var(--yt-warning-100);
+    border-radius: var(--yt-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-        {% if debug_info and settings.DEBUG %}
-        <div class="debug-info">
-            <strong>Debug Information:</strong><br>
-            <strong>Exception Type:</strong> {{ debug_info.exception_type }}<br>
-            <strong>Exception Message:</strong> {{ debug_info.exception_message }}
-        </div>
-        {% endif %}
+  .error-icon {
+    font-size: 3rem;
+    color: var(--yt-warning-600);
+  }
+
+  .error-title {
+    font-size: var(--yt-text-2xl);
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    margin: 0 0 var(--yt-space-4) 0;
+  }
+
+  .error-message {
+    font-size: var(--yt-text-base);
+    color: var(--yt-text-secondary);
+    margin: 0 0 var(--yt-space-6) 0;
+    line-height: var(--yt-leading-relaxed);
+  }
+
+  .error-actions {
+    display: flex;
+    gap: var(--yt-space-4);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .yt-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--yt-space-2);
+    padding: var(--yt-space-3) var(--yt-space-6);
+    border-radius: var(--yt-radius-lg);
+    font-size: var(--yt-text-sm);
+    font-weight: var(--yt-font-medium);
+    text-decoration: none;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    border: none;
+    cursor: pointer;
+  }
+
+  .yt-button-primary {
+    background: var(--yt-primary-500);
+    color: var(--yt-text-inverse);
+  }
+
+  .yt-button-primary:hover {
+    background: var(--yt-primary-600);
+  }
+
+  .yt-button-secondary {
+    background: var(--yt-gray-500);
+    color: var(--yt-text-inverse);
+  }
+
+  .yt-button-secondary:hover {
+    background: var(--yt-gray-600);
+  }
+
+  @media (max-width: 640px) {
+    .error-actions { flex-direction: column; }
+    .yt-button { width: 100%; justify-content: center; }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-container">
+
+    <div class="error-illustration">
+      <i class="material-icons error-icon">block</i>
     </div>
-</body>
-</html>
+
+    <h1 class="error-title">{% trans "Access Denied" %}</h1>
+    <p class="error-message">
+      {{ user_message|default:_("You don't have permission to access this resource. Please contact your administrator if you believe this is an error.") }}
+    </p>
+
+    <div class="error-actions">
+      {% if not request.user.is_authenticated %}
+      <a href="{% url 'login' %}" class="yt-button yt-button-primary">
+        <i class="material-icons" aria-hidden="true">login</i>
+        Login
+      </a>
+      {% endif %}
+      <button class="yt-button yt-button-secondary" onclick="history.back()">
+        <i class="material-icons" aria-hidden="true">arrow_back</i>
+        Go Back
+      </button>
+      <a href="/" class="yt-button yt-button-secondary">
+        <i class="material-icons" aria-hidden="true">home</i>
+        Home
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<div class="yt-sr-only" aria-live="assertive" aria-atomic="true">
+  Access denied. Please login or contact your administrator for access.
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+setTimeout(() => {
+  const announcer = document.querySelector('[aria-live="assertive"]');
+  if (announcer) {
+    announcer.textContent = 'Access denied. Please check your permissions or contact support.';
+  }
+}, 1000);
+</script>
+{% endblock extra_scripts %}

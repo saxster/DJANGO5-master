@@ -15,13 +15,24 @@ logger = logging.getLogger(__name__)
 
 class PeopleSerializer(ValidatedModelSerializer):
     """
-    Secure People serializer with comprehensive validation.
+    Secure People serializer with comprehensive validation and privacy protection.
+
+    Privacy Features:
+        - Sensitive fields (email, mobno) have masked display variants
+        - Password is write-only and never serialized for output
+        - Masked display fields for API responses
+        - Raw values only accessible through explicit field access
 
     Compliance with Rule #13: Form Validation Requirements
     - Explicit field list (no __all__)
     - Field-level validation (validate_fieldname methods)
     - Cross-field validation (validate method)
     - Business rule validation
+
+    Security:
+        - GDPR compliant data exposure
+        - Prevents accidental sensitive data leaks in API responses
+        - Audit logging via MaskedSecureValue
     """
 
     xss_protect_fields = ['peoplename']
@@ -29,6 +40,10 @@ class PeopleSerializer(ValidatedModelSerializer):
     name_fields = ['peoplename']
     email_fields = ['email']
     phone_fields = ['mobno']
+
+    # Add read-only masked display fields
+    email_display = serializers.SerializerMethodField()
+    mobno_display = serializers.SerializerMethodField()
 
     class Meta:
         model = People
@@ -39,7 +54,9 @@ class PeopleSerializer(ValidatedModelSerializer):
             'peoplename',
             'loginid',
             'email',
+            'email_display',    # Privacy-safe display
             'mobno',
+            'mobno_display',    # Privacy-safe display
             'peopleimg',
             'gender',
             'dateofbirth',
@@ -68,6 +85,8 @@ class PeopleSerializer(ValidatedModelSerializer):
             'created_at',
             'updated_at',
             'last_login',
+            'email_display',
+            'mobno_display',
         ]
 
     def validate_peoplecode(self, value):
@@ -174,3 +193,65 @@ class PeopleSerializer(ValidatedModelSerializer):
             logger.warning("Creating disabled user account")
 
         return attrs
+
+    def get_email_display(self, obj):
+        """
+        Return masked email for safe display in API responses.
+
+        Security:
+            - Shows only first 2 characters and domain TLD
+            - Prevents accidental PII exposure in API logs
+            - GDPR compliant
+
+        Returns:
+            str: Masked email (e.g., "us****@***.com") or None
+        """
+        if not obj.email:
+            return None
+
+        # The email field returns MaskedSecureValue, str() uses __str__() masking
+        email_str = str(obj.email)
+
+        # If already masked, return it
+        if '*' in email_str:
+            return email_str
+
+        # Fallback: manual masking (should not be reached due to MaskedSecureValue)
+        if '@' in email_str:
+            local, domain = email_str.split('@', 1)
+            masked_local = f"{local[:2]}****" if len(local) > 2 else "****"
+
+            domain_parts = domain.split('.')
+            masked_domain = f"***.{domain_parts[-1]}" if len(domain_parts) > 1 else "***"
+
+            return f"{masked_local}@{masked_domain}"
+
+        return "****@***"
+
+    def get_mobno_display(self, obj):
+        """
+        Return masked mobile number for safe display in API responses.
+
+        Security:
+            - Shows only first 3 and last 2 digits
+            - Prevents accidental PII exposure in API logs
+            - GDPR compliant
+
+        Returns:
+            str: Masked mobile (e.g., "+91****12") or None
+        """
+        if not obj.mobno:
+            return None
+
+        # The mobno field returns MaskedSecureValue, str() uses __str__() masking
+        mobno_str = str(obj.mobno)
+
+        # If already masked, return it
+        if '*' in mobno_str:
+            return mobno_str
+
+        # Fallback: manual masking (should not be reached due to MaskedSecureValue)
+        if len(mobno_str) > 5:
+            return f"{mobno_str[:3]}****{mobno_str[-2:]}"
+
+        return "********"

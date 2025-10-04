@@ -15,7 +15,7 @@ global:
 
 # Load rules once and periodically evaluate them
 rule_files:
-  # - "rules/*.yml"
+  - "rules/*.yml"
 
 scrape_configs:
   # Prometheus itself
@@ -74,6 +74,36 @@ scrape_configs:
       - targets: ['nginx-ai-gateway:80']
     metrics_path: '/metrics'
     scrape_interval: 30s
+
+  # Django monitoring endpoints
+  - job_name: 'django_monitoring'
+    static_configs:
+      - targets: ['web:8000']
+    metrics_path: '/monitoring/metrics/'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    params:
+      format: ['prometheus']
+
+  # GraphQL security monitoring
+  - job_name: 'graphql_security'
+    static_configs:
+      - targets: ['web:8000']
+    metrics_path: '/monitoring/graphql/'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    params:
+      format: ['prometheus']
+
+  # WebSocket monitoring
+  - job_name: 'websocket_monitoring'
+    static_configs:
+      - targets: ['web:8000']
+    metrics_path: '/monitoring/websocket/'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    params:
+      format: ['prometheus']
 
   # Elasticsearch metrics (if enabled)
   - job_name: 'elasticsearch'

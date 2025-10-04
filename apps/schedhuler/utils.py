@@ -2,8 +2,8 @@ from django.http import response as rp
 import apps.activity.models as am
 from pprint import pformat
 from apps.core import utils
-from datetime import datetime, timezone, timedelta
-from django.utils import timezone as dtimezone
+from datetime import datetime, timezone as dt_timezone, timedelta
+from django.utils import timezone
 from django.db.models.query import QuerySet
 from apps.reminder.models import Reminder
 import random
@@ -16,6 +16,7 @@ from apps.core.utils_new.datetime_utilities import (
     get_current_utc,
     format_time_delta,
 )
+from apps.attendance.services.geospatial_service import GeospatialService
 
 log = get_task_logger('__main__')
 
@@ -24,7 +25,12 @@ def create_dynamic_job(jobids=None):
         # check if dynamic job already exist with the passed jobid
         
         is_job_modified = am.Job.objects.filter(id__in = jobids, mdtz__gt = F('cdtz')).first() # the job is modified
-        dynamic_jobneed_exist = am.Jobneed.objects.filter(parent_id=1,jobstatus='ASSIGNED',job_id__in = jobids).exists() #dynamic job exist
+        # Unified parent handling for compatibility
+        dynamic_jobneed_exist = am.Jobneed.objects.filter(
+            Q(parent__isnull=True) | Q(parent_id=1),
+            jobstatus='ASSIGNED',
+            job_id__in = jobids
+        ).exists() #dynamic job exist
         
         log.info(f"is_job_modified: {is_job_modified} and dynamic_jobneed_exist: {dynamic_jobneed_exist}")
         if not is_job_modified and dynamic_jobneed_exist:
@@ -33,7 +39,7 @@ def create_dynamic_job(jobids=None):
             jobs = am.Job.objects.filter(
                 ~Q(jobname='NONE'),
                 ~Q(asset__runningstatus = am.Asset.RunningStatus.SCRAPPED),
-                parent_id = 1,
+                Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling
                 enable = True,
                 other_info__isdynamic=True
             ).select_related('asset').values(*utils.JobFields.fields)
@@ -78,7 +84,7 @@ def create_job(jobids = None):
                 ~Q(jobname='NONE'),
                 ~Q(cron='* * * * *'),
                 ~Q(asset__runningstatus = am.Asset.RunningStatus.SCRAPPED),
-                parent_id = 1,
+                Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling
                 enable = True,
                 other_info__isdynamic=False,
             ).select_related(
@@ -130,7 +136,7 @@ def calculate_startdtz_enddtz(job):
     vfrom        = job['fromdate'].replace(microsecond = 0, tzinfo = tz)  + timedelta(minutes = ctzoffset)
     vupto        = job['uptodate'].replace(microsecond = 0, tzinfo = tz) + timedelta(minutes = ctzoffset)
     ldtz         = job['lastgeneratedon'].replace(microsecond = 0, tzinfo = tz) + timedelta(minutes = ctzoffset)
-    current_date= datetime.utcnow().replace(tzinfo=timezone.utc).replace(microsecond=0)
+    current_date= datetime.now(dt_timezone.utc).replace(microsecond=0)
     current_date= current_date.replace(tzinfo = tz) + timedelta(minutes= ctzoffset)
 
     if mdtz > cdtz:
@@ -225,7 +231,7 @@ def insert_into_jn_and_jnd(job, DT, resp):
             UTC_DT = utils.to_utc(DT)
             for dt in UTC_DT:
                 dt = dt.strftime("%Y-%m-%d %H:%M")
-                dt = datetime.strptime(dt, '%Y-%m-%d %H:%M').replace(tzinfo = timezone.utc)
+                dt = datetime.strptime(dt, '%Y-%m-%d %H:%M').replace(tzinfo = dt_timezone.utc)
                 pdtz = params['pdtz'] = dt
                 edtz = params['edtz'] = dt + timedelta(minutes = mins)
                 log.debug(f'pdtz:={pdtz} edtz:={edtz}')
@@ -241,7 +247,7 @@ def insert_into_jn_and_jnd(job, DT, resp):
                             with transaction.atomic():
                                 jn_obj = am.Jobneed.objects.select_for_update().get(id=jn.id)
                                 jn_obj.expirydatetime = edtz
-                                jn_obj.mdtz = dtimezone.now()
+                                jn_obj.mdtz = timezone.now()
                                 jn_obj.save(update_fields=['expirydatetime', 'mdtz'])
                                 log.info(f"Updated jobneed {jn.id} expirydatetime to {edtz}")
             update_lastgeneratedon(job, pdtz)
@@ -467,8 +473,8 @@ def create_child_dynamic_tasks(job,  _people, jnid, _jobstatus, _jobtype, parent
 
 def calculate_route_details(R, job):
     data = R
-    import googlemaps
-    gmaps = googlemaps.Client(key='AIzaSyACeVI4lSa34BKqfTHGJyxyZkJ6w0yyW7A')
+    from apps.core.services.google_maps_service import google_maps_service
+    gmaps = google_maps_service.client
     startpoint, endpoint, waypoints = get_service_requirements(data)
     directions = gmaps.directions(mode='driving', waypoints=waypoints, origin=startpoint, destination=endpoint, optimize_waypoints=True)
 
@@ -546,21 +552,44 @@ def get_frequencied_data(DDE, data, f, breaktime):
 
 def get_service_requirements(R):
     """
-    returns startpoint, endpoint, waypoints
-    required for directions api
+    Returns startpoint, endpoint, waypoints required for directions API.
+
+    Uses centralized GeospatialService for consistent coordinate extraction.
+
+    Args:
+        R: List of records with 'cplocation' Point geometries
+
+    Returns:
+        tuple: (startp dict, endp dict, waypoints list)
+               Each dict has 'lat' and 'lng' keys
     """
     if R:
-        startp = {"lat":float(R[0]['cplocation'].coords[1]),
-                  "lng":float(R[0]['cplocation'].coords[0])}
+        # Extract start point coordinates using centralized service
+        try:
+            lon, lat = GeospatialService.extract_coordinates(R[0]['cplocation'])
+            startp = {"lat": float(lat), "lng": float(lon)}
+        except Exception as e:
+            log.warning(f"Failed to extract start point coordinates: {e}")
+            startp = {"lat": 0.0, "lng": 0.0}
 
-        endp = {"lat":float(R[-1]['cplocation'].coords[1]),
-               "lng":float(R[-1]['cplocation'].coords[0])}
-        waypoints=[]
+        # Extract end point coordinates
+        try:
+            lon, lat = GeospatialService.extract_coordinates(R[-1]['cplocation'])
+            endp = {"lat": float(lat), "lng": float(lon)}
+        except Exception as e:
+            log.warning(f"Failed to extract end point coordinates: {e}")
+            endp = {"lat": 0.0, "lng": 0.0}
+
+        # Extract waypoint coordinates
+        waypoints = []
         for i in range(1, len(R)-1):
-            lat, lng = R[i]['cplocation'].coords[1], R[i]['cplocation'].coords[0]
-            waypoints.append(
-                {"lat":lat, "lng":lng}
-            )
+            try:
+                lon, lat = GeospatialService.extract_coordinates(R[i]['cplocation'])
+                waypoints.append({"lat": float(lat), "lng": float(lon)})
+            except Exception as e:
+                log.warning(f"Failed to extract waypoint coordinates at index {i}: {e}")
+                continue
+
         return startp, endp, waypoints
 
 
@@ -574,15 +603,15 @@ def delete_old_jobs(job_id, ppm=False):
     job_ids = [job_id] + list(job_ids)
 
     # Set the old date to 1970-01-01 00:00:00 UTC.
-    old_date = datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    old_date = datetime(1970, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
 
     # Update jobneeddetails
-    jobneed_ids = am.Jobneed.objects.filter(plandatetime__gt=dtimezone.now(), job_id__in=job_ids).values_list('id', flat=True)
+    jobneed_ids = am.Jobneed.objects.filter(plandatetime__gt=timezone.now(), job_id__in=job_ids).values_list('id', flat=True)
     jnd_count = am.JobneedDetails.objects.filter(jobneed_id__in=jobneed_ids).update(cdtz=old_date, mdtz=old_date)
 
     # Update jobneeds
     jn_count = am.Jobneed.objects.filter(
-        job_id__in=job_ids, plandatetime__gt=dtimezone.now()).update(
+        job_id__in=job_ids, plandatetime__gt=timezone.now()).update(
             cdtz=old_date, mdtz=old_date, plandatetime=old_date, expirydatetime=old_date)
 
     # Update job
@@ -594,7 +623,7 @@ def delete_old_jobs(job_id, ppm=False):
 
 def del_ppm_reminder(jobid):
     log.info('del_ppm_reminder start +')
-    Reminder.objects.filter(reminderdate__gt = datetime.now(timezone.utc), job_id = jobid).delete()
+    Reminder.objects.filter(reminderdate__gt = datetime.now(dt_timezone.utc), job_id = jobid).delete()
     log.info('del_ppm_reminder end -')
 
 
@@ -603,7 +632,7 @@ def calculate_startdtz_enddtz_for_ppm(job):
     tz = timezone(timedelta(minutes = int(job['ctzoffset'])))
     ctzoffset = job['ctzoffset']
 
-    current_date = datetime.now(timezone.utc).replace(microsecond=0, tzinfo=tz) + timedelta(minutes=ctzoffset)
+    current_date = datetime.now(dt_timezone.utc).replace(microsecond=0, tzinfo=tz) + timedelta(minutes=ctzoffset)
     cdtz         = job['cdtz'].replace(microsecond=0, tzinfo=tz) + timedelta(minutes=ctzoffset)
     mdtz         = job['mdtz'].replace(microsecond=0, tzinfo=tz) + timedelta(minutes=ctzoffset)
     vfrom        = job['fromdate'].replace(microsecond=0, tzinfo=tz) + timedelta(minutes=ctzoffset)

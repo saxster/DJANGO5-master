@@ -1,0 +1,157 @@
+{% comment %}
+========================================
+CANDIDATE CARD PARTIAL
+========================================
+Candidate profile summary card
+
+Usage:
+    {% include "people_onboarding/partials/_candidate_card.html" with profile=candidate_profile %}
+
+Parameters:
+    - profile: CandidateProfile object (required)
+    - show_actions: Boolean to show quick action buttons (default: True)
+    - compact: Boolean for compact view (default: False)
+
+Features:
+    - Photo with fallback to initials
+    - Name, email, phone display
+    - Person type badge
+    - Quick action buttons
+    - Responsive layout
+
+Edge Cases:
+    - Missing photo generates initials avatar
+    - Long names truncated with ellipsis
+    - Email/phone encryption handled
+    - Missing data shows "N/A"
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if show_actions is None %}{% with show_actions=True %}{% endwith %}{% endif %}
+{% if compact is None %}{% with compact=False %}{% endwith %}{% endif %}
+
+<div class="card candidate-card {% if compact %}candidate-card-compact{% endif %}"
+     data-candidate-id="{{ profile.uuid }}"
+     role="article"
+     aria-label="Candidate profile for {{ profile.full_name|default:'N/A' }}">
+
+    <div class="card-body {% if compact %}py-3{% else %}p-5{% endif %}">
+        <div class="d-flex flex-wrap align-items-center">
+
+            {% comment %}Profile Photo / Avatar{% endcomment %}
+            <div class="candidate-avatar me-4">
+                {% if profile.photo %}
+                    <img src="{{ profile.photo.url }}"
+                         alt="{{ profile.full_name }}"
+                         class="rounded-circle"
+                         width="{% if compact %}50{% else %}80{% endif %}"
+                         height="{% if compact %}50{% else %}80{% endif %}"
+                         loading="lazy"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                {% endif %}
+
+                {% comment %}Initials fallback{% endcomment %}
+                <div class="candidate-avatar-initials rounded-circle
+                            bg-light-primary text-primary fw-bold
+                            d-{% if profile.photo %}none{% else %}flex{% endif %}
+                            align-items-center justify-content-center"
+                     style="width: {% if compact %}50{% else %}80{% endif %}px;
+                            height: {% if compact %}50{% else %}80{% endif %}px;
+                            font-size: {% if compact %}18{% else %}24{% endif %}px;"
+                     aria-hidden="true">
+                    {% if profile.first_name and profile.last_name %}
+                        {{ profile.first_name.0|upper }}{{ profile.last_name.0|upper }}
+                    {% elif profile.first_name %}
+                        {{ profile.first_name.0|upper }}{{ profile.first_name.1|upper|default:'' }}
+                    {% else %}
+                        ??
+                    {% endif %}
+                </div>
+            </div>
+
+            {% comment %}Candidate Info{% endcomment %}
+            <div class="candidate-info flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h4 class="candidate-name mb-1 {% if compact %}fs-6{% else %}fs-4{% endif %} fw-bold text-gray-900">
+                            {% if profile.full_name %}
+                                {{ profile.full_name|truncatechars:30 }}
+                            {% else %}
+                                <span class="text-muted">Name Not Provided</span>
+                            {% endif %}
+                        </h4>
+
+                        {% comment %}Person Type Badge{% endcomment %}
+                        {% if profile.onboarding_request.person_type %}
+                            <span class="badge badge-light-info badge-sm">
+                                {{ profile.onboarding_request.get_person_type_display }}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if not compact %}
+                    {% comment %}Contact Information{% endcomment %}
+                    <div class="candidate-contact text-muted">
+                        {% if profile.primary_email %}
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi bi-envelope me-2 fs-6"></i>
+                                <a href="mailto:{{ profile.primary_email }}"
+                                   class="text-hover-primary text-truncate"
+                                   style="max-width: 250px;"
+                                   aria-label="Email {{ profile.primary_email }}">
+                                    {{ profile.primary_email }}
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="d-flex align-items-center mb-1 text-muted">
+                                <i class="bi bi-envelope me-2 fs-6"></i>
+                                <span>N/A</span>
+                            </div>
+                        {% endif %}
+
+                        {% if profile.primary_phone %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-telephone me-2 fs-6"></i>
+                                <a href="tel:{{ profile.primary_phone }}"
+                                   class="text-hover-primary"
+                                   aria-label="Phone {{ profile.primary_phone }}">
+                                    {{ profile.primary_phone }}
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-telephone me-2 fs-6"></i>
+                                <span>N/A</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+            {% comment %}Quick Actions{% endcomment %}
+            {% if show_actions %}
+                <div class="candidate-actions ms-auto">
+                    <div class="d-flex flex-column flex-sm-row gap-2">
+                        <a href="{% url 'people_onboarding:request_detail' profile.onboarding_request.uuid %}"
+                           class="btn btn-sm btn-light-primary"
+                           aria-label="View full profile">
+                            <i class="bi bi-eye me-1"></i>
+                            {% if not compact %}View{% endif %}
+                        </a>
+                        {% if profile.onboarding_request.current_state == 'DRAFT' %}
+                            <a href="{% url 'people_onboarding:onboarding_wizard' profile.onboarding_request.uuid %}"
+                               class="btn btn-sm btn-light-info"
+                               aria-label="Edit profile">
+                                <i class="bi bi-pencil me-1"></i>
+                                {% if not compact %}Edit{% endif %}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

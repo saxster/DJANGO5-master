@@ -27,6 +27,18 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
 from apps.core.error_handling import ErrorHandler
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
+from .ticket_state_machine import (
+    TicketStateMachine,
+    TransitionContext,
+    TransitionReason,
+    InvalidTransitionError
+)
+from .ticket_assignment_service import (
+    TicketAssignmentService,
+    AssignmentContext,
+    AssignmentReason,
+    AssignmentType
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +65,7 @@ class TicketWorkflowService:
     - Assignment changes
     """
 
-    VALID_TRANSITIONS = {
-        'NEW': ['OPEN', 'CANCELLED'],
-        'OPEN': ['RESOLVED', 'ONHOLD', 'CANCELLED'],
-        'ONHOLD': ['OPEN', 'RESOLVED', 'CANCELLED'],
-        'RESOLVED': ['CLOSED', 'OPEN'],
-        'CLOSED': [],
-        'CANCELLED': [],
-    }
+    # Status transitions now handled by centralized TicketStateMachine
 
     @classmethod
     @transaction.atomic
@@ -98,10 +103,28 @@ class TicketWorkflowService:
                 old_status = ticket.status
 
                 if validate_transition:
-                    if not cls._is_valid_transition(old_status, new_status):
-                        raise InvalidTicketTransitionError(
-                            f"Invalid status transition: {old_status} → {new_status}"
-                        )
+                    # Use centralized TicketStateMachine for validation
+                    context = TransitionContext(
+                        user=user,
+                        reason=TransitionReason.SYSTEM_AUTO,
+                        comments=comments
+                    )
+
+                    result = TicketStateMachine.validate_transition(
+                        old_status, new_status, context
+                    )
+
+                    if not result.is_valid:
+                        raise InvalidTicketTransitionError(result.error_message)
+
+                    # Log transition attempt
+                    TicketStateMachine.log_transition_attempt(
+                        ticket_id=ticket_id,
+                        current_status=old_status,
+                        new_status=new_status,
+                        context=context,
+                        result=result
+                    )
 
                 ticket.status = new_status
                 ticket.modifieddatetime = timezone.now()
@@ -257,27 +280,9 @@ class TicketWorkflowService:
                 logger.error(f"Ticket {ticket_id} not found for history update")
                 raise
 
-    @classmethod
-    def _is_valid_transition(cls, current_status: str, new_status: str) -> bool:
-        """
-        Check if status transition is valid.
-
-        Args:
-            current_status: Current ticket status
-            new_status: Target status
-
-        Returns:
-            True if transition is valid
-        """
-        if current_status not in cls.VALID_TRANSITIONS:
-            logger.warning(f"Unknown current status: {current_status}")
-            return True
-
-        allowed_transitions = cls.VALID_TRANSITIONS[current_status]
-        return new_status in allowed_transitions
+    # Transition validation now handled by centralized TicketStateMachine
 
     @classmethod
-    @transaction.atomic
     def assign_ticket(
         cls,
         ticket_id: int,
@@ -286,7 +291,7 @@ class TicketWorkflowService:
         user = None
     ) -> Ticket:
         """
-        Atomically assign ticket to person or group.
+        Assign ticket to person or group using centralized TicketAssignmentService.
 
         Args:
             ticket_id: ID of ticket to assign
@@ -296,47 +301,41 @@ class TicketWorkflowService:
 
         Returns:
             Updated ticket instance
+
+        Raises:
+            Ticket.DoesNotExist: If ticket not found
+            ValidationError: If assignment fails
         """
-        lock_key = f"ticket_assign:{ticket_id}"
+        # Create assignment context
+        context = AssignmentContext(
+            user=user,
+            reason=AssignmentReason.USER_ACTION,
+            assignment_type=AssignmentType.INDIVIDUAL if person_id else AssignmentType.GROUP,
+            enforce_permissions=True,
+            trigger_notifications=True
+        )
 
-        with distributed_lock(lock_key, timeout=10, blocking_timeout=5):
-            try:
-                ticket = Ticket.objects.select_for_update().get(pk=ticket_id)
+        # Delegate to centralized assignment service
+        if person_id is not None:
+            result = TicketAssignmentService.assign_ticket_to_person(
+                ticket_id, person_id, context
+            )
+        elif group_id is not None:
+            result = TicketAssignmentService.assign_ticket_to_group(
+                ticket_id, group_id, context
+            )
+        else:
+            raise ValidationError("Either person_id or group_id must be provided")
 
-                update_dict = {
-                    'modifieddatetime': timezone.now(),
-                    'mdtz': timezone.now(),
-                }
+        if not result.success:
+            raise ValidationError(result.error_message)
 
-                if person_id is not None:
-                    update_dict['assignedtopeople_id'] = person_id
-                    ticket.assignedtopeople_id = person_id
-
-                if group_id is not None:
-                    update_dict['assignedtogroup_id'] = group_id
-                    ticket.assignedtogroup_id = group_id
-
-                if user:
-                    update_dict['muser'] = user
-                    ticket.muser = user
-
-                Ticket.objects.filter(pk=ticket_id).update(**update_dict)
-
-                logger.info(
-                    f"Ticket {ticket_id} assigned",
-                    extra={
-                        'ticket_id': ticket_id,
-                        'person_id': person_id,
-                        'group_id': group_id
-                    }
-                )
-
-                ticket.refresh_from_db()
-                return ticket
-
-            except Ticket.DoesNotExist:
-                logger.error(f"Ticket {ticket_id} not found for assignment")
-                raise
+        # Return updated ticket instance
+        try:
+            return Ticket.objects.get(pk=ticket_id)
+        except Ticket.DoesNotExist:
+            logger.error(f"Ticket {ticket_id} not found after assignment")
+            raise
 
     @classmethod
     @transaction.atomic

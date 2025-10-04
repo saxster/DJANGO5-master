@@ -1,0 +1,433 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+{% load static %}
+
+{% block page_title %}Start New Onboarding{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item text-muted">Start Onboarding</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="card card-flush mb-5">
+        <div class="card-body py-5">
+            <h1 class="mb-3 fw-bold">Start New Onboarding</h1>
+            <p class="text-muted fs-5 mb-0">
+                Choose the person type and onboarding mode to begin the process.
+                The system will guide you through each step.
+            </p>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'people_onboarding:start_onboarding' %}" id="startOnboardingForm">
+        {% csrf_token %}
+
+        <!-- Person Type Selection -->
+        <div class="card card-flush mb-5">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-people-fill text-primary me-2"></i>
+                    Step 1: Select Person Type
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-5">
+                    Select the type of person you're onboarding. Different person types may have different requirements.
+                </p>
+
+                <div class="row g-4" id="personTypeSelection">
+                    <!-- Full-Time Employee -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="person-type-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-person-type="EMPLOYEE_FULLTIME">
+                            <div class="card-body text-center p-6">
+                                <div class="person-type-icon mb-4">
+                                    <i class="bi bi-briefcase-fill text-primary"
+                                       style="font-size: 3rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">Full-Time Employee</h4>
+                                <p class="text-muted mb-0">
+                                    Permanent employees with full benefits and regular hours
+                                </p>
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input person-type-radio"
+                                           type="radio"
+                                           name="person_type"
+                                           value="EMPLOYEE_FULLTIME"
+                                           id="type_fulltime"
+                                           required>
+                                    <label class="form-check-label" for="type_fulltime">
+                                        Select
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Part-Time Employee -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="person-type-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-person-type="EMPLOYEE_PARTTIME">
+                            <div class="card-body text-center p-6">
+                                <div class="person-type-icon mb-4">
+                                    <i class="bi bi-clock-fill text-info"
+                                       style="font-size: 3rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">Part-Time Employee</h4>
+                                <p class="text-muted mb-0">
+                                    Employees working reduced hours or specific schedules
+                                </p>
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input person-type-radio"
+                                           type="radio"
+                                           name="person_type"
+                                           value="EMPLOYEE_PARTTIME"
+                                           id="type_parttime"
+                                           required>
+                                    <label class="form-check-label" for="type_parttime">
+                                        Select
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contractor -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="person-type-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-person-type="CONTRACTOR">
+                            <div class="card-body text-center p-6">
+                                <div class="person-type-icon mb-4">
+                                    <i class="bi bi-file-earmark-person-fill text-warning"
+                                       style="font-size: 3rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">Contractor</h4>
+                                <p class="text-muted mb-0">
+                                    Fixed-term contract workers for specific projects
+                                </p>
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input person-type-radio"
+                                           type="radio"
+                                           name="person_type"
+                                           value="CONTRACTOR"
+                                           id="type_contractor"
+                                           required>
+                                    <label class="form-check-label" for="type_contractor">
+                                        Select
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consultant -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="person-type-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-person-type="CONSULTANT">
+                            <div class="card-body text-center p-6">
+                                <div class="person-type-icon mb-4">
+                                    <i class="bi bi-person-badge-fill text-success"
+                                       style="font-size: 3rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">Consultant</h4>
+                                <p class="text-muted mb-0">
+                                    Expert advisors for specialized projects or initiatives
+                                </p>
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input person-type-radio"
+                                           type="radio"
+                                           name="person_type"
+                                           value="CONSULTANT"
+                                           id="type_consultant"
+                                           required>
+                                    <label class="form-check-label" for="type_consultant">
+                                        Select
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vendor Personnel -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="person-type-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-person-type="VENDOR_PERSONNEL">
+                            <div class="card-body text-center p-6">
+                                <div class="person-type-icon mb-4">
+                                    <i class="bi bi-building-fill text-danger"
+                                       style="font-size: 3rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">Vendor Personnel</h4>
+                                <p class="text-muted mb-0">
+                                    Third-party vendor employees requiring system access
+                                </p>
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input person-type-radio"
+                                           type="radio"
+                                           name="person_type"
+                                           value="VENDOR_PERSONNEL"
+                                           id="type_vendor"
+                                           required>
+                                    <label class="form-check-label" for="type_vendor">
+                                        Select
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Temporary Worker -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="person-type-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-person-type="TEMPORARY_WORKER">
+                            <div class="card-body text-center p-6">
+                                <div class="person-type-icon mb-4">
+                                    <i class="bi bi-calendar-event-fill text-secondary"
+                                       style="font-size: 3rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">Temporary Worker</h4>
+                                <p class="text-muted mb-0">
+                                    Seasonal or short-term workers for specific periods
+                                </p>
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input person-type-radio"
+                                           type="radio"
+                                           name="person_type"
+                                           value="TEMPORARY_WORKER"
+                                           id="type_temporary"
+                                           required>
+                                    <label class="form-check-label" for="type_temporary">
+                                        Select
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="invalid-feedback d-none" id="personTypeError">
+                    Please select a person type
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode Selection -->
+        <div class="card card-flush mb-5">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-gear-fill text-primary me-2"></i>
+                    Step 2: Choose Onboarding Mode
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-5">
+                    Select how you'd like to complete the onboarding process.
+                </p>
+
+                <div class="row g-4">
+                    <!-- Form-Based Mode -->
+                    <div class="col-md-6">
+                        <div class="mode-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-mode="form">
+                            <div class="card-body p-6">
+                                <div class="mode-icon mb-4">
+                                    <i class="bi bi-file-earmark-text-fill text-primary"
+                                       style="font-size: 2.5rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-3">Form-Based Wizard</h4>
+                                <p class="text-muted mb-4">
+                                    Traditional step-by-step form with clearly defined sections.
+                                    Best for users who prefer structured input.
+                                </p>
+                                <div class="features mb-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span>Step-by-step progress tracking</span>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span>Auto-save functionality</span>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span>Field-level validation</span>
+                                    </div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input mode-radio"
+                                           type="radio"
+                                           name="mode"
+                                           value="form"
+                                           id="mode_form"
+                                           checked>
+                                    <label class="form-check-label" for="mode_form">
+                                        Select Form Mode
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conversational Mode -->
+                    <div class="col-md-6">
+                        <div class="mode-card card border border-2 border-gray-300 h-100 cursor-pointer"
+                             data-mode="conversational">
+                            <div class="card-body p-6">
+                                <div class="mode-icon mb-4">
+                                    <i class="bi bi-chat-dots-fill text-info"
+                                       style="font-size: 2.5rem;"></i>
+                                </div>
+                                <h4 class="fw-bold mb-3">Conversational AI</h4>
+                                <p class="text-muted mb-4">
+                                    AI-powered chatbot that guides you through the process naturally.
+                                    Best for quick and intuitive data entry.
+                                </p>
+                                <div class="features mb-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span>Natural language interface</span>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span>Context-aware questions</span>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span>Smart data extraction</span>
+                                    </div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input mode-radio"
+                                           type="radio"
+                                           name="mode"
+                                           value="conversational"
+                                           id="mode_conversational">
+                                    <label class="form-check-label" for="mode_conversational">
+                                        Select Conversational Mode
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Draft Requests -->
+        {% if draft_requests %}
+        <div class="card card-flush mb-5">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-file-earmark-text text-warning me-2"></i>
+                    Resume Draft Requests
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    You have {{ draft_requests|length }} incomplete request{{ draft_requests|length|pluralize }}.
+                    Resume from where you left off:
+                </p>
+
+                <div class="list-group">
+                    {% for draft in draft_requests %}
+                    <a href="{% url 'people_onboarding:onboarding_wizard' draft.uuid %}"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ draft.get_person_type_display }}</h6>
+                            <small class="text-muted">
+                                Created {{ draft.cdtz|timesince }} ago
+                            </small>
+                        </div>
+                        <div>
+                            <span class="badge badge-warning me-2">Draft</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="card card-flush">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'people_onboarding:dashboard' %}"
+                       class="btn btn-light">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            class="btn btn-primary btn-lg"
+                            id="continueBtn"
+                            disabled>
+                        Continue
+                        <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+$(document).ready(function() {
+    // Person type selection
+    $('.person-type-card').on('click', function() {
+        const personType = $(this).data('person-type');
+        $('.person-type-card').removeClass('border-primary').addClass('border-gray-300');
+        $(this).removeClass('border-gray-300').addClass('border-primary');
+        $(`#type_${personType.toLowerCase().replace('_', '')}`).prop('checked', true);
+        updateContinueButton();
+    });
+
+    // Mode selection
+    $('.mode-card').on('click', function() {
+        const mode = $(this).data('mode');
+        $('.mode-card').removeClass('border-primary').addClass('border-gray-300');
+        $(this).removeClass('border-gray-300').addClass('border-primary');
+        $(`#mode_${mode}`).prop('checked', true);
+    });
+
+    // Radio button change
+    $('.person-type-radio').on('change', function() {
+        const personType = $(this).val();
+        $('.person-type-card').removeClass('border-primary').addClass('border-gray-300');
+        $(`.person-type-card[data-person-type="${personType}"]`)
+            .removeClass('border-gray-300').addClass('border-primary');
+        updateContinueButton();
+    });
+
+    // Update continue button state
+    function updateContinueButton() {
+        const personTypeSelected = $('.person-type-radio:checked').length > 0;
+        $('#continueBtn').prop('disabled', !personTypeSelected);
+    }
+
+    // Form validation
+    $('#startOnboardingForm').on('submit', function(e) {
+        const personTypeSelected = $('.person-type-radio:checked').length > 0;
+
+        if (!personTypeSelected) {
+            e.preventDefault();
+            $('#personTypeError').removeClass('d-none').addClass('d-block');
+            OnboardingApp.toast.error('Please select a person type');
+            $('html, body').animate({
+                scrollTop: $('#personTypeSelection').offset().top - 100
+            }, 300);
+            return false;
+        }
+
+        return true;
+    });
+
+    // Initialize mode selection to form by default
+    $('.mode-card[data-mode="form"]').trigger('click');
+});
+</script>
+{% endblock %}

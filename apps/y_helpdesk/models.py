@@ -7,6 +7,10 @@ from django.utils.translation import gettext_lazy as _
 from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
 import uuid
+from concurrency.fields import VersionField
+
+# Import workflow model for integration
+from .models.ticket_workflow import TicketWorkflow
 
 
 class TicketNumberField(models.AutoField):
@@ -102,8 +106,6 @@ class Ticket(BaseModel, TenantAwareModel):
     qset = models.ForeignKey(
         "activity.QuestionSet", null=True, blank=True, on_delete=models.RESTRICT
     )
-    modifieddatetime = models.DateTimeField(default=timezone.now)
-    level = models.IntegerField(default=0)
     status = models.CharField(
         _("Status"),
         max_length=50,
@@ -119,17 +121,122 @@ class Ticket(BaseModel, TenantAwareModel):
         on_delete=models.RESTRICT,
         related_name="ticket_performedby",
     )
-    ticketlog = models.JSONField(
-        null=True, encoder=DjangoJSONEncoder, blank=True, default=ticket_defaults
-    )
-    events = models.TextField(null=True, blank=True)
-    isescalated = models.BooleanField(default=False)
+    # Workflow fields moved to TicketWorkflow model for better separation of concerns
     ticketsource = models.CharField(
         max_length=50, choices=TicketSource.choices, null=True, blank=True
     )
     attachmentcount = models.IntegerField(null=True)
 
+    # Optimistic locking for concurrent updates (Rule #17)
+    version = VersionField()
+
     objects = TicketManager()
+
+    # Backward compatibility properties for workflow fields
+    @property
+    def level(self):
+        """Backward compatibility: get escalation level from workflow."""
+        try:
+            return self.workflow.escalation_level
+        except (AttributeError, TicketWorkflow.DoesNotExist):
+            return 0
+
+    @level.setter
+    def level(self, value):
+        """Backward compatibility: set escalation level via workflow."""
+        workflow = self.get_or_create_workflow()
+        workflow.escalation_level = value
+        workflow.save(update_fields=['escalation_level'])
+
+    @property
+    def isescalated(self):
+        """Backward compatibility: get escalation status from workflow."""
+        try:
+            return self.workflow.is_escalated
+        except (AttributeError, TicketWorkflow.DoesNotExist):
+            return False
+
+    @isescalated.setter
+    def isescalated(self, value):
+        """Backward compatibility: set escalation status via workflow."""
+        workflow = self.get_or_create_workflow()
+        workflow.is_escalated = value
+        workflow.save(update_fields=['is_escalated'])
+
+    @property
+    def modifieddatetime(self):
+        """Backward compatibility: get last activity time from workflow."""
+        try:
+            return self.workflow.last_activity_at
+        except (AttributeError, TicketWorkflow.DoesNotExist):
+            return self.mdtz
+
+    @modifieddatetime.setter
+    def modifieddatetime(self, value):
+        """Backward compatibility: set last activity time via workflow."""
+        workflow = self.get_or_create_workflow()
+        workflow.last_activity_at = value
+        workflow.save(update_fields=['last_activity_at'])
+
+    @property
+    def ticketlog(self):
+        """Backward compatibility: get workflow data as ticketlog."""
+        try:
+            workflow_data = self.workflow.workflow_data
+            # Convert new format to legacy format for backward compatibility
+            return {
+                "ticket_history": workflow_data.get("workflow_history", []),
+                **workflow_data  # Include all other workflow data
+            }
+        except (AttributeError, TicketWorkflow.DoesNotExist):
+            return {"ticket_history": []}
+
+    @ticketlog.setter
+    def ticketlog(self, value):
+        """Backward compatibility: set workflow data from ticketlog."""
+        workflow = self.get_or_create_workflow()
+        # Convert legacy format to new format
+        if isinstance(value, dict):
+            workflow.workflow_data = {
+                "workflow_history": value.get("ticket_history", []),
+                **{k: v for k, v in value.items() if k != "ticket_history"}
+            }
+        else:
+            workflow.workflow_data = {"workflow_history": []}
+        workflow.save(update_fields=['workflow_data'])
+
+    @property
+    def events(self):
+        """Backward compatibility: get events from workflow data."""
+        try:
+            return self.workflow.workflow_data.get("events", "")
+        except (AttributeError, TicketWorkflow.DoesNotExist):
+            return ""
+
+    @events.setter
+    def events(self, value):
+        """Backward compatibility: set events in workflow data."""
+        workflow = self.get_or_create_workflow()
+        if not workflow.workflow_data:
+            workflow.workflow_data = {}
+        workflow.workflow_data["events"] = value
+        workflow.save(update_fields=['workflow_data'])
+
+    def get_or_create_workflow(self):
+        """Get or create associated TicketWorkflow instance."""
+        try:
+            return self.workflow
+        except TicketWorkflow.DoesNotExist:
+            # Create workflow instance for this ticket
+            workflow = TicketWorkflow.objects.create(
+                ticket=self,
+                tenant=self.tenant,
+                bu=getattr(self, 'bu', None),
+                client=getattr(self, 'client', None),
+                cuser=getattr(self, 'cuser', None),
+                muser=getattr(self, 'muser', None)
+            )
+            return workflow
 
     def add_history(self):
         self.ticketlog["ticket_history"].append(

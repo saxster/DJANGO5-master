@@ -105,6 +105,22 @@ class People(PeopleCapabilityMixin, PeopleCompatibilityMixin, AbstractBaseUser, 
         help_text="JSON field storing user capabilities and permissions for AI features"
     )
 
+    preferred_language = models.CharField(
+        _("Preferred Language"),
+        max_length=10,
+        choices=[
+            ('en', 'English'),
+            ('hi', 'हिन्दी (Hindi)'),
+            ('te', 'తెలుగు (Telugu)'),
+            ('es', 'Español (Spanish)'),
+            ('fr', 'Français (French)'),
+            ('ar', 'العربية (Arabic)'),
+            ('zh', '中文 (Chinese)'),
+        ],
+        default='en',
+        help_text=_("User's preferred language for conversations and content")
+    )
+
     objects = PeopleManager()
     USERNAME_FIELD = "loginid"
     REQUIRED_FIELDS = ["peoplecode", "peoplename", "email"]

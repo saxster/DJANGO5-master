@@ -1,0 +1,1300 @@
+{% extends "ml_training/base/ml_training_base.html" %}
+{% load static %}
+
+{% block title %}ML Training - Upload Dataset{% endblock %}
+
+{% block content %}
+<div class="ml-container">
+    <!-- Header Section -->
+    <div class="ml-header">
+        <div class="ml-header-content">
+            <h1 class="ml-page-title">
+                <i class="material-icons">cloud_upload</i>
+                Upload Training Data
+            </h1>
+            <div class="ml-breadcrumb">
+                <a href="{% url 'ml_training:dataset_list' %}">Datasets</a>
+                <i class="material-icons">chevron_right</i>
+                <a href="{% url 'ml_training:dataset_detail' dataset.id %}">{{ dataset.name }}</a>
+                <i class="material-icons">chevron_right</i>
+                <span>Upload</span>
+            </div>
+        </div>
+        <div class="ml-header-actions">
+            <a href="{% url 'ml_training:dataset_detail' dataset.id %}" class="ml-btn ml-btn-secondary">
+                <i class="material-icons">arrow_back</i>
+                Back to Dataset
+            </a>
+        </div>
+    </div>
+
+    <!-- Dataset Info Card -->
+    <div class="ml-dataset-info-card">
+        <div class="ml-dataset-header">
+            <div class="ml-dataset-icon">
+                {% if dataset.dataset_type == "OCR_METERS" %}
+                    <i class="material-icons">speed</i>
+                {% elif dataset.dataset_type == "OCR_LICENSE_PLATES" %}
+                    <i class="material-icons">directions_car</i>
+                {% else %}
+                    <i class="material-icons">photo_library</i>
+                {% endif %}
+            </div>
+            <div class="ml-dataset-details">
+                <h3 class="ml-dataset-name">{{ dataset.name }}</h3>
+                <p class="ml-dataset-type">{{ dataset.get_dataset_type_display }}</p>
+                <div class="ml-dataset-stats">
+                    <span class="ml-stat">{{ dataset.total_examples|default:0 }} examples</span>
+                    <span class="ml-stat">{{ dataset.labeled_examples|default:0 }} labeled</span>
+                    <span class="ml-stat">{{ dataset.completion_percentage|default:0|floatformat:1 }}% complete</span>
+                </div>
+            </div>
+        </div>
+        {% if dataset.labeling_guidelines %}
+        <div class="ml-guidelines-section">
+            <h4>Labeling Guidelines</h4>
+            <p class="ml-guidelines-text">{{ dataset.labeling_guidelines }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Upload Methods -->
+    <div class="ml-upload-methods">
+        <div class="ml-method-tabs">
+            <button class="ml-tab-btn active" data-method="bulk">
+                <i class="material-icons">file_upload</i>
+                Bulk Image Upload
+            </button>
+            <button class="ml-tab-btn" data-method="paired">
+                <i class="material-icons">label</i>
+                Paired Data Upload
+            </button>
+            <button class="ml-tab-btn" data-method="csv">
+                <i class="material-icons">table_chart</i>
+                CSV Import
+            </button>
+        </div>
+
+        <!-- Bulk Image Upload Method -->
+        <div class="ml-upload-method active" id="bulk-upload">
+            <div class="ml-upload-description">
+                <h3>Bulk Image Upload</h3>
+                <p>Upload multiple images that will be added to the dataset for later labeling. Supported formats: JPG, PNG, WebP, HEIC.</p>
+            </div>
+
+            <form id="bulk-upload-form" enctype="multipart/form-data" class="ml-upload-form">
+                {% csrf_token %}
+                <input type="hidden" name="upload_method" value="bulk">
+
+                <!-- Drag and Drop Zone -->
+                <div class="ml-dropzone" id="image-dropzone">
+                    <div class="ml-dropzone-content">
+                        <div class="ml-dropzone-icon">
+                            <i class="material-icons">cloud_upload</i>
+                        </div>
+                        <h4 class="ml-dropzone-title">Drag & drop images here</h4>
+                        <p class="ml-dropzone-subtitle">or click to browse files</p>
+                        <button type="button" class="ml-btn ml-btn-primary" id="browse-images">
+                            <i class="material-icons">folder_open</i>
+                            Browse Images
+                        </button>
+                        <input type="file" id="image-files" name="images" multiple
+                               accept="image/*" style="display: none;">
+                    </div>
+                    <div class="ml-dropzone-formats">
+                        <span>Supported: JPG, PNG, WebP, HEIC • Max 10MB per file • Max 100 files</span>
+                    </div>
+                </div>
+
+                <!-- File Preview Grid -->
+                <div class="ml-file-preview-container" id="file-preview-container" style="display: none;">
+                    <div class="ml-preview-header">
+                        <h4>Selected Files</h4>
+                        <div class="ml-preview-actions">
+                            <button type="button" class="ml-btn ml-btn-secondary" id="clear-files">
+                                <i class="material-icons">clear</i>
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="ml-file-grid" id="file-grid"></div>
+                </div>
+
+                <!-- Upload Options -->
+                <div class="ml-upload-options" id="upload-options" style="display: none;">
+                    <div class="ml-options-grid">
+                        <div class="ml-option-group">
+                            <label class="ml-checkbox-label">
+                                <input type="checkbox" name="auto_detect_duplicates" checked>
+                                <span class="ml-checkmark"></span>
+                                Skip duplicate images (based on hash)
+                            </label>
+                        </div>
+                        <div class="ml-option-group">
+                            <label class="ml-checkbox-label">
+                                <input type="checkbox" name="extract_metadata" checked>
+                                <span class="ml-checkmark"></span>
+                                Extract image metadata
+                            </label>
+                        </div>
+                        <div class="ml-option-group">
+                            <label class="ml-checkbox-label">
+                                <input type="checkbox" name="auto_resize" checked>
+                                <span class="ml-checkmark"></span>
+                                Auto-resize large images
+                            </label>
+                        </div>
+                        <div class="ml-option-group">
+                            <label for="batch-name">Batch Name (Optional):</label>
+                            <input type="text" id="batch-name" name="batch_name" class="ml-input"
+                                   placeholder="e.g., 'Training Batch 2024-01'">
+                        </div>
+                    </div>
+
+                    <div class="ml-upload-actions">
+                        <button type="submit" class="ml-btn ml-btn-primary ml-btn-large" id="start-upload">
+                            <i class="material-icons">upload</i>
+                            Start Upload
+                            <span class="ml-file-count" id="upload-count"></span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Paired Data Upload Method -->
+        <div class="ml-upload-method" id="paired-upload">
+            <div class="ml-upload-description">
+                <h3>Paired Data Upload</h3>
+                <p>Upload images with corresponding ground truth labels. Perfect for pre-labeled training data.</p>
+            </div>
+
+            <form id="paired-upload-form" enctype="multipart/form-data" class="ml-upload-form">
+                {% csrf_token %}
+                <input type="hidden" name="upload_method" value="paired">
+
+                <div class="ml-paired-container">
+                    <!-- Image Upload Section -->
+                    <div class="ml-paired-section">
+                        <h4>1. Upload Images</h4>
+                        <div class="ml-dropzone ml-dropzone-compact" id="paired-image-dropzone">
+                            <div class="ml-dropzone-content">
+                                <i class="material-icons">image</i>
+                                <span>Drop images here or click to browse</span>
+                                <input type="file" id="paired-images" name="paired_images" multiple
+                                       accept="image/*" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Label Upload Section -->
+                    <div class="ml-paired-section">
+                        <h4>2. Upload Labels</h4>
+                        <div class="ml-label-input-methods">
+                            <div class="ml-method-toggle">
+                                <button type="button" class="ml-toggle-btn active" data-method="file">
+                                    Text File
+                                </button>
+                                <button type="button" class="ml-toggle-btn" data-method="manual">
+                                    Manual Entry
+                                </button>
+                            </div>
+
+                            <!-- File Upload Method -->
+                            <div class="ml-label-method active" id="label-file-method">
+                                <div class="ml-dropzone ml-dropzone-compact" id="label-file-dropzone">
+                                    <div class="ml-dropzone-content">
+                                        <i class="material-icons">description</i>
+                                        <span>Drop label file here (.txt, .json, .csv)</span>
+                                        <input type="file" id="label-file" name="label_file"
+                                               accept=".txt,.json,.csv" style="display: none;">
+                                    </div>
+                                </div>
+                                <div class="ml-format-info">
+                                    <h5>Supported formats:</h5>
+                                    <ul>
+                                        <li><strong>TXT:</strong> One label per line (matching image order)</li>
+                                        <li><strong>JSON:</strong> {"filename.jpg": "label", ...}</li>
+                                        <li><strong>CSV:</strong> filename,label columns</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Manual Entry Method -->
+                            <div class="ml-label-method" id="label-manual-method">
+                                <div class="ml-manual-labels" id="manual-labels-container">
+                                    <p class="ml-manual-instructions">
+                                        Upload images first, then labels will appear here for manual entry.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-paired-actions" style="display: none;">
+                    <button type="submit" class="ml-btn ml-btn-primary ml-btn-large">
+                        <i class="material-icons">upload</i>
+                        Upload Paired Data
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- CSV Import Method -->
+        <div class="ml-upload-method" id="csv-upload">
+            <div class="ml-upload-description">
+                <h3>CSV Import</h3>
+                <p>Import training data from a CSV file with image paths and labels.</p>
+            </div>
+
+            <form id="csv-upload-form" enctype="multipart/form-data" class="ml-upload-form">
+                {% csrf_token %}
+                <input type="hidden" name="upload_method" value="csv">
+
+                <div class="ml-csv-container">
+                    <div class="ml-dropzone" id="csv-dropzone">
+                        <div class="ml-dropzone-content">
+                            <div class="ml-dropzone-icon">
+                                <i class="material-icons">table_chart</i>
+                            </div>
+                            <h4 class="ml-dropzone-title">Drop CSV file here</h4>
+                            <p class="ml-dropzone-subtitle">or click to browse</p>
+                            <button type="button" class="ml-btn ml-btn-primary" id="browse-csv">
+                                <i class="material-icons">folder_open</i>
+                                Browse CSV File
+                            </button>
+                            <input type="file" id="csv-file" name="csv_file"
+                                   accept=".csv" style="display: none;">
+                        </div>
+                    </div>
+
+                    <div class="ml-csv-format">
+                        <h4>CSV Format Requirements</h4>
+                        <div class="ml-format-example">
+                            <pre>image_path,ground_truth_text,notes
+/path/to/image1.jpg,"12345","Clear reading"
+/path/to/image2.jpg,"67890","Slightly blurry"
+/path/to/image3.jpg,"ABC123","License plate"</pre>
+                        </div>
+                        <div class="ml-format-notes">
+                            <h5>Requirements:</h5>
+                            <ul>
+                                <li>Must include <code>image_path</code> and <code>ground_truth_text</code> columns</li>
+                                <li>Image paths can be absolute or relative to upload directory</li>
+                                <li>Optional columns: <code>notes</code>, <code>confidence</code>, <code>source</code></li>
+                                <li>Use proper CSV escaping for text containing commas</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="ml-csv-options" style="display: none;">
+                        <div class="ml-option-group">
+                            <label for="csv-delimiter">Column Delimiter:</label>
+                            <select id="csv-delimiter" name="csv_delimiter" class="ml-select">
+                                <option value=",">Comma (,)</option>
+                                <option value=";">Semicolon (;)</option>
+                                <option value="|">Pipe (|)</option>
+                                <option value="\t">Tab</option>
+                            </select>
+                        </div>
+                        <div class="ml-option-group">
+                            <label class="ml-checkbox-label">
+                                <input type="checkbox" name="has_header" checked>
+                                <span class="ml-checkmark"></span>
+                                First row contains headers
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="ml-csv-actions" style="display: none;">
+                        <button type="submit" class="ml-btn ml-btn-primary ml-btn-large">
+                            <i class="material-icons">upload</i>
+                            Import CSV Data
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Progress Modal -->
+    <div id="upload-progress-modal" class="ml-modal">
+        <div class="ml-modal-content ml-modal-large">
+            <div class="ml-modal-header">
+                <h3>Upload Progress</h3>
+                <div class="ml-upload-status" id="upload-status">Preparing upload...</div>
+            </div>
+            <div class="ml-modal-body">
+                <!-- Overall Progress -->
+                <div class="ml-progress-section">
+                    <div class="ml-progress-label">
+                        <span>Overall Progress</span>
+                        <span id="overall-progress-text">0%</span>
+                    </div>
+                    <div class="ml-progress-bar ml-progress-large">
+                        <div class="ml-progress-fill" id="overall-progress-bar"></div>
+                    </div>
+                </div>
+
+                <!-- File-by-File Progress -->
+                <div class="ml-file-progress-container">
+                    <h4>File Processing</h4>
+                    <div class="ml-file-progress-list" id="file-progress-list"></div>
+                </div>
+
+                <!-- Upload Statistics -->
+                <div class="ml-upload-stats">
+                    <div class="ml-stat-grid">
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value" id="uploaded-count">0</span>
+                            <span class="ml-stat-label">Uploaded</span>
+                        </div>
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value" id="skipped-count">0</span>
+                            <span class="ml-stat-label">Skipped</span>
+                        </div>
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value" id="error-count">0</span>
+                            <span class="ml-stat-label">Errors</span>
+                        </div>
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value" id="upload-speed">0 MB/s</span>
+                            <span class="ml-stat-label">Speed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ml-modal-footer">
+                <button type="button" class="ml-btn ml-btn-secondary" id="cancel-upload">
+                    Cancel Upload
+                </button>
+                <button type="button" class="ml-btn ml-btn-primary" id="close-progress" style="display: none;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+class DatasetUploader {
+    constructor() {
+        this.files = [];
+        this.currentMethod = 'bulk';
+        this.uploadInProgress = false;
+        this.uploadController = null;
+
+        this.initializeInterface();
+        this.setupEventListeners();
+    }
+
+    initializeInterface() {
+        // Initialize drag and drop zones
+        this.initializeDragDrop();
+
+        // Initialize method tabs
+        this.initializeMethodTabs();
+
+        // Setup file validation
+        this.setupFileValidation();
+    }
+
+    setupEventListeners() {
+        // Method tab switching
+        document.querySelectorAll('.ml-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchMethod(e.target.dataset.method));
+        });
+
+        // File input changes
+        document.getElementById('image-files').addEventListener('change', (e) => {
+            this.handleFileSelect(e.target.files);
+        });
+
+        document.getElementById('browse-images').addEventListener('click', () => {
+            document.getElementById('image-files').click();
+        });
+
+        // Clear files
+        document.getElementById('clear-files').addEventListener('click', () => {
+            this.clearFiles();
+        });
+
+        // Form submissions
+        document.getElementById('bulk-upload-form').addEventListener('submit', (e) => {
+            this.handleBulkUpload(e);
+        });
+
+        // Paired upload listeners
+        this.setupPairedUploadListeners();
+
+        // CSV upload listeners
+        this.setupCSVUploadListeners();
+    }
+
+    initializeDragDrop() {
+        const dropzones = [
+            { element: document.getElementById('image-dropzone'), type: 'images' },
+            { element: document.getElementById('paired-image-dropzone'), type: 'paired-images' },
+            { element: document.getElementById('label-file-dropzone'), type: 'label-file' },
+            { element: document.getElementById('csv-dropzone'), type: 'csv' }
+        ];
+
+        dropzones.forEach(({ element, type }) => {
+            if (!element) return;
+
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                element.classList.add('ml-dropzone-dragover');
+            });
+
+            element.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                element.classList.remove('ml-dropzone-dragover');
+            });
+
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                element.classList.remove('ml-dropzone-dragover');
+                this.handleFileDrop(e.dataTransfer.files, type);
+            });
+
+            // Click to browse
+            element.addEventListener('click', () => {
+                this.triggerFileInput(type);
+            });
+        });
+    }
+
+    handleFileDrop(files, type) {
+        switch(type) {
+            case 'images':
+                this.handleFileSelect(files);
+                break;
+            case 'paired-images':
+                this.handlePairedImageSelect(files);
+                break;
+            case 'label-file':
+                this.handleLabelFileSelect(files);
+                break;
+            case 'csv':
+                this.handleCSVFileSelect(files);
+                break;
+        }
+    }
+
+    triggerFileInput(type) {
+        const inputMap = {
+            'images': 'image-files',
+            'paired-images': 'paired-images',
+            'label-file': 'label-file',
+            'csv': 'csv-file'
+        };
+
+        const inputId = inputMap[type];
+        if (inputId) {
+            document.getElementById(inputId).click();
+        }
+    }
+
+    handleFileSelect(files) {
+        const validFiles = this.validateImageFiles(files);
+
+        if (validFiles.length === 0) {
+            this.showToast('No valid image files selected', 'error');
+            return;
+        }
+
+        this.files = [...this.files, ...validFiles];
+        this.renderFilePreview();
+        this.showUploadOptions();
+    }
+
+    validateImageFiles(files) {
+        const validExtensions = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
+        const maxFileSize = 10 * 1024 * 1024; // 10MB
+        const validFiles = [];
+
+        Array.from(files).forEach(file => {
+            const extension = file.name.split('.').pop().toLowerCase();
+
+            if (!validExtensions.includes(extension)) {
+                this.showToast(`Unsupported file type: ${file.name}`, 'error');
+                return;
+            }
+
+            if (file.size > maxFileSize) {
+                this.showToast(`File too large: ${file.name} (max 10MB)`, 'error');
+                return;
+            }
+
+            validFiles.push(file);
+        });
+
+        return validFiles;
+    }
+
+    renderFilePreview() {
+        const container = document.getElementById('file-preview-container');
+        const grid = document.getElementById('file-grid');
+
+        if (this.files.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        grid.innerHTML = '';
+
+        this.files.forEach((file, index) => {
+            const fileItem = this.createFilePreviewItem(file, index);
+            grid.appendChild(fileItem);
+        });
+
+        this.updateUploadCount();
+    }
+
+    createFilePreviewItem(file, index) {
+        const item = document.createElement('div');
+        item.className = 'ml-file-preview-item';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            item.innerHTML = `
+                <div class="ml-file-thumbnail">
+                    <img src="${e.target.result}" alt="${file.name}">
+                </div>
+                <div class="ml-file-info">
+                    <div class="ml-file-name">${file.name}</div>
+                    <div class="ml-file-size">${this.formatFileSize(file.size)}</div>
+                </div>
+                <button type="button" class="ml-file-remove" data-index="${index}">
+                    <i class="material-icons">close</i>
+                </button>
+            `;
+
+            // Add remove functionality
+            item.querySelector('.ml-file-remove').addEventListener('click', () => {
+                this.removeFile(index);
+            });
+        };
+        reader.readAsDataURL(file);
+
+        return item;
+    }
+
+    removeFile(index) {
+        this.files.splice(index, 1);
+        this.renderFilePreview();
+
+        if (this.files.length === 0) {
+            this.hideUploadOptions();
+        }
+    }
+
+    clearFiles() {
+        this.files = [];
+        this.renderFilePreview();
+        this.hideUploadOptions();
+    }
+
+    showUploadOptions() {
+        document.getElementById('upload-options').style.display = 'block';
+        this.updateUploadCount();
+    }
+
+    hideUploadOptions() {
+        document.getElementById('upload-options').style.display = 'none';
+    }
+
+    updateUploadCount() {
+        const countElement = document.getElementById('upload-count');
+        if (countElement) {
+            countElement.textContent = `(${this.files.length} files)`;
+        }
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    async handleBulkUpload(e) {
+        e.preventDefault();
+
+        if (this.files.length === 0) {
+            this.showToast('Please select files to upload', 'error');
+            return;
+        }
+
+        if (this.uploadInProgress) {
+            this.showToast('Upload already in progress', 'warning');
+            return;
+        }
+
+        this.startUpload();
+    }
+
+    async startUpload() {
+        this.uploadInProgress = true;
+        this.showUploadProgress();
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('upload_method', 'bulk');
+
+        // Add options
+        const options = document.querySelectorAll('#upload-options input[type="checkbox"]:checked');
+        options.forEach(option => {
+            formData.append(option.name, 'on');
+        });
+
+        const batchName = document.getElementById('batch-name').value;
+        if (batchName) {
+            formData.append('batch_name', batchName);
+        }
+
+        // Add files
+        this.files.forEach(file => {
+            formData.append('images', file);
+        });
+
+        try {
+            this.uploadController = new AbortController();
+
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                signal: this.uploadController.signal
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.handleUploadSuccess(result);
+            } else {
+                throw new Error('Upload failed');
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                this.handleUploadError(error);
+            }
+        } finally {
+            this.uploadInProgress = false;
+        }
+    }
+
+    showUploadProgress() {
+        const modal = document.getElementById('upload-progress-modal');
+        modal.style.display = 'flex';
+
+        // Simulate progress for demo
+        this.simulateProgress();
+    }
+
+    simulateProgress() {
+        const progressBar = document.getElementById('overall-progress-bar');
+        const progressText = document.getElementById('overall-progress-text');
+        const statusEl = document.getElementById('upload-status');
+
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress > 100) progress = 100;
+
+            progressBar.style.width = progress + '%';
+            progressText.textContent = Math.round(progress) + '%';
+
+            if (progress < 30) {
+                statusEl.textContent = 'Validating files...';
+            } else if (progress < 70) {
+                statusEl.textContent = 'Uploading files...';
+            } else if (progress < 100) {
+                statusEl.textContent = 'Processing images...';
+            } else {
+                statusEl.textContent = 'Upload complete!';
+                clearInterval(interval);
+                this.showUploadComplete();
+            }
+        }, 200);
+    }
+
+    showUploadComplete() {
+        document.getElementById('cancel-upload').style.display = 'none';
+        document.getElementById('close-progress').style.display = 'block';
+
+        document.getElementById('close-progress').addEventListener('click', () => {
+            this.hideUploadProgress();
+            this.resetUploadForm();
+        });
+    }
+
+    hideUploadProgress() {
+        document.getElementById('upload-progress-modal').style.display = 'none';
+    }
+
+    resetUploadForm() {
+        this.clearFiles();
+        document.getElementById('batch-name').value = '';
+    }
+
+    handleUploadSuccess(result) {
+        this.showToast(`Upload completed: ${result.processed} files processed`, 'success');
+        if (result.errors && result.errors.length > 0) {
+            result.errors.forEach(error => {
+                this.showToast(error, 'warning');
+            });
+        }
+    }
+
+    handleUploadError(error) {
+        this.showToast('Upload failed: ' + error.message, 'error');
+        this.hideUploadProgress();
+    }
+
+    switchMethod(method) {
+        // Update active tab
+        document.querySelectorAll('.ml-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-method="${method}"]`).classList.add('active');
+
+        // Show/hide method panels
+        document.querySelectorAll('.ml-upload-method').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        document.getElementById(`${method}-upload`).classList.add('active');
+
+        this.currentMethod = method;
+    }
+
+    setupPairedUploadListeners() {
+        // Implementation for paired upload would go here
+        console.log('Paired upload listeners setup');
+    }
+
+    setupCSVUploadListeners() {
+        // Implementation for CSV upload would go here
+        console.log('CSV upload listeners setup');
+    }
+
+    showToast(message, type) {
+        // Simple toast implementation
+        const toast = document.createElement('div');
+        toast.className = `ml-toast ml-toast-${type}`;
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => document.body.removeChild(toast), 300);
+        }, 3000);
+    }
+}
+
+// Initialize uploader when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    new DatasetUploader();
+});
+</script>
+
+<style>
+/* Upload Interface Specific Styles */
+.ml-dataset-info-card {
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    border: 1px solid var(--ml-border-light);
+    padding: 24px;
+    margin-bottom: 32px;
+}
+
+.ml-dataset-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.ml-dataset-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--ml-border-radius-lg);
+    background: var(--ml-gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.ml-dataset-icon .material-icons {
+    font-size: 32px;
+}
+
+.ml-dataset-details {
+    flex: 1;
+}
+
+.ml-dataset-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ml-text-primary);
+    margin: 0 0 4px;
+}
+
+.ml-dataset-type {
+    color: var(--ml-text-secondary);
+    font-size: 0.875rem;
+    margin: 0 0 12px;
+}
+
+.ml-dataset-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.ml-stat {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+}
+
+.ml-guidelines-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--ml-border-light);
+}
+
+.ml-guidelines-section h4 {
+    margin: 0 0 8px;
+    color: var(--ml-text-primary);
+}
+
+.ml-guidelines-text {
+    color: var(--ml-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Upload Methods */
+.ml-upload-methods {
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    border: 1px solid var(--ml-border-light);
+    overflow: hidden;
+}
+
+.ml-method-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--ml-border-light);
+    background: var(--ml-bg-secondary);
+}
+
+.ml-tab-btn {
+    flex: 1;
+    padding: 16px 24px;
+    border: none;
+    background: transparent;
+    color: var(--ml-text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.ml-tab-btn:hover,
+.ml-tab-btn.active {
+    background: var(--ml-bg-card);
+    color: var(--ml-primary);
+    border-bottom: 2px solid var(--ml-primary);
+}
+
+.ml-upload-method {
+    display: none;
+    padding: 32px;
+}
+
+.ml-upload-method.active {
+    display: block;
+}
+
+.ml-upload-description {
+    margin-bottom: 32px;
+}
+
+.ml-upload-description h3 {
+    margin: 0 0 8px;
+    color: var(--ml-text-primary);
+}
+
+.ml-upload-description p {
+    color: var(--ml-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Dropzone Styles */
+.ml-dropzone {
+    border: 2px dashed var(--ml-border-light);
+    border-radius: var(--ml-border-radius-lg);
+    padding: 48px 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: var(--ml-bg-secondary);
+}
+
+.ml-dropzone:hover,
+.ml-dropzone-dragover {
+    border-color: var(--ml-primary);
+    background: rgba(76, 132, 255, 0.05);
+}
+
+.ml-dropzone-compact {
+    padding: 24px;
+}
+
+.ml-dropzone-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--ml-gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    color: white;
+}
+
+.ml-dropzone-icon .material-icons {
+    font-size: 40px;
+}
+
+.ml-dropzone-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+    margin: 0 0 8px;
+}
+
+.ml-dropzone-subtitle {
+    color: var(--ml-text-secondary);
+    margin: 0 0 24px;
+}
+
+.ml-dropzone-formats {
+    margin-top: 16px;
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+/* File Preview */
+.ml-file-preview-container {
+    margin-top: 32px;
+}
+
+.ml-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.ml-preview-header h4 {
+    margin: 0;
+    color: var(--ml-text-primary);
+}
+
+.ml-file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.ml-file-preview-item {
+    position: relative;
+    background: var(--ml-bg-primary);
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.ml-file-preview-item:hover {
+    box-shadow: var(--ml-shadow-card);
+    transform: translateY(-2px);
+}
+
+.ml-file-thumbnail {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: var(--ml-bg-secondary);
+}
+
+.ml-file-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ml-file-info {
+    padding: 12px;
+}
+
+.ml-file-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ml-text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ml-file-size {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+.ml-file-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.ml-file-preview-item:hover .ml-file-remove {
+    opacity: 1;
+}
+
+/* Upload Options */
+.ml-upload-options {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--ml-border-light);
+}
+
+.ml-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.ml-option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ml-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--ml-text-primary);
+}
+
+.ml-checkmark {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--ml-border-light);
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.ml-checkbox-label input:checked + .ml-checkmark {
+    background: var(--ml-primary);
+    border-color: var(--ml-primary);
+}
+
+.ml-checkbox-label input:checked + .ml-checkmark::after {
+    content: '✓';
+    position: absolute;
+    top: -2px;
+    left: 2px;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.ml-upload-actions {
+    text-align: center;
+}
+
+.ml-btn-large {
+    padding: 16px 32px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.ml-file-count {
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
+/* Progress Modal */
+.ml-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.ml-modal-content {
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: var(--ml-shadow-dropdown);
+}
+
+.ml-modal-large {
+    max-width: 800px;
+}
+
+.ml-modal-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--ml-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ml-modal-header h3 {
+    margin: 0;
+    color: var(--ml-text-primary);
+}
+
+.ml-upload-status {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+}
+
+.ml-modal-body {
+    padding: 24px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.ml-modal-footer {
+    padding: 24px;
+    border-top: 1px solid var(--ml-border-light);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.ml-progress-section {
+    margin-bottom: 24px;
+}
+
+.ml-progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+    color: var(--ml-text-primary);
+}
+
+.ml-progress-large .ml-progress-fill {
+    height: 8px;
+}
+
+.ml-upload-stats {
+    margin-top: 24px;
+}
+
+.ml-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .ml-method-tabs {
+        flex-direction: column;
+    }
+
+    .ml-upload-method {
+        padding: 16px;
+    }
+
+    .ml-file-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+
+    .ml-options-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .ml-stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .ml-modal-content {
+        margin: 20px;
+        width: auto;
+    }
+}
+
+/* Toast Styles */
+.ml-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 16px;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    box-shadow: var(--ml-shadow-dropdown);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.ml-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.ml-toast-success { border-left: 4px solid var(--ml-success); }
+.ml-toast-error { border-left: 4px solid var(--ml-error); }
+.ml-toast-warning { border-left: 4px solid var(--ml-warning); }
+</style>
+{% endblock %}

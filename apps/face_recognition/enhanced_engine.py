@@ -9,6 +9,7 @@ import cv2
 import os
 import time
 import hashlib
+from typing import Optional, Dict, Any
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError, IntegrityError
 
@@ -361,7 +362,8 @@ class EnhancedFaceRecognitionEngine:
             laplacian_var = cv2.Laplacian(roi_gray, cv2.CV_64F).var()
             # Normalize to 0-1 range (100 is empirically good threshold)
             return min(1.0, laplacian_var / 100.0)
-        except:
+        except (cv2.error, ValueError, TypeError, AttributeError) as e:
+            logger.warning(f"Failed to calculate ROI sharpness: {e}")
             return 0.0
 
     def _calculate_roi_brightness(self, roi_gray):
@@ -370,7 +372,8 @@ class EnhancedFaceRecognitionEngine:
             mean_brightness = np.mean(roi_gray)
             # Optimal brightness around 127 (middle gray)
             return 1.0 - abs(mean_brightness - 127) / 127.0
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(f"Failed to calculate ROI brightness: {e}")
             return 0.0
 
     def _calculate_roi_contrast(self, roi_gray):
@@ -379,7 +382,8 @@ class EnhancedFaceRecognitionEngine:
             contrast = np.std(roi_gray)
             # Normalize (64 is empirically good threshold)
             return min(1.0, contrast / 64.0)
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(f"Failed to calculate ROI contrast: {e}")
             return 0.0
 
     def _calculate_face_size_score(self, face_w, face_h, img_w, img_h):
@@ -396,7 +400,8 @@ class EnhancedFaceRecognitionEngine:
                 return face_ratio / 0.1  # Scale from 0 to 1
             else:
                 return max(0.1, 1.0 - (face_ratio - 0.4) / 0.6)  # Decrease for very large faces
-        except:
+        except (ValueError, TypeError, ZeroDivisionError) as e:
+            logger.warning(f"Failed to calculate face size score: {e}")
             return 0.0
 
     def _estimate_face_pose_quality(self, face_color):
@@ -420,7 +425,8 @@ class EnhancedFaceRecognitionEngine:
 
             # Convert correlation to 0-1 score
             return max(0.0, min(1.0, (correlation + 1) / 2))
-        except:
+        except (cv2.error, ValueError, TypeError, AttributeError, IndexError) as e:
+            logger.warning(f"Failed to estimate face pose quality: {e}")
             return 0.5  # Default neutral score
 
     def _check_eye_visibility(self, face_color, face_roi):
@@ -438,7 +444,8 @@ class EnhancedFaceRecognitionEngine:
                 return 0.7
             else:
                 return 0.2  # Some visibility assumed even without detection
-        except:
+        except (cv2.error, ValueError, TypeError, AttributeError, OSError) as e:
+            logger.warning(f"Failed to check eye visibility: {e}")
             return 0.5  # Default score
 
     def _generate_improvement_suggestions(self, quality_issues):
@@ -1025,7 +1032,8 @@ class MockFaceNetModel:
             # Normalize
             features = features / np.linalg.norm(features)
             return features
-        except:
+        except (ValueError, TypeError, AttributeError, OSError) as e:
+            logger.warning(f"Failed to extract features (FaceNet): {e}")
             return None
 
     def _calculate_image_dependent_seed(self, image_path: str) -> int:
@@ -1043,7 +1051,8 @@ class MockFaceNetModel:
 
             # Convert first 4 bytes of hash to integer seed
             return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
-        except:
+        except (OSError, IOError, ValueError, TypeError) as e:
+            logger.warning(f"Failed to calculate image-dependent seed (FaceNet): {e}")
             # Ultimate fallback: use path hash
             return hash(image_path) & 0xFFFFFFFF
 

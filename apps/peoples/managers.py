@@ -448,7 +448,7 @@ class CapabilityManager(models.Manager):
                         self.xpath = xpath
                 
                 # Calculate xpath similar to PostgreSQL query
-                xpath = str(node['id']) + str(node['depth'])
+                xpath = f"{node['id']}{node['depth']}"
                 
                 result.append(CapabilityResult(
                     cap_data,

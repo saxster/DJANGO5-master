@@ -147,11 +147,11 @@ class DynamicTourDetailReport(BaseReportsExport):
             completed_ratio = (
                 (passed_count / total_checkpoints * 100) if total_checkpoints > 0 else 0
             )
-            parent_data["Passed Ratio"] = str(completed_ratio) + "%"
+            parent_data["Passed Ratio"] = f"{completed_ratio}%"
             missed_ratio = (
                 (missed_count / total_checkpoints * 100) if total_checkpoints > 0 else 0
             )
-            parent_data["Missed Ratio"] = str(missed_ratio) + "%"
+            parent_data["Missed Ratio"] = f"{missed_ratio}%"
 
             excel_data.append(parent_data)
         return excel_data

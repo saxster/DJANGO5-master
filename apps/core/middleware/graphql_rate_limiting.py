@@ -8,6 +8,12 @@ Implements sophisticated rate limiting for GraphQL endpoints with:
 - Burst protection
 - Adaptive rate limiting based on system load
 - Distributed rate limiting support
+- Prometheus metrics for monitoring
+
+Observability Enhancement (2025-10-01):
+- Added Prometheus counters for rate-limit hits
+- Tracks rate-limit reason breakdown
+- Correlates with correlation_id for tracing
 """
 
 import json
@@ -23,6 +29,13 @@ from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth.models import AnonymousUser
 from apps.core.graphql_security import analyze_query_complexity, get_operation_fingerprint
 from apps.core.exceptions import CacheException, SecurityException
+
+# Prometheus metrics integration
+try:
+    from monitoring.services.prometheus_metrics import prometheus
+    PROMETHEUS_ENABLED = True
+except ImportError:
+    PROMETHEUS_ENABLED = False
 
 
 rate_limit_logger = logging.getLogger('rate_limiting')
@@ -99,6 +112,8 @@ class GraphQLRateLimitingMiddleware(MiddlewareMixin):
                 result = check_func(request, rate_context)
                 if result:  # Rate limit exceeded
                     self._log_rate_limit_violation(rate_context, result['reason'])
+                    # OBSERVABILITY: Record rate-limit hit in Prometheus
+                    self._record_rate_limit_hit(rate_context, result['reason'])
                     return self._create_rate_limit_response(result, correlation_id)
 
             # Update rate limit counters
@@ -169,12 +184,21 @@ class GraphQLRateLimitingMiddleware(MiddlewareMixin):
 
     def _load_complexity_weights(self) -> Dict[str, float]:
         """Load query complexity weights for different operation types."""
-        return getattr(settings, 'GRAPHQL_COMPLEXITY_WEIGHTS', {
+        default_weights = {
             'query': 1.0,
             'mutation': 2.0,
             'subscription': 1.5,
-            'introspection': 0.5
-        })
+            'introspection': 0.5,
+            # Sync-specific mutations (added for mobile sync enhancements)
+            'syncVoiceData': 3.0,
+            'syncBatch': 5.0,
+            'resolveConflict': 2.5,
+        }
+
+        config_weights = getattr(settings, 'GRAPHQL_COMPLEXITY_WEIGHTS', {})
+        default_weights.update(config_weights)
+
+        return default_weights
 
     def _build_rate_limiting_context(self, request: HttpRequest, correlation_id: str) -> Dict[str, Any]:
         """Build comprehensive context for rate limiting decisions."""
@@ -519,3 +543,47 @@ class GraphQLRateLimitingMiddleware(MiddlewareMixin):
         else:
             # For time-window based limits, suggest waiting for next window
             return limit_result.get('window_minutes', 5) * 60
+
+    def _record_rate_limit_hit(self, rate_context: Dict[str, Any], reason: str) -> None:
+        """
+        Record rate-limit hit in Prometheus metrics.
+
+        Observability Enhancement (2025-10-01):
+        Tracks rate-limit rejections by:
+        - Endpoint path
+        - User type (authenticated, anonymous, admin)
+        - Rejection reason (burst, complexity, request_rate, etc.)
+
+        Args:
+            rate_context: Rate limiting context with user/query info
+            reason: Rate limit rejection reason
+        """
+        if not PROMETHEUS_ENABLED:
+            return
+
+        try:
+            # Determine user type for labeling
+            user_role = rate_context.get('user_role', 'anonymous')
+
+            # Determine endpoint (normalize GraphQL paths)
+            endpoint = '/api/graphql/'  # Normalized for all GraphQL endpoints
+
+            # Record counter
+            prometheus.increment_counter(
+                'graphql_rate_limit_hits_total',
+                labels={
+                    'endpoint': endpoint,
+                    'user_type': user_role,
+                    'reason': reason
+                },
+                help_text='Total number of GraphQL rate-limit rejections'
+            )
+
+            rate_limit_logger.debug(
+                f"Recorded Prometheus metric: graphql_rate_limit_hits_total "
+                f"(endpoint={endpoint}, user_type={user_role}, reason={reason})"
+            )
+
+        except Exception as e:
+            # Don't fail request processing if metrics fail
+            rate_limit_logger.warning(f"Failed to record Prometheus metric: {e}")

@@ -111,7 +111,7 @@ def get_timezone(offset):  # sourcery skip: aware-datetime-for-utc
     matching_zones = []  # A list to store the matching zones
     for zone in pytz.all_timezones:  # For each timezone
         tz = pytz.timezone(zone)  # Get the timezone object
-        utc_offset = tz.utcoffset(datetime.utcnow())  # Get the current UTC offset
+        utc_offset = tz.utcoffset(datetime.now(timezone.utc))  # Get the current UTC offset
         if utc_offset == delta:  # If the offset matches the input
             matching_zones.append(zone)  # Add the zone to the list
 

@@ -7,8 +7,8 @@ from apps.reports.models import ScheduleReport
 from apps.core.utils_new.db_utils import runrawsql
 from django.conf import settings
 from croniter import croniter
-from datetime import datetime, timedelta, timezone
-from django.utils import timezone as dtimezone
+from datetime import datetime, timedelta, timezone as dt_timezone
+from django.utils import timezone
 from django.core.mail import EmailMessage
 from logging import getLogger
 from pprint import pformat
@@ -123,7 +123,6 @@ def get_report_dates_with_working_days(today_date, working_days, cron):
 
 def calculate_from_and_upto(data):
     log.info(f"Calculating from and upto dates for data: {data}")
-    from datetime import datetime, timedelta, timezone
 
     days_crontype_map = {
         "weekly": 7,
@@ -131,7 +130,7 @@ def calculate_from_and_upto(data):
         "daily": 1,
         "workingdays": data["workingdays"],
     }
-    tz = timezone(timedelta(minutes=data["ctzoffset"]))
+    tz = dt_timezone(timedelta(minutes=data["ctzoffset"]))
     log.info("The report is generating for the first time")
     if data["crontype"] != "workingdays":
         basedatetime = now - timedelta(days=days_crontype_map[data["crontype"]] + 1)
@@ -350,14 +349,13 @@ def send_email(record, file):
 
 def handle_error(e):
     return {
-        "time": dtimezone.now(),
+        "time": timezone.now(),
         "error": str(e),
         "traceback": tb.format_exc(),
     }
 
 
 import pytz
-from django.utils import timezone
 
 
 def check_time_of_report(filename):

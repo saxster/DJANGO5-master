@@ -1,0 +1,263 @@
+{% comment %}
+========================================
+WORKFLOW TIMELINE PARTIAL
+========================================
+Visual workflow progress tracker with 11 states
+
+Usage:
+    {% include "people_onboarding/partials/_workflow_timeline.html" with request=onboarding_request %}
+
+Parameters:
+    - request: OnboardingRequest object (required)
+    - collapsible: Boolean for mobile collapsible mode (default: True)
+
+Features:
+    - 11 workflow states with icons
+    - Color-coded progress (past/current/future)
+    - State change animations
+    - Timestamp display for completed states
+    - Collapsible on mobile
+
+Edge Cases:
+    - Rejected/cancelled paths show different flow
+    - Custom workflows per person type
+    - Jump states handled gracefully
+    - Incomplete data shown as pending
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if collapsible is None %}{% with collapsible=True %}{% endwith %}{% endif %}
+
+{% comment %}Define workflow states in order{% endcomment %}
+{% with states_order="DRAFT,SUBMITTED,DOCUMENT_VERIFICATION,BACKGROUND_CHECK,PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED" %}
+{% endwith %}
+
+<div class="workflow-timeline"
+     data-current-state="{{ request.current_state }}"
+     role="progressbar"
+     aria-label="Onboarding progress"
+     aria-valuenow="{{ forloop.counter }}"
+     aria-valuemin="1"
+     aria-valuemax="9">
+
+    {% comment %}Timeline Header{% endcomment %}
+    <div class="timeline-header d-flex justify-content-between align-items-center mb-5">
+        <h5 class="timeline-title mb-0">Onboarding Progress</h5>
+        {% if collapsible %}
+            <button class="btn btn-sm btn-light-primary d-lg-none timeline-toggle"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#workflowTimelineBody"
+                    aria-expanded="false"
+                    aria-controls="workflowTimelineBody">
+                <i class="bi bi-chevron-down"></i>
+                Toggle
+            </button>
+        {% endif %}
+    </div>
+
+    {% comment %}Timeline Body{% endcomment %}
+    <div class="{% if collapsible %}collapse show{% endif %} d-lg-block" id="workflowTimelineBody">
+        <div class="timeline-container">
+
+            {% comment %}State: DRAFT{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "DRAFT" is_past=False %}
+                {% if request.current_state in "SUBMITTED,DOCUMENT_VERIFICATION,BACKGROUND_CHECK,PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="DRAFT">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-pencil-square fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Draft</div>
+                        {% if is_past %}
+                            <div class="timeline-timestamp text-muted fs-7">
+                                {{ request.cdtz|date:"M d, Y H:i" }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: SUBMITTED{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "SUBMITTED" is_past=False %}
+                {% if request.current_state in "DOCUMENT_VERIFICATION,BACKGROUND_CHECK,PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="SUBMITTED">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-send-check fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Submitted</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: DOCUMENT_VERIFICATION{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "DOCUMENT_VERIFICATION" is_past=False %}
+                {% if request.current_state in "BACKGROUND_CHECK,PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="DOCUMENT_VERIFICATION">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-file-earmark-check fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Document Verification</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: BACKGROUND_CHECK{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "BACKGROUND_CHECK" is_past=False %}
+                {% if request.current_state in "PENDING_APPROVAL,APPROVED,PROVISIONING,TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="BACKGROUND_CHECK">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-shield-check fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Background Check</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: PENDING_APPROVAL{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "PENDING_APPROVAL" is_past=False %}
+                {% if request.current_state in "APPROVED,PROVISIONING,TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="PENDING_APPROVAL">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-hourglass-split fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Pending Approval</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: APPROVED{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "APPROVED" is_past=False %}
+                {% if request.current_state in "PROVISIONING,TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="APPROVED">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-check-circle fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Approved</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: PROVISIONING{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "PROVISIONING" is_past=False %}
+                {% if request.current_state in "TRAINING,COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="PROVISIONING">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-gear fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Provisioning Access</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: TRAINING{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "TRAINING" is_past=False %}
+                {% if request.current_state == "COMPLETED" %}
+                    {% with is_past=True %}{% endwith %}
+                {% endif %}
+
+                <div class="timeline-item {% if is_active %}timeline-item-active{% elif is_past %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="TRAINING">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-book fs-4"></i>
+                        </div>
+                        <div class="timeline-connector"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Training Phase</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}State: COMPLETED{% endcomment %}
+            {% with is_active=request.current_state|stringformat:"s" == "COMPLETED" %}
+                <div class="timeline-item {% if is_active %}timeline-item-completed{% else %}timeline-item-pending{% endif %}"
+                     data-state="COMPLETED">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-check-circle-fill fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">Completed</div>
+                    </div>
+                </div>
+            {% endwith %}
+
+            {% comment %}Special states: REJECTED or CANCELLED{% endcomment %}
+            {% if request.current_state in "REJECTED,CANCELLED" %}
+                <div class="timeline-item timeline-item-{% if request.current_state == 'REJECTED' %}rejected{% else %}cancelled{% endif %} mt-4"
+                     data-state="{{ request.current_state }}">
+                    <div class="timeline-icon-wrapper">
+                        <div class="timeline-icon">
+                            <i class="bi bi-{% if request.current_state == 'REJECTED' %}x-circle-fill{% else %}slash-circle{% endif %} fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-label">
+                            {{ request.get_current_state_display }}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

@@ -1,10 +1,11 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.utils import IntegrityError
+from django.db.utils import IntegrityError, DatabaseError
 from django.db import transaction
 from django.http import response as rp
 from django.http.request import QueryDict
 from django.shortcuts import render
 from django.views import View
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 import apps.attendance.forms as atf
 import apps.attendance.models as atdm
 import apps.onboarding.models as ob
@@ -13,8 +14,17 @@ from apps.attendance.filters import AttendanceFilter
 import apps.peoples.utils as putils
 from apps.service.utils import save_linestring_and_update_pelrecord
 from apps.core.utils_new.db_utils import get_current_db_name
+from apps.attendance.exceptions import (
+    AttendanceError,
+    AttendanceValidationError,
+    AttendanceProcessingError,
+    AttendanceDataCorruptionError,
+    handle_attendance_exception,
+    map_django_exception
+)
 
 import logging
+import json
 from apps.core import utils
 
 logger = logging.getLogger("django")
@@ -178,8 +188,50 @@ class Attendance(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError):
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            # Handle Django validation errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceValidationError("Form validation failed", field_errors=getattr(e, 'error_dict', {})),
+                context={'view': 'attendance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.warning(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except IntegrityError as e:
+            # Handle database integrity errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceDataCorruptionError("Data integrity violation", details={'error': str(e)}),
+                context={'view': 'attendance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.error(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except DatabaseError as e:
+            # Handle database connection/query errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceProcessingError("Database operation failed", operation='attendance_save'),
+                context={'view': 'attendance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.error(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except (ObjectDoesNotExist, TypeError, ValueError) as e:
+            # Handle specific data errors
+            mapped_exc = map_django_exception(e, "Invalid attendance data")
+            user_msg, log_msg, status = handle_attendance_exception(
+                mapped_exc,
+                context={'view': 'attendance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.warning(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except AttendanceError as e:
+            # Handle custom attendance errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                e, context={'view': 'attendance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.error(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
         return resp
 
     @staticmethod
@@ -314,8 +366,59 @@ class Conveyance(LoginRequiredMixin, View):
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError):
-            resp = utils.handle_Exception(request)
+        except ValidationError as e:
+            # Handle Django validation errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceValidationError("Conveyance form validation failed", field_errors=getattr(e, 'error_dict', {})),
+                context={'view': 'conveyance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.warning(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except IntegrityError as e:
+            # Handle database integrity errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceDataCorruptionError("Conveyance data integrity violation", details={'error': str(e)}),
+                context={'view': 'conveyance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.error(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except DatabaseError as e:
+            # Handle database connection/query errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceProcessingError("Conveyance database operation failed", operation='conveyance_save'),
+                context={'view': 'conveyance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.error(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except json.JSONDecodeError as e:
+            # Handle JSON parsing errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                AttendanceValidationError("Invalid JSON data in request", details={'json_error': str(e)}),
+                context={'view': 'conveyance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.warning(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except (ObjectDoesNotExist, TypeError, ValueError) as e:
+            # Handle specific data errors
+            mapped_exc = map_django_exception(e, "Invalid conveyance data")
+            user_msg, log_msg, status = handle_attendance_exception(
+                mapped_exc,
+                context={'view': 'conveyance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.warning(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
+
+        except AttendanceError as e:
+            # Handle custom attendance errors
+            user_msg, log_msg, status = handle_attendance_exception(
+                e, context={'view': 'conveyance', 'action': 'post', 'user': request.user.id}
+            )
+            logger.error(log_msg)
+            return rp.JsonResponse({"error": user_msg}, status=status)
         return resp
 
     @staticmethod

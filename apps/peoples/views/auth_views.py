@@ -58,10 +58,14 @@ class SignIn(View):
         loginid = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password")
 
+        # Get client IP address for throttling
+        ip_address = self._get_client_ip(request)
+
         auth_result = self.auth_service.authenticate_user(
             loginid=loginid,
             password=password,
-            access_type="Web"
+            access_type="Web",
+            ip_address=ip_address
         )
 
         if auth_result.success:
@@ -107,6 +111,27 @@ class SignIn(View):
         )
 
         return render(request, self.template_path, context={"loginform": form})
+
+    def _get_client_ip(self, request: HttpRequest) -> str:
+        """
+        Get client IP address from request.
+
+        Handles X-Forwarded-For header for proxied requests.
+
+        Args:
+            request: HTTP request
+
+        Returns:
+            str: Client IP address
+        """
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            # X-Forwarded-For can contain multiple IPs, take the first (client)
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+
+        return ip or '0.0.0.0'
 
 
 class SignOut(LoginRequiredMixin, View):

@@ -7,12 +7,16 @@ Services:
 - LocationManagementService: Location CRUD with GPS validation
 - QuestionManagementService: Question and QuestionSet CRUD
 - JobWorkflowService: Job workflow state management
+- MeterReadingService: AI/ML meter reading processing and analytics
+- VehicleEntryService: AI/ML license plate recognition and vehicle tracking
 """
 
 from .asset_service import AssetManagementService, AssetOperationResult
 from .location_service import LocationManagementService, LocationOperationResult
 from .question_service import QuestionManagementService
 from .job_workflow_service import JobWorkflowService
+from .meter_reading_service import MeterReadingService
+from .vehicle_entry_service import VehicleEntryService
 
 __all__ = [
     'AssetManagementService',
@@ -21,4 +25,6 @@ __all__ = [
     'LocationOperationResult',
     'QuestionManagementService',
     'JobWorkflowService',
+    'MeterReadingService',
+    'VehicleEntryService',
 ]

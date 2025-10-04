@@ -1,0 +1,1277 @@
+{% load static %}
+{% load core_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversations with Wisdom - {{ user.peoplename|default:"Your" }} Journey</title>
+
+    <!-- Book-like typography and styling -->
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* Book-inspired design system */
+        :root {
+            --book-bg: #faf8f3;
+            --page-bg: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-accent: #8b4513;
+            --gold-accent: #d4af37;
+            --shadow-light: rgba(0,0,0,0.1);
+            --shadow-medium: rgba(0,0,0,0.15);
+            --shadow-deep: rgba(0,0,0,0.25);
+
+            --font-serif: 'Libre Baskerville', Georgia, serif;
+            --font-sans: 'Source Sans Pro', Arial, sans-serif;
+
+            --reading-width: 65ch;
+            --margin-large: 2rem;
+            --margin-medium: 1.5rem;
+            --margin-small: 1rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-serif);
+            background: var(--book-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 18px;
+            overflow-x: hidden;
+        }
+
+        /* Main book container */
+        .wisdom-book {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--page-bg);
+            box-shadow: 0 0 30px var(--shadow-medium);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Book header with elegant title */
+        .book-header {
+            background: linear-gradient(135deg, var(--text-primary) 0%, #34495e 100%);
+            color: white;
+            padding: var(--margin-large);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .book-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+            opacity: 0.1;
+        }
+
+        .book-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            z-index: 1;
+            position: relative;
+        }
+
+        .book-subtitle {
+            font-family: var(--font-sans);
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+            z-index: 1;
+            position: relative;
+        }
+
+        /* Navigation and filters */
+        .conversation-navigation {
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            padding: var(--margin-medium);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .thread-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .thread-button {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--text-secondary);
+            background: white;
+            color: var(--text-secondary);
+            border-radius: 25px;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .thread-button:hover,
+        .thread-button.active {
+            background: var(--text-primary);
+            color: white;
+            border-color: var(--text-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .reading-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .font-size-control {
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .font-size-button {
+            background: none;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 0.3rem 0.6rem;
+            margin: 0 0.2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .font-size-button:hover {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        /* Translation controls styling */
+        .translation-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .language-dropdown {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--text-secondary);
+            border-radius: 6px;
+            background: white;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .language-dropdown:focus {
+            outline: 2px solid var(--gold-accent);
+            border-color: var(--gold-accent);
+        }
+
+        .translate-toggle {
+            padding: 0.4rem 1rem;
+            border: 2px solid var(--gold-accent);
+            background: white;
+            color: var(--gold-accent);
+            border-radius: 20px;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .translate-toggle:hover {
+            background: var(--gold-accent);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .translate-toggle.active {
+            background: var(--gold-accent);
+            color: white;
+        }
+
+        .translate-toggle.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .translation-warning {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: #856404;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(255, 234, 167, 0.3);
+            display: none;
+        }
+
+        .translation-warning.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .translation-warning i {
+            color: #f39c12;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .translation-quality-info {
+            background: var(--book-bg);
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        .translation-quality-info.show {
+            display: block;
+        }
+
+        .quality-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 0.5rem;
+        }
+
+        .quality-unverified {
+            background: #ffc107;
+            color: #856404;
+        }
+
+        .quality-reviewed {
+            background: #28a745;
+            color: white;
+        }
+
+        .quality-professional {
+            background: #007bff;
+            color: white;
+        }
+
+        .quality-native {
+            background: #6f42c1;
+            color: white;
+        }
+
+        /* Main conversation content */
+        .conversation-content {
+            padding: var(--margin-large);
+            max-width: var(--reading-width);
+            margin: 0 auto;
+        }
+
+        /* Chapter/Thread divider */
+        .thread-divider {
+            text-align: center;
+            margin: 4rem 0 3rem;
+            position: relative;
+        }
+
+        .thread-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--text-secondary), transparent);
+        }
+
+        .thread-title {
+            background: var(--page-bg);
+            padding: 0 2rem;
+            font-family: var(--font-sans);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Individual conversation styling */
+        .wisdom-conversation {
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .conversation-meta {
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 0.5rem;
+        }
+
+        .conversation-date {
+            font-style: italic;
+        }
+
+        .conversation-badges {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .conversation-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-milestone {
+            background: linear-gradient(45deg, var(--gold-accent), #f1c40f);
+            color: white;
+        }
+
+        .badge-tone {
+            background: #e8f4fd;
+            color: #3498db;
+        }
+
+        /* Contextual bridge styling */
+        .contextual-bridge {
+            font-style: italic;
+            color: var(--text-accent);
+            margin-bottom: 1.5rem;
+            padding-left: 2rem;
+            border-left: 3px solid var(--gold-accent);
+            position: relative;
+        }
+
+        .contextual-bridge::before {
+            content: '"';
+            position: absolute;
+            left: -0.5rem;
+            top: -0.2rem;
+            font-size: 2rem;
+            color: var(--gold-accent);
+            font-family: Georgia;
+        }
+
+        /* Main conversation text */
+        .conversation-text {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            text-align: justify;
+            hyphens: auto;
+            margin-bottom: 2rem;
+        }
+
+        .conversation-text p {
+            margin-bottom: 1.2rem;
+            text-indent: 1.5rem;
+        }
+
+        .conversation-text p:first-child {
+            text-indent: 0;
+        }
+
+        .conversation-text p:first-child::first-letter {
+            font-size: 3.5rem;
+            font-weight: 700;
+            float: left;
+            line-height: 1;
+            margin: 0.1rem 0.1rem 0 0;
+            color: var(--text-accent);
+            font-family: var(--font-serif);
+        }
+
+        /* Conversation interactions */
+        .conversation-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid #f0f0f0;
+            font-family: var(--font-sans);
+        }
+
+        .conversation-stats {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-button {
+            background: none;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .action-button:hover {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .action-button.bookmarked {
+            background: var(--gold-accent);
+            border-color: var(--gold-accent);
+            color: white;
+        }
+
+        /* Progress visualization */
+        .reading-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            z-index: 1000;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold-accent), #f1c40f);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        /* Timeline navigation */
+        .conversation-timeline {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border-radius: 25px;
+            padding: 1rem 0.5rem;
+            box-shadow: 0 4px 20px var(--shadow-medium);
+            max-height: 60vh;
+            overflow-y: auto;
+            z-index: 99;
+        }
+
+        .timeline-item {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            margin: 0.5rem auto;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .timeline-item:hover,
+        .timeline-item.active {
+            background: var(--gold-accent);
+            transform: scale(1.5);
+        }
+
+        .timeline-item.milestone {
+            background: var(--gold-accent);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .wisdom-book {
+                margin: 0;
+                box-shadow: none;
+            }
+
+            .conversation-content {
+                padding: var(--margin-medium);
+            }
+
+            .book-title {
+                font-size: 2rem;
+            }
+
+            .conversation-timeline {
+                display: none;
+            }
+
+            .nav-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .thread-selector {
+                justify-content: center;
+            }
+
+            .conversation-text {
+                font-size: 1rem;
+                text-align: left;
+            }
+
+            .conversation-text p:first-child::first-letter {
+                font-size: 2.5rem;
+            }
+
+            /* Translation controls responsive */
+            .translation-controls {
+                flex-direction: column;
+                gap: 0.8rem;
+                align-items: stretch;
+            }
+
+            .language-selector {
+                justify-content: center;
+            }
+
+            .language-dropdown {
+                min-width: 140px;
+            }
+
+            .translate-toggle {
+                justify-content: center;
+            }
+
+            .reading-controls {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .font-size-control {
+                text-align: center;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --book-bg: #1a1a1a;
+                --page-bg: #2c2c2c;
+                --text-primary: #e0e0e0;
+                --text-secondary: #a0a0a0;
+                --text-accent: #d4af37;
+            }
+
+            .conversation-navigation {
+                background: var(--page-bg);
+                border-bottom-color: #444;
+            }
+
+            .thread-button {
+                background: var(--page-bg);
+                border-color: var(--text-secondary);
+                color: var(--text-primary);
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .conversation-navigation,
+            .conversation-timeline,
+            .action-buttons,
+            .reading-progress {
+                display: none !important;
+            }
+
+            .wisdom-book {
+                box-shadow: none;
+                max-width: none;
+            }
+
+            .conversation-content {
+                max-width: none;
+            }
+
+            .wisdom-conversation {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Reading progress indicator -->
+    <div class="reading-progress">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="wisdom-book">
+        <!-- Book header -->
+        <header class="book-header">
+            <h1 class="book-title">Conversations with Wisdom</h1>
+            <p class="book-subtitle">{{ user.peoplename|default:"Your" }} Personal Journey of Growth and Reflection</p>
+        </header>
+
+        <!-- Navigation and controls -->
+        <nav class="conversation-navigation">
+            <div class="nav-controls">
+                <div class="thread-selector">
+                    <a href="?thread=all" class="thread-button {% if current_thread == 'all' %}active{% endif %}">
+                        All Conversations
+                    </a>
+                    {% for thread in conversation_threads %}
+                    <a href="?thread={{ thread.id }}" class="thread-button {% if current_thread == thread.id|slugify %}active{% endif %}">
+                        {{ thread.get_thread_type_display }}
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <div class="reading-controls">
+                    <div class="translation-controls">
+                        <div class="language-selector">
+                            <label for="languageSelect">
+                                <i class="fas fa-language"></i>
+                            </label>
+                            <select id="languageSelect" class="language-dropdown">
+                                <option value="en" {% if user.preferred_language == 'en' %}selected{% endif %}>English</option>
+                                <option value="hi" {% if user.preferred_language == 'hi' %}selected{% endif %}>हिन्दी</option>
+                                <option value="te" {% if user.preferred_language == 'te' %}selected{% endif %}>తెలుగు</option>
+                                <option value="es" {% if user.preferred_language == 'es' %}selected{% endif %}>Español</option>
+                                <option value="fr" {% if user.preferred_language == 'fr' %}selected{% endif %}>Français</option>
+                                <option value="ar" {% if user.preferred_language == 'ar' %}selected{% endif %}>العربية</option>
+                                <option value="zh" {% if user.preferred_language == 'zh' %}selected{% endif %}>中文</option>
+                            </select>
+                        </div>
+                        <button id="translateToggle" class="translate-toggle" onclick="toggleTranslation()">
+                            <i class="fas fa-globe"></i>
+                            <span>Translate</span>
+                        </button>
+                    </div>
+                    <div class="font-size-control">
+                        <span>Font Size:</span>
+                        <button class="font-size-button" onclick="adjustFontSize(-2)">A-</button>
+                        <button class="font-size-button" onclick="adjustFontSize(2)">A+</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Timeline navigation -->
+        <div class="conversation-timeline" id="timelineNav">
+            {% for conversation in conversations %}
+            <div class="timeline-item {% if conversation.is_milestone_conversation %}milestone{% endif %}"
+                 data-conversation="{{ conversation.id }}"
+                 title="{{ conversation.conversation_date|date:'M d, Y' }} - {{ conversation.thread.get_thread_type_display }}">
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Main conversation content -->
+        <main class="conversation-content">
+            <!-- Translation warning message -->
+            <div id="translationWarning" class="translation-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="warningText">This conversation was translated from English. Translation may contain errors or cultural nuances may be lost.</span>
+            </div>
+
+            <!-- Translation quality information -->
+            <div id="translationQuality" class="translation-quality-info">
+                <div>
+                    <span class="quality-badge quality-unverified" id="qualityBadge">Auto-Translated</span>
+                    <span id="qualityDetails">Confidence: 85% | Backend: Google Translate | Cached: Yes</span>
+                </div>
+            </div>
+
+            {% regroup conversations by thread as thread_groups %}
+
+            {% for thread_group in thread_groups %}
+                <!-- Thread divider -->
+                <div class="thread-divider">
+                    <h2 class="thread-title">{{ thread_group.grouper.get_thread_type_display }}</h2>
+                </div>
+
+                {% for conversation in thread_group.list %}
+                    <article class="wisdom-conversation" id="conversation-{{ conversation.id }}">
+                        <!-- Conversation metadata -->
+                        <div class="conversation-meta">
+                            <div class="conversation-date">
+                                {{ conversation.conversation_date|date:"F j, Y" }}
+                            </div>
+                            <div class="conversation-badges">
+                                {% if conversation.is_milestone_conversation %}
+                                    <span class="conversation-badge badge-milestone">
+                                        <i class="fas fa-star"></i> Milestone
+                                    </span>
+                                {% endif %}
+                                <span class="conversation-badge badge-tone">
+                                    {{ conversation.get_conversation_tone_display }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Contextual bridge -->
+                        {% if conversation.contextual_bridge_text %}
+                            <div class="contextual-bridge">
+                                {{ conversation.contextual_bridge_text }}
+                            </div>
+                        {% endif %}
+
+                        <!-- Main conversation text -->
+                        <div class="conversation-text">
+                            {{ conversation.conversation_text|linebreaks }}
+                        </div>
+
+                        <!-- Conversation actions -->
+                        <div class="conversation-actions">
+                            <div class="conversation-stats">
+                                <span><i class="fas fa-clock"></i> {{ conversation.estimated_reading_time_seconds|floatformat:0 }}s read</span>
+                                <span><i class="fas fa-words"></i> {{ conversation.word_count }} words</span>
+                                {% if conversation.engagements.count %}
+                                    <span><i class="fas fa-heart"></i> {{ conversation.engagements.count }} engagement{{ conversation.engagements.count|pluralize }}</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="action-buttons">
+                                <button class="action-button bookmark-button"
+                                        data-conversation="{{ conversation.id }}"
+                                        {% if conversation.bookmarks.exists %}class="bookmarked"{% endif %}>
+                                    <i class="fas fa-bookmark"></i>
+                                    {% if conversation.bookmarks.exists %}Bookmarked{% else %}Bookmark{% endif %}
+                                </button>
+
+                                <button class="action-button share-button"
+                                        data-conversation="{{ conversation.id }}">
+                                    <i class="fas fa-share"></i> Share
+                                </button>
+
+                                <button class="action-button reflect-button"
+                                        data-conversation="{{ conversation.id }}">
+                                    <i class="fas fa-pen"></i> Reflect
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% endfor %}
+
+            {% if not conversations %}
+                <div style="text-align: center; padding: 4rem; color: var(--text-secondary);">
+                    <i class="fas fa-book-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <h3>Your Wisdom Conversations Will Appear Here</h3>
+                    <p>As you engage with your mental health journey, your AI companion will create beautiful, personalized conversations that flow together like chapters in your personal book of growth.</p>
+                </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <!-- JavaScript for interactions -->
+    <script>
+        // Reading progress tracker
+        function updateReadingProgress() {
+            const scrollTop = document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const progress = (scrollTop / scrollHeight) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        // Font size adjustment
+        function adjustFontSize(change) {
+            const content = document.querySelector('.conversation-content');
+            const currentSize = parseFloat(window.getComputedStyle(content).fontSize);
+            const newSize = Math.max(14, Math.min(24, currentSize + change));
+            content.style.fontSize = newSize + 'px';
+
+            // Save preference
+            localStorage.setItem('wisdomFontSize', newSize);
+        }
+
+        // Timeline navigation
+        function setupTimelineNavigation() {
+            const timelineItems = document.querySelectorAll('.timeline-item');
+            const conversations = document.querySelectorAll('.wisdom-conversation');
+
+            timelineItems.forEach((item, index) => {
+                item.addEventListener('click', () => {
+                    const targetConversation = conversations[index];
+                    if (targetConversation) {
+                        targetConversation.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+
+                        // Update active timeline item
+                        timelineItems.forEach(ti => ti.classList.remove('active'));
+                        item.classList.add('active');
+                    }
+                });
+            });
+        }
+
+        // Bookmark functionality
+        function setupBookmarkButtons() {
+            document.querySelectorAll('.bookmark-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const conversationId = this.dataset.conversation;
+                    const isBookmarked = this.classList.contains('bookmarked');
+
+                    // Toggle bookmark state
+                    if (isBookmarked) {
+                        this.classList.remove('bookmarked');
+                        this.innerHTML = '<i class="fas fa-bookmark"></i> Bookmark';
+                    } else {
+                        this.classList.add('bookmarked');
+                        this.innerHTML = '<i class="fas fa-bookmark"></i> Bookmarked';
+                    }
+
+                    // Send AJAX request to server
+                    fetch(`/wellness/conversations/${conversationId}/bookmark/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ bookmarked: !isBookmarked })
+                    });
+                });
+            });
+        }
+
+        // Share functionality
+        function setupShareButtons() {
+            document.querySelectorAll('.share-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const conversationId = this.dataset.conversation;
+                    const conversation = document.getElementById(`conversation-${conversationId}`);
+                    const text = conversation.querySelector('.conversation-text').textContent;
+
+                    if (navigator.share) {
+                        navigator.share({
+                            title: 'Wisdom Conversation',
+                            text: text.substring(0, 280) + '...',
+                            url: window.location.href + `#conversation-${conversationId}`
+                        });
+                    } else {
+                        // Fallback: copy to clipboard
+                        navigator.clipboard.writeText(text).then(() => {
+                            this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                            setTimeout(() => {
+                                this.innerHTML = '<i class="fas fa-share"></i> Share';
+                            }, 2000);
+                        });
+                    }
+                });
+            });
+        }
+
+        // Reflection modal
+        function setupReflectionButtons() {
+            document.querySelectorAll('.reflect-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const conversationId = this.dataset.conversation;
+                    // Open reflection modal or redirect to reflection page
+                    window.location.href = `/wellness/conversations/${conversationId}/reflect/`;
+                });
+            });
+        }
+
+        // Translation functionality
+        let translationState = {
+            isTranslated: false,
+            currentLanguage: 'en',
+            originalContent: {},
+            translations: {}
+        };
+
+        function toggleTranslation() {
+            const toggle = document.getElementById('translateToggle');
+            const languageSelect = document.getElementById('languageSelect');
+            const selectedLanguage = languageSelect.value;
+
+            if (selectedLanguage === 'en') {
+                showMessage('Already in English', 'info');
+                return;
+            }
+
+            if (!translationState.isTranslated) {
+                // Translate to selected language
+                translateAllConversations(selectedLanguage);
+            } else {
+                // Revert to original English
+                revertToOriginal();
+            }
+        }
+
+        async function translateAllConversations(targetLanguage) {
+            const toggle = document.getElementById('translateToggle');
+            const toggleText = toggle.querySelector('span');
+            const toggleIcon = toggle.querySelector('i');
+
+            // Set loading state
+            toggle.classList.add('loading');
+            toggleText.textContent = 'Translating...';
+            toggleIcon.className = 'fas fa-spinner fa-spin';
+
+            try {
+                const conversations = document.querySelectorAll('.wisdom-conversation');
+                let successCount = 0;
+                let totalCount = conversations.length;
+
+                for (let conversation of conversations) {
+                    const conversationId = conversation.id.replace('conversation-', '');
+
+                    // Store original content if not already stored
+                    if (!translationState.originalContent[conversationId]) {
+                        const contentElement = conversation.querySelector('.conversation-text');
+                        translationState.originalContent[conversationId] = contentElement.innerHTML;
+                    }
+
+                    // Check if translation is already cached
+                    if (translationState.translations[conversationId] &&
+                        translationState.translations[conversationId][targetLanguage]) {
+
+                        // Use cached translation
+                        const cached = translationState.translations[conversationId][targetLanguage];
+                        updateConversationContent(conversationId, cached.translated_text);
+                        showTranslationInfo(cached);
+                        successCount++;
+                        continue;
+                    }
+
+                    // Request translation from API
+                    try {
+                        const response = await fetch('/wellness/api/translate-conversation/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCsrfToken(),
+                            },
+                            body: JSON.stringify({
+                                conversation_id: conversationId,
+                                target_language: targetLanguage
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Cache the translation
+                            if (!translationState.translations[conversationId]) {
+                                translationState.translations[conversationId] = {};
+                            }
+                            translationState.translations[conversationId][targetLanguage] = result.data;
+
+                            // Update conversation content
+                            updateConversationContent(conversationId, result.data.translated_text);
+                            showTranslationInfo(result.data);
+                            successCount++;
+                        } else {
+                            console.error('Translation failed:', result.error);
+                        }
+                    } catch (error) {
+                        console.error('Translation request error:', error);
+                    }
+
+                    // Small delay to avoid overwhelming the server
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                // Update state
+                translationState.isTranslated = true;
+                translationState.currentLanguage = targetLanguage;
+
+                // Update UI
+                toggleText.textContent = 'Show Original';
+                toggleIcon.className = 'fas fa-undo';
+                toggle.classList.remove('loading');
+                toggle.classList.add('active');
+
+                showMessage(`Translated ${successCount}/${totalCount} conversations`, 'success');
+
+            } catch (error) {
+                console.error('Translation error:', error);
+                showMessage('Translation failed. Please try again.', 'error');
+
+                // Reset UI
+                toggleText.textContent = 'Translate';
+                toggleIcon.className = 'fas fa-globe';
+                toggle.classList.remove('loading');
+            }
+        }
+
+        function revertToOriginal() {
+            const toggle = document.getElementById('translateToggle');
+            const toggleText = toggle.querySelector('span');
+            const toggleIcon = toggle.querySelector('i');
+
+            // Restore original content
+            Object.keys(translationState.originalContent).forEach(conversationId => {
+                updateConversationContent(conversationId, translationState.originalContent[conversationId]);
+            });
+
+            // Update state
+            translationState.isTranslated = false;
+            translationState.currentLanguage = 'en';
+
+            // Update UI
+            toggleText.textContent = 'Translate';
+            toggleIcon.className = 'fas fa-globe';
+            toggle.classList.remove('active');
+
+            // Hide translation info
+            hideTranslationInfo();
+
+            showMessage('Reverted to original English', 'info');
+        }
+
+        function updateConversationContent(conversationId, newContent) {
+            const conversation = document.getElementById(`conversation-${conversationId}`);
+            if (conversation) {
+                const contentElement = conversation.querySelector('.conversation-text');
+                if (contentElement) {
+                    contentElement.innerHTML = newContent;
+                }
+            }
+        }
+
+        function showTranslationInfo(translationData) {
+            const warning = document.getElementById('translationWarning');
+            const quality = document.getElementById('translationQuality');
+            const warningText = document.getElementById('warningText');
+            const qualityBadge = document.getElementById('qualityBadge');
+            const qualityDetails = document.getElementById('qualityDetails');
+
+            // Show warning
+            if (translationData.warning_message) {
+                warningText.textContent = translationData.warning_message;
+                warning.classList.add('show');
+            }
+
+            // Show quality info
+            if (translationData.quality_info) {
+                const qualityInfo = translationData.quality_info;
+
+                // Update quality badge
+                qualityBadge.className = `quality-badge quality-${qualityInfo.quality_level}`;
+                qualityBadge.textContent = getQualityDisplayName(qualityInfo.quality_level);
+
+                // Update details
+                qualityDetails.textContent =
+                    `Confidence: ${Math.round(qualityInfo.confidence_score * 100)}% | ` +
+                    `Backend: ${qualityInfo.backend_used} | ` +
+                    `${qualityInfo.cached ? 'Cached' : 'Fresh'}`;
+
+                quality.classList.add('show');
+            }
+        }
+
+        function hideTranslationInfo() {
+            document.getElementById('translationWarning').classList.remove('show');
+            document.getElementById('translationQuality').classList.remove('show');
+        }
+
+        function getQualityDisplayName(qualityLevel) {
+            const names = {
+                'unverified': 'Auto-Translated',
+                'reviewed': 'Human Reviewed',
+                'professional': 'Professional',
+                'native': 'Native Speaker'
+            };
+            return names[qualityLevel] || 'Unknown';
+        }
+
+        function showMessage(message, type = 'info') {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 6px;
+                color: white;
+                z-index: 1000;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+                font-family: var(--font-sans);
+                font-size: 0.9rem;
+            `;
+
+            // Set background color based on type
+            const colors = {
+                'success': '#28a745',
+                'error': '#dc3545',
+                'info': '#17a2b8',
+                'warning': '#ffc107'
+            };
+            toast.style.backgroundColor = colors[type] || colors.info;
+
+            document.body.appendChild(toast);
+
+            // Animate in
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+
+            // Remove after 4 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                   document.querySelector('meta[name=csrf-token]')?.getAttribute('content') ||
+                   '';
+        }
+
+        // Language selector change handler
+        function setupLanguageSelector() {
+            const languageSelect = document.getElementById('languageSelect');
+            languageSelect.addEventListener('change', function() {
+                if (translationState.isTranslated && this.value !== translationState.currentLanguage) {
+                    // Auto-translate to new language if we're already in translation mode
+                    if (this.value === 'en') {
+                        revertToOriginal();
+                    } else {
+                        translateAllConversations(this.value);
+                    }
+                }
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved font size
+            const savedFontSize = localStorage.getItem('wisdomFontSize');
+            if (savedFontSize) {
+                document.querySelector('.conversation-content').style.fontSize = savedFontSize + 'px';
+            }
+
+            // Setup event listeners
+            window.addEventListener('scroll', updateReadingProgress);
+            setupTimelineNavigation();
+            setupBookmarkButtons();
+            setupShareButtons();
+            setupReflectionButtons();
+            setupLanguageSelector();
+
+            // Initial progress update
+            updateReadingProgress();
+
+            // Smooth scrolling for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
+        });
+
+        // Intersection Observer for timeline highlighting
+        const observerOptions = {
+            root: null,
+            rootMargin: '-50% 0px -50% 0px',
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const conversationId = entry.target.id.replace('conversation-', '');
+                    const timelineItem = document.querySelector(`[data-conversation="${conversationId}"]`);
+
+                    // Remove active class from all timeline items
+                    document.querySelectorAll('.timeline-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+
+                    // Add active class to current timeline item
+                    if (timelineItem) {
+                        timelineItem.classList.add('active');
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observe all conversations
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.wisdom-conversation').forEach(conversation => {
+                observer.observe(conversation);
+            });
+        });
+    </script>
+</body>
+</html>

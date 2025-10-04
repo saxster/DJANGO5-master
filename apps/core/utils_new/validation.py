@@ -25,7 +25,7 @@ def clean_gpslocation(val):
         if gps == "NONE":
             return None
         regex = (
-            "^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
+            r"^([-+]?)([\d]{1,2})(((\.)(\d+)(,)))(\s*)(([-+]?)([\d]{1,3})((\.)(\d+))?)$"
         )
         gps = gps.replace("(", "").replace(")", "")
         if not re.match(regex, gps):

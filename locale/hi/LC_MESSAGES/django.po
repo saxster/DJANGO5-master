@@ -1,0 +1,264 @@
+# Hindi (हिन्दी) translation for IntelliWiz
+# Copyright (C) 2025 IntelliWiz
+# This file is distributed under the same license as the IntelliWiz package.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: IntelliWiz Facility Management\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-27 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Hindi <hi@li.org>\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/peoples/models/user_model.py:66
+msgid "User Code"
+msgstr "उपयोगकर्ता कोड"
+
+#: apps/peoples/models/user_model.py:72
+msgid "Full Name"
+msgstr "पूरा नाम"
+
+#: apps/peoples/models/user_model.py:78
+msgid "Login ID"
+msgstr "लॉगिन आईडी"
+
+#: apps/peoples/models/user_model.py:86
+msgid "Administrator"
+msgstr "प्रशासक"
+
+#: apps/peoples/models/user_model.py:87
+msgid "Staff Status"
+msgstr "कर्मचारी स्थिति"
+
+#: apps/peoples/models/user_model.py:114
+msgid "Person"
+msgstr "व्यक्ति"
+
+#: apps/peoples/models/user_model.py:115
+msgid "People"
+msgstr "लोग"
+
+#: apps/core/exceptions.py:XX
+msgid "Authentication failed"
+msgstr "प्रमाणीकरण विफल"
+
+#: apps/core/exceptions.py:XX
+msgid "Cannot login on multiple devices"
+msgstr "कई उपकरणों पर लॉगिन नहीं कर सकते"
+
+#: apps/core/exceptions.py:XX
+msgid "Device not registered"
+msgstr "उपकरण पंजीकृत नहीं है"
+
+#: apps/core/exceptions.py:XX
+msgid "Invalid credentials"
+msgstr "अमान्य प्रमाण पत्र"
+
+#: apps/core/exceptions.py:XX
+msgid "Permission denied"
+msgstr "अनुमति अस्वीकृत"
+
+# Error template strings
+#: frontend/templates/errors/404.html:5
+msgid "Page Not Found"
+msgstr "पृष्ठ नहीं मिला"
+
+#: frontend/templates/errors/404.html:312
+msgid "Oops! Page Not Found"
+msgstr "ओह! पृष्ठ नहीं मिला"
+
+#: frontend/templates/errors/404.html:314
+msgid "The page you're looking for seems to have wandered off. Don't worry, it happens to the best of us!"
+msgstr "आप जो पृष्ठ खोज रहे हैं वह कहीं खो गया लगता है। चिंता न करें, यह सबसे अच्छों के साथ भी होता है!"
+
+#: frontend/templates/errors/404.html:323
+msgid "Go back to previous page"
+msgstr "पिछले पृष्ठ पर वापस जाएं"
+
+#: frontend/templates/errors/404.html:325
+msgid "Go Back"
+msgstr "वापस जाएं"
+
+#: frontend/templates/errors/404.html:330
+msgid "Return to home page"
+msgstr "मुख्य पृष्ठ पर लौटें"
+
+#: frontend/templates/errors/404.html:332
+msgid "Home Page"
+msgstr "मुख्य पृष्ठ"
+
+#: frontend/templates/errors/404.html:338
+msgid "Search for content"
+msgstr "सामग्री खोजें"
+
+#: frontend/templates/errors/404.html:340
+msgid "Search"
+msgstr "खोजें"
+
+#: frontend/templates/errors/404.html:347
+msgid "What can you try?"
+msgstr "आप क्या कोशिश कर सकते हैं?"
+
+#: frontend/templates/errors/500.html:5
+msgid "Server Error"
+msgstr "सर्वर त्रुटि"
+
+#: frontend/templates/errors/500.html:152
+msgid "Something Went Wrong"
+msgstr "कुछ गलत हो गया"
+
+#: frontend/templates/errors/500.html:154
+msgid "We're experiencing technical difficulties. Our team has been automatically notified and is working to fix the issue."
+msgstr "हमें तकनीकी कठिनाइयों का सामना करना पड़ रहा है। हमारी टीम को स्वचालित रूप से सूचित कर दिया गया है और समस्या को ठीक करने के लिए काम कर रही है।"
+
+#: frontend/templates/errors/500.html:175
+msgid "Error Reference:"
+msgstr "त्रुटि संदर्भ:"
+
+#: frontend/templates/errors/500.html:176
+msgid "Time:"
+msgstr "समय:"
+
+#: frontend/templates/errors/500.html:177
+msgid "Support:"
+msgstr "सहायता:"
+
+#: frontend/templates/errors/403.html:5
+msgid "Access Denied"
+msgstr "पहुँच अस्वीकृत"
+
+#: frontend/templates/errors/403.html:116
+msgid "You don't have permission to access this resource. Please contact your administrator if you believe this is an error."
+msgstr "आपको इस संसाधन तक पहुंचने की अनुमति नहीं है। यदि आपको लगता है कि यह एक त्रुटि है तो कृपया अपने प्रशासक से संपर्क करें।"
+
+# Language switcher component
+#: frontend/templates/globals/components/language_switcher.html:6
+msgid "Language selection"
+msgstr "भाषा चयन"
+
+#: frontend/templates/globals/components/language_switcher.html:9
+msgid "Choose your language"
+msgstr "अपनी भाषा चुनें"
+
+#: frontend/templates/globals/components/language_switcher.html:14
+msgid "Current language"
+msgstr "वर्तमान भाषा"
+
+#: frontend/templates/globals/components/language_switcher.html:23
+msgid "Change Language"
+msgstr "भाषा बदलें"
+
+# API Response Messages
+#: apps/onboarding/views.py:291
+msgid "Contract saved successfully"
+msgstr "अनुबंध सफलतापूर्वक सहेजा गया"
+
+#: apps/schedhuler/views/internal_tour_views.py:293
+msgid "Checkpoint added"
+msgstr "चेकपॉइंट जोड़ा गया"
+
+#: apps/schedhuler/views/internal_tour_views.py:313
+msgid "Checkpoint deleted"
+msgstr "चेकपॉइंट हटाया गया"
+
+# Model help_text strings
+#: apps/onboarding/models/site_onboarding.py:75
+msgid "Primary language for audit (ISO 639-1 code)"
+msgstr "ऑडिट के लिए प्राथमिक भाषा (ISO 639-1 कोड)"
+
+#: apps/onboarding/models/site_onboarding.py:319
+msgid "AI confidence (0.00 to 1.00)"
+msgstr "AI विश्वास (0.00 से 1.00)"
+
+#: apps/onboarding/models/site_onboarding.py:400
+msgid "Direction in degrees (0-360)"
+msgstr "डिग्री में दिशा (0-360)"
+
+#: apps/onboarding/models/conversational_ai.py:110
+msgid "Language code for speech recognition (e.g., 'en-US', 'hi-IN')"
+msgstr "वाक् पहचान के लिए भाषा कोड (जैसे, 'en-US', 'hi-IN')"
+
+#: apps/onboarding/models/conversational_ai.py:187
+msgid "Overall confidence score (0.0 to 1.0)"
+msgstr "समग्र विश्वास स्कोर (0.0 से 1.0)"
+
+# Form validation messages
+#: apps/schedhuler/forms.py:216
+#: apps/schedhuler/forms.py:482
+#: apps/schedhuler/forms.py:632
+msgid "Invalid Cron"
+msgstr "अमान्य क्रॉन"
+
+# Checkpoint service validation messages
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Invalid checkpoint data format"
+msgstr "अमान्य चेकपॉइंट डेटा प्रारूप"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Checkpoint not found"
+msgstr "चेकपॉइंट नहीं मिला"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "At least one checkpoint is required"
+msgstr "कम से कम एक चेकपॉइंट आवश्यक है"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Invalid checkpoint IDs provided"
+msgstr "अमान्य चेकपॉइंट आईडी प्रदान किए गए"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Invalid checkpoint order"
+msgstr "अमान्य चेकपॉइंट क्रम"
+
+# JavaScript UI strings
+#: frontend/static/js/conversational_onboarding.js:486
+msgid "Business Unit Configuration"
+msgstr "व्यावसायिक इकाई कॉन्फ़िगरेशन"
+
+#: frontend/static/js/conversational_onboarding.js:487
+msgid "Shift Management Setup"
+msgstr "शिफ्ट प्रबंधन सेटअप"
+
+#: frontend/static/js/conversational_onboarding.js:488
+msgid "System Type Configuration"
+msgstr "सिस्टम प्रकार कॉन्फ़िगरेशन"
+
+#: frontend/static/js/conversational_onboarding.js:489
+msgid "Security Settings"
+msgstr "सुरक्षा सेटिंग्स"
+
+#: frontend/static/js/conversational_onboarding.js:491
+msgid "System Configuration"
+msgstr "सिस्टम कॉन्फ़िगरेशन"
+
+# View response messages
+#: apps/reports/views.py:1043
+msgid "UAN Not Found"
+msgstr "UAN नहीं मिला"
+
+#: apps/work_order_management/views.py:333
+msgid "The work order are already submitted!"
+msgstr "कार्य आदेश पहले से ही सबमिट किए गए हैं!"
+
+#: apps/work_order_management/views.py:327
+msgid "Sorry the work order is cancelled already!"
+msgstr "खुशी है कि कार्य आदेश पहले से ही रद्द कर दिया गया है!"
+
+#: apps/work_order_management/views.py:330
+msgid "Please accept the work order and start the work!"
+msgstr "कृपया कार्य आदेश स्वीकार करें और काम शुरू करें!"
+
+#: apps/work_order_management/views.py:XX
+msgid "The page you are looking for is not found"
+msgstr "आप जो पृष्ठ खोज रहे हैं वह नहीं मिला"
+
+#: apps/work_order_management/views.py:1433
+msgid "The work order is already approved"
+msgstr "कार्य आदेश पहले से ही अनुमोदित है"

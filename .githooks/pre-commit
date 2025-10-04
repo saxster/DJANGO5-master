@@ -210,6 +210,45 @@ for file in $staged_settings_files; do
     fi
 done
 
+run_check "Architecture Rule #6.5: GraphQL Settings Centralization"
+# Check for duplicate GraphQL settings in base.py (must only import from security/graphql.py)
+if echo "$staged_settings_files" | grep -q "intelliwiz_config/settings/base.py"; then
+    base_settings_file="intelliwiz_config/settings/base.py"
+    if [ -f "$base_settings_file" ]; then
+        # Check for direct GraphQL setting assignments (forbidden patterns)
+        if grep -n "^GRAPHQL_PATHS\s*=\s*\[" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_PATHS\s*=\s*\[' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_PATHS must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^ENABLE_GRAPHQL_RATE_LIMITING\s*=\s*True" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^ENABLE_GRAPHQL_RATE_LIMITING\s*=\s*True' "$base_settings_file" | cut -d: -f1)" \
+                "ENABLE_GRAPHQL_RATE_LIMITING must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^GRAPHQL_RATE_LIMIT_MAX\s*=\s*[0-9]" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_RATE_LIMIT_MAX\s*=\s*[0-9]' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_RATE_LIMIT_MAX must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^GRAPHQL_MAX_QUERY_DEPTH\s*=\s*[0-9]" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_MAX_QUERY_DEPTH\s*=\s*[0-9]' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_MAX_QUERY_DEPTH must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^GRAPHQL_SECURITY_LOGGING\s*=\s*{" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_SECURITY_LOGGING\s*=\s*{' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_SECURITY_LOGGING must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        # Verify that base.py imports from security.graphql module
+        if ! grep -q "from \.security\.graphql import" "$base_settings_file" 2>/dev/null; then
+            report_violation "Missing GraphQL Import" "$base_settings_file" "" \
+                "base.py must import GraphQL settings from .security.graphql module (from .security.graphql import ...)" "Single Source of Truth"
+        fi
+    fi
+fi
+
 run_check "Architecture Rule #7: Model Complexity Limits"
 for file in $staged_py_files; do
     if [ -f "$file" ]; then
@@ -468,6 +507,92 @@ for file in $staged_py_files; do
                     report_violation "Missing SecureSQL Import" "$file" "" \
                         "Files using SQL operations should import and use SecureSQL utilities for security" "Security Best Practice"
                 fi
+            fi
+        fi
+    fi
+done
+
+# =============================================================================
+# CODE QUALITY CRITICAL FIXES (2025-09-30)
+# =============================================================================
+
+run_check "Code Injection: eval() and exec() Usage"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Block eval() usage (code injection risk)
+        if grep -n "eval(" "$file" 2>/dev/null | grep -v "#.*eval\|\"eval\|'eval" 2>/dev/null; then
+            report_violation "Code Injection Risk: eval()" "$file" "$(grep -n 'eval(' "$file" | grep -v '#.*eval\|"eval\|'"'"'eval' | cut -d: -f1 | head -1)" \
+                "eval() enables code injection vulnerabilities. Use explicit functions/config instead." "Security Critical"
+        fi
+
+        # Block exec() usage (code injection risk)
+        if grep -n "exec(" "$file" 2>/dev/null | grep -v "#.*exec\|\"exec\|'exec" 2>/dev/null; then
+            report_violation "Code Injection Risk: exec()" "$file" "$(grep -n 'exec(' "$file" | grep -v '#.*exec\|"exec\|'"'"'exec' | cut -d: -f1 | head -1)" \
+                "exec() enables code injection vulnerabilities. Refactor to use safe alternatives." "Security Critical"
+        fi
+    fi
+done
+
+run_check "Generic Exception Handling: except Exception:"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Skip test files and migrations
+        if ! echo "$file" | grep -q "test_\|migrations/" 2>/dev/null; then
+            # Check for generic except Exception:
+            if grep -n "except Exception:" "$file" 2>/dev/null; then
+                report_violation "Generic Exception Handling" "$file" "$(grep -n 'except Exception:' "$file" | cut -d: -f1 | head -1)" \
+                    "Use specific exception types (e.g., except (ValueError, TypeError):). Generic exceptions hide real failures." "Rule #1 - Code Quality"
+            fi
+        fi
+    fi
+done
+
+run_check "Network Calls: Missing Timeouts"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Skip test files (they use mocks)
+        if ! echo "$file" | grep -q "test_\|@patch" 2>/dev/null; then
+            # Check for requests without timeout parameter
+            if grep -n "requests\.\(get\|post\|put\|delete\|patch\)(" "$file" 2>/dev/null | grep -v "timeout=" 2>/dev/null; then
+                report_violation "Network Call Without Timeout" "$file" "$(grep -n 'requests\.\(get\|post\|put\|delete\|patch\)(' "$file" | grep -v 'timeout=' | cut -d: -f1 | head -1)" \
+                    "All network calls must have timeout parameter (e.g., timeout=(5, 15)). Prevents hung workers." "Production Reliability"
+            fi
+        fi
+    fi
+done
+
+run_check "Blocking I/O: time.sleep in Request Paths"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for time.sleep in views, forms, and serializers
+        if echo "$file" | grep -q "views\|forms\|serializers" 2>/dev/null; then
+            if grep -n "time\.sleep(" "$file" 2>/dev/null; then
+                report_violation "Blocking I/O in Request Path" "$file" "$(grep -n 'time\.sleep(' "$file" | cut -d: -f1 | head -1)" \
+                    "time.sleep() blocks worker threads. Use async/await or offload to Celery tasks." "Performance Critical"
+            fi
+        fi
+    fi
+done
+
+run_check "Dangerous Pattern: sys.path Manipulation"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for sys.path.insert or sys.path.append
+        if grep -n "sys\.path\.\(insert\|append\)" "$file" 2>/dev/null; then
+            report_violation "sys.path Manipulation" "$file" "$(grep -n 'sys\.path\.\(insert\|append\)' "$file" | cut -d: -f1 | head -1)" \
+                "sys.path manipulation causes import-order bugs. Use importlib.util instead." "Code Quality"
+        fi
+    fi
+done
+
+run_check "Production Settings: Print Statements"
+for file in $staged_settings_files; do
+    if [ -f "$file" ]; then
+        # Check for print statements in production settings
+        if echo "$file" | grep -q "production\|prod" 2>/dev/null; then
+            if grep -n "^print(" "$file" 2>/dev/null; then
+                report_violation "Print Statement in Production Settings" "$file" "$(grep -n '^print(' "$file" | cut -d: -f1 | head -1)" \
+                    "Use logger.info() instead of print() in production settings for structured logging." "Production Best Practice"
             fi
         fi
     fi

@@ -1,0 +1,1177 @@
+{% extends "globals/base_accessible.html" %}
+{% load static %}
+
+{% block title %}Admin Dashboard - {{ block.super }}{% endblock title %}
+
+{% block body_class %}admin-interface{% endblock body_class %}
+
+{% block extra_css %}
+{{ block.super }}
+<link href="{{ static('css/design-system.css') }}" rel="stylesheet">
+<link href="{{ static('css/responsive-grid.css') }}" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css">
+
+<style>
+  /* Modern Admin Interface Styles */
+  .admin-interface {
+    background: var(--yt-bg-primary);
+  }
+
+  .admin-header {
+    background: linear-gradient(135deg, var(--yt-primary-600) 0%, var(--yt-primary-700) 100%);
+    color: var(--yt-text-inverse);
+    padding: var(--yt-space-6) var(--yt-space-6) var(--yt-space-12);
+    margin-bottom: calc(-1 * var(--yt-space-6));
+  }
+
+  .admin-header h1 {
+    font-size: var(--yt-text-4xl);
+    font-weight: var(--yt-font-bold);
+    margin: 0 0 var(--yt-space-2) 0;
+    color: inherit;
+  }
+
+  .admin-header p {
+    font-size: var(--yt-text-lg);
+    margin: 0;
+    opacity: 0.9;
+  }
+
+  .admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--yt-space-6);
+    margin-bottom: var(--yt-space-8);
+  }
+
+  .stat-card {
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-xl);
+    padding: var(--yt-space-6);
+    box-shadow: var(--yt-shadow-lg);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+    transition: transform var(--yt-duration-200) var(--yt-ease-out);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--yt-shadow-xl);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--stat-color, var(--yt-primary-500));
+  }
+
+  .stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    margin-bottom: var(--yt-space-4);
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--yt-radius-xl);
+    background: var(--stat-color, var(--yt-primary-500));
+    color: var(--yt-text-inverse);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--yt-text-xl);
+    margin-right: var(--yt-space-4);
+  }
+
+  .stat-info {
+    flex: 1;
+  }
+
+  .stat-title {
+    font-size: var(--yt-text-sm);
+    font-weight: var(--yt-font-medium);
+    color: var(--yt-text-secondary);
+    margin: 0 0 var(--yt-space-1) 0;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .stat-value {
+    font-size: var(--yt-text-3xl);
+    font-weight: var(--yt-font-bold);
+    color: var(--yt-text-primary);
+    margin: 0;
+    line-height: 1;
+  }
+
+  .stat-change {
+    font-size: var(--yt-text-sm);
+    font-weight: var(--yt-font-medium);
+    margin-top: var(--yt-space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-1);
+  }
+
+  .stat-change.positive {
+    color: var(--yt-success-600);
+  }
+
+  .stat-change.negative {
+    color: var(--yt-danger-600);
+  }
+
+  .stat-change.neutral {
+    color: var(--yt-text-secondary);
+  }
+
+  .admin-content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--yt-space-8);
+    margin-bottom: var(--yt-space-8);
+  }
+
+  @media (max-width: 1024px) {
+    .admin-content-grid {
+      grid-template-columns: 1fr;
+      gap: var(--yt-space-6);
+    }
+  }
+
+  .chart-card {
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-xl);
+    padding: var(--yt-space-6);
+    box-shadow: var(--yt-shadow-lg);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    margin-bottom: var(--yt-space-6);
+  }
+
+  .chart-title {
+    font-size: var(--yt-text-xl);
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    margin: 0;
+  }
+
+  .chart-actions {
+    display: flex;
+    gap: var(--yt-space-2);
+  }
+
+  .chart-action {
+    padding: var(--yt-space-2) var(--yt-space-3);
+    background: none;
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+    border-radius: var(--yt-radius-md);
+    color: var(--yt-text-secondary);
+    cursor: pointer;
+    font-size: var(--yt-text-sm);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .chart-action:hover {
+    background: var(--yt-bg-secondary);
+    color: var(--yt-text-primary);
+  }
+
+  .chart-action.active {
+    background: var(--yt-primary-500);
+    color: var(--yt-text-inverse);
+    border-color: var(--yt-primary-500);
+  }
+
+  .quick-actions {
+    display: grid;
+    gap: var(--yt-space-4);
+  }
+
+  .action-group {
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-xl);
+    padding: var(--yt-space-6);
+    box-shadow: var(--yt-shadow-lg);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+  }
+
+  .action-group-title {
+    font-size: var(--yt-text-lg);
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    margin: 0 0 var(--yt-space-4) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-2);
+  }
+
+  .action-list {
+    display: grid;
+    gap: var(--yt-space-2);
+  }
+
+  .action-item {
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-3);
+    padding: var(--yt-space-3);
+    background: none;
+    border: none;
+    border-radius: var(--yt-radius-lg);
+    color: var(--yt-text-primary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    font-size: var(--yt-text-sm);
+    width: 100%;
+    text-align: left;
+  }
+
+  .action-item:hover {
+    background: var(--yt-bg-secondary);
+  }
+
+  .action-item:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+    background: var(--yt-bg-secondary);
+  }
+
+  .action-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--yt-text-secondary);
+    flex-shrink: 0;
+  }
+
+  .action-text {
+    flex: 1;
+    font-weight: var(--yt-font-medium);
+  }
+
+  .action-badge {
+    background: var(--yt-danger-500);
+    color: var(--yt-text-inverse);
+    border-radius: var(--yt-radius-full);
+    padding: var(--yt-space-1) var(--yt-space-2);
+    font-size: var(--yt-text-xs);
+    font-weight: var(--yt-font-bold);
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .recent-activity {
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-xl);
+    padding: var(--yt-space-6);
+    box-shadow: var(--yt-shadow-lg);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+    margin-bottom: var(--yt-space-8);
+  }
+
+  .activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    margin-bottom: var(--yt-space-6);
+  }
+
+  .activity-title {
+    font-size: var(--yt-text-xl);
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    margin: 0;
+  }
+
+  .activity-list {
+    display: grid;
+    gap: var(--yt-space-4);
+  }
+
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--yt-space-4);
+    padding: var(--yt-space-4);
+    background: var(--yt-bg-secondary);
+    border-radius: var(--yt-radius-lg);
+  }
+
+  .activity-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--yt-radius-full);
+    background: var(--activity-color, var(--yt-primary-500));
+    color: var(--yt-text-inverse);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--yt-text-base);
+    flex-shrink: 0;
+  }
+
+  .activity-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .activity-text {
+    font-size: var(--yt-text-sm);
+    color: var(--yt-text-primary);
+    margin: 0 0 var(--yt-space-1) 0;
+  }
+
+  .activity-meta {
+    font-size: var(--yt-text-xs);
+    color: var(--yt-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-3);
+  }
+
+  /* Dark mode adjustments */
+  .dark .stat-card,
+  .dark .chart-card,
+  .dark .action-group,
+  .dark .recent-activity {
+    background: var(--yt-gray-800);
+    border-color: var(--yt-gray-700);
+  }
+
+  .dark .activity-item {
+    background: var(--yt-gray-700);
+  }
+
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .stat-card,
+    .chart-card,
+    .action-group,
+    .recent-activity {
+      border-width: var(--yt-border-2);
+    }
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .admin-header {
+      padding: var(--yt-space-4);
+      margin-bottom: calc(-1 * var(--yt-space-4));
+    }
+
+    .admin-header h1 {
+      font-size: var(--yt-text-2xl);
+    }
+
+    .admin-stats-grid {
+      grid-template-columns: 1fr;
+      gap: var(--yt-space-4);
+    }
+
+    .stat-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--yt-space-2);
+    }
+
+    .stat-icon {
+      margin-right: 0;
+    }
+  }
+
+  /* Print styles for admin reports */
+  @media print {
+    .admin-header {
+      background: none;
+      color: var(--yt-text-primary);
+      padding: var(--yt-space-4) 0;
+    }
+
+    .stat-card,
+    .chart-card {
+      break-inside: avoid;
+      box-shadow: none;
+      border: var(--yt-border-1) solid var(--yt-text-primary);
+    }
+
+    .quick-actions {
+      display: none;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block sidebar_content %}
+<!-- Admin Navigation Menu -->
+<div class="nav-section" role="group" aria-labelledby="admin-dashboard-section">
+  <h3 id="admin-dashboard-section" class="nav-section-title">Admin Dashboard</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="{% url 'admin:index' %}"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Admin Overview Dashboard">
+        <i class="nav-icon material-icons" aria-hidden="true">dashboard</i>
+        <span class="nav-text">Overview</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="System Analytics">
+        <i class="nav-icon material-icons" aria-hidden="true">analytics</i>
+        <span class="nav-text">Analytics</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="System Health Monitoring">
+        <i class="nav-icon material-icons" aria-hidden="true">monitor_heart</i>
+        <span class="nav-text">Health</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- User Management -->
+<div class="nav-section" role="group" aria-labelledby="user-mgmt-section">
+  <h3 id="user-mgmt-section" class="nav-section-title">User Management</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="{% url 'admin:peoples_people_changelist' %}"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Manage Users">
+        <i class="nav-icon material-icons" aria-hidden="true">people</i>
+        <span class="nav-text">Users</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="User Groups and Permissions">
+        <i class="nav-icon material-icons" aria-hidden="true">groups</i>
+        <span class="nav-text">Groups</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="User Sessions">
+        <i class="nav-icon material-icons" aria-hidden="true">session</i>
+        <span class="nav-text">Sessions</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- Content Management -->
+<div class="nav-section" role="group" aria-labelledby="content-mgmt-section">
+  <h3 id="content-mgmt-section" class="nav-section-title">Content Management</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Manage Tasks">
+        <i class="nav-icon material-icons" aria-hidden="true">task</i>
+        <span class="nav-text">Tasks</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Manage Tickets">
+        <i class="nav-icon material-icons" aria-hidden="true">support</i>
+        <span class="nav-text">Tickets</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Manage Work Orders">
+        <i class="nav-icon material-icons" aria-hidden="true">build</i>
+        <span class="nav-text">Work Orders</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- System Management -->
+<div class="nav-section" role="group" aria-labelledby="system-mgmt-section">
+  <h3 id="system-mgmt-section" class="nav-section-title">System</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="System Settings">
+        <i class="nav-icon material-icons" aria-hidden="true">settings</i>
+        <span class="nav-text">Settings</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Audit Logs">
+        <i class="nav-icon material-icons" aria-hidden="true">history</i>
+        <span class="nav-text">Audit Logs</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Security Reports">
+        <i class="nav-icon material-icons" aria-hidden="true">security</i>
+        <span class="nav-text">Security</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Data Export">
+        <i class="nav-icon material-icons" aria-hidden="true">download</i>
+        <span class="nav-text">Export</span>
+      </a>
+    </li>
+  </ul>
+</div>
+{% endblock sidebar_content %}
+
+{% block content %}
+<!-- Admin Header -->
+<div class="admin-header">
+  <h1>{% block admin_title %}System Administration{% endblock admin_title %}</h1>
+  <p>{% block admin_subtitle %}Manage users, content, and system settings{% endblock admin_subtitle %}</p>
+</div>
+
+<!-- Admin Content -->
+<div class="content-wrapper">
+
+  <!-- Key Statistics -->
+  {% block admin_stats %}
+  <div class="admin-stats-grid">
+    <div class="stat-card" style="--stat-color: var(--yt-primary-500);">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="material-icons">people</i>
+        </div>
+        <div class="stat-info">
+          <h3 class="stat-title">Total Users</h3>
+          <p class="stat-value" id="total-users">{{ stats.total_users|default:0 }}</p>
+        </div>
+      </div>
+      <div class="stat-change positive">
+        <i class="material-icons">trending_up</i>
+        <span>+{{ stats.new_users_this_month|default:0 }} this month</span>
+      </div>
+    </div>
+
+    <div class="stat-card" style="--stat-color: var(--yt-success-500);">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="material-icons">check_circle</i>
+        </div>
+        <div class="stat-info">
+          <h3 class="stat-title">Active Sessions</h3>
+          <p class="stat-value" id="active-sessions">{{ stats.active_sessions|default:0 }}</p>
+        </div>
+      </div>
+      <div class="stat-change neutral">
+        <i class="material-icons">schedule</i>
+        <span>{{ stats.avg_session_duration|default:'0m' }} avg duration</span>
+      </div>
+    </div>
+
+    <div class="stat-card" style="--stat-color: var(--yt-warning-500);">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="material-icons">support</i>
+        </div>
+        <div class="stat-info">
+          <h3 class="stat-title">Open Tickets</h3>
+          <p class="stat-value" id="open-tickets">{{ stats.open_tickets|default:0 }}</p>
+        </div>
+      </div>
+      <div class="stat-change {% if stats.ticket_trend >= 0 %}negative{% else %}positive{% endif %}">
+        <i class="material-icons">{% if stats.ticket_trend >= 0 %}trending_up{% else %}trending_down{% endif %}</i>
+        <span>{{ stats.ticket_trend|default:0 }} from yesterday</span>
+      </div>
+    </div>
+
+    <div class="stat-card" style="--stat-color: var(--yt-info-500);">
+      <div class="stat-header">
+        <div class="stat-icon">
+          <i class="material-icons">speed</i>
+        </div>
+        <div class="stat-info">
+          <h3 class="stat-title">System Health</h3>
+          <p class="stat-value" id="system-health">{{ stats.system_health|default:'Good' }}</p>
+        </div>
+      </div>
+      <div class="stat-change positive">
+        <i class="material-icons">check</i>
+        <span>{{ stats.uptime|default:'99.9%' }} uptime</span>
+      </div>
+    </div>
+  </div>
+  {% endblock admin_stats %}
+
+  <!-- Main Content Grid -->
+  <div class="admin-content-grid">
+
+    <!-- Charts and Analytics -->
+    <div class="chart-section">
+      {% block admin_charts %}
+
+      <!-- User Activity Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h2 class="chart-title">User Activity</h2>
+          <div class="chart-actions">
+            <button class="chart-action active" data-period="7d">7 Days</button>
+            <button class="chart-action" data-period="30d">30 Days</button>
+            <button class="chart-action" data-period="90d">90 Days</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="userActivityChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- System Performance Chart -->
+      <div class="chart-card" style="margin-top: var(--yt-space-6);">
+        <div class="chart-header">
+          <h2 class="chart-title">System Performance</h2>
+          <div class="chart-actions">
+            <button class="chart-action active" data-metric="response_time">Response Time</button>
+            <button class="chart-action" data-metric="throughput">Throughput</button>
+            <button class="chart-action" data-metric="errors">Error Rate</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="performanceChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+
+      {% endblock admin_charts %}
+    </div>
+
+    <!-- Quick Actions Sidebar -->
+    <div class="quick-actions">
+      {% block admin_actions %}
+
+      <!-- User Actions -->
+      <div class="action-group">
+        <h3 class="action-group-title">
+          <i class="material-icons">people</i>
+          User Actions
+        </h3>
+        <div class="action-list">
+          <a href="{% url 'admin:peoples_people_add' %}" class="action-item">
+            <i class="action-icon material-icons">person_add</i>
+            <span class="action-text">Add New User</span>
+          </a>
+          <button class="action-item" onclick="openBulkUserActions()">
+            <i class="action-icon material-icons">group_add</i>
+            <span class="action-text">Bulk User Import</span>
+          </button>
+          <button class="action-item" onclick="exportUsers()">
+            <i class="action-icon material-icons">download</i>
+            <span class="action-text">Export Users</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- System Actions -->
+      <div class="action-group">
+        <h3 class="action-group-title">
+          <i class="material-icons">settings</i>
+          System Actions
+        </h3>
+        <div class="action-list">
+          <button class="action-item" onclick="runSystemCheck()">
+            <i class="action-icon material-icons">health_and_safety</i>
+            <span class="action-text">System Health Check</span>
+          </button>
+          <button class="action-item" onclick="clearCaches()">
+            <i class="action-icon material-icons">refresh</i>
+            <span class="action-text">Clear Caches</span>
+          </button>
+          <button class="action-item" onclick="viewLogs()">
+            <i class="action-icon material-icons">description</i>
+            <span class="action-text">View Logs</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="action-group">
+        <h3 class="action-group-title">
+          <i class="material-icons">warning</i>
+          Alerts & Issues
+        </h3>
+        <div class="action-list">
+          <button class="action-item" onclick="viewAlerts('security')">
+            <i class="action-icon material-icons">security</i>
+            <span class="action-text">Security Alerts</span>
+            <span class="action-badge" id="security-alerts">{{ alerts.security|default:0 }}</span>
+          </button>
+          <button class="action-item" onclick="viewAlerts('performance')">
+            <i class="action-icon material-icons">speed</i>
+            <span class="action-text">Performance Issues</span>
+            <span class="action-badge" id="performance-alerts">{{ alerts.performance|default:0 }}</span>
+          </button>
+          <button class="action-item" onclick="viewAlerts('errors')">
+            <i class="action-icon material-icons">error</i>
+            <span class="action-text">Error Reports</span>
+            <span class="action-badge" id="error-alerts">{{ alerts.errors|default:0 }}</span>
+          </button>
+        </div>
+      </div>
+
+      {% endblock admin_actions %}
+    </div>
+
+  </div>
+
+  <!-- Recent Activity -->
+  {% block admin_activity %}
+  <div class="recent-activity">
+    <div class="activity-header">
+      <h2 class="activity-title">Recent Activity</h2>
+      <a href="#" class="yt-button yt-button-text">View All</a>
+    </div>
+    <div class="activity-list" id="recent-activity-list">
+      <!-- Activity items will be loaded via JavaScript -->
+      {% for activity in recent_activities|slice:":5" %}
+      <div class="activity-item">
+        <div class="activity-icon" style="--activity-color: {{ activity.color|default:'var(--yt-primary-500)' }};">
+          <i class="material-icons">{{ activity.icon|default:'info' }}</i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-text">{{ activity.description }}</p>
+          <div class="activity-meta">
+            <span>{{ activity.user }}</span>
+            <span>•</span>
+            <span>{{ activity.timestamp|timesince }} ago</span>
+            {% if activity.location %}
+            <span>•</span>
+            <span>{{ activity.location }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="activity-item">
+        <div class="activity-icon">
+          <i class="material-icons">info</i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-text">No recent activity to display.</p>
+          <div class="activity-meta">
+            <span>System</span>
+            <span>•</span>
+            <span>Just now</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endblock admin_activity %}
+
+  <!-- Custom Admin Content -->
+  {% block admin_content %}
+  {% endblock admin_content %}
+
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+{{ block.super }}
+
+<!-- Chart.js for data visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+
+<!-- Admin Dashboard JavaScript -->
+<script type="module">
+import { DOM, Events, HTTP, A11y } from '{{ static("js/modules/core/utils.js") }}';
+
+class AdminDashboard {
+  constructor() {
+    this.charts = new Map();
+    this.refreshInterval = null;
+    this.init();
+  }
+
+  async init() {
+    try {
+      this.setupCharts();
+      this.setupRealTimeUpdates();
+      this.setupActions();
+      this.loadInitialData();
+
+      A11y.announce('Admin dashboard loaded');
+      console.log('📊 Admin Dashboard initialized');
+
+    } catch (error) {
+      console.error('Admin Dashboard initialization failed:', error);
+      A11y.announce('Dashboard failed to load properly');
+    }
+  }
+
+  setupCharts() {
+    // User Activity Chart
+    const userActivityCtx = DOM.select('#userActivityChart');
+    if (userActivityCtx) {
+      this.charts.set('userActivity', new Chart(userActivityCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Active Users',
+            data: [],
+            borderColor: 'rgb(55, 125, 255)',
+            backgroundColor: 'rgba(55, 125, 255, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: false
+            },
+            accessibility: {
+              enabled: true
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      }));
+    }
+
+    // Performance Chart
+    const performanceCtx = DOM.select('#performanceChart');
+    if (performanceCtx) {
+      this.charts.set('performance', new Chart(performanceCtx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Response Time (ms)',
+            data: [],
+            backgroundColor: 'rgba(0, 201, 167, 0.8)',
+            borderColor: 'rgb(0, 201, 167)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Response Time (ms)'
+              }
+            }
+          }
+        }
+      }));
+    }
+  }
+
+  setupRealTimeUpdates() {
+    // Update stats every 30 seconds
+    this.refreshInterval = setInterval(() => {
+      this.updateStats();
+      this.updateActivity();
+    }, 30000);
+
+    // Update charts every 2 minutes
+    setInterval(() => {
+      this.updateCharts();
+    }, 120000);
+  }
+
+  setupActions() {
+    // Chart period buttons
+    const chartActions = DOM.selectAll('.chart-action');
+    Events.on(chartActions, 'click', (e) => {
+      const button = e.target;
+      const period = button.dataset.period || button.dataset.metric;
+      const chart = button.closest('.chart-card');
+
+      // Update active state
+      DOM.removeClass(chart.querySelectorAll('.chart-action'), 'active');
+      DOM.addClass(button, 'active');
+
+      // Update chart data
+      this.updateChartData(chart, period);
+    });
+
+    // Setup action buttons
+    window.openBulkUserActions = () => {
+      A11y.announce('Opening bulk user actions');
+      // Implementation would open bulk actions modal
+    };
+
+    window.exportUsers = () => {
+      A11y.announce('Starting user export');
+      this.exportData('users');
+    };
+
+    window.runSystemCheck = () => {
+      A11y.announce('Running system health check');
+      this.performSystemCheck();
+    };
+
+    window.clearCaches = () => {
+      A11y.announce('Clearing system caches');
+      this.clearSystemCaches();
+    };
+
+    window.viewLogs = () => {
+      A11y.announce('Opening system logs');
+      // Implementation would open logs viewer
+    };
+
+    window.viewAlerts = (type) => {
+      A11y.announce(`Opening ${type} alerts`);
+      // Implementation would open alerts for specific type
+    };
+  }
+
+  async loadInitialData() {
+    try {
+      await Promise.all([
+        this.updateStats(),
+        this.updateCharts(),
+        this.updateActivity()
+      ]);
+    } catch (error) {
+      console.error('Failed to load initial dashboard data:', error);
+    }
+  }
+
+  async updateStats() {
+    try {
+      const response = await HTTP.get('/api/admin/stats/');
+
+      if (response.success) {
+        const stats = response.data;
+
+        // Update stat values
+        this.updateStatValue('total-users', stats.total_users);
+        this.updateStatValue('active-sessions', stats.active_sessions);
+        this.updateStatValue('open-tickets', stats.open_tickets);
+        this.updateStatValue('system-health', stats.system_health);
+
+        // Update alert badges
+        this.updateAlertBadge('security-alerts', stats.alerts?.security || 0);
+        this.updateAlertBadge('performance-alerts', stats.alerts?.performance || 0);
+        this.updateAlertBadge('error-alerts', stats.alerts?.errors || 0);
+      }
+    } catch (error) {
+      console.error('Failed to update stats:', error);
+    }
+  }
+
+  updateStatValue(elementId, value) {
+    const element = DOM.select(`#${elementId}`);
+    if (element) {
+      element.textContent = value;
+    }
+  }
+
+  updateAlertBadge(elementId, count) {
+    const badge = DOM.select(`#${elementId}`);
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'block' : 'none';
+    }
+  }
+
+  async updateCharts() {
+    try {
+      const response = await HTTP.get('/api/admin/chart-data/');
+
+      if (response.success) {
+        this.updateUserActivityChart(response.data.user_activity);
+        this.updatePerformanceChart(response.data.performance);
+      }
+    } catch (error) {
+      console.error('Failed to update charts:', error);
+    }
+  }
+
+  updateUserActivityChart(data) {
+    const chart = this.charts.get('userActivity');
+    if (chart && data) {
+      chart.data.labels = data.labels;
+      chart.data.datasets[0].data = data.values;
+      chart.update('none'); // No animation for real-time updates
+    }
+  }
+
+  updatePerformanceChart(data) {
+    const chart = this.charts.get('performance');
+    if (chart && data) {
+      chart.data.labels = data.labels;
+      chart.data.datasets[0].data = data.values;
+      chart.update('none');
+    }
+  }
+
+  async updateActivity() {
+    try {
+      const response = await HTTP.get('/api/admin/recent-activity/');
+
+      if (response.success) {
+        this.renderActivity(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to update activity:', error);
+    }
+  }
+
+  renderActivity(activities) {
+    const container = DOM.select('#recent-activity-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    activities.forEach(activity => {
+      const item = DOM.create('div', { className: 'activity-item' }, [
+        DOM.create('div', {
+          className: 'activity-icon',
+          style: `--activity-color: ${activity.color || 'var(--yt-primary-500)'}`
+        }, [
+          DOM.create('i', { className: 'material-icons' }, activity.icon || 'info')
+        ]),
+        DOM.create('div', { className: 'activity-content' }, [
+          DOM.create('p', { className: 'activity-text' }, activity.description),
+          DOM.create('div', { className: 'activity-meta' }, [
+            DOM.create('span', {}, activity.user),
+            DOM.create('span', {}, '•'),
+            DOM.create('span', {}, activity.time_ago)
+          ])
+        ])
+      ]);
+
+      container.appendChild(item);
+    });
+  }
+
+  async exportData(type) {
+    try {
+      const response = await HTTP.post('/api/admin/export/', { type });
+
+      if (response.success) {
+        // Trigger download
+        const link = DOM.create('a', {
+          href: response.data.download_url,
+          download: response.data.filename,
+          style: 'display: none'
+        });
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        A11y.announce(`${type} export started`);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      A11y.announce('Export failed');
+    }
+  }
+
+  async performSystemCheck() {
+    try {
+      const response = await HTTP.post('/api/admin/system-check/');
+
+      if (response.success) {
+        this.showSystemCheckResults(response.data);
+      }
+    } catch (error) {
+      console.error('System check failed:', error);
+      A11y.announce('System check failed');
+    }
+  }
+
+  showSystemCheckResults(results) {
+    // Implementation would show system check results in a modal
+    console.log('System check results:', results);
+    A11y.announce('System check completed');
+  }
+
+  async clearSystemCaches() {
+    try {
+      const response = await HTTP.post('/api/admin/clear-caches/');
+
+      if (response.success) {
+        A11y.announce('Caches cleared successfully');
+      }
+    } catch (error) {
+      console.error('Cache clear failed:', error);
+      A11y.announce('Failed to clear caches');
+    }
+  }
+
+  destroy() {
+    // Clean up charts
+    this.charts.forEach(chart => chart.destroy());
+    this.charts.clear();
+
+    // Clear intervals
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+
+    A11y.announce('Admin dashboard destroyed');
+  }
+}
+
+// Initialize dashboard
+const adminDashboard = new AdminDashboard();
+
+// Export for global access
+window.AdminDashboard = adminDashboard;
+
+</script>
+{% endblock extra_scripts %}

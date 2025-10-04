@@ -1,0 +1,176 @@
+{% extends "noc/base.html" %}
+{% load static %}
+
+{% block noc_breadcrumb %}
+<li class="breadcrumb-item active">Overview</li>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'js/noc/dashboard.js' %}"></script>
+<script src="{% static 'js/noc/map.js' %}"></script>
+<script src="{% static 'js/noc/alerts.js' %}"></script>
+<script src="{% static 'js/noc/drilldown.js' %}"></script>
+{% endblock %}
+
+{% block noc_content %}
+<div id="noc-dashboard" class="noc-container">
+    <div class="noc-filters card mb-4">
+        <div class="card-body">
+            <form id="filter-form" class="row g-3">
+                <div class="col-md-3">
+                    <label for="filter-client" class="form-label">Clients</label>
+                    <select id="filter-client" multiple class="form-control" size="3">
+                        {% for client in allowed_clients %}
+                        <option value="{{ client.id }}">{{ client.buname }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter-city" class="form-label">City</label>
+                    <input type="text" id="filter-city" placeholder="All cities" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="filter-state" class="form-label">State</label>
+                    <input type="text" id="filter-state" placeholder="All states" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="filter-oic" class="form-label">OIC</label>
+                    <select id="filter-oic" class="form-control">
+                        <option value="">All OICs</option>
+                        {% for oic in oics %}
+                        <option value="{{ oic.id }}">{{ oic.peoplename }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter-time-range" class="form-label">Time Range</label>
+                    <select id="filter-time-range" class="form-control">
+                        <option value="1">Last Hour</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="168">Last Week</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="button" id="apply-filters" class="btn btn-primary w-100">Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="kpi-grid row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="kpi-tile card" id="tile-tickets-open">
+                <div class="card-body">
+                    <h6 class="card-title">Open Tickets</h6>
+                    <div class="kpi-value display-4">-</div>
+                    <div class="kpi-trend text-muted small"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="kpi-tile card border-danger" id="tile-sla-breaches">
+                <div class="card-body">
+                    <h6 class="card-title text-danger">SLA Breaches</h6>
+                    <div class="kpi-value display-4">-</div>
+                    <div class="kpi-trend text-muted small"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="kpi-tile card" id="tile-attendance">
+                <div class="card-body">
+                    <h6 class="card-title">Attendance</h6>
+                    <div class="kpi-value display-4">-/-</div>
+                    <div class="kpi-percentage text-muted small"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="kpi-tile card" id="tile-work-orders">
+                <div class="card-body">
+                    <h6 class="card-title">Work Orders</h6>
+                    <div class="kpi-value display-4">-</div>
+                    <div class="kpi-trend text-muted small"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="kpi-tile card border-warning" id="tile-devices-offline">
+                <div class="card-body">
+                    <h6 class="card-title text-warning">Devices Offline</h6>
+                    <div class="kpi-value display-4">-</div>
+                    <div class="kpi-trend text-muted small"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="kpi-tile card" id="tile-active-incidents">
+                <div class="card-body">
+                    <h6 class="card-title">Active Incidents</h6>
+                    <div class="kpi-value display-4">-</div>
+                    <div class="kpi-trend text-muted small"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Geographic Overview</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="noc-map" style="height: 500px; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Real-Time Alerts</h5>
+                    <span class="alert-count badge bg-primary">0 Active</span>
+                </div>
+                <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
+                    <ul id="alert-list" class="alert-list list-group list-group-flush"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="drill-down-nav btn-group mb-3" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="drillDownClients()">By Client</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="drillDownSites()">By Site</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="drillDownIncidents()">Incidents</button>
+                    </div>
+                    <div id="drill-down-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="maintenance-indicator" style="display:none;" class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="fas fa-wrench"></i> <strong>Maintenance Window Active</strong>
+        <span id="maintenance-details"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+</div>
+
+<audio id="alert-sound" preload="auto">
+    <source src="{% static 'audio/alert-critical.mp3' %}" type="audio/mpeg">
+</audio>
+{% endblock %}

@@ -2,6 +2,7 @@ import logging
 from typing import Type
 import os
 import html
+from django.utils.translation import gettext_lazy as _
 from django.http import response as rp
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -287,10 +288,10 @@ class SuperTypeAssist(LoginRequiredMixin, View):
                 logger.info("bu form saved")
 
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return rp.JsonResponse({"pk": bu.id, "status": "success", "message": "Contract saved successfully"}, status=200)
+                    return rp.JsonResponse({"pk": bu.id, "status": "success", "message": str(_("Contract saved successfully"))}, status=200)
                 else:
                     from django.contrib import messages
-                    messages.success(request, "Contract saved successfully")
+                    messages.success(request, _("Contract saved successfully"))
                     return rp.HttpResponseRedirect(f"/admin/contracts/?id={bu.id}")
         except IntegrityError:
             return handle_intergrity_error("Bu")

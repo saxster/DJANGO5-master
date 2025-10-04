@@ -1,0 +1,55 @@
+# Systemd Service File for Celery Multi-Queue Workers
+# Place in: /etc/systemd/system/celery-workers.service
+# Usage: sudo systemctl enable celery-workers && sudo systemctl start celery-workers
+
+[Unit]
+Description=Celery Multi-Queue Workers for IntelliWiz Facility Management
+Documentation=https://docs.celeryproject.org/
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=forking
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/your/project/DJANGO5-master
+Environment="DJANGO_SETTINGS_MODULE=intelliwiz_config.settings"
+Environment="PYTHONPATH=/path/to/your/project/DJANGO5-master"
+
+# Comprehensive worker startup
+ExecStart=/path/to/your/project/DJANGO5-master/scripts/celery_workers.sh start
+ExecStop=/path/to/your/project/DJANGO5-master/scripts/celery_workers.sh stop
+ExecReload=/path/to/your/project/DJANGO5-master/scripts/celery_workers.sh restart
+
+# Health monitoring
+ExecStartPost=/bin/bash -c 'sleep 10; /path/to/your/project/DJANGO5-master/scripts/celery_workers.sh health'
+
+# Process management
+TimeoutStartSec=60
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+SendSIGKILL=yes
+
+# Resource limits and performance
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Restart behavior
+Restart=always
+RestartSec=10
+StartLimitInterval=10
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=celery-workers
+
+# Security
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/path/to/your/project/DJANGO5-master/logs /path/to/your/project/DJANGO5-master/run
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

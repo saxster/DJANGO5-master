@@ -15,7 +15,7 @@ import logging
 from apps.api.graphql.dataloaders import get_loaders
 from apps.peoples.models import People, Pgroup
 from apps.activity.models.asset_model import Asset
-from apps.activity.models.job_model import Job, Jobneed
+from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
 
 logger = logging.getLogger('graphql.schema')
 
@@ -181,12 +181,23 @@ class AssetType(OptimizedDjangoObjectType):
 class JobType(OptimizedDjangoObjectType):
     """
     Optimized Job type with DataLoader support.
+
+    IMPORTANT: Job has 1-to-many relationship with Jobneed.
+    - Use 'jobneed' (singular) to get most recent execution
+    - Use 'jobneeds' (plural) to get full execution history
     """
-    
-    jobneed_details = graphene.Field(lambda: JobneedType)
+
+    # Current/latest jobneed execution
+    jobneed = graphene.Field(lambda: JobneedType, description="Most recent jobneed execution")
+
+    # Full execution history
+    jobneeds = graphene.List(lambda: JobneedType,
+                              limit=graphene.Int(default_value=10),
+                              description="Jobneed execution history (recent first)")
+
     asset_details = graphene.Field(AssetType)
     assigned_person = graphene.Field(PeopleType)
-    
+
     class Meta:
         model = Job
         fields = '__all__'
@@ -197,28 +208,47 @@ class JobType(OptimizedDjangoObjectType):
             'asset': ['exact'],
             'people': ['exact'],
         }
-    
+
     @classmethod
     def get_queryset(cls, queryset, info):
         """
         Optimize queryset for Job.
+
+        NOTE: Removed select_related('jobneed') - Job has 1-to-many with Jobneed,
+        not 1-to-1. Use dataloaders for jobneed queries.
         """
-        return queryset.select_related('jobneed', 'asset', 'people')
-    
-    def resolve_jobneed_details(self, info):
+        return queryset.select_related('asset', 'people')
+
+    def resolve_jobneed(self, info):
         """
-        Resolve jobneed using DataLoader.
+        Resolve latest jobneed using DataLoader (1-to-many relationship).
+
+        Returns:
+            Jobneed: Most recent jobneed by plandatetime, or None
         """
         loaders = get_loaders(info)
-        return loaders['jobneed_by_job'].load(self.id)
-    
+        return loaders['latest_jobneed_by_job'].load(self.id)
+
+    def resolve_jobneeds(self, info, limit=10):
+        """
+        Resolve jobneed history using DataLoader.
+
+        Args:
+            limit: Maximum number of records to return
+
+        Returns:
+            list[Jobneed]: Recent jobneeds ordered by plandatetime (desc)
+        """
+        loaders = get_loaders(info)
+        return loaders['jobneeds_by_job'].load((self.id, limit))
+
     def resolve_asset_details(self, info):
         """
         Resolve asset using DataLoader.
         """
         loaders = get_loaders(info)
-        return loaders['asset_by_id'].load(self.asset_id)
-    
+        return loaders['asset_by_id'].load(self.asset_id) if self.asset_id else None
+
     def resolve_assigned_person(self, info):
         """
         Resolve assigned person using DataLoader.
@@ -230,29 +260,51 @@ class JobType(OptimizedDjangoObjectType):
 class JobneedType(OptimizedDjangoObjectType):
     """
     Optimized Jobneed type.
+
+    Jobneed represents a concrete execution instance of a Job.
     """
-    
-    jobs = graphene.List(JobType)
-    job_count = graphene.Int()
-    
+
+    # The Job template that generated this jobneed
+    job = graphene.Field(JobType, description="Job template that generated this execution")
+
+    # Details/checklist items for this jobneed
+    details = graphene.List(
+        lambda: JobneedDetailsType,
+        description="Checklist question details for this jobneed"
+    )
+
     class Meta:
         model = Jobneed
         fields = '__all__'
         interfaces = (relay.Node,)
-    
-    def resolve_jobs(self, info):
-        """
-        Resolve related jobs using DataLoader.
-        """
-        loaders = get_loaders(info)
-        return loaders['jobs_by_jobneed'].load(self.id)
 
-    def resolve_job_count(self, info):
+    def resolve_job(self, info):
         """
-        Resolve job count using DataLoader.
+        Resolve parent Job template.
         """
-        loaders = get_loaders(info)
-        return loaders['job_count_by_jobneed'].load(self.id)
+        if self.job_id:
+            return Job.objects.select_related('asset', 'people', 'qset').get(id=self.job_id)
+        return None
+
+    def resolve_details(self, info):
+        """
+        Resolve jobneed details (checklist items).
+        """
+        from apps.activity.models import JobneedDetails
+        return JobneedDetails.objects.filter(
+            jobneed=self
+        ).select_related('question').order_by('seqno')
+
+
+class JobneedDetailsType(OptimizedDjangoObjectType):
+    """
+    Optimized JobneedDetails type (checklist items).
+    """
+
+    class Meta:
+        model = JobneedDetails
+        fields = '__all__'
+        interfaces = (relay.Node,)
 
 
 class Query(graphene.ObjectType):
@@ -511,7 +563,7 @@ class Mutation(graphene.ObjectType):
 schema = graphene.Schema(
     query=Query,
     mutation=Mutation,
-    types=[PeopleType, PgroupType, AssetType, JobType, JobneedType]
+    types=[PeopleType, PgroupType, AssetType, JobType, JobneedType, JobneedDetailsType]
 )
 
 

@@ -63,9 +63,13 @@ class AssetManager(models.Manager):
             qset = qset.annotate(text = Concat(F('assetname'),V('('),F('assetcode'),V(')'))).values_list('id','text')
         return qset or self.none()
     
-    def get_schedule_task_for_adhoc(self, params):
-        qset = self.raw("select * from fn_get_schedule_for_adhoc")
-        
+    # REMOVED: get_schedule_task_for_adhoc - Dead code with SQL injection vulnerability
+    # This function was never called and had unparameterized raw SQL.
+    # If needed in future, use the properly parameterized version from JobneedManager
+    # or implement using apps.core.db.raw_query_utils.execute_raw_query()
+    # Original signature: def get_schedule_task_for_adhoc(self, params):
+    #     qset = self.raw("select * from fn_get_schedule_for_adhoc")
+
     def get_peoplenearasset(self, request):
         "List View"
         qset = self.annotate(gps = AsWKT('gpslocation')).filter(

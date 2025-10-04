@@ -20,6 +20,7 @@ import json
 import time
 from datetime import datetime, timedelta
 
+from apps.core.constants.datetime_constants import MINUTES_IN_HOUR, MINUTES_IN_DAY
 from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.utils.decorators import method_decorator
@@ -33,6 +34,7 @@ from .django_monitoring import (
     HealthCheckView,
     export_metrics_prometheus
 )
+from .services.pii_redaction_service import MonitoringPIIRedactionService
 
 
 @method_decorator(require_monitoring_api_key, name='dispatch')
@@ -109,7 +111,10 @@ class MetricsEndpoint(View):
     def _get_system_metrics(self):
         """Get system-level metrics"""
         import psutil
-        
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
             return {
                 'cpu_percent': psutil.cpu_percent(interval=0.1),
@@ -124,7 +129,14 @@ class MetricsEndpoint(View):
                     'percent': psutil.disk_usage('/').percent
                 }
             }
-        except:
+        except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
+            logger.warning(f"System metrics access denied: {e}")
+            return {}
+        except (OSError, FileNotFoundError) as e:
+            logger.error(f"System metrics OS error: {e}")
+            return {}
+        except Exception as e:
+            logger.exception(f"Unexpected error getting system metrics: {e}")
             return {}
 
 
@@ -139,21 +151,25 @@ class QueryPerformanceView(View):
     def get(self, request):
         """Return query performance data"""
         # Get query stats from the last hour
-        window_minutes = int(request.GET.get('window', 60))
+        window_minutes = int(request.GET.get('window', MINUTES_IN_HOUR))
         
         query_stats = metrics_collector.get_stats('query_time', window_minutes)
         query_count_stats = metrics_collector.get_stats('query_count', window_minutes)
         
-        # Get slow queries
+        # Get slow queries (with PII sanitization)
         slow_queries = []
         with metrics_collector.lock:
             query_metrics = metrics_collector.metrics.get('query_time', [])
             for metric in query_metrics[-100:]:  # Last 100 queries
                 if metric['value'] > 0.1:  # Queries over 100ms
+                    # Sanitize SQL before adding to response
+                    sql = metric['tags'].get('sql', 'Unknown')
+                    sanitized_sql = MonitoringPIIRedactionService.sanitize_sql_query(sql)
+
                     slow_queries.append({
                         'timestamp': metric['timestamp'],
                         'time': metric['value'],
-                        'sql': metric['tags'].get('sql', 'Unknown')
+                        'sql': sanitized_sql
                     })
         
         # Sort by time descending
@@ -165,10 +181,14 @@ class QueryPerformanceView(View):
             'query_performance': query_stats,
             'queries_per_request': query_count_stats,
             'slow_queries': slow_queries[:20],  # Top 20 slowest
-            'recommendations': self._get_recommendations(query_stats, slow_queries)
+            'recommendations': self._get_recommendations(query_stats, slow_queries),
+            'correlation_id': getattr(request, 'correlation_id', None)
         }
-        
-        return JsonResponse(response_data)
+
+        # Sanitize response data for PII
+        sanitized_data = MonitoringPIIRedactionService.sanitize_dashboard_data(response_data)
+
+        return JsonResponse(sanitized_data)
     
     def _get_recommendations(self, query_stats, slow_queries):
         """Generate performance recommendations"""
@@ -215,7 +235,7 @@ class CachePerformanceView(View):
     
     def get(self, request):
         """Return cache performance data"""
-        window_minutes = int(request.GET.get('window', 60))
+        window_minutes = int(request.GET.get('window', MINUTES_IN_HOUR))
         
         # Get cache stats
         cache_hit_stats = metrics_collector.get_stats('cache_hit', window_minutes)
@@ -239,10 +259,14 @@ class CachePerformanceView(View):
             'misses': total_misses,
             'get_performance': cache_get_stats,
             'set_performance': cache_set_stats,
-            'recommendations': self._get_cache_recommendations(hit_rate, cache_get_stats)
+            'recommendations': self._get_cache_recommendations(hit_rate, cache_get_stats),
+            'correlation_id': getattr(request, 'correlation_id', None)
         }
-        
-        return JsonResponse(response_data)
+
+        # Sanitize response data for PII
+        sanitized_data = MonitoringPIIRedactionService.sanitize_dashboard_data(response_data)
+
+        return JsonResponse(sanitized_data)
     
     def _get_cache_recommendations(self, hit_rate, get_stats):
         """Generate cache recommendations"""
@@ -293,10 +317,14 @@ class AlertsView(View):
             'timestamp': datetime.now().isoformat(),
             'total_alerts': len(alerts),
             'alerts': alerts_by_level,
-            'thresholds': metrics_collector.THRESHOLDS
+            'thresholds': metrics_collector.THRESHOLDS,
+            'correlation_id': getattr(request, 'correlation_id', None)
         }
-        
-        return JsonResponse(response_data)
+
+        # Sanitize response data for PII
+        sanitized_data = MonitoringPIIRedactionService.sanitize_dashboard_data(response_data)
+
+        return JsonResponse(sanitized_data)
 
 
 @method_decorator(require_monitoring_api_key, name='dispatch')
@@ -313,16 +341,17 @@ class DashboardDataView(View):
         ranges = {
             '5m': 5,
             '15m': 15,
-            '1h': 60,
-            '24h': 1440
+            '1h': MINUTES_IN_HOUR,
+            '24h': MINUTES_IN_DAY
         }
         
         dashboard_data = {
             'timestamp': datetime.now().isoformat(),
             'current_alerts': len(metrics_collector.check_thresholds()),
-            'time_series': {}
+            'time_series': {},
+            'correlation_id': getattr(request, 'correlation_id', None)
         }
-        
+
         # Get metrics for each time range
         for range_name, minutes in ranges.items():
             dashboard_data['time_series'][range_name] = {
@@ -332,11 +361,14 @@ class DashboardDataView(View):
                 'cache_hit_rate': self._calculate_cache_hit_rate(minutes),
                 'requests_per_minute': self._calculate_rpm(minutes)
             }
-        
-        # Add top endpoints
+
+        # Add top endpoints (already sanitized in _get_top_endpoints)
         dashboard_data['top_endpoints'] = self._get_top_endpoints()
-        
-        return JsonResponse(dashboard_data)
+
+        # Sanitize all dashboard data for PII
+        sanitized_data = MonitoringPIIRedactionService.sanitize_dashboard_data(dashboard_data)
+
+        return JsonResponse(sanitized_data)
     
     def _calculate_error_rate(self, window_minutes):
         """Calculate error rate for time window"""
@@ -365,23 +397,25 @@ class DashboardDataView(View):
         return total / window_minutes if window_minutes > 0 else 0
     
     def _get_top_endpoints(self):
-        """Get top endpoints by request count"""
+        """Get top endpoints by request count (with PII sanitization)"""
         endpoint_counts = {}
-        
+
         with metrics_collector.lock:
             request_metrics = metrics_collector.metrics.get('request', [])
             for metric in request_metrics[-1000:]:  # Last 1000 requests
                 path = metric['tags'].get('path', 'Unknown')
-                endpoint_counts[path] = endpoint_counts.get(path, 0) + 1
-        
+                # Sanitize path to remove PII from query parameters
+                sanitized_path = MonitoringPIIRedactionService.sanitize_request_path(path)
+                endpoint_counts[sanitized_path] = endpoint_counts.get(sanitized_path, 0) + 1
+
         # Sort and return top 10
         sorted_endpoints = sorted(
-            endpoint_counts.items(), 
-            key=lambda x: x[1], 
+            endpoint_counts.items(),
+            key=lambda x: x[1],
             reverse=True
         )
-        
+
         return [
-            {'path': path, 'count': count} 
+            {'path': path, 'count': count}
             for path, count in sorted_endpoints[:10]
         ]

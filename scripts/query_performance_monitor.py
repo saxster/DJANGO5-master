@@ -10,6 +10,8 @@ import django
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
+
+from apps.core.constants.datetime_constants import LOG_DATETIME_FORMAT
 import time
 import json
 from collections import defaultdict
@@ -326,7 +328,7 @@ class QueryPerformanceMonitor:
         """Run complete performance monitoring"""
         self.print_header("DJANGO ORM PERFORMANCE MONITORING", 1)
         
-        print(f"Monitoring started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Monitoring started: {datetime.now().strftime(LOG_DATETIME_FORMAT)}")
         print(f"Slow query threshold: {self.SLOW_THRESHOLD*1000}ms\n")
         
         # Run benchmarks

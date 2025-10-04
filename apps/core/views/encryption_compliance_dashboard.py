@@ -106,19 +106,32 @@ def _get_migration_status() -> Dict[str, Any]:
 
         users_with_email = People.objects.exclude(email__isnull=True).exclude(email='').count()
 
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT COUNT(*) FROM people WHERE email LIKE 'FERNET_V1:%'")
-            secure_count = cursor.fetchone()[0]
+        # Use secure raw query wrapper with transaction safety
+        from apps.core.db import execute_read_query
 
-            cursor.execute("SELECT COUNT(*) FROM people WHERE email LIKE 'ENC_V1:%'")
-            legacy_count = cursor.fetchone()[0]
+        # Execute read-only queries with proper safety checks
+        secure_result = execute_read_query(
+            "SELECT COUNT(*) as count FROM people WHERE email LIKE 'FERNET_V1:%'",
+            fetch_all=False,
+            fetch_one=True
+        )
+        secure_count = secure_result.data[0]['count'] if secure_result.success else 0
 
-            cursor.execute("""
-                SELECT COUNT(*) FROM people
-                WHERE email IS NOT NULL AND email != ''
-                AND email NOT LIKE 'FERNET_V1:%' AND email NOT LIKE 'ENC_V1:%'
-            """)
-            plaintext_count = cursor.fetchone()[0]
+        legacy_result = execute_read_query(
+            "SELECT COUNT(*) as count FROM people WHERE email LIKE 'ENC_V1:%'",
+            fetch_all=False,
+            fetch_one=True
+        )
+        legacy_count = legacy_result.data[0]['count'] if legacy_result.success else 0
+
+        plaintext_result = execute_read_query(
+            """SELECT COUNT(*) as count FROM people
+               WHERE email IS NOT NULL AND email != ''
+               AND email NOT LIKE 'FERNET_V1:%' AND email NOT LIKE 'ENC_V1:%'""",
+            fetch_all=False,
+            fetch_one=True
+        )
+        plaintext_count = plaintext_result.data[0]['count'] if plaintext_result.success else 0
 
         compliance_pct = round((secure_count / users_with_email * 100) if users_with_email > 0 else 0, 2)
 

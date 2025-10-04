@@ -1,19 +1,10 @@
-"""
-Mobile Sync Engine Service
-
-Processes WebSocket sync batches and persists data to database.
-Handles voice, behavioral, session, and metrics data from mobile clients.
-
-Compliance:
-- Rule #7: Service class <150 lines
-- Rule #11: Specific exception handling
-- Rule #17: Transaction management for multi-step operations
-"""
+"""Mobile Sync Engine Service - processes WebSocket sync batches and persists to DB."""
 
 import logging
 from django.db import transaction, DatabaseError, IntegrityError
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.utils import timezone
+from django.core.cache import cache
 from typing import Dict, Any, List
 
 from apps.voice_recognition.models import VoiceVerificationLog
@@ -23,25 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class SyncEngineService:
-    """
-    Core sync engine for processing mobile client data batches.
-
-    Returns per-batch item results for client reconciliation:
-    {synced_items: int, failed_items: int, errors: []}
-    """
+    """Core sync engine for mobile client data batches."""
 
     def sync_voice_data(self, user_id: str, payload: Dict[str, Any], device_id: str) -> Dict[str, Any]:
-        """
-        Sync voice verification data from mobile client.
-
-        Args:
-            user_id: User ID performing sync
-            payload: {'voice_data': [...]} with verification logs
-            device_id: Client device identifier
-
-        Returns:
-            dict: {synced_items, failed_items, errors[]}
-        """
+        """Sync voice verification data from mobile client."""
         try:
             voice_data = payload.get('voice_data', [])
             synced = 0
@@ -123,13 +99,7 @@ class SyncEngineService:
             return {'synced_items': 0, 'failed_items': len(metrics), 'errors': [{'error': str(e)}]}
 
     def _process_voice_item(self, user_id: str, item: Dict[str, Any], device_id: str):
-        """
-        Process and persist single voice verification item.
-
-        Raises:
-            ValidationError: If item data is invalid
-            IntegrityError: If duplicate or constraint violation
-        """
+        """Process and persist single voice verification item."""
         # Validate required fields
         required_fields = ['verification_id', 'timestamp', 'verified']
         for field in required_fields:

@@ -7,6 +7,17 @@ from apps.peoples.models import Pgroup, People
 from apps.activity.models.location_model import Location
 from apps.activity.models.asset_model import Asset
 from apps.core.utils_new.business_logic import initailize_form_fields
+from .services.ticket_state_machine import (
+    TicketStateMachine,
+    TransitionContext,
+    TransitionReason
+)
+from .services.ticket_assignment_service import (
+    TicketAssignmentService,
+    AssignmentContext,
+    AssignmentReason,
+    AssignmentType
+)
 
 
 class TicketForm(forms.ModelForm):
@@ -92,43 +103,75 @@ class TicketForm(forms.ModelForm):
         super().clean()
         cd = self.cleaned_data
 
-        # Validate state transitions
+        # Validate state transitions using centralized TicketStateMachine
         if self.instance and self.instance.pk:  # Existing ticket being updated
             current_status = self.instance.status
             new_status = cd.get("status")
 
             if current_status and new_status and current_status != new_status:
-                # Define allowed transitions
-                allowed_transitions = {
-                    Ticket.Status.NEW.value: [Ticket.Status.OPEN.value, Ticket.Status.CANCEL.value],
-                    Ticket.Status.OPEN.value: [Ticket.Status.RESOLVED.value, Ticket.Status.ONHOLD.value, Ticket.Status.CANCEL.value],
-                    Ticket.Status.ONHOLD.value: [Ticket.Status.OPEN.value, Ticket.Status.RESOLVED.value, Ticket.Status.CANCEL.value],
-                    Ticket.Status.RESOLVED.value: [Ticket.Status.CLOSED.value],
-                    # Terminal states - no transitions allowed
-                    Ticket.Status.CLOSED.value: [],
-                    Ticket.Status.CANCEL.value: [],
-                }
+                # Create transition context
+                context = TransitionContext(
+                    user=getattr(self.request, 'user', None),
+                    reason=TransitionReason.USER_ACTION,
+                    comments=cd.get("comments"),
+                    mobile_client=False
+                )
 
-                if new_status not in allowed_transitions.get(current_status, []):
+                # Validate transition using state machine
+                result = TicketStateMachine.validate_transition(
+                    current_status, new_status, context
+                )
+
+                if not result.is_valid:
                     from django.core.exceptions import ValidationError
-                    raise ValidationError(
-                        f"Invalid status transition from '{current_status}' to '{new_status}'. "
-                        f"Allowed transitions: {allowed_transitions.get(current_status, [])}"
+
+                    # Enhanced error message with allowed transitions
+                    allowed = TicketStateMachine.get_allowed_transitions(
+                        current_status, context.user
+                    )
+                    error_msg = result.error_message
+                    if allowed:
+                        error_msg += f" Allowed transitions: {allowed}"
+
+                    raise ValidationError(error_msg)
+
+                # Log transition attempt for audit trail
+                if hasattr(self.instance, 'id'):
+                    TicketStateMachine.log_transition_attempt(
+                        ticket_id=self.instance.id,
+                        current_status=current_status,
+                        new_status=new_status,
+                        context=context,
+                        result=result
                     )
 
-        # Require comments for terminal states
-        new_status = cd.get("status")
-        terminal_states = [Ticket.Status.RESOLVED.value, Ticket.Status.CLOSED.value, Ticket.Status.CANCEL.value]
-
-        if new_status in terminal_states and not cd.get("comments"):
-            from django.core.exceptions import ValidationError
-            raise ValidationError({
-                "comments": f"Comments are required when setting status to '{new_status}'"
-            })
-
-        # Auto-assign if neither user nor group is assigned
+        # Enhanced auto-assignment using TicketAssignmentService
         if cd.get("assignedtopeople") is None and cd.get("assignedtogroup") is None:
-            cd["assignedtopeople"] = self.request.user
+            # Use intelligent auto-assignment if ticket exists (editing scenario)
+            if self.instance and self.instance.pk:
+                context = AssignmentContext(
+                    user=self.request.user,
+                    reason=AssignmentReason.AUTO_ASSIGNMENT,
+                    assignment_type=AssignmentType.AUTO,
+                    enforce_permissions=False  # Form validation context
+                )
+
+                # Determine best assignee using business rules
+                # For now, fall back to current user but this could be enhanced
+                assignee = TicketAssignmentService._determine_auto_assignee(
+                    self.instance, context
+                )
+
+                if assignee and assignee['type'] == 'person':
+                    cd["assignedtopeople"] = People.objects.get(pk=assignee['id'])
+                elif assignee and assignee['type'] == 'group':
+                    cd["assignedtogroup"] = Pgroup.objects.get(pk=assignee['id'])
+                else:
+                    # Fallback to current user
+                    cd["assignedtopeople"] = self.request.user
+            else:
+                # For new tickets, default to current user
+                cd["assignedtopeople"] = self.request.user
 
         self.cleaned_data = self.check_nones(self.cleaned_data)
 

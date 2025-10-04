@@ -36,6 +36,28 @@ class MakerLLM(ABC):
         """Generate final recommendations based on collected data"""
         pass
 
+    def process_voice_input(
+        self,
+        transcript: str,
+        session,
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Process voice transcript as text input.
+
+        Default implementation delegates to existing text processing method.
+        Subclasses can override to add voice-specific processing logic.
+
+        Args:
+            transcript: Transcribed text from voice input
+            session: ConversationSession instance
+            context: Additional context data
+
+        Returns:
+            Response dict with same structure as process_conversation_step
+        """
+        return self.process_conversation_step(session, transcript, context)
+
 
 class CheckerLLM(ABC):
     """

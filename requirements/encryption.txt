@@ -1,0 +1,6 @@
+# Encryption Dependencies
+# Required for field-level encryption of sensitive PII/PHI data
+# Complies with GDPR Article 32 and HIPAA Security Rule
+
+cryptography>=42.0.0  # Fernet symmetric encryption
+django-fernet-fields>=0.6  # Django model field encryption

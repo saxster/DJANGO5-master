@@ -1,9 +1,80 @@
+"""
+Job → Jobneed → JobneedDetails Domain Model
+
+This module defines the core work execution models for the facility management platform.
+
+## Domain Model Overview
+
+**Job**: Template/Definition (What work to do, when to schedule it)
+- Represents recurring or scheduled work (tasks, tours, PPM)
+- Contains scheduling information (cron, frequency, dates)
+- Has 1-to-many relationship with Jobneed (generates multiple execution instances)
+- Parent relationships: parent=NULL means root job; parent=Job means child checkpoint
+
+**Jobneed**: Concrete Instance (Scheduled or adhoc execution)
+- Generated from Job based on schedule OR created adhoc
+- Tracks execution state, timing, assignments, completion
+- Represents one specific execution instance with actual start/end times
+- Parent relationships: parent=NULL means parent jobneed; parent=Jobneed means child checkpoint
+- Has 1-to-many relationship with Job (via related_name='jobs')
+
+**JobneedDetails**: Per-Question Details (Checklist items per execution)
+- Tied to specific Jobneed execution
+- Stores question answers, validations, attachments, alerts
+- seqno: Display order within the jobneed's checklist
+- Unique constraints: (jobneed, question) and (jobneed, seqno)
+
+## Relationship Examples
+
+### Task Scheduling:
+```
+Job (Template: "Daily Pump Check")
+  └─ Jobneed (Instance: 2025-10-03 10:00) → JobneedDetails (Q1, Q2, Q3)
+  └─ Jobneed (Instance: 2025-10-04 10:00) → JobneedDetails (Q1, Q2, Q3)
+  └─ Jobneed (Instance: 2025-10-05 10:00) → JobneedDetails (Q1, Q2, Q3)
+```
+
+### Tour Hierarchy:
+```
+Job (Parent: "Building A Tour") [parent=NULL]
+  ├─ Job (Child: "Floor 1 Checkpoint") [parent=Parent Job]
+  ├─ Job (Child: "Floor 2 Checkpoint")
+  └─ Job (Child: "Floor 3 Checkpoint")
+
+When scheduled:
+  Jobneed (Parent: "Building A Tour - 2025-10-03") [parent=NULL]
+    ├─ Jobneed (Child: "Floor 1 - 2025-10-03") [parent=Parent Jobneed]
+    ├─ Jobneed (Child: "Floor 2 - 2025-10-03")
+    └─ Jobneed (Child: "Floor 3 - 2025-10-03")
+```
+
+## Parent Semantics
+
+### Root Detection (Jobs and Jobneeds):
+- **Modern approach**: `parent__isnull=True` (preferred)
+- **Legacy approach**: `parent_id=1` (sentinel record "NONE")
+- **Transitional**: Use `Q(parent__isnull=True) | Q(parent_id=1)` for compatibility
+
+### Naming Conventions:
+- **Model names**: Use `Jobneed`, `JobneedDetails` (lowercase 'n')
+- **Form names**: May use `JobNeedForm` (uppercase 'N' - acceptable for forms)
+- **Backward compatibility**: Aliases `JobNeed = Jobneed` provided below
+
+## Database Constraints:
+- Job: Unique (jobname, asset, qset, parent, identifier, client)
+- Jobneed: Optimistic locking via VersionField
+- JobneedDetails:
+  - Unique (jobneed, question) - prevents duplicate questions
+  - Unique (jobneed, seqno) - ensures sequence ordering
+"""
+
 import uuid
 from django.conf import settings
 from django.contrib.gis.db.models import LineStringField, PointField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from concurrency.fields import VersionField
 
 from apps.activity.managers.job_manager import (
     JobManager,
@@ -194,6 +265,9 @@ class Job(BaseModel, TenantAwareModel):
         default=geojson_jobnjobneed, blank=True, null=True, encoder=DjangoJSONEncoder
     )
     enable = models.BooleanField(_("Enable"), default=True)
+
+    # Optimistic locking for concurrent updates (Rule #17)
+    version = VersionField()
 
     objects = JobManager()
 
@@ -438,6 +512,9 @@ class Jobneed(BaseModel, TenantAwareModel):
     )
     deviation = models.BooleanField(_("Deviation"), default=False, null=True)
 
+    # Optimistic locking for concurrent updates (Rule #17)
+    version = VersionField()
+
     objects = JobneedManager()
 
     class Meta(BaseModel.Meta):
@@ -559,3 +636,30 @@ class JobneedDetails(BaseModel, TenantAwareModel):
     class Meta(BaseModel.Meta):
         db_table = "jobneeddetails"
         verbose_name = "JobneedDetails"
+        verbose_name_plural = "Jobneed Details"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['jobneed', 'question'],
+                name='jobneeddetails_jobneed_question_uk',
+                violation_error_message=(
+                    "Duplicate question not allowed for the same jobneed. "
+                    "Each question can only appear once per jobneed."
+                )
+            ),
+            models.UniqueConstraint(
+                fields=['jobneed', 'seqno'],
+                name='jobneeddetails_jobneed_seqno_uk',
+                violation_error_message=(
+                    "Duplicate sequence number not allowed for the same jobneed. "
+                    "Each seqno must be unique within a jobneed."
+                )
+            ),
+        ]
+
+# Backward compatibility aliases for naming standardization
+# DEPRECATED: Use Jobneed and JobneedDetails (lowercase 'n')
+# These aliases exist to prevent import errors during migration
+JobNeed = Jobneed
+JobNeedDetails = JobneedDetails
+
+__all__ = ['Job', 'Jobneed', 'JobneedDetails', 'JobNeed', 'JobNeedDetails']

@@ -1,0 +1,256 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Capture Meter Reading
+{% endblock card_title %}
+<!---- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Capture Meter Reading
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{% url 'activity:meter_reading_dashboard' %}" class="pe-3">Meter Readings</a></li>
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Capture</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-camera mr-2"></i>
+                    AI-Powered Meter Reading Capture
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" id="meterReadingForm">
+                    {% csrf_token %}
+
+                    <!-- Asset Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label for="asset_id" class="form-label font-weight-bold">
+                                <i class="fas fa-tachometer-alt mr-2"></i>Select Meter Asset *
+                            </label>
+                            <select class="form-control form-control-lg" id="asset_id" name="asset_id" required>
+                                <option value="">Choose a meter asset...</option>
+                                {% for meter in meter_assets %}
+                                <option value="{{ meter.id }}" {% if asset and asset.id == meter.id %}selected{% endif %}>
+                                    {{ meter.assetname }} ({{ meter.assetcode }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Select the meter you want to capture a reading from
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Photo Upload -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label for="photo" class="form-label font-weight-bold">
+                                <i class="fas fa-image mr-2"></i>Meter Photo *
+                            </label>
+                            <div class="custom-file-upload-area" id="photoUploadArea">
+                                <input type="file" class="form-control-file" id="photo" name="photo"
+                                       accept="image/*" capture="camera" required
+                                       style="display: none;">
+                                <div class="upload-content text-center py-5" onclick="document.getElementById('photo').click()">
+                                    <i class="fas fa-camera fa-3x text-primary mb-3"></i>
+                                    <h5 class="text-primary">Take Photo or Upload Image</h5>
+                                    <p class="text-muted">Click here to capture meter reading</p>
+                                    <p class="small text-muted">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Supported formats: JPG, PNG, HEIC (max 10MB)
+                                    </p>
+                                </div>
+                                <div class="photo-preview" id="photoPreview" style="display: none;">
+                                    <img id="previewImage" src="" alt="Preview" class="img-fluid rounded">
+                                    <button type="button" class="btn btn-sm btn-danger mt-2" onclick="clearPhoto()">
+                                        <i class="fas fa-times"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tips for Better Photos -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-lightbulb mr-2"></i>Tips for Better Reading Accuracy
+                                </h6>
+                                <ul class="mb-0 small">
+                                    <li>Ensure good lighting and avoid shadows on the meter display</li>
+                                    <li>Hold the camera steady and focus on the meter reading</li>
+                                    <li>Capture the entire meter display, not just the numbers</li>
+                                    <li>Avoid reflections and glare on the meter face</li>
+                                    <li>Make sure the numbers are clearly visible and not blurred</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Optional Fields -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="expected_min" class="form-label">Expected Minimum Value</label>
+                            <input type="number" class="form-control" id="expected_min" name="expected_min"
+                                   step="0.001" placeholder="Optional">
+                            <small class="form-text text-muted">
+                                Help validate the reading accuracy
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="expected_max" class="form-label">Expected Maximum Value</label>
+                            <input type="number" class="form-control" id="expected_max" name="expected_max"
+                                   step="0.001" placeholder="Optional">
+                            <small class="form-text text-muted">
+                                Help validate the reading accuracy
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                    placeholder="Optional notes or observations about the reading..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="row">
+                        <div class="col-12 text-center">
+                            <button type="button" class="btn btn-outline-secondary mr-3" onclick="window.history.back()">
+                                <i class="fas fa-arrow-left mr-2"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-robot mr-2"></i>Process with AI
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Processing Modal -->
+                <div class="modal fade" id="processingModal" tabindex="-1" role="dialog" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-body text-center py-5">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <h5>Processing Meter Reading...</h5>
+                                <p class="text-muted">AI is analyzing the image and extracting the meter reading</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.custom-file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.custom-file-upload-area:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+
+.upload-content {
+    padding: 2rem;
+}
+
+.photo-preview img {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+</style>
+
+<script>
+document.getElementById('photo').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImage').src = e.target.result;
+            document.querySelector('.upload-content').style.display = 'none';
+            document.getElementById('photoPreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+function clearPhoto() {
+    document.getElementById('photo').value = '';
+    document.querySelector('.upload-content').style.display = 'block';
+    document.getElementById('photoPreview').style.display = 'none';
+}
+
+document.getElementById('meterReadingForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Validate form
+    const assetId = document.getElementById('asset_id').value;
+    const photo = document.getElementById('photo').files[0];
+
+    if (!assetId) {
+        alert('Please select a meter asset');
+        return;
+    }
+
+    if (!photo) {
+        alert('Please capture or upload a meter photo');
+        return;
+    }
+
+    // Show processing modal
+    $('#processingModal').modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    // Submit form
+    this.submit();
+});
+
+// Auto-focus on asset selection
+document.addEventListener('DOMContentLoaded', function() {
+    const assetSelect = document.getElementById('asset_id');
+    if (assetSelect.value === '') {
+        assetSelect.focus();
+    }
+});
+</script>
+
+{% endblock content %}

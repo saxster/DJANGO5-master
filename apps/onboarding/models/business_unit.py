@@ -155,6 +155,26 @@ class Bt(BaseModel, TenantAwareModel):
     isvendor = models.BooleanField(_("Vendor"), default=False)
     isserviceprovider = models.BooleanField(_("ServiceProvider"), default=False)
 
+    # NOC Module: City/State for geographic aggregation
+    city = models.ForeignKey(
+        "TypeAssist",
+        verbose_name="City",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bt_cities",
+        help_text="City location for NOC geographic drill-down"
+    )
+    state = models.ForeignKey(
+        "TypeAssist",
+        verbose_name="State",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bt_states",
+        help_text="State location for NOC geographic aggregation"
+    )
+
     # Conversational Onboarding Fields (Phase 1 MVP)
     onboarding_context = models.JSONField(
         _("Onboarding Context"),
@@ -188,6 +208,27 @@ class Bt(BaseModel, TenantAwareModel):
 
     def get_absolute_wizard_url(self):
         return reverse("onboarding:wiz_bu_update", kwargs={"pk": self.pk})
+
+    def get_client_parent(self):
+        """
+        Get the top-level CLIENT for this business unit.
+
+        This method traverses up the hierarchy to find the root CLIENT,
+        which is essential for NOC aggregation and RBAC filtering.
+
+        Returns:
+            Bt: The CLIENT business unit, or None if not found
+
+        Examples:
+            >>> site = Bt.objects.get(identifier__tacode='SITE', pk=123)
+            >>> client = site.get_client_parent()
+            >>> assert client.identifier.tacode == 'CLIENT'
+        """
+        if self.identifier and self.identifier.tacode == 'CLIENT':
+            return self
+        if self.parent:
+            return self.parent.get_client_parent()
+        return None
 
     def save(self, *args, **kwargs):
         """Enhanced save with cache management and validation."""

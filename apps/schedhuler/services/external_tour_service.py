@@ -16,7 +16,7 @@ from typing import Dict, Any, List, Optional, Tuple
 
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 
 from apps.core.services.base_service import BaseService
 from apps.core.services.transaction_manager import with_transaction
@@ -132,8 +132,8 @@ class ExternalTourService(BaseService):
             queryset = self.model.objects.select_related(
                 'people', 'asset'
             ).filter(
-                identifier=Job.Identifier.EXTERNALTOUR,
-                parent__isnull=True
+                Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling (must be first)
+                identifier=Job.Identifier.EXTERNALTOUR
             )
 
             if filters:

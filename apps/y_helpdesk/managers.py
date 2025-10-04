@@ -1,5 +1,6 @@
 from django.db import models
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone as dt_timezone, timedelta
+from django.utils import timezone
 from django.db.models import (
     Q,
     When,
@@ -20,8 +21,17 @@ log = logging.getLogger("django")
 # Import centralized JSON utility
 from apps.core.json_utils import safe_json_parse_params
 
+# Import optimized query methods
+from .managers.optimized_managers import OptimizedTicketManagerMixin
 
-class TicketManager(models.Manager):
+
+class TicketManager(OptimizedTicketManagerMixin, models.Manager):
+    """
+    Enhanced TicketManager with performance optimizations.
+
+    Combines original functionality with optimized query methods
+    that eliminate N+1 queries and provide significant performance improvements.
+    """
     use_in_migrations = True
 
     def send_ticket_mail(self, ticketid):
@@ -228,8 +238,8 @@ class ESCManager(models.Manager):
     def handle_reminder_config_postdata(self, request):
         try:
             P, S = request.POST, request.session
-            cdtz = datetime.now(tz=timezone.utc)
-            mdtz = datetime.now(tz=timezone.utc)
+            cdtz = timezone.now()
+            mdtz = timezone.now()
             ppmjob = TypeAssist.objects.get(
                 tatype__tacode="ESCALATIONTEMPLATE", tacode="JOB"
             )
@@ -330,8 +340,8 @@ class ESCManager(models.Manager):
     def handle_esclevel_form_postdata(self, request):
         try:
             P, S = request.POST, request.session
-            cdtz = datetime.now(tz=timezone.utc)
-            mdtz = datetime.now(tz=timezone.utc)
+            cdtz = timezone.now()
+            mdtz = timezone.now()
             PostData = {
                 "cdtz": cdtz,
                 "mdtz": mdtz,

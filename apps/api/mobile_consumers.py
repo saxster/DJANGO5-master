@@ -10,6 +10,7 @@ import uuid
 import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
@@ -39,8 +40,19 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
     """
     WebSocket consumer for mobile SDK synchronization
     Handles real-time sync events, notifications, and bidirectional communication
+
+    Security Features:
+    - Per-message rate limiting (100 msg/min)
+    - Circuit breaker for repeated violations (3 strikes)
+    - Query string validation and sanitization
+    - Comprehensive error logging
     """
-    
+
+    # Rate limiting configuration
+    RATE_LIMIT_WINDOW = 60  # seconds
+    RATE_LIMIT_MAX = 100    # messages per window
+    RATE_LIMIT_STRIKES_MAX = 3  # Circuit breaker threshold
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = None
@@ -50,6 +62,11 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
         self.heartbeat_task = None
         self.last_activity = None
         self.correlation_id = str(uuid.uuid4())  # Stream Testbench correlation ID
+
+        # Rate limiting state
+        self.message_count = 0
+        self.window_start = None  # Initialized on connect
+        self.rate_limit_violations = 0  # Circuit breaker counter
         
     async def connect(self):
         """Handle WebSocket connection"""
@@ -63,19 +80,63 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 return
             
             # Extract device ID from query parameters
-            query_params = dict(self.scope.get('query_string', b'').decode().split('&'))
-            self.device_id = None
-            
-            for param in query_params:
-                if '=' in param:
-                    key, value = param.split('=', 1)
-                    if key == 'device_id':
-                        self.device_id = value
-                        break
-            
-            if not self.device_id:
-                logger.warning("Mobile WebSocket connection without device ID")
-                await self.close(code=4400)
+            # SECURITY FIX: Use proper URL parsing instead of broken dict() conversion
+            # parse_qs returns dict with lists as values (e.g., {'device_id': ['abc123']})
+            query_string = self.scope.get('query_string', b'').decode('utf-8', errors='ignore')
+
+            if not query_string:
+                logger.warning(
+                    "Mobile WebSocket connection without query parameters",
+                    extra={'user_id': self.user.id, 'correlation_id': self.correlation_id}
+                )
+                await self.close(code=4400)  # Bad Request
+                return
+
+            try:
+                query_params = parse_qs(query_string)
+            except (ValueError, UnicodeDecodeError) as e:
+                logger.error(
+                    "Failed to parse WebSocket query string",
+                    extra={
+                        'user_id': self.user.id,
+                        'correlation_id': self.correlation_id,
+                        'error': str(e),
+                        'query_string_length': len(query_string)
+                    }
+                )
+                await self.close(code=4400)  # Bad Request
+                return
+
+            # Extract device_id from parsed params
+            # parse_qs returns lists, so we get the first value
+            device_id_list = query_params.get('device_id', [])
+
+            if not device_id_list or not device_id_list[0]:
+                logger.warning(
+                    "Mobile WebSocket connection without device ID",
+                    extra={
+                        'user_id': self.user.id,
+                        'correlation_id': self.correlation_id,
+                        'query_params': list(query_params.keys())
+                    }
+                )
+                await self.close(code=4400)  # Bad Request
+                return
+
+            self.device_id = device_id_list[0].strip()
+
+            # Validate device_id format (alphanumeric, hyphens, underscores only)
+            import re
+            if not re.match(r'^[a-zA-Z0-9_-]{1,255}$', self.device_id):
+                logger.warning(
+                    "Mobile WebSocket connection with invalid device ID format",
+                    extra={
+                        'user_id': self.user.id,
+                        'correlation_id': self.correlation_id,
+                        'device_id_length': len(self.device_id)
+                    }
+                )
+                await self.close(code=4400)  # Bad Request
                 return
             
             # Join user-specific group
@@ -104,9 +165,19 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             
             # Start heartbeat
             self.heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-            self.last_activity = datetime.utcnow()
-            
-            logger.info(f"Mobile sync connection established for user {self.user.id}, device {self.device_id}")
+            self.last_activity = timezone.now()
+
+            # Initialize rate limiting window
+            self.window_start = timezone.now()
+
+            logger.info(
+                "Mobile sync connection established",
+                extra={
+                    'user_id': self.user.id,
+                    'device_id': self.device_id,
+                    'correlation_id': self.correlation_id
+                }
+            )
 
         except (KeyError, ValueError, AttributeError) as e:
             logger.warning(f"Invalid connection parameters: {str(e)}", extra={'correlation_id': self.correlation_id})
@@ -153,9 +224,42 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             logger.warning(f"Cleanup error during disconnect: {str(e)}", extra={'correlation_id': self.correlation_id})
     
     async def receive(self, text_data):
-        """Handle incoming messages from mobile clients"""
+        """Handle incoming messages from mobile clients with rate limiting"""
         start_time = time.time()
         message_correlation_id = str(uuid.uuid4())
+
+        # SECURITY: Per-message rate limiting with circuit breaker
+        rate_limit_ok, violation_reason = await self._check_rate_limit()
+        if not rate_limit_ok:
+            logger.warning(
+                "WebSocket rate limit exceeded",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'message_correlation_id': message_correlation_id,
+                    'user_id': str(self.user.id) if self.user else None,
+                    'device_id': self.device_id,
+                    'violation_reason': violation_reason,
+                    'violations_count': self.rate_limit_violations
+                }
+            )
+            await self.send_error(
+                "Rate limit exceeded. Please slow down your requests.",
+                "RATE_LIMIT_EXCEEDED"
+            )
+
+            # Circuit breaker: Close connection after repeated violations
+            if self.rate_limit_violations >= self.RATE_LIMIT_STRIKES_MAX:
+                logger.error(
+                    "Circuit breaker tripped - closing WebSocket connection",
+                    extra={
+                        'correlation_id': self.correlation_id,
+                        'user_id': str(self.user.id) if self.user else None,
+                        'device_id': self.device_id,
+                        'total_violations': self.rate_limit_violations
+                    }
+                )
+                await self.close(code=4429)  # Custom code for rate limit
+            return
 
         try:
             message = json.loads(text_data)
@@ -176,7 +280,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             )
 
             await self._handle_message(message, message_correlation_id)
-            self.last_activity = datetime.utcnow()
+            self.last_activity = timezone.now()
 
             # Log successful processing
             processing_time = (time.time() - start_time) * 1000
@@ -323,7 +427,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             # Create sync session
             sync_session = {
                 'sync_id': sync_id,
-                'started_at': datetime.utcnow(),
+                'started_at': timezone.now(),
                 'status': 'active',
                 'data_types': message.get('data_types', []),
                 'total_items': message.get('total_items', 0),
@@ -547,7 +651,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 
                 # Check if connection is still active
                 if self.last_activity:
-                    inactive_time = (datetime.utcnow() - self.last_activity).total_seconds()
+                    inactive_time = (timezone.now() - self.last_activity).total_seconds()
                     if inactive_time > 300:  # 5 minutes of inactivity
                         logger.info(f"Closing inactive connection for user {self.user.id}")
                         await self.close(code=4408)  # Request timeout
@@ -557,7 +661,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 await self.send_message({
                     'type': 'server_heartbeat',
                     'server_time': timezone.now().isoformat(),
-                    'connection_duration': (datetime.utcnow() - self.last_activity).total_seconds() if self.last_activity else 0
+                    'connection_duration': (timezone.now() - self.last_activity).total_seconds() if self.last_activity else 0
                 })
 
         except asyncio.CancelledError:
@@ -574,7 +678,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             for sync_id, session in self.sync_sessions.items():
                 if session['status'] == 'active':
                     session['status'] = 'interrupted'
-                    session['ended_at'] = datetime.utcnow()
+                    session['ended_at'] = timezone.now()
                     
                     # Store session results
                     await self._store_sync_session_results(sync_id, session)
@@ -860,6 +964,43 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             logger.warning(f"AI analysis service unavailable: {str(e)}", extra={'correlation_id': self.correlation_id})
         except (ValueError, TypeError) as e:
             logger.error(f"Invalid data for anomaly analysis: {str(e)}", extra={'correlation_id': self.correlation_id})
+
+    async def _check_rate_limit(self) -> tuple[bool, Optional[str]]:
+        """
+        Check if message rate limit is exceeded using sliding window algorithm.
+
+        Returns:
+            tuple: (is_allowed, violation_reason)
+                - is_allowed: True if under limit, False if exceeded
+                - violation_reason: Description of violation if exceeded
+        """
+        now = timezone.now()
+
+        # Sliding window: Reset counter if window has elapsed
+        if self.window_start is None:
+            self.window_start = now
+
+        window_elapsed = (now - self.window_start).total_seconds()
+
+        if window_elapsed > self.RATE_LIMIT_WINDOW:
+            # Window reset
+            self.message_count = 0
+            self.window_start = now
+            # Reset violations counter on successful window completion
+            if self.rate_limit_violations > 0:
+                self.rate_limit_violations = max(0, self.rate_limit_violations - 1)
+
+        self.message_count += 1
+
+        if self.message_count > self.RATE_LIMIT_MAX:
+            self.rate_limit_violations += 1
+            violation_reason = (
+                f"Exceeded {self.RATE_LIMIT_MAX} messages in {self.RATE_LIMIT_WINDOW}s window "
+                f"(strike {self.rate_limit_violations}/{self.RATE_LIMIT_STRIKES_MAX})"
+            )
+            return False, violation_reason
+
+        return True, None
 
     async def _get_device_info(self) -> Dict[str, Any]:
         """Extract device information from cache or connection"""

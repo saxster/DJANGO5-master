@@ -80,7 +80,7 @@ class TestInternalTourService:
             )
 
             assert job == mock_job
-            assert success is True
+            assert success
             mock_create.assert_called_once_with(sample_form_data)
             mock_save_cp.assert_called_once()
 
@@ -125,7 +125,7 @@ class TestInternalTourService:
             )
 
             assert job == mock_job
-            assert success is True
+            assert success
             mock_job.save.assert_called_once()
             mock_save_cp.assert_called_once()
 
@@ -193,7 +193,7 @@ class TestInternalTourService:
 
             result = service.delete_checkpoint(checkpoint_id, mock_user)
 
-            assert result is True
+            assert result
             mock_checkpoint.delete.assert_called_once()
 
     def test_delete_checkpoint_not_found(self, service, mock_user):

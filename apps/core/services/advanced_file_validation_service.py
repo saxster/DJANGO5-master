@@ -21,6 +21,7 @@ import tempfile
 from typing import Dict, List, Optional, Any, Tuple
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
 from apps.core.services.secure_file_upload_service import SecureFileUploadService
 from apps.core.error_handling import ErrorHandler
@@ -84,7 +85,12 @@ class AdvancedFileValidationService(SecureFileUploadService):
     }
 
     @classmethod
-    def validate_and_scan_file(cls, uploaded_file, file_type, upload_context=None):
+    def validate_and_scan_file(
+        cls,
+        uploaded_file: UploadedFile,
+        file_type: str,
+        upload_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Enhanced validation with malware scanning and behavioral analysis.
 
@@ -382,7 +388,13 @@ class AdvancedFileValidationService(SecureFileUploadService):
         return scan_result
 
     @classmethod
-    def _calculate_risk_score(cls, security_analysis, malware_scan, behavioral_analysis, external_scan):
+    def _calculate_risk_score(
+        cls,
+        security_analysis: Dict[str, Any],
+        malware_scan: Dict[str, Any],
+        behavioral_analysis: Dict[str, Any],
+        external_scan: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Calculate overall risk score and threat level."""
         risk_score = 0
         threat_factors = []
@@ -460,7 +472,7 @@ class AdvancedFileValidationService(SecureFileUploadService):
     # Helper methods for analysis
 
     @classmethod
-    def _detect_suspicious_patterns(cls, content):
+    def _detect_suspicious_patterns(cls, content: bytes) -> List[str]:
         """Detect suspicious patterns in file content."""
         import re
         suspicious_found = []

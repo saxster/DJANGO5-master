@@ -13,6 +13,8 @@ import logging
 import json
 from datetime import timedelta
 from typing import Dict, List, Any, Optional
+
+from apps.core.constants.datetime_constants import SECONDS_IN_DAY
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
@@ -420,7 +422,7 @@ def cleanup_expired_data():
         # Clean up stale cache entries
         # This would typically involve Redis SCAN operations
         # For Django cache, we'll implement a simple version tracking approach
-        cache.set('last_cleanup', now.isoformat(), 86400)
+        cache.set('last_cleanup', now.isoformat(), SECONDS_IN_DAY)
         cleanup_stats['stale_cache_entries'] = 0  # Placeholder
 
         logger.info(f"Data cleanup completed: {cleanup_stats}")

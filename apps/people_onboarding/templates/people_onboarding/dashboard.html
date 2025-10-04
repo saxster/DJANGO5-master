@@ -1,0 +1,143 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+{% load static %}
+
+{% block page_title %}Onboarding Dashboard{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item text-muted">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<!-- BEGIN: Stats Cards -->
+<div class="row g-5 g-xl-8 mb-5 mb-xl-10">
+
+    <!-- Active Requests -->
+    <div class="col-xl-3">
+        <div class="card card-xl-stretch mb-xl-8 bg-primary">
+            <div class="card-body">
+                <span class="svg-icon svg-icon-white svg-icon-3x ms-n1">
+                    <i class="bi bi-people-fill fs-2x text-white"></i>
+                </span>
+                <div class="text-white fw-bold fs-2 mb-2 mt-5">{{ stats.active }}</div>
+                <div class="fw-semibold text-white">Active Requests</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Approval -->
+    <div class="col-xl-3">
+        <div class="card card-xl-stretch mb-xl-8 bg-warning">
+            <div class="card-body">
+                <span class="svg-icon svg-icon-white svg-icon-3x ms-n1">
+                    <i class="bi bi-hourglass-split fs-2x text-white"></i>
+                </span>
+                <div class="text-white fw-bold fs-2 mb-2 mt-5">{{ stats.pending_approval }}</div>
+                <div class="fw-semibold text-white">Pending Approval</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue -->
+    <div class="col-xl-3">
+        <div class="card card-xl-stretch mb-xl-8 bg-danger">
+            <div class="card-body">
+                <span class="svg-icon svg-icon-white svg-icon-3x ms-n1">
+                    <i class="bi bi-exclamation-triangle-fill fs-2x text-white"></i>
+                </span>
+                <div class="text-white fw-bold fs-2 mb-2 mt-5">{{ stats.overdue }}</div>
+                <div class="fw-semibold text-white">Overdue</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completed (30 days) -->
+    <div class="col-xl-3">
+        <div class="card card-xl-stretch mb-xl-8 bg-success">
+            <div class="card-body">
+                <span class="svg-icon svg-icon-white svg-icon-3x ms-n1">
+                    <i class="bi bi-check-circle-fill fs-2x text-white"></i>
+                </span>
+                <div class="text-white fw-bold fs-2 mb-2 mt-5">{{ stats.completed_30days }}</div>
+                <div class="fw-semibold text-white">Completed (30 days)</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<!-- END: Stats Cards -->
+
+<!-- BEGIN: Quick Actions -->
+<div class="row g-5 mb-5 mb-xl-10">
+    <div class="col-xl-12">
+        <div class="card">
+            <div class="card-header border-0 pt-5">
+                <h3 class="card-title align-items-start flex-column">
+                    <span class="card-label fw-bold fs-3 mb-1">Quick Actions</span>
+                </h3>
+            </div>
+            <div class="card-body py-3">
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="{% url 'people_onboarding:start_onboarding' %}" class="btn btn-lg btn-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Start New Onboarding
+                    </a>
+                    <a href="{% url 'people_onboarding:request_list' %}" class="btn btn-lg btn-light-primary">
+                        <i class="bi bi-list-ul me-2"></i>View All Requests
+                    </a>
+                    <a href="{% url 'people_onboarding:approval_list' %}" class="btn btn-lg btn-light-warning">
+                        <i class="bi bi-check2-square me-2"></i>My Approvals
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END: Quick Actions -->
+
+<!-- BEGIN: Recent Requests -->
+<div class="row g-5 mb-5 mb-xl-10">
+    <div class="col-xl-12">
+        <div class="card card-xl-stretch mb-xl-8">
+            <div class="card-header border-0 pt-5">
+                <h3 class="card-title align-items-start flex-column">
+                    <span class="card-label fw-bold fs-3 mb-1">Recent Onboarding Requests</span>
+                    <span class="text-muted mt-1 fw-semibold fs-7">Latest submissions</span>
+                </h3>
+                <div class="card-toolbar">
+                    <a href="{% url 'people_onboarding:request_list' %}" class="btn btn-sm btn-light-primary">
+                        View All
+                    </a>
+                </div>
+            </div>
+            <div class="card-body py-3">
+                <div class="table-responsive">
+                    <table class="table table-row-dashed table-row-gray-300 align-middle gs-0 gy-4">
+                        <thead>
+                            <tr class="fw-bold text-muted">
+                                <th class="min-w-150px">Request #</th>
+                                <th class="min-w-140px">Candidate</th>
+                                <th class="min-w-120px">Person Type</th>
+                                <th class="min-w-120px">Status</th>
+                                <th class="min-w-100px">Date</th>
+                                <th class="min-w-100px text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-8">
+                                    No recent requests. <a href="{% url 'people_onboarding:start_onboarding' %}">Start your first onboarding</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END: Recent Requests -->
+
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{% static 'people_onboarding/js/dashboard.js' %}"></script>
+{% endblock %}

@@ -12,15 +12,19 @@ import warnings
 # Get the environment from DJANGO_SETTINGS_MODULE or use development as default
 settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
 
+# NOTE: Wildcard imports are acceptable here per Django settings pattern
+# We conditionally import ONE environment module containing 100+ Django settings.
+# Each environment module (production/test/development) inherits from base and
+# defines environment-specific overrides. Django requires these as module-level variables.
 if 'production' in settings_module.lower():
-    from .settings.production import *
+    from .settings.production import *  # noqa: F403 - Django settings pattern
     print("[SETTINGS] ✅ Production settings loaded")
 elif 'test' in settings_module.lower():
-    from .settings.test import *
+    from .settings.test import *  # noqa: F403 - Django settings pattern
     print("[SETTINGS] ✅ Test settings loaded")
 else:
     # Default to development for safety and ease of use
-    from .settings.development import *
+    from .settings.development import *  # noqa: F403 - Django settings pattern
     if not settings_module:
         print("[SETTINGS] ⚠️  No DJANGO_SETTINGS_MODULE specified, defaulting to development")
     else:
@@ -32,6 +36,7 @@ from .settings import llm as llm_settings
 from .settings import onboarding as onboarding_settings
 from .settings import security as security_settings
 from .settings import integrations as integrations_settings
+from .settings import websocket as websocket_settings
 
 # Runtime validation (only in development/test)
 if DEBUG:

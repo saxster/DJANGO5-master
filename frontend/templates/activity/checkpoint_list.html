@@ -59,10 +59,8 @@
 
 <!--------- BEGIN EXTRA SCRIPTS ------------------------------>
 {% block extra_scripts %}
-<script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3PUZCB7u2PiV8whHeAshweOPIK_d690o&libraries=places&v=weekly&loading=async"
-      defer
-    ></script>
+{% load google_maps_tags %}
+{% google_maps_script callback='initGoogleMaps' %}
 
 <script>
 	//global var

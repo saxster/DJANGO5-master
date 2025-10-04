@@ -1,6 +1,7 @@
 import graphene
 import graphql_jwt
 from graphql_jwt.decorators import login_required
+from django.conf import settings
 from apps.service.queries.ticket_queries import TicketQueries
 from apps.service.queries.question_queries import QuestionQueries
 from apps.service.queries.job_queries import JobQueries
@@ -10,6 +11,7 @@ from apps.service.queries.people_queries import PeopleQueries
 from apps.service.queries.asset_queries import AssetQueries
 from apps.service.queries.bt_queries import BtQueries
 from apps.journal.graphql_schema import JournalWellnessQueries, JournalWellnessMutations
+from apps.helpbot.graphql_schema import HelpBotQueries, HelpBotMutations
 from apps.core.graphql_security import GraphQLSecurityIntrospection
 from .mutations import (
     InsertRecord,
@@ -37,9 +39,18 @@ class Mutation(graphene.ObjectType):
     insert_record = InsertRecord.Field()
     update_task_tour = TaskTourUpdate.Field()
     upload_report = ReportMutation.Field()
-    upload_attachment = UploadAttMutaion.Field(
-        deprecation_reason="Security vulnerabilities. Use secure_file_upload instead. Will be removed in v2.0 (2026-06-30). Migration guide: /docs/api-migrations/file-upload-v2/"
-    )
+
+    # DEPRECATED: Insecure upload mutation (CVSS 8.1 vulnerability)
+    # Feature flag: ENABLE_LEGACY_UPLOAD_MUTATION (default: False in production)
+    # This mutation has known security vulnerabilities (path traversal, filename injection)
+    # and should only be enabled for backward compatibility during migration period.
+    # Production deployments SHOULD disable this immediately.
+    # Migration deadline: 2026-06-30
+    if getattr(settings, 'ENABLE_LEGACY_UPLOAD_MUTATION', settings.DEBUG):
+        upload_attachment = UploadAttMutaion.Field(
+            deprecation_reason="SECURITY WARNING: Contains vulnerabilities (path traversal, filename injection). Use secure_file_upload instead. Will be removed in v2.0 (2026-06-30). Migration guide: /docs/api-migrations/file-upload-v2/"
+        )
+
     secure_file_upload = SecureFileUploadMutation.Field()
     sync_upload = SyncMutation.Field()
     adhoc_record = AdhocMutation.Field()
@@ -57,6 +68,7 @@ class Query(
     AssetQueries,
     BtQueries,
     JournalWellnessQueries,
+    HelpBotQueries,
     graphene.ObjectType,
 ):
     PELog_by_id = graphene.Field(PELogType, id=graphene.Int())
@@ -117,7 +129,7 @@ class RootQuery(Query):
     pass
 
 
-class RootMutation(Mutation, JournalWellnessMutations):
+class RootMutation(Mutation, JournalWellnessMutations, HelpBotMutations):
     pass
 
 

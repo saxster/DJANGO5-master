@@ -19,6 +19,7 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError
 from django.http import QueryDict, JsonResponse, Http404
 from django.shortcuts import render, redirect
+from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
@@ -289,7 +290,7 @@ def add_cp_internal_tour(request):
             session=request.session
         )
 
-        return JsonResponse({"status": "success", "message": "Checkpoint added"}, status=200)
+        return JsonResponse({"status": "success", "message": str(_("Checkpoint added"))}, status=200)
 
     except ValidationError as e:
         return JsonResponse({"errors": str(e)}, status=400)
@@ -309,7 +310,7 @@ def delete_checkpoint(request):
         service = InternalTourService()
         service.delete_checkpoint(checkpoint_id=checkpoint_id, user=request.user)
 
-        return JsonResponse({"status": "success", "message": "Checkpoint deleted"}, status=200)
+        return JsonResponse({"status": "success", "message": str(_("Checkpoint deleted"))}, status=200)
 
     except ValidationError as e:
         return JsonResponse({"errors": str(e)}, status=400)

@@ -759,7 +759,7 @@ class InformationLeakageTest(TestCase):
             payload = encrypted[len("FERNET_V1:"):]
             encrypted_lengths.append(len(payload))
 
-        length_differences = [encrypted_lengths[i+1] - encrypted_lengths[i] for i in range(len(encrypted_lengths)-1)]
+        length_differences = [next_len - curr_len for curr_len, next_len in zip(encrypted_lengths, encrypted_lengths[1:])]
 
         for diff in length_differences:
             self.assertGreater(

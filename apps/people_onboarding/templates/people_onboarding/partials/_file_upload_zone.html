@@ -1,0 +1,200 @@
+{% comment %}
+========================================
+FILE UPLOAD ZONE PARTIAL
+========================================
+Drag-and-drop file upload zone
+
+Usage:
+    {% include "people_onboarding/partials/_file_upload_zone.html" with upload_url="/api/upload/" %}
+
+Parameters:
+    - upload_url: API endpoint for file upload (required)
+    - accepted_types: Comma-separated MIME types (default: ".pdf,.jpg,.jpeg,.png,.doc,.docx")
+    - max_size_mb: Maximum file size in MB (default: 10)
+    - multiple: Boolean for multiple file upload (default: True)
+    - zone_id: Unique ID for this upload zone (default: 'fileUploadZone')
+
+Features:
+    - Drag-and-drop zone (full-screen or compact)
+    - Click to browse
+    - Multiple file selection
+    - File type filtering
+    - File size validation
+    - Upload progress bars
+    - Cancel upload option
+
+Edge Cases:
+    - Oversized files rejected with message
+    - Unsupported file types rejected
+    - Duplicate file detection
+    - Upload failures with retry
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if not upload_url %}{% with upload_url='/api/people-onboarding/documents/upload/' %}{% endwith %}{% endif %}
+{% if not accepted_types %}{% with accepted_types='.pdf,.jpg,.jpeg,.png,.doc,.docx' %}{% endwith %}{% endif %}
+{% if not max_size_mb %}{% with max_size_mb=10 %}{% endwith %}{% endif %}
+{% if multiple is None %}{% with multiple=True %}{% endwith %}{% endif %}
+{% if not zone_id %}{% with zone_id='fileUploadZone' %}{% endwith %}{% endif %}
+
+<div class="file-upload-zone"
+     id="{{ zone_id }}"
+     data-upload-url="{{ upload_url }}"
+     data-accepted-types="{{ accepted_types }}"
+     data-max-size="{{ max_size_mb }}"
+     data-multiple="{{ multiple|yesno:'true,false' }}"
+     role="region"
+     aria-label="File upload area">
+
+    {% comment %}Upload Dropzone{% endcomment %}
+    <div class="dropzone-area border border-2 border-dashed border-primary rounded p-8 text-center position-relative"
+         role="button"
+         tabindex="0"
+         aria-label="Click or drag files to upload">
+
+        {% comment %}Icon and Instructions{% endcomment %}
+        <div class="dropzone-content">
+            <i class="bi bi-cloud-upload fs-3x text-primary mb-4 d-block"></i>
+
+            <h4 class="dropzone-title fw-bold mb-2">
+                Drop files here or click to upload
+            </h4>
+
+            <p class="dropzone-description text-muted mb-4">
+                {% if multiple %}
+                    Upload multiple files (max {{ max_size_mb }} MB each)
+                {% else %}
+                    Upload a single file (max {{ max_size_mb }} MB)
+                {% endif %}
+            </p>
+
+            <div class="accepted-types text-muted fs-7 mb-4">
+                <strong>Accepted formats:</strong>
+                {% for type in accepted_types.split:',' %}
+                    <span class="badge badge-light-info badge-sm">{{ type|upper }}</span>
+                {% endfor %}
+            </div>
+
+            <button type="button" class="btn btn-primary btn-browse-files">
+                <i class="bi bi-folder2-open me-2"></i>
+                Browse Files
+            </button>
+
+            <input type="file"
+                   id="{{ zone_id }}Input"
+                   class="file-input d-none"
+                   accept="{{ accepted_types }}"
+                   {% if multiple %}multiple{% endif %}
+                   aria-label="File upload input">
+        </div>
+
+        {% comment %}Drag Overlay{% endcomment %}
+        <div class="drag-overlay position-absolute top-0 start-0 w-100 h-100 bg-primary bg-opacity-10 d-none align-items-center justify-content-center rounded">
+            <div class="text-center">
+                <i class="bi bi-arrow-down-circle fs-2x text-primary mb-2 d-block"></i>
+                <p class="text-primary fw-bold mb-0">Drop files to upload</p>
+            </div>
+        </div>
+    </div>
+
+    {% comment %}Upload Progress Section{% endcomment %}
+    <div class="upload-progress-section mt-4 d-none">
+        <h5 class="mb-3 fw-bold">
+            <i class="bi bi-clock-history me-2"></i>
+            Uploading Files
+        </h5>
+
+        <div class="upload-progress-list">
+            {% comment %}Progress items will be dynamically added here by JavaScript{% endcomment %}
+        </div>
+    </div>
+
+    {% comment %}Uploaded Files List{% endcomment %}
+    <div class="uploaded-files-section mt-4 d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0 fw-bold">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Uploaded Files
+                <span class="badge badge-success uploaded-count">0</span>
+            </h5>
+            <button type="button" class="btn btn-sm btn-light-danger btn-clear-all">
+                <i class="bi bi-trash me-1"></i>
+                Clear All
+            </button>
+        </div>
+
+        <div class="uploaded-files-list">
+            {% comment %}Uploaded file items will be dynamically added here{% endcomment %}
+        </div>
+    </div>
+
+    {% comment %}Error Messages{% endcomment %}
+    <div class="upload-errors mt-3 d-none">
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Upload Errors:</strong>
+            <ul class="error-list mb-0 mt-2"></ul>
+        </div>
+    </div>
+</div>
+
+{% comment %}Upload Progress Item Template (hidden, cloned by JS){% endcomment %}
+<template id="uploadProgressTemplate">
+    <div class="upload-progress-item card mb-2" data-file-id="">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center mb-2">
+                <i class="bi bi-file-earmark fs-2x text-muted me-3"></i>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="file-name fw-bold text-truncate" style="max-width: 400px;"></span>
+                        <span class="file-size text-muted fs-7"></span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar"
+                             style="width: 0%"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="upload-status-text text-muted fs-7">Uploading...</span>
+                        <span class="upload-percentage text-muted fs-7">0%</span>
+                    </div>
+                </div>
+                <button type="button"
+                        class="btn btn-sm btn-light-danger ms-3 btn-cancel-upload"
+                        aria-label="Cancel upload">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+{% comment %}Uploaded File Item Template (hidden, cloned by JS){% endcomment %}
+<template id="uploadedFileTemplate">
+    <div class="uploaded-file-item d-flex align-items-center p-3 border border-gray-300 rounded mb-2"
+         data-file-id="">
+        <i class="bi bi-file-earmark-check fs-3 text-success me-3"></i>
+        <div class="flex-grow-1">
+            <div class="file-name fw-bold"></div>
+            <div class="file-meta text-muted fs-7">
+                <span class="file-size"></span>
+                <span class="mx-2">•</span>
+                <span class="file-type"></span>
+            </div>
+        </div>
+        <div class="file-actions d-flex gap-2">
+            <a href="#" class="btn btn-sm btn-light-primary btn-download" download>
+                <i class="bi bi-download"></i>
+            </a>
+            <button type="button" class="btn btn-sm btn-light-danger btn-delete">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+</template>

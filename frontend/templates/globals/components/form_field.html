@@ -1,0 +1,881 @@
+<!-- Modern Form Field Component -->
+<!-- Accessible, responsive form field with enhanced UX -->
+
+{% load static %}
+
+<!-- Extract field properties -->
+{% if field.field %}
+  {% with django_field=field %}
+{% else %}
+  {% with django_field=field field=field %}
+{% endif %}
+
+<!-- Form Field Container -->
+<div class="form-field {{ field_class|default:'' }}"
+     data-field-type="{{ django_field.field.widget.input_type|default:'text' }}"
+     {% if django_field.field.required %}data-required="true"{% endif %}
+     {% if field_width %}data-width="{{ field_width }}"{% endif %}>
+
+  <!-- Field Label -->
+  <label for="{{ django_field.id_for_label }}"
+         class="form-label {% if django_field.field.required %}form-label-required{% endif %}">
+    {{ django_field.label }}
+    {% if django_field.field.required %}
+      <span class="required-indicator" aria-label="required">*</span>
+    {% endif %}
+  </label>
+
+  <!-- Field Input Container -->
+  <div class="form-input-container">
+
+    <!-- Input Group (for icons, prefixes, suffixes) -->
+    <div class="input-group {% if prefix_icon or suffix_icon or prefix_text or suffix_text %}has-addons{% endif %}">
+
+      <!-- Prefix Icon -->
+      {% if prefix_icon %}
+      <div class="input-addon input-prefix-icon" aria-hidden="true">
+        <i class="material-icons">{{ prefix_icon }}</i>
+      </div>
+      {% endif %}
+
+      <!-- Prefix Text -->
+      {% if prefix_text %}
+      <div class="input-addon input-prefix-text" aria-hidden="true">
+        {{ prefix_text }}
+      </div>
+      {% endif %}
+
+      <!-- The actual form field -->
+      <div class="form-input-wrapper">
+
+        <!-- Special handling for different field types -->
+        {% if django_field.field.widget.input_type == 'checkbox' %}
+          <!-- Checkbox Field -->
+          <div class="checkbox-wrapper">
+            {{ django_field }}
+            <div class="checkbox-indicator">
+              <i class="material-icons checkbox-icon">check</i>
+            </div>
+          </div>
+
+        {% elif django_field.field.widget.input_type == 'radio' %}
+          <!-- Radio Field -->
+          <div class="radio-wrapper">
+            {{ django_field }}
+            <div class="radio-indicator"></div>
+          </div>
+
+        {% elif django_field.field.widget.input_type == 'file' %}
+          <!-- File Upload Field -->
+          <div class="file-upload-wrapper"
+               ondrop="handleFileDrop(event)"
+               ondragover="handleFileDragOver(event)"
+               ondragleave="handleFileDragLeave(event)">
+
+            {{ django_field }}
+
+            <div class="file-upload-ui">
+              <div class="file-upload-icon">
+                <i class="material-icons">cloud_upload</i>
+              </div>
+              <div class="file-upload-text">
+                <div class="file-upload-primary">Drop files here or click to upload</div>
+                <div class="file-upload-secondary">
+                  {% if django_field.field.widget.attrs.accept %}
+                    Accepted formats: {{ django_field.field.widget.attrs.accept }}
+                  {% endif %}
+                  {% if max_file_size %}
+                    | Max size: {{ max_file_size }}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- File Preview Area -->
+            <div class="file-preview" id="file-preview-{{ django_field.id_for_label }}" style="display: none;">
+              <div class="file-preview-item">
+                <i class="material-icons file-preview-icon">description</i>
+                <div class="file-preview-info">
+                  <div class="file-preview-name"></div>
+                  <div class="file-preview-size"></div>
+                </div>
+                <button type="button"
+                        class="file-preview-remove"
+                        onclick="removeFilePreview('{{ django_field.id_for_label }}')"
+                        aria-label="Remove file">
+                  <i class="material-icons">close</i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        {% elif django_field.field.widget.input_type == 'textarea' or 'textarea' in django_field.field.widget.__class__.__name__|lower %}
+          <!-- Textarea Field -->
+          <div class="textarea-wrapper">
+            {{ django_field }}
+            {% if show_char_count %}
+            <div class="textarea-counter">
+              <span class="char-count">0</span>
+              {% if django_field.field.max_length %}
+                / {{ django_field.field.max_length }}
+              {% endif %}
+              characters
+            </div>
+            {% endif %}
+          </div>
+
+        {% elif 'select' in django_field.field.widget.__class__.__name__|lower %}
+          <!-- Select Field -->
+          <div class="select-wrapper">
+            {{ django_field }}
+            <div class="select-arrow" aria-hidden="true">
+              <i class="material-icons">keyboard_arrow_down</i>
+            </div>
+          </div>
+
+        {% else %}
+          <!-- Standard Input Field -->
+          {{ django_field }}
+
+        {% endif %}
+
+        <!-- Field Icons (for validation states) -->
+        <div class="field-icons">
+          <i class="material-icons field-icon field-icon-valid" aria-hidden="true">check_circle</i>
+          <i class="material-icons field-icon field-icon-invalid" aria-hidden="true">error</i>
+          <i class="material-icons field-icon field-icon-loading" aria-hidden="true">hourglass_empty</i>
+        </div>
+
+      </div>
+
+      <!-- Suffix Text -->
+      {% if suffix_text %}
+      <div class="input-addon input-suffix-text" aria-hidden="true">
+        {{ suffix_text }}
+      </div>
+      {% endif %}
+
+      <!-- Suffix Icon -->
+      {% if suffix_icon %}
+      <div class="input-addon input-suffix-icon" aria-hidden="true">
+        <i class="material-icons">{{ suffix_icon }}</i>
+      </div>
+      {% endif %}
+
+      <!-- Password Toggle (for password fields) -->
+      {% if django_field.field.widget.input_type == 'password' %}
+      <button type="button"
+              class="input-addon password-toggle"
+              onclick="togglePasswordVisibility('{{ django_field.id_for_label }}')"
+              aria-label="Toggle password visibility"
+              tabindex="-1">
+        <i class="material-icons">visibility</i>
+      </button>
+      {% endif %}
+
+    </div>
+
+    <!-- Field Help Text -->
+    {% if django_field.help_text %}
+    <div class="field-help" id="{{ django_field.id_for_label }}-help">
+      {{ django_field.help_text }}
+    </div>
+    {% endif %}
+
+    <!-- Field Error Message -->
+    <div class="field-error"
+         id="{{ django_field.id_for_label }}-error"
+         role="alert"
+         aria-live="polite"
+         style="display: none;">
+      {% if django_field.errors %}
+        {{ django_field.errors.0 }}
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% endwith %}
+
+<!-- Form Field Styles -->
+<style>
+  .form-field {
+    position: relative;
+    margin-bottom: var(--yt-space-6);
+  }
+
+  .form-field[data-width="full"] {
+    grid-column: 1 / -1;
+  }
+
+  .form-field[data-width="half"] {
+    grid-column: span 6;
+  }
+
+  /* Field Label */
+  .form-label {
+    display: block;
+    font-weight: var(--yt-font-medium);
+    color: var(--yt-text-primary);
+    margin-bottom: var(--yt-space-2);
+    font-size: var(--yt-text-sm);
+    line-height: var(--yt-leading-normal);
+  }
+
+  .form-label-required {
+    position: relative;
+  }
+
+  .required-indicator {
+    color: var(--yt-danger-500);
+    font-weight: var(--yt-font-bold);
+    margin-left: var(--yt-space-1);
+  }
+
+  /* Input Container */
+  .form-input-container {
+    position: relative;
+  }
+
+  .input-group {
+    display: flex;
+    position: relative;
+    background: var(--yt-bg-surface);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+    border-radius: var(--yt-radius-lg);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    overflow: hidden;
+  }
+
+  .input-group:focus-within {
+    border-color: var(--yt-border-focus);
+    box-shadow: 0 0 0 3px rgba(55, 125, 255, 0.1);
+  }
+
+  .form-input-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Standard Input Styles */
+  .form-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .form-field select,
+  .form-field textarea {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: var(--yt-space-3) var(--yt-space-4);
+    font-size: var(--yt-text-sm);
+    color: var(--yt-text-primary);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    outline: none;
+    font-family: inherit;
+  }
+
+  .form-field input::placeholder,
+  .form-field textarea::placeholder {
+    color: var(--yt-text-tertiary);
+    opacity: 1;
+  }
+
+  /* Input Addons */
+  .input-addon {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--yt-space-3);
+    background: var(--yt-bg-secondary);
+    color: var(--yt-text-secondary);
+    font-size: var(--yt-text-sm);
+    border-right: var(--yt-border-1) solid var(--yt-border-primary);
+  }
+
+  .input-suffix-icon,
+  .input-suffix-text {
+    border-right: none;
+    border-left: var(--yt-border-1) solid var(--yt-border-primary);
+  }
+
+  .password-toggle {
+    background: none;
+    border: none;
+    color: var(--yt-text-secondary);
+    cursor: pointer;
+    padding: var(--yt-space-2);
+    border-radius: var(--yt-radius-md);
+    margin-right: var(--yt-space-2);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .password-toggle:hover {
+    color: var(--yt-text-primary);
+    background: var(--yt-bg-secondary);
+  }
+
+  .password-toggle:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+  }
+
+  /* Field Icons */
+  .field-icons {
+    position: absolute;
+    right: var(--yt-space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .field-icon {
+    display: none;
+    font-size: var(--yt-text-lg);
+  }
+
+  .field-valid .field-icon-valid {
+    display: block;
+    color: var(--yt-success-500);
+  }
+
+  .field-invalid .field-icon-invalid {
+    display: block;
+    color: var(--yt-danger-500);
+  }
+
+  .field-loading .field-icon-loading {
+    display: block;
+    color: var(--yt-text-secondary);
+    animation: spin var(--yt-duration-1000) linear infinite;
+  }
+
+  /* Checkbox Styles */
+  .checkbox-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: var(--yt-space-3) var(--yt-space-4);
+  }
+
+  .checkbox-wrapper input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .checkbox-indicator {
+    width: 20px;
+    height: 20px;
+    border: var(--yt-border-2) solid var(--yt-border-secondary);
+    border-radius: var(--yt-radius-base);
+    background: var(--yt-bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    margin-right: var(--yt-space-3);
+  }
+
+  .checkbox-icon {
+    color: var(--yt-text-inverse);
+    font-size: var(--yt-text-sm);
+    opacity: 0;
+    transition: opacity var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .checkbox-wrapper input[type="checkbox"]:checked + .checkbox-indicator {
+    background: var(--yt-primary-500);
+    border-color: var(--yt-primary-500);
+  }
+
+  .checkbox-wrapper input[type="checkbox"]:checked + .checkbox-indicator .checkbox-icon {
+    opacity: 1;
+  }
+
+  .checkbox-wrapper input[type="checkbox"]:focus + .checkbox-indicator {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+  }
+
+  /* Radio Styles */
+  .radio-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: var(--yt-space-3) var(--yt-space-4);
+  }
+
+  .radio-wrapper input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .radio-indicator {
+    width: 20px;
+    height: 20px;
+    border: var(--yt-border-2) solid var(--yt-border-secondary);
+    border-radius: var(--yt-radius-full);
+    background: var(--yt-bg-surface);
+    margin-right: var(--yt-space-3);
+    position: relative;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .radio-indicator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 8px;
+    height: 8px;
+    background: var(--yt-text-inverse);
+    border-radius: var(--yt-radius-full);
+    transition: transform var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .radio-wrapper input[type="radio"]:checked + .radio-indicator {
+    background: var(--yt-primary-500);
+    border-color: var(--yt-primary-500);
+  }
+
+  .radio-wrapper input[type="radio"]:checked + .radio-indicator::after {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .radio-wrapper input[type="radio"]:focus + .radio-indicator {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+  }
+
+  /* Select Styles */
+  .select-wrapper {
+    position: relative;
+    flex: 1;
+  }
+
+  .select-wrapper select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: var(--yt-space-12);
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: var(--yt-space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--yt-text-secondary);
+    transition: transform var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .select-wrapper:focus-within .select-arrow {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  /* Textarea Styles */
+  .textarea-wrapper {
+    flex: 1;
+    position: relative;
+  }
+
+  .textarea-wrapper textarea {
+    min-height: 100px;
+    resize: vertical;
+    font-family: inherit;
+    line-height: var(--yt-leading-normal);
+  }
+
+  .textarea-counter {
+    position: absolute;
+    bottom: var(--yt-space-2);
+    right: var(--yt-space-3);
+    font-size: var(--yt-text-xs);
+    color: var(--yt-text-tertiary);
+    background: var(--yt-bg-surface);
+    padding: var(--yt-space-1) var(--yt-space-2);
+    border-radius: var(--yt-radius-base);
+    box-shadow: var(--yt-shadow-sm);
+  }
+
+  /* File Upload Styles */
+  .file-upload-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 120px;
+    border: var(--yt-border-2) dashed var(--yt-border-secondary);
+    border-radius: var(--yt-radius-lg);
+    background: var(--yt-bg-secondary);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    cursor: pointer;
+  }
+
+  .file-upload-wrapper:hover {
+    border-color: var(--yt-primary-300);
+    background: var(--yt-primary-50);
+  }
+
+  .file-upload-wrapper.dragover {
+    border-color: var(--yt-primary-500);
+    background: var(--yt-primary-100);
+    transform: scale(1.02);
+  }
+
+  .file-upload-wrapper input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+
+  .file-upload-ui {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: var(--yt-space-4);
+    text-align: center;
+  }
+
+  .file-upload-icon {
+    font-size: var(--yt-text-4xl);
+    color: var(--yt-text-tertiary);
+    margin-bottom: var(--yt-space-2);
+  }
+
+  .file-upload-primary {
+    font-weight: var(--yt-font-medium);
+    color: var(--yt-text-primary);
+    margin-bottom: var(--yt-space-1);
+  }
+
+  .file-upload-secondary {
+    font-size: var(--yt-text-xs);
+    color: var(--yt-text-secondary);
+  }
+
+  /* File Preview */
+  .file-preview {
+    margin-top: var(--yt-space-3);
+    border-top: var(--yt-border-1) solid var(--yt-border-primary);
+    padding-top: var(--yt-space-3);
+  }
+
+  .file-preview-item {
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-3);
+    padding: var(--yt-space-2);
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-md);
+  }
+
+  .file-preview-icon {
+    color: var(--yt-text-secondary);
+    font-size: var(--yt-text-xl);
+  }
+
+  .file-preview-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .file-preview-name {
+    font-weight: var(--yt-font-medium);
+    color: var(--yt-text-primary);
+    font-size: var(--yt-text-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-preview-size {
+    font-size: var(--yt-text-xs);
+    color: var(--yt-text-secondary);
+  }
+
+  .file-preview-remove {
+    background: none;
+    border: none;
+    color: var(--yt-text-secondary);
+    cursor: pointer;
+    padding: var(--yt-space-1);
+    border-radius: var(--yt-radius-base);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .file-preview-remove:hover {
+    color: var(--yt-danger-500);
+    background: var(--yt-danger-50);
+  }
+
+  /* Field Help Text */
+  .field-help {
+    margin-top: var(--yt-space-2);
+    font-size: var(--yt-text-xs);
+    color: var(--yt-text-secondary);
+    line-height: var(--yt-leading-normal);
+  }
+
+  /* Field Error Message */
+  .field-error {
+    margin-top: var(--yt-space-2);
+    font-size: var(--yt-text-xs);
+    color: var(--yt-danger-600);
+    font-weight: var(--yt-font-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-1);
+  }
+
+  .field-error::before {
+    content: "error";
+    font-family: "Material Icons";
+    font-size: var(--yt-text-sm);
+  }
+
+  /* Field States */
+  .field-valid .input-group {
+    border-color: var(--yt-success-300);
+  }
+
+  .field-invalid .input-group {
+    border-color: var(--yt-danger-300);
+  }
+
+  .field-invalid .field-error {
+    display: flex !important;
+  }
+
+  /* Disabled State */
+  .form-field input:disabled,
+  .form-field select:disabled,
+  .form-field textarea:disabled {
+    background: var(--yt-bg-secondary);
+    color: var(--yt-text-disabled);
+    cursor: not-allowed;
+  }
+
+  .form-field input:disabled + .checkbox-indicator,
+  .form-field input:disabled + .radio-indicator {
+    background: var(--yt-bg-secondary);
+    cursor: not-allowed;
+  }
+
+  /* Dark Mode */
+  .dark .input-addon {
+    background: var(--yt-gray-700);
+    border-color: var(--yt-gray-600);
+  }
+
+  .dark .file-upload-wrapper {
+    background: var(--yt-gray-800);
+    border-color: var(--yt-gray-600);
+  }
+
+  .dark .file-upload-wrapper:hover {
+    background: var(--yt-gray-700);
+  }
+
+  /* High Contrast */
+  @media (prefers-contrast: high) {
+    .input-group {
+      border-width: var(--yt-border-2);
+    }
+
+    .checkbox-indicator,
+    .radio-indicator {
+      border-width: 2px;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .form-field[data-width="half"] {
+      grid-column: 1 / -1;
+    }
+
+    .input-addon {
+      padding: 0 var(--yt-space-2);
+    }
+
+    .form-field input:not([type="checkbox"]):not([type="radio"]),
+    .form-field select,
+    .form-field textarea {
+      padding: var(--yt-space-3);
+    }
+  }
+</style>
+
+<!-- Form Field JavaScript -->
+<script>
+(function() {
+  'use strict';
+
+  // Password toggle functionality
+  window.togglePasswordVisibility = function(fieldId) {
+    const field = document.getElementById(fieldId);
+    const button = document.querySelector(`[onclick="togglePasswordVisibility('${fieldId}')"]`);
+    const icon = button?.querySelector('i');
+
+    if (field && icon) {
+      if (field.type === 'password') {
+        field.type = 'text';
+        icon.textContent = 'visibility_off';
+        button.setAttribute('aria-label', 'Hide password');
+      } else {
+        field.type = 'password';
+        icon.textContent = 'visibility';
+        button.setAttribute('aria-label', 'Show password');
+      }
+    }
+  };
+
+  // File upload handlers
+  window.handleFileDrop = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const wrapper = e.currentTarget;
+    const input = wrapper.querySelector('input[type="file"]');
+    const files = e.dataTransfer.files;
+
+    wrapper.classList.remove('dragover');
+
+    if (files.length > 0 && input) {
+      input.files = files;
+      showFilePreview(input);
+
+      // Trigger change event
+      const event = new Event('change', { bubbles: true });
+      input.dispatchEvent(event);
+    }
+  };
+
+  window.handleFileDragOver = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.add('dragover');
+  };
+
+  window.handleFileDragLeave = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('dragover');
+  };
+
+  window.removeFilePreview = function(fieldId) {
+    const input = document.getElementById(fieldId);
+    const preview = document.getElementById(`file-preview-${fieldId}`);
+
+    if (input) {
+      input.value = '';
+    }
+
+    if (preview) {
+      preview.style.display = 'none';
+    }
+  };
+
+  function showFilePreview(input) {
+    const fieldId = input.id;
+    const preview = document.getElementById(`file-preview-${fieldId}`);
+    const file = input.files[0];
+
+    if (!preview || !file) return;
+
+    const nameElement = preview.querySelector('.file-preview-name');
+    const sizeElement = preview.querySelector('.file-preview-size');
+    const iconElement = preview.querySelector('.file-preview-icon');
+
+    if (nameElement) nameElement.textContent = file.name;
+    if (sizeElement) sizeElement.textContent = formatFileSize(file.size);
+
+    // Update icon based on file type
+    if (iconElement) {
+      if (file.type.startsWith('image/')) {
+        iconElement.textContent = 'image';
+      } else if (file.type.includes('pdf')) {
+        iconElement.textContent = 'picture_as_pdf';
+      } else if (file.type.includes('video/')) {
+        iconElement.textContent = 'video_file';
+      } else if (file.type.includes('audio/')) {
+        iconElement.textContent = 'audio_file';
+      } else {
+        iconElement.textContent = 'description';
+      }
+    }
+
+    preview.style.display = 'block';
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // Initialize file upload handlers
+  document.addEventListener('DOMContentLoaded', function() {
+    // File input change handlers
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+      input.addEventListener('change', function() {
+        showFilePreview(this);
+      });
+    });
+
+    // Character counter for textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+      const wrapper = textarea.closest('.textarea-wrapper');
+      const counter = wrapper?.querySelector('.char-count');
+
+      if (counter) {
+        function updateCounter() {
+          const length = textarea.value.length;
+          counter.textContent = length;
+
+          // Color coding for character limits
+          const maxLength = textarea.getAttribute('maxlength');
+          if (maxLength) {
+            const percentage = (length / maxLength) * 100;
+            if (percentage > 90) {
+              counter.style.color = 'var(--yt-danger-500)';
+            } else if (percentage > 75) {
+              counter.style.color = 'var(--yt-warning-500)';
+            } else {
+              counter.style.color = 'var(--yt-text-tertiary)';
+            }
+          }
+        }
+
+        textarea.addEventListener('input', updateCounter);
+        updateCounter(); // Initial count
+      }
+    });
+
+    // Auto-resize textareas
+    textareas.forEach(textarea => {
+      function autoResize() {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      }
+
+      textarea.addEventListener('input', autoResize);
+      autoResize(); // Initial resize
+    });
+  });
+
+})();
+</script>

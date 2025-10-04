@@ -299,8 +299,17 @@ class LogSanitizationMiddleware(MiddlewareMixin):
         else:
             request.safe_user_ref = "Anonymous"
 
-        # Add correlation ID if not present
+        # IMPORTANT: Correlation ID should be set by CorrelationIDMiddleware
+        # This middleware MUST run after CorrelationIDMiddleware in the stack
+        # Verify correlation_id exists (defensive check)
         if not hasattr(request, 'correlation_id'):
+            # This should never happen if middleware ordering is correct
+            sanitized_logger.warning(
+                "Correlation ID missing in LogSanitizationMiddleware - "
+                "check middleware ordering (CorrelationIDMiddleware must run first)",
+                extra={'middleware_order_issue': True}
+            )
+            # Fallback: generate correlation_id (defensive programming)
             import uuid
             request.correlation_id = str(uuid.uuid4())
 

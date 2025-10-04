@@ -24,15 +24,50 @@ from .user_progress import WellnessUserProgress
 
 from .interaction_models import WellnessContentInteraction
 
+from .mental_health_interventions import (
+    MentalHealthInterventionType,
+    InterventionDeliveryTiming,
+    InterventionEvidenceBase,
+    MentalHealthIntervention,
+    InterventionDeliveryLog,
+)
+
+from .wisdom_conversations import (
+    ConversationThread,
+    WisdomConversation,
+    ConversationEngagement,
+    ConversationBookmark,
+)
+
+from .conversation_translation import (
+    WisdomConversationTranslation,
+    TranslationQualityFeedback,
+)
+
 __all__ = [
     # Enums
     'WellnessContentCategory',
     'WellnessDeliveryContext',
     'WellnessContentLevel',
     'EvidenceLevel',
+    'MentalHealthInterventionType',
+    'InterventionDeliveryTiming',
+    'InterventionEvidenceBase',
 
     # Models
     'WellnessContent',
     'WellnessUserProgress',
     'WellnessContentInteraction',
+    'MentalHealthIntervention',
+    'InterventionDeliveryLog',
+
+    # Wisdom Conversations
+    'ConversationThread',
+    'WisdomConversation',
+    'ConversationEngagement',
+    'ConversationBookmark',
+
+    # Translation Models
+    'WisdomConversationTranslation',
+    'TranslationQualityFeedback',
 ]

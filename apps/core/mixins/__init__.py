@@ -31,6 +31,14 @@ from .validated_form_mixin import (
     ValidatedFormProcessingMixin,
     StandardFormProcessingMixin,
 )
+from .dashboard_mixins import (
+    DashboardAPIMixin,
+    DashboardDataMixin,
+    DashboardCacheMixin,
+    DashboardExportMixin,
+    DashboardPermissionMixin,
+    BaseDashboardView,
+)
 
 __all__ = [
     'OptimisticLockingMixin',
@@ -44,4 +52,10 @@ __all__ = [
     'TypeAssistFilterMixin',
     'ValidatedFormProcessingMixin',
     'StandardFormProcessingMixin',
+    'DashboardAPIMixin',
+    'DashboardDataMixin',
+    'DashboardCacheMixin',
+    'DashboardExportMixin',
+    'DashboardPermissionMixin',
+    'BaseDashboardView',
 ]

@@ -1,0 +1,285 @@
+{
+  "dashboard": {
+    "title": "WebSocket Connections & Security",
+    "tags": ["websocket", "realtime", "security", "monitoring"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 0,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "timeseries",
+        "title": "Active WebSocket Connections",
+        "targets": [
+          {
+            "expr": "sum(websocket_connections_active) by (user_type)",
+            "legendFormat": "{{user_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10,
+              "spanNulls": false
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "stat",
+        "title": "Total Active Connections",
+        "targets": [
+          {
+            "expr": "sum(websocket_connections_active)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 500, "color": "yellow"},
+                {"value": 1000, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "timeseries",
+        "title": "Connection Attempts (Accepted vs Rejected)",
+        "targets": [
+          {
+            "expr": "rate(websocket_connection_attempt{accepted=\"true\"}[5m])",
+            "legendFormat": "Accepted - {{user_type}}",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(websocket_connection_attempt{accepted=\"false\"}[5m])",
+            "legendFormat": "Rejected - {{rejection_reason}}",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cps",
+            "custom": {
+              "lineInterpolation": "smooth"
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "stat",
+        "title": "Connection Rejection Rate",
+        "targets": [
+          {
+            "expr": "rate(websocket_connection_attempt{accepted=\"false\"}[5m]) / rate(websocket_connection_attempt[5m]) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 25, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
+        "type": "stat",
+        "title": "Avg Connection Duration",
+        "targets": [
+          {
+            "expr": "avg(websocket_connection_duration_seconds)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "decimals": 1
+          }
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+        "type": "stat",
+        "title": "Messages Per Second",
+        "targets": [
+          {
+            "expr": "rate(websocket_messages_sent_total[5m]) + rate(websocket_messages_received_total[5m])",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "mps",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+        "type": "stat",
+        "title": "Throttle Hits",
+        "targets": [
+          {
+            "expr": "sum(rate(websocket_connection_attempt{accepted=\"false\",rejection_reason=\"rate_limit_exceeded\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "type": "timeseries",
+        "title": "Rejection Reasons Over Time",
+        "targets": [
+          {
+            "expr": "sum(rate(websocket_connection_attempt{accepted=\"false\"}[5m])) by (rejection_reason)",
+            "legendFormat": "{{rejection_reason}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cps",
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "type": "timeseries",
+        "title": "WebSocket Flood Attacks",
+        "targets": [
+          {
+            "expr": "rate(security_event{threat_type=\"ws_flood\"}[5m])",
+            "legendFormat": "Flood Attacks Detected",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "lineInterpolation": "stepAfter"
+            },
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "red"
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "type": "table",
+        "title": "Top Source IPs (by connection count)",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (client_ip) (rate(websocket_connection_attempt[5m])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "type": "piechart",
+        "title": "Connections by User Type",
+        "targets": [
+          {
+            "expr": "sum(websocket_connections_active) by (user_type)",
+            "legendFormat": "{{user_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 40},
+        "type": "heatmap",
+        "title": "Connection Duration Distribution",
+        "targets": [
+          {
+            "expr": "sum(rate(websocket_connection_duration_seconds_bucket[5m])) by (le)",
+            "format": "heatmap",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\"WebSocket.*\"}",
+          "iconColor": "orange",
+          "name": "WebSocket Alerts",
+          "step": "60s",
+          "tagKeys": "alertname,severity",
+          "textFormat": "{{alertname}}: {{severity}}",
+          "titleFormat": "Alert"
+        }
+      ]
+    },
+    "refresh": "5s",
+    "schemaVersion": 36,
+    "version": 1,
+    "uid": "websocket-monitoring-001"
+  }
+}

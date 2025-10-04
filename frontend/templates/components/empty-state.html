@@ -1,0 +1,88 @@
+{% comment %}
+Empty State Component - Zero-data experiences
+Usage: {% include 'components/empty-state.html' with title='No tours scheduled' icon='event_busy' %}
+{% endcomment %}
+
+<div class="yt-empty-state {{ class|default:'' }}">
+  <div class="yt-empty-state__illustration">
+    <i class="material-icons yt-empty-state__icon">{{ icon|default:'inbox' }}</i>
+  </div>
+
+  <h3 class="yt-empty-state__title">{{ title|default:'No data found' }}</h3>
+
+  {% if message %}
+    <p class="yt-empty-state__message">{{ message }}</p>
+  {% endif %}
+
+  {% if cta_text and cta_url %}
+    <div class="yt-empty-state__actions">
+      {% include 'components/button.html' with
+        text=cta_text
+        type='primary'
+        icon=cta_icon|default:'add'
+        href=cta_url
+      %}
+    </div>
+  {% endif %}
+</div>
+
+<style>
+.yt-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-12) var(--space-6);
+  min-height: 300px;
+}
+
+.yt-empty-state__illustration {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+}
+
+.yt-empty-state__icon {
+  font-size: 40px;
+  color: var(--text-muted);
+}
+
+.yt-empty-state__title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.yt-empty-state__message {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 0 var(--space-6);
+  line-height: var(--leading-relaxed);
+}
+
+.yt-empty-state__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .yt-empty-state {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .yt-empty-state__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+}
+</style>

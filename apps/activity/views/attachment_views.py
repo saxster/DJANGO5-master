@@ -23,17 +23,38 @@ def get_address(lat, lon):
     if lat == 0.0 and lon == 0.0:
         return "Invalid coordinates"
 
-    for attempt in range(3):  # Retry up to 3 times
+    # Use proper retry mechanism with exponential backoff
+    from apps.core.utils_new.retry_mechanism import exponential_backoff
+
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
             response = av_utils.get_address_from_coordinates(lat, lon)
             if response and response.get("full_address"):
                 return response.get("full_address")
         except RequestException as e:
-            logger.warning(f"Retrying due to error: {e}")
-            time.sleep(2**attempt)  # Exponential backoff
-    logger.error(
-        f"Failed to retrieve address after retries for coordinates: {lat}, {lon}"
-    )
+            if attempt < max_retries - 1:
+                delay = exponential_backoff(
+                    attempt=attempt,
+                    initial_delay=0.5,
+                    backoff_factor=2.0,
+                    max_delay=4.0,
+                    jitter=True
+                )
+                logger.warning(
+                    f"Geocoding retry attempt {attempt + 2}/{max_retries} after {delay:.2f}s",
+                    extra={'error': str(e)}
+                )
+                # NOTE: This time.sleep is acceptable for geocoding API retries
+                # due to synchronous operation requirement and short total duration
+                import time
+                time.sleep(delay)
+            else:
+                logger.error(
+                    f"Failed to retrieve address after {max_retries} retries",
+                    extra={'lat': lat, 'lon': lon, 'error': str(e)}
+                )
+
     return "Address lookup failed"
 
 

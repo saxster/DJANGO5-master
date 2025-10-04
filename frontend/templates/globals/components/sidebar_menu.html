@@ -1,0 +1,509 @@
+<!-- Sidebar Navigation Menu Component -->
+<!-- Uses Design System and Accessibility Best Practices -->
+
+<!-- Dashboard Section -->
+<div class="nav-section" role="group" aria-labelledby="dashboard-section">
+  <h3 id="dashboard-section" class="nav-section-title">Dashboard</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="{{ url('onboarding:rp_dashboard') }}"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Main Dashboard">
+        <i class="nav-icon material-icons" aria-hidden="true">dashboard</i>
+        <span class="nav-text">Overview</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="#"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Analytics Dashboard">
+        <i class="nav-icon material-icons" aria-hidden="true">analytics</i>
+        <span class="nav-text">Analytics</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- Operations Section -->
+<div class="nav-section" role="group" aria-labelledby="operations-section">
+  <h3 id="operations-section" class="nav-section-title">Operations</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/operations/tasks/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Task Management">
+        <i class="nav-icon material-icons" aria-hidden="true">task_alt</i>
+        <span class="nav-text">Tasks</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/operations/tours/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Site Tours">
+        <i class="nav-icon material-icons" aria-hidden="true">route</i>
+        <span class="nav-text">Tours</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/operations/work-orders/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Work Order Management">
+        <i class="nav-icon material-icons" aria-hidden="true">build</i>
+        <span class="nav-text">Work Orders</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/operations/ppm/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Planned Preventive Maintenance">
+        <i class="nav-icon material-icons" aria-hidden="true">schedule</i>
+        <span class="nav-text">PPM</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- Assets Section -->
+<div class="nav-section" role="group" aria-labelledby="assets-section">
+  <h3 id="assets-section" class="nav-section-title">Assets</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/assets/inventory/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Inventory Management">
+        <i class="nav-icon material-icons" aria-hidden="true">inventory</i>
+        <span class="nav-text">Inventory</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/assets/maintenance/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Asset Maintenance">
+        <i class="nav-icon material-icons" aria-hidden="true">settings</i>
+        <span class="nav-text">Maintenance</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/assets/locations/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Location Management">
+        <i class="nav-icon material-icons" aria-hidden="true">location_on</i>
+        <span class="nav-text">Locations</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/assets/monitoring/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Asset Monitoring">
+        <i class="nav-icon material-icons" aria-hidden="true">monitor</i>
+        <span class="nav-text">Monitoring</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- People Section -->
+<div class="nav-section" role="group" aria-labelledby="people-section">
+  <h3 id="people-section" class="nav-section-title">People</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/people/directory/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="People Directory">
+        <i class="nav-icon material-icons" aria-hidden="true">people</i>
+        <span class="nav-text">Directory</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/people/attendance/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Attendance Tracking">
+        <i class="nav-icon material-icons" aria-hidden="true">access_time</i>
+        <span class="nav-text">Attendance</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/people/groups/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Group Management">
+        <i class="nav-icon material-icons" aria-hidden="true">groups</i>
+        <span class="nav-text">Groups</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/people/expenses/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Expense Management">
+        <i class="nav-icon material-icons" aria-hidden="true">receipt</i>
+        <span class="nav-text">Expenses</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- Help Desk Section -->
+<div class="nav-section" role="group" aria-labelledby="helpdesk-section">
+  <h3 id="helpdesk-section" class="nav-section-title">Help Desk</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/help-desk/tickets/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Support Tickets">
+        <i class="nav-icon material-icons" aria-hidden="true">support</i>
+        <span class="nav-text">Tickets</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/help-desk/escalations/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Escalation Management">
+        <i class="nav-icon material-icons" aria-hidden="true">priority_high</i>
+        <span class="nav-text">Escalations</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/help-desk/requests/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Service Requests">
+        <i class="nav-icon material-icons" aria-hidden="true">request_quote</i>
+        <span class="nav-text">Requests</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- Reports Section -->
+<div class="nav-section" role="group" aria-labelledby="reports-section">
+  <h3 id="reports-section" class="nav-section-title">Reports</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/reports/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Report Dashboard">
+        <i class="nav-icon material-icons" aria-hidden="true">assessment</i>
+        <span class="nav-text">Dashboard</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/reports/analytics/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Analytics Reports">
+        <i class="nav-icon material-icons" aria-hidden="true">insights</i>
+        <span class="nav-text">Analytics</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/reports/exports/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Export Reports">
+        <i class="nav-icon material-icons" aria-hidden="true">file_download</i>
+        <span class="nav-text">Exports</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<!-- Advanced Features Section (Admin only) -->
+{% if request.user.is_authenticated and request.user.isadmin %}
+<div class="nav-section" role="group" aria-labelledby="advanced-section">
+  <h3 id="advanced-section" class="nav-section-title">Advanced</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/noc/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Network Operations Center">
+        <i class="nav-icon material-icons" aria-hidden="true">lan</i>
+        <span class="nav-text">NOC</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/streamlab/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Stream Testbench">
+        <i class="nav-icon material-icons" aria-hidden="true">science</i>
+        <span class="nav-text">Stream Lab</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/admin/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="System Administration">
+        <i class="nav-icon material-icons" aria-hidden="true">admin_panel_settings</i>
+        <span class="nav-text">Admin</span>
+      </a>
+    </li>
+  </ul>
+</div>
+{% endif %}
+
+<!-- Wellness & Journal Section -->
+{% if request.user.is_authenticated %}
+<div class="nav-section" role="group" aria-labelledby="wellness-section">
+  <h3 id="wellness-section" class="nav-section-title">Wellness</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/journal/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Personal Journal">
+        <i class="nav-icon material-icons" aria-hidden="true">book</i>
+        <span class="nav-text">Journal</span>
+      </a>
+    </li>
+    <li class="nav-item" role="none">
+      <a href="/wellness/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Wellness Education">
+        <i class="nav-icon material-icons" aria-hidden="true">favorite</i>
+        <span class="nav-text">Wellness</span>
+      </a>
+    </li>
+  </ul>
+</div>
+{% endif %}
+
+<!-- Quick Actions (Bottom) -->
+<div class="nav-section" role="group" aria-labelledby="actions-section">
+  <h3 id="actions-section" class="nav-section-title">Quick Actions</h3>
+  <ul class="nav-list" role="menubar">
+    <li class="nav-item" role="none">
+      <a href="/search/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="Global Search">
+        <i class="nav-icon material-icons" aria-hidden="true">search</i>
+        <span class="nav-text">Search</span>
+      </a>
+    </li>
+    {% if request.user.is_authenticated %}
+    <li class="nav-item" role="none">
+      <a href="/api/v1/helpbot/chat/"
+         class="nav-link"
+         role="menuitem"
+         aria-label="AI Assistant - Help and Support">
+        <i class="nav-icon material-icons" aria-hidden="true">smart_toy</i>
+        <span class="nav-text">AI Assistant</span>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+
+<!-- Responsive Sidebar Styles -->
+<style>
+  /* Collapsed sidebar text visibility */
+  .sidebar-collapsed .nav-text {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-10px);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .sidebar:not(.sidebar-collapsed) .nav-text {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out) var(--yt-duration-100);
+  }
+
+  /* Section titles in collapsed mode */
+  .sidebar-collapsed .nav-section-title {
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  /* Tooltip for collapsed sidebar */
+  .sidebar-collapsed .nav-link {
+    position: relative;
+  }
+
+  .sidebar-collapsed .nav-link:hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    left: calc(100% + var(--yt-space-2));
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--yt-gray-900);
+    color: var(--yt-text-inverse);
+    padding: var(--yt-space-2) var(--yt-space-3);
+    border-radius: var(--yt-radius-md);
+    font-size: var(--yt-text-xs);
+    white-space: nowrap;
+    z-index: var(--yt-z-tooltip);
+    pointer-events: none;
+    box-shadow: var(--yt-shadow-lg);
+  }
+
+  /* Focus indicators */
+  .nav-link:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: calc(-1 * var(--yt-focus-ring-width));
+  }
+
+  /* Badge for notifications (future enhancement) */
+  .nav-link-badge {
+    position: absolute;
+    top: var(--yt-space-2);
+    right: var(--yt-space-2);
+    background: var(--yt-danger-500);
+    color: var(--yt-text-inverse);
+    border-radius: var(--yt-radius-full);
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--yt-text-xs);
+    font-weight: var(--yt-font-bold);
+  }
+
+  /* High contrast mode adjustments */
+  @media (prefers-contrast: high) {
+    .nav-link {
+      border: var(--yt-border-1) solid transparent;
+    }
+
+    .nav-link:focus,
+    .nav-link.active {
+      border-color: currentColor;
+    }
+
+    .nav-section-title {
+      border-bottom: var(--yt-border-1) solid rgba(255, 255, 255, 0.3);
+      padding-bottom: var(--yt-space-1);
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .nav-text,
+    .nav-section-title {
+      transition: none;
+    }
+  }
+</style>
+
+<!-- Accessibility Enhancement Script -->
+<script>
+(function() {
+  'use strict';
+
+  // Enhanced keyboard navigation for menu
+  const navLinks = document.querySelectorAll('.nav-link');
+  const navLists = document.querySelectorAll('.nav-list');
+
+  // Arrow key navigation within menu sections
+  navLists.forEach(list => {
+    const links = list.querySelectorAll('.nav-link');
+
+    links.forEach((link, index) => {
+      link.addEventListener('keydown', function(e) {
+        let targetIndex;
+
+        switch(e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            targetIndex = (index + 1) % links.length;
+            links[targetIndex].focus();
+            break;
+
+          case 'ArrowUp':
+            e.preventDefault();
+            targetIndex = (index - 1 + links.length) % links.length;
+            links[targetIndex].focus();
+            break;
+
+          case 'Home':
+            e.preventDefault();
+            links[0].focus();
+            break;
+
+          case 'End':
+            e.preventDefault();
+            links[links.length - 1].focus();
+            break;
+        }
+      });
+    });
+  });
+
+  // Enhanced focus management for sidebar collapse/expand
+  const sidebar = document.getElementById('sidebar');
+  let focusedLinkIndex = -1;
+
+  // Track focused link before collapse
+  navLinks.forEach((link, index) => {
+    link.addEventListener('focus', function() {
+      focusedLinkIndex = index;
+    });
+  });
+
+  // Restore focus after sidebar state change
+  function restoreSidebarFocus() {
+    if (focusedLinkIndex >= 0 && navLinks[focusedLinkIndex]) {
+      setTimeout(() => {
+        navLinks[focusedLinkIndex].focus();
+      }, 300); // Wait for transition to complete
+    }
+  }
+
+  // Listen for sidebar state changes
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        restoreSidebarFocus();
+      }
+    });
+  });
+
+  if (sidebar) {
+    observer.observe(sidebar, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  }
+
+  // Help center function
+  window.openHelpCenter = function() {
+    // Announce to screen readers
+    const announcer = document.getElementById('sr-announcements');
+    if (announcer) {
+      announcer.textContent = 'Opening help center';
+    }
+
+    // Open help modal or navigate to help page
+    // This would integrate with your help system
+    console.log('Help center opened');
+  };
+
+})();
+</script>

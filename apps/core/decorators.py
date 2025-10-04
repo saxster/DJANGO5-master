@@ -220,57 +220,50 @@ def atomic_view(using_db=None):
     return decorator
 
 
-def retry_on_db_error(max_retries=3, delay=1.0):
+def retry_on_db_error(max_retries=3, delay=None):
     """
-    Decorator to retry database operations on transient errors.
+    Retry decorator for database errors in Celery tasks.
+
+    ENHANCED: Now uses exponential backoff with jitter instead of fixed delay.
+    The 'delay' parameter is deprecated - timing controlled by RetryPolicy.DATABASE_OPERATION.
+
+    Automatically retries tasks that fail due to database integrity or
+    operational errors (e.g., deadlocks, connection issues).
 
     Args:
-        max_retries: Maximum number of retry attempts
-        delay: Delay between retries in seconds
+        max_retries: Maximum number of retry attempts (default: 3)
+        delay: DEPRECATED - ignored, uses exponential backoff instead
 
     Usage:
-        @retry_on_db_error(max_retries=3, delay=2.0)
+        @retry_on_db_error(max_retries=3)
         @atomic_task()
         @shared_task
         def my_task():
-            # Task will be retried up to 3 times on database errors
+            # Task will be retried up to 3 times with exponential backoff
             pass
+
+    Benefits over old implementation:
+        - Exponential backoff (0.2s, 0.4s, 0.8s...) instead of fixed delay
+        - Jitter to prevent thundering herd
+        - Better transient error detection
+        - Delegates to apps.core.utils_new.retry_mechanism
     """
-    import time
     from django.db import IntegrityError, OperationalError
+    from apps.core.utils_new.retry_mechanism import with_retry
 
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            last_exception = None
+    if delay is not None:
+        logger.warning(
+            "retry_on_db_error 'delay' parameter is deprecated. "
+            "Using exponential backoff from RetryPolicy.DATABASE_OPERATION instead."
+        )
 
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-
-                except (IntegrityError, OperationalError) as e:
-                    last_exception = e
-                    if attempt < max_retries:
-                        logger.warning(
-                            f"Database error in {func.__name__}, retrying in {delay}s (attempt {attempt + 1}/{max_retries})",
-                            extra={"error": str(e)}
-                        )
-                        time.sleep(delay)
-                        continue
-                    else:
-                        logger.error(
-                            f"Database error in {func.__name__} after {max_retries} retries",
-                            extra={"error": str(e)},
-                            exc_info=True
-                        )
-                        break
-
-            # Re-raise the last exception if all retries failed
-            if last_exception:
-                raise last_exception
-
-        return wrapper
-    return decorator
+    # Delegate to the enhanced retry mechanism with DATABASE_OPERATION policy
+    return with_retry(
+        exceptions=(IntegrityError, OperationalError),
+        max_retries=max_retries,
+        retry_policy='DATABASE_OPERATION',
+        raise_on_exhausted=True
+    )
 
 
 # ============================================================================

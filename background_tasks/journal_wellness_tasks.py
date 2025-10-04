@@ -28,11 +28,263 @@ from apps.journal.services.pattern_analyzer import JournalPatternAnalyzer
 from apps.wellness.services.content_delivery import WellnessTipSelector, UserProfileBuilder
 from apps.journal.privacy import JournalPrivacyManager
 
+# Import enhanced base classes and utilities
+from apps.core.tasks.base import (
+    BaseTask, EmailTask, ExternalServiceTask, TaskMetrics, log_task_context
+)
+from apps.core.tasks.utils import task_retry_policy
+
 User = get_user_model()
 logger = logging.getLogger('background_tasks')
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(
+    base=BaseTask,
+    bind=True,
+    queue='critical',
+    priority=10,
+    **task_retry_policy('default')
+)
+def process_crisis_intervention_alert(self, user_id, alert_data, severity_level='high'):
+    """
+    CRITICAL PRIORITY: Process crisis intervention alert for user safety.
+
+    This task handles the highest priority user safety scenarios including:
+    - Suicide risk indicators
+    - Self-harm patterns
+    - Mental health crisis indicators
+
+    Args:
+        user_id: ID of user requiring intervention
+        alert_data: Crisis pattern data from ML analysis
+        severity_level: Crisis severity ('critical', 'high', 'moderate')
+
+    Returns:
+        dict: Intervention processing results
+    """
+
+    with self.task_context(user_id=user_id, severity_level=severity_level, alert_type='crisis_intervention'):
+        log_task_context('process_crisis_intervention_alert',
+                        user_id=user_id,
+                        severity_level=severity_level,
+                        alert_indicators=len(alert_data.get('indicators', [])))
+
+        # Record critical task metrics
+        TaskMetrics.increment_counter('crisis_intervention_started', {
+            'severity': severity_level,
+            'domain': 'user_safety'
+        })
+
+        try:
+            user = User.objects.select_related('journal_privacy_settings').get(id=user_id)
+
+            # Crisis intervention processing
+            intervention_actions = []
+
+            # 1. Immediate safety check
+            crisis_patterns = alert_data.get('crisis_patterns', [])
+            risk_score = alert_data.get('risk_score', 0)
+
+            logger.critical(f"CRISIS INTERVENTION: User {user_id}, Risk Score: {risk_score}, Severity: {severity_level}")
+
+            # 2. Notify support team immediately
+            if severity_level in ['critical', 'high']:
+                from background_tasks.journal_wellness_tasks import notify_support_team
+                notify_result = notify_support_team.apply_async(
+                    args=[user_id, alert_data],
+                    kwargs={'urgent': True, 'crisis_mode': True},
+                    queue='email',
+                    priority=9
+                )
+                intervention_actions.append({
+                    'action': 'support_team_notified',
+                    'task_id': notify_result.id,
+                    'timestamp': timezone.now().isoformat()
+                })
+
+            # 3. Log intervention attempt for audit
+            intervention_record = {
+                'user_id': user_id,
+                'severity_level': severity_level,
+                'risk_score': risk_score,
+                'crisis_patterns': crisis_patterns,
+                'intervention_timestamp': timezone.now().isoformat(),
+                'actions_taken': intervention_actions,
+                'status': 'processed'
+            }
+
+            # 4. Store intervention record securely
+            from apps.journal.models import CrisisInterventionLog
+            try:
+                CrisisInterventionLog.objects.create(
+                    user=user,
+                    severity_level=severity_level,
+                    risk_score=risk_score,
+                    alert_data=alert_data,
+                    intervention_actions=intervention_actions,
+                    processed_at=timezone.now()
+                )
+            except Exception as log_error:
+                logger.error(f"Failed to create crisis intervention log: {log_error}")
+                # Don't fail the task for logging issues
+
+            # Record success metrics
+            TaskMetrics.increment_counter('crisis_intervention_success', {
+                'severity': severity_level,
+                'actions_count': str(len(intervention_actions))
+            })
+
+            logger.info(f"Crisis intervention completed for user {user_id}: {len(intervention_actions)} actions taken")
+
+            return {
+                'success': True,
+                'user_id': user_id,
+                'severity_level': severity_level,
+                'risk_score': risk_score,
+                'actions_taken': len(intervention_actions),
+                'intervention_record': intervention_record
+            }
+
+        except User.DoesNotExist:
+            logger.error(f"Crisis intervention failed - user not found: {user_id}")
+            TaskMetrics.increment_counter('crisis_intervention_error', {'error': 'user_not_found'})
+            return {
+                'success': False,
+                'error': 'user_not_found',
+                'user_id': user_id
+            }
+
+        except Exception as exc:
+            logger.error(f"Crisis intervention processing failed for user {user_id}: {exc}")
+            TaskMetrics.increment_counter('crisis_intervention_error', {'error': 'processing_failed'})
+            raise  # Let BaseTask handle retry logic
+
+
+@shared_task(
+    base=BaseTask,
+    bind=True,
+    queue='email',
+    priority=9,
+    **task_retry_policy('email')
+)
+def notify_support_team(self, user_id, alert_data, urgent=False, crisis_mode=False):
+    """
+    Notify support team about crisis intervention or urgent user safety issues.
+
+    Args:
+        user_id: ID of user requiring support
+        alert_data: Alert information and context
+        urgent: Whether this is an urgent notification
+        crisis_mode: Whether this is a crisis intervention notification
+
+    Returns:
+        dict: Notification results
+    """
+
+    with self.task_context(user_id=user_id, urgent=urgent, crisis_mode=crisis_mode):
+        log_task_context('notify_support_team',
+                        user_id=user_id,
+                        urgent=urgent,
+                        crisis_mode=crisis_mode)
+
+        # Record notification metrics
+        TaskMetrics.increment_counter('support_notification_started', {
+            'urgent': str(urgent),
+            'crisis_mode': str(crisis_mode)
+        })
+
+        try:
+            user = User.objects.get(id=user_id)
+
+            # Determine notification priority and content
+            if crisis_mode:
+                subject = f"🚨 CRISIS INTERVENTION REQUIRED - User #{user_id}"
+                priority_label = "CRITICAL"
+            elif urgent:
+                subject = f"⚠️ URGENT: User Support Required - User #{user_id}"
+                priority_label = "HIGH"
+            else:
+                subject = f"User Support Notification - User #{user_id}"
+                priority_label = "NORMAL"
+
+            # Prepare notification content
+            message_content = f"""
+            {priority_label} PRIORITY USER SUPPORT NOTIFICATION
+
+            User Information:
+            - User ID: #{user_id}
+            - User Name: {user.get_full_name() if hasattr(user, 'get_full_name') else 'N/A'}
+            - Timestamp: {timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+            Alert Details:
+            - Crisis Mode: {'YES' if crisis_mode else 'NO'}
+            - Urgent: {'YES' if urgent else 'NO'}
+            - Risk Score: {alert_data.get('risk_score', 'N/A')}
+            - Alert Type: {alert_data.get('alert_type', 'General')}
+
+            Indicators:
+            {chr(10).join(['- ' + str(indicator) for indicator in alert_data.get('indicators', ['No specific indicators'])])}
+
+            Action Required:
+            {'IMMEDIATE intervention and user contact required' if crisis_mode else 'Follow standard support protocols'}
+
+            This is an automated notification from the Wellness Monitoring System.
+            Please respond according to established crisis intervention protocols.
+            """
+
+            # Send notification to support team
+            from django.core.mail import EmailMessage
+            from django.conf import settings
+
+            support_emails = getattr(settings, 'CRISIS_SUPPORT_EMAILS', [
+                settings.DEFAULT_FROM_EMAIL  # Fallback to default
+            ])
+
+            email = EmailMessage(
+                subject=subject,
+                body=message_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=support_emails,
+                headers={'X-Priority': '1' if crisis_mode else '2'}  # High priority email header
+            )
+
+            email.send(fail_silently=False)
+
+            # Record success
+            TaskMetrics.increment_counter('support_notification_success', {
+                'crisis_mode': str(crisis_mode),
+                'recipient_count': str(len(support_emails))
+            })
+
+            logger.info(f"Support team notified for user {user_id} (crisis_mode={crisis_mode}, urgent={urgent})")
+
+            return {
+                'success': True,
+                'user_id': user_id,
+                'crisis_mode': crisis_mode,
+                'urgent': urgent,
+                'recipients': len(support_emails),
+                'subject': subject
+            }
+
+        except Exception as exc:
+            logger.error(f"Failed to notify support team for user {user_id}: {exc}")
+            TaskMetrics.increment_counter('support_notification_error', {'error': str(exc)})
+            raise  # Let BaseTask handle retry logic
+
+
+@shared_task(
+    base=BaseTask,
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    autoretry_for=(ConnectionError, DatabaseError, IntegrityError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    queue='reports',
+    priority=6
+)
 def update_user_analytics(self, user_id, trigger_entry_id=None):
     """
     Update user's wellbeing analytics in background
@@ -45,7 +297,11 @@ def update_user_analytics(self, user_id, trigger_entry_id=None):
         dict: Analytics update results
     """
 
-    logger.info(f"Updating analytics for user {user_id} (triggered by entry {trigger_entry_id})")
+    with self.task_context(user_id=user_id, trigger_entry_id=trigger_entry_id):
+        log_task_context('update_user_analytics', user_id=user_id, trigger_entry_id=trigger_entry_id)
+
+        # Record task metrics
+        TaskMetrics.increment_counter('user_analytics_started', {'domain': 'journal'})
 
     try:
         user = User.objects.get(id=user_id)
@@ -152,13 +408,27 @@ def update_user_analytics(self, user_id, trigger_entry_id=None):
             'user_id': user_id
         }
 
-    except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
+    except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
         logger.error(f"Analytics update failed for user {user_id}: {e}")
-        # Retry with exponential backoff
-        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+        # Let autoretry handle these exceptions
+        raise
+    except (ValueError, TypeError) as e:
+        logger.error(f"Analytics update failed for user {user_id} (non-retryable): {e}")
+        return {
+            'success': False,
+            'error': 'validation_error',
+            'user_id': user_id,
+            'details': str(e)
+        }
 
 
-@shared_task(bind=True, max_retries=2)
+@shared_task(
+    bind=True,
+    max_retries=2,
+    autoretry_for=(ConnectionError, DatabaseError, IntegrityError),
+    retry_backoff=True,
+    retry_backoff_max=300
+)
 def schedule_wellness_content_delivery(self, user_id, trigger_reason='daily_schedule'):
     """
     Schedule personalized wellness content delivery
@@ -291,10 +561,18 @@ def schedule_wellness_content_delivery(self, user_id, trigger_reason='daily_sche
             'user_id': user_id
         }
 
-    except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
+    except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
         logger.error(f"Wellness content scheduling failed for user {user_id}: {e}")
-        # Retry once with delay
-        raise self.retry(exc=e, countdown=300, max_retries=2)
+        # Let autoretry handle these exceptions
+        raise
+    except (ValueError, TypeError) as e:
+        logger.error(f"Wellness content scheduling failed for user {user_id} (non-retryable): {e}")
+        return {
+            'success': False,
+            'error': 'validation_error',
+            'user_id': user_id,
+            'details': str(e)
+        }
 
 
 @shared_task(bind=True)
@@ -370,7 +648,12 @@ def check_wellness_milestones(self, user_id):
         raise
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    priority=9,  # High priority for crisis situations
+    max_retries=1,  # Only retry once for crisis situations
+    autoretry_for=(ConnectionError, DatabaseError)
+)
 def process_crisis_intervention(self, user_id, journal_entry_id, crisis_indicators):
     """
     Process crisis intervention workflow
@@ -460,9 +743,18 @@ def process_crisis_intervention(self, user_id, journal_entry_id, crisis_indicato
             'details': str(e)
         }
 
-    except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
-        logger.error(f"Crisis intervention processing failed: {e}")
-        raise
+    except (ConnectionError, DatabaseError) as e:
+        logger.error(f"Crisis intervention processing failed (retryable): {e}")
+        raise  # Let autoretry handle
+    except (ValueError, TypeError, ObjectDoesNotExist) as e:
+        logger.error(f"Crisis intervention processing failed (non-retryable): {e}")
+        return {
+            'success': False,
+            'error': 'processing_error',
+            'user_id': user_id,
+            'journal_entry_id': journal_entry_id,
+            'details': str(e)
+        }
 
 
 @shared_task(bind=True)
@@ -574,8 +866,13 @@ def send_milestone_notification(self, user_id, achievements):
         raise
 
 
-@shared_task
-def daily_wellness_content_scheduling():
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(ConnectionError, DatabaseError, IntegrityError),
+    retry_backoff=True
+)
+def daily_wellness_content_scheduling(self):
     """
     Daily task to schedule wellness content for all active users
 
@@ -637,9 +934,16 @@ def daily_wellness_content_scheduling():
             'scheduled_at': timezone.now().isoformat()
         }
 
-    except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
+    except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
         logger.error(f"Daily wellness scheduling failed: {e}")
-        raise
+        raise  # Let autoretry handle
+    except (ValueError, TypeError) as e:
+        logger.error(f"Daily wellness scheduling failed (non-retryable): {e}")
+        return {
+            'success': False,
+            'error': 'processing_error',
+            'details': str(e)
+        }
 
 
 @shared_task

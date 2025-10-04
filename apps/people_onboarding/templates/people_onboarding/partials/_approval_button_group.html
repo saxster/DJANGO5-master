@@ -1,0 +1,125 @@
+{% comment %}
+========================================
+APPROVAL BUTTON GROUP PARTIAL
+========================================
+Approve/reject/escalate button group
+
+Usage:
+    {% include "people_onboarding/partials/_approval_button_group.html" with approval=approval_workflow %}
+
+Parameters:
+    - approval: ApprovalWorkflow object (required)
+    - show_escalate: Boolean to show escalate option (default: True)
+    - form_id: ID of approval form to submit (default: 'approvalDecisionForm')
+
+Features:
+    - Three action buttons (approve/reject/escalate)
+    - Confirmation dialogs
+    - Loading states
+    - Keyboard shortcuts
+    - Accessibility
+
+Edge Cases:
+    - Already decided approvals are disabled
+    - Escalate only shown if user has permission
+    - Mobile-optimized layout
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if show_escalate is None %}{% with show_escalate=True %}{% endwith %}{% endif %}
+{% if not form_id %}{% with form_id='approvalDecisionForm' %}{% endwith %}{% endif %}
+
+<div class="approval-button-group"
+     data-approval-id="{{ approval.uuid }}"
+     role="group"
+     aria-label="Approval actions">
+
+    <div class="row g-3">
+        {% comment %}Approve Button{% endcomment %}
+        <div class="col-12 col-md-4">
+            <button type="button"
+                    class="btn btn-success w-100 btn-lg btn-approval-approve"
+                    data-approval-id="{{ approval.uuid }}"
+                    data-decision="APPROVED"
+                    data-form-id="{{ form_id }}"
+                    {% if approval.decision != 'PENDING' %}disabled{% endif %}
+                    aria-label="Approve this request"
+                    accesskey="a">
+                <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                <span class="d-block">
+                    <span class="fw-bold d-block">Approve</span>
+                    <span class="fs-7 opacity-75">Alt + A</span>
+                </span>
+            </button>
+        </div>
+
+        {% comment %}Reject Button{% endcomment %}
+        <div class="col-12 col-md-4">
+            <button type="button"
+                    class="btn btn-danger w-100 btn-lg btn-approval-reject"
+                    data-approval-id="{{ approval.uuid }}"
+                    data-decision="REJECTED"
+                    data-form-id="{{ form_id }}"
+                    {% if approval.decision != 'PENDING' %}disabled{% endif %}
+                    aria-label="Reject this request"
+                    accesskey="r">
+                <i class="bi bi-x-circle-fill me-2 fs-4"></i>
+                <span class="d-block">
+                    <span class="fw-bold d-block">Reject</span>
+                    <span class="fs-7 opacity-75">Alt + R</span>
+                </span>
+            </button>
+        </div>
+
+        {% comment %}Escalate Button{% endcomment %}
+        {% if show_escalate %}
+            <div class="col-12 col-md-4">
+                <button type="button"
+                        class="btn btn-warning w-100 btn-lg btn-approval-escalate"
+                        data-approval-id="{{ approval.uuid }}"
+                        data-decision="ESCALATED"
+                        data-form-id="{{ form_id }}"
+                        data-bs-toggle="modal"
+                        data-bs-target="#escalationModal"
+                        {% if approval.decision != 'PENDING' %}disabled{% endif %}
+                        aria-label="Escalate to another approver"
+                        accesskey="e">
+                    <i class="bi bi-arrow-up-circle-fill me-2 fs-4"></i>
+                    <span class="d-block">
+                        <span class="fw-bold d-block">Escalate</span>
+                        <span class="fs-7 opacity-75">Alt + E</span>
+                    </span>
+                </button>
+            </div>
+        {% endif %}
+    </div>
+
+    {% comment %}Already Decided Message{% endcomment %}
+    {% if approval.decision != 'PENDING' %}
+        <div class="alert alert-info mt-4 d-flex align-items-center" role="alert">
+            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+            <div>
+                <strong>Decision Already Made:</strong>
+                This approval was
+                <strong class="text-{{ approval.decision|lower }}">
+                    {{ approval.get_decision_display|lower }}
+                </strong>
+                on {{ approval.decision_date|date:"M d, Y H:i" }}
+                by {{ approval.approver.peoplename }}.
+            </div>
+        </div>
+    {% endif %}
+
+    {% comment %}Loading Overlay{% endcomment %}
+    <div class="approval-loading-overlay d-none position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex align-items-center justify-content-center"
+         style="z-index: 1000;">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Processing decision...</span>
+            </div>
+            <p class="text-muted mb-0">Processing your decision...</p>
+        </div>
+    </div>
+</div>

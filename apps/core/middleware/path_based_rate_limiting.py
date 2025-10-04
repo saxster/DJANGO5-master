@@ -20,12 +20,15 @@ Features:
 import time
 import logging
 from typing import Optional, Dict, Any, Tuple
+from datetime import timedelta
+
 from django.conf import settings
 from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.core.cache import cache
 from django.db import DatabaseError, IntegrityError
 from django.template import TemplateDoesNotExist, TemplateSyntaxError
 from django.utils.deprecation import MiddlewareMixin
+from django.utils import timezone as django_tz
 from django.contrib.auth.models import AnonymousUser
 from django.shortcuts import render
 
@@ -361,9 +364,6 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
 
     def _auto_block_ip(self, client_ip: str, violation_count: int, violation_data: Dict[str, Any]):
         """Automatically block IP after threshold violations."""
-        from django.utils import timezone as django_tz
-        from datetime import timedelta
-
         block_key = f"{self.block_cache_prefix}:{client_ip}"
 
         block_duration_hours = min(violation_count - self.auto_block_threshold + 1, self.max_backoff_hours)

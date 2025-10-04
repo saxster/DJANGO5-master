@@ -1,0 +1,12 @@
+# Feature Flag and A/B Testing Dependencies
+# Installed for Phase 0 & Phase 6
+
+# Feature flags with Django admin integration
+django-waffle==4.1.0
+
+# A/B testing analytics
+numpy==1.24.3
+scipy==1.11.4
+
+# Statistical analysis for experiments
+statsmodels==0.14.1

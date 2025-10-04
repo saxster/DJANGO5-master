@@ -15,16 +15,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 from datetime import timedelta
-import logging
 
 from .models import WellnessContent, WellnessUserProgress, WellnessContentInteraction
+from .serializers import (
+    WellnessContentListSerializer, WellnessContentDetailSerializer,
     WellnessUserProgressSerializer, WellnessContentInteractionSerializer,
     WellnessContentInteractionCreateSerializer, DailyWellnessTipRequestSerializer,
     ContextualWellnessContentRequestSerializer, PersonalizedContentRequestSerializer,
     WellnessRecommendationSerializer, WellnessAnalyticsSerializer
 )
+from .logging import get_wellness_logger
 
-logger = logging.getLogger(__name__)
+logger = get_wellness_logger(__name__)
 
 
 class WellnessPermission(permissions.BasePermission):

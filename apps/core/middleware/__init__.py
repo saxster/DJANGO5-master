@@ -26,6 +26,10 @@ from apps.core.middleware.graphql_rate_limiting import (
     GraphQLRateLimitingMiddleware,
 )
 
+from apps.core.middleware.graphql_complexity_validation import (
+    GraphQLComplexityValidationMiddleware,
+)
+
 __all__ = [
     'LogSanitizationMiddleware',
     'LogSanitizationService',
@@ -39,4 +43,5 @@ __all__ = [
     'PathBasedRateLimitMiddleware',
     'RateLimitMonitoringMiddleware',
     'GraphQLRateLimitingMiddleware',
+    'GraphQLComplexityValidationMiddleware',
 ]

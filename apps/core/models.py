@@ -3,6 +3,37 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 
+# Import enhanced base models for use across the codebase
+from apps.core.models.enhanced_base_model import (
+    TimestampMixin,
+    AuditMixin,
+    MobileSyncMixin,
+    ActiveStatusMixin,
+    EnhancedBaseModel,
+    EnhancedSyncModel,
+    EnhancedTenantModel,
+    EnhancedTenantSyncModel,
+    BaseModelCompat
+)
+
+# Import cron management models
+from apps.core.models.cron_job_definition import CronJobDefinition
+from apps.core.models.cron_job_execution import CronJobExecution
+
+# Import EXIF and image metadata models
+from apps.core.models.image_metadata import (
+    ImageMetadata,
+    PhotoAuthenticityLog,
+    CameraFingerprint,
+    ImageQualityAssessment
+)
+
+# Import refresh token blacklist model
+from apps.core.models.refresh_token_blacklist import RefreshTokenBlacklist
+
+# Import state transition audit model
+from apps.core.models.state_transition_audit import StateTransitionAudit
+
 User = get_user_model()
 
 
@@ -850,4 +881,27 @@ from apps.core.models.health_monitoring import (
 from apps.core.models.api_deprecation import (
     APIDeprecation,
     APIDeprecationUsage,
+)
+
+from apps.core.models.upload_session import UploadSession
+
+from apps.core.models.sync_conflict_policy import (
+    TenantConflictPolicy,
+    ConflictResolutionLog,
+)
+
+from apps.core.models.sync_analytics import (
+    SyncAnalyticsSnapshot,
+    SyncDeviceHealth,
+)
+
+from apps.core.models.query_performance import (
+    QueryPerformanceSnapshot,
+    SlowQueryAlert,
+    QueryPattern,
+)
+
+from apps.core.models.query_execution_plans import (
+    QueryExecutionPlan,
+    PlanRegressionAlert,
 )

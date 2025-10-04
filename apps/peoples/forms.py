@@ -143,6 +143,7 @@ class PeopleForm(forms.ModelForm):
         "gender",
         "dateofbirth",
         "enable",
+        "preferred_language",
         "peopletype",
         "dateofjoin",
         "department",
@@ -190,6 +191,7 @@ class PeopleForm(forms.ModelForm):
             "enable",
             "deviceid",
             "gender",
+            "preferred_language",
             "peopletype",
             "dateofjoin",
             "department",
@@ -212,6 +214,7 @@ class PeopleForm(forms.ModelForm):
             "gender": "Gender",
             "dateofbirth": "Date of Birth",
             "enable": "Enable",
+            "preferred_language": "Preferred Language",
             "department": "Department",
             "dateofjoin": "Date of Joining",
             "dateofreport": "Date of Release",
@@ -235,6 +238,10 @@ class PeopleForm(forms.ModelForm):
             # 'designation' : s2forms.Select2Widget(attrs={'class': 'form-control'}),
             # 'reportto'    : s2forms.Select2Widget(attrs={'class': 'form-control'}),
             # 'bu'          : s2forms.Select2Widget(attrs={'class': 'form-control'}),
+            'preferred_language': s2forms.Select2Widget(attrs={
+                'class': 'form-control',
+                'data-placeholder': 'Select your preferred language'
+            }),
         }
 
     def __init__(self, *args, **kwargs):
@@ -303,7 +310,7 @@ class PeopleForm(forms.ModelForm):
         import re
 
         if value := self.cleaned_data.get("peoplecode"):
-            regex = "^[a-zA-Z0-9\-_#]*$"
+            regex = r"^[a-zA-Z0-9\-_#]*$"
             if " " in value:
                 raise forms.ValidationError(self.error_msg["invalid_code"])
             if not re.match(regex, value):
@@ -316,14 +323,14 @@ class PeopleForm(forms.ModelForm):
         if value := self.cleaned_data.get("loginid"):
             if " " in value:
                 raise forms.ValidationError(self.error_msg["invalid_id2"])
-            regex = "^[a-zA-Z0-9\-_@#]*$"
+            regex = r"^[a-zA-Z0-9\-_@#]*$"
             if not re.match(regex, value):
                 raise forms.ValidationError(self.error_msg["invalid_name"])
             return value
 
     def clean_peoplename(self):
         if value := self.cleaned_data.get("peoplename"):
-            regex = "^[a-zA-Z0-9\-_@#.\(\|\)& ]*$"
+            regex = r"^[a-zA-Z0-9\-_@#.\(\|\)& ]*$"
             if not re.match(regex, value):
                 raise forms.ValidationError(self.error_msg["invalid_name"])
         return value
@@ -379,7 +386,7 @@ class PgroupForm(forms.ModelForm):
 
     def clean_groupname(self):
         if value := self.cleaned_data.get("groupname"):
-            regex = "^[a-zA-Z0-9\-_@#\[\]\(\|\)\{\} ]*$"
+            regex = r"^[a-zA-Z0-9\-_@#\[\]\(\|\)\{\} ]*$"
             if not re.match(regex, value):
                 raise forms.ValidationError(self.error_msg["invalid_name"])
         return value
@@ -478,7 +485,7 @@ class CapabilityForm(forms.ModelForm):
         import re
 
         if value := self.cleaned_data.get("capscode"):
-            regex = "^[a-zA-Z0-9\-_]*$"
+            regex = r"^[a-zA-Z0-9\-_]*$"
             if " " in value:
                 raise forms.ValidationError(self.error_msg["invalid_code"])
             if not re.match(regex, value):

@@ -1,0 +1,678 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+{% load static %}
+
+{% block page_title %}Approval Queue{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+<style>
+    .sla-timer {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+    }
+    .sla-critical {
+        color: #F64E60;
+        animation: pulse-red 1s infinite;
+    }
+    .sla-warning {
+        color: #FFA800;
+    }
+    .sla-normal {
+        color: #1BC5BD;
+    }
+    @keyframes pulse-red {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    .approval-priority-high {
+        border-left: 4px solid #F64E60;
+    }
+    .approval-priority-medium {
+        border-left: 4px solid #FFA800;
+    }
+    .approval-priority-low {
+        border-left: 4px solid #3699FF;
+    }
+    .approval-level-badge {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        border-radius: 50%;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .level-l1 { background-color: #E1F0FF; color: #3699FF; }
+    .level-l2 { background-color: #FFF4DE; color: #FFA800; }
+    .level-l3 { background-color: #FFE2E5; color: #F64E60; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item text-muted">Approval Queue</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="card card-flush mb-5">
+        <div class="card-body py-5">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-2 fw-bold">Approval Queue</h1>
+                    <p class="text-muted mb-0">
+                        Manage onboarding approvals and review pending requests
+                    </p>
+                </div>
+                <div>
+                    <button type="button"
+                            class="btn btn-light-primary"
+                            id="refreshTableBtn">
+                        <i class="bi bi-arrow-clockwise me-2"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-5 mb-5">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-flush bg-light-danger h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-danger fw-bold fs-6 mb-2">OVERDUE</div>
+                            <div class="text-danger fw-bolder fs-1" id="stat-overdue">
+                                {{ stats.overdue|default:0 }}
+                            </div>
+                        </div>
+                        <div>
+                            <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-flush bg-light-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-warning fw-bold fs-6 mb-2">PENDING</div>
+                            <div class="text-warning fw-bolder fs-1" id="stat-pending">
+                                {{ stats.pending|default:0 }}
+                            </div>
+                        </div>
+                        <div>
+                            <i class="bi bi-clock-fill text-warning" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-flush bg-light-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-success fw-bold fs-6 mb-2">APPROVED TODAY</div>
+                            <div class="text-success fw-bolder fs-1" id="stat-approved">
+                                {{ stats.approved_today|default:0 }}
+                            </div>
+                        </div>
+                        <div>
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card card-flush bg-light-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-primary fw-bold fs-6 mb-2">AVG. DECISION TIME</div>
+                            <div class="text-primary fw-bolder fs-1" id="stat-avg-time">
+                                {{ stats.avg_decision_hours|default:0|floatformat:1 }}h
+                            </div>
+                        </div>
+                        <div>
+                            <i class="bi bi-speedometer2 text-primary" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Approvals Table -->
+    <div class="card card-flush">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-funnel text-primary me-2"></i>
+                Approval Requests
+            </h3>
+            <div class="card-toolbar">
+                <button type="button"
+                        class="btn btn-sm btn-light-primary"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#filterPanel">
+                    <i class="bi bi-sliders me-2"></i>
+                    Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="collapse" id="filterPanel">
+            <div class="card-body border-bottom">
+                <form id="approvalFiltersForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="filter_status" class="form-label fw-bold">Status</label>
+                        <select class="form-select" id="filter_status" name="status">
+                            <option value="">All Statuses</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                            <option value="ESCALATED">Escalated</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="filter_level" class="form-label fw-bold">Approval Level</label>
+                        <select class="form-select" id="filter_level" name="level">
+                            <option value="">All Levels</option>
+                            <option value="L1">Level 1</option>
+                            <option value="L2">Level 2</option>
+                            <option value="L3">Level 3</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="filter_person_type" class="form-label fw-bold">Person Type</label>
+                        <select class="form-select" id="filter_person_type" name="person_type">
+                            <option value="">All Types</option>
+                            <option value="EMPLOYEE_FULLTIME">Full-Time Employee</option>
+                            <option value="EMPLOYEE_PARTTIME">Part-Time Employee</option>
+                            <option value="CONTRACTOR">Contractor</option>
+                            <option value="CONSULTANT">Consultant</option>
+                            <option value="VENDOR_PERSONNEL">Vendor Personnel</option>
+                            <option value="TEMPORARY_WORKER">Temporary Worker</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="filter_sla" class="form-label fw-bold">SLA Status</label>
+                        <select class="form-select" id="filter_sla" name="sla">
+                            <option value="">All</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="critical">Critical (< 2h)</option>
+                            <option value="warning">Warning (< 6h)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary" onclick="ApprovalListApp.applyFilters()">
+                            <i class="bi bi-search me-2"></i>
+                            Apply Filters
+                        </button>
+                        <button type="button" class="btn btn-light" onclick="ApprovalListApp.clearFilters()">
+                            <i class="bi bi-x me-2"></i>
+                            Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <!-- Bulk Actions -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div id="bulkActionsPanel" class="d-none">
+                    <span class="text-muted me-3">
+                        <span id="selectedCount">0</span> selected
+                    </span>
+                    <button type="button"
+                            class="btn btn-sm btn-success me-2"
+                            onclick="ApprovalListApp.bulkApprove()">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Approve Selected
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-danger"
+                            onclick="ApprovalListApp.bulkReject()">
+                        <i class="bi bi-x-circle me-1"></i>
+                        Reject Selected
+                    </button>
+                </div>
+                <div class="ms-auto">
+                    <label class="form-check form-check-custom form-check-sm">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="autoRefreshToggle">
+                        <span class="form-check-label fw-bold">
+                            Auto-refresh (30s)
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- DataTable -->
+            <div class="table-responsive">
+                <table class="table table-row-bordered table-hover gy-4" id="approvalsTable">
+                    <thead>
+                        <tr class="fw-bold text-muted bg-light">
+                            <th class="w-25px">
+                                <div class="form-check form-check-sm form-check-custom">
+                                    <input class="form-check-input" type="checkbox" id="selectAllCheckbox">
+                                </div>
+                            </th>
+                            <th>Request</th>
+                            <th>Candidate</th>
+                            <th>Person Type</th>
+                            <th>Level</th>
+                            <th>SLA Timer</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvalsTableBody">
+                        <!-- DataTables will populate this -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+<script>
+window.ApprovalListApp = {
+    dataTable: null,
+    autoRefreshInterval: null,
+    slaTimers: {},
+    selectedApprovals: new Set(),
+
+    init: function() {
+        this.initDataTable();
+        this.initSLATimers();
+        this.initAutoRefresh();
+        this.initBulkActions();
+        this.initWebSocket();
+    },
+
+    initDataTable: function() {
+        const self = this;
+
+        this.dataTable = $('#approvalsTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: OnboardingApp.config.apiBaseUrl + 'approvals/datatable/',
+                type: 'GET',
+                data: function(d) {
+                    // Add filter parameters
+                    d.status = $('#filter_status').val();
+                    d.level = $('#filter_level').val();
+                    d.person_type = $('#filter_person_type').val();
+                    d.sla = $('#filter_sla').val();
+                    return d;
+                }
+            },
+            columns: [
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-center',
+                    render: function(data, type, row) {
+                        return `<div class="form-check form-check-sm form-check-custom">
+                            <input class="form-check-input approval-checkbox"
+                                   type="checkbox"
+                                   value="${row.uuid}"
+                                   data-approval-uuid="${row.uuid}">
+                        </div>`;
+                    }
+                },
+                {
+                    data: 'request_number',
+                    render: function(data, type, row) {
+                        return `<a href="/people-onboarding/requests/${row.request_uuid}/"
+                                   class="text-primary fw-bold">${data}</a>
+                                <div class="text-muted fs-7">
+                                    Created ${row.created_ago}
+                                </div>`;
+                    }
+                },
+                {
+                    data: 'candidate_name',
+                    render: function(data, type, row) {
+                        return `<div class="d-flex align-items-center">
+                            <div class="symbol symbol-circle symbol-35px me-3">
+                                ${row.candidate_photo
+                                    ? `<img src="${row.candidate_photo}" alt="${data}">`
+                                    : `<div class="symbol-label bg-light-primary text-primary fw-bold">
+                                        ${data.charAt(0).toUpperCase()}
+                                      </div>`
+                                }
+                            </div>
+                            <div>
+                                <div class="fw-bold">${data}</div>
+                                <div class="text-muted fs-7">${row.candidate_email}</div>
+                            </div>
+                        </div>`;
+                    }
+                },
+                {
+                    data: 'person_type_display',
+                    render: function(data) {
+                        return `<span class="badge badge-light-info">${data}</span>`;
+                    }
+                },
+                {
+                    data: 'approval_level',
+                    className: 'text-center',
+                    render: function(data) {
+                        const levelClass = data === 'L1' ? 'level-l1' : data === 'L2' ? 'level-l2' : 'level-l3';
+                        return `<span class="approval-level-badge ${levelClass}">${data}</span>`;
+                    }
+                },
+                {
+                    data: 'sla_remaining_hours',
+                    className: 'text-center',
+                    render: function(data, type, row) {
+                        if (row.decision !== 'PENDING') {
+                            return '<span class="text-muted">-</span>';
+                        }
+
+                        let timerClass = 'sla-normal';
+                        if (data < 0) {
+                            timerClass = 'sla-critical';
+                            data = Math.abs(data);
+                            return `<span class="sla-timer ${timerClass}" data-sla="${data}">
+                                OVERDUE by ${self.formatDuration(data * 3600)}
+                            </span>`;
+                        } else if (data < 2) {
+                            timerClass = 'sla-critical';
+                        } else if (data < 6) {
+                            timerClass = 'sla-warning';
+                        }
+
+                        return `<span class="sla-timer ${timerClass}" data-sla="${data * 3600}">
+                            ${self.formatDuration(data * 3600)}
+                        </span>`;
+                    }
+                },
+                {
+                    data: 'decision',
+                    render: function(data, type, row) {
+                        let badgeClass = 'badge-warning';
+                        let icon = 'bi-clock-fill';
+
+                        if (data === 'APPROVED') {
+                            badgeClass = 'badge-success';
+                            icon = 'bi-check-circle-fill';
+                        } else if (data === 'REJECTED') {
+                            badgeClass = 'badge-danger';
+                            icon = 'bi-x-circle-fill';
+                        } else if (data === 'ESCALATED') {
+                            badgeClass = 'badge-info';
+                            icon = 'bi-arrow-up-circle-fill';
+                        }
+
+                        return `<span class="badge ${badgeClass}">
+                            <i class="bi ${icon} me-1"></i>
+                            ${data}
+                        </span>`;
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-end',
+                    render: function(data, type, row) {
+                        if (row.decision !== 'PENDING') {
+                            return `<a href="/people-onboarding/approvals/${row.uuid}/"
+                                       class="btn btn-sm btn-light">
+                                    <i class="bi bi-eye me-1"></i>View
+                                </a>`;
+                        }
+
+                        return `
+                            <a href="/people-onboarding/approvals/${row.uuid}/decide/"
+                               class="btn btn-sm btn-success me-1"
+                               title="Approve">
+                                <i class="bi bi-check-circle"></i>
+                            </a>
+                            <a href="/people-onboarding/approvals/${row.uuid}/decide/"
+                               class="btn btn-sm btn-danger me-1"
+                               title="Reject">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                            <a href="/people-onboarding/approvals/${row.uuid}/decide/"
+                               class="btn btn-sm btn-light"
+                               title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        `;
+                    }
+                }
+            ],
+            order: [[5, 'asc']], // Sort by SLA timer (most urgent first)
+            pageLength: 25,
+            responsive: true,
+            language: {
+                processing: '<i class="spinner-border spinner-border-sm text-primary"></i> Loading...',
+                emptyTable: 'No approval requests found'
+            },
+            drawCallback: function() {
+                // Reinitialize SLA timers after table redraw
+                self.initSLATimers();
+            }
+        });
+
+        // Refresh button
+        $('#refreshTableBtn').on('click', function() {
+            self.dataTable.ajax.reload();
+            OnboardingApp.toast.success('Table refreshed');
+        });
+    },
+
+    initSLATimers: function() {
+        const self = this;
+
+        // Clear existing timers
+        Object.values(this.slaTimers).forEach(timer => clearInterval(timer));
+        this.slaTimers = {};
+
+        // Start new timers for all visible SLA countdowns
+        $('.sla-timer').each(function() {
+            const $timer = $(this);
+            const slaSeconds = parseFloat($timer.data('sla'));
+
+            if (!isNaN(slaSeconds) && slaSeconds > 0) {
+                const timerId = setInterval(function() {
+                    const newSeconds = slaSeconds - 1;
+
+                    if (newSeconds <= 0) {
+                        clearInterval(timerId);
+                        $timer.html('OVERDUE').addClass('sla-critical');
+                        self.dataTable.ajax.reload(null, false); // Reload without resetting pagination
+                    } else {
+                        $timer.data('sla', newSeconds);
+                        $timer.text(self.formatDuration(newSeconds));
+
+                        // Update color based on remaining time
+                        const hours = newSeconds / 3600;
+                        $timer.removeClass('sla-normal sla-warning sla-critical');
+
+                        if (hours < 2) {
+                            $timer.addClass('sla-critical');
+                        } else if (hours < 6) {
+                            $timer.addClass('sla-warning');
+                        } else {
+                            $timer.addClass('sla-normal');
+                        }
+                    }
+                }, 1000);
+
+                self.slaTimers[$timer.data('sla')] = timerId;
+            }
+        });
+    },
+
+    formatDuration: function(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${secs}s`;
+        } else {
+            return `${secs}s`;
+        }
+    },
+
+    initAutoRefresh: function() {
+        const self = this;
+
+        $('#autoRefreshToggle').on('change', function() {
+            if ($(this).is(':checked')) {
+                self.autoRefreshInterval = setInterval(function() {
+                    self.dataTable.ajax.reload(null, false);
+                }, 30000);
+                OnboardingApp.toast.success('Auto-refresh enabled');
+            } else {
+                clearInterval(self.autoRefreshInterval);
+                OnboardingApp.toast.success('Auto-refresh disabled');
+            }
+        });
+    },
+
+    initBulkActions: function() {
+        const self = this;
+
+        // Select all checkbox
+        $('#selectAllCheckbox').on('change', function() {
+            const isChecked = $(this).is(':checked');
+            $('.approval-checkbox:visible').prop('checked', isChecked);
+
+            if (isChecked) {
+                $('.approval-checkbox:visible').each(function() {
+                    self.selectedApprovals.add($(this).val());
+                });
+            } else {
+                self.selectedApprovals.clear();
+            }
+
+            self.updateBulkActionsPanel();
+        });
+
+        // Individual checkboxes
+        $(document).on('change', '.approval-checkbox', function() {
+            const uuid = $(this).val();
+
+            if ($(this).is(':checked')) {
+                self.selectedApprovals.add(uuid);
+            } else {
+                self.selectedApprovals.delete(uuid);
+                $('#selectAllCheckbox').prop('checked', false);
+            }
+
+            self.updateBulkActionsPanel();
+        });
+    },
+
+    updateBulkActionsPanel: function() {
+        const count = this.selectedApprovals.size;
+
+        if (count > 0) {
+            $('#bulkActionsPanel').removeClass('d-none');
+            $('#selectedCount').text(count);
+        } else {
+            $('#bulkActionsPanel').addClass('d-none');
+        }
+    },
+
+    applyFilters: function() {
+        this.dataTable.ajax.reload();
+        $('#filterPanel').collapse('hide');
+        OnboardingApp.toast.success('Filters applied');
+    },
+
+    clearFilters: function() {
+        $('#approvalFiltersForm')[0].reset();
+        this.dataTable.ajax.reload();
+        OnboardingApp.toast.success('Filters cleared');
+    },
+
+    bulkApprove: function() {
+        if (this.selectedApprovals.size === 0) {
+            OnboardingApp.toast.error('No approvals selected');
+            return;
+        }
+
+        if (!confirm(`Approve ${this.selectedApprovals.size} request(s)?`)) {
+            return;
+        }
+
+        // Implement bulk approve API call
+        OnboardingApp.toast.info('Bulk approve feature coming soon');
+    },
+
+    bulkReject: function() {
+        if (this.selectedApprovals.size === 0) {
+            OnboardingApp.toast.error('No approvals selected');
+            return;
+        }
+
+        if (!confirm(`Reject ${this.selectedApprovals.size} request(s)?`)) {
+            return;
+        }
+
+        // Implement bulk reject API call
+        OnboardingApp.toast.info('Bulk reject feature coming soon');
+    },
+
+    initWebSocket: function() {
+        // Initialize WebSocket for real-time approval updates
+        if (typeof OnboardingWebSocket !== 'undefined') {
+            const ws = new OnboardingWebSocket('approval-queue');
+
+            ws.onMessage('approval_status_changed', function(data) {
+                // Reload table when approval status changes
+                ApprovalListApp.dataTable.ajax.reload(null, false);
+
+                // Update statistics
+                if (data.statistics) {
+                    $('#stat-overdue').text(data.statistics.overdue);
+                    $('#stat-pending').text(data.statistics.pending);
+                    $('#stat-approved').text(data.statistics.approved_today);
+                    $('#stat-avg-time').text(data.statistics.avg_decision_hours.toFixed(1) + 'h');
+                }
+            });
+        }
+    }
+};
+
+$(document).ready(function() {
+    ApprovalListApp.init();
+});
+</script>
+{% endblock %}

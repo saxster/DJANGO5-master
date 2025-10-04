@@ -21,6 +21,8 @@ from django.db import transaction
 from django.db.models import Q
 from django.templatetags.static import static
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import DatabaseError, IntegrityError
 
 # Local application imports
 from intelliwiz_config.celery import app
@@ -28,9 +30,17 @@ from background_tasks import utils as butils
 from apps.core import utils
 from apps.core.queries import QueryRepository
 from apps.core.utils_new.db_utils import get_current_db_name
+from apps.core.exceptions import IntegrationException
 from apps.reports.models import ScheduleReport
 from apps.reports import utils as rutils
 from apps.core.services.async_pdf_service import AsyncPDFGenerationService
+
+# Import enhanced base classes and utilities
+from apps.core.tasks.base import (
+    BaseTask, EmailTask, ExternalServiceTask, MaintenanceTask, IdempotentTask, TaskMetrics, log_task_context
+)
+from apps.core.tasks.utils import task_retry_policy
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 
 mqlog = getLogger("message_q")
@@ -188,7 +198,14 @@ def validate_mqtt_payload(payload: Union[str, Dict[str, Any], List[Any], int, fl
         return payload
 
 
-@shared_task(bind=True, max_retries=5, default_retry_delay=30, name="publish_mqtt")
+@shared_task(
+    base=ExternalServiceTask,
+    bind=True,
+    queue='external_api',
+    priority=5,
+    **task_retry_policy('external_api'),
+    name="publish_mqtt"
+)
 def publish_mqtt(self, topic: str, payload: Union[str, Dict[str, Any], List[Any], int, float, bool]) -> Dict[str, Any]:
     """
     Securely publish MQTT message with comprehensive input validation.
@@ -207,13 +224,28 @@ def publish_mqtt(self, topic: str, payload: Union[str, Dict[str, Any], List[Any]
     import uuid
     correlation_id = str(uuid.uuid4())
 
+    with self.task_context(topic=topic, payload_size=len(str(payload))):
+        log_task_context('publish_mqtt', topic=topic, payload_size=len(str(payload)))
+
+        # Record MQTT task metrics
+        TaskMetrics.increment_counter('mqtt_publish_started', {
+            'domain': 'external_api',
+            'topic_prefix': topic.split('/')[0] if '/' in topic else topic
+        })
+
     try:
         # Comprehensive input validation
         validated_topic = validate_mqtt_topic(topic)
         validated_payload = validate_mqtt_payload(payload)
 
-        # Publish the message
-        publish_message(validated_topic, validated_payload)
+        # Use circuit breaker for MQTT broker connection
+        with self.external_service_call('mqtt_broker', timeout=10):
+            publish_message(validated_topic, validated_payload)
+
+        # Record success metrics
+        TaskMetrics.increment_counter('mqtt_publish_success', {
+            'topic_prefix': validated_topic.split('/')[0] if '/' in validated_topic else validated_topic
+        })
 
         logger.info(
             f"[MQTT] Task completed successfully",
@@ -390,8 +422,13 @@ def send_ticket_email(self, ticket=None, id=None):
         )
 
 
-@shared_task(name="auto_close_jobs")
-def autoclose_job(jobneedid=None):
+@shared_task(
+    base=IdempotentTask,
+    name="auto_close_jobs",
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours (critical task category)
+    bind=True
+)
+def autoclose_job(self, jobneedid=None):
     from django.template.loader import render_to_string
     from django.conf import settings
 
@@ -495,8 +532,13 @@ def autoclose_job(jobneedid=None):
     return resp
 
 
-@shared_task(name="ticket_escalation")
-def ticket_escalation():
+@shared_task(
+    base=IdempotentTask,
+    name="ticket_escalation",
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours (critical task category)
+    bind=True
+)
+def ticket_escalation(self):
     result = {"story": "", "traceback": "", "id": []}
     try:
         # get all records of tickets which can be escalated
@@ -518,8 +560,13 @@ def ticket_escalation():
     return result
 
 
-@shared_task(name="send_reminder_email")
-def send_reminder_email():
+@shared_task(
+    base=IdempotentTask,
+    name="send_reminder_email",
+    idempotency_ttl=SECONDS_IN_HOUR * 2,  # 2 hours (email task category)
+    bind=True
+)
+def send_reminder_email(self):
     from django.template.loader import render_to_string
     from django.conf import settings
     from apps.reminder.models import Reminder
@@ -586,8 +633,13 @@ def send_reminder_email():
     return resp
 
 
-@shared_task(name="create_ppm_job")
-def create_ppm_job(jobid=None):
+@shared_task(
+    base=IdempotentTask,
+    name="create_ppm_job",
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours (critical task category)
+    bind=True
+)
+def create_ppm_job(self, jobid=None):
     F, d = {}, []
     # resp = {'story':"", 'traceback':""}
     startdtz = enddtz = msg = resp = None
@@ -1538,8 +1590,13 @@ def move_media_to_cloud_storage():
     return resp
 
 
-@shared_task(name="create_scheduled_reports")
-def create_scheduled_reports():
+@shared_task(
+    base=IdempotentTask,
+    name="create_scheduled_reports",
+    idempotency_ttl=SECONDS_IN_HOUR * 24,  # 24 hours (report task category)
+    bind=True
+)
+def create_scheduled_reports(self):
     state_map = {"not_generated": 0, "skipped": 0, "generated": 0, "processed": 0}
 
     resp = dict()
@@ -1563,8 +1620,13 @@ def create_scheduled_reports():
     return resp
 
 
-@shared_task(name="send_generated_report_on_mail")
-def send_generated_report_on_mail():
+@shared_task(
+    base=IdempotentTask,
+    name="send_generated_report_on_mail",
+    idempotency_ttl=SECONDS_IN_HOUR * 2,  # 2 hours (email task category)
+    bind=True
+)
+def send_generated_report_on_mail(self):
     story = {
         "start_time": timezone.now(),
         "files_processed": 0,

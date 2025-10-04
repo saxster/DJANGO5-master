@@ -1,0 +1,33 @@
+{% extends "globals/base_modern.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/noc/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/noc/alerts.css' %}">
+<link rel="stylesheet" href="{% static 'css/noc/map.css' %}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/noc/websocket.js' %}"></script>
+<script src="{% static 'js/noc/filters.js' %}"></script>
+{% endblock %}
+
+{% block page_title %}NOC Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">NOC</li>
+        {% block noc_breadcrumb %}{% endblock %}
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="noc-wrapper">
+    {% block noc_content %}{% endblock %}
+</div>
+{% endblock %}

@@ -8,3 +8,9 @@ class WellnessConfig(AppConfig):
 
     def ready(self):
         """Initialize wellness app signals and content delivery systems"""
+        # Import signal handlers to register them
+        try:
+            from . import signals
+            from .signals import conversation_translation_signals
+        except ImportError:
+            pass

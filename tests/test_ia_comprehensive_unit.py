@@ -336,8 +336,8 @@ class TestBreadcrumbGeneration(TestCase):
         # Should produce same result
         self.assertEqual(len(with_slash), len(without_slash))
         
-        for i in range(len(with_slash)):
-            self.assertEqual(with_slash[i]['name'], without_slash[i]['name'])
+        for with_item, without_item in zip(with_slash, without_slash):
+            self.assertEqual(with_item['name'], without_item['name'])
     
     def test_numeric_segments_handling(self):
         """Test breadcrumbs with numeric segments (IDs)"""

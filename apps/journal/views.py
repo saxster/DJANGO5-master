@@ -16,16 +16,17 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from datetime import timedelta
-import logging
 
 from .models import JournalEntry, JournalMediaAttachment, JournalPrivacySettings
+from .serializers import (
     JournalEntryListSerializer, JournalEntryDetailSerializer,
     JournalEntryCreateSerializer, JournalEntryUpdateSerializer,
     JournalMediaAttachmentSerializer, JournalPrivacySettingsSerializer,
     JournalSyncSerializer, JournalSearchSerializer, JournalAnalyticsSerializer
 )
+from .logging import get_journal_logger
 
-logger = logging.getLogger(__name__)
+logger = get_journal_logger(__name__)
 
 
 class JournalPermission(permissions.BasePermission):
@@ -72,18 +73,28 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
             return JournalEntryDetailSerializer
 
     def get_queryset(self):
-        """Privacy-filtered queryset with tenant isolation"""
+        """Optimized privacy-filtered queryset with tenant isolation"""
         user = self.request.user
 
-        # Base queryset with tenant filtering
+        # Optimized base queryset with comprehensive related data fetching
         queryset = JournalEntry.objects.filter(
             tenant=getattr(user, 'tenant', None),
             is_deleted=False
-        ).select_related('user', 'tenant').prefetch_related('media_attachments')
+        ).select_related(
+            'user',
+            'tenant',
+            'wellbeing_metrics',
+            'work_context',
+            'sync_data'
+        ).prefetch_related(
+            'media_attachments'
+        )
 
-        # Apply privacy filtering based on user
+        # Apply optimized privacy filtering
         if not user.is_superuser:
             # Users can only see their own entries or entries shared with them
+            # Use database-level filtering for better performance
+            from django.db.models import Q
             privacy_filter = Q(user=user) | Q(
                 privacy_scope__in=['shared', 'team', 'manager'],
                 sharing_permissions__contains=user.id
@@ -122,32 +133,76 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
             for tag in tags:
                 queryset = queryset.filter(tags__contains=[tag])
 
-        return queryset.order_by('-timestamp')
+        # Add database indexes hint for optimal performance
+        return queryset.order_by('-timestamp').distinct()
 
     def perform_create(self, serializer):
-        """Create journal entry with automatic processing"""
-        journal_entry = serializer.save()
-
-        logger.info(f"Journal entry created: {journal_entry.title} by {journal_entry.user.peoplename}")
-
-        # Trigger pattern analysis and wellness content delivery
+        """Create journal entry with optimized automatic processing"""
+        # Use workflow orchestrator for coordinated creation
         try:
-            self._trigger_pattern_analysis(journal_entry)
-        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Pattern analysis failed for entry {journal_entry.id}: {e}")
+            from .services.workflow_orchestrator import JournalWorkflowOrchestrator
+            orchestrator = JournalWorkflowOrchestrator()
+
+            # Create entry through orchestrator for integrated processing
+            result = orchestrator.create_journal_entry_with_analysis(
+                self.request.user,
+                serializer.validated_data
+            )
+
+            if result['success']:
+                journal_entry = result['journal_entry']
+                logger.info(f"Journal entry created: {journal_entry.title} by {journal_entry.user.peoplename}")
+            else:
+                logger.error(f"Journal entry creation failed: {result.get('error')}")
+
+        except ImportError:
+            # Fallback to basic creation
+            journal_entry = serializer.save()
+            logger.info(f"Journal entry created (basic): {journal_entry.title}")
+
+            # Trigger basic pattern analysis
+            try:
+                self._trigger_pattern_analysis(journal_entry)
+            except Exception as e:
+                logger.error(f"Pattern analysis failed for entry {journal_entry.id}: {e}")
 
     def perform_update(self, serializer):
-        """Update journal entry with version tracking"""
-        journal_entry = serializer.save()
+        """Update journal entry with optimized reanalysis"""
+        # Use workflow orchestrator for coordinated updates
+        try:
+            from .services.workflow_orchestrator import JournalWorkflowOrchestrator
+            orchestrator = JournalWorkflowOrchestrator()
 
-        logger.debug(f"Journal entry updated: {journal_entry.title} (version {journal_entry.version})")
+            original_entry = self.get_object()
+            result = orchestrator.update_journal_entry_with_reanalysis(
+                original_entry,
+                serializer.validated_data
+            )
+
+            if result['success']:
+                journal_entry = result['journal_entry']
+                logger.debug(f"Journal entry updated: {journal_entry.title} (reanalysis: {result['reanalysis_triggered']})")
+            else:
+                logger.error(f"Journal entry update failed: {result.get('error')}")
+
+        except ImportError:
+            # Fallback to basic update
+            journal_entry = serializer.save()
+            logger.debug(f"Journal entry updated (basic): {journal_entry.title}")
 
     def destroy(self, request, *args, **kwargs):
-        """Soft delete journal entry"""
+        """Optimized soft delete journal entry"""
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.sync_status = 'pending_delete'
-        instance.save()
+
+        # Use sync_data model for proper state management
+        if hasattr(instance, 'sync_data') and instance.sync_data:
+            instance.sync_data.mark_for_deletion()
+        else:
+            # Fallback for legacy entries
+            instance.is_deleted = True
+            if hasattr(instance, 'sync_status'):
+                instance.sync_status = 'pending_delete'
+            instance.save()
 
         logger.info(f"Journal entry soft deleted: {instance.title}")
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -195,27 +250,42 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def analytics_summary(self, request):
-        """Get analytics summary for user's journal entries"""
+        """Get optimized analytics summary for user's journal entries"""
         user = request.user
         days = int(request.query_params.get('days', 30))
 
-        # Get entries for analysis period
-        since_date = timezone.now() - timedelta(days=days)
-        entries = self.get_queryset().filter(
-            timestamp__gte=since_date,
-            user=user
-        )
+        try:
+            # Use consolidated analytics service
+            from .services.analytics_service import JournalAnalyticsService
+            analytics_service = JournalAnalyticsService()
 
-        if not entries.exists():
-            return Response({
-                'has_data': False,
-                'message': 'No journal entries found for this period'
-            })
+            analytics = analytics_service.generate_comprehensive_analytics(user, days)
 
-        # Calculate basic analytics
-        analytics = self._calculate_basic_analytics(entries)
+            if analytics.get('insufficient_data'):
+                return Response({
+                    'has_data': False,
+                    'message': analytics.get('message', 'Insufficient data'),
+                    'current_entries': analytics.get('current_entries', 0)
+                })
 
-        return Response(analytics)
+            return Response(analytics)
+
+        except ImportError:
+            # Fallback to basic analytics
+            since_date = timezone.now() - timedelta(days=days)
+            entries = self.get_queryset().filter(
+                timestamp__gte=since_date,
+                user=user
+            )
+
+            if not entries.exists():
+                return Response({
+                    'has_data': False,
+                    'message': 'No journal entries found for this period'
+                })
+
+            analytics = self._calculate_basic_analytics(entries)
+            return Response(analytics)
 
     @action(detail=True, methods=['post'])
     def bookmark(self, request, pk=None):

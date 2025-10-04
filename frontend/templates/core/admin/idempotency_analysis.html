@@ -1,0 +1,113 @@
+{% extends "admin/base_modern_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Idempotency Analysis{% endblock %}
+{% block admin_subtitle %}Detailed duplicate detection and idempotency key patterns{% endblock %}
+
+{% block admin_content %}
+<div class="content-wrapper">
+  <!-- Filter Bar -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <form method="get" style="display: flex; gap: var(--yt-space-4); align-items: end;">
+      <div style="flex: 1;">
+        <label style="display: block; font-size: var(--yt-text-sm); font-weight: var(--yt-font-medium); margin-bottom: var(--yt-space-2);">Timeframe</label>
+        <select name="timeframe" class="yt-input">
+          <option value="1h" {% if timeframe == '1h' %}selected{% endif %}>Last Hour</option>
+          <option value="24h" {% if timeframe == '24h' %}selected{% endif %}>Last 24 Hours</option>
+          <option value="7d" {% if timeframe == '7d' %}selected{% endif %}>Last 7 Days</option>
+          <option value="30d" {% if timeframe == '30d' %}selected{% endif %}>Last 30 Days</option>
+        </select>
+      </div>
+      <div style="flex: 1;">
+        <label style="display: block; font-size: var(--yt-text-sm); font-weight: var(--yt-font-medium); margin-bottom: var(--yt-space-2);">Scope</label>
+        <select name="scope" class="yt-input">
+          <option value="">All Scopes</option>
+          <option value="global" {% if scope_filter == 'global' %}selected{% endif %}>Global</option>
+          <option value="user" {% if scope_filter == 'user' %}selected{% endif %}>User</option>
+          <option value="device" {% if scope_filter == 'device' %}selected{% endif %}>Device</option>
+          <option value="task" {% if scope_filter == 'task' %}selected{% endif %}>Task</option>
+        </select>
+      </div>
+      <button type="submit" class="yt-button yt-button-primary">Apply Filters</button>
+    </form>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="admin-stats-grid" style="margin-bottom: var(--yt-space-8);">
+    <div class="stat-card">
+      <h3 class="stat-title">Total Records</h3>
+      <p class="stat-value">{{ total_records }}</p>
+    </div>
+    <div class="stat-card">
+      <h3 class="stat-title">Duplicate Patterns</h3>
+      <p class="stat-value">{{ top_duplicates|length }}</p>
+    </div>
+  </div>
+
+  <!-- Top Duplicates Table -->
+  <div class="chart-card">
+    <h2 class="chart-title">Top Duplicate Tasks</h2>
+    <div style="overflow-x: auto; margin-top: var(--yt-space-4);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--yt-border-primary);">
+            <th style="text-align: left; padding: var(--yt-space-3);">Endpoint</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Scope</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Total Hits</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Max Hit Count</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">First Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dup in top_duplicates %}
+          <tr style="border-bottom: 1px solid var(--yt-border-secondary);">
+            <td style="padding: var(--yt-space-3);"><code>{{ dup.endpoint }}</code></td>
+            <td style="padding: var(--yt-space-3);">{{ dup.scope }}</td>
+            <td style="text-align: right; padding: var(--yt-space-3); font-weight: bold;">{{ dup.total_hits }}</td>
+            <td style="text-align: right; padding: var(--yt-space-3);">{{ dup.max_hit_count }}</td>
+            <td style="padding: var(--yt-space-3);">{{ dup.first_seen|date:"Y-m-d H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" style="padding: var(--yt-space-4); text-align: center; color: var(--yt-text-secondary);">No duplicate patterns detected</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Scope Analysis -->
+  <div class="chart-card" style="margin-top: var(--yt-space-6);">
+    <h2 class="chart-title">Analysis by Scope</h2>
+    <div style="overflow-x: auto; margin-top: var(--yt-space-4);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--yt-border-primary);">
+            <th style="text-align: left; padding: var(--yt-space-3);">Scope</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Total Requests</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Duplicates</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Hit Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for analysis in scope_analysis %}
+          <tr style="border-bottom: 1px solid var(--yt-border-secondary);">
+            <td style="padding: var(--yt-space-3); font-weight: bold;">{{ analysis.scope }}</td>
+            <td style="text-align: right; padding: var(--yt-space-3);">{{ analysis.total }}</td>
+            <td style="text-align: right; padding: var(--yt-space-3);">{{ analysis.duplicates }}</td>
+            <td style="text-align: right; padding: var(--yt-space-3);">
+              {% widthratio analysis.duplicates analysis.total 100 %}%
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" style="padding: var(--yt-space-4); text-align: center;">No data available</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}

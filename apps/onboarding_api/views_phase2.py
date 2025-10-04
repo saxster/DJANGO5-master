@@ -14,18 +14,21 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
-
+from django.http import StreamingHttpResponse, JsonResponse
+from apps.onboarding.models import (
     ConversationSession,
     LLMRecommendation,
     AuthoritativeKnowledge,
     AuthoritativeKnowledgeChunk
 )
+from .serializers import (
     ConversationStatusSerializer,
     LLMRecommendationSerializer,
     AuthoritativeKnowledgeSerializer,
 )
 from .services.llm import get_llm_service, get_checker_service, get_consensus_engine
 from .services.knowledge import get_knowledge_service
+from apps.core.utils_new.sse_cors_utils import get_secure_sse_cors_headers, validate_sse_request_security
 
 import logging
 
@@ -288,7 +291,26 @@ class ConversationEventsView(APIView):
         )
         response['Cache-Control'] = 'no-cache'
         response['Connection'] = 'keep-alive'
-        response['Access-Control-Allow-Origin'] = '*'
+
+        # SECURITY FIX: Use secure CORS validation instead of wildcard (CVSS 8.1 vulnerability)
+        # Wildcard CORS with credentials allows any origin to access SSE stream, enabling CSRF attacks
+        cors_headers = get_secure_sse_cors_headers(self.request)
+        if cors_headers:
+            for key, value in cors_headers.items():
+                response[key] = value
+        else:
+            # Origin blocked - log security event and return error
+            logger.warning(
+                "SSE request from unauthorized origin blocked",
+                extra={
+                    'origin': self.request.META.get('HTTP_ORIGIN'),
+                    'path': self.request.path,
+                    'user_id': self.request.user.id if self.request.user.is_authenticated else None,
+                    'security_event': 'sse_cors_violation'
+                }
+            )
+            return JsonResponse({'error': 'Unauthorized origin'}, status=403)
+
         return response
 
     def _long_poll_events(self, session: ConversationSession):

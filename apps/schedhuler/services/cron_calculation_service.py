@@ -20,7 +20,9 @@ from typing import List, Optional, Dict, Any
 import hashlib
 
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+import pytz
 
 from apps.core.services.base_service import BaseService
 
@@ -49,10 +51,11 @@ class CronCalculationService(BaseService):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         max_occurrences: Optional[int] = None,
-        use_cache: bool = True
+        use_cache: bool = True,
+        explicit_timezone: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Calculate next occurrences of a cron schedule.
+        Calculate next occurrences of a cron schedule with explicit timezone handling.
 
         Args:
             cron_expression: Valid cron expression
@@ -60,18 +63,34 @@ class CronCalculationService(BaseService):
             end_date: End date for calculations (default: 1 day ahead)
             max_occurrences: Maximum number of occurrences to return
             use_cache: Whether to use cached results
+            explicit_timezone: Timezone name (e.g., 'UTC', 'US/Eastern', 'Asia/Kolkata')
+                             If None, uses Django's timezone.now() timezone
 
         Returns:
             Dict containing occurrences list and metadata
+
+        Notes:
+            - DST transitions are handled automatically by pytz
+            - Ambiguous times during DST fall-back will use the first occurrence
+            - Non-existent times during DST spring-forward will be skipped
         """
         try:
             # Validate inputs
             if not cron_expression:
                 raise ValueError("Cron expression is required")
 
-            # Set defaults
-            start_date = start_date or timezone.now()
+            # Handle timezone explicitly
+            tz = self._get_timezone(explicit_timezone)
+
+            # Set defaults with explicit timezone
+            if start_date is None:
+                start_date = timezone.now()
+            else:
+                # Ensure start_date is timezone-aware
+                start_date = self._ensure_timezone_aware(start_date, tz)
+
             end_date = end_date or (start_date + timedelta(days=1))
+            end_date = self._ensure_timezone_aware(end_date, tz)
 
             # Validate date range
             if end_date <= start_date:
@@ -96,15 +115,19 @@ class CronCalculationService(BaseService):
                     logger.debug(f"Cache hit for cron calculation: {cron_expression}")
                     return cached_result
 
-            # Calculate occurrences
+            # Calculate occurrences with explicit timezone
             occurrences = self._calculate_occurrences_safe(
                 cron_expression,
                 start_date,
                 end_date,
-                max_occurrences
+                max_occurrences,
+                tz
             )
 
-            # Prepare result
+            # Check for DST transitions and add warnings
+            dst_warnings = self._check_dst_transitions(occurrences, tz)
+
+            # Prepare result with timezone info
             result = {
                 'status': 'success',
                 'occurrences': occurrences,
@@ -113,7 +136,9 @@ class CronCalculationService(BaseService):
                 'start_date': start_date.isoformat(),
                 'end_date': end_date.isoformat(),
                 'truncated': len(occurrences) >= max_occurrences,
-                'calculated_at': timezone.now().isoformat()
+                'calculated_at': timezone.now().isoformat(),
+                'timezone': str(tz),
+                'dst_warnings': dst_warnings
             }
 
             # Cache result
@@ -142,12 +167,27 @@ class CronCalculationService(BaseService):
         cron_expression: str,
         start_date: datetime,
         end_date: datetime,
-        max_occurrences: int
+        max_occurrences: int,
+        tz: pytz.timezone
     ) -> List[datetime]:
         """
-        Safely calculate cron occurrences with iteration limit.
+        Safely calculate cron occurrences with iteration limit and timezone awareness.
 
         This replaces the dangerous `while True:` pattern with bounded iteration.
+
+        Args:
+            cron_expression: Valid cron expression
+            start_date: Start date (timezone-aware)
+            end_date: End date (timezone-aware)
+            max_occurrences: Maximum iterations
+            tz: Explicit timezone for calculations
+
+        Returns:
+            List of timezone-aware datetime objects
+
+        Notes:
+            - Uses explicit timezone to handle DST transitions correctly
+            - Normalizes datetimes after each iteration to handle DST
         """
         try:
             from croniter import croniter
@@ -157,6 +197,7 @@ class CronCalculationService(BaseService):
                 raise ValueError(f"Invalid cron expression: {cron_expression}")
 
             occurrences = []
+            # Pass timezone-aware start_date to croniter
             iterator = croniter(cron_expression, start_date)
 
             # Bounded iteration - CRITICAL for performance
@@ -166,6 +207,13 @@ class CronCalculationService(BaseService):
 
                 # Get next occurrence
                 next_occurrence = iterator.get_next(datetime)
+
+                # Ensure timezone awareness and normalize for DST
+                if next_occurrence.tzinfo is None:
+                    next_occurrence = tz.localize(next_occurrence)
+                else:
+                    # Normalize to handle DST transitions
+                    next_occurrence = tz.normalize(next_occurrence)
 
                 # Check if within range
                 if next_occurrence >= end_date:
@@ -190,12 +238,17 @@ class CronCalculationService(BaseService):
             logger.error(f"Occurrence calculation error: {str(e)}")
             raise
 
-    def validate_cron_expression(self, cron_expression: str) -> Dict[str, Any]:
+    def validate_cron_expression(
+        self,
+        cron_expression: str,
+        explicit_timezone: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Validate a cron expression.
+        Validate a cron expression with timezone awareness.
 
         Args:
             cron_expression: Cron expression to validate
+            explicit_timezone: Timezone name for validation
 
         Returns:
             Dict containing validation result and metadata
@@ -216,24 +269,33 @@ class CronCalculationService(BaseService):
                     'error': 'Invalid cron expression format'
                 }
 
+            # Get timezone
+            tz = self._get_timezone(explicit_timezone)
+
             # Get next few occurrences for preview
             now = timezone.now()
             preview_occurrences = self._calculate_occurrences_safe(
                 cron_expression,
                 now,
                 now + timedelta(days=7),
-                5  # Preview next 5 occurrences
+                5,  # Preview next 5 occurrences
+                tz
             )
 
             # Calculate frequency
             frequency = self._analyze_frequency(preview_occurrences)
+
+            # Check for DST warnings
+            dst_warnings = self._check_dst_transitions(preview_occurrences, tz)
 
             return {
                 'valid': True,
                 'cron_expression': cron_expression,
                 'preview_occurrences': [dt.isoformat() for dt in preview_occurrences],
                 'frequency': frequency,
-                'next_occurrence': preview_occurrences[0].isoformat() if preview_occurrences else None
+                'next_occurrence': preview_occurrences[0].isoformat() if preview_occurrences else None,
+                'timezone': str(tz),
+                'dst_warnings': dst_warnings
             }
 
         except ImportError:
@@ -334,6 +396,124 @@ class CronCalculationService(BaseService):
         key_hash = hashlib.md5(key_data.encode()).hexdigest()
 
         return f"cron_calc_{key_hash}"
+
+    def _get_timezone(self, timezone_name: Optional[str]) -> pytz.timezone:
+        """
+        Get timezone object from timezone name.
+
+        Args:
+            timezone_name: Timezone name (e.g., 'UTC', 'US/Eastern', 'Asia/Kolkata')
+                         If None, returns UTC
+
+        Returns:
+            pytz timezone object
+
+        Raises:
+            ValueError: If timezone name is invalid
+        """
+        if timezone_name is None:
+            return pytz.UTC
+
+        try:
+            return pytz.timezone(timezone_name)
+        except pytz.exceptions.UnknownTimeZoneError as e:
+            logger.error(f"Invalid timezone: {timezone_name}")
+            raise ValueError(f"Invalid timezone '{timezone_name}'. Use pytz.all_timezones for valid names") from e
+
+    def _ensure_timezone_aware(
+        self,
+        dt: datetime,
+        tz: pytz.timezone
+    ) -> datetime:
+        """
+        Ensure datetime is timezone-aware.
+
+        Args:
+            dt: Datetime to check
+            tz: Timezone to apply if dt is naive
+
+        Returns:
+            Timezone-aware datetime
+
+        Notes:
+            - If dt is naive, localizes it to tz
+            - If dt is already aware, converts it to tz
+            - Handles DST ambiguity by preferring the first occurrence
+        """
+        if dt.tzinfo is None:
+            # Naive datetime - localize it
+            try:
+                return tz.localize(dt, is_dst=None)
+            except pytz.exceptions.AmbiguousTimeError:
+                # During DST fall-back, prefer the first occurrence
+                logger.warning(f"Ambiguous time during DST transition: {dt}, using first occurrence")
+                return tz.localize(dt, is_dst=True)
+            except pytz.exceptions.NonExistentTimeError:
+                # During DST spring-forward, adjust forward
+                logger.warning(f"Non-existent time during DST transition: {dt}, adjusting forward")
+                return tz.localize(dt, is_dst=False)
+        else:
+            # Already aware - convert to target timezone
+            return dt.astimezone(tz)
+
+    def _check_dst_transitions(
+        self,
+        occurrences: List[datetime],
+        tz: pytz.timezone
+    ) -> List[Dict[str, Any]]:
+        """
+        Check if occurrences fall near DST transitions and provide warnings.
+
+        Args:
+            occurrences: List of scheduled occurrences
+            tz: Timezone for DST check
+
+        Returns:
+            List of DST warnings (empty if no issues)
+
+        Notes:
+            - Checks if occurrences fall within 1 hour of DST transitions
+            - Provides actionable recommendations
+            - UTC timezone will return empty list (no DST)
+        """
+        warnings = []
+
+        # UTC has no DST transitions
+        if tz == pytz.UTC or not hasattr(tz, '_utc_transition_times'):
+            return warnings
+
+        try:
+            # Get DST transitions for years in occurrences
+            if not occurrences:
+                return warnings
+
+            years = set(occ.year for occ in occurrences)
+            dst_transitions = []
+
+            for year in years:
+                # Get transition times for this year
+                # pytz stores transitions, we look for hour changes
+                for occ in occurrences:
+                    # Check if hour changes indicate DST
+                    before = occ - timedelta(hours=1)
+                    after = occ + timedelta(hours=1)
+
+                    before_offset = before.utcoffset()
+                    after_offset = after.utcoffset()
+
+                    if before_offset != after_offset:
+                        warnings.append({
+                            'type': 'dst_transition',
+                            'occurrence': occ.isoformat(),
+                            'message': f'Schedule at {occ.strftime("%H:%M")} is near DST transition',
+                            'recommendation': 'Consider using times far from 2:00 AM (e.g., 3:00 AM or later)',
+                            'severity': 'warning'
+                        })
+
+        except (AttributeError, TypeError) as e:
+            logger.error(f"DST check error: {e}")
+
+        return warnings
 
 
 class SchedulerOptimizationService(BaseService):

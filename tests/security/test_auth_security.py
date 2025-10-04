@@ -738,8 +738,8 @@ class TokenSecurityTest(TestCase):
             payload = {
                 'user_id': user.id,
                 'username': user.username,
-                'exp': datetime.utcnow() + timedelta(seconds=expires_in),
-                'iat': datetime.utcnow(),
+                'exp': timezone.now() + timedelta(seconds=expires_in),
+                'iat': timezone.now(),
                 'aud': 'face_recognition_api',
                 'permissions': ['face_verify', 'view_embeddings']
             }

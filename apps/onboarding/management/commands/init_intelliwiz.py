@@ -10,6 +10,7 @@ from django.conf import settings
 from tablib import Dataset
 import logging
 import psycopg2
+import uuid
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +134,19 @@ def create_superuser(client, site):
         )
         user.set_password(DEFAULT_PASSWORD)
         user.save()
-        log.info(f"Superuser created successfully with loginid: {user.loginid} and password: {DEFAULT_PASSWORD}")
+
+        # SECURITY FIX: Never log passwords (PCI-DSS compliance, CVSS 9.1 violation)
+        # Use correlation ID for tracking instead of exposing credentials
+        correlation_id = str(uuid.uuid4())
+        log.info(
+            f"Superuser created successfully with loginid: {user.loginid}",
+            extra={
+                'user_id': user.id,
+                'correlation_id': correlation_id,
+                'security_event': 'superuser_creation',
+                'peoplecode': user.peoplecode
+            }
+        )
         return user
     except IntegrityError as e:
         log.warning(f"Could not create superuser: {e}")

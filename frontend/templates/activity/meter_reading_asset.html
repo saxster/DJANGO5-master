@@ -1,0 +1,401 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+{% if asset %}{{ asset.assetname }} - Meter Analytics{% else %}Meter Analytics{% endif %}
+{% endblock card_title %}
+<!---- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+{% if asset %}{{ asset.assetname }} - Meter Analytics{% else %}Meter Analytics{% endif %}
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{% url 'activity:meter_reading_dashboard' %}" class="pe-3">Meter Readings</a></li>
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Analytics</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+{% if asset %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-tachometer-alt mr-2"></i>
+                        {{ asset.assetname }} ({{ asset.assetcode }})
+                    </h6>
+                    <div>
+                        <button class="btn btn-primary btn-sm" onclick="window.location.href='{% url 'activity:meter_reading_capture' %}?asset_id={{ asset.id }}'">
+                            <i class="fas fa-camera mr-1"></i> Capture Reading
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Asset Type:</strong> {{ asset.json_data.meter|default:"General Meter" }}</p>
+                        <p><strong>Location:</strong> {% if asset.gpslocation %}{{ asset.gpslocation.y|floatformat:6 }}, {{ asset.gpslocation.x|floatformat:6 }}{% else %}Not specified{% endif %}</p>
+                        <p><strong>Status:</strong> <span class="badge badge-success">{{ asset.runningstatus|default:"Active" }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Total Readings:</strong> {{ readings|length }}</p>
+                        <p><strong>Last Reading:</strong>
+                            {% if readings %}
+                                {{ readings.0.reading_value }} {{ readings.0.unit }}
+                                <small class="text-muted">({{ readings.0.reading_timestamp|timesince }} ago)</small>
+                            {% else %}
+                                <span class="text-muted">No readings yet</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if has_analytics %}
+<!-- Analytics Dashboard -->
+<div class="row mb-4">
+    <!-- Consumption Summary -->
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-primary">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Consumption
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ analytics.total_consumption|floatformat:2 }} {{ analytics.unit }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-success">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Daily Average
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ analytics.daily_average|floatformat:2 }} {{ analytics.unit }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-day fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-info">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Monthly Est.
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ analytics.estimated_monthly|floatformat:0 }} {{ analytics.unit }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-warning">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Data Points
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ analytics.reading_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-database fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Consumption Trend Chart -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Consumption Trend</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="consumptionChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usage Distribution -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Usage Pattern</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="usageChart" width="200" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cumulative Reading Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Cumulative Readings Over Time</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="cumulativeChart" width="400" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Readings Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Readings</h6>
+            </div>
+            <div class="card-body">
+                {% if readings %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Reading Value</th>
+                                <th>Consumption</th>
+                                <th>Confidence</th>
+                                <th>Captured By</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                                <th>Anomaly</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reading in readings %}
+                            <tr>
+                                <td>
+                                    <span class="font-weight-bold">{{ reading.reading_value }} {{ reading.unit }}</span>
+                                </td>
+                                <td>
+                                    {% if reading.consumption_since_last %}
+                                        <span class="text-success">
+                                            +{{ reading.consumption_since_last }} {{ reading.unit }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reading.confidence_score %}
+                                    <span class="badge badge-{% if reading.confidence_score > 0.8 %}success{% elif reading.confidence_score > 0.6 %}warning{% else %}danger{% endif %}">
+                                        {{ reading.confidence_score|floatformat:2 }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">Manual</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ reading.captured_by.peoplename|default:"System" }}</td>
+                                <td>
+                                    {{ reading.reading_timestamp|date:"M d, Y H:i" }}
+                                    <br><small class="text-muted">{{ reading.reading_timestamp|timesince }} ago</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-{% if reading.status == 'VALIDATED' %}success{% elif reading.status == 'FLAGGED' %}warning{% else %}info{% endif %}">
+                                        {{ reading.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if reading.is_anomaly %}
+                                    <span class="badge badge-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Yes
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">No</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+                    <h5>No Readings Available</h5>
+                    <p class="text-muted">Capture your first meter reading to see analytics</p>
+                    <button class="btn btn-primary" onclick="window.location.href='{% url 'activity:meter_reading_capture' %}?asset_id={{ asset.id }}'">
+                        <i class="fas fa-camera mr-2"></i>Capture First Reading
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if has_analytics %}
+<script>
+// Consumption Trend Chart
+const ctx1 = document.getElementById('consumptionChart').getContext('2d');
+const consumptionData = {{ analytics.trend_data|safe }};
+
+new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: consumptionData.map(item => new Date(item.timestamp).toLocaleDateString()),
+        datasets: [{
+            label: 'Daily Consumption ({{ analytics.unit }})',
+            data: consumptionData.map(item => item.consumption),
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Daily Consumption Trend'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Usage Distribution Chart
+const ctx2 = document.getElementById('usageChart').getContext('2d');
+const consumptions = consumptionData.map(item => item.consumption).filter(c => c > 0);
+const avgConsumption = consumptions.reduce((a, b) => a + b, 0) / consumptions.length;
+
+// Categorize usage
+let lowUsage = 0, normalUsage = 0, highUsage = 0;
+consumptions.forEach(c => {
+    if (c < avgConsumption * 0.5) lowUsage++;
+    else if (c > avgConsumption * 1.5) highUsage++;
+    else normalUsage++;
+});
+
+new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: ['Low Usage', 'Normal Usage', 'High Usage'],
+        datasets: [{
+            data: [lowUsage, normalUsage, highUsage],
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 99, 132, 0.8)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Cumulative Readings Chart
+const ctx3 = document.getElementById('cumulativeChart').getContext('2d');
+
+new Chart(ctx3, {
+    type: 'line',
+    data: {
+        labels: consumptionData.map(item => new Date(item.timestamp).toLocaleDateString()),
+        datasets: [{
+            label: 'Cumulative Reading ({{ analytics.unit }})',
+            data: consumptionData.map(item => item.value),
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.1,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Cumulative Meter Readings'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: false
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-4x text-warning mb-3"></i>
+                <h4>Asset Not Found</h4>
+                <p class="text-muted">The requested meter asset could not be found or is not configured as a meter.</p>
+                <a href="{% url 'activity:meter_reading_dashboard' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock content %}

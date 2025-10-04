@@ -35,20 +35,63 @@ if os.environ.get('MENTOR_ENABLED') == '1':
 
 # Environment variables with security validation
 # CRITICAL: Apply Rule 4 validation - Secure Secret Management
-from apps.core.validation import validate_secret_key, validate_encryption_key, validate_admin_password
+from apps.core.validation import (
+    validate_secret_key,
+    validate_encryption_key,
+    validate_admin_password,
+    SecretValidationLogger,
+    SecretValidationError
+)
+import logging
+
+# Use dedicated secret validation logger
+secret_logger = logging.getLogger("security.secret_validation")
 
 try:
     SECRET_KEY = validate_secret_key("SECRET_KEY", env("SECRET_KEY", default=get_random_secret_key()))
     ENCRYPT_KEY = validate_encryption_key("ENCRYPT_KEY", env("ENCRYPT_KEY"))
     SUPERADMIN_PASSWORD = validate_admin_password("SUPERADMIN_PASSWORD", env("SUPERADMIN_PASSWORD"))
-    print("✅ All secrets validated successfully in development environment")
+    # Secure logging: no sensitive details in console output
+    secret_logger.info("All secrets validated successfully", extra={'environment': 'development', 'status': 'startup_success'})
+except SecretValidationError as e:
+    import sys
+    import uuid
+    correlation_id = str(uuid.uuid4())
+
+    # Log error securely with correlation ID (NO sensitive details)
+    SecretValidationLogger.log_validation_error(
+        e.secret_name if hasattr(e, 'secret_name') else 'UNKNOWN',
+        'unknown',
+        'validation_failed',
+        correlation_id
+    )
+
+    # User-facing error message (generic, secure)
+    secret_logger.critical(
+        f"Application startup aborted due to invalid secret configuration",
+        extra={'correlation_id': correlation_id, 'environment': 'development'}
+    )
+
+    # Console output for developer (generic guidance only, NO secret details)
+    print(f"\n🚨 CRITICAL: Secret validation failed (correlation_id: {correlation_id})")
+    print("📋 Check logs for details: /tmp/youtility4_logs/django_dev.log")
+    print("🔧 Review environment file: intelliwiz_config/envs/.env.dev.secure")
+    print("📖 Documentation: docs/security/secret-validation-logging.md\n")
+    sys.exit(1)
 except Exception as e:
     import sys
-    print(f"\n🚨 CRITICAL SECURITY ERROR: {e}")
-    if hasattr(e, 'remediation') and e.remediation:
-        print(f"🔧 REMEDIATION: {e.remediation}")
-    print("\n❌ Application startup aborted due to invalid secrets.")
-    print("Fix the above issues and restart the application.")
+    import uuid
+    correlation_id = str(uuid.uuid4())
+
+    # Log unexpected error
+    secret_logger.critical(
+        f"Unexpected error during secret validation: {type(e).__name__}",
+        extra={'correlation_id': correlation_id, 'error_type': type(e).__name__},
+        exc_info=True
+    )
+
+    print(f"\n🚨 CRITICAL: Unexpected startup error (correlation_id: {correlation_id})")
+    print("📋 Check logs for details: /tmp/youtility4_logs/django_dev.log\n")
     sys.exit(1)
 
 # Email configuration
@@ -56,35 +99,38 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS", default="dev@youtility.in")
 DEFAULT_FROM_EMAIL = EMAIL_FROM_ADDRESS
 
-# Database configuration
+# Database configuration with connection pooling optimization
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "USER": env("DBUSER"), "NAME": env("DBNAME"), "PASSWORD": env("DBPASS"),
-        "HOST": env("DBHOST"), "PORT": "5432", "CONN_MAX_AGE": 0,
+        "HOST": env("DBHOST"), "PORT": "5432",
+        # Enable connection pooling for better performance
+        "CONN_MAX_AGE": 600,  # 10 minutes - optimal for development
+        "CONN_HEALTH_CHECKS": True,  # Enable connection health checks
+        "OPTIONS": {
+            "MAX_CONNS": 20,  # Maximum connections per process
+            "MIN_CONNS": 2,   # Minimum connections to maintain
+            "application_name": "youtility_dev",  # For connection tracking
+        },
     }
 }
 
-# Cache configuration for development
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache", "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"}, "KEY_PREFIX": "youtility4_dev",
-    },
-    "select2": {
-        "BACKEND": "apps.core.cache.materialized_view_select2.MaterializedViewSelect2Cache",
-        "LOCATION": "", "OPTIONS": {"MAX_ENTRIES": 1000, "CULL_FREQUENCY": 3},
-        "TIMEOUT": 300, "KEY_PREFIX": "select2_mv_dev",
-    },
-}
+# OPTIMIZED Redis Configuration - Connection Pool & Performance Enhancements
+from .redis_optimized import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
 
-# Channel layers for WebSocket
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": ["redis://127.0.0.1:6379/2"], "capacity": 1000, "expiry": 60, "group_expiry": 3600},
-    },
-}
+# Cache configuration with optimized connection pooling
+CACHES = OPTIMIZED_CACHES
+
+# Channel layers for WebSocket with Redis optimization
+CHANNEL_LAYERS = OPTIMIZED_CHANNEL_LAYERS
+
+# Redis performance monitoring settings
+REDIS_MONITORING_ENABLED = True
+REDIS_PERFORMANCE_LOGGING = True
+
+# Development-specific Redis settings
+os.environ.setdefault('DJANGO_ENVIRONMENT', 'development')
 
 # Static and media files for development
 STATIC_ROOT = env("STATIC_ROOT")
@@ -141,6 +187,40 @@ dev_integrations = get_development_integrations()
 for key, value in dev_integrations.items():
     locals()[key] = value
 
+# ============================================================================
+# GRAPHQL DEVELOPMENT OVERRIDES
+# ============================================================================
+# Development environment uses relaxed GraphQL settings for easier testing
+# and debugging. Production uses strict security settings.
+# ============================================================================
+
+# More relaxed rate limiting for development
+GRAPHQL_RATE_LIMIT_MAX = 1000  # 10x higher than production
+GRAPHQL_RATE_LIMIT_WINDOW = 300  # Same 5 minute window
+
+# Allow GraphQL introspection in development (useful for GraphiQL)
+GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION = False
+
+# Relaxed origin validation for local testing
+GRAPHQL_STRICT_ORIGIN_VALIDATION = False
+GRAPHQL_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
+# Higher complexity limits for development testing
+GRAPHQL_MAX_QUERY_DEPTH = 15  # Deeper nesting allowed
+GRAPHQL_MAX_QUERY_COMPLEXITY = 2000  # Higher complexity allowed
+GRAPHQL_MAX_MUTATIONS_PER_REQUEST = 10  # More mutations per batch
+
+# Enhanced logging in development
+GRAPHQL_SECURITY_LOGGING['ENABLE_FIELD_ACCESS_LOGGING'] = True
+GRAPHQL_SECURITY_LOGGING['ENABLE_OBJECT_ACCESS_LOGGING'] = True
+
 print(f"[DEV SETTINGS] Development settings loaded from {ENV_FILE}")
 print(f"[DEV SETTINGS] Debug mode: {DEBUG}")
 print(f"[DEV SETTINGS] Database: {DATABASES['default']['NAME']}@{DATABASES['default']['HOST']}")
+print(f"[DEV SETTINGS] GraphQL Rate Limit: {GRAPHQL_RATE_LIMIT_MAX} requests per {GRAPHQL_RATE_LIMIT_WINDOW}s")
+print(f"[DEV SETTINGS] GraphQL Introspection: {'Enabled' if not GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION else 'Disabled'}")

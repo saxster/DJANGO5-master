@@ -1,0 +1,334 @@
+{% comment %}
+===========================================
+  YOUTILITY Form Field Component
+  Industrial Minimal Design System
+===========================================
+
+A reusable form field component with label, input, error, and help text.
+
+USAGE:
+  {% include 'components/form-field.html' with
+    field=form.email
+    label='Email Address'
+    help_text='We will never share your email'
+  %}
+
+PARAMETERS:
+  field (required if using Django forms) - Django form field object
+  label (required)      - Field label text
+  name (optional)       - Input name attribute (auto from field if Django form)
+  value (optional)      - Input value (auto from field if Django form)
+  type (optional)       - Input type: 'text'|'email'|'password'|'number'|'tel'|'url'|'date'
+                         Default: 'text'
+  placeholder (optional)- Placeholder text
+  help_text (optional)  - Help text below input
+  required (optional)   - Boolean, marks field as required
+  disabled (optional)   - Boolean, disables field
+  readonly (optional)   - Boolean, makes field read-only
+  error (optional)      - Error message to display
+  success (optional)    - Boolean, shows success state
+  icon (optional)       - Material icon name (appears before input)
+  icon_after (optional) - Material icon name (appears after input)
+  autocomplete (optional)- Autocomplete attribute value
+  maxlength (optional)  - Maximum character length
+  attrs (optional)      - Additional HTML attributes
+
+EXAMPLES:
+
+  1. Basic text field:
+     {% include 'components/form-field.html' with
+       label='Site Name'
+       name='site_name'
+       required=True
+     %}
+
+  2. Email field with icon:
+     {% include 'components/form-field.html' with
+       label='Email'
+       name='email'
+       type='email'
+       icon='email'
+       placeholder='user@example.com'
+       autocomplete='email'
+     %}
+
+  3. Password field:
+     {% include 'components/form-field.html' with
+       label='Password'
+       name='password'
+       type='password'
+       help_text='Minimum 8 characters'
+       required=True
+     %}
+
+  4. Field with error:
+     {% include 'components/form-field.html' with
+       label='Username'
+       name='username'
+       value=form.username.value
+       error='Username already exists'
+     %}
+
+  5. Django form field (automatic):
+     {% include 'components/form-field.html' with
+       field=form.site_name
+       label='Site Name'
+     %}
+
+ACCESSIBILITY:
+  - Labels associated with inputs (for/id)
+  - Required fields marked with aria-required
+  - Error messages associated with aria-describedby
+  - Help text associated with aria-describedby
+  - Invalid fields marked with aria-invalid
+
+{% endcomment %}
+
+{# Extract values from Django form field if provided #}
+{% if field %}
+  {% with
+    field_id=field.id_for_label
+    field_name=field.html_name
+    field_value=field.value|default:''
+    field_required=field.field.required|default:False
+    field_disabled=field.field.disabled|default:False
+    field_help=field.help_text|default:''
+    field_errors=field.errors
+  %}
+    {% include 'components/form-field.html' with
+      name=field_name
+      value=field_value
+      required=field_required
+      disabled=field_disabled
+      help_text=field_help
+      error=field_errors.0
+    %}
+  {% endwith %}
+{% else %}
+  {# Manual field rendering #}
+  {% with
+    field_id=id|default:name
+    input_type=type|default:'text'
+    is_required=required|default:False
+    is_disabled=disabled|default:False
+    is_readonly=readonly|default:False
+    has_error=error|yesno:'true,false'
+    has_success=success|default:False
+  %}
+
+  <div class="yt-form-field {% if has_error %}yt-form-field--error{% endif %} {% if has_success %}yt-form-field--success{% endif %}">
+
+    {# Label #}
+    {% if label %}
+      <label for="{{ field_id }}" class="yt-form-label">
+        {{ label }}
+        {% if is_required %}
+          <span class="yt-form-label__required" aria-label="required">*</span>
+        {% endif %}
+      </label>
+    {% endif %}
+
+    {# Input wrapper (for icon support) #}
+    <div class="yt-form-input-wrapper {% if icon or icon_after %}yt-form-input-wrapper--with-icon{% endif %}">
+
+      {# Icon before #}
+      {% if icon %}
+        <i class="material-icons yt-form-input__icon yt-form-input__icon--before" aria-hidden="true">{{ icon }}</i>
+      {% endif %}
+
+      {# Input element #}
+      <input
+        type="{{ input_type }}"
+        id="{{ field_id }}"
+        name="{{ name }}"
+        {% if value %}value="{{ value }}"{% endif %}
+        {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if is_required %}required aria-required="true"{% endif %}
+        {% if is_disabled %}disabled{% endif %}
+        {% if is_readonly %}readonly{% endif %}
+        {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+        {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+        {% if has_error %}aria-invalid="true"{% endif %}
+        {% if help_text or error %}aria-describedby="{% if help_text %}{{ field_id }}_help{% endif %}{% if error %} {{ field_id }}_error{% endif %}"{% endif %}
+        class="yt-form-input {% if icon %}yt-form-input--with-icon-before{% endif %} {% if icon_after %}yt-form-input--with-icon-after{% endif %}"
+        {% if attrs %}{{ attrs|safe }}{% endif %}>
+
+      {# Icon after #}
+      {% if icon_after %}
+        <i class="material-icons yt-form-input__icon yt-form-input__icon--after" aria-hidden="true">{{ icon_after }}</i>
+      {% endif %}
+
+    </div>
+
+    {# Error message #}
+    {% if error %}
+      <div id="{{ field_id }}_error" class="yt-form-error" role="alert">
+        <i class="material-icons yt-form-error__icon" aria-hidden="true">error</i>
+        <span>{{ error }}</span>
+      </div>
+    {% endif %}
+
+    {# Help text #}
+    {% if help_text and not error %}
+      <div id="{{ field_id }}_help" class="yt-form-help">
+        {{ help_text }}
+      </div>
+    {% endif %}
+
+  </div>
+
+  {% endwith %}
+{% endif %}
+
+<style>
+/* Form Field Container */
+.yt-form-field {
+  margin-bottom: var(--space-4);
+}
+
+/* Label */
+.yt-form-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+  line-height: var(--leading-normal);
+}
+
+.yt-form-label__required {
+  color: var(--color-danger-600);
+  margin-left: 2px;
+}
+
+/* Input Wrapper */
+.yt-form-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Input */
+.yt-form-input {
+  width: 100%;
+  height: var(--hit-target-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-base);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  transition: all var(--duration-normal) var(--ease-out);
+  line-height: var(--leading-normal);
+}
+
+.yt-form-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Icon adjustments */
+.yt-form-input--with-icon-before {
+  padding-left: calc(var(--space-10) + var(--space-2));
+}
+
+.yt-form-input--with-icon-after {
+  padding-right: calc(var(--space-10) + var(--space-2));
+}
+
+.yt-form-input__icon {
+  position: absolute;
+  color: var(--text-muted);
+  font-size: 20px;
+  pointer-events: none;
+}
+
+.yt-form-input__icon--before {
+  left: var(--space-3);
+}
+
+.yt-form-input__icon--after {
+  right: var(--space-3);
+}
+
+/* Focus state */
+.yt-form-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.1);
+}
+
+.dark .yt-form-input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Error state */
+.yt-form-field--error .yt-form-input {
+  border-color: var(--color-danger-600);
+}
+
+.yt-form-field--error .yt-form-input:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.yt-form-field--error .yt-form-input__icon {
+  color: var(--color-danger-600);
+}
+
+/* Success state */
+.yt-form-field--success .yt-form-input {
+  border-color: var(--color-success-600);
+}
+
+.yt-form-field--success .yt-form-input:focus {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.yt-form-field--success .yt-form-input__icon {
+  color: var(--color-success-600);
+}
+
+/* Disabled state */
+.yt-form-input:disabled,
+.yt-form-input[readonly] {
+  background: var(--bg-muted);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Error message */
+.yt-form-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-danger-700);
+  line-height: var(--leading-normal);
+}
+
+.dark .yt-form-error {
+  color: var(--color-danger-600);
+}
+
+.yt-form-error__icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Help text */
+.yt-form-help {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .yt-form-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+</style>

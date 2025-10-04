@@ -454,7 +454,8 @@
 {% endmacro %}
 
 {% macro load_google_maps() %}
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3PUZCB7u2PiV8whHeAshweOPIK_d690o&libraries=places&v=weekly&loading=async"></script>
+{% load google_maps_tags %}
+{% google_maps_script callback='initGoogleMaps' %}
 {% endmacro %}
 
 <!------------------------------------------------ END MACROS ------------------------------------------------------->

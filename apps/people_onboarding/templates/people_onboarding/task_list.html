@@ -1,0 +1,617 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+{% load static %}
+
+{% block page_title %}Onboarding Tasks - {{ request_obj.request_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kanban-board {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding-bottom: 20px;
+    }
+    .kanban-column {
+        flex: 0 0 320px;
+        min-width: 320px;
+        background-color: #F9F9F9;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    .kanban-column-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
+    .column-pending { background-color: #FFF4DE; color: #FFA800; }
+    .column-in-progress { background-color: #E1F0FF; color: #3699FF; }
+    .column-blocked { background-color: #FFE2E5; color: #F64E60; }
+    .column-completed { background-color: #C9F7F5; color: #1BC5BD; }
+
+    .kanban-tasks {
+        min-height: 400px;
+    }
+    .task-card {
+        background-color: white;
+        border: 1px solid #E4E6EF;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: move;
+        transition: all 0.3s ease;
+    }
+    .task-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .task-card.dragging {
+        opacity: 0.5;
+    }
+    .task-card.drag-over {
+        border: 2px dashed #3699FF;
+    }
+    .task-priority-high {
+        border-left: 4px solid #F64E60;
+    }
+    .task-priority-medium {
+        border-left: 4px solid #FFA800;
+    }
+    .task-priority-low {
+        border-left: 4px solid #3699FF;
+    }
+    .task-overdue {
+        background-color: #FFF5F8;
+        border-color: #F64E60;
+    }
+    .task-assignee-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-block;
+        text-align: center;
+        line-height: 28px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:request_detail' request_obj.uuid %}">{{ request_obj.request_number }}</a></li>
+<li class="breadcrumb-item text-muted">Tasks</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="card card-flush mb-5">
+        <div class="card-body py-5">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-2 fw-bold">Onboarding Tasks</h1>
+                    <p class="text-muted mb-0">
+                        Request #{{ request_obj.request_number }} -
+                        {{ request_obj.candidate_profile.full_name }}
+                        {% include "people_onboarding/partials/_status_badge.html" with state=request_obj.current_state %}
+                    </p>
+                </div>
+                <div>
+                    <button type="button"
+                            class="btn btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addTaskModal">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Add Task
+                    </button>
+                    <a href="{% url 'people_onboarding:request_detail' request_obj.uuid %}"
+                       class="btn btn-light">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row g-5 mb-5">
+        <div class="col-6 col-md-3">
+            <div class="card card-flush bg-light-warning h-100">
+                <div class="card-body text-center py-5">
+                    <div class="text-warning fw-bolder fs-1" id="stat-pending">{{ stats.pending }}</div>
+                    <div class="text-warning fw-bold fs-6">Pending</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-flush bg-light-primary h-100">
+                <div class="card-body text-center py-5">
+                    <div class="text-primary fw-bolder fs-1" id="stat-in-progress">{{ stats.in_progress }}</div>
+                    <div class="text-primary fw-bold fs-6">In Progress</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-flush bg-light-danger h-100">
+                <div class="card-body text-center py-5">
+                    <div class="text-danger fw-bolder fs-1" id="stat-blocked">{{ stats.blocked }}</div>
+                    <div class="text-danger fw-bold fs-6">Blocked</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-flush bg-light-success h-100">
+                <div class="card-body text-center py-5">
+                    <div class="text-success fw-bolder fs-1" id="stat-completed">{{ stats.completed }}</div>
+                    <div class="text-success fw-bold fs-6">Completed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & View Options -->
+    <div class="card card-flush mb-5">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <input type="text"
+                           class="form-control"
+                           id="searchTasks"
+                           placeholder="Search tasks...">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterPriority">
+                        <option value="">All Priorities</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterCategory">
+                        <option value="">All Categories</option>
+                        <option value="DOCUMENTATION">Documentation</option>
+                        <option value="IT_SETUP">IT Setup</option>
+                        <option value="HR_PROCESSING">HR Processing</option>
+                        <option value="TRAINING">Training</option>
+                        <option value="FACILITY_ACCESS">Facility Access</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterAssignee">
+                        <option value="">All Assignees</option>
+                        {% for person in assignees %}
+                        <option value="{{ person.id }}">{{ person.peoplename }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-light"
+                                onclick="TaskBoardApp.applyFilters()">
+                            <i class="bi bi-funnel me-2"></i>Filter
+                        </button>
+                        <button type="button"
+                                class="btn btn-light"
+                                onclick="TaskBoardApp.clearFilters()">
+                            <i class="bi bi-x me-2"></i>Clear
+                        </button>
+                        <button type="button"
+                                class="btn btn-light"
+                                onclick="TaskBoardApp.toggleView()"
+                                id="viewToggleBtn">
+                            <i class="bi bi-list-ul me-2"></i>List View
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div id="kanbanView">
+        <div class="kanban-board">
+            <!-- Pending Column -->
+            <div class="kanban-column" data-status="PENDING">
+                <div class="kanban-column-header column-pending">
+                    <span>
+                        <i class="bi bi-clock-fill me-2"></i>
+                        Pending
+                    </span>
+                    <span class="badge bg-warning" id="count-pending">{{ stats.pending }}</span>
+                </div>
+                <div class="kanban-tasks" id="tasks-PENDING" data-status="PENDING">
+                    {% for task in tasks_by_status.PENDING %}
+                    {% include "people_onboarding/partials/_task_card.html" with task=task draggable=True %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- In Progress Column -->
+            <div class="kanban-column" data-status="IN_PROGRESS">
+                <div class="kanban-column-header column-in-progress">
+                    <span>
+                        <i class="bi bi-play-circle-fill me-2"></i>
+                        In Progress
+                    </span>
+                    <span class="badge bg-primary" id="count-in-progress">{{ stats.in_progress }}</span>
+                </div>
+                <div class="kanban-tasks" id="tasks-IN_PROGRESS" data-status="IN_PROGRESS">
+                    {% for task in tasks_by_status.IN_PROGRESS %}
+                    {% include "people_onboarding/partials/_task_card.html" with task=task draggable=True %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Blocked Column -->
+            <div class="kanban-column" data-status="BLOCKED">
+                <div class="kanban-column-header column-blocked">
+                    <span>
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Blocked
+                    </span>
+                    <span class="badge bg-danger" id="count-blocked">{{ stats.blocked }}</span>
+                </div>
+                <div class="kanban-tasks" id="tasks-BLOCKED" data-status="BLOCKED">
+                    {% for task in tasks_by_status.BLOCKED %}
+                    {% include "people_onboarding/partials/_task_card.html" with task=task draggable=True %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Completed Column -->
+            <div class="kanban-column" data-status="COMPLETED">
+                <div class="kanban-column-header column-completed">
+                    <span>
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        Completed
+                    </span>
+                    <span class="badge bg-success" id="count-completed">{{ stats.completed }}</span>
+                </div>
+                <div class="kanban-tasks" id="tasks-COMPLETED" data-status="COMPLETED">
+                    {% for task in tasks_by_status.COMPLETED %}
+                    {% include "people_onboarding/partials/_task_card.html" with task=task draggable=False %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- List View (Hidden by default) -->
+    <div id="listView" class="d-none">
+        <div class="card card-flush">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-row-bordered table-hover gy-4" id="tasksTable">
+                        <thead>
+                            <tr class="fw-bold text-muted bg-light">
+                                <th>Task</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Assigned To</th>
+                                <th>Due Date</th>
+                                <th>Progress</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in all_tasks %}
+                            <tr class="{% if task.is_overdue %}task-overdue{% endif %}">
+                                <td>
+                                    <div class="fw-bold">{{ task.title }}</div>
+                                    <div class="text-muted fs-7">{{ task.description|truncatewords:10 }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-light-info">
+                                        {{ task.get_category_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if task.priority == 'HIGH' %}
+                                    <span class="badge badge-danger">High</span>
+                                    {% elif task.priority == 'MEDIUM' %}
+                                    <span class="badge badge-warning">Medium</span>
+                                    {% else %}
+                                    <span class="badge badge-info">Low</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.assigned_to %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="task-assignee-avatar bg-light-primary text-primary">
+                                            {{ task.assigned_to.peoplename.0|upper }}
+                                        </div>
+                                        <span>{{ task.assigned_to.peoplename }}</span>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.due_date %}
+                                    {{ task.due_date|date:"d M Y" }}
+                                    {% if task.is_overdue %}
+                                    <span class="badge badge-danger ms-2">Overdue</span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">No due date</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% include "people_onboarding/partials/_progress_indicator.html" with percentage=task.progress_percentage size="sm" %}
+                                </td>
+                                <td>
+                                    {% include "people_onboarding/partials/_status_badge.html" with state=task.status %}
+                                </td>
+                                <td class="text-end">
+                                    {% include "people_onboarding/partials/_approval_button_group.html" %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTaskModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Add New Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTaskForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="onboarding_request" value="{{ request_obj.uuid }}">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="task_title" class="form-label fw-bold required">Task Title</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="task_title"
+                                   name="title"
+                                   required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="task_description" class="form-label fw-bold">Description</label>
+                            <textarea class="form-control"
+                                      id="task_description"
+                                      name="description"
+                                      rows="3"></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="task_category" class="form-label fw-bold required">Category</label>
+                            <select class="form-select" id="task_category" name="category" required>
+                                <option value="">Select category</option>
+                                <option value="DOCUMENTATION">Documentation</option>
+                                <option value="IT_SETUP">IT Setup</option>
+                                <option value="HR_PROCESSING">HR Processing</option>
+                                <option value="TRAINING">Training</option>
+                                <option value="FACILITY_ACCESS">Facility Access</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="task_priority" class="form-label fw-bold required">Priority</label>
+                            <select class="form-select" id="task_priority" name="priority" required>
+                                <option value="LOW">Low</option>
+                                <option value="MEDIUM" selected>Medium</option>
+                                <option value="HIGH">High</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="task_assigned_to" class="form-label fw-bold">Assign To</label>
+                            <select class="form-select" id="task_assigned_to" name="assigned_to">
+                                <option value="">Unassigned</option>
+                                {% for person in assignees %}
+                                <option value="{{ person.id }}">{{ person.peoplename }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="task_due_date" class="form-label fw-bold">Due Date</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="task_due_date"
+                                   name="due_date">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button"
+                        class="btn btn-primary"
+                        onclick="TaskBoardApp.createTask()">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Create Task
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+window.TaskBoardApp = {
+    sortableInstances: [],
+    currentView: 'kanban',
+
+    init: function() {
+        this.initDragAndDrop();
+        this.initFilters();
+    },
+
+    initDragAndDrop: function() {
+        const self = this;
+
+        // Initialize Sortable for each kanban column
+        document.querySelectorAll('.kanban-tasks').forEach(function(column) {
+            const sortable = Sortable.create(column, {
+                group: 'tasks',
+                animation: 150,
+                ghostClass: 'dragging',
+                dragClass: 'drag-over',
+                onEnd: function(evt) {
+                    const taskUuid = evt.item.dataset.taskUuid;
+                    const newStatus = evt.to.dataset.status;
+                    self.updateTaskStatus(taskUuid, newStatus);
+                }
+            });
+
+            self.sortableInstances.push(sortable);
+        });
+    },
+
+    updateTaskStatus: function(taskUuid, newStatus) {
+        OnboardingApp.ajax.post(
+            OnboardingApp.config.apiBaseUrl + 'tasks/' + taskUuid + '/update-status/',
+            { status: newStatus },
+            function(response) {
+                OnboardingApp.toast.success('Task status updated');
+                // Update column counts
+                TaskBoardApp.updateColumnCounts();
+            },
+            function(error) {
+                OnboardingApp.toast.error('Failed to update task status');
+                location.reload(); // Reload to restore correct state
+            }
+        );
+    },
+
+    updateColumnCounts: function() {
+        const counts = {
+            PENDING: $('#tasks-PENDING .task-card').length,
+            IN_PROGRESS: $('#tasks-IN_PROGRESS .task-card').length,
+            BLOCKED: $('#tasks-BLOCKED .task-card').length,
+            COMPLETED: $('#tasks-COMPLETED .task-card').length
+        };
+
+        $('#count-pending').text(counts.PENDING);
+        $('#stat-pending').text(counts.PENDING);
+
+        $('#count-in-progress').text(counts.IN_PROGRESS);
+        $('#stat-in-progress').text(counts.IN_PROGRESS);
+
+        $('#count-blocked').text(counts.BLOCKED);
+        $('#stat-blocked').text(counts.BLOCKED);
+
+        $('#count-completed').text(counts.COMPLETED);
+        $('#stat-completed').text(counts.COMPLETED);
+    },
+
+    initFilters: function() {
+        $('#searchTasks, #filterPriority, #filterCategory, #filterAssignee').on('change keyup', function() {
+            TaskBoardApp.applyFilters();
+        });
+    },
+
+    applyFilters: function() {
+        const search = $('#searchTasks').val().toLowerCase();
+        const priority = $('#filterPriority').val();
+        const category = $('#filterCategory').val();
+        const assignee = $('#filterAssignee').val();
+
+        $('.task-card').each(function() {
+            const $card = $(this);
+            const title = $card.find('.task-title').text().toLowerCase();
+            const taskPriority = $card.data('priority');
+            const taskCategory = $card.data('category');
+            const taskAssignee = $card.data('assignee');
+
+            let show = true;
+
+            if (search && !title.includes(search)) {
+                show = false;
+            }
+
+            if (priority && taskPriority !== priority) {
+                show = false;
+            }
+
+            if (category && taskCategory !== category) {
+                show = false;
+            }
+
+            if (assignee && taskAssignee != assignee) {
+                show = false;
+            }
+
+            $card.toggle(show);
+        });
+
+        this.updateColumnCounts();
+    },
+
+    clearFilters: function() {
+        $('#searchTasks').val('');
+        $('#filterPriority, #filterCategory, #filterAssignee').val('');
+        $('.task-card').show();
+        this.updateColumnCounts();
+    },
+
+    toggleView: function() {
+        if (this.currentView === 'kanban') {
+            $('#kanbanView').addClass('d-none');
+            $('#listView').removeClass('d-none');
+            $('#viewToggleBtn').html('<i class="bi bi-kanban me-2"></i>Kanban View');
+            this.currentView = 'list';
+        } else {
+            $('#kanbanView').removeClass('d-none');
+            $('#listView').addClass('d-none');
+            $('#viewToggleBtn').html('<i class="bi bi-list-ul me-2"></i>List View');
+            this.currentView = 'kanban';
+        }
+    },
+
+    createTask: function() {
+        const form = $('#addTaskForm')[0];
+        const formData = new FormData(form);
+        const data = {};
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
+
+        OnboardingApp.ajax.post(
+            OnboardingApp.config.apiBaseUrl + 'tasks/create/',
+            data,
+            function(response) {
+                OnboardingApp.toast.success('Task created successfully');
+                $('#addTaskModal').modal('hide');
+                location.reload();
+            },
+            function(error) {
+                OnboardingApp.toast.error('Failed to create task');
+            }
+        );
+    }
+};
+
+$(document).ready(function() {
+    TaskBoardApp.init();
+});
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django import forms
+from django.utils.translation import gettext_lazy as _
 from apps.activity.forms.job_form import JobForm, JobNeedForm
 import apps.onboarding.utils as ob_utils
 from apps.core import utils
@@ -213,7 +214,7 @@ class Schd_I_TourJobForm(CachedDropdownMixin, JobForm):
     def clean_cronstrue(self):
         val = self.cleaned_data.get("cron")
         if not val:
-            raise forms.ValidationError("Invalid Cron")
+            raise forms.ValidationError(_("Invalid Cron"))
 
         # Use centralized cron validation
         error = validate_cron_for_form(val)
@@ -479,7 +480,7 @@ class Schd_E_TourJobForm(JobForm):
     def clean_cronstrue(self):
         val = self.cleaned_data.get("cron")
         if not val:
-            raise forms.ValidationError("Invalid Cron")
+            raise forms.ValidationError(_("Invalid Cron"))
 
         # Use centralized cron validation
         error = validate_cron_for_form(val)
@@ -629,7 +630,7 @@ class SchdTaskFormJob(JobForm):
     def clean_cronstrue(self):
         val = self.cleaned_data.get("cron")
         if not val:
-            raise forms.ValidationError("Invalid Cron")
+            raise forms.ValidationError(_("Invalid Cron"))
 
         # Use centralized cron validation
         error = validate_cron_for_form(val)

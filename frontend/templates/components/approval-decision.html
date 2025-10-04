@@ -1,0 +1,220 @@
+{% comment %}
+Approval Decision Component - For manager approval workflows
+
+USAGE:
+  {% include 'components/approval-decision.html' with
+    item_type='Work Permit'
+    item_id='WP-2025-001'
+    approve_url='/permits/approve/123/'
+    reject_url='/permits/reject/123/'
+  %}
+{% endcomment %}
+
+<div class="yt-approval {{ class|default:'' }}">
+
+  <div class="yt-approval__header">
+    <h3 class="yt-approval__title">
+      <i class="material-icons" aria-hidden="true">gavel</i>
+      Approval Required: {{ item_type|default:'Item' }}
+    </h3>
+    {% if item_id %}
+      <span class="yt-badge yt-badge--neutral">{{ item_id }}</span>
+    {% endif %}
+  </div>
+
+  <div class="yt-approval__body">
+    {{ caller() if caller else content|default:''|safe }}
+  </div>
+
+  <div class="yt-approval__actions">
+    <form method="post" action="{{ approve_url }}" class="yt-approval__form">
+      {% csrf_token %}
+      <textarea name="comments" placeholder="Add comments (optional)" class="yt-approval__comments" rows="2"></textarea>
+
+      <div class="yt-approval__buttons">
+        {% include 'components/button.html' with
+          text='Approve'
+          type='success'
+          icon='check_circle'
+          button_type='submit'
+          name='action'
+          attrs='value="approve"'
+        %}
+
+        {% include 'components/button.html' with
+          text='Reject'
+          type='danger'
+          icon='cancel'
+          button_type='submit'
+          name='action'
+          attrs='value="reject" data-confirm="Are you sure you want to reject?"'
+        %}
+
+        {% if defer_url %}
+          <a href="{{ defer_url }}" class="yt-btn yt-btn--secondary">
+            <i class="material-icons">schedule</i>
+            Defer
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  {% if history %}
+    <div class="yt-approval__history">
+      <h4 class="yt-approval__history-title">Approval History</h4>
+      {% for entry in history %}
+        <div class="yt-approval__history-item">
+          <span class="yt-badge yt-badge--{{ entry.action|lower }}">{{ entry.action }}</span>
+          <span class="yt-approval__history-user">{{ entry.user }}</span>
+          <span class="yt-approval__history-date">{{ entry.date }}</span>
+          {% if entry.comments %}
+            <p class="yt-approval__history-comment">{{ entry.comments }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+</div>
+
+<style>
+.yt-approval {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.yt-approval__header {
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border-default);
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.yt-approval__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.yt-approval__body {
+  padding: var(--space-6);
+  color: var(--text-primary);
+}
+
+.yt-approval__actions {
+  padding: var(--space-4);
+  background: var(--bg-muted);
+  border-top: 1px solid var(--border-default);
+}
+
+.yt-approval__comments {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-base);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  margin-bottom: var(--space-4);
+  resize: vertical;
+  min-height: 60px;
+}
+
+.yt-approval__comments:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.1);
+}
+
+.yt-approval__buttons {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.yt-approval__history {
+  padding: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.yt-approval__history-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.yt-approval__history-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-muted);
+  flex-wrap: wrap;
+}
+
+.yt-approval__history-item:last-child {
+  border-bottom: none;
+}
+
+.yt-approval__history-user {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.yt-approval__history-date {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.yt-approval__history-comment {
+  width: 100%;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-muted);
+  border-left: 2px solid var(--border-default);
+  border-radius: var(--radius-base);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .yt-approval__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .yt-approval__buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+}
+</style>
+
+<script>
+// Confirmation dialog for reject action
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-confirm]').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      const message = this.getAttribute('data-confirm');
+      if (!confirm(message)) {
+        e.preventDefault();
+      }
+    });
+  });
+});
+</script>

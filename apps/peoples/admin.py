@@ -246,7 +246,7 @@ class PeopleResource(resources.ModelResource):
         utils.validate_date_format(row.get("Date of Birth*"), "Date of Birth*")
 
         if value := row.get("Name*"):
-            regex = "^[a-zA-Z0-9\-_@#.\(\|\)&\s]*$"
+            regex = r"^[a-zA-Z0-9\-_@#.\(\|\)&\s]*$"
             if not re.match(regex, value):
                 raise ValidationError(
                     "Only these special characters [-, _, @, #, ., &] are allowed in name field"
@@ -276,6 +276,20 @@ class PeopleResource(resources.ModelResource):
 
 @admin.register(People)
 class PeopleAdmin(ImportExportModelAdmin):
+    """
+    Admin interface for People with privacy-safe display.
+
+    Security Features:
+        - Sensitive fields (email, mobno, password) are masked in list display
+        - Uses callable methods to prevent decrypted value exposure
+        - Complies with GDPR privacy requirements
+        - Prevents shoulder-surfing and screenshot leaks
+
+    Privacy Compliance:
+        - Email: Shows first 2 chars + domain TLD only
+        - Mobile: Shows first 3 and last 2 digits only
+        - Password: Never displayed (always shows bullets)
+    """
     resource_class = PeopleResource
 
     list_display = [
@@ -283,9 +297,9 @@ class PeopleAdmin(ImportExportModelAdmin):
         "peoplecode",
         "peoplename",
         "loginid",
-        "mobno",
-        "email",
-        "password",
+        "mobno_masked",      # Privacy-safe display
+        "email_masked",      # Privacy-safe display
+        "password_masked",   # Privacy-safe display (never shows actual password)
         "gender",
         "peopletype",
         "isadmin",
@@ -297,6 +311,7 @@ class PeopleAdmin(ImportExportModelAdmin):
     ]
 
     list_display_links = ["peoplecode", "peoplename"]
+    list_select_related = ("client", "bu", "cuser", "muser", "department", "designation", "peopletype", "worktype", "reportto")
     add_fieldsets = (
         (
             None,
@@ -340,6 +355,93 @@ class PeopleAdmin(ImportExportModelAdmin):
 
     def get_queryset(self, request):
         return pm.People.objects.select_related().all()
+
+    def email_masked(self, obj):
+        """
+        Display masked email address for privacy.
+
+        Security:
+            - Shows only first 2 characters and TLD
+            - Prevents shoulder-surfing attacks
+            - GDPR compliant
+
+        Returns:
+            Masked email string (e.g., "us****@***.com")
+        """
+        if not obj.email:
+            return "-"
+
+        # The email field returns MaskedSecureValue, which already has __str__ masking
+        # But we add explicit masking here for extra security
+        email_str = str(obj.email)  # This triggers MaskedSecureValue.__str__()
+
+        # If it's still not masked (fallback), do manual masking
+        if '@' not in email_str or '*' in email_str:
+            return email_str  # Already masked
+
+        local, domain = email_str.split('@', 1)
+        if len(local) <= 2:
+            masked_local = "****"
+        else:
+            masked_local = f"{local[:2]}****"
+
+        domain_parts = domain.split('.')
+        if len(domain_parts) > 1:
+            masked_domain = f"***.{domain_parts[-1]}"
+        else:
+            masked_domain = "***"
+
+        return f"{masked_local}@{masked_domain}"
+
+    email_masked.short_description = "Email"
+    email_masked.admin_order_field = "email"
+
+    def mobno_masked(self, obj):
+        """
+        Display masked mobile number for privacy.
+
+        Security:
+            - Shows only first 3 and last 2 digits
+            - Prevents shoulder-surfing attacks
+            - GDPR compliant
+
+        Returns:
+            Masked mobile string (e.g., "+91****12")
+        """
+        if not obj.mobno:
+            return "-"
+
+        # The mobno field returns MaskedSecureValue
+        mobno_str = str(obj.mobno)  # This triggers MaskedSecureValue.__str__()
+
+        # If already masked, return it
+        if '*' in mobno_str:
+            return mobno_str
+
+        # Fallback manual masking
+        if len(mobno_str) <= 5:
+            return "********"
+
+        return f"{mobno_str[:3]}****{mobno_str[-2:]}"
+
+    mobno_masked.short_description = "Mobile"
+    mobno_masked.admin_order_field = "mobno"
+
+    def password_masked(self, obj):
+        """
+        Never display password - always show bullets.
+
+        Security:
+            - Password hashes should NEVER be displayed
+            - Even masked display is too risky
+            - Always shows bullet characters
+
+        Returns:
+            Bullet characters (always)
+        """
+        return "••••••••" if obj.password else "-"
+
+    password_masked.short_description = "Password"
 
 
 class GroupResource(resources.ModelResource):
@@ -421,6 +523,7 @@ class GroupAdmin(ImportExportModelAdmin):
     fields = ["groupname", "enable", "identifier", "client", "bu"]
     list_display = ["id", "groupname", "enable", "identifier", "client", "bu"]
     list_display_links = ["groupname", "enable", "identifier"]
+    list_select_related = ("identifier", "client", "bu", "cuser", "muser")
 
 
 class PgroupFKW(wg.ForeignKeyWidget):
@@ -526,6 +629,7 @@ class PgbelongingAdmin(ImportExportModelAdmin):
     fields = ["id", "pgroup", "people", "isgrouplead", "assignsites", "bu", "client"]
     list_display = ["id", "pgroup", "people", "isgrouplead", "assignsites", "bu"]
     list_display_links = ["pgroup", "people"]
+    list_select_related = ("pgroup", "people", "assignsites", "bu", "client", "cuser", "muser")
 
 
 class CapabilityResource(resources.ModelResource):
@@ -1002,7 +1106,7 @@ class PeopleResourceUpdate(resources.ModelResource):
 
         # code validation
         if "Code" in row:
-            regex, value = "^[a-zA-Z0-9\-_]*$", row["Code"]
+            regex, value = r"^[a-zA-Z0-9\-_]*$", row["Code"]
             if re.search(r"\s|__", value):
                 raise ValidationError("Please enter text without any spaces")
             if not re.match(regex, value):
@@ -1023,3 +1127,9 @@ class PeopleResourceUpdate(resources.ModelResource):
             raise ValidationError(
                 f"Record with these values not exist: ID - {row['ID*']}"
             )
+
+# Import security admin interfaces
+from apps.peoples.admin.security_admin import LoginAttemptLogAdmin, AccountLockoutAdmin
+
+# Import session admin interfaces
+from apps.peoples.admin.session_admin import UserSessionAdmin, SessionActivityLogAdmin

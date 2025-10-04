@@ -1,0 +1,606 @@
+<!-- Alert Component with Accessibility and Design System -->
+<!-- Supports Django messages framework and custom alerts -->
+
+{% load static %}
+
+<!-- Extract message properties -->
+{% if message %}
+  {% if message.tags %}
+    {% if 'error' in message.tags or 'danger' in message.tags %}
+      {% with alert_type='danger' icon='error' %}
+    {% elif 'warning' in message.tags %}
+      {% with alert_type='warning' icon='warning' %}
+    {% elif 'success' in message.tags %}
+      {% with alert_type='success' icon='check_circle' %}
+    {% elif 'info' in message.tags %}
+      {% with alert_type='info' icon='info' %}
+    {% else %}
+      {% with alert_type='info' icon='info' %}
+    {% endif %}
+  {% else %}
+    {% with alert_type='info' icon='info' %}
+  {% endif %}
+{% else %}
+  {% with alert_type=type|default:'info' icon=icon|default:'info' %}
+{% endif %}
+
+<div class="alert alert-{{ alert_type }}"
+     role="alert"
+     aria-live="polite"
+     aria-atomic="true"
+     data-alert-type="{{ alert_type }}"
+     id="alert-{{ forloop.counter0|default:'custom' }}">
+
+  <!-- Alert Icon -->
+  <div class="alert-icon" aria-hidden="true">
+    <i class="material-icons">{{ icon }}</i>
+  </div>
+
+  <!-- Alert Content -->
+  <div class="alert-content">
+    <!-- Alert Title (if provided) -->
+    {% if title %}
+    <div class="alert-title">
+      {{ title }}
+    </div>
+    {% endif %}
+
+    <!-- Alert Message -->
+    <div class="alert-message">
+      {% if message %}
+        {{ message }}
+      {% else %}
+        {{ content|default:'Alert message' }}
+      {% endif %}
+    </div>
+
+    <!-- Alert Description (if provided) -->
+    {% if description %}
+    <div class="alert-description">
+      {{ description }}
+    </div>
+    {% endif %}
+
+    <!-- Alert Actions (if provided) -->
+    {% if actions %}
+    <div class="alert-actions">
+      {% for action in actions %}
+        <button type="button"
+                class="alert-action-btn alert-action-{{ action.type|default:'primary' }}"
+                onclick="{{ action.onclick|default:'#' }}"
+                {% if action.aria_label %}aria-label="{{ action.aria_label }}"{% endif %}>
+          {% if action.icon %}
+          <i class="material-icons" aria-hidden="true">{{ action.icon }}</i>
+          {% endif %}
+          {{ action.text }}
+        </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Dismiss Button -->
+  {% if dismissible|default:True %}
+  <button type="button"
+          class="alert-dismiss"
+          aria-label="Close alert"
+          onclick="dismissAlert(this)"
+          data-alert-dismiss>
+    <i class="material-icons" aria-hidden="true">close</i>
+  </button>
+  {% endif %}
+
+  <!-- Progress Bar (for timed alerts) -->
+  {% if timeout %}
+  <div class="alert-progress" aria-hidden="true">
+    <div class="alert-progress-bar" style="animation-duration: {{ timeout }}ms;"></div>
+  </div>
+  {% endif %}
+</div>
+
+{% endwith %}
+
+<!-- Alert Component Styles -->
+<style>
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--yt-space-3);
+    padding: var(--yt-space-4);
+    border-radius: var(--yt-radius-xl);
+    border: var(--yt-border-1) solid;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: var(--yt-space-4);
+    animation: alertSlideIn var(--yt-duration-300) var(--yt-ease-out);
+    box-shadow: var(--yt-shadow-sm);
+    font-size: var(--yt-text-sm);
+    line-height: var(--yt-leading-normal);
+  }
+
+  @keyframes alertSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-16px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes alertSlideOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      max-height: 200px;
+      margin-bottom: var(--yt-space-4);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-16px) scale(0.95);
+      max-height: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+  }
+
+  /* Alert Types */
+  .alert-success {
+    background: var(--yt-success-50);
+    border-color: var(--yt-success-200);
+    color: var(--yt-success-800);
+  }
+
+  .alert-warning {
+    background: var(--yt-warning-50);
+    border-color: var(--yt-warning-200);
+    color: var(--yt-warning-800);
+  }
+
+  .alert-danger {
+    background: var(--yt-danger-50);
+    border-color: var(--yt-danger-200);
+    color: var(--yt-danger-800);
+  }
+
+  .alert-info {
+    background: var(--yt-info-50);
+    border-color: var(--yt-info-200);
+    color: var(--yt-info-800);
+  }
+
+  /* Alert Icon */
+  .alert-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--yt-space-1);
+  }
+
+  .alert-success .alert-icon {
+    color: var(--yt-success-600);
+  }
+
+  .alert-warning .alert-icon {
+    color: var(--yt-warning-600);
+  }
+
+  .alert-danger .alert-icon {
+    color: var(--yt-danger-600);
+  }
+
+  .alert-info .alert-icon {
+    color: var(--yt-info-600);
+  }
+
+  /* Alert Content */
+  .alert-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .alert-title {
+    font-weight: var(--yt-font-semibold);
+    font-size: var(--yt-text-base);
+    margin-bottom: var(--yt-space-1);
+    color: inherit;
+  }
+
+  .alert-message {
+    color: inherit;
+    word-wrap: break-word;
+  }
+
+  .alert-description {
+    margin-top: var(--yt-space-2);
+    color: inherit;
+    opacity: 0.8;
+    font-size: var(--yt-text-sm);
+  }
+
+  /* Alert Actions */
+  .alert-actions {
+    display: flex;
+    gap: var(--yt-space-2);
+    margin-top: var(--yt-space-3);
+    flex-wrap: wrap;
+  }
+
+  .alert-action-btn {
+    padding: var(--yt-space-2) var(--yt-space-3);
+    border: var(--yt-border-1) solid transparent;
+    border-radius: var(--yt-radius-md);
+    font-size: var(--yt-text-xs);
+    font-weight: var(--yt-font-medium);
+    cursor: pointer;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--yt-space-1);
+    text-decoration: none;
+    background: transparent;
+  }
+
+  .alert-action-btn:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+  }
+
+  .alert-action-primary {
+    background: currentColor;
+    color: var(--yt-text-inverse);
+  }
+
+  .alert-action-primary:hover {
+    opacity: 0.9;
+  }
+
+  .alert-action-secondary {
+    border-color: currentColor;
+    color: inherit;
+  }
+
+  .alert-action-secondary:hover {
+    background: currentColor;
+    color: var(--yt-text-inverse);
+  }
+
+  /* Alert Dismiss Button */
+  .alert-dismiss {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    border-radius: var(--yt-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    margin-top: var(--yt-space-1);
+  }
+
+  .alert-dismiss:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .alert-dismiss:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .alert-dismiss i {
+    font-size: var(--yt-text-lg);
+  }
+
+  /* Progress Bar for Timed Alerts */
+  .alert-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .alert-progress-bar {
+    height: 100%;
+    background: currentColor;
+    width: 100%;
+    transform-origin: left;
+    animation: alertProgress linear forwards;
+  }
+
+  @keyframes alertProgress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  /* Dark Mode Adjustments */
+  .dark .alert-success {
+    background: rgba(0, 201, 167, 0.1);
+    border-color: rgba(0, 201, 167, 0.3);
+    color: var(--yt-success-300);
+  }
+
+  .dark .alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: var(--yt-warning-300);
+  }
+
+  .dark .alert-danger {
+    background: rgba(222, 68, 55, 0.1);
+    border-color: rgba(222, 68, 55, 0.3);
+    color: var(--yt-danger-300);
+  }
+
+  .dark .alert-info {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.3);
+    color: var(--yt-info-300);
+  }
+
+  /* High Contrast Mode */
+  @media (prefers-contrast: high) {
+    .alert {
+      border-width: var(--yt-border-2);
+    }
+
+    .alert-dismiss:hover,
+    .alert-dismiss:focus {
+      background: rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  /* Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    .alert {
+      animation: none;
+    }
+
+    .alert-progress-bar {
+      animation: none;
+    }
+  }
+
+  /* Mobile Responsiveness */
+  @media (max-width: 640px) {
+    .alert {
+      padding: var(--yt-space-3);
+      gap: var(--yt-space-2);
+    }
+
+    .alert-actions {
+      flex-direction: column;
+    }
+
+    .alert-action-btn {
+      justify-content: center;
+    }
+  }
+
+  /* Toast Positioning (when used as toast) */
+  .alert-toast {
+    position: fixed;
+    top: var(--yt-space-4);
+    right: var(--yt-space-4);
+    z-index: var(--yt-z-toast);
+    max-width: 400px;
+    margin-bottom: 0;
+    box-shadow: var(--yt-shadow-xl);
+  }
+
+  @media (max-width: 640px) {
+    .alert-toast {
+      left: var(--yt-space-4);
+      right: var(--yt-space-4);
+      max-width: none;
+    }
+  }
+</style>
+
+<!-- Alert JavaScript Functionality -->
+<script>
+(function() {
+  'use strict';
+
+  // Dismiss alert function
+  window.dismissAlert = function(button) {
+    const alert = button.closest('.alert');
+    if (!alert) return;
+
+    // Add exit animation
+    alert.style.animation = 'alertSlideOut var(--yt-duration-300) var(--yt-ease-in-out) forwards';
+
+    // Announce to screen readers
+    const announcer = document.getElementById('sr-announcements');
+    if (announcer) {
+      announcer.textContent = 'Alert dismissed';
+    }
+
+    // Remove from DOM after animation
+    setTimeout(() => {
+      if (alert.parentNode) {
+        alert.parentNode.removeChild(alert);
+      }
+    }, 300);
+  };
+
+  // Auto-dismiss timed alerts
+  function setupTimedAlerts() {
+    const timedAlerts = document.querySelectorAll('.alert[data-timeout]');
+
+    timedAlerts.forEach(alert => {
+      const timeout = parseInt(alert.dataset.timeout);
+      if (timeout && timeout > 0) {
+        setTimeout(() => {
+          const dismissBtn = alert.querySelector('.alert-dismiss');
+          if (dismissBtn) {
+            dismissAlert(dismissBtn);
+          }
+        }, timeout);
+      }
+    });
+  }
+
+  // Initialize alerts on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    setupTimedAlerts();
+
+    // Set up keyboard navigation for alerts
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+      alert.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const dismissBtn = alert.querySelector('.alert-dismiss');
+          if (dismissBtn) {
+            dismissAlert(dismissBtn);
+          }
+        }
+      });
+    });
+  });
+
+  // Create toast notification function
+  window.createToast = function(options) {
+    const {
+      type = 'info',
+      title = '',
+      message = '',
+      timeout = 5000,
+      dismissible = true,
+      actions = []
+    } = options;
+
+    const icons = {
+      success: 'check_circle',
+      warning: 'warning',
+      danger: 'error',
+      info: 'info'
+    };
+
+    const alertId = 'toast-' + Date.now();
+    const alertHTML = `
+      <div class="alert alert-${type} alert-toast"
+           role="alert"
+           aria-live="polite"
+           aria-atomic="true"
+           id="${alertId}">
+        <div class="alert-icon" aria-hidden="true">
+          <i class="material-icons">${icons[type]}</i>
+        </div>
+        <div class="alert-content">
+          ${title ? `<div class="alert-title">${title}</div>` : ''}
+          <div class="alert-message">${message}</div>
+          ${actions.length > 0 ? `
+            <div class="alert-actions">
+              ${actions.map(action => `
+                <button type="button"
+                        class="alert-action-btn alert-action-${action.type || 'primary'}"
+                        onclick="${action.onclick || '#'}"
+                        ${action.aria_label ? `aria-label="${action.aria_label}"` : ''}>
+                  ${action.icon ? `<i class="material-icons" aria-hidden="true">${action.icon}</i>` : ''}
+                  ${action.text}
+                </button>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+        ${dismissible ? `
+          <button type="button"
+                  class="alert-dismiss"
+                  aria-label="Close alert"
+                  onclick="dismissAlert(this)">
+            <i class="material-icons" aria-hidden="true">close</i>
+          </button>
+        ` : ''}
+        ${timeout > 0 ? `
+          <div class="alert-progress" aria-hidden="true">
+            <div class="alert-progress-bar" style="animation-duration: ${timeout}ms;"></div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // Create and insert the toast
+    const container = document.createElement('div');
+    container.innerHTML = alertHTML;
+    const toast = container.firstElementChild;
+
+    document.body.appendChild(toast);
+
+    // Auto-dismiss if timeout is set
+    if (timeout > 0) {
+      setTimeout(() => {
+        const dismissBtn = toast.querySelector('.alert-dismiss');
+        if (dismissBtn && toast.parentNode) {
+          dismissAlert(dismissBtn);
+        }
+      }, timeout);
+    }
+
+    // Announce to screen readers
+    const announcer = document.getElementById('sr-announcements');
+    if (announcer) {
+      announcer.textContent = `${type} notification: ${message}`;
+    }
+
+    return toast;
+  };
+
+  // Utility functions for common toast types
+  window.showSuccessToast = function(message, title) {
+    return createToast({
+      type: 'success',
+      title: title,
+      message: message,
+      timeout: 4000
+    });
+  };
+
+  window.showErrorToast = function(message, title) {
+    return createToast({
+      type: 'danger',
+      title: title || 'Error',
+      message: message,
+      timeout: 6000
+    });
+  };
+
+  window.showWarningToast = function(message, title) {
+    return createToast({
+      type: 'warning',
+      title: title || 'Warning',
+      message: message,
+      timeout: 5000
+    });
+  };
+
+  window.showInfoToast = function(message, title) {
+    return createToast({
+      type: 'info',
+      title: title,
+      message: message,
+      timeout: 4000
+    });
+  };
+
+})();
+</script>

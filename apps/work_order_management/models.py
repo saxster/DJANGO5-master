@@ -11,6 +11,7 @@ from apps.tenants.models import TenantAwareModel
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from concurrency.fields import VersionField
 from .managers import (
     VendorManager,
     WorkOrderManager,
@@ -213,6 +214,10 @@ class Wom(BaseModel, TenantAwareModel):
         blank=True,
     )
     remarks = models.JSONField(_("Remarks"), blank=True, null=True)
+
+    # Optimistic locking for concurrent updates (Rule #17)
+    version = VersionField()
+
     objects = WorkOrderManager()
 
     def add_history(self):
@@ -344,6 +349,9 @@ class WomDetails(BaseModel, TenantAwareModel):
     )
     alerts = models.BooleanField(_("Alerts"), default=False)
     attachmentcount = models.IntegerField(_("Attachment count"), default=0)
+
+    # Optimistic locking for concurrent updates (Rule #17)
+    version = VersionField()
 
     objects = WOMDetailsManager()
 

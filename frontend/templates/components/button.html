@@ -1,0 +1,356 @@
+{% comment %}
+===========================================
+  YOUTILITY Button Component
+  Industrial Minimal Design System
+===========================================
+
+A reusable button component with variants, sizes, states, and icons.
+
+USAGE:
+  {% include 'components/button.html' with
+    text='Save'
+    type='primary'
+    size='medium'
+    icon='save'
+    button_type='submit'
+  %}
+
+PARAMETERS:
+  text (required)       - Button label text
+  type (optional)       - Variant: 'primary'|'secondary'|'danger'|'success'|'ghost'
+                         Default: 'secondary'
+  size (optional)       - Size: 'small'|'medium'|'large'
+                         Default: 'medium'
+  icon (optional)       - Material icon name (appears before text)
+  icon_after (optional) - Material icon name (appears after text)
+  button_type (optional)- HTML button type: 'button'|'submit'|'reset'
+                         Default: 'button'
+  disabled (optional)   - Boolean, disables button
+  loading (optional)    - Boolean, shows loading spinner
+  full_width (optional) - Boolean, makes button full width
+  href (optional)       - If provided, renders as <a> tag instead of <button>
+  attrs (optional)      - Additional HTML attributes (e.g., 'data-id="123"')
+  class (optional)      - Additional CSS classes
+
+EXAMPLES:
+
+  1. Primary button with icon:
+     {% include 'components/button.html' with
+       text='Save Changes'
+       type='primary'
+       icon='save'
+       button_type='submit'
+     %}
+
+  2. Danger button:
+     {% include 'components/button.html' with
+       text='Delete'
+       type='danger'
+       icon='delete'
+       attrs='data-confirm="Are you sure?"'
+     %}
+
+  3. Loading state:
+     {% include 'components/button.html' with
+       text='Processing'
+       loading=True
+     %}
+
+  4. Link as button:
+     {% include 'components/button.html' with
+       text='View Details'
+       type='primary'
+       href='/details/123/'
+       icon_after='arrow_forward'
+     %}
+
+  5. Full width button:
+     {% include 'components/button.html' with
+       text='Submit Application'
+       type='primary'
+       full_width=True
+     %}
+
+ACCESSIBILITY:
+  - Minimum 40px touch target
+  - Clear focus states (2px outline)
+  - ARIA labels for icon-only buttons
+  - Disabled state prevents interaction
+  - Loading state announced to screen readers
+
+{% endcomment %}
+
+{# Determine variant class #}
+{% with
+  variant=type|default:'secondary'
+  btn_size=size|default:'medium'
+  is_disabled=disabled|default:False
+  is_loading=loading|default:False
+  is_full_width=full_width|default:False
+  tag=href|yesno:'a,button'
+%}
+
+{# Build class string #}
+{% with
+  base_classes='yt-btn'
+  variant_class='yt-btn--'|add:variant
+  size_class='yt-btn--'|add:btn_size
+  loading_class=is_loading|yesno:'yt-btn--loading,'
+  full_width_class=is_full_width|yesno:'yt-btn--full,'
+  additional_classes=class|default:''
+  all_classes=base_classes|add:' '|add:variant_class|add:' '|add:size_class|add:' '|add:loading_class|add:full_width_class|add:' '|add:additional_classes
+%}
+
+{# Render button or link #}
+{% if href %}
+  <a
+    href="{{ href }}"
+    class="{{ all_classes }}"
+    {% if is_disabled %}aria-disabled="true" tabindex="-1"{% endif %}
+    {% if attrs %}{{ attrs|safe }}{% endif %}
+    role="button">
+
+    {% if icon %}
+      <i class="material-icons yt-btn__icon yt-btn__icon--before" aria-hidden="true">{{ icon }}</i>
+    {% endif %}
+
+    <span class="yt-btn__text">{{ text }}</span>
+
+    {% if icon_after %}
+      <i class="material-icons yt-btn__icon yt-btn__icon--after" aria-hidden="true">{{ icon_after }}</i>
+    {% endif %}
+
+    {% if is_loading %}
+      <span class="yt-btn__spinner" role="status" aria-label="Loading"></span>
+    {% endif %}
+  </a>
+{% else %}
+  <button
+    type="{{ button_type|default:'button' }}"
+    class="{{ all_classes }}"
+    {% if is_disabled %}disabled{% endif %}
+    {% if attrs %}{{ attrs|safe }}{% endif %}>
+
+    {% if icon and not is_loading %}
+      <i class="material-icons yt-btn__icon yt-btn__icon--before" aria-hidden="true">{{ icon }}</i>
+    {% endif %}
+
+    <span class="yt-btn__text">{{ text }}</span>
+
+    {% if icon_after and not is_loading %}
+      <i class="material-icons yt-btn__icon yt-btn__icon--after" aria-hidden="true">{{ icon_after }}</i>
+    {% endif %}
+
+    {% if is_loading %}
+      <span class="yt-btn__spinner" role="status" aria-label="Loading"></span>
+    {% endif %}
+  </button>
+{% endif %}
+
+{% endwith %}
+{% endwith %}
+
+{# ==========================================
+   STYLES (should be in separate CSS file,
+   included here for component portability)
+   ========================================== #}
+
+<style>
+/* Button Base */
+.yt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-base);
+  font-family: var(--font-sans);
+  font-weight: var(--font-semibold);
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  text-decoration: none;
+  user-select: none;
+  position: relative;
+  white-space: nowrap;
+}
+
+.yt-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Sizes */
+.yt-btn--small {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.yt-btn--medium {
+  height: var(--hit-target-min);
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.yt-btn--large {
+  height: 48px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-base);
+}
+
+/* Variants */
+.yt-btn--primary {
+  background: var(--color-primary-600);
+  border: 1px solid var(--color-primary-600);
+  color: var(--text-inverse);
+}
+
+.yt-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-primary-700);
+  border-color: var(--color-primary-700);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(21, 94, 239, 0.25);
+}
+
+.yt-btn--primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.yt-btn--secondary {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.yt-btn--secondary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+}
+
+.yt-btn--danger {
+  background: var(--color-danger-600);
+  border: 1px solid var(--color-danger-600);
+  color: var(--text-inverse);
+}
+
+.yt-btn--danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-danger-700);
+  border-color: var(--color-danger-700);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.yt-btn--success {
+  background: var(--color-success-600);
+  border: 1px solid var(--color-success-600);
+  color: var(--text-inverse);
+}
+
+.yt-btn--success:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-success-700);
+  border-color: var(--color-success-700);
+}
+
+.yt-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-link);
+}
+
+.yt-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--bg-muted);
+  color: var(--text-link-hover);
+}
+
+/* Disabled state */
+.yt-btn:disabled,
+.yt-btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Loading state */
+.yt-btn--loading {
+  color: transparent;
+  pointer-events: none;
+}
+
+.yt-btn__spinner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: yt-spin 0.6s linear infinite;
+}
+
+.yt-btn--primary .yt-btn__spinner,
+.yt-btn--danger .yt-btn__spinner,
+.yt-btn--success .yt-btn__spinner {
+  border-color: var(--text-inverse);
+  border-top-color: transparent;
+}
+
+@keyframes yt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Full width */
+.yt-btn--full {
+  width: 100%;
+}
+
+/* Icons */
+.yt-btn__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.yt-btn--small .yt-btn__icon {
+  font-size: 16px;
+}
+
+.yt-btn--large .yt-btn__icon {
+  font-size: 20px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .yt-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .yt-btn--small {
+    height: 36px;
+  }
+}
+
+/* Dark mode adjustments */
+.dark .yt-btn--secondary {
+  border-color: var(--border-default);
+}
+
+.dark .yt-btn--secondary:hover:not(:disabled) {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .yt-btn {
+    transition: none;
+  }
+
+  .yt-btn:hover {
+    transform: none;
+  }
+
+  .yt-btn__spinner {
+    animation-duration: 1.5s;
+  }
+}
+</style>

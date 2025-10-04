@@ -1,0 +1,97 @@
+{% comment %}
+========================================
+LOADING SPINNER PARTIAL
+========================================
+Consistent loading indicator
+
+Usage:
+    {% include "people_onboarding/partials/_loading_spinner.html" %}
+
+Parameters:
+    - size: Spinner size - 'sm', 'md', 'lg', 'xl' (default: 'md')
+    - text: Loading text message (default: "Loading...")
+    - fullscreen: Boolean for fullscreen overlay (default: False)
+    - color: Spinner color - 'primary', 'success', 'warning', 'danger', 'info' (default: 'primary')
+    - spinner_id: Unique ID for this spinner (default: None)
+
+Features:
+    - Multiple size variants
+    - Optional loading text
+    - Fullscreen overlay option
+    - Color customization
+    - Accessibility
+
+Edge Cases:
+    - Works with or without JavaScript
+    - Graceful degradation
+    - Screen reader friendly
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if not size %}{% with size='md' %}{% endwith %}{% endif %}
+{% if not text %}{% with text='Loading...' %}{% endwith %}{% endif %}
+{% if fullscreen is None %}{% with fullscreen=False %}{% endwith %}{% endif %}
+{% if not color %}{% with color='primary' %}{% endwith %}{% endif %}
+
+{% comment %}Size mapping{% endcomment %}
+{% if size == 'sm' %}
+    {% with spinner_size='spinner-border-sm' text_size='fs-7' %}{% endwith %}
+{% elif size == 'lg' %}
+    {% with spinner_size='spinner-border-lg' text_size='fs-4' %}{% endwith %}
+{% elif size == 'xl' %}
+    {% with spinner_size='spinner-border-xl' text_size='fs-2' %}{% endwith %}
+{% else %}
+    {% with spinner_size='' text_size='fs-5' %}{% endwith %}
+{% endif %}
+
+{% if fullscreen %}
+    {% comment %}Fullscreen Overlay Spinner{% endcomment %}
+    <div class="loading-spinner-overlay position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+         style="background-color: rgba(255, 255, 255, 0.9); z-index: 9999;"
+         {% if spinner_id %}id="{{ spinner_id }}"{% endif %}
+         role="alert"
+         aria-busy="true"
+         aria-live="polite">
+        <div class="text-center">
+            <div class="spinner-border text-{{ color }} {{ spinner_size }} mb-3"
+                 style="{% if size == 'xl' %}width: 5rem; height: 5rem;{% endif %}"
+                 role="status">
+                <span class="visually-hidden">{{ text }}</span>
+            </div>
+            <p class="text-muted {{ text_size }} fw-semibold mb-0">{{ text }}</p>
+        </div>
+    </div>
+{% else %}
+    {% comment %}Inline Spinner{% endcomment %}
+    <div class="loading-spinner text-center py-5"
+         {% if spinner_id %}id="{{ spinner_id }}"{% endif %}
+         role="status"
+         aria-busy="true"
+         aria-live="polite">
+        <div class="spinner-border text-{{ color }} {{ spinner_size }}"
+             style="{% if size == 'xl' %}width: 5rem; height: 5rem;{% endif %}"
+             role="status">
+            <span class="visually-hidden">{{ text }}</span>
+        </div>
+        {% if text and text != 'Loading...' or size != 'sm' %}
+            <p class="text-muted {{ text_size }} mt-3 mb-0">{{ text }}</p>
+        {% endif %}
+    </div>
+{% endif %}
+
+{% comment %}Alternative: Dots Spinner (uncomment to use){% endcomment %}
+{% comment %}
+<div class="loading-dots text-center py-5">
+    <div class="spinner-grow spinner-grow-sm text-{{ color }} me-1" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="spinner-grow spinner-grow-sm text-{{ color }} me-1" role="status" style="animation-delay: 0.2s;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="spinner-grow spinner-grow-sm text-{{ color }}" role="status" style="animation-delay: 0.4s;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+{% endcomment %}

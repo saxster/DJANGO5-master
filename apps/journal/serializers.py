@@ -13,10 +13,16 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .models import JournalEntry, JournalMediaAttachment, JournalPrivacySettings
-import logging
+from .serializers.validation_mixins import (
+    ComprehensiveJournalValidationMixin,
+    WellbeingMetricsValidationMixin,
+    PrivacyValidationMixin
+)
+from .serializers.pii_redaction_mixin import PIIRedactionMixin
+from .logging import get_journal_logger
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
+logger = get_journal_logger(__name__)
 
 
 class JournalMediaAttachmentSerializer(serializers.ModelSerializer):
@@ -56,7 +62,7 @@ class JournalMediaAttachmentSerializer(serializers.ModelSerializer):
         return "Unknown"
 
 
-class JournalPrivacySettingsSerializer(serializers.ModelSerializer):
+class JournalPrivacySettingsSerializer(PrivacyValidationMixin, serializers.ModelSerializer):
     """Serializer for user privacy settings"""
 
     class Meta:
@@ -77,9 +83,18 @@ class JournalPrivacySettingsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Data retention cannot exceed 10 years")
         return value
 
+    def validate(self, data):
+        """Enhanced privacy validation"""
+        # Run privacy validation from mixin
+        return super().validate(data)
 
-class JournalEntryListSerializer(serializers.ModelSerializer):
+
+class JournalEntryListSerializer(PIIRedactionMixin, serializers.ModelSerializer):
     """Lightweight serializer for journal entry lists"""
+
+    # PII redaction configuration
+    PII_FIELDS = ['title', 'subtitle']  # Always redact for non-owners
+    PII_ADMIN_FIELDS = ['user_name']  # Partially redact for admins
 
     user_name = serializers.CharField(source='user.peoplename', read_only=True)
     media_count = serializers.SerializerMethodField()
@@ -117,8 +132,16 @@ class JournalEntryListSerializer(serializers.ModelSerializer):
         return summary
 
 
-class JournalEntryDetailSerializer(serializers.ModelSerializer):
+class JournalEntryDetailSerializer(PIIRedactionMixin, ComprehensiveJournalValidationMixin, serializers.ModelSerializer):
     """Comprehensive serializer for journal entry details"""
+
+    # PII redaction configuration
+    PII_FIELDS = [
+        'content', 'gratitude_items', 'affirmations', 'learnings',
+        'challenges', 'stress_triggers', 'coping_strategies',
+        'daily_goals', 'achievements', 'mood_description'
+    ]  # Always redact for non-owners
+    PII_ADMIN_FIELDS = ['title', 'subtitle', 'user_name']  # Partially redact for admins
 
     user_name = serializers.CharField(source='user.peoplename', read_only=True)
     media_attachments = JournalMediaAttachmentSerializer(many=True, read_only=True)
@@ -177,71 +200,11 @@ class JournalEntryDetailSerializer(serializers.ModelSerializer):
             'version', 'created_at', 'updated_at'
         ]
 
-    def validate_mood_rating(self, value):
-        """Validate mood rating range"""
-        if value is not None and (value < 1 or value > 10):
-            raise serializers.ValidationError("Mood rating must be between 1 and 10")
-        return value
-
-    def validate_stress_level(self, value):
-        """Validate stress level range"""
-        if value is not None and (value < 1 or value > 5):
-            raise serializers.ValidationError("Stress level must be between 1 and 5")
-        return value
-
-    def validate_energy_level(self, value):
-        """Validate energy level range"""
-        if value is not None and (value < 1 or value > 10):
-            raise serializers.ValidationError("Energy level must be between 1 and 10")
-        return value
-
-    def validate_completion_rate(self, value):
-        """Validate completion rate"""
-        if value is not None and (value < 0.0 or value > 1.0):
-            raise serializers.ValidationError("Completion rate must be between 0.0 and 1.0")
-        return value
-
-    def validate_privacy_scope(self, value):
-        """Validate privacy scope based on entry type"""
-        entry_type = self.initial_data.get('entry_type')
-
-        # Force private for sensitive wellbeing entries
-        if entry_type in ['MOOD_CHECK_IN', 'STRESS_LOG', 'PERSONAL_REFLECTION']:
-            if value != 'private':
-                raise serializers.ValidationError(
-                    f"Entry type '{entry_type}' must have private privacy scope"
-                )
-
-        return value
-
-    def validate(self, data):
-        """Cross-field validation"""
-        # Ensure consent is given for non-private entries
-        if data.get('privacy_scope') != 'private' and not data.get('consent_given'):
-            raise serializers.ValidationError(
-                "Consent must be given for entries with non-private privacy scope"
-            )
-
-        # Validate location coordinates format
-        coordinates = data.get('location_coordinates')
-        if coordinates:
-            if not isinstance(coordinates, dict) or 'lat' not in coordinates or 'lng' not in coordinates:
-                raise serializers.ValidationError(
-                    "Location coordinates must be a dict with 'lat' and 'lng' keys"
-                )
-
-            try:
-                lat = float(coordinates['lat'])
-                lng = float(coordinates['lng'])
-                if lat < -90 or lat > 90 or lng < -180 or lng > 180:
-                    raise ValueError("Invalid coordinate range")
-            except (ValueError, TypeError):
-                raise serializers.ValidationError("Invalid latitude or longitude values")
-
-        return data
+    # Validation methods moved to ComprehensiveJournalValidationMixin
+    # This reduces code duplication and improves maintainability
 
 
-class JournalEntryCreateSerializer(serializers.ModelSerializer):
+class JournalEntryCreateSerializer(ComprehensiveJournalValidationMixin, serializers.ModelSerializer):
     """Serializer for creating new journal entries"""
 
     class Meta:
@@ -270,6 +233,7 @@ class JournalEntryCreateSerializer(serializers.ModelSerializer):
         if data.get('consent_given') and not data.get('consent_timestamp'):
             data['consent_timestamp'] = timezone.now()
 
+        # Run comprehensive validation from mixin
         return super().validate(data)
 
     def create(self, validated_data):
@@ -281,7 +245,7 @@ class JournalEntryCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class JournalEntryUpdateSerializer(serializers.ModelSerializer):
+class JournalEntryUpdateSerializer(ComprehensiveJournalValidationMixin, serializers.ModelSerializer):
     """Serializer for updating journal entries"""
 
     class Meta:

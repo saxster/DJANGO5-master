@@ -1,0 +1,393 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Validate Meter Readings
+{% endblock card_title %}
+<!---- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Validate Meter Readings
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{% url 'activity:meter_reading_dashboard' %}" class="pe-3">Meter Readings</a></li>
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Validation</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Readings Pending Validation ({{ total_count }} total)
+                </h6>
+                <div>
+                    <button class="btn btn-success btn-sm" onclick="bulkApprove()" id="bulkApproveBtn" style="display:none;">
+                        <i class="fas fa-check mr-1"></i> Approve Selected
+                    </button>
+                    <button class="btn btn-danger btn-sm ml-2" onclick="bulkReject()" id="bulkRejectBtn" style="display:none;">
+                        <i class="fas fa-times mr-1"></i> Reject Selected
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if page_obj.object_list %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                </th>
+                                <th>Asset</th>
+                                <th>Reading</th>
+                                <th>Previous</th>
+                                <th>Consumption</th>
+                                <th>Confidence</th>
+                                <th>Captured By</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reading in page_obj %}
+                            <tr id="reading-row-{{ reading.id }}">
+                                <td>
+                                    <input type="checkbox" class="reading-checkbox" value="{{ reading.id }}">
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold">{{ reading.asset.assetname }}</div>
+                                    <small class="text-muted">{{ reading.asset.assetcode }}</small>
+                                </td>
+                                <td>
+                                    <span class="font-weight-bold text-primary">
+                                        {{ reading.reading_value }} {{ reading.unit }}
+                                    </span>
+                                    {% if reading.is_anomaly %}
+                                    <br><span class="badge badge-warning small">
+                                        <i class="fas fa-exclamation-triangle"></i> Anomaly
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% with prev_reading=reading.get_previous_reading %}
+                                    {% if prev_reading %}
+                                        {{ prev_reading.reading_value }} {{ prev_reading.unit }}
+                                        <br><small class="text-muted">{{ prev_reading.reading_timestamp|date:"M d" }}</small>
+                                    {% else %}
+                                        <span class="text-muted">No previous reading</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    {% if reading.consumption_since_last %}
+                                        <span class="text-success">
+                                            +{{ reading.consumption_since_last }} {{ reading.unit }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reading.confidence_score %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar
+                                            {% if reading.confidence_score > 0.8 %}bg-success
+                                            {% elif reading.confidence_score > 0.6 %}bg-warning
+                                            {% else %}bg-danger{% endif %}"
+                                            role="progressbar"
+                                            style="width: {{ reading.confidence_score|floatformat:0|add:'0' }}%">
+                                            {{ reading.confidence_score|floatformat:2 }}
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">Manual</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ reading.captured_by.peoplename|default:"System" }}</td>
+                                <td>
+                                    {{ reading.reading_timestamp|date:"M d, Y" }}
+                                    <br><small class="text-muted">{{ reading.reading_timestamp|time:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-{% if reading.status == 'FLAGGED' %}warning{% else %}info{% endif %}">
+                                        {{ reading.get_status_display }}
+                                    </span>
+                                    {% if reading.validation_flags %}
+                                    <br>
+                                    {% for flag in reading.validation_flags %}
+                                    <span class="badge badge-secondary small">{{ flag }}</span>
+                                    {% endfor %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group-vertical btn-group-sm" role="group">
+                                        <button class="btn btn-primary btn-sm" onclick="viewDetails({{ reading.id }})"
+                                                data-toggle="modal" data-target="#readingModal"
+                                                data-reading-id="{{ reading.id }}">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                        <button class="btn btn-success btn-sm" onclick="quickApprove({{ reading.id }})">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="quickReject({{ reading.id }})">
+                                            <i class="fas fa-times"></i> Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Meter readings pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                    <h4>No Readings Pending Validation</h4>
+                    <p class="text-muted">All meter readings have been processed!</p>
+                    <a href="{% url 'activity:meter_reading_capture' %}" class="btn btn-primary">
+                        <i class="fas fa-camera mr-2"></i>Capture New Reading
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reading Details Modal -->
+<div class="modal fade" id="readingModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Meter Reading Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Content loaded via AJAX -->
+                <div class="text-center py-3">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form method="post" id="validationForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="reading_id" id="modalReadingId">
+                    <div class="row w-100">
+                        <div class="col-md-8">
+                            <textarea class="form-control" name="notes" placeholder="Validation notes (optional)" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="btn-group w-100" role="group">
+                                <button type="submit" name="action" value="approve" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.reading-checkbox');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+
+    toggleBulkActions();
+}
+
+function toggleBulkActions() {
+    const checkedBoxes = document.querySelectorAll('.reading-checkbox:checked');
+    const bulkApproveBtn = document.getElementById('bulkApproveBtn');
+    const bulkRejectBtn = document.getElementById('bulkRejectBtn');
+
+    if (checkedBoxes.length > 0) {
+        bulkApproveBtn.style.display = 'inline-block';
+        bulkRejectBtn.style.display = 'inline-block';
+    } else {
+        bulkApproveBtn.style.display = 'none';
+        bulkRejectBtn.style.display = 'none';
+    }
+}
+
+function viewDetails(readingId) {
+    document.getElementById('modalReadingId').value = readingId;
+
+    // Load reading details via AJAX
+    fetch(`/api/meter_readings/${readingId}/details/`)
+        .then(response => response.json())
+        .then(data => {
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Asset Information</h6>
+                        <p><strong>Name:</strong> ${data.asset_name}</p>
+                        <p><strong>Code:</strong> ${data.asset_code}</p>
+                        <p><strong>Type:</strong> ${data.meter_type}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Reading Details</h6>
+                        <p><strong>Value:</strong> ${data.reading_value} ${data.unit}</p>
+                        <p><strong>Confidence:</strong> ${data.confidence_score || 'N/A'}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                    </div>
+                </div>
+                ${data.raw_text ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Raw OCR Text</h6>
+                        <pre class="bg-light p-2 rounded">${data.raw_text}</pre>
+                    </div>
+                </div>
+                ` : ''}
+                ${data.image_path ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Captured Image</h6>
+                        <img src="${data.image_path}" class="img-fluid rounded" alt="Meter reading">
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        })
+        .catch(error => {
+            document.getElementById('modalContent').innerHTML =
+                '<div class="alert alert-danger">Error loading reading details</div>';
+        });
+}
+
+function quickApprove(readingId) {
+    if (confirm('Approve this reading?')) {
+        submitValidation(readingId, 'approve', '');
+    }
+}
+
+function quickReject(readingId) {
+    const notes = prompt('Reason for rejection (optional):');
+    if (notes !== null) { // User didn't cancel
+        submitValidation(readingId, 'reject', notes);
+    }
+}
+
+function submitValidation(readingId, action, notes) {
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    formData.append('reading_id', readingId);
+    formData.append('action', action);
+    formData.append('notes', notes);
+
+    fetch('{% url "activity:meter_reading_validation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload(); // Simple reload for now
+        } else {
+            alert('Error processing validation');
+        }
+    })
+    .catch(error => {
+        alert('Error processing validation');
+    });
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Add change listeners to checkboxes
+    document.querySelectorAll('.reading-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', toggleBulkActions);
+    });
+
+    // Add form submit handler
+    document.getElementById('validationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch('{% url "activity:meter_reading_validation" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                $('#readingModal').modal('hide');
+                location.reload();
+            } else {
+                alert('Error processing validation');
+            }
+        });
+    });
+});
+</script>
+
+{% endblock content %}

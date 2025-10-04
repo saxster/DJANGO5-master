@@ -1,0 +1,84 @@
+{% extends "noc/base.html" %}
+{% load static %}
+
+{% block noc_breadcrumb %}
+<li class="breadcrumb-item active">Incidents</li>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'js/noc/incidents.js' %}"></script>
+{% endblock %}
+
+{% block noc_content %}
+<div class="incidents-container">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Incident Management</h4>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createIncidentModal">
+                <i class="fas fa-plus"></i> Create Incident
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="incidents-table" class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Severity</th>
+                            <th>State</th>
+                            <th>Alerts</th>
+                            <th>Assigned To</th>
+                            <th>Created</th>
+                            <th>MTTR</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createIncidentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Incident</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-incident-form">
+                    <div class="mb-3">
+                        <label for="incident-title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="incident-title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="incident-severity" class="form-label">Severity</label>
+                        <select class="form-control" id="incident-severity" required>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="LOW">Low</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="incident-alert-ids" class="form-label">Related Alert IDs (comma-separated)</label>
+                        <input type="text" class="form-control" id="incident-alert-ids" placeholder="1,2,3">
+                    </div>
+                    <div class="mb-3">
+                        <label for="incident-description" class="form-label">Description</label>
+                        <textarea class="form-control" id="incident-description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-incident">Create Incident</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

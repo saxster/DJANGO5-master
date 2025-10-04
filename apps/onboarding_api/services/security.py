@@ -264,11 +264,28 @@ class PIIRedactor:
 
 class RateLimiter:
     """
-    Rate limiting service with budget controls
+    Rate limiting service with budget controls and graceful degradation
+
+    Enhanced with:
+    - Circuit breaker pattern for cache failures
+    - In-memory fallback cache
+    - Fail-closed for critical resources
+    - Retry-After headers for rate limit responses
     """
 
     def __init__(self):
         self.cache = cache
+        self.fallback_cache = {}  # In-memory fallback for resilience
+        self.cache_failure_count = 0
+        self.circuit_breaker_threshold = getattr(settings, 'RATE_LIMITER_CIRCUIT_BREAKER_THRESHOLD', 5)
+        self.circuit_breaker_reset_time = None
+
+        # Critical resources that should fail-closed on cache failure
+        self.critical_resources = getattr(
+            settings,
+            'RATE_LIMITER_CRITICAL_RESOURCES',
+            ['llm_calls', 'translations', 'knowledge_ingestion']
+        )
 
     def check_rate_limit(
         self,
@@ -277,7 +294,7 @@ class RateLimiter:
         limit_type: str = 'requests'
     ) -> Tuple[bool, Dict[str, Any]]:
         """
-        Check if user is within rate limits
+        Check if user is within rate limits with graceful degradation
 
         Args:
             user_identifier: User or tenant identifier
@@ -287,6 +304,10 @@ class RateLimiter:
         Returns:
             Tuple of (is_allowed, limit_info)
         """
+        # Check circuit breaker state
+        if self._is_circuit_breaker_open():
+            return self._handle_circuit_breaker_open(resource_type)
+
         # Get limits from settings
         limits = self._get_limits(resource_type, limit_type)
 
@@ -295,7 +316,8 @@ class RateLimiter:
             'current_usage': 0,
             'limit': limits.get('daily', 1000),
             'window': 'daily',
-            'reset_time': None
+            'reset_time': None,
+            'retry_after': None
         }
 
         try:
@@ -305,13 +327,28 @@ class RateLimiter:
             daily_limit = limits.get('daily', 1000)
 
             if current_daily >= daily_limit:
+                reset_time = self._get_next_reset_time('daily')
+                retry_after = self._calculate_retry_after(reset_time)
+
                 limit_info.update({
                     'allowed': False,
                     'current_usage': current_daily,
                     'limit': daily_limit,
                     'window': 'daily',
-                    'reset_time': self._get_next_reset_time('daily')
+                    'reset_time': reset_time,
+                    'retry_after': retry_after
                 })
+
+                logger.warning(
+                    f"Rate limit exceeded for user {user_identifier}",
+                    extra={
+                        'user_identifier': user_identifier,
+                        'resource_type': resource_type,
+                        'current_usage': current_daily,
+                        'limit': daily_limit,
+                        'retry_after': retry_after
+                    }
+                )
                 return False, limit_info
 
             # Check hourly limit if configured
@@ -321,22 +358,67 @@ class RateLimiter:
                 hourly_limit = limits['hourly']
 
                 if current_hourly >= hourly_limit:
+                    reset_time = self._get_next_reset_time('hourly')
+                    retry_after = self._calculate_retry_after(reset_time)
+
                     limit_info.update({
                         'allowed': False,
                         'current_usage': current_hourly,
                         'limit': hourly_limit,
                         'window': 'hourly',
-                        'reset_time': self._get_next_reset_time('hourly')
+                        'reset_time': reset_time,
+                        'retry_after': retry_after
                     })
+
+                    logger.warning(
+                        f"Hourly rate limit exceeded for user {user_identifier}",
+                        extra={
+                            'user_identifier': user_identifier,
+                            'resource_type': resource_type,
+                            'window': 'hourly',
+                            'retry_after': retry_after
+                        }
+                    )
                     return False, limit_info
+
+            # Reset failure count on successful cache access
+            if self.cache_failure_count > 0:
+                logger.info(f"Cache recovered, resetting failure count from {self.cache_failure_count}")
+                self.cache_failure_count = 0
 
             limit_info['current_usage'] = current_daily
             return True, limit_info
 
-        except (ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, ValueError) as e:
-            logger.error(f"Error checking rate limit: {str(e)}")
-            # Fail open - allow request but log error
-            return True, limit_info
+        except (ConnectionError, DatabaseError, IntegrityError, TimeoutError) as e:
+            # Increment failure count
+            self.cache_failure_count += 1
+
+            # Generate correlation ID for tracking
+            correlation_id = str(uuid.uuid4())
+
+            logger.error(
+                f"Cache failure in rate limiter (failure #{self.cache_failure_count})",
+                extra={
+                    'error': str(e),
+                    'error_type': type(e).__name__,
+                    'user_identifier': user_identifier,
+                    'resource_type': resource_type,
+                    'correlation_id': correlation_id,
+                    'failure_count': self.cache_failure_count
+                },
+                exc_info=True
+            )
+
+            # Check if circuit breaker should open
+            if self.cache_failure_count >= self.circuit_breaker_threshold:
+                self.circuit_breaker_reset_time = datetime.now() + timedelta(minutes=5)
+                logger.critical(
+                    f"Circuit breaker OPENED after {self.cache_failure_count} failures",
+                    extra={'correlation_id': correlation_id, 'reset_time': self.circuit_breaker_reset_time.isoformat()}
+                )
+
+            # Use fallback strategy
+            return self._check_fallback_limit(user_identifier, resource_type, limit_type, correlation_id)
 
     def increment_usage(
         self,
@@ -346,10 +428,16 @@ class RateLimiter:
         limit_type: str = 'requests'
     ) -> bool:
         """
-        Increment usage counters
+        Increment usage counters with fallback on cache failure
+
+        Args:
+            user_identifier: User identifier
+            resource_type: Resource type
+            amount: Amount to increment by
+            limit_type: Type of limit
 
         Returns:
-            True if increment was successful
+            True if increment was successful (including fallback)
         """
         try:
             # Increment daily counter
@@ -364,12 +452,38 @@ class RateLimiter:
 
             return True
 
-        except (ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, ValueError) as e:
-            logger.error(f"Error incrementing usage: {str(e)}")
-            return False
+        except (ConnectionError, DatabaseError, IntegrityError, TimeoutError) as e:
+            # Log failure but continue (usage tracking is best-effort)
+            correlation_id = str(uuid.uuid4())
+
+            logger.warning(
+                f"Failed to increment usage counter - using fallback",
+                extra={
+                    'user_identifier': user_identifier,
+                    'resource_type': resource_type,
+                    'amount': amount,
+                    'error': str(e),
+                    'correlation_id': correlation_id
+                }
+            )
+
+            # Increment fallback counter
+            fallback_key = f"{resource_type}:{user_identifier}:{datetime.now().strftime('%Y-%m-%d-%H')}"
+            self.fallback_cache[fallback_key] = self.fallback_cache.get(fallback_key, 0) + amount
+
+            return True  # Return True even with fallback (best-effort)
 
     def get_usage_stats(self, user_identifier: str, resource_type: str) -> Dict[str, Any]:
-        """Get current usage statistics for a user"""
+        """
+        Get current usage statistics for a user with fallback support
+
+        Args:
+            user_identifier: User identifier
+            resource_type: Resource type
+
+        Returns:
+            Dict with usage statistics (empty dict on failure)
+        """
         try:
             daily_key = f"rate_limit:{resource_type}:requests:{user_identifier}:{datetime.now().strftime('%Y-%m-%d')}"
             hourly_key = f"rate_limit:{resource_type}:requests:{user_identifier}:{datetime.now().strftime('%Y-%m-%d-%H')}"
@@ -379,12 +493,32 @@ class RateLimiter:
                 'hourly_usage': self.cache.get(hourly_key, 0),
                 'resource_type': resource_type,
                 'user_identifier': user_identifier,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat(),
+                'source': 'primary_cache'
             }
 
-        except (ConnectionError, DatabaseError, IntegrityError, LLMServiceException, TimeoutError, ValueError) as e:
-            logger.error(f"Error getting usage stats: {str(e)}")
-            return {}
+        except (ConnectionError, DatabaseError, IntegrityError, TimeoutError) as e:
+            logger.warning(
+                f"Failed to get usage stats from cache - using fallback",
+                extra={
+                    'user_identifier': user_identifier,
+                    'resource_type': resource_type,
+                    'error': str(e)
+                }
+            )
+
+            # Try fallback cache
+            fallback_key = f"{resource_type}:{user_identifier}:{datetime.now().strftime('%Y-%m-%d-%H')}"
+            fallback_usage = self.fallback_cache.get(fallback_key, 0)
+
+            return {
+                'hourly_usage': fallback_usage,
+                'resource_type': resource_type,
+                'user_identifier': user_identifier,
+                'timestamp': datetime.now().isoformat(),
+                'source': 'fallback_cache',
+                'warning': 'Primary cache unavailable'
+            }
 
     def _get_limits(self, resource_type: str, limit_type: str) -> Dict[str, int]:
         """Get rate limits for resource type"""
@@ -424,6 +558,190 @@ class RateLimiter:
         else:  # daily
             next_day = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
             return next_day.isoformat()
+
+    def _calculate_retry_after(self, reset_time: str) -> int:
+        """
+        Calculate Retry-After value in seconds
+
+        Args:
+            reset_time: ISO format reset time string
+
+        Returns:
+            Seconds until reset time
+        """
+        try:
+            reset_dt = datetime.fromisoformat(reset_time)
+            now = datetime.now()
+            delta = (reset_dt - now).total_seconds()
+            return max(int(delta), 60)  # Minimum 60 seconds
+        except (ValueError, TypeError):
+            return 3600  # Default to 1 hour
+
+    def _is_circuit_breaker_open(self) -> bool:
+        """Check if circuit breaker is currently open"""
+        if self.circuit_breaker_reset_time is None:
+            return False
+
+        # Check if reset time has passed
+        if datetime.now() >= self.circuit_breaker_reset_time:
+            logger.info("Circuit breaker CLOSED - reset time reached")
+            self.circuit_breaker_reset_time = None
+            self.cache_failure_count = 0
+            return False
+
+        return True
+
+    def _handle_circuit_breaker_open(self, resource_type: str) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Handle request when circuit breaker is open
+
+        Args:
+            resource_type: Type of resource being rate limited
+
+        Returns:
+            Tuple of (is_allowed, limit_info)
+        """
+        is_critical = resource_type in self.critical_resources
+
+        if is_critical:
+            # Fail-closed for critical resources
+            retry_after = int((self.circuit_breaker_reset_time - datetime.now()).total_seconds())
+
+            logger.warning(
+                f"Circuit breaker OPEN - blocking critical resource: {resource_type}",
+                extra={
+                    'resource_type': resource_type,
+                    'retry_after': retry_after,
+                    'strategy': 'fail_closed'
+                }
+            )
+
+            return False, {
+                'allowed': False,
+                'reason': 'circuit_breaker_open',
+                'critical_resource': True,
+                'retry_after': retry_after,
+                'reset_time': self.circuit_breaker_reset_time.isoformat()
+            }
+        else:
+            # Fail-open for non-critical resources with logging
+            logger.warning(
+                f"Circuit breaker OPEN - allowing non-critical resource: {resource_type}",
+                extra={
+                    'resource_type': resource_type,
+                    'strategy': 'fail_open_with_logging'
+                }
+            )
+
+            return True, {
+                'allowed': True,
+                'reason': 'circuit_breaker_open_fail_open',
+                'critical_resource': False,
+                'warning': 'Rate limiting unavailable - degraded mode'
+            }
+
+    def _check_fallback_limit(
+        self,
+        user_identifier: str,
+        resource_type: str,
+        limit_type: str,
+        correlation_id: str
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Check rate limit using in-memory fallback cache
+
+        Args:
+            user_identifier: User identifier
+            resource_type: Resource type
+            limit_type: Limit type
+            correlation_id: Correlation ID for tracking
+
+        Returns:
+            Tuple of (is_allowed, limit_info)
+        """
+        is_critical = resource_type in self.critical_resources
+
+        # For critical resources, fail-closed
+        if is_critical:
+            logger.warning(
+                f"Fallback check for critical resource - BLOCKING: {resource_type}",
+                extra={
+                    'user_identifier': user_identifier,
+                    'resource_type': resource_type,
+                    'correlation_id': correlation_id,
+                    'strategy': 'fail_closed'
+                }
+            )
+
+            return False, {
+                'allowed': False,
+                'reason': 'cache_failure_critical_resource',
+                'critical_resource': True,
+                'retry_after': 300,  # 5 minutes
+                'correlation_id': correlation_id
+            }
+
+        # For non-critical resources, use in-memory fallback
+        fallback_key = f"{resource_type}:{user_identifier}:{datetime.now().strftime('%Y-%m-%d-%H')}"
+
+        # Get current count from fallback cache
+        current_count = self.fallback_cache.get(fallback_key, 0)
+
+        # Conservative limits for fallback (lower than normal)
+        fallback_limit = 50  # Fallback limit per hour
+
+        if current_count >= fallback_limit:
+            logger.warning(
+                f"Fallback rate limit exceeded for user {user_identifier}",
+                extra={
+                    'user_identifier': user_identifier,
+                    'resource_type': resource_type,
+                    'current_count': current_count,
+                    'fallback_limit': fallback_limit,
+                    'correlation_id': correlation_id
+                }
+            )
+
+            return False, {
+                'allowed': False,
+                'reason': 'fallback_limit_exceeded',
+                'current_usage': current_count,
+                'limit': fallback_limit,
+                'window': 'hourly_fallback',
+                'retry_after': 3600,
+                'correlation_id': correlation_id
+            }
+
+        # Increment fallback count
+        self.fallback_cache[fallback_key] = current_count + 1
+
+        # Clean old fallback entries (keep last 100 entries)
+        if len(self.fallback_cache) > 100:
+            # Remove oldest 20 entries
+            keys_to_remove = list(self.fallback_cache.keys())[:20]
+            for key in keys_to_remove:
+                del self.fallback_cache[key]
+
+        logger.info(
+            f"Fallback rate limit check passed for {user_identifier}",
+            extra={
+                'user_identifier': user_identifier,
+                'resource_type': resource_type,
+                'current_count': current_count + 1,
+                'fallback_limit': fallback_limit,
+                'correlation_id': correlation_id
+            }
+        )
+
+        return True, {
+            'allowed': True,
+            'reason': 'fallback_cache_passed',
+            'current_usage': current_count + 1,
+            'limit': fallback_limit,
+            'window': 'hourly_fallback',
+            'warning': 'Using fallback rate limiting',
+            'correlation_id': correlation_id
+        }
 
 
 class ContentDeduplicator:

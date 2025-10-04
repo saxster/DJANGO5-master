@@ -73,14 +73,24 @@ def _get_formatters(environment):
     return formatters
 
 def _get_handlers(environment, log_dir):
-    """Get handlers based on environment."""
+    """
+    Get handlers based on environment.
+
+    CRITICAL: ALL handlers MUST have 'sanitize' filter applied.
+    This prevents PII leakage in logs (Rule #15 compliance).
+
+    Changes (Observability Enhancement):
+    - Production: JSON format for all handlers (machine-parseable)
+    - Development: JSON format by default (consistency with production)
+    - Test: Simple format with sanitize filter
+    """
     if environment == 'production':
         return {
             "console": {
                 "level": "WARNING",
                 "class": "logging.StreamHandler",
                 "formatter": "json",
-                "filters": ["sanitize"]
+                "filters": ["sanitize"]  # ✅ Enforced
             },
             "app_file": {
                 "class": "logging.handlers.TimedRotatingFileHandler",
@@ -89,7 +99,7 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 30,
                 "formatter": "json",
                 "encoding": "utf-8",
-                "filters": ["sanitize"]
+                "filters": ["sanitize"]  # ✅ Enforced
             },
             "error_file": {
                 "class": "logging.handlers.TimedRotatingFileHandler",
@@ -99,7 +109,7 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 90,
                 "formatter": "json",
                 "encoding": "utf-8",
-                "filters": ["sanitize"]
+                "filters": ["sanitize"]  # ✅ Enforced
             },
             "security_file": {
                 "class": "logging.handlers.TimedRotatingFileHandler",
@@ -108,32 +118,33 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 90,
                 "formatter": "json",
                 "encoding": "utf-8",
-                "filters": ["sanitize"]
+                "filters": ["sanitize"]  # ✅ Enforced
             },
             "mail_admins": {
                 "level": "CRITICAL",
                 "class": "django.utils.log.AdminEmailHandler",
                 "formatter": "detailed",
                 "include_html": True,
-                "filters": ["sanitize", "require_debug_false"]
+                "filters": ["sanitize", "require_debug_false"]  # ✅ Enforced
             }
         }
     elif environment == 'development':
+        # CHANGED: Default to JSON format in dev for consistency with production
         return {
             "console": {
                 "level": "DEBUG",
                 "class": "logging.StreamHandler",
-                "formatter": "colored",
-                "filters": ["sanitize"]
+                "formatter": "json",  # CHANGED: was "colored", now JSON
+                "filters": ["sanitize"]  # ✅ Enforced
             },
             "app_file": {
                 "class": "logging.handlers.RotatingFileHandler",
                 "filename": f"{log_dir}/django_dev.log",
                 "maxBytes": 10*1024*1024,
                 "backupCount": 3,
-                "formatter": "detailed",
+                "formatter": "json",  # CHANGED: was "detailed", now JSON
                 "encoding": "utf-8",
-                "filters": ["sanitize"]
+                "filters": ["sanitize"]  # ✅ Enforced
             }
         }
     else:  # test
@@ -142,7 +153,7 @@ def _get_handlers(environment, log_dir):
                 "level": "ERROR",
                 "class": "logging.StreamHandler",
                 "formatter": "simple",
-                "filters": ["sanitize"]
+                "filters": ["sanitize"]  # ✅ Enforced
             }
         }
 
@@ -153,6 +164,13 @@ def _get_loggers(environment):
             "django": {"handlers": ["app_file", "error_file"], "level": "INFO", "propagate": False},
             "django.security": {"handlers": ["security_file", "mail_admins"], "level": "INFO", "propagate": False},
             "security": {"handlers": ["security_file", "mail_admins"], "level": "INFO", "propagate": False},
+            # CRITICAL: Dedicated logger for secret validation (security-sensitive)
+            "security.secret_validation": {
+                "handlers": ["security_file", "mail_admins"],
+                "level": "INFO",
+                "propagate": False,
+                "filters": ["sanitize"]  # Double-check: ensure no secrets in logs
+            },
             "apps": {"handlers": ["app_file", "error_file"], "level": "INFO", "propagate": False},
             "background_tasks": {"handlers": ["app_file", "error_file"], "level": "INFO", "propagate": False}
         }
@@ -160,10 +178,25 @@ def _get_loggers(environment):
         return {
             "django": {"handlers": ["console", "app_file"], "level": "INFO", "propagate": False},
             "apps": {"handlers": ["console", "app_file"], "level": "DEBUG", "propagate": False},
-            "security": {"handlers": ["console", "app_file"], "level": "DEBUG", "propagate": False}
+            "security": {"handlers": ["console", "app_file"], "level": "DEBUG", "propagate": False},
+            # CRITICAL: Dedicated logger for secret validation
+            "security.secret_validation": {
+                "handlers": ["app_file"],  # File only, not console for security
+                "level": "INFO",
+                "propagate": False,
+                "filters": ["sanitize"]  # Ensure no secrets in logs
+            }
         }
     else:  # test
-        return {"django": {"handlers": ["console"], "level": "ERROR", "propagate": False}}
+        return {
+            "django": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+            # Secret validation logger for test environment
+            "security.secret_validation": {
+                "handlers": ["console"],
+                "level": "ERROR",
+                "propagate": False
+            }
+        }
 
 def setup_logging(environment='development', logger_path=None):
     """Setup logging configuration for the application."""

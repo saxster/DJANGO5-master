@@ -35,6 +35,7 @@ from apps.core.exceptions import (
 from apps.peoples.models import People
 from apps.core import utils
 import apps.peoples.utils as putils
+from apps.peoples.services.login_throttling_service import login_throttle_service
 
 logger = logging.getLogger(__name__)
 
@@ -100,28 +101,85 @@ class AuthenticationService(BaseService):
         self,
         loginid: str,
         password: str,
-        access_type: str = UserAccessType.WEB.value
+        access_type: str = UserAccessType.WEB.value,
+        ip_address: str = None
     ) -> AuthenticationResult:
         """
-        Authenticate a user with comprehensive validation.
+        Authenticate a user with comprehensive validation and throttling.
 
         Args:
             loginid: User login ID
             password: User password
             access_type: Access type (Web, Mobile, Both)
+            ip_address: Client IP address for throttling (optional)
 
         Returns:
             AuthenticationResult with success status and context
+
+        Security:
+            - Rate limiting per IP and username
+            - Exponential backoff on failed attempts
+            - Automatic lockout after threshold
         """
         try:
+            # Step 0: Check throttling BEFORE any authentication attempts
+            if ip_address:
+                # Check IP-based throttling
+                ip_throttle = login_throttle_service.check_ip_throttle(ip_address)
+                if not ip_throttle.allowed:
+                    self.logger.warning(
+                        f"IP throttled: {ip_address} - {ip_throttle.reason}",
+                        extra={
+                            'ip_address': ip_address,
+                            'wait_seconds': ip_throttle.wait_seconds,
+                            'security_event': 'ip_throttled'
+                        }
+                    )
+                    return AuthenticationResult(
+                        success=False,
+                        error_message=f"Too many login attempts. Please try again in {ip_throttle.wait_seconds} seconds.",
+                        session_data={'lockout_until': ip_throttle.lockout_until}
+                    )
+
+                # Check username-based throttling
+                username_throttle = login_throttle_service.check_username_throttle(loginid)
+                if not username_throttle.allowed:
+                    self.logger.warning(
+                        f"Username throttled: {loginid} - {username_throttle.reason}",
+                        extra={
+                            'username': loginid,
+                            'wait_seconds': username_throttle.wait_seconds,
+                            'security_event': 'username_throttled'
+                        }
+                    )
+                    return AuthenticationResult(
+                        success=False,
+                        error_message=f"Account temporarily locked. Please try again in {username_throttle.wait_seconds} seconds.",
+                        session_data={'lockout_until': username_throttle.lockout_until}
+                    )
+
             # Step 1: Validate user exists and access type
             user_validation = self._validate_user_access(loginid, access_type)
             if not user_validation.success:
+                # Record failed attempt for non-existent users
+                if ip_address:
+                    login_throttle_service.record_failed_attempt(
+                        ip_address,
+                        loginid,
+                        reason="user_not_found"
+                    )
                 return user_validation
 
             # Step 2: Authenticate credentials
             user = self._authenticate_credentials(loginid, password)
             if not user:
+                # Record failed attempt for invalid credentials
+                if ip_address:
+                    login_throttle_service.record_failed_attempt(
+                        ip_address,
+                        loginid,
+                        reason="invalid_credentials"
+                    )
                 return AuthenticationResult(
                     success=False,
                     error_message=self.error_messages["invalid-details"]
@@ -141,6 +199,10 @@ class AuthenticationService(BaseService):
             # Step 6: Prepare session data
             session_data = self._prepare_session_data(user_context)
 
+            # Step 7: Record successful login and clear throttles
+            if ip_address:
+                login_throttle_service.record_successful_attempt(ip_address, loginid)
+
             self.logger.info(
                 f'Authentication successful for user "{user.peoplename}" '
                 f'with loginid "{user.loginid}" '
@@ -156,12 +218,21 @@ class AuthenticationService(BaseService):
             )
 
         except (AuthenticationError, WrongCredsError, ValidationError, PermissionDeniedError) as e:
+            # Record failed attempt on exception
+            if ip_address:
+                login_throttle_service.record_failed_attempt(
+                    ip_address,
+                    loginid,
+                    reason="authentication_exception"
+                )
+
             correlation_id = ErrorHandler.handle_exception(
                 e,
                 context={
                     'operation': 'user_authentication',
                     'loginid': loginid,
-                    'access_type': access_type
+                    'access_type': access_type,
+                    'ip_address': ip_address
                 },
                 level='error'
             )

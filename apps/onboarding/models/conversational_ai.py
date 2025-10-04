@@ -97,6 +97,35 @@ class ConversationSession(BaseModel, TenantAwareModel):
         help_text="Error details if session failed"
     )
 
+    voice_enabled = models.BooleanField(
+        _("Voice Enabled"),
+        default=False,
+        help_text="Whether this session uses voice input/output"
+    )
+    preferred_voice_language = models.CharField(
+        _("Preferred Voice Language"),
+        max_length=10,
+        default='en-US',
+        blank=True,
+        help_text=_("Language code for speech recognition (e.g., 'en-US', 'hi-IN')")
+    )
+    audio_transcripts = models.JSONField(
+        _("Audio Transcripts"),
+        default=list,
+        blank=True,
+        help_text="Array of {timestamp, transcript, confidence, duration_seconds, language} objects"
+    )
+    voice_interaction_count = models.IntegerField(
+        _("Voice Interaction Count"),
+        default=0,
+        help_text="Number of voice interactions in this session"
+    )
+    total_audio_duration_seconds = models.IntegerField(
+        _("Total Audio Duration"),
+        default=0,
+        help_text="Total audio processed in seconds"
+    )
+
     class Meta(BaseModel.Meta):
         db_table = "conversation_session"
         verbose_name = "Conversation Session"
@@ -155,7 +184,7 @@ class LLMRecommendation(BaseModel, TenantAwareModel):
     )
     confidence_score = models.FloatField(
         _("Confidence Score"),
-        help_text="Overall confidence score (0.0 to 1.0)"
+        help_text=_("Overall confidence score (0.0 to 1.0)")
     )
     user_decision = models.CharField(
         _("User Decision"),

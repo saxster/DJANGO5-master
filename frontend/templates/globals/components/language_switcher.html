@@ -1,0 +1,138 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_available_languages as LANGUAGES %}
+
+<!-- Language Switcher Component -->
+<div class="language-switcher" role="region" aria-label="{% trans 'Language selection' %}">
+    <form action="{% url 'set_language' %}" method="post" id="language-form" class="language-form">
+        {% csrf_token %}
+        <label for="language-select" class="sr-only">{% trans "Choose your language" %}</label>
+        <select
+            name="language"
+            id="language-select"
+            class="language-select"
+            onchange="document.getElementById('language-form').submit()"
+            aria-label="{% trans 'Current language' %}: {{ LANGUAGE_CODE|language_name_local }}">
+
+            {% for lang_code, lang_name in LANGUAGES %}
+                <option value="{{ lang_code }}" {% if lang_code == LANGUAGE_CODE %}selected{% endif %}>
+                    {{ lang_name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <!-- Optional submit button for non-JS users -->
+        <noscript>
+            <input type="submit" value="{% trans 'Change Language' %}" class="btn btn-sm btn-outline-secondary">
+        </noscript>
+
+        <!-- Hidden input to preserve current page -->
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    </form>
+</div>
+
+<style>
+.language-switcher {
+    position: relative;
+    display: inline-block;
+}
+
+.language-select {
+    appearance: none;
+    background: var(--yt-bg-surface, #ffffff);
+    border: 1px solid var(--yt-border-color, #e0e0e0);
+    border-radius: var(--yt-radius-md, 6px);
+    padding: var(--yt-space-2, 8px) var(--yt-space-8, 32px) var(--yt-space-2, 8px) var(--yt-space-3, 12px);
+    font-size: var(--yt-text-sm, 14px);
+    color: var(--yt-text-primary, #1a1a1a);
+    cursor: pointer;
+    min-width: 120px;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23666" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.language-select:hover {
+    border-color: var(--yt-primary-300, #93c5fd);
+    box-shadow: 0 0 0 1px var(--yt-primary-300, #93c5fd);
+}
+
+.language-select:focus {
+    outline: none;
+    border-color: var(--yt-primary-500, #3b82f6);
+    box-shadow: 0 0 0 2px var(--yt-primary-100, #dbeafe);
+}
+
+/* Screen reader only class */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .language-select {
+        background: var(--yt-bg-surface-dark, #1f2937);
+        border-color: var(--yt-border-color-dark, #374151);
+        color: var(--yt-text-primary-dark, #f9fafb);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .language-select {
+        min-width: 100px;
+        font-size: var(--yt-text-xs, 12px);
+        padding: var(--yt-space-2, 8px) var(--yt-space-6, 24px) var(--yt-space-2, 8px) var(--yt-space-2, 8px);
+    }
+}
+</style>
+
+<script>
+// Progressive enhancement for language switching
+document.addEventListener('DOMContentLoaded', function() {
+    const languageSelect = document.getElementById('language-select');
+    const languageForm = document.getElementById('language-form');
+
+    if (languageSelect && languageForm) {
+        // Add smooth transition feedback
+        languageSelect.addEventListener('change', function() {
+            // Optional: Add loading state
+            languageSelect.disabled = true;
+
+            // Submit form with slight delay for better UX
+            setTimeout(() => {
+                languageForm.submit();
+            }, 100);
+        });
+
+        // Store language preference in localStorage for consistency
+        languageSelect.addEventListener('change', function() {
+            localStorage.setItem('preferred_language', this.value);
+        });
+
+        // Restore language preference on page load if set
+        const preferredLang = localStorage.getItem('preferred_language');
+        if (preferredLang && languageSelect.value !== preferredLang) {
+            // Check if the preferred language is available
+            const options = Array.from(languageSelect.options);
+            const hasPreferredLang = options.some(option => option.value === preferredLang);
+
+            if (hasPreferredLang && languageSelect.value !== preferredLang) {
+                languageSelect.value = preferredLang;
+                // Trigger change event to switch language
+                languageSelect.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+});
+</script>

@@ -1,0 +1,9 @@
+# Optimistic Locking Support
+#
+# django-concurrency provides optimistic locking to prevent lost updates
+# when multiple users edit the same record simultaneously.
+#
+# Installation: pip install django-concurrency==2.5
+# Documentation: https://github.com/saxix/django-concurrency
+
+django-concurrency==2.5

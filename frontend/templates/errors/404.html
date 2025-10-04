@@ -1,0 +1,481 @@
+{% extends "globals/base_accessible.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Page Not Found" %} (404) - {{ block.super }}{% endblock title %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .error-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--yt-primary-50) 0%, var(--yt-blue-50) 100%);
+    padding: var(--yt-space-4);
+  }
+
+  .error-container {
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .error-illustration {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto var(--yt-space-8);
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--yt-shadow-xl);
+    position: relative;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .error-code {
+    font-size: 4rem;
+    font-weight: var(--yt-font-bold);
+    color: var(--yt-primary-500);
+    margin: 0;
+    line-height: 1;
+  }
+
+  .error-title {
+    font-size: var(--yt-text-3xl);
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    margin: 0 0 var(--yt-space-4) 0;
+  }
+
+  .error-message {
+    font-size: var(--yt-text-lg);
+    color: var(--yt-text-secondary);
+    margin: 0 0 var(--yt-space-8) 0;
+    line-height: var(--yt-leading-relaxed);
+  }
+
+  .error-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--yt-space-4);
+    align-items: center;
+  }
+
+  .primary-actions {
+    display: flex;
+    gap: var(--yt-space-4);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .error-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--yt-space-2);
+    padding: var(--yt-space-3) var(--yt-space-6);
+    border-radius: var(--yt-radius-lg);
+    font-size: var(--yt-text-sm);
+    font-weight: var(--yt-font-medium);
+    text-decoration: none;
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+    border: var(--yt-border-1) solid transparent;
+    cursor: pointer;
+  }
+
+  .error-button-primary {
+    background: var(--yt-primary-500);
+    color: var(--yt-text-inverse);
+  }
+
+  .error-button-primary:hover {
+    background: var(--yt-primary-600);
+    transform: translateY(-1px);
+    box-shadow: var(--yt-shadow-lg);
+  }
+
+  .error-button-secondary {
+    background: var(--yt-bg-surface);
+    color: var(--yt-text-primary);
+    border-color: var(--yt-border-primary);
+  }
+
+  .error-button-secondary:hover {
+    background: var(--yt-bg-secondary);
+    border-color: var(--yt-border-secondary);
+  }
+
+  .error-button:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+  }
+
+  .suggestions-section {
+    margin-top: var(--yt-space-8);
+    padding: var(--yt-space-6);
+    background: var(--yt-bg-surface);
+    border-radius: var(--yt-radius-xl);
+    box-shadow: var(--yt-shadow-base);
+    text-align: left;
+  }
+
+  .suggestions-title {
+    font-size: var(--yt-text-xl);
+    font-weight: var(--yt-font-semibold);
+    color: var(--yt-text-primary);
+    margin: 0 0 var(--yt-space-4) 0;
+    text-align: center;
+  }
+
+  .suggestions-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--yt-space-3);
+  }
+
+  .suggestion-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--yt-space-3);
+    padding: var(--yt-space-3);
+    background: var(--yt-bg-secondary);
+    border-radius: var(--yt-radius-lg);
+  }
+
+  .suggestion-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--yt-primary-500);
+    flex-shrink: 0;
+    margin-top: var(--yt-space-1);
+  }
+
+  .suggestion-text {
+    font-size: var(--yt-text-sm);
+    color: var(--yt-text-primary);
+    line-height: var(--yt-leading-normal);
+  }
+
+  .suggested-pages {
+    margin-top: var(--yt-space-6);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--yt-space-4);
+  }
+
+  .suggested-page {
+    display: flex;
+    align-items: center;
+    gap: var(--yt-space-3);
+    padding: var(--yt-space-4);
+    background: var(--yt-bg-surface);
+    border: var(--yt-border-1) solid var(--yt-border-primary);
+    border-radius: var(--yt-radius-lg);
+    text-decoration: none;
+    color: var(--yt-text-primary);
+    transition: all var(--yt-duration-200) var(--yt-ease-in-out);
+  }
+
+  .suggested-page:hover {
+    background: var(--yt-primary-50);
+    border-color: var(--yt-primary-200);
+    transform: translateY(-1px);
+  }
+
+  .suggested-page:focus {
+    outline: var(--yt-focus-ring-width) solid var(--yt-focus-ring-color);
+    outline-offset: var(--yt-focus-ring-offset);
+  }
+
+  .suggested-page-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--yt-primary-100);
+    color: var(--yt-primary-600);
+    border-radius: var(--yt-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .suggested-page-text {
+    font-weight: var(--yt-font-medium);
+    font-size: var(--yt-text-sm);
+  }
+
+  .support-info {
+    margin-top: var(--yt-space-8);
+    padding: var(--yt-space-4);
+    background: var(--yt-info-50);
+    border: var(--yt-border-1) solid var(--yt-info-200);
+    border-radius: var(--yt-radius-lg);
+    text-align: center;
+  }
+
+  .support-text {
+    font-size: var(--yt-text-sm);
+    color: var(--yt-info-700);
+    margin: 0 0 var(--yt-space-2) 0;
+  }
+
+  .error-id {
+    font-family: var(--yt-font-mono);
+    font-size: var(--yt-text-xs);
+    color: var(--yt-text-tertiary);
+    background: var(--yt-bg-secondary);
+    padding: var(--yt-space-1) var(--yt-space-2);
+    border-radius: var(--yt-radius-base);
+  }
+
+  /* Dark mode adjustments */
+  .dark .error-page {
+    background: linear-gradient(135deg, var(--yt-gray-900) 0%, var(--yt-gray-800) 100%);
+  }
+
+  .dark .error-illustration {
+    background: var(--yt-gray-800);
+  }
+
+  .dark .suggestions-section {
+    background: var(--yt-gray-800);
+  }
+
+  .dark .suggestion-item {
+    background: var(--yt-gray-700);
+  }
+
+  .dark .support-info {
+    background: var(--yt-gray-800);
+    border-color: var(--yt-gray-600);
+  }
+
+  /* Responsive design */
+  @media (max-width: 640px) {
+    .error-illustration {
+      width: 150px;
+      height: 150px;
+    }
+
+    .error-code {
+      font-size: 3rem;
+    }
+
+    .error-title {
+      font-size: var(--yt-text-2xl);
+    }
+
+    .primary-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .error-button {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .suggested-pages {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .error-illustration {
+      animation: none;
+    }
+  }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-container">
+
+    <!-- Error Illustration -->
+    <div class="error-illustration">
+      <h2 class="error-code">404</h2>
+    </div>
+
+    <!-- Error Content -->
+    <h1 class="error-title">{% trans "Oops! Page Not Found" %}</h1>
+    <p class="error-message">
+      {{ user_message|default:_("The page you're looking for seems to have wandered off. Don't worry, it happens to the best of us!") }}
+    </p>
+
+    <!-- Primary Actions -->
+    <div class="error-actions">
+      <div class="primary-actions">
+        <button
+          class="error-button error-button-primary"
+          onclick="history.back()"
+          aria-label="{% trans 'Go back to previous page' %}">
+          <i class="material-icons" aria-hidden="true">arrow_back</i>
+          {% trans "Go Back" %}
+        </button>
+
+        <a href="{{ '/'|url:'' }}"
+           class="error-button error-button-primary"
+           aria-label="{% trans 'Return to home page' %}">
+          <i class="material-icons" aria-hidden="true">home</i>
+          {% trans "Home Page" %}
+        </a>
+
+        <button
+          class="error-button error-button-secondary"
+          onclick="openSearch()"
+          aria-label="{% trans 'Search for content' %}">
+          <i class="material-icons" aria-hidden="true">search</i>
+          {% trans "Search" %}
+        </button>
+      </div>
+    </div>
+
+    <!-- Helpful Suggestions -->
+    <div class="suggestions-section">
+      <h2 class="suggestions-title">{% trans "What can you try?" %}</h2>
+
+      <ul class="suggestions-list" role="list">
+        {% for suggestion in recovery_suggestions %}
+        <li class="suggestion-item" role="listitem">
+          <i class="material-icons suggestion-icon" aria-hidden="true">lightbulb</i>
+          <span class="suggestion-text">{{ suggestion }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <!-- Suggested Pages -->
+      {% if suggested_pages %}
+      <div class="suggested-pages">
+        {% for page in suggested_pages %}
+        <a href="{{ page.url }}"
+           class="suggested-page"
+           aria-label="Visit {{ page.title }}">
+          <div class="suggested-page-icon">
+            <i class="material-icons" aria-hidden="true">{{ page.icon }}</i>
+          </div>
+          <span class="suggested-page-text">{{ page.title }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Support Information -->
+    <div class="support-info">
+      <p class="support-text">
+        Still having trouble? Our support team is here to help.
+      </p>
+      <p class="error-id">
+        Error ID: {{ error_id|default:'N/A' }} | {{ support_context.timestamp|default:'Unknown time' }}
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- Screen Reader Announcements -->
+<div class="yt-sr-only" aria-live="polite" aria-atomic="true">
+  Page not found. Use the navigation options to find what you're looking for.
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+{{ block.super }}
+
+<script>
+(function() {
+  'use strict';
+
+  // Announce error to screen readers
+  setTimeout(() => {
+    const announcer = document.querySelector('[aria-live="polite"]');
+    if (announcer) {
+      announcer.textContent = 'Page not found. Navigation options are available to help you find what you need.';
+    }
+  }, 1000);
+
+  // Search functionality
+  window.openSearch = function() {
+    // Simple search implementation
+    const query = prompt('What are you looking for?');
+    if (query && query.trim()) {
+      window.location.href = `/search/?q=${encodeURIComponent(query.trim())}`;
+    }
+  };
+
+  // Report missing page (optional feedback)
+  window.reportMissingPage = function() {
+    const feedback = prompt('Can you tell us what you were looking for? This helps us improve our site.');
+    if (feedback && feedback.trim()) {
+      fetch('/api/feedback/missing-page/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        },
+        body: JSON.stringify({
+          path: '{{ request.path }}',
+          feedback: feedback,
+          referrer: document.referrer,
+          user_agent: navigator.userAgent
+        })
+      }).then(() => {
+        alert('Thank you for your feedback! This helps us improve the site.');
+      }).catch(() => {
+        alert('Thank you for trying to help! Your feedback couldn\'t be sent right now, but we appreciate the effort.');
+      });
+    }
+  };
+
+  // Enhanced keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    // Home key goes to homepage
+    if (e.key === 'Home' && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      window.location.href = '/';
+    }
+
+    // Escape key goes back
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      history.back();
+    }
+
+    // S key opens search
+    if (e.key === 's' || e.key === 'S') {
+      const isInputFocused = document.activeElement && (
+        document.activeElement.tagName === 'INPUT' ||
+        document.activeElement.tagName === 'TEXTAREA'
+      );
+
+      if (!isInputFocused) {
+        e.preventDefault();
+        openSearch();
+      }
+    }
+  });
+
+  // Track 404 for analytics (without personal data)
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'page_not_found', {
+      'event_category': 'Error',
+      'event_label': '{{ request.path }}',
+      'value': 404
+    });
+  }
+
+})();
+</script>
+{% endblock extra_scripts %}

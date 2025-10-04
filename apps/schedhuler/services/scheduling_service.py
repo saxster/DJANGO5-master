@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta, date
 from decimal import Decimal
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError, DatabaseError, OperationalError
 from django.http import QueryDict
@@ -602,7 +604,7 @@ class SchedulingService(BaseService):
                 'total_checkpoints': checkpoints.count(),
                 'completed_checkpoints': checkpoints.filter(status='COMPLETED').count(),
                 'pending_checkpoints': checkpoints.filter(status='PENDING').count(),
-                'tour_duration': (job.uptodate - job.fromdate).total_seconds() / 3600,  # hours
+                'tour_duration': (job.uptodate - job.fromdate).total_seconds() / SECONDS_IN_HOUR,  # hours
                 'average_checkpoint_time': job.gracetime,
                 'tour_efficiency': 0.0  # Placeholder for efficiency calculation
             }

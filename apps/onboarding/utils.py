@@ -18,6 +18,7 @@ from django.http import response as rp
 import googlemaps
 from math import radians, sin, cos, sqrt, atan2
 from django.contrib.gis.geos import Point, Polygon
+from apps.core.constants.spatial_constants import EARTH_RADIUS_KM
 
 
 logger = logging.getLogger("django")
@@ -285,7 +286,7 @@ def extract_file_id(drive_link):
 def get_file_metadata(file_id):
     """Get metadata for a specific Google Drive file."""
     url = f"https://www.googleapis.com/drive/v3/files?q='{file_id}'+in+parents&key={api_key}&fields=files(id,name,mimeType,size)"
-    response = requests.get(url)
+    response = requests.get(url, timeout=(5, 15))  # (connect, read) timeout in seconds
     if response.status_code == 200:
         return response.json()
     else:
@@ -377,7 +378,7 @@ def download_image_from_drive(file_id, destination_path):
         URL = f"https://drive.google.com/uc?export=download&id={file_id}"
 
         # Send a GET request to the URL to download the file
-        response = requests.get(URL, stream=True)
+        response = requests.get(URL, stream=True, timeout=(5, 30))  # Longer read timeout for file download
         response.raise_for_status()  # Raise an HTTPError if the response was an error
 
         # Write the downloaded content to the destination path
@@ -408,7 +409,7 @@ class BulkImageUploader:
         """Download a single image from Google Drive"""
         try:
             URL = f"https://drive.google.com/uc?export=download&id={image_data['id']}"
-            response = requests.get(URL, stream=True)
+            response = requests.get(URL, stream=True, timeout=(5, 30))  # Longer read timeout for file download
             response.raise_for_status()
 
             os.makedirs(os.path.dirname(destination_path), exist_ok=True)
@@ -602,7 +603,7 @@ def download_image(image_id, image_name):
     url = (
         f"https://www.googleapis.com/drive/v3/files/{image_id}?alt=media&key={api_key}"
     )
-    response = requests.get(url)
+    response = requests.get(url, timeout=(5, 30))  # Longer read timeout for file download
     if response.status_code == 200:
         file_path = get_upload_file_path(image_name)
         with open(file_path, "wb") as file:
@@ -760,13 +761,16 @@ def is_point_in_geofence(lat, lon, geofence):
     """
     Check if a point is within a geofence using centralized service.
     Deprecated: Use apps.core.services.geofence_service.geofence_service directly.
-    
+
     Args:
         lat (float): Latitude of the point to check.
         lon (float): Longitude of the point to check.
         geofence (Polygon or tuple): Polygon object representing geofence or a tuple (center_lat, center_lon, radius_km) for a circular geofence.
     Returns:
         bool: True if the point is inside the geofence, False otherwise.
+
+    Follows .claude/rules.md:
+    - Rule #13: Use constants instead of magic numbers
     """
     try:
         from apps.core.services.geofence_service import geofence_service
@@ -796,7 +800,7 @@ def is_point_in_geofence(lat, lon, geofence):
             dlon = lon2 - lon1
             a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
             c = 2 * atan2(sqrt(a), sqrt(1 - a))
-            distance_km = 6371 * c  # Radius of Earth in kilometers
+            distance_km = EARTH_RADIUS_KM * c  # Use constant instead of magic number
 
             # Check if the distance is within the geofence radius
             return distance_km <= radius_km

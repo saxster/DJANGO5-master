@@ -1,0 +1,790 @@
+{% extends "ml_training/base/ml_training_base.html" %}
+{% load static %}
+
+{% block title %}ML Training - Dataset Management{% endblock %}
+
+{% block content %}
+<div class="ml-container">
+    <!-- Header Section -->
+    <div class="ml-header">
+        <div class="ml-header-content">
+            <h1 class="ml-page-title">
+                <i class="material-icons">dataset</i>
+                Dataset Management
+            </h1>
+            <p class="ml-page-subtitle">Manage training datasets and monitor performance</p>
+        </div>
+        <div class="ml-header-actions">
+            <a href="{% url 'ml_training:dataset_create' %}" class="ml-btn ml-btn-primary">
+                <i class="material-icons">add</i>
+                Create Dataset
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="ml-stats-grid">
+        <div class="ml-stat-card ml-stat-primary">
+            <div class="ml-stat-icon">
+                <i class="material-icons">storage</i>
+            </div>
+            <div class="ml-stat-content">
+                <h3 class="ml-stat-number" data-target="{{ total_datasets }}">0</h3>
+                <p class="ml-stat-label">Total Datasets</p>
+            </div>
+            <div class="ml-stat-trend ml-trend-up">
+                <i class="material-icons">trending_up</i>
+                <span>+12% this month</span>
+            </div>
+        </div>
+
+        <div class="ml-stat-card ml-stat-success">
+            <div class="ml-stat-icon">
+                <i class="material-icons">check_circle</i>
+            </div>
+            <div class="ml-stat-content">
+                <h3 class="ml-stat-number" data-target="{{ active_datasets }}">0</h3>
+                <p class="ml-stat-label">Active Datasets</p>
+            </div>
+            <div class="ml-stat-trend ml-trend-up">
+                <i class="material-icons">trending_up</i>
+                <span>{{ active_datasets }} of {{ total_datasets }}</span>
+            </div>
+        </div>
+
+        <div class="ml-stat-card ml-stat-info">
+            <div class="ml-stat-icon">
+                <i class="material-icons">image</i>
+            </div>
+            <div class="ml-stat-content">
+                <h3 class="ml-stat-number" data-target="{{ total_examples }}">0</h3>
+                <p class="ml-stat-label">Training Examples</p>
+            </div>
+            <div class="ml-stat-trend ml-trend-neutral">
+                <i class="material-icons">remove</i>
+                <span>Ready for training</span>
+            </div>
+        </div>
+
+        <div class="ml-stat-card ml-stat-warning">
+            <div class="ml-stat-icon">
+                <i class="material-icons">label</i>
+            </div>
+            <div class="ml-stat-content">
+                <h3 class="ml-stat-number" data-target="{{ labeled_examples }}">0</h3>
+                <p class="ml-stat-label">Labeled Examples</p>
+            </div>
+            <div class="ml-progress-container">
+                <div class="ml-progress-bar">
+                    <div class="ml-progress-fill" style="width: {{ completion_rate }}%"></div>
+                </div>
+                <span class="ml-progress-text">{{ completion_rate|floatformat:1 }}% complete</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Filters -->
+    <div class="ml-toolbar">
+        <div class="ml-filters">
+            <div class="ml-filter-group">
+                <label for="filter-type">Dataset Type:</label>
+                <select id="filter-type" class="ml-select">
+                    <option value="">All Types</option>
+                    <option value="OCR_METERS">OCR Meters</option>
+                    <option value="OCR_LICENSE_PLATES">License Plates</option>
+                    <option value="FACE_RECOGNITION">Face Recognition</option>
+                </select>
+            </div>
+            <div class="ml-filter-group">
+                <label for="filter-status">Status:</label>
+                <select id="filter-status" class="ml-select">
+                    <option value="">All Status</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="TRAINING">Training</option>
+                    <option value="ARCHIVED">Archived</option>
+                </select>
+            </div>
+            <div class="ml-search-group">
+                <input type="text" placeholder="Search datasets..." class="ml-search-input">
+                <i class="material-icons">search</i>
+            </div>
+        </div>
+        <div class="ml-view-toggle">
+            <button class="ml-view-btn active" data-view="grid">
+                <i class="material-icons">view_module</i>
+            </button>
+            <button class="ml-view-btn" data-view="list">
+                <i class="material-icons">view_list</i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Datasets Grid -->
+    <div class="ml-datasets-container" id="datasets-grid">
+        {% if page_obj %}
+            {% for dataset in page_obj %}
+            <div class="ml-dataset-card" data-type="{{ dataset.dataset_type }}" data-status="{{ dataset.status }}">
+                <div class="ml-dataset-header">
+                    <div class="ml-dataset-type">
+                        {% if dataset.dataset_type == "OCR_METERS" %}
+                            <i class="material-icons">speed</i>
+                        {% elif dataset.dataset_type == "OCR_LICENSE_PLATES" %}
+                            <i class="material-icons">directions_car</i>
+                        {% else %}
+                            <i class="material-icons">photo_library</i>
+                        {% endif %}
+                    </div>
+                    <div class="ml-dataset-menu">
+                        <button class="ml-menu-btn">
+                            <i class="material-icons">more_vert</i>
+                        </button>
+                        <div class="ml-dropdown-menu">
+                            <a href="{% url 'ml_training:dataset_detail' dataset.id %}">View Details</a>
+                            <a href="{% url 'ml_training:dataset_upload' dataset.id %}">Upload Images</a>
+                            <a href="#" class="ml-export-dataset">Export Dataset</a>
+                            <div class="ml-dropdown-divider"></div>
+                            <a href="#" class="ml-archive-dataset text-warning">Archive</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-dataset-content">
+                    <h3 class="ml-dataset-title">
+                        <a href="{% url 'ml_training:dataset_detail' dataset.id %}">{{ dataset.name }}</a>
+                    </h3>
+                    <p class="ml-dataset-description">{{ dataset.description|truncatechars:100 }}</p>
+
+                    <div class="ml-dataset-stats">
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value">{{ dataset.total_examples|default:0 }}</span>
+                            <span class="ml-stat-name">Examples</span>
+                        </div>
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value">{{ dataset.labeled_examples|default:0 }}</span>
+                            <span class="ml-stat-name">Labeled</span>
+                        </div>
+                        <div class="ml-stat-item">
+                            <span class="ml-stat-value">{{ dataset.quality_score|default:0|floatformat:1 }}%</span>
+                            <span class="ml-stat-name">Quality</span>
+                        </div>
+                    </div>
+
+                    <div class="ml-dataset-progress">
+                        <div class="ml-progress-header">
+                            <span class="ml-progress-label">Completion</span>
+                            <span class="ml-progress-value">{{ dataset.completion_percentage|default:0|floatformat:1 }}%</span>
+                        </div>
+                        <div class="ml-progress-bar">
+                            <div class="ml-progress-fill" style="width: {{ dataset.completion_percentage|default:0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-dataset-footer">
+                    <div class="ml-dataset-meta">
+                        <span class="ml-dataset-date">
+                            <i class="material-icons">schedule</i>
+                            {{ dataset.created_at|date:"M d, Y" }}
+                        </span>
+                        <span class="ml-dataset-creator">
+                            <i class="material-icons">person</i>
+                            {{ dataset.created_by.peoplename|default:"System" }}
+                        </span>
+                    </div>
+                    <div class="ml-dataset-status">
+                        {% if dataset.status == "ACTIVE" %}
+                            <span class="ml-status-badge ml-status-success">Active</span>
+                        {% elif dataset.status == "TRAINING" %}
+                            <span class="ml-status-badge ml-status-warning">Training</span>
+                        {% elif dataset.status == "ARCHIVED" %}
+                            <span class="ml-status-badge ml-status-neutral">Archived</span>
+                        {% else %}
+                            <span class="ml-status-badge ml-status-info">{{ dataset.status }}</span>
+                        {% endif %}
+
+                        {% if dataset.is_ready_for_training %}
+                            <span class="ml-ready-indicator" title="Ready for training">
+                                <i class="material-icons">rocket_launch</i>
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="ml-empty-state">
+                <div class="ml-empty-icon">
+                    <i class="material-icons">dataset</i>
+                </div>
+                <h3 class="ml-empty-title">No datasets yet</h3>
+                <p class="ml-empty-description">
+                    Create your first training dataset to start building machine learning models.
+                </p>
+                <a href="{% url 'ml_training:dataset_create' %}" class="ml-btn ml-btn-primary">
+                    <i class="material-icons">add</i>
+                    Create Your First Dataset
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="ml-pagination">
+        <div class="ml-pagination-info">
+            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} datasets
+        </div>
+        <div class="ml-pagination-controls">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="ml-pagination-btn">
+                    <i class="material-icons">first_page</i>
+                </a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="ml-pagination-btn">
+                    <i class="material-icons">chevron_left</i>
+                </a>
+            {% endif %}
+
+            <span class="ml-pagination-current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="ml-pagination-btn">
+                    <i class="material-icons">chevron_right</i>
+                </a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="ml-pagination-btn">
+                    <i class="material-icons">last_page</i>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Performance Analytics Modal -->
+<div id="analytics-modal" class="ml-modal">
+    <div class="ml-modal-content">
+        <div class="ml-modal-header">
+            <h3>Dataset Performance Analytics</h3>
+            <button class="ml-modal-close">
+                <i class="material-icons">close</i>
+            </button>
+        </div>
+        <div class="ml-modal-body">
+            <div class="ml-analytics-placeholder">
+                <i class="material-icons">analytics</i>
+                <p>Performance charts will be displayed here</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dataset dashboard functionality
+    initializeDatasetDashboard();
+});
+
+function initializeDatasetDashboard() {
+    // Animate statistics counters
+    animateCounters();
+
+    // Initialize filters
+    initializeFilters();
+
+    // Initialize view toggle
+    initializeViewToggle();
+
+    // Initialize dropdown menus
+    initializeDropdownMenus();
+
+    // Initialize search
+    initializeSearch();
+}
+
+function initializeFilters() {
+    const typeFilter = document.getElementById('filter-type');
+    const statusFilter = document.getElementById('filter-status');
+
+    [typeFilter, statusFilter].forEach(filter => {
+        if (filter) {
+            filter.addEventListener('change', filterDatasets);
+        }
+    });
+}
+
+function filterDatasets() {
+    const typeFilter = document.getElementById('filter-type').value;
+    const statusFilter = document.getElementById('filter-status').value;
+    const cards = document.querySelectorAll('.ml-dataset-card');
+
+    cards.forEach(card => {
+        const cardType = card.dataset.type;
+        const cardStatus = card.dataset.status;
+
+        const typeMatch = !typeFilter || cardType === typeFilter;
+        const statusMatch = !statusFilter || cardStatus === statusFilter;
+
+        if (typeMatch && statusMatch) {
+            card.style.display = 'block';
+            card.style.animation = 'fadeIn 0.3s ease-in-out';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function initializeViewToggle() {
+    const viewButtons = document.querySelectorAll('.ml-view-btn');
+    const container = document.getElementById('datasets-grid');
+
+    viewButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            viewButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const view = this.dataset.view;
+            container.className = view === 'list' ? 'ml-datasets-list' : 'ml-datasets-container';
+        });
+    });
+}
+
+function initializeDropdownMenus() {
+    const menuBtns = document.querySelectorAll('.ml-menu-btn');
+
+    menuBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const dropdown = this.nextElementSibling;
+
+            // Close other dropdowns
+            document.querySelectorAll('.ml-dropdown-menu').forEach(menu => {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            dropdown.classList.toggle('show');
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.ml-dropdown-menu').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    });
+}
+
+function initializeSearch() {
+    const searchInput = document.querySelector('.ml-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const cards = document.querySelectorAll('.ml-dataset-card');
+
+            cards.forEach(card => {
+                const title = card.querySelector('.ml-dataset-title a').textContent.toLowerCase();
+                const description = card.querySelector('.ml-dataset-description').textContent.toLowerCase();
+
+                if (title.includes(query) || description.includes(query)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    }
+}
+</script>
+
+<style>
+/* Dataset List Specific Styles */
+.ml-datasets-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.ml-datasets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.ml-datasets-list .ml-dataset-card {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    height: auto;
+}
+
+.ml-dataset-card {
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    border: 1px solid var(--ml-border-light);
+    box-shadow: var(--ml-shadow-card);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 380px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ml-dataset-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--ml-shadow-hover);
+    border-color: var(--ml-primary);
+}
+
+.ml-dataset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 20px 0;
+}
+
+.ml-dataset-type {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--ml-border-radius);
+    background: var(--ml-gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.ml-dataset-menu {
+    position: relative;
+}
+
+.ml-menu-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: var(--ml-border-radius);
+    color: var(--ml-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ml-menu-btn:hover {
+    background: var(--ml-bg-hover);
+    color: var(--ml-text-primary);
+}
+
+.ml-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    box-shadow: var(--ml-shadow-dropdown);
+    min-width: 160px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+}
+
+.ml-dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.ml-dropdown-menu a {
+    display: block;
+    padding: 12px 16px;
+    color: var(--ml-text-primary);
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.ml-dropdown-menu a:hover {
+    background: var(--ml-bg-hover);
+}
+
+.ml-dropdown-divider {
+    height: 1px;
+    background: var(--ml-border-light);
+    margin: 4px 0;
+}
+
+.ml-dataset-content {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ml-dataset-title a {
+    color: var(--ml-text-primary);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.125rem;
+    line-height: 1.4;
+}
+
+.ml-dataset-title a:hover {
+    color: var(--ml-primary);
+}
+
+.ml-dataset-description {
+    color: var(--ml-text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ml-dataset-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.ml-stat-item {
+    text-align: center;
+}
+
+.ml-stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ml-primary);
+    line-height: 1;
+}
+
+.ml-stat-name {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+}
+
+.ml-dataset-progress {
+    margin-top: auto;
+}
+
+.ml-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.ml-progress-label {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+}
+
+.ml-progress-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+}
+
+.ml-dataset-footer {
+    padding: 20px;
+    border-top: 1px solid var(--ml-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ml-dataset-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ml-dataset-date,
+.ml-dataset-creator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+.ml-dataset-date .material-icons,
+.ml-dataset-creator .material-icons {
+    font-size: 14px;
+}
+
+.ml-dataset-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ml-ready-indicator {
+    color: var(--ml-success);
+    display: flex;
+    align-items: center;
+}
+
+.ml-ready-indicator .material-icons {
+    font-size: 16px;
+}
+
+/* Toolbar Styles */
+.ml-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 32px;
+    padding: 20px 24px;
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    border: 1px solid var(--ml-border-light);
+}
+
+.ml-filters {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.ml-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ml-filter-group label {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+    white-space: nowrap;
+}
+
+.ml-select {
+    padding: 8px 12px;
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    background: var(--ml-bg-primary);
+    color: var(--ml-text-primary);
+    font-size: 0.875rem;
+    min-width: 120px;
+}
+
+.ml-search-group {
+    position: relative;
+}
+
+.ml-search-input {
+    padding: 8px 12px 8px 40px;
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    background: var(--ml-bg-primary);
+    color: var(--ml-text-primary);
+    font-size: 0.875rem;
+    width: 240px;
+}
+
+.ml-search-group .material-icons {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ml-text-secondary);
+    font-size: 18px;
+}
+
+.ml-view-toggle {
+    display: flex;
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    overflow: hidden;
+}
+
+.ml-view-btn {
+    padding: 8px 12px;
+    background: var(--ml-bg-primary);
+    border: none;
+    color: var(--ml-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ml-view-btn:hover,
+.ml-view-btn.active {
+    background: var(--ml-primary);
+    color: white;
+}
+
+/* Empty State */
+.ml-empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    grid-column: 1 / -1;
+}
+
+.ml-empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--ml-gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    color: white;
+}
+
+.ml-empty-icon .material-icons {
+    font-size: 40px;
+}
+
+.ml-empty-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+    margin: 0 0 8px;
+}
+
+.ml-empty-description {
+    color: var(--ml-text-secondary);
+    font-size: 1rem;
+    margin: 0 0 32px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .ml-toolbar {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+
+    .ml-filters {
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .ml-datasets-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .ml-dataset-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ml-search-input {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

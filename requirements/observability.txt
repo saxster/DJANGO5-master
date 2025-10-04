@@ -1,0 +1,23 @@
+# Observability and Tracing Dependencies
+# OpenTelemetry for distributed tracing
+
+# OpenTelemetry Core
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation==0.42b0
+
+# Django instrumentation
+opentelemetry-instrumentation-django==0.42b0
+opentelemetry-instrumentation-requests==0.42b0
+opentelemetry-instrumentation-psycopg2==0.42b0
+opentelemetry-instrumentation-redis==0.42b0
+
+# Celery instrumentation
+opentelemetry-instrumentation-celery==0.42b0
+
+# Exporters (choose based on backend)
+opentelemetry-exporter-jaeger==1.21.0
+opentelemetry-exporter-otlp==1.21.0
+
+# Structured logging
+python-json-logger==2.0.7

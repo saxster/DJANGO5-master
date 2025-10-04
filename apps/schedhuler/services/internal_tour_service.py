@@ -18,7 +18,7 @@ from datetime import datetime
 
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 
 from apps.core.services.base_service import BaseService
 from apps.core.services.transaction_manager import with_transaction
@@ -202,8 +202,8 @@ class InternalTourService(BaseService):
             queryset = self.model.objects.select_related(
                 'people', 'asset', 'pgroup'
             ).filter(
-                identifier=Job.Identifier.INTERNALTOUR,
-                parent__isnull=True
+                Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling (must be first)
+                identifier=Job.Identifier.INTERNALTOUR
             )
 
             if filters:

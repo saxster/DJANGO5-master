@@ -29,6 +29,7 @@ from apps.core.decorators import csrf_protect_ajax, rate_limit
 from apps.core.services.async_pdf_service import AsyncPDFGenerationService
 from apps.core.services.async_api_service import AsyncExternalAPIService
 from apps.core.utils_new.sql_security import QueryValidator
+from apps.core.utils_new.sse_cors_utils import get_secure_sse_cors_headers
 
 
 logger = logging.getLogger(__name__)
@@ -296,7 +297,26 @@ class TaskProgressStreamView(LoginRequiredMixin, View):
         )
         response['Cache-Control'] = 'no-cache'
         response['Connection'] = 'keep-alive'
-        response['Access-Control-Allow-Origin'] = '*'
+
+        # SECURITY FIX: Use secure CORS validation instead of wildcard (CVSS 8.1 vulnerability)
+        # Wildcard CORS with credentials allows any origin to access SSE stream, enabling CSRF attacks
+        cors_headers = get_secure_sse_cors_headers(request)
+        if cors_headers:
+            for key, value in cors_headers.items():
+                response[key] = value
+        else:
+            # Origin blocked - log security event and return error
+            logger.warning(
+                "SSE task progress stream from unauthorized origin blocked",
+                extra={
+                    'origin': request.META.get('HTTP_ORIGIN'),
+                    'path': request.path,
+                    'task_id': task_id,
+                    'user_id': request.user.id if request.user.is_authenticated else None,
+                    'security_event': 'sse_task_stream_cors_violation'
+                }
+            )
+            return JsonResponse({'error': 'Unauthorized origin'}, status=403)
 
         return response
 

@@ -6,6 +6,8 @@ from django.contrib import admin
 from django.conf import settings
 from django.urls import path, include
 from django.conf.urls.static import static
+from django.conf.urls.i18n import i18n_patterns
+from django.views.i18n import JavaScriptCatalog
 from django.views.generic import TemplateView, RedirectView
 # from django.views.decorators.csrf import csrf_exempt  # Removed: CSRF protection now handled by middleware
 from django.contrib.auth.decorators import login_required
@@ -48,6 +50,12 @@ urlpatterns = [
     # People (Directory, Attendance, Groups, Expenses)
     path('people/', include('apps.core.urls_people')),
 
+    # People Onboarding (Employee/Contractor onboarding workflow)
+    path('people-onboarding/', include('apps.people_onboarding.urls')),
+
+    # NOC (Network Operations Center)
+    path('noc/', include('apps.noc.urls')),
+
     # Journal & Wellness (Personal journaling with privacy controls and evidence-based wellness education)
     path('journal/', include('apps.journal.urls')),
     path('wellness/', include('apps.wellness.urls')),
@@ -68,23 +76,36 @@ urlpatterns = [
     # ========== API ENDPOINTS ==========
     # REST API v1 (current stable)
     path('api/v1/', include('apps.service.rest_service.urls')),
+    path('api/v1/sync/', include('apps.api.v1.urls')),  # Mobile Sync API (Sprint 2)
     path('api/v1/onboarding/', include('apps.onboarding_api.urls')),  # Conversational Onboarding API (Phase 1 MVP)
     path('api/v1/journal/', include('apps.journal.urls')),  # Journal & Wellness API endpoints
     path('api/v1/wellness/', include('apps.wellness.urls')),  # Wellness education API endpoints
+    path('api/v1/search/', include(('apps.search.urls', 'search'))),  # Global Cross-Domain Search API
+    path('api/v1/helpbot/', include('apps.helpbot.urls')),  # AI HelpBot API endpoints
+    path('', include('apps.core.urls.cron_management')),  # Unified Cron Management API
+    path('api/noc/', include('apps.noc.urls')),  # NOC API endpoints
 
     # REST API v2 (planned for 2026-06-30)
     path('api/v2/', include('apps.service.rest_service.v2.urls')),
 
     # GraphQL endpoints with CSRF protection (vulnerability fix: CVSS 8.1)
     # CSRF protection is now handled by GraphQLCSRFProtectionMiddleware
-    path('api/graphql/', FileUploadGraphQLView.as_view(graphiql=True)),
-    path('graphql/', FileUploadGraphQLView.as_view(graphiql=True)),  # With trailing slash
-    path('graphql', FileUploadGraphQLView.as_view(graphiql=True)),   # Without trailing slash
+    # Security: graphiql interface disabled in production (CVSS 7.5 - Information Disclosure)
+    path('api/graphql/', FileUploadGraphQLView.as_view(
+        graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
+    )),
+    path('graphql/', FileUploadGraphQLView.as_view(
+        graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
+    )),  # With trailing slash
+    path('graphql', FileUploadGraphQLView.as_view(
+        graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
+    )),   # Without trailing slash
     path('api/upload/att_file/', SecureUploadFile.as_view()),
     
     # ========== MONITORING & HEALTH ==========
     path('monitoring/', include('monitoring.urls')),
     path('security/', include('apps.core.urls_security')),  # Security monitoring dashboard (CVSS 8.1 fix)
+    path('api/spatial-performance/', include('apps.core.urls.spatial_performance_urls')),  # GPS/Geolocation performance monitoring
 
     # API lifecycle management (Admin-only)
     path('', include('apps.core.urls_api_lifecycle')),  # API deprecation and versioning dashboards
@@ -145,6 +166,10 @@ LEGACY_PATTERNS = [
     path('y_helpdesk/', include(('apps.y_helpdesk.urls', 'helpdesk'), namespace='y_helpdesk')),
     path('clientbilling/', include('apps.clientbilling.urls')),
     # reminder app removed
+
+    # ========== INTERNATIONALIZATION ==========
+    path('i18n/', include('django.conf.urls.i18n')),  # Language switching URLs
+    path('jsi18n/', JavaScriptCatalog.as_view(packages=['apps.core', 'apps.peoples', 'apps.onboarding', 'apps.schedhuler']), name='javascript-catalog'),
 ]
 
 # Add legacy patterns only if feature flag is enabled

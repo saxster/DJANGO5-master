@@ -9,6 +9,7 @@ import time
 import os
 from django.utils import timezone
 from django.db import connection
+from django.db import OperationalError, ProgrammingError, DatabaseError
 import threading
 
 
@@ -38,6 +39,8 @@ class ProductionMonitor:
         uptime = time.time() - self.start_time
 
         # Get database metrics
+        logger = logging.getLogger(__name__)
+
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -45,7 +48,17 @@ class ProductionMonitor:
                 )
                 active_sessions = cursor.fetchone()[0]
 
-        except:
+        except OperationalError as e:
+            logger.warning(f"Database operational error getting active sessions: {e}")
+            active_sessions = 0
+        except ProgrammingError as e:
+            logger.error(f"Database programming error getting active sessions: {e}")
+            active_sessions = 0
+        except DatabaseError as e:
+            logger.error(f"Database error getting active sessions: {e}")
+            active_sessions = 0
+        except Exception as e:
+            logger.exception(f"Unexpected error getting active sessions: {e}")
             active_sessions = 0
 
         return {

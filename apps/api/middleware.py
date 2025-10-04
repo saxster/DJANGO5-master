@@ -405,6 +405,10 @@ class APISecurityMiddleware(MiddlewareMixin):
     def process_response(self, request, response):
         """
         Add security headers to API responses.
+
+        SECURITY NOTE: CORS headers are managed by django-cors-headers middleware.
+        DO NOT set Access-Control-Allow-Origin here as it conflicts with
+        CORS_ALLOW_CREDENTIALS = True and can bypass domain restrictions.
         """
         if request.path.startswith('/api/'):
             # Security headers
@@ -412,15 +416,15 @@ class APISecurityMiddleware(MiddlewareMixin):
             response['X-Frame-Options'] = 'DENY'
             response['X-XSS-Protection'] = '1; mode=block'
             response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-            
-            # CORS headers (if not already set)
-            if 'Access-Control-Allow-Origin' not in response:
-                response['Access-Control-Allow-Origin'] = '*'
-            
+
+            # CORS headers: Managed by django-cors-headers middleware (corsheaders.middleware.CorsMiddleware)
+            # Configuration: intelliwiz_config/settings/security/cors.py
+            # DO NOT set wildcard CORS headers here - security vulnerability!
+
             # Remove sensitive headers
             response.pop('Server', None)
             response.pop('X-Powered-By', None)
-        
+
         return response
 
 

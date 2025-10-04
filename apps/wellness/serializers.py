@@ -12,10 +12,11 @@ Comprehensive serializers for wellness education system with:
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import WellnessContent, WellnessUserProgress, WellnessContentInteraction
-import logging
+from apps.journal.serializers.pii_redaction_mixin import PIIRedactionMixin
+from apps.wellness.logging import get_wellness_logger
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
+logger = get_wellness_logger(__name__)
 
 
 class WellnessContentListSerializer(serializers.ModelSerializer):
@@ -156,8 +157,11 @@ class WellnessContentDetailSerializer(serializers.ModelSerializer):
         return value
 
 
-class WellnessUserProgressSerializer(serializers.ModelSerializer):
+class WellnessUserProgressSerializer(PIIRedactionMixin, serializers.ModelSerializer):
     """Serializer for user wellness progress and gamification"""
+
+    # PII redaction configuration
+    PII_ADMIN_FIELDS = ['user_name']  # Partially redact for admins
 
     user_name = serializers.CharField(source='user.peoplename', read_only=True)
     is_active_user = serializers.BooleanField(read_only=True)
@@ -274,8 +278,12 @@ class WellnessUserProgressSerializer(serializers.ModelSerializer):
         return value
 
 
-class WellnessContentInteractionSerializer(serializers.ModelSerializer):
+class WellnessContentInteractionSerializer(PIIRedactionMixin, serializers.ModelSerializer):
     """Serializer for wellness content interactions"""
+
+    # PII redaction configuration
+    PII_FIELDS = ['user_feedback', 'journal_entry_title']  # Always redact for non-owners
+    PII_ADMIN_FIELDS = ['user_name']  # Partially redact for admins
 
     user_name = serializers.CharField(source='user.peoplename', read_only=True)
     content_title = serializers.CharField(source='content.title', read_only=True)

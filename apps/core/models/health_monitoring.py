@@ -77,7 +77,7 @@ class ServiceAvailability(models.Model):
         default=100.0,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -138,7 +138,7 @@ class AlertThreshold(models.Model):
     threshold_value = models.FloatField()
     enabled = models.BooleanField(default=True)
     description = models.TextField(blank=True)
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

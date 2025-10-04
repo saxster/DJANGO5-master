@@ -9,6 +9,12 @@ from django.core.signals import Signal
 from django.dispatch import receiver
 from celery import shared_task
 
+# Import enhanced base classes and utilities
+from apps.core.tasks.base import (
+    BaseTask, ExternalServiceTask, TaskMetrics, log_task_context
+)
+from apps.core.tasks.utils import task_retry_policy
+
 from apps.attendance.models import PeopleEventlog
 from .enhanced_engine import EnhancedFaceRecognitionEngine
 from .analytics import AttendanceAnalyticsEngine
@@ -462,30 +468,80 @@ class AIAttendanceIntegration:
             logger.error(f"Error storing processing results: {str(e)}", exc_info=True)
 
 
-# Celery task for asynchronous AI processing
-@shared_task(bind=True, max_retries=3)
+# Enhanced Celery task for asynchronous biometric processing
+@shared_task(
+    base=ExternalServiceTask,
+    bind=True,
+    queue='high_priority',
+    priority=8,
+    **task_retry_policy('external_api')
+)
 def process_attendance_async(self, attendance_id: int, image_path: Optional[str] = None):
-    """Asynchronously process attendance with AI pipeline"""
-    try:
-        attendance = PeopleEventlog.objects.get(id=attendance_id)
-        integration = AIAttendanceIntegration()
-        
-        results = integration.process_attendance_with_ai(
-            attendance=attendance,
-            image_path=image_path,
-            enable_all_checks=True
-        )
-        
-        logger.info(f"Async AI processing completed for attendance {attendance_id}")
-        return results
-        
-    except PeopleEventlog.DoesNotExist:
-        logger.error(f"Attendance record {attendance_id} not found")
-        return {'error': 'Attendance record not found'}
-    except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-        logger.error(f"Error in async AI processing: {str(e)}")
-        # Retry the task
-        raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
+    """
+    HIGH PRIORITY: Asynchronously process attendance with AI biometric pipeline.
+
+    Critical for access control and attendance verification.
+    Uses circuit breaker pattern for AI service calls.
+
+    Args:
+        attendance_id: ID of attendance record to process
+        image_path: Optional path to biometric image
+
+    Returns:
+        dict: Processing results with verification status
+    """
+
+    with self.task_context(attendance_id=attendance_id, has_image=bool(image_path)):
+        log_task_context('process_attendance_async',
+                        attendance_id=attendance_id,
+                        has_image=bool(image_path))
+
+        # Record biometric task metrics
+        TaskMetrics.increment_counter('biometric_processing_started', {
+            'domain': 'access_control',
+            'has_image': str(bool(image_path))
+        })
+
+        try:
+            attendance = PeopleEventlog.objects.select_related('people').get(id=attendance_id)
+
+            # Use circuit breaker for AI service calls
+            with self.external_service_call('biometric_ai_service', timeout=30):
+                integration = AIAttendanceIntegration()
+
+                results = integration.process_attendance_with_ai(
+                    attendance=attendance,
+                    image_path=image_path,
+                    enable_all_checks=True
+                )
+
+            # Record processing success
+            TaskMetrics.increment_counter('biometric_processing_success', {
+                'verification_status': results.get('status', 'unknown')
+            })
+
+            logger.info(f"Biometric processing completed for attendance {attendance_id}: {results.get('status')}")
+
+            return {
+                'success': True,
+                'attendance_id': attendance_id,
+                'processing_results': results,
+                'timestamp': timezone.now().isoformat()
+            }
+
+        except PeopleEventlog.DoesNotExist:
+            logger.error(f"Attendance record not found: {attendance_id}")
+            TaskMetrics.increment_counter('biometric_processing_error', {'error': 'record_not_found'})
+            return {
+                'success': False,
+                'error': 'attendance_record_not_found',
+                'attendance_id': attendance_id
+            }
+
+        except Exception as exc:
+            logger.error(f"Biometric processing failed for attendance {attendance_id}: {exc}")
+            TaskMetrics.increment_counter('biometric_processing_error', {'error': 'processing_failed'})
+            raise  # Let ExternalServiceTask handle circuit breaker and retries
 
 
 # Signal handlers for real-time integration

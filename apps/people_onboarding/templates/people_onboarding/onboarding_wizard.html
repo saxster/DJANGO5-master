@@ -1,0 +1,872 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+{% load static %}
+
+{% block page_title %}Onboarding Wizard{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item text-muted">Onboarding Wizard</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Wizard Progress Header -->
+    <div class="card card-flush mb-5">
+        <div class="card-body py-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-2 fw-bold">{{ request_obj.get_person_type_display }} Onboarding</h1>
+                    <p class="text-muted mb-0">
+                        Request #{{ request_obj.request_number }}
+                        {% include "people_onboarding/partials/_status_badge.html" with state=request_obj.current_state %}
+                    </p>
+                </div>
+                <div class="auto-save-indicator" id="autoSaveStatus">
+                    <i class="bi bi-cloud-check text-success"></i>
+                    <span class="text-muted ms-2">All changes saved</span>
+                </div>
+            </div>
+
+            <!-- Step Progress Indicator -->
+            <div class="wizard-nav" id="wizardNav">
+                <div class="wizard-step wizard-step-active" data-step="1">
+                    <div class="wizard-step-icon">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div class="wizard-step-label">
+                        <div class="wizard-step-number">Step 1</div>
+                        <div class="wizard-step-title">Basic Information</div>
+                    </div>
+                </div>
+                <div class="wizard-step-line"></div>
+                <div class="wizard-step" data-step="2">
+                    <div class="wizard-step-icon">
+                        <i class="bi bi-geo-alt-fill"></i>
+                    </div>
+                    <div class="wizard-step-label">
+                        <div class="wizard-step-number">Step 2</div>
+                        <div class="wizard-step-title">Address & Background</div>
+                    </div>
+                </div>
+                <div class="wizard-step-line"></div>
+                <div class="wizard-step" data-step="3">
+                    <div class="wizard-step-icon">
+                        <i class="bi bi-file-earmark-text-fill"></i>
+                    </div>
+                    <div class="wizard-step-label">
+                        <div class="wizard-step-number">Step 3</div>
+                        <div class="wizard-step-title">Documents</div>
+                    </div>
+                </div>
+                <div class="wizard-step-line"></div>
+                <div class="wizard-step" data-step="4">
+                    <div class="wizard-step-icon">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="wizard-step-label">
+                        <div class="wizard-step-number">Step 4</div>
+                        <div class="wizard-step-title">Review & Submit</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post"
+          enctype="multipart/form-data"
+          id="onboardingWizardForm"
+          data-request-uuid="{{ request_obj.uuid }}"
+          novalidate>
+        {% csrf_token %}
+
+        <!-- Step 1: Basic Information -->
+        <div class="wizard-content" data-step="1">
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-person-fill text-primary me-2"></i>
+                        Basic Information
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <!-- Photo Upload -->
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">Candidate Photo</label>
+                            <div class="photo-upload-container">
+                                <div class="photo-preview-wrapper" id="photoPreview">
+                                    {% if profile.photo %}
+                                    <img src="{{ profile.photo.url }}" alt="Candidate Photo" class="photo-preview-img">
+                                    {% else %}
+                                    <div class="photo-preview-placeholder">
+                                        <i class="bi bi-person-circle" style="font-size: 4rem;"></i>
+                                        <p class="text-muted mt-2 mb-0">Upload Photo</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {{ form.photo }}
+                                <button type="button" class="btn btn-sm btn-light-primary mt-3 w-100"
+                                        onclick="$('#id_photo').click()">
+                                    <i class="bi bi-upload me-2"></i>Choose Photo
+                                </button>
+                                <small class="text-muted d-block mt-2">
+                                    Max 2MB, JPG or PNG only
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Name Fields -->
+                        <div class="col-12 col-md-8">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-4">
+                                    <label for="id_first_name" class="form-label fw-bold required">
+                                        First Name
+                                    </label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.first_name.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label for="id_middle_name" class="form-label fw-bold">
+                                        Middle Name
+                                    </label>
+                                    {{ form.middle_name }}
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label for="id_last_name" class="form-label fw-bold required">
+                                        Last Name
+                                    </label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.last_name.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mt-2">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_date_of_birth" class="form-label fw-bold required">
+                                        Date of Birth
+                                    </label>
+                                    {{ form.date_of_birth }}
+                                    {% if form.date_of_birth.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.date_of_birth.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <small class="text-muted">Must be 18+ years old</small>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_gender" class="form-label fw-bold required">
+                                        Gender
+                                    </label>
+                                    {{ form.gender }}
+                                    {% if form.gender.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.gender.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="col-12">
+                            <div class="separator separator-dashed my-5"></div>
+                            <h4 class="mb-4">Contact Information</h4>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_primary_email" class="form-label fw-bold required">
+                                Primary Email
+                            </label>
+                            {{ form.primary_email }}
+                            {% if form.primary_email.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.primary_email.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_confirm_email" class="form-label fw-bold required">
+                                Confirm Email
+                            </label>
+                            {{ form.confirm_email }}
+                            {% if form.confirm_email.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.confirm_email.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_primary_phone" class="form-label fw-bold required">
+                                Primary Phone
+                            </label>
+                            {{ form.primary_phone }}
+                            {% if form.primary_phone.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.primary_phone.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_secondary_phone" class="form-label fw-bold">
+                                Secondary Phone (Optional)
+                            </label>
+                            {{ form.secondary_phone }}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_secondary_email" class="form-label fw-bold">
+                                Secondary Email (Optional)
+                            </label>
+                            {{ form.secondary_email }}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_preferred_language" class="form-label fw-bold">
+                                Preferred Language
+                            </label>
+                            {{ form.preferred_language }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Address & Background -->
+        <div class="wizard-content d-none" data-step="2">
+            <div class="card card-flush mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-geo-alt-fill text-primary me-2"></i>
+                        Current Address
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <label for="id_current_address" class="form-label fw-bold required">
+                                Street Address
+                            </label>
+                            {{ form.current_address }}
+                            {% if form.current_address.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.current_address.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_city" class="form-label fw-bold required">
+                                City
+                            </label>
+                            {{ form.city }}
+                            {% if form.city.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.city.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_state" class="form-label fw-bold required">
+                                State/Province
+                            </label>
+                            {{ form.state }}
+                            {% if form.state.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.state.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_postal_code" class="form-label fw-bold required">
+                                Postal Code
+                            </label>
+                            {{ form.postal_code }}
+                            {% if form.postal_code.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.postal_code.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_country" class="form-label fw-bold required">
+                                Country
+                            </label>
+                            {{ form.country }}
+                            {% if form.country.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.country.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-mortarboard-fill text-primary me-2"></i>
+                        Professional Background
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-12 col-md-6">
+                            <label for="id_highest_education" class="form-label fw-bold required">
+                                Highest Education
+                            </label>
+                            {{ form.highest_education }}
+                            {% if form.highest_education.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.highest_education.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_total_experience_years" class="form-label fw-bold">
+                                Total Experience (Years)
+                            </label>
+                            {{ form.total_experience_years }}
+                            {% if form.total_experience_years.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.total_experience_years.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_current_company" class="form-label fw-bold">
+                                Current/Last Company
+                            </label>
+                            {{ form.current_company }}
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="id_current_designation" class="form-label fw-bold">
+                                Current/Last Designation
+                            </label>
+                            {{ form.current_designation }}
+                        </div>
+
+                        <div class="col-12">
+                            <label for="id_linkedin_url" class="form-label fw-bold">
+                                LinkedIn Profile URL
+                            </label>
+                            {{ form.linkedin_url }}
+                            <small class="text-muted d-block mt-1">
+                                https://linkedin.com/in/your-profile
+                            </small>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="id_skills" class="form-label fw-bold">
+                                Key Skills (comma-separated)
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="id_skills"
+                                   name="skills"
+                                   value="{{ profile.skills|default:'' }}"
+                                   placeholder="e.g., Python, Project Management, SQL">
+                            <small class="text-muted">
+                                Enter skills separated by commas
+                            </small>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="id_certifications" class="form-label fw-bold">
+                                Certifications (comma-separated)
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="id_certifications"
+                                   name="certifications"
+                                   value="{{ profile.certifications|default:'' }}"
+                                   placeholder="e.g., PMP, AWS Certified, Six Sigma">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Documents -->
+        <div class="wizard-content d-none" data-step="3">
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-file-earmark-text-fill text-primary me-2"></i>
+                        Required Documents
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info d-flex align-items-center mb-5">
+                        <i class="bi bi-info-circle-fill fs-2 me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Document Requirements</h5>
+                            <p class="mb-0">
+                                Please upload clear, legible copies of all required documents.
+                                Supported formats: PDF, JPG, PNG. Maximum file size: 10MB per document.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Document Upload Zone -->
+                    <div id="documentUploadContainer">
+                        {% include "people_onboarding/partials/_file_upload_zone.html" with field_name="documents" multiple=True max_size=10485760 allowed_types="application/pdf,image/jpeg,image/png" %}
+                    </div>
+
+                    <!-- Uploaded Documents List -->
+                    <div class="mt-5" id="uploadedDocumentsList">
+                        <h4 class="mb-4">Uploaded Documents ({{ documents|length }})</h4>
+                        {% if documents %}
+                        <div class="row g-3">
+                            {% for doc in documents %}
+                            <div class="col-12 col-md-6">
+                                {% include "people_onboarding/partials/_document_card.html" with document=doc show_actions=True %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-8">
+                            <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3 mb-0">No documents uploaded yet</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Review & Submit -->
+        <div class="wizard-content d-none" data-step="4">
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Review & Submit
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning d-flex align-items-center mb-5">
+                        <i class="bi bi-exclamation-triangle-fill fs-2 me-3"></i>
+                        <div>
+                            <h5 class="mb-1">Please Review Carefully</h5>
+                            <p class="mb-0">
+                                Please review all information below before submitting.
+                                After submission, changes will require approval.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Candidate Profile Summary -->
+                    <div class="mb-5">
+                        <h4 class="mb-4">Candidate Profile</h4>
+                        {% include "people_onboarding/partials/_candidate_card.html" with profile=profile show_actions=False %}
+                    </div>
+
+                    <!-- Basic Information Summary -->
+                    <div class="card bg-light-primary mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-person-fill me-2"></i>
+                                Basic Information
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <strong>Full Name:</strong>
+                                    <span id="review_full_name"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Date of Birth:</strong>
+                                    <span id="review_dob"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Gender:</strong>
+                                    <span id="review_gender"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Primary Email:</strong>
+                                    <span id="review_primary_email"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Primary Phone:</strong>
+                                    <span id="review_primary_phone"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Preferred Language:</strong>
+                                    <span id="review_language"></span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-light-primary mt-3"
+                                    onclick="WizardApp.goToStep(1)">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Address Summary -->
+                    <div class="card bg-light-info mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-geo-alt-fill me-2"></i>
+                                Address
+                            </h5>
+                            <p id="review_full_address" class="mb-0"></p>
+                            <button type="button" class="btn btn-sm btn-light-info mt-3"
+                                    onclick="WizardApp.goToStep(2)">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Professional Background Summary -->
+                    <div class="card bg-light-success mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-mortarboard-fill me-2"></i>
+                                Professional Background
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <strong>Education:</strong>
+                                    <span id="review_education"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Experience:</strong>
+                                    <span id="review_experience"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Current Company:</strong>
+                                    <span id="review_company"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Current Designation:</strong>
+                                    <span id="review_designation"></span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-light-success mt-3"
+                                    onclick="WizardApp.goToStep(2)">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Documents Summary -->
+                    <div class="card bg-light-warning mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-file-earmark-text-fill me-2"></i>
+                                Documents (<span id="review_doc_count">0</span>)
+                            </h5>
+                            <div id="review_documents_list"></div>
+                            <button type="button" class="btn btn-sm btn-light-warning mt-3"
+                                    onclick="WizardApp.goToStep(3)">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Checkbox -->
+                    <div class="form-check form-check-custom form-check-solid mb-5">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="confirmAccuracy"
+                               required>
+                        <label class="form-check-label fw-bold" for="confirmAccuracy">
+                            I confirm that all information provided is accurate and complete to the best of my knowledge.
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Navigation -->
+        <div class="card card-flush mt-5">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button"
+                                class="btn btn-light me-3"
+                                id="prevStepBtn"
+                                onclick="WizardApp.previousStep()">
+                            <i class="bi bi-arrow-left me-2"></i>
+                            Previous
+                        </button>
+                        <a href="{% url 'people_onboarding:dashboard' %}"
+                           class="btn btn-light-danger">
+                            Cancel
+                        </a>
+                    </div>
+
+                    <div>
+                        <button type="button"
+                                class="btn btn-primary"
+                                id="nextStepBtn"
+                                onclick="WizardApp.nextStep()">
+                            Next
+                            <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                        <button type="submit"
+                                class="btn btn-success d-none"
+                                id="submitBtn">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Submit for Review
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Loading Overlay -->
+{% include "people_onboarding/partials/_loading_spinner.html" with fullscreen=True id="formLoadingOverlay" %}
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+// Wizard Application
+window.WizardApp = {
+    currentStep: 1,
+    totalSteps: 4,
+    autoSaveTimer: null,
+    requestUuid: '{{ request_obj.uuid }}',
+
+    init: function() {
+        this.initFormValidation();
+        this.initAutoSave();
+        this.initPhotoUpload();
+        this.bindEvents();
+        this.updateStepVisibility();
+    },
+
+    initFormValidation: function() {
+        FormValidator.init('#onboardingWizardForm', {
+            rules: {
+                first_name: { required: true, minLength: 2, maxLength: 50 },
+                last_name: { required: true, minLength: 2, maxLength: 50 },
+                date_of_birth: { required: true, age: 18 },
+                gender: { required: true },
+                primary_email: { required: true, email: true },
+                confirm_email: { required: true, equalTo: '#id_primary_email' },
+                primary_phone: { required: true, phone: true },
+                current_address: { required: true, minLength: 10 },
+                city: { required: true },
+                state: { required: true },
+                postal_code: { required: true },
+                country: { required: true },
+                highest_education: { required: true }
+            }
+        });
+    },
+
+    initAutoSave: function() {
+        const self = this;
+        this.autoSaveTimer = setInterval(function() {
+            self.autoSave();
+        }, OnboardingApp.config.autoSaveInterval);
+    },
+
+    autoSave: function() {
+        const formData = new FormData($('#onboardingWizardForm')[0]);
+        const data = {};
+        formData.forEach((value, key) => {
+            if (key !== 'csrfmiddlewaretoken') {
+                data[key] = value;
+            }
+        });
+
+        $('#autoSaveStatus').html('<i class="bi bi-cloud-upload text-warning"></i><span class="text-muted ms-2">Saving...</span>');
+
+        OnboardingApp.ajax.post(
+            OnboardingApp.config.apiBaseUrl + 'wizard/' + this.requestUuid + '/auto-save/',
+            data,
+            function(response) {
+                $('#autoSaveStatus').html('<i class="bi bi-cloud-check text-success"></i><span class="text-muted ms-2">All changes saved</span>');
+            },
+            function(error) {
+                $('#autoSaveStatus').html('<i class="bi bi-cloud-slash text-danger"></i><span class="text-muted ms-2">Auto-save failed</span>');
+            }
+        );
+    },
+
+    initPhotoUpload: function() {
+        $('#id_photo').on('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file
+                if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+                    OnboardingApp.toast.error('Only JPG and PNG images are allowed');
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    OnboardingApp.toast.error('Photo size must not exceed 2MB');
+                    return;
+                }
+
+                // Preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#photoPreview').html(`<img src="${e.target.result}" alt="Photo Preview" class="photo-preview-img">`);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    },
+
+    bindEvents: function() {
+        $('.wizard-step').on('click', function() {
+            const step = $(this).data('step');
+            if (step < WizardApp.currentStep) {
+                WizardApp.goToStep(step);
+            }
+        });
+    },
+
+    goToStep: function(step) {
+        if (step < 1 || step > this.totalSteps) return;
+
+        this.currentStep = step;
+        this.updateStepVisibility();
+
+        // Scroll to top
+        $('html, body').animate({ scrollTop: 0 }, 300);
+    },
+
+    nextStep: function() {
+        if (!this.validateCurrentStep()) {
+            OnboardingApp.toast.error('Please fix validation errors before proceeding');
+            return;
+        }
+
+        if (this.currentStep === 4) {
+            this.populateReviewSection();
+        }
+
+        if (this.currentStep < this.totalSteps) {
+            this.goToStep(this.currentStep + 1);
+        }
+    },
+
+    previousStep: function() {
+        if (this.currentStep > 1) {
+            this.goToStep(this.currentStep - 1);
+        }
+    },
+
+    validateCurrentStep: function() {
+        let isValid = true;
+        const currentContent = $(`.wizard-content[data-step="${this.currentStep}"]`);
+
+        currentContent.find('input[required], select[required], textarea[required]').each(function() {
+            if (!$(this).val()) {
+                $(this).addClass('is-invalid');
+                isValid = false;
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+
+        // Step-specific validation
+        if (this.currentStep === 1) {
+            const email = $('#id_primary_email').val();
+            const confirmEmail = $('#id_confirm_email').val();
+            if (email !== confirmEmail) {
+                $('#id_confirm_email').addClass('is-invalid');
+                OnboardingApp.toast.error('Email addresses do not match');
+                isValid = false;
+            }
+        }
+
+        return isValid;
+    },
+
+    updateStepVisibility: function() {
+        // Update wizard navigation
+        $('.wizard-step').removeClass('wizard-step-active wizard-step-completed');
+        $(`.wizard-step[data-step="${this.currentStep}"]`).addClass('wizard-step-active');
+
+        for (let i = 1; i < this.currentStep; i++) {
+            $(`.wizard-step[data-step="${i}"]`).addClass('wizard-step-completed');
+        }
+
+        // Update content visibility
+        $('.wizard-content').addClass('d-none');
+        $(`.wizard-content[data-step="${this.currentStep}"]`).removeClass('d-none');
+
+        // Update button visibility
+        $('#prevStepBtn').toggle(this.currentStep > 1);
+        $('#nextStepBtn').toggle(this.currentStep < this.totalSteps);
+        $('#submitBtn').toggleClass('d-none', this.currentStep < this.totalSteps);
+    },
+
+    populateReviewSection: function() {
+        // Basic Information
+        const firstName = $('#id_first_name').val();
+        const middleName = $('#id_middle_name').val();
+        const lastName = $('#id_last_name').val();
+        $('#review_full_name').text(`${firstName} ${middleName} ${lastName}`.trim());
+        $('#review_dob').text($('#id_date_of_birth').val());
+        $('#review_gender').text($('#id_gender option:selected').text());
+        $('#review_primary_email').text($('#id_primary_email').val());
+        $('#review_primary_phone').text($('#id_primary_phone').val());
+        $('#review_language').text($('#id_preferred_language option:selected').text() || 'Not specified');
+
+        // Address
+        const address = $('#id_current_address').val();
+        const city = $('#id_city').val();
+        const state = $('#id_state').val();
+        const postal = $('#id_postal_code').val();
+        const country = $('#id_country').val();
+        $('#review_full_address').text(`${address}, ${city}, ${state} ${postal}, ${country}`);
+
+        // Professional Background
+        $('#review_education').text($('#id_highest_education option:selected').text());
+        $('#review_experience').text($('#id_total_experience_years').val() + ' years' || 'Not specified');
+        $('#review_company').text($('#id_current_company').val() || 'Not specified');
+        $('#review_designation').text($('#id_current_designation').val() || 'Not specified');
+
+        // Documents
+        const docCount = $('#uploadedDocumentsList .col-12').length;
+        $('#review_doc_count').text(docCount);
+    }
+};
+
+$(document).ready(function() {
+    WizardApp.init();
+
+    // Form submission
+    $('#onboardingWizardForm').on('submit', function(e) {
+        if (!$('#confirmAccuracy').is(':checked')) {
+            e.preventDefault();
+            OnboardingApp.toast.error('Please confirm the accuracy of the information');
+            return false;
+        }
+
+        $('#formLoadingOverlay').removeClass('d-none');
+    });
+
+    // Cleanup on page unload
+    $(window).on('beforeunload', function() {
+        if (WizardApp.autoSaveTimer) {
+            clearInterval(WizardApp.autoSaveTimer);
+        }
+    });
+});
+</script>
+{% endblock %}

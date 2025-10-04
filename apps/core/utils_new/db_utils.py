@@ -362,24 +362,38 @@ def hostname_from_request(request):
 
 
 def get_tenants_map():
-    return {
-        "intelliwiz.youtility.local": "intelliwiz_django",
-        "sps.youtility.local": "sps",
-        "capgemini.youtility.local": "capgemini",
-        "dell.youtility.local": "dell",
-        "icicibank.youtility.local": "icicibank",
-        "redmine.youtility.in": "sps",
-        "django-local.youtility.in": "default",
-        "barfi.youtility.in": "icicibank",
-        "intelliwiz.youtility.in": "default",
-        "testdb.youtility.local": "testDB",
-    }
+    """
+    Get tenant→database mappings.
+
+    DEPRECATED: Import from intelliwiz_config.settings.tenants instead.
+    Kept for backward compatibility only.
+
+    Returns:
+        dict: Tenant hostname to database alias mapping
+    """
+    from intelliwiz_config.settings.tenants import TENANT_MAPPINGS
+    return TENANT_MAPPINGS
 
 
 def tenant_db_from_request(request):
+    """
+    Get database alias for request based on hostname.
+
+    Security:
+        - Uses centralized tenant configuration from settings
+        - Case-insensitive hostname matching
+        - Safe default fallback for unknown hosts
+
+    Args:
+        request: HTTP request with hostname
+
+    Returns:
+        str: Database alias for the tenant
+    """
+    from intelliwiz_config.settings.tenants import get_tenant_for_host
+
     hostname = hostname_from_request(request)
-    tenants_map = get_tenants_map()
-    return tenants_map.get(hostname, "default")
+    return get_tenant_for_host(hostname)
 
 
 def get_or_create_none_cap():

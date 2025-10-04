@@ -1,0 +1,277 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}State Transition Monitoring Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .metric-label {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        margin-top: 5px;
+    }
+    .success-rate {
+        color: #27ae60;
+    }
+    .failure-rate {
+        color: #e74c3c;
+    }
+    .performance-metric {
+        color: #3498db;
+    }
+    .transition-table {
+        width: 100%;
+        margin-top: 20px;
+    }
+    .transition-table th {
+        background: #34495e;
+        color: white;
+        padding: 12px;
+        text-align: left;
+    }
+    .transition-table td {
+        padding: 10px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .status-success {
+        background: #d4edda;
+        color: #155724;
+    }
+    .status-failure {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .entity-card {
+        background: #f8f9fa;
+        border-left: 4px solid #3498db;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+    .error-item {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+    .time-filter {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #ecf0f1;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>State Transition Monitoring Dashboard</h1>
+            <p class="text-muted">Real-time monitoring and analysis of state machine operations</p>
+        </div>
+    </div>
+
+    <!-- Time Range Filter -->
+    <div class="row">
+        <div class="col-12">
+            <div class="time-filter">
+                <form method="get" class="form-inline">
+                    <label class="mr-2">Time Range:</label>
+                    <select name="hours" class="form-control mr-2" onchange="this.form.submit()">
+                        <option value="1" {% if time_range_hours == 1 %}selected{% endif %}>Last 1 hour</option>
+                        <option value="6" {% if time_range_hours == 6 %}selected{% endif %}>Last 6 hours</option>
+                        <option value="24" {% if time_range_hours == 24 %}selected{% endif %}>Last 24 hours</option>
+                        <option value="168" {% if time_range_hours == 168 %}selected{% endif %}>Last 7 days</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.total_transitions }}</div>
+                <div class="metric-label">Total Transitions</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value success-rate">{{ metrics.success_rate|floatformat:1 }}%</div>
+                <div class="metric-label">Success Rate</div>
+                <small class="text-muted">{{ metrics.success_count }} successful</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value performance-metric">{{ metrics.avg_execution_ms|floatformat:0 }}ms</div>
+                <div class="metric-label">Avg Execution Time</div>
+                <small class="text-muted">Lock: {{ metrics.avg_lock_ms|floatformat:0 }}ms</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value {% if metrics.lock_contention_rate > 10 %}failure-rate{% else %}success-rate{% endif %}">
+                    {{ metrics.lock_contention_rate|floatformat:1 }}%
+                </div>
+                <div class="metric-label">Lock Contention</div>
+                <small class="text-muted">Avg retries: {{ metrics.avg_retries|floatformat:2 }}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entity Performance Breakdown -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="metric-card">
+                <h3>Performance by Entity Type</h3>
+                {% for entity in entity_performance %}
+                <div class="entity-card">
+                    <h5>{{ entity.entity_type }}</h5>
+                    <div class="row">
+                        <div class="col-6">
+                            <strong>Total:</strong> {{ entity.total }}<br>
+                            <strong>Success Rate:</strong> {{ entity.successful|default:0 }}/{{ entity.total }}
+                        </div>
+                        <div class="col-6">
+                            <strong>Avg Execution:</strong> {{ entity.avg_execution_ms|floatformat:0 }}ms<br>
+                            <strong>Avg Lock:</strong> {{ entity.avg_lock_ms|floatformat:0 }}ms
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No data available</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="metric-card">
+                <h3>Top Errors</h3>
+                {% for error in top_errors %}
+                <div class="error-item">
+                    <strong>{{ error.count }}x</strong> - {{ error.error_message|truncatewords:20 }}
+                </div>
+                {% empty %}
+                <p class="text-success">No errors in this time range!</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transitions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="metric-card">
+                <h3>Recent Transitions</h3>
+                <table class="transition-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Entity</th>
+                            <th>Transition</th>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transition in recent_transitions %}
+                        <tr>
+                            <td>{{ transition.timestamp|date:"Y-m-d H:i:s" }}</td>
+                            <td>
+                                <a href="{% url 'entity_transition_history' transition.entity_type transition.entity_id %}">
+                                    {{ transition.entity_display }}
+                                </a>
+                            </td>
+                            <td>
+                                <strong>{{ transition.transition_display }}</strong><br>
+                                <small class="text-muted">{{ transition.comments|truncatewords:10 }}</small>
+                            </td>
+                            <td>{{ transition.user.username|default:"System" }}</td>
+                            <td>
+                                <span class="status-badge {% if transition.success %}status-success{% else %}status-failure{% endif %}">
+                                    {% if transition.success %}Success{% else %}Failed{% endif %}
+                                </span>
+                                {% if transition.retry_attempt > 0 %}
+                                <br><small class="text-warning">Retry #{{ transition.retry_attempt }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ transition.performance_display }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No transitions in this time range</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="metric-card">
+                <h3>Quick Links</h3>
+                <a href="{% url 'transition_failure_analysis' %}" class="btn btn-danger mr-2">
+                    <i class="fas fa-exclamation-triangle"></i> Failure Analysis
+                </a>
+                <a href="{% url 'performance_trends' %}" class="btn btn-info mr-2">
+                    <i class="fas fa-chart-line"></i> Performance Trends
+                </a>
+                <a href="{% url 'admin:core_statetransitionaudit_changelist' %}" class="btn btn-secondary">
+                    <i class="fas fa-database"></i> All Audit Records
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh every 30 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+
+    // Optional: AJAX-based real-time updates
+    function updateMetrics() {
+        fetch('{% url "transition_metrics_api" %}?hours={{ time_range_hours }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update metrics without full page reload
+                    console.log('Metrics updated:', data.metrics);
+                }
+            })
+            .catch(error => console.error('Error updating metrics:', error));
+    }
+
+    // Update metrics every 10 seconds
+    setInterval(updateMetrics, 10000);
+</script>
+{% endblock %}

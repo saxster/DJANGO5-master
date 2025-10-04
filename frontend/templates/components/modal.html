@@ -1,0 +1,291 @@
+{% comment %}
+Modal Dialog Component
+Usage: {% include 'components/modal.html' with id='confirm-delete' title='Confirm Deletion' %}
+{% endcomment %}
+
+<div class="yt-modal" id="{{ id }}" data-modal role="dialog" aria-modal="true" aria-labelledby="{{ id }}-title" aria-hidden="true" style="display: none;">
+  <div class="yt-modal__backdrop" data-modal-close></div>
+
+  <div class="yt-modal__container yt-modal__container--{{ size|default:'medium' }}">
+    <div class="yt-modal__content">
+
+      {# Header #}
+      <div class="yt-modal__header">
+        <h2 class="yt-modal__title" id="{{ id }}-title">
+          {% if icon %}<i class="material-icons yt-modal__title-icon" aria-hidden="true">{{ icon }}</i>{% endif %}
+          {{ title }}
+        </h2>
+        <button type="button" class="yt-modal__close" data-modal-close aria-label="Close dialog">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+
+      {# Body #}
+      <div class="yt-modal__body">
+        {{ caller() if caller else body|default:''|safe }}
+      </div>
+
+      {# Footer #}
+      {% if footer or footer_buttons %}
+        <div class="yt-modal__footer">
+          {{ footer|default:''|safe }}
+          {% if footer_buttons %}
+            <div class="yt-modal__footer-actions">
+              {% for btn in footer_buttons %}
+                {% include 'components/button.html' with
+                  text=btn.text
+                  type=btn.type|default:'secondary'
+                  attrs=btn.attrs|default:''
+                %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<style>
+.yt-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-modal);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.yt-modal[aria-hidden="false"] {
+  display: flex;
+}
+
+.yt-modal__backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-overlay);
+  cursor: pointer;
+}
+
+.yt-modal__container {
+  position: relative;
+  width: 100%;
+  max-height: 90vh;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  animation: modal-slide-up var(--duration-slow) var(--ease-out);
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.yt-modal__container--small {
+  max-width: 400px;
+}
+
+.yt-modal__container--medium {
+  max-width: 600px;
+}
+
+.yt-modal__container--large {
+  max-width: 900px;
+}
+
+.yt-modal__container--fullscreen {
+  max-width: none;
+  width: calc(100% - var(--space-8));
+  height: calc(100% - var(--space-8));
+  max-height: calc(100% - var(--space-8));
+}
+
+.yt-modal__content {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.yt-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.yt-modal__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.yt-modal__title-icon {
+  font-size: 24px;
+  color: var(--text-muted);
+}
+
+.yt-modal__close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-base);
+  transition: all var(--duration-normal) var(--ease-out);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yt-modal__close:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.yt-modal__close:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.yt-modal__body {
+  padding: var(--space-6);
+  overflow-y: auto;
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.yt-modal__footer {
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.yt-modal__footer-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .yt-modal {
+    padding: 0;
+  }
+
+  .yt-modal__container {
+    max-height: 100vh;
+    border-radius: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .yt-modal__footer {
+    flex-direction: column;
+  }
+
+  .yt-modal__footer-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .yt-modal__container {
+    animation: none;
+  }
+}
+</style>
+
+<script>
+/* Modal JavaScript controller */
+(function() {
+  function initModals() {
+    document.querySelectorAll('[data-modal]').forEach(modal => {
+      const closeButtons = modal.querySelectorAll('[data-modal-close]');
+
+      closeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          closeModal(modal);
+        });
+      });
+
+      // Close on ESC key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+          closeModal(modal);
+        }
+      });
+    });
+
+    // Open modal triggers
+    document.querySelectorAll('[data-modal-open]').forEach(trigger => {
+      trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        const modalId = trigger.getAttribute('data-modal-open');
+        const modal = document.getElementById(modalId);
+        if (modal) {
+          openModal(modal);
+        }
+      });
+    });
+  }
+
+  function openModal(modal) {
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    // Focus first focusable element
+    const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (firstFocusable) {
+      setTimeout(() => firstFocusable.focus(), 100);
+    }
+  }
+
+  function closeModal(modal) {
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 200);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initModals);
+  } else {
+    initModals();
+  }
+
+  // Expose public API
+  window.modalOpen = openModal;
+  window.modalClose = closeModal;
+})();
+</script>

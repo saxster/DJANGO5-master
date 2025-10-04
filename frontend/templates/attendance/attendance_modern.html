@@ -1166,7 +1166,8 @@
 <script src="{{ static('assets/plugins/custom/Editor-2.0.8/js/dataTables.editor.min.js') }}"></script>
 
 <!-- Google Maps API -->
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACeVI4lSa34BKqfTHGJyxyZkJ6w0yyW7A&libraries=geometry&loading=async"></script>
+{% load google_maps_tags %}
+{% google_maps_script callback='initGoogleMaps' %}
 
 <!-- Date Range Picker -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />

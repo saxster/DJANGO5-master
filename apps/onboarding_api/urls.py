@@ -4,6 +4,7 @@ URL configuration for Conversational Onboarding API (Phase 1 MVP + Phase 2 Enhan
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from . import views, views_phase2, admin_views, knowledge_views, personalization_views, monitoring_views, views_ui, views_ui_compat
+from .views import site_audit_views
 from .openapi_schemas import schema_view
 
 app_name = 'onboarding_api'
@@ -37,6 +38,18 @@ urlpatterns = [
         'conversation/<uuid:conversation_id>/status/',
         views.ConversationStatusView.as_view(),
         name='conversation-status'
+    ),
+
+    # Voice input endpoints
+    path(
+        'conversation/<uuid:conversation_id>/voice/',
+        views.ConversationVoiceInputView.as_view(),
+        name='conversation-voice-input'
+    ),
+    path(
+        'voice/capabilities/',
+        views.VoiceCapabilityView.as_view(),
+        name='voice-capabilities'
     ),
 
     # Phase 2 enhanced endpoints
@@ -122,6 +135,89 @@ urlpatterns = [
         'changeset/preview/',
         views.ChangeSetDiffPreviewView.as_view(),
         name='changeset-preview'
+    ),
+
+    # ========== SITE AUDIT ENDPOINTS (Phase C) ==========
+    # Session Management
+    path(
+        'site-audit/start/',
+        site_audit_views.SiteAuditStartView.as_view(),
+        name='site-audit-start'
+    ),
+    path(
+        'site-audit/<uuid:session_id>/status/',
+        site_audit_views.SiteAuditStatusView.as_view(),
+        name='site-audit-status'
+    ),
+
+    # Observation Capture
+    path(
+        'site-audit/<uuid:session_id>/observation/',
+        site_audit_views.ObservationCaptureView.as_view(),
+        name='site-audit-observation-capture'
+    ),
+    path(
+        'site-audit/<uuid:session_id>/observations/',
+        site_audit_views.ObservationListView.as_view(),
+        name='site-audit-observations-list'
+    ),
+
+    # Guidance & Coverage
+    path(
+        'site-audit/<uuid:session_id>/next-questions/',
+        site_audit_views.NextQuestionsView.as_view(),
+        name='site-audit-next-questions'
+    ),
+    path(
+        'site-audit/<uuid:session_id>/coverage/',
+        site_audit_views.CoverageMapView.as_view(),
+        name='site-audit-coverage'
+    ),
+    path(
+        'site-audit/<uuid:session_id>/speak/',
+        site_audit_views.speak_text,
+        name='site-audit-speak'
+    ),
+
+    # Zone & Asset Management
+    path(
+        'site/<uuid:site_id>/zones/',
+        site_audit_views.ZoneManagementView.as_view(),
+        name='site-zones-manage'
+    ),
+    path(
+        'site/<uuid:site_id>/assets/',
+        site_audit_views.AssetManagementView.as_view(),
+        name='site-assets-manage'
+    ),
+    path(
+        'site/<uuid:site_id>/meter-points/',
+        site_audit_views.MeterPointManagementView.as_view(),
+        name='site-meter-points-manage'
+    ),
+
+    # Analysis & Planning
+    path(
+        'site-audit/<uuid:session_id>/analyze/',
+        site_audit_views.AuditAnalysisView.as_view(),
+        name='site-audit-analyze'
+    ),
+    path(
+        'site-audit/<uuid:session_id>/coverage-plan/',
+        site_audit_views.CoveragePlanView.as_view(),
+        name='site-audit-coverage-plan'
+    ),
+    path(
+        'site-audit/<uuid:session_id>/sops/',
+        site_audit_views.SOPListView.as_view(),
+        name='site-audit-sops'
+    ),
+
+    # Reporting
+    path(
+        'site-audit/<uuid:session_id>/report/',
+        site_audit_views.AuditReportView.as_view(),
+        name='site-audit-report'
     ),
 
     # ========== PERSONALIZATION ENDPOINTS ==========
@@ -254,6 +350,22 @@ urlpatterns = [
         views_phase2.get_task_status,
         name='task-status'
     ),
+
+    # ========== ANALYTICS ENDPOINTS ==========
+    # Funnel analytics (NEW - Phase 2.2.3)
+    path('analytics/', include('apps.onboarding_api.urls_analytics')),
+
+    # ========== DLQ ADMIN ENDPOINTS ==========
+    # Dead Letter Queue management (NEW - Phase 2.1.4)
+    path('admin/dlq/', include('apps.onboarding_api.urls_dlq_admin')),
+
+    # ========== SESSION RECOVERY ENDPOINTS ==========
+    # Session checkpoint and recovery (NEW - Phase 3.1)
+    path('', include('apps.onboarding_api.urls_session_recovery')),
+
+    # ========== ANALYTICS DASHBOARD ENDPOINTS ==========
+    # Advanced analytics dashboard (NEW - Phase 3.2)
+    path('dashboard/', include('apps.onboarding_api.urls_dashboard')),
 
     # ========== ADMIN/STAFF ENDPOINTS ==========
     path(

@@ -1,0 +1,248 @@
+{% comment %}
+========================================
+TASK CARD PARTIAL
+========================================
+Task display with priority indicator
+
+Usage:
+    {% include "people_onboarding/partials/_task_card.html" with task=onboarding_task %}
+
+Parameters:
+    - task: OnboardingTask object (required)
+    - show_actions: Boolean to show action buttons (default: True)
+    - draggable: Boolean for drag-and-drop kanban (default: False)
+
+Features:
+    - Priority badge (high/medium/low)
+    - Due date with overdue indicator
+    - Assignee avatar
+    - Dependency indicator
+    - Progress percentage
+    - Checklist items preview
+
+Edge Cases:
+    - Overdue tasks highlighted in red
+    - Blocked tasks show blocker reason
+    - Dependencies not met disable start
+    - No assignee shows "Unassigned"
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if show_actions is None %}{% with show_actions=True %}{% endwith %}{% endif %}
+{% if draggable is None %}{% with draggable=False %}{% endwith %}{% endif %}
+
+<div class="card task-card mb-3
+            task-priority-{{ task.priority|lower }}
+            task-status-{{ task.status|lower }}
+            {% if task.is_overdue %}task-overdue{% endif %}
+            {% if task.is_blocked %}task-blocked{% endif %}"
+     data-task-id="{{ task.uuid }}"
+     data-task-status="{{ task.status }}"
+     data-task-priority="{{ task.priority }}"
+     {% if draggable %}draggable="true"{% endif %}
+     role="article"
+     aria-label="Task: {{ task.title }}">
+
+    <div class="card-body p-4">
+        {% comment %}Task Header{% endcomment %}
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="task-header flex-grow-1">
+                {% comment %}Priority Badge{% endcomment %}
+                <div class="task-badges mb-2">
+                    {% if task.priority == 'HIGH' %}
+                        <span class="badge badge-danger badge-sm">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            High Priority
+                        </span>
+                    {% elif task.priority == 'MEDIUM' %}
+                        <span class="badge badge-warning badge-sm">
+                            <i class="bi bi-dash-circle me-1"></i>
+                            Medium Priority
+                        </span>
+                    {% elif task.priority == 'LOW' %}
+                        <span class="badge badge-info badge-sm">
+                            <i class="bi bi-arrow-down-circle me-1"></i>
+                            Low Priority
+                        </span>
+                    {% endif %}
+
+                    {% comment %}Category Badge{% endcomment %}
+                    {% if task.category %}
+                        <span class="badge badge-light-primary badge-sm ms-2">
+                            {{ task.get_category_display }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% comment %}Task Title{% endcomment %}
+                <h5 class="task-title mb-1 fs-6 fw-bold text-gray-900">
+                    <a href="#"
+                       class="text-hover-primary"
+                       data-bs-toggle="modal"
+                       data-bs-target="#taskDetailModal"
+                       data-task-id="{{ task.uuid }}">
+                        {{ task.title }}
+                    </a>
+                </h5>
+
+                {% comment %}Task Meta{% endcomment %}
+                <div class="task-meta text-muted fs-7">
+                    {% comment %}Due Date{% endcomment %}
+                    {% if task.due_date %}
+                        <span class="task-due-date {% if task.is_overdue %}text-danger fw-bold{% endif %}">
+                            <i class="bi bi-calendar-event me-1"></i>
+                            Due: {{ task.due_date|date:"M d, Y" }}
+                            {% if task.is_overdue %}
+                                <span class="badge badge-danger badge-sm ms-1">Overdue</span>
+                            {% endif %}
+                        </span>
+                    {% endif %}
+
+                    {% comment %}Assignee{% endcomment %}
+                    {% if task.assigned_to %}
+                        <span class="task-assignee ms-3">
+                            <i class="bi bi-person me-1"></i>
+                            {{ task.assigned_to.peoplename }}
+                        </span>
+                    {% else %}
+                        <span class="task-assignee ms-3 text-warning">
+                            <i class="bi bi-person-x me-1"></i>
+                            Unassigned
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% comment %}Drag Handle (if draggable){% endcomment %}
+            {% if draggable %}
+                <div class="task-drag-handle ms-2 cursor-move"
+                     aria-label="Drag to reorder">
+                    <i class="bi bi-grip-vertical fs-4 text-muted"></i>
+                </div>
+            {% endif %}
+        </div>
+
+        {% comment %}Task Description (truncated){% endcomment %}
+        {% if task.description %}
+            <div class="task-description mb-3">
+                <p class="text-muted fs-7 mb-0">
+                    {{ task.description|truncatechars:150 }}
+                </p>
+            </div>
+        {% endif %}
+
+        {% comment %}Dependencies Indicator{% endcomment %}
+        {% if task.dependencies.exists %}
+            <div class="task-dependencies mb-3">
+                <div class="alert alert-light-info py-2 px-3 d-flex align-items-center" role="alert">
+                    <i class="bi bi-link-45deg fs-4 me-2"></i>
+                    <div class="flex-grow-1">
+                        <strong>Dependencies:</strong>
+                        {{ task.dependencies.count }} task{{ task.dependencies.count|pluralize }} must be completed first
+                        {% if task.has_unmet_dependencies %}
+                            <span class="badge badge-warning badge-sm ms-2">Blocked</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% comment %}Checklist Progress{% endcomment %}
+        {% if task.checklist_items.exists %}
+            <div class="task-checklist-preview mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fs-7 text-muted">
+                        <i class="bi bi-list-check me-1"></i>
+                        Checklist Progress
+                    </span>
+                    <span class="fs-7 fw-bold">
+                        {{ task.completed_checklist_count }}/{{ task.checklist_items.count }}
+                    </span>
+                </div>
+                {% with progress=task.checklist_progress_percentage %}
+                    <div class="progress" style="height: 6px;" role="progressbar"
+                         aria-label="Checklist progress"
+                         aria-valuenow="{{ progress }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="progress-bar
+                                    {% if progress == 100 %}bg-success{% elif progress >= 50 %}bg-primary{% else %}bg-warning{% endif %}"
+                             style="width: {{ progress }}%">
+                        </div>
+                    </div>
+                {% endwith %}
+            </div>
+        {% endif %}
+
+        {% comment %}Evidence Attachments{% endcomment %}
+        {% if task.evidence_required %}
+            <div class="task-evidence mb-3">
+                <div class="d-flex align-items-center text-muted fs-7">
+                    <i class="bi bi-paperclip me-1"></i>
+                    {% if task.evidence_files.exists %}
+                        <span class="text-success">
+                            {{ task.evidence_files.count }} file{{ task.evidence_files.count|pluralize }} uploaded
+                        </span>
+                    {% else %}
+                        <span class="text-warning">
+                            Evidence required
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% comment %}Task Actions{% endcomment %}
+        {% if show_actions %}
+            <div class="task-actions d-flex flex-wrap gap-2 pt-3 border-top">
+                {% if task.status == 'PENDING' and not task.has_unmet_dependencies %}
+                    <button type="button"
+                            class="btn btn-sm btn-primary btn-task-start"
+                            data-task-id="{{ task.uuid }}">
+                        <i class="bi bi-play-fill me-1"></i>
+                        Start Task
+                    </button>
+                {% elif task.status == 'IN_PROGRESS' %}
+                    <button type="button"
+                            class="btn btn-sm btn-success btn-task-complete"
+                            data-task-id="{{ task.uuid }}">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Mark Complete
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-warning btn-task-block"
+                            data-task-id="{{ task.uuid }}">
+                        <i class="bi bi-slash-circle me-1"></i>
+                        Block Task
+                    </button>
+                {% elif task.status == 'BLOCKED' %}
+                    <button type="button"
+                            class="btn btn-sm btn-info btn-task-unblock"
+                            data-task-id="{{ task.uuid }}">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>
+                        Unblock Task
+                    </button>
+                {% endif %}
+
+                <button type="button"
+                        class="btn btn-sm btn-light-primary btn-task-view"
+                        data-bs-toggle="modal"
+                        data-bs-target="#taskDetailModal"
+                        data-task-id="{{ task.uuid }}">
+                    <i class="bi bi-eye me-1"></i>
+                    View Details
+                </button>
+            </div>
+        {% endif %}
+
+        {% comment %}Blocked Reason{% endcomment %}
+        {% if task.is_blocked and task.blocker_reason %}
+            <div class="alert alert-danger py-2 px-3 mt-3 mb-0" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Blocked:</strong> {{ task.blocker_reason }}
+            </div>
+        {% endif %}
+    </div>
+</div>

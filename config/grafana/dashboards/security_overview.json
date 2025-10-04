@@ -1,0 +1,363 @@
+{
+  "dashboard": {
+    "title": "Security Intelligence Overview",
+    "tags": ["security", "monitoring", "threats", "intelligence"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 0,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m", "15m"],
+      "time_options": ["1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Total Security Events",
+        "targets": [
+          {
+            "expr": "sum(increase(security_event_total[6h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "type": "stat",
+        "title": "Critical Threats",
+        "targets": [
+          {
+            "expr": "sum(increase(security_event{severity=\"critical\"}[6h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "orange"},
+                {"value": 5, "color": "red"}
+              ]
+            },
+            "color": {
+              "mode": "thresholds"
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "type": "stat",
+        "title": "Anomalies Detected",
+        "targets": [
+          {
+            "expr": "sum(increase(anomaly_detected_total[6h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "orange"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "type": "stat",
+        "title": "Blocked IPs",
+        "targets": [
+          {
+            "expr": "count(ip_reputation_threat_score > 100)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "red"
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "timeseries",
+        "title": "Security Events by Type",
+        "targets": [
+          {
+            "expr": "sum(rate(security_event_total[5m])) by (threat_type)",
+            "legendFormat": "{{threat_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "timeseries",
+        "title": "Security Events by Severity",
+        "targets": [
+          {
+            "expr": "sum(rate(security_event[5m])) by (severity)",
+            "legendFormat": "{{severity}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 100
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
+        "type": "piechart",
+        "title": "Attack Types Distribution",
+        "targets": [
+          {
+            "expr": "sum(increase(security_event_total[6h])) by (threat_type)",
+            "legendFormat": "{{threat_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+        "type": "gauge",
+        "title": "Average IP Threat Score",
+        "targets": [
+          {
+            "expr": "avg(ip_reputation_threat_score)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "min": 0,
+            "max": 150,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+        "type": "stat",
+        "title": "Performance Regressions",
+        "targets": [
+          {
+            "expr": "sum(increase(performance_insight{insight_type=\"regression\",severity=~\"warning|critical\"}[6h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 24},
+        "type": "table",
+        "title": "Top Threat Sources",
+        "targets": [
+          {
+            "expr": "topk(20, sum by (source_ip, threat_type) (rate(security_event[6h])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {
+                "source_ip": 0,
+                "threat_type": 1,
+                "Value": 2
+              },
+              "renameByName": {
+                "source_ip": "Source IP",
+                "threat_type": "Threat Type",
+                "Value": "Event Rate"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+        "type": "timeseries",
+        "title": "Anomaly Detection Events",
+        "targets": [
+          {
+            "expr": "sum(rate(anomaly_detection_event[5m])) by (severity)",
+            "legendFormat": "{{severity}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "lineInterpolation": "stepAfter"
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+        "type": "timeseries",
+        "title": "Alert Storm Prevention",
+        "targets": [
+          {
+            "expr": "sum(rate(alert_suppressed_total[5m])) by (reason)",
+            "legendFormat": "{{reason}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "lineInterpolation": "smooth"
+            }
+          }
+        }
+      },
+      {
+        "id": 13,
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 42},
+        "type": "logs",
+        "title": "Recent Security Events",
+        "targets": [
+          {
+            "expr": "{job=\"django_monitoring\"} |= \"security\" | json",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 42},
+        "type": "table",
+        "title": "Critical Anomalies (Last 6h)",
+        "targets": [
+          {
+            "expr": "topk(10, anomaly_detection_event{severity=\"critical\"})",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 52},
+        "type": "heatmap",
+        "title": "Security Events Heatmap (by hour)",
+        "targets": [
+          {
+            "expr": "sum(rate(security_event_total[1h])) by (threat_type)",
+            "format": "time_series",
+            "refId": "A"
+          }
+        ],
+        "yAxis": {
+          "format": "short",
+          "label": "Threat Type"
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{severity=~\"critical|warning\"}",
+          "iconColor": "red",
+          "name": "Security Alerts",
+          "step": "60s",
+          "tagKeys": "alertname,severity,component",
+          "textFormat": "{{alertname}}: {{component}}",
+          "titleFormat": "Alert"
+        }
+      ]
+    },
+    "refresh": "30s",
+    "schemaVersion": 36,
+    "version": 1,
+    "uid": "security-overview-001"
+  }
+}

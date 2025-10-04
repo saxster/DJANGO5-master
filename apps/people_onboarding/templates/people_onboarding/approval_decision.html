@@ -1,0 +1,619 @@
+{% extends "people_onboarding/base_onboarding.html" %}
+{% load static %}
+
+{% block page_title %}Approval Decision - {{ approval.onboarding_request.request_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .signature-pad-container {
+        border: 2px dashed #E4E6EF;
+        border-radius: 8px;
+        background-color: #F9F9F9;
+        padding: 10px;
+    }
+    .signature-pad {
+        width: 100%;
+        height: 200px;
+        border: 1px solid #E4E6EF;
+        border-radius: 4px;
+        background-color: white;
+        cursor: crosshair;
+    }
+    .decision-card {
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .decision-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .decision-card.selected {
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    .decision-approve {
+        border-left-color: #1BC5BD;
+    }
+    .decision-approve.selected {
+        background-color: #C9F7F5;
+    }
+    .decision-reject {
+        border-left-color: #F64E60;
+    }
+    .decision-reject.selected {
+        background-color: #FFE2E5;
+    }
+    .decision-escalate {
+        border-left-color: #FFA800;
+    }
+    .decision-escalate.selected {
+        background-color: #FFF4DE;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'people_onboarding:approval_list' %}">Approvals</a></li>
+<li class="breadcrumb-item text-muted">Decision</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="card card-flush mb-5">
+        <div class="card-body py-5">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-2 fw-bold">Approval Decision</h1>
+                    <p class="text-muted mb-0">
+                        Request #{{ approval.onboarding_request.request_number }} -
+                        {{ approval.get_approval_level_display }}
+                        {% include "people_onboarding/partials/_status_badge.html" with state=approval.decision %}
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'people_onboarding:approval_list' %}"
+                       class="btn btn-light">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Back to Queue
+                    </a>
+                </div>
+            </div>
+
+            <!-- SLA Alert -->
+            {% if approval.decision == 'PENDING' and approval.is_overdue %}
+            <div class="alert alert-danger d-flex align-items-center mt-4 mb-0">
+                <i class="bi bi-exclamation-triangle-fill fs-2 me-3"></i>
+                <div>
+                    <h5 class="mb-1">⚠️ OVERDUE APPROVAL</h5>
+                    <p class="mb-0">
+                        This approval is past its SLA deadline. Please take action immediately.
+                    </p>
+                </div>
+            </div>
+            {% elif approval.decision == 'PENDING' and approval.sla_hours_remaining < 2 %}
+            <div class="alert alert-warning d-flex align-items-center mt-4 mb-0">
+                <i class="bi bi-clock-fill fs-2 me-3"></i>
+                <div>
+                    <h5 class="mb-1">Urgent: {{ approval.sla_hours_remaining|floatformat:1 }} hours remaining</h5>
+                    <p class="mb-0">
+                        This approval will be overdue soon. Please prioritize this decision.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-5">
+        <!-- Left Column: Request Details -->
+        <div class="col-xl-8">
+            <!-- Candidate Profile -->
+            <div class="card card-flush mb-5">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-person-circle text-primary me-2"></i>
+                        Candidate Profile
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% include "people_onboarding/partials/_candidate_card.html" with profile=approval.onboarding_request.candidate_profile show_actions=False %}
+                </div>
+            </div>
+
+            <!-- Documents -->
+            <div class="card card-flush mb-5">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-folder-fill text-warning me-2"></i>
+                        Submitted Documents ({{ documents|length }})
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if documents %}
+                    <div class="row g-3">
+                        {% for doc in documents %}
+                        <div class="col-12 col-md-6">
+                            {% include "people_onboarding/partials/_document_card.html" with document=doc show_actions=True %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3 mb-0">No documents uploaded yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Approval Chain -->
+            <div class="card card-flush mb-5">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-diagram-3-fill text-info me-2"></i>
+                        Approval Workflow
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% include "people_onboarding/partials/_approval_chain.html" with request=approval.onboarding_request %}
+                </div>
+            </div>
+
+            <!-- Workflow Timeline -->
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-clock-history text-primary me-2"></i>
+                        Workflow History
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% include "people_onboarding/partials/_workflow_timeline.html" with request=approval.onboarding_request %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Decision Form -->
+        <div class="col-xl-4">
+            {% if approval.decision == 'PENDING' %}
+            <!-- Decision Form -->
+            <div class="card card-flush sticky-top" style="top: 20px;">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-check-square text-success me-2"></i>
+                        Make Your Decision
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="post"
+                          id="approvalDecisionForm"
+                          action="{% url 'people_onboarding:api_approval_decision' approval.uuid %}">
+                        {% csrf_token %}
+
+                        <!-- Decision Options -->
+                        <div class="mb-5">
+                            <label class="form-label fw-bold required">Choose Action</label>
+
+                            <!-- Approve -->
+                            <div class="decision-card card mb-3 decision-approve"
+                                 data-decision="APPROVED"
+                                 onclick="DecisionApp.selectDecision('APPROVED')">
+                                <div class="card-body p-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input decision-radio"
+                                               type="radio"
+                                               name="decision"
+                                               value="APPROVED"
+                                               id="decision_approve"
+                                               required>
+                                        <label class="form-check-label fw-bold" for="decision_approve">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            Approve Request
+                                        </label>
+                                    </div>
+                                    <p class="text-muted fs-7 mb-0 mt-2">
+                                        Approve this onboarding request to proceed to the next step
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Reject -->
+                            <div class="decision-card card mb-3 decision-reject"
+                                 data-decision="REJECTED"
+                                 onclick="DecisionApp.selectDecision('REJECTED')">
+                                <div class="card-body p-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input decision-radio"
+                                               type="radio"
+                                               name="decision"
+                                               value="REJECTED"
+                                               id="decision_reject"
+                                               required>
+                                        <label class="form-check-label fw-bold" for="decision_reject">
+                                            <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                                            Reject Request
+                                        </label>
+                                    </div>
+                                    <p class="text-muted fs-7 mb-0 mt-2">
+                                        Reject this request with a detailed explanation
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Escalate -->
+                            <div class="decision-card card mb-3 decision-escalate"
+                                 data-decision="ESCALATED"
+                                 onclick="DecisionApp.selectDecision('ESCALATED')">
+                                <div class="card-body p-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input decision-radio"
+                                               type="radio"
+                                               name="decision"
+                                               value="ESCALATED"
+                                               id="decision_escalate"
+                                               required>
+                                        <label class="form-check-label fw-bold" for="decision_escalate">
+                                            <i class="bi bi-arrow-up-circle-fill text-warning me-2"></i>
+                                            Escalate to Another Approver
+                                        </label>
+                                    </div>
+                                    <p class="text-muted fs-7 mb-0 mt-2">
+                                        Escalate this request to a higher authority
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Decision Notes -->
+                        <div class="mb-5">
+                            <label for="id_notes" class="form-label fw-bold required">
+                                Decision Notes
+                                <span class="text-muted fs-7">(Min. 10 characters)</span>
+                            </label>
+                            {{ form.notes }}
+                            <div class="form-text">
+                                <span id="notesCharCount">0</span> / 500 characters
+                            </div>
+                            {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.notes.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Escalation Fields (shown only when Escalate is selected) -->
+                        <div id="escalationFields" class="d-none">
+                            <div class="mb-5">
+                                <label for="id_escalated_to" class="form-label fw-bold required">
+                                    Escalate To
+                                </label>
+                                {{ form.escalated_to }}
+                                {% if form.escalated_to.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.escalated_to.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-5">
+                                <label for="id_escalation_reason" class="form-label fw-bold required">
+                                    Escalation Reason
+                                </label>
+                                {{ form.escalation_reason }}
+                                {% if form.escalation_reason.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.escalation_reason.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Digital Signature -->
+                        <div class="mb-5">
+                            <label class="form-label fw-bold required">
+                                Digital Signature
+                            </label>
+                            <div class="signature-pad-container">
+                                <canvas id="signaturePad" class="signature-pad"></canvas>
+                                <input type="hidden" name="signature_data" id="signatureData">
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <button type="button"
+                                        class="btn btn-sm btn-light-danger"
+                                        onclick="DecisionApp.clearSignature()">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Clear
+                                </button>
+                                <small class="text-muted">Sign above to authenticate your decision</small>
+                            </div>
+                        </div>
+
+                        <!-- IP Address & Timestamp Info -->
+                        <div class="alert alert-light d-flex align-items-center mb-5">
+                            <i class="bi bi-shield-check text-primary fs-3 me-3"></i>
+                            <div class="flex-grow-1">
+                                <small class="text-muted d-block">
+                                    Your decision will be recorded with:
+                                </small>
+                                <small class="text-muted">
+                                    <strong>IP:</strong> {{ request.META.REMOTE_ADDR }}<br>
+                                    <strong>Timestamp:</strong> <span id="currentTimestamp"></span>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Confirmation Checkbox -->
+                        <div class="form-check form-check-custom form-check-solid mb-5">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="confirmDecision"
+                                   required>
+                            <label class="form-check-label fw-bold" for="confirmDecision">
+                                I have reviewed all information and confirm my decision
+                            </label>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit"
+                                    class="btn btn-primary btn-lg"
+                                    id="submitDecisionBtn"
+                                    disabled>
+                                <i class="bi bi-check-circle me-2"></i>
+                                Submit Decision
+                            </button>
+                            <a href="{% url 'people_onboarding:approval_list' %}"
+                               class="btn btn-light">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <!-- Decision Already Made -->
+            <div class="card card-flush sticky-top" style="top: 20px;">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-info-circle text-info me-2"></i>
+                        Decision Details
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Decision</label>
+                        <div>
+                            {% include "people_onboarding/partials/_status_badge.html" with state=approval.decision %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Decision By</label>
+                        <div>{{ approval.approver.peoplename }}</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Decision Date</label>
+                        <div>{{ approval.decision_date|date:"d M Y, h:i A" }}</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Notes</label>
+                        <div class="bg-light p-3 rounded">{{ approval.decision_notes }}</div>
+                    </div>
+
+                    {% if approval.signature_image %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Signature</label>
+                        <div class="signature-pad-container">
+                            <img src="{{ approval.signature_image.url }}"
+                                 alt="Signature"
+                                 class="img-fluid">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Audit Trail</label>
+                        <div class="bg-light p-3 rounded">
+                            <small class="text-muted">
+                                <strong>IP Address:</strong> {{ approval.decision_ip_address }}<br>
+                                <strong>User Agent:</strong> {{ approval.decision_user_agent|default:"Not recorded" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+window.DecisionApp = {
+    signaturePad: null,
+    selectedDecision: null,
+
+    init: function() {
+        this.initSignaturePad();
+        this.initFormValidation();
+        this.initTimestamp();
+        this.initCharCounter();
+    },
+
+    initSignaturePad: function() {
+        const canvas = document.getElementById('signaturePad');
+        this.signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255, 255, 255)',
+            penColor: 'rgb(0, 0, 0)'
+        });
+
+        // Resize canvas to fit container
+        const resizeCanvas = () => {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+            this.signaturePad.clear();
+        };
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Enable submit button when signature is drawn
+        this.signaturePad.addEventListener('endStroke', () => {
+            this.validateForm();
+        });
+    },
+
+    clearSignature: function() {
+        this.signaturePad.clear();
+        $('#signatureData').val('');
+        this.validateForm();
+    },
+
+    selectDecision: function(decision) {
+        this.selectedDecision = decision;
+
+        // Update UI
+        $('.decision-card').removeClass('selected');
+        $(`.decision-card[data-decision="${decision}"]`).addClass('selected');
+        $(`#decision_${decision.toLowerCase()}`).prop('checked', true);
+
+        // Show/hide escalation fields
+        if (decision === 'ESCALATED') {
+            $('#escalationFields').removeClass('d-none');
+            $('#escalationFields input, #escalationFields select, #escalationFields textarea').prop('required', true);
+        } else {
+            $('#escalationFields').addClass('d-none');
+            $('#escalationFields input, #escalationFields select, #escalationFields textarea').prop('required', false);
+        }
+
+        this.validateForm();
+    },
+
+    initFormValidation: function() {
+        const self = this;
+
+        // Radio button change
+        $('.decision-radio').on('change', function() {
+            const decision = $(this).val();
+            self.selectDecision(decision);
+        });
+
+        // Confirmation checkbox
+        $('#confirmDecision').on('change', function() {
+            self.validateForm();
+        });
+
+        // Notes input
+        $('#id_notes').on('input', function() {
+            self.validateForm();
+        });
+
+        // Form submission
+        $('#approvalDecisionForm').on('submit', function(e) {
+            e.preventDefault();
+
+            if (!self.validateForm()) {
+                OnboardingApp.toast.error('Please complete all required fields');
+                return false;
+            }
+
+            // Save signature data
+            if (self.signaturePad.isEmpty()) {
+                OnboardingApp.toast.error('Please provide your digital signature');
+                return false;
+            }
+
+            $('#signatureData').val(self.signaturePad.toDataURL());
+
+            // Submit via AJAX
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+
+            $('#submitDecisionBtn').prop('disabled', true).html('<i class="spinner-border spinner-border-sm me-2"></i>Submitting...');
+
+            OnboardingApp.ajax.post(
+                $(this).attr('action'),
+                data,
+                function(response) {
+                    OnboardingApp.toast.success('Decision submitted successfully');
+                    setTimeout(() => {
+                        window.location.href = '{% url "people_onboarding:approval_list" %}';
+                    }, 1500);
+                },
+                function(error) {
+                    OnboardingApp.toast.error(error.responseJSON?.message || 'Failed to submit decision');
+                    $('#submitDecisionBtn').prop('disabled', false).html('<i class="bi bi-check-circle me-2"></i>Submit Decision');
+                }
+            );
+
+            return false;
+        });
+    },
+
+    validateForm: function() {
+        const decision = $('.decision-radio:checked').val();
+        const notes = $('#id_notes').val().trim();
+        const confirmed = $('#confirmDecision').is(':checked');
+        const hasSig nature = !this.signaturePad.isEmpty();
+
+        let isValid = decision && notes.length >= 10 && confirmed && hasSignature;
+
+        // Additional validation for escalation
+        if (decision === 'ESCALATED') {
+            const escalatedTo = $('#id_escalated_to').val();
+            const escalationReason = $('#id_escalation_reason').val().trim();
+            isValid = isValid && escalatedTo && escalationReason.length >= 10;
+        }
+
+        $('#submitDecisionBtn').prop('disabled', !isValid);
+        return isValid;
+    },
+
+    initTimestamp: function() {
+        const updateTimestamp = () => {
+            const now = new Date();
+            const formatted = now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            $('#currentTimestamp').text(formatted);
+        };
+
+        updateTimestamp();
+        setInterval(updateTimestamp, 1000);
+    },
+
+    initCharCounter: function() {
+        $('#id_notes').on('input', function() {
+            const length = $(this).val().length;
+            $('#notesCharCount').text(length);
+
+            if (length < 10) {
+                $('#notesCharCount').addClass('text-danger');
+            } else {
+                $('#notesCharCount').removeClass('text-danger');
+            }
+        });
+    }
+};
+
+$(document).ready(function() {
+    DecisionApp.init();
+});
+</script>
+{% endblock %}

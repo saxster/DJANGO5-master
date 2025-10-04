@@ -14,10 +14,25 @@ Implements the complete algorithm from DJANGO_BACKEND_COMPLETE_JOURNAL_SPECIFICA
 """
 
 from django.utils import timezone
+from collections import defaultdict, Counter
+from datetime import timedelta
 import re
-import numpy as np
+from apps.journal.logging import get_journal_logger
 
-logger = logging.getLogger(__name__)
+logger = get_journal_logger(__name__)
+
+try:
+    import numpy as np
+except ImportError:
+    # Fallback for when numpy is not available
+    class NumpyFallback:
+        def var(self, data):
+            if not data:
+                return 0
+            mean = sum(data) / len(data)
+            return sum((x - mean) ** 2 for x in data) / len(data)
+
+    np = NumpyFallback()
 
 
 class JournalPatternAnalyzer:
@@ -304,6 +319,28 @@ class JournalPatternAnalyzer:
         return min(1.0, confidence)
 
     def detect_long_term_patterns(self, user_journal_history):
+        """
+        Delegate to JournalAnalyticsService for comprehensive pattern analysis
+
+        This method now serves as a bridge to the consolidated analytics service
+        to avoid code duplication and maintain consistency.
+        """
+        try:
+            from .analytics_service import JournalAnalyticsService
+            analytics_service = JournalAnalyticsService()
+
+            # Extract user from first entry if available
+            if user_journal_history and hasattr(user_journal_history[0], 'user'):
+                user = user_journal_history[0].user
+                return analytics_service.analyze_long_term_patterns(user, days=90)
+            else:
+                # Fallback to original implementation for backward compatibility
+                return self._detect_long_term_patterns_fallback(user_journal_history)
+        except ImportError:
+            # Fallback if analytics service is not available
+            return self._detect_long_term_patterns_fallback(user_journal_history)
+
+    def _detect_long_term_patterns_fallback(self, user_journal_history):
         """
         COMPLEX PATTERN DETECTION: Long-term trend analysis for proactive wellness
         MOVED FROM: Multiple Kotlin analytics methods

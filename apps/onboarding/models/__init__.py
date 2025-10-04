@@ -64,6 +64,26 @@ from .conversational_ai import (
     AuthoritativeKnowledgeChunk,
 )
 
+# AI Changeset and Approval Models
+from .ai_changeset import (
+    AIChangeSet,
+    AIChangeRecord,
+    ChangeSetApproval,
+)
+
+# Site Onboarding Models
+from .site_onboarding import (
+    OnboardingSite,
+    OnboardingZone,
+    Observation,
+    SitePhoto,
+    Asset,
+    Checkpoint,
+    MeterPoint,
+    SOP,
+    CoveragePlan,
+)
+
 # Define what gets imported with "from apps.onboarding.models import *"
 __all__ = [
     # Core Business Models
@@ -84,17 +104,28 @@ __all__ = [
     'UserFeedbackLearning',
     'AuthoritativeKnowledgeChunk',
 
+    # AI Changeset and Approval Models
+    'AIChangeSet',
+    'AIChangeRecord',
+    'ChangeSetApproval',
+
+    # Site Onboarding Models
+    'OnboardingSite',
+    'OnboardingZone',
+    'Observation',
+    'SitePhoto',
+    'Asset',
+    'Checkpoint',
+    'MeterPoint',
+    'SOP',
+    'CoveragePlan',
+
     # Placeholder for future models (TBD)
     # Knowledge Base Models:
     # 'KnowledgeSource',
     # 'KnowledgeIngestionJob',
     # 'KnowledgeReview',
     # 'AuthoritativeKnowledgeChunkEnhanced',
-
-    # Change Tracking Models:
-    # 'AIChangeSet',
-    # 'ChangeSetApproval',
-    # 'AIChangeRecord',
 
     # Personalization Models:
     # 'PreferenceProfile',

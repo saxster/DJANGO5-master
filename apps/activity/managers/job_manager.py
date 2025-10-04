@@ -16,6 +16,7 @@ import json
 logger = logging.getLogger('__main__')
 from django.conf import settings
 from apps.core.constants import JobConstants
+from apps.attendance.services.geospatial_service import GeospatialService
 log = logger
 
 class JobManager(models.Manager):
@@ -33,6 +34,11 @@ class JobManager(models.Manager):
         return qset or self.none()
 
     def get_scheduled_internal_tours(self, request, related, fields):
+        """
+        Get scheduled internal tours for a session.
+
+        Uses unified parent handling for compatibility.
+        """
         S = request.session
         qset = self.select_related(*related).annotate(
                 assignedto = Case(
@@ -40,7 +46,7 @@ class JobManager(models.Manager):
                 When(Q(people_id=1) | Q(people_id__isnull =  True), then=Concat(F('pgroup__groupname'), V(' [GROUP]'))),
                 ),
             ).filter(
-            Q(parent__jobname = 'NONE') | Q(parent_id = 1),
+            Q(parent__jobname='NONE') | Q(parent__isnull=True) | Q(parent_id=1),  # Unified
             ~Q(jobname='NONE') | ~Q(id=1),
             bu_id__in = S['assignedsites'],
             client_id = S['client_id'],
@@ -59,6 +65,11 @@ class JobManager(models.Manager):
 
     
     def get_scheduled_tasks(self, request, related, fields):
+        """
+        Get scheduled tasks for a session.
+
+        Uses unified parent handling for compatibility.
+        """
         S = request.session
         qset = self.annotate(
             assignedto = Case(
@@ -67,7 +78,7 @@ class JobManager(models.Manager):
             )
             ).filter(
             ~Q(jobname='NONE') | ~Q(id=1),
-            Q(parent__jobname = 'NONE') | Q(parent_id = 1),
+            Q(parent__jobname='NONE') | Q(parent__isnull=True) | Q(parent_id=1),  # Unified
             bu_id__in = S['assignedsites'],
             client_id = S['client_id'],
             identifier = 'TASK',
@@ -75,6 +86,11 @@ class JobManager(models.Manager):
         return qset or self.none()
     
     def get_listview_objs_schdexttour(self, request):
+        """
+        Get scheduled external tour list view objects.
+
+        Uses unified parent handling for compatibility.
+        """
         S = request.session
         qset = self.annotate(
             assignedto = Case(
@@ -87,7 +103,12 @@ class JobManager(models.Manager):
             breaktime = F('other_info__breaktime'),
             deviation = F('other_info__deviation')
         ).filter(
-            ~Q(jobname='NONE'), parent_id=1, identifier='EXTERNALTOUR', bu_id__in = S['assignedsites'], enable=True,client_id = S['client_id']
+            ~Q(jobname='NONE'),
+            Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling
+            identifier='EXTERNALTOUR',
+            bu_id__in = S['assignedsites'],
+            enable=True,
+            client_id = S['client_id']
         ).select_related('pgroup', 'sgroup', 'people').values(
             'assignedto', 'sitegrpname', 'israndomized', 'tourfrequency',
             'breaktime', 'deviation', 'fromdate', 'uptodate', 'gracetime',
@@ -571,6 +592,9 @@ class JobneedManager(models.Manager):
     
 
     def get_sitereportlist(self, request):
+        """
+        Get site report list with unified parent handling.
+        """
         from apps.peoples.models import Pgbelonging
         from apps.activity.models import Attachment
         from django.contrib.gis.db.models.functions import Distance
@@ -593,8 +617,10 @@ class JobneedManager(models.Manager):
             ).values('att')[:1]
         )
 
-        qset = self.filter(
-            parent_id=1,
+        qset = self.select_related(
+            'bu', 'people', 'performedby', 'client', 'parent'
+        ).filter(
+            Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling
             plandatetime__date__gte=R['pd1'],
             plandatetime__date__lte=R['pd2'],
             identifier='SITEREPORT',
@@ -639,18 +665,20 @@ class JobneedManager(models.Manager):
         return result       
         
     def get_incidentreportlist(self, request):
-        "Transaction List View"
+        """
+        Get incident report list with unified parent handling.
+        """
         from apps.peoples.models import Pgbelonging
         from apps.activity.models import Attachment, QuestionSet
         import urllib.parse
         import html
         R = request.GET
-        
+
         # Decode URL-encoded and HTML-encoded parameters
         params_raw = R.get('params', '{}')
         params_decoded = urllib.parse.unquote(params_raw)
         params_decoded = html.unescape(params_decoded)
-        
+
         try:
             P = json.loads(params_decoded)
         except json.JSONDecodeError:
@@ -663,7 +691,9 @@ class JobneedManager(models.Manager):
             }
         sites = Pgbelonging.objects.get_assigned_sites_to_people(request.user.id)
         buids = sites
-        qset = self.annotate(
+        qset = self.select_related(
+            'bu', 'performedby', 'parent', 'client'
+        ).annotate(
             buname = Case(
                 When(Q(Q(othersite__isnull=True) | Q(othersite = "") | Q(othersite = 'NONE')), then=F('bu__buname')),
                 default= F('othersite')
@@ -671,7 +701,7 @@ class JobneedManager(models.Manager):
             gps = AsGeoJSON('gpslocation'),
             uuidtext = Cast('uuid', output_field=models.CharField())
         ).filter(
-            Q(Q(parent_id__in = [1, -1]) | Q(parent_id__isnull=True)),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
             plandatetime__date__gte =P['from'], plandatetime__date__lte = P['to'], identifier = QuestionSet.Type.INCIDENTREPORTTEMPLATE, bu_id__in = buids).values(
             'id', 'plandatetime', 'jobdesc', 'bu_id', 'buname', 'gps', 'jobstatus', 'performedby__peoplename', 'uuidtext', 'remarks', 'geojson__gpslocation',
             'identifier', 'parent_id'
@@ -683,6 +713,9 @@ class JobneedManager(models.Manager):
         
 
     def get_internaltourlist_jobneed(self, request, related, fields):
+        """
+        Get internal tour list with unified parent handling.
+        """
         R, S = request.GET, request.session
         import urllib.parse
         import html
@@ -697,7 +730,7 @@ class JobneedManager(models.Manager):
             from datetime import date
             today = date.today().strftime('%Y-%m-%d')
             P = {'from': today, 'to': today, 'dynamic': False}
-        
+
         assignedto = {'assignedto' : Case(
                 When(Q(pgroup_id=1) | Q(pgroup_id__isnull =  True), then=Concat(F('people__peoplename'), V(' [PEOPLE]'))),
                 When(Q(people_id=1) | Q(people_id__isnull =  True), then=Concat(F('pgroup__groupname'), V(' [GROUP]'))),
@@ -713,7 +746,7 @@ class JobneedManager(models.Manager):
             missed=Count('jobneed', filter=Q(jobneed__jobstatus__in=['ASSIGNED', 'AUTOCLOSED']), distinct=True)
             ).select_related(
                 *related).filter(
-                    Q(Q(parent_id__in = [1, -1]) | Q(parent_id__isnull=True)),
+                    Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
                     bu_id__in = S['assignedsites'],
                     client_id = S['client_id'],
                     identifier='INTERNALTOUR',
@@ -723,7 +756,7 @@ class JobneedManager(models.Manager):
             ).values(*fields).order_by('-plandatetime')
         if P.get('jobstatus') and P['jobstatus'] != 'TOTALSCHEDULED':
             qobjs = qobjs.filter(jobstatus = P['jobstatus'])
-        
+
         if P.get('alerts') and P.get('alerts') == 'TOUR':
             qobjs = qobjs.filter(
             alerts=True,
@@ -760,7 +793,7 @@ class JobneedManager(models.Manager):
             ).select_related(
                 *related).filter(
                     Q(bu_id__in = S['assignedsites']) | Q(sgroup_id__in = S['assignedsitegroups']),
-                    parent_id=1,
+                    Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling
                     plandatetime__date__gte = P.get('from', P.get('from', '2025-01-01')),
                     plandatetime__date__lte = P.get('to', P.get('to', '2025-12-31')),
                     jobtype="SCHEDULE",
@@ -887,12 +920,15 @@ class JobneedManager(models.Manager):
         return self.none()
 
     def get_ir_count_forcard(self, request):
+        """
+        Get incident report count with unified parent handling.
+        """
         from apps.activity.models import QuestionSet
         R, S = request.GET, request.session
         pd1 = R.get('from', datetime.now().date())
         pd2 = R.get('upto', datetime.now().date())
         return self.select_related('bu', 'parent').filter(
-            Q(parent_id__in = [1,-1,None]),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
             bu_id__in = S['assignedsites'],
             identifier = QuestionSet.Type.INCIDENTREPORTTEMPLATE,
             plandatetime__date__gte = pd1,
@@ -902,11 +938,14 @@ class JobneedManager(models.Manager):
     
     
     def get_schdroutes_count_forcard(self, request):
+        """
+        Get scheduled routes count with unified parent handling.
+        """
         R, S = request.GET, request.session
         pd1 = R.get('from', datetime.now().date())
         pd2 = R.get('upto', datetime.now().date())
         data = self.select_related('bu', 'parent').filter(
-            Q(Q(parent_id__in = [1, -1]) | Q(parent_id__isnull=True)),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling (simplified)
             Q(bu_id__in = S['assignedsites']) | Q(sgroup_id__in = S['assignedsitegroups']),
             client_id = S['client_id'],
             plandatetime__date__gte = pd1,
@@ -917,6 +956,9 @@ class JobneedManager(models.Manager):
         return data
     
     def get_ppm_listview(self, request, fields, related):
+        """
+        Get PPM list view with unified parent handling.
+        """
         S, R = request.session, request.GET
         params_str = R.get('params', '{}')
         try:
@@ -926,13 +968,13 @@ class JobneedManager(models.Manager):
             from datetime import date
             today = date.today().strftime('%Y-%m-%d')
             P = {'from': today, 'to': today, 'jobstatus': 'NONE'}
-            
+
         qobjs = self.select_related('people','bu', 'pgroup', 'client').annotate(
             assignedto = Case(
                 When(pgroup_id=1, then=Concat(F('people__peoplename'), V(' [PEOPLE]'))),
                 When(people_id=1, then=Concat(F('pgroup__groupname'), V(' [GROUP]'))),
             )).filter(
-            Q(Q(parent_id__in = [1, -1]) | Q(parent_id__isnull=True)),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
             bu_id__in = S['assignedsites'],
             identifier = 'PPM',
             plandatetime__date__gte = P['from'],
@@ -986,9 +1028,12 @@ class JobneedManager(models.Manager):
     
     
     def get_tourchart_data(self,request):
-        S,R = request.session,request.GET 
+        """
+        Get tour chart data with unified parent handling.
+        """
+        S,R = request.session,request.GET
         total_schd = self.select_related('bu','parent').filter(
-            Q(parent_id__in=[1,-1,None]),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
             bu_id__in = S['assignedsites'],
             identifier='INTERNALTOUR',
             plandatetime__date__gte = R['from'],
@@ -1008,9 +1053,12 @@ class JobneedManager(models.Manager):
         ]
     
     def get_alertchart_data(self, request):
+        """
+        Get alert chart data with unified parent handling.
+        """
         S, R = request.session, request.GET
         qset = self.select_related('bu', 'parent').filter(
-            Q(parent_id__in = [1, -1,None]),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
             bu_id__in = S['assignedsites'],
             plandatetime__date__gte = R['from'],
             plandatetime__date__lte = R['upto'],
@@ -1019,10 +1067,10 @@ class JobneedManager(models.Manager):
         )
 
         aggreated_data = qset.aggregate(
-            task_alerts = Count('id',filter=Q(Q(parent_id__in=[1,-1,None]),identifier='TASK')),
+            task_alerts = Count('id',filter=Q(Q(parent__isnull=True) | Q(parent_id__in=[1,-1]),identifier='TASK')),
             tour_alerts = Count('id',filter=Q(identifier='INTERNALTOUR')),
             ppm_alerts  = Count('id',filter=Q(identifier='PPM')),
-            routes_alerts = Count('id',filter=Q(parent_id__isnull=False))
+            routes_alerts = Count('id',filter=Q(parent__isnull=False) & ~Q(parent_id=1))
         )
 
         chart_arr = [
@@ -1036,6 +1084,11 @@ class JobneedManager(models.Manager):
         return data
     
     def get_expired_jobs(self, id=None):
+        """
+        Get expired jobs for auto-close processing.
+
+        Uses unified parent handling for compatibility.
+        """
         annotation = { 'assignedto' : Case(
                     When(pgroup_id=1, then=Concat(F('people__peoplename'), V(' [PEOPLE]'))),
                     When(people_id=1, then=Concat(F('pgroup__groupname'), V(' [GROUP]'))),
@@ -1053,10 +1106,10 @@ class JobneedManager(models.Manager):
                 ~Q(other_info__autoclosed_by_server = True),
                 ~Q(other_info__isdynamic = True),
                 ~Q(Q(jobstatus = 'AUTOCLOSED') & (Q(other_info__email_sent = True)| Q(other_info__ticket_generated = True))),
-                Q(parent_id = 1), 
+                Q(parent__isnull=True) | Q(parent_id=1),  # Unified parent handling
                 Q(identifier__in = ['TASK', 'INTERNALTOUR', 'PPM', 'EXTERNALTOUR', "SITEREPORT"]),
                 expirydatetime__gte=datetime.now(timezone.utc) - timedelta(days=1),
-                expirydatetime__lte=datetime.now(timezone.utc),            
+                expirydatetime__lte=datetime.now(timezone.utc),
             )
 
             log.info(f'Qset Without Identifier: {qset}')
@@ -1074,9 +1127,12 @@ class JobneedManager(models.Manager):
         return qset or self.none()
     
     def get_ppmchart_data(self,request):
-        S,R = request.session, request.GET 
+        """
+        Get PPM chart data with unified parent handling.
+        """
+        S,R = request.session, request.GET
         total_schd = self.select_related('bu','parent').filter(
-            Q(parent_id__in = [1,-1,None]),
+            Q(parent__isnull=True) | Q(parent_id__in=[1, -1]),  # Unified parent handling
             bu_id__in = S['assignedsites'],
             identifier = 'PPM',
             plandatetime__date__gte = R['from'],
@@ -1271,7 +1327,16 @@ class JobneedManager(models.Manager):
         elif site_tour_parent.jobstatus ==  self.model.JobStatus.INPROGRESS:
             from apps.attendance.models import Tracking
             between_latlngs = Tracking.objects.select_related('people', 'people__bu').filter(reference = site_tour_parent.uuid).order_by('receiveddate')
-            return [[obj.gpslocation.y , obj.gpslocation.x] for obj in between_latlngs]
+            # Use centralized coordinate extraction for consistency
+            result = []
+            for obj in between_latlngs:
+                try:
+                    lon, lat = GeospatialService.extract_coordinates(obj.gpslocation)
+                    result.append([lat, lon])  # Return [lat, lon] format
+                except Exception as e:
+                    log.warning(f"Failed to extract coordinates from tracking object: {e}")
+                    continue
+            return result
         else:
             return None
         
@@ -1299,12 +1364,20 @@ class JobneedManager(models.Manager):
             event = trac
             time_key = 'receiveddate'
         
+        # Use centralized coordinate extraction
+        try:
+            lon, lat = GeospatialService.extract_coordinates(event.gpslocation)
+            gps_coords = [lat, lon]  # Return [lat, lon] format
+        except Exception as e:
+            log.warning(f"Failed to extract GPS coordinates: {e}")
+            gps_coords = [0.0, 0.0]  # Fallback to default coordinates
+
         return {
             'peoplename': people.peoplename,
             'mobno': people.mobno,
             'email': people.email,
             'time': self.formatted_datetime(getattr(event, time_key), site_tour.ctzoffset),
-            'gps': [event.gpslocation.y, event.gpslocation.x]
+            'gps': gps_coords
         }
 
     def formatted_datetime(self, dtime, ctzoffset):
@@ -1412,6 +1485,89 @@ class JobneedManager(models.Manager):
             'performedby', 'asset', 'bu', 'qset', 'job',
             'people', 'pgroup', 'client', 'parent'
         ).filter(**kwargs)
+
+    def latest_for_job(self, job_id):
+        """
+        Get the most recent Jobneed for a Job.
+
+        Useful for GraphQL queries that need "current" jobneed.
+        Returns the jobneed with the latest plandatetime.
+
+        Args:
+            job_id: Job ID
+
+        Returns:
+            Jobneed instance or None if no jobneeds exist
+
+        Example:
+            latest = Jobneed.objects.latest_for_job(123)
+        """
+        return self.filter(job_id=job_id).order_by('-plandatetime').first()
+
+    def history_for_job(self, job_id, limit=10):
+        """
+        Get Jobneed execution history for a Job.
+
+        Returns recent jobneeds ordered by plandatetime (newest first).
+
+        Args:
+            job_id: Job ID
+            limit: Maximum number of records to return
+
+        Returns:
+            QuerySet of Jobneed instances
+
+        Example:
+            history = Jobneed.objects.history_for_job(123, limit=20)
+        """
+        return self.filter(job_id=job_id).select_related(
+            'performedby', 'people', 'bu'
+        ).order_by('-plandatetime')[:limit]
+
+    def current_for_jobs(self, job_ids):
+        """
+        Get the most recent Jobneed for multiple Jobs (batch query).
+
+        Efficient for DataLoader batching in GraphQL.
+
+        Args:
+            job_ids: List of Job IDs
+
+        Returns:
+            dict: {job_id: jobneed_instance}
+
+        Example:
+            current = Jobneed.objects.current_for_jobs([1, 2, 3])
+            # Returns: {1: Jobneed(...), 2: Jobneed(...), 3: None}
+        """
+        from django.db.models import Max
+
+        # Get latest plandatetime per job
+        latest_dates = self.filter(
+            job_id__in=job_ids
+        ).values('job_id').annotate(
+            latest_date=Max('plandatetime')
+        )
+
+        # Create lookup dict
+        date_lookup = {
+            item['job_id']: item['latest_date']
+            for item in latest_dates
+        }
+
+        # Fetch actual jobneeds
+        jobneeds = self.filter(
+            job_id__in=job_ids,
+        ).select_related('performedby', 'people', 'bu')
+
+        # Build result dict (only include latest for each job)
+        result = {job_id: None for job_id in job_ids}
+
+        for jobneed in jobneeds:
+            if jobneed.plandatetime == date_lookup.get(jobneed.job_id):
+                result[jobneed.job_id] = jobneed
+
+        return result
 
 
 class JobneedDetailsManager(models.Manager):

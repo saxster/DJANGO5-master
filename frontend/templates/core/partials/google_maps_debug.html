@@ -1,0 +1,229 @@
+<!-- Google Maps Debug Information (Development Only) -->
+{% if enabled %}
+<div class="card mt-3 border-warning" id="google-maps-debug-panel">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="card-title mb-0">
+            <i class="fas fa-bug me-2"></i>
+            Google Maps Debug Information
+            <button class="btn btn-sm btn-outline-dark float-end" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#debug-details">
+                Toggle Details
+            </button>
+        </h6>
+    </div>
+    <div class="collapse" id="debug-details">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted">Configuration Status</h6>
+                    <ul class="list-unstyled">
+                        <li>
+                            <i class="fas fa-{{ debug_info.api_configured|yesno:'check text-success,times text-danger' }} me-2"></i>
+                            API Key Configured: <strong>{{ debug_info.api_configured|yesno:"Yes,No" }}</strong>
+                        </li>
+                        <li>
+                            <i class="fas fa-{{ debug_info.client_initialized|yesno:'check text-success,times text-danger' }} me-2"></i>
+                            Client Initialized: <strong>{{ debug_info.client_initialized|yesno:"Yes,No" }}</strong>
+                        </li>
+                        <li>
+                            <i class="fas fa-database me-2"></i>
+                            Cache Backend: <code>{{ debug_info.cache_backend }}</code>
+                        </li>
+                        <li>
+                            <i class="fas fa-key me-2"></i>
+                            Session Key: <code>{{ debug_info.session_key|truncatechars:16 }}</code>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-muted">Performance Settings</h6>
+                    {% with config=debug_info.config %}
+                    <ul class="list-unstyled">
+                        <li>
+                            <i class="fas fa-{{ config.enabled|yesno:'toggle-on text-success,toggle-off text-danger' }} me-2"></i>
+                            Maps Enabled: <strong>{{ config.enabled|yesno:"Yes,No" }}</strong>
+                        </li>
+                        {% if config.performance %}
+                        <li>
+                            <i class="fas fa-{{ config.performance.optimize_markers|yesno:'check text-success,times text-warning' }} me-2"></i>
+                            Marker Optimization: <strong>{{ config.performance.optimize_markers|yesno:"Enabled,Disabled" }}</strong>
+                        </li>
+                        <li>
+                            <i class="fas fa-{{ config.performance.cluster_threshold|yesno:'layer-group text-info,layer-group text-muted' }} me-2"></i>
+                            Cluster Threshold: <strong>{{ config.performance.cluster_threshold }}</strong>
+                        </li>
+                        <li>
+                            <i class="fas fa-{{ config.performance.lazy_loading|yesno:'hourglass-half text-info,hourglass text-muted' }} me-2"></i>
+                            Lazy Loading: <strong>{{ config.performance.lazy_loading|yesno:"Enabled,Disabled" }}</strong>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    {% endwith %}
+                </div>
+            </div>
+
+            {% if debug_info.config.libraries %}
+            <div class="mt-3">
+                <h6 class="text-muted">Loaded Libraries</h6>
+                <div class="d-flex flex-wrap">
+                    {% for library in debug_info.config.libraries %}
+                    <span class="badge bg-primary me-2 mb-1">{{ library }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Runtime Debug Information -->
+            <div class="mt-3">
+                <h6 class="text-muted">Runtime Information</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center p-2">
+                                <div id="debug-map-status" class="text-muted">Not Initialized</div>
+                                <small>Map Status</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center p-2">
+                                <div id="debug-markers-count" class="text-muted">0</div>
+                                <small>Markers</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center p-2">
+                                <div id="debug-api-calls" class="text-muted">0</div>
+                                <small>API Calls</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cache Statistics -->
+            <div class="mt-3">
+                <h6 class="text-muted">Cache Performance</h6>
+                <div class="progress mb-2" style="height: 20px;">
+                    <div id="cache-hit-rate" class="progress-bar bg-success" role="progressbar"
+                         style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                         Cache Hit Rate: 0%
+                    </div>
+                </div>
+                <small class="text-muted">Cache statistics will update as you use the maps</small>
+            </div>
+
+            <!-- Debug Actions -->
+            <div class="mt-3 border-top pt-3">
+                <h6 class="text-muted">Debug Actions</h6>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-info" onclick="debugClearMapsCache()">
+                        <i class="fas fa-trash me-1"></i> Clear Cache
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="debugRefreshMap()">
+                        <i class="fas fa-sync me-1"></i> Refresh Map
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="debugLogMapState()">
+                        <i class="fas fa-terminal me-1"></i> Log State
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Debug JavaScript Functions -->
+<script>
+// Debug tracking variables
+let debugApiCallCount = 0;
+let debugCacheHits = 0;
+let debugCacheMisses = 0;
+
+// Update debug information when Maps initializes
+document.addEventListener('googleMapsInitialized', function(event) {
+    document.getElementById('debug-map-status').textContent = 'Initialized';
+    document.getElementById('debug-map-status').className = 'text-success';
+    console.log('Google Maps Debug: Map initialized', event.detail);
+});
+
+// Debug functions
+function debugClearMapsCache() {
+    console.log('Google Maps Debug: Clearing cache...');
+    // In a real implementation, this would call the backend cache clearing endpoint
+    fetch('/api/google-maps/clear-cache/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Cache cleared:', data);
+        alert('Google Maps cache cleared successfully');
+        debugCacheHits = 0;
+        debugCacheMisses = 0;
+        updateCacheStats();
+    })
+    .catch(error => {
+        console.error('Cache clear failed:', error);
+        alert('Failed to clear cache. Check console for details.');
+    });
+}
+
+function debugRefreshMap() {
+    console.log('Google Maps Debug: Refreshing map...');
+    if (window.googleMapsInstance) {
+        google.maps.event.trigger(window.googleMapsInstance, 'resize');
+        console.log('Map refreshed');
+    } else {
+        console.warn('Map not initialized yet');
+    }
+}
+
+function debugLogMapState() {
+    console.log('Google Maps Debug: Current state');
+    console.log('Map instance:', window.googleMapsInstance);
+    console.log('Marker cluster:', window.markerCluster);
+    console.log('Configuration:', window.GoogleMapsConfig);
+    console.log('Performance settings:', window.GoogleMapsPerformance);
+    console.log('API calls made:', debugApiCallCount);
+    console.log('Cache hits:', debugCacheHits);
+    console.log('Cache misses:', debugCacheMisses);
+
+    // Update UI counters
+    document.getElementById('debug-api-calls').textContent = debugApiCallCount;
+    updateCacheStats();
+}
+
+function updateCacheStats() {
+    const total = debugCacheHits + debugCacheMisses;
+    if (total > 0) {
+        const hitRate = Math.round((debugCacheHits / total) * 100);
+        const progressBar = document.getElementById('cache-hit-rate');
+        progressBar.style.width = hitRate + '%';
+        progressBar.textContent = `Cache Hit Rate: ${hitRate}%`;
+        progressBar.className = `progress-bar ${hitRate > 70 ? 'bg-success' : hitRate > 40 ? 'bg-warning' : 'bg-danger'}`;
+    }
+}
+
+// Track API calls (monkey patch common Google Maps methods)
+if (typeof google !== 'undefined' && google.maps) {
+    // This would be more comprehensive in a real implementation
+    console.log('Google Maps Debug: Tracking enabled');
+}
+
+// Auto-refresh debug info every 5 seconds
+setInterval(function() {
+    if (window.googleMapsInstance && document.getElementById('debug-markers-count')) {
+        const markerCount = window.markerCluster ?
+            window.markerCluster.getMarkers().length :
+            'N/A';
+        document.getElementById('debug-markers-count').textContent = markerCount;
+    }
+}, 5000);
+</script>
+{% endif %}

@@ -1,163 +1,188 @@
-from django.shortcuts import get_object_or_404
-from apps.service.rest_service import serializers as ytpl_serializers
+"""
+REST API ViewSets with Tenant Isolation
+
+Provides secure REST API endpoints with automatic tenant filtering and pagination.
+
+Security Features:
+- Tenant isolation enforced on all viewsets
+- Pagination to prevent resource exhaustion
+- Query optimization to prevent N+1 queries
+- Permission-based access control
+
+Refactored: 2025-10-01
+Compliance: Addresses CRITICAL tenant isolation vulnerability
+"""
+
 from rest_framework import viewsets
-from rest_framework.response import Response
+from apps.service.rest_service import serializers as ytpl_serializers
+from apps.service.rest_service.mixins import TenantFilteredViewSetMixin
 from apps.peoples import models as people_models
 from apps.onboarding import models as ob_models
 from apps.activity import models as act_models
 from apps.attendance.models import PeopleEventlog
-from datetime import datetime
 
 
-def get_queryset(model, request, related_fields=list):
-    last_update = request.query_params.get("last_update")
-    if last_update:
-        last_update = datetime.strptime(last_update, "%Y-%m-%dT%H:%M:%S.%fZ")
-        queryset = model.objects.filter(mdtz__gt=last_update)
-    else:
-        queryset = model.objects.all()
-    return queryset
-
-
-class PeopleViewset(viewsets.ReadOnlyModelViewSet):
+class PeopleViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows People to be viewed.
+    API endpoint for People (users) data.
+
+    Endpoint: /api/rest/people/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = people_models.People.objects.all()
+    serializer_class = ytpl_serializers.PeopleSerializer
 
-    def list(self, request):
-        queryset = get_queryset(people_models.People, request)
-        serializer = ytpl_serializers.PeopleSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        user = get_object_or_404(people_models.People, pk=kwargs["pk"])
-        serializer = ytpl_serializers.PeopleSerializer(user)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['bu', 'client', 'department']
 
 
-class PELViewset(viewsets.ReadOnlyModelViewSet):
+class PELViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows PeopleEventLog to be viewed.
+    API endpoint for People Event Logs (attendance/location events).
+
+    Endpoint: /api/rest/event-logs/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = PeopleEventlog.objects.all()
+    serializer_class = ytpl_serializers.PeopleEventLogSerializer
 
-    def list(self, request):
-        queryset = get_queryset(PeopleEventlog, request)
-        serializer = ytpl_serializers.PeopleEventLogSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        event_log = get_object_or_404(PeopleEventlog, pk=kwargs["pk"])
-        serializer = ytpl_serializers.PeopleEventLogSerializer(event_log)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['peopleid', 'peopleid__client', 'peopleid__bu']
 
 
-class PgroupViewset(viewsets.ReadOnlyModelViewSet):
+class PgroupViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows Pgroup to be viewed.
+    API endpoint for People Groups (organizational groups/teams).
+
+    Endpoint: /api/rest/groups/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = people_models.Pgroup.objects.all()
+    serializer_class = ytpl_serializers.PgroupSerializer
 
-    def list(self, request):
-        queryset = get_queryset(people_models.Pgroup, request)
-        serializer = ytpl_serializers.PgroupSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        pgroup = get_object_or_404(people_models.Pgroup, pk=kwargs["pk"])
-        serializer = ytpl_serializers.PgroupSerializer(pgroup)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['bu']
 
 
-class BtViewset(viewsets.ReadOnlyModelViewSet):
+class BtViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows Bt to be viewed.
+    API endpoint for Business Units (sites/locations).
+
+    Endpoint: /api/rest/business-units/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = ob_models.Bt.objects.all()
+    serializer_class = ytpl_serializers.BtSerializer
 
-    def list(self, request):
-        queryset = get_queryset(ob_models.Bt, request)
-        serializer = ytpl_serializers.BtSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        bt = get_object_or_404(ob_models.Bt, pk=kwargs["pk"])
-        serializer = ytpl_serializers.BtSerializer(bt)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['clientid']
 
 
-class ShiftViewset(viewsets.ReadOnlyModelViewSet):
+class ShiftViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows Shift to be viewed.
+    API endpoint for Shifts (work schedules).
+
+    Endpoint: /api/rest/shifts/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = ob_models.Shift.objects.all()
+    serializer_class = ytpl_serializers.ShiftSerializer
 
-    def list(self, request):
-        queryset = get_queryset(ob_models.Shift, request)
-        serializer = ytpl_serializers.ShiftSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        shift = get_object_or_404(ob_models.Shift, pk=kwargs["pk"])
-        serializer = ytpl_serializers.ShiftSerializer(shift)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['bu']
 
 
-class TypeAssistViewset(viewsets.ReadOnlyModelViewSet):
+class TypeAssistViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows TypeAssist to be viewed.
+    API endpoint for Type Assistance (lookup data, reference codes).
+
+    Endpoint: /api/rest/type-assist/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = ob_models.TypeAssist.objects.all()
+    serializer_class = ytpl_serializers.TypeAssistSerializer
 
-    def list(self, request):
-        queryset = get_queryset(ob_models.TypeAssist, request)
-        serializer = ytpl_serializers.TypeAssistSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        type_assist = get_object_or_404(ob_models.TypeAssist, pk=kwargs["pk"])
-        serializer = ytpl_serializers.TypeAssistSerializer(type_assist)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        # TypeAssist is typically a lookup table without many relations
+        return []
 
 
-class PgbelongingViewset(viewsets.ReadOnlyModelViewSet):
+class PgbelongingViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows Pgbelonging to be viewed.
+    API endpoint for People Group Belongings (user-group associations).
+
+    Endpoint: /api/rest/group-memberships/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = people_models.Pgbelonging.objects.all()
+    serializer_class = ytpl_serializers.PgbelongingSerializer
 
-    def list(self, request):
-        queryset = get_queryset(people_models.Pgbelonging, request)
-        serializer = ytpl_serializers.PgbelongingSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        belonging = get_object_or_404(people_models.Pgbelonging, pk=kwargs["pk"])
-        serializer = ytpl_serializers.PgbelongingSerializer(belonging)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['peopleid', 'pgroupid', 'buid']
 
 
-class JobViewset(viewsets.ReadOnlyModelViewSet):
+class JobViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows Job to be viewed.
+    API endpoint for Jobs (tasks/work orders).
+
+    Endpoint: /api/rest/jobs/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = act_models.Job.objects.all()
+    serializer_class = ytpl_serializers.JobSerializer
 
-    def list(self, request):
-        queryset = get_queryset(act_models.Job, request)
-        serializer = ytpl_serializers.JobSerializer(queryset, many=True)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return [
+            'locn',
+            'clientid',
+            'bu',
+            'assetcode',
+            'createdby',
+            'assignedto'
+        ]
 
-    def retrieve(self, request, *args, **kwargs):
-        job = get_object_or_404(act_models.Job, pk=kwargs["pk"])
-        serializer = ytpl_serializers.JobSerializer(job)
-        return Response(serializer.data)
 
-
-class JobneedViewset(viewsets.ReadOnlyModelViewSet):
+class JobneedViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint that allows Jobneed to be viewed.
+    API endpoint for Job Needs (task requirements/checklist items).
+
+    Endpoint: /api/rest/job-needs/
+    Methods: GET (list), GET (detail)
+    Security: Tenant-filtered, paginated
     """
+    queryset = act_models.Jobneed.objects.all()
+    serializer_class = ytpl_serializers.JobneedSerializer
 
-    def list(self, request):
-        queryset = get_queryset(act_models.Jobneed, request)
-        serializer = ytpl_serializers.JobneedSerializer(queryset, many=True)
-        return Response(serializer.data)
+    def _get_related_fields(self):
+        """Optimize queries by pre-fetching related models."""
+        return ['jobcode', 'questioncode']
 
-    def retrieve(self, request, *args, **kwargs):
-        jobneed = get_object_or_404(act_models.Jobneed, pk=kwargs["pk"])
-        serializer = ytpl_serializers.JobneedSerializer(jobneed)
-        return Response(serializer.data)
+
+# Export all viewsets for URL registration
+__all__ = [
+    'PeopleViewset',
+    'PELViewset',
+    'PgroupViewset',
+    'BtViewset',
+    'ShiftViewset',
+    'TypeAssistViewset',
+    'PgbelongingViewset',
+    'JobViewset',
+    'JobneedViewset',
+]

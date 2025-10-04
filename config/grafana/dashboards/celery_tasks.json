@@ -1,0 +1,481 @@
+{
+  "dashboard": {
+    "title": "Celery Tasks Dashboard",
+    "tags": ["observability", "celery", "tasks", "idempotency", "retries", "2025-10-01"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{component=\"celery\"}",
+          "iconColor": "red",
+          "name": "Celery Alerts",
+          "tagKeys": "alertname,severity,task_name",
+          "titleFormat": "{{ alertname }}"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Celery Task Execution Rate (tasks/sec)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by(task_name) (rate(celery_task_executed_total[5m]))",
+            "legendFormat": "{{task_name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tasks/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "stack": false,
+        "legend": {"show": true, "values": true, "alignAsTable": true, "rightSide": false, "avg": true}
+      },
+      {
+        "id": 2,
+        "title": "Celery Task Success Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "(sum(rate(celery_task_executed_total{state=\"SUCCESS\"}[5m])) / sum(rate(celery_task_executed_total[5m]))) * 100",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          },
+          {
+            "expr": "(sum(rate(celery_task_executed_total{state=\"FAILURE\"}[5m])) / sum(rate(celery_task_executed_total[5m]))) * 100",
+            "legendFormat": "Failure Rate",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Percentage", "min": 0, "max": 100},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 2,
+        "linewidth": 2,
+        "thresholds": [
+          {"value": 95, "colorMode": "critical", "op": "lt", "fill": true, "line": true}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [95], "type": "lt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "name": "Low task success rate",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "Celery Idempotency Dedupe Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum by(task_name) (rate(celery_idempotency_dedupe_total{result=\"hit\"}[5m]))",
+            "legendFormat": "{{task_name}} (Duplicates Blocked)",
+            "refId": "A"
+          },
+          {
+            "expr": "sum by(task_name) (rate(celery_idempotency_dedupe_total{result=\"miss\"}[5m]))",
+            "legendFormat": "{{task_name}} (Unique Executions)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Checks/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "stack": false
+      },
+      {
+        "id": 4,
+        "title": "Idempotency Duplicate Detection Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "(sum(rate(celery_idempotency_dedupe_total{result=\"hit\"}[5m])) / sum(rate(celery_idempotency_dedupe_total[5m]))) * 100",
+            "legendFormat": "Duplicate Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Percentage", "min": 0, "max": 100},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 2,
+        "linewidth": 2,
+        "thresholds": [
+          {"value": 30, "colorMode": "custom", "fillColor": "rgba(255, 150, 0, 0.2)", "op": "gt", "line": true},
+          {"value": 50, "colorMode": "critical", "fillColor": "rgba(255, 0, 0, 0.3)", "op": "gt", "line": true}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [30], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "name": "High duplicate task rate",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 5,
+        "title": "Celery Task Retry Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "sum by(task_name, reason) (rate(celery_task_retries_total[5m]))",
+            "legendFormat": "{{task_name}} ({{reason}})",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Retries/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 2,
+        "linewidth": 2,
+        "stack": false
+      },
+      {
+        "id": 6,
+        "title": "Retry Distribution by Attempt",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "sum by(retry_attempt) (rate(celery_task_retries_total[5m]))",
+            "legendFormat": "Attempt {{retry_attempt}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Retries/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "bars": false,
+        "stack": true,
+        "fill": 5,
+        "linewidth": 2
+      },
+      {
+        "id": 7,
+        "title": "Task Execution Duration (Percentiles)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by(task_name, le) (rate(celery_task_duration_seconds_bucket[5m])))",
+            "legendFormat": "{{task_name}} p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by(task_name, le) (rate(celery_task_duration_seconds_bucket[5m])))",
+            "legendFormat": "{{task_name}} p95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum by(task_name, le) (rate(celery_task_duration_seconds_bucket[5m])))",
+            "legendFormat": "{{task_name}} p99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 0,
+        "linewidth": 2
+      },
+      {
+        "id": 8,
+        "title": "Top 10 Slowest Tasks",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "topk(10, avg by(task_name) (rate(celery_task_duration_seconds_sum[5m]) / rate(celery_task_duration_seconds_count[5m])))",
+            "instant": true,
+            "format": "table",
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "task_name": "Task",
+                "Value": "Avg Duration (s)"
+              }
+            }
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"desc": true, "displayName": "Avg Duration (s)"}]
+        }
+      },
+      {
+        "id": 9,
+        "title": "Total Tasks Executed (24h)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 32},
+        "targets": [
+          {
+            "expr": "sum(increase(celery_task_executed_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Total Retries (24h)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 32},
+        "targets": [
+          {
+            "expr": "sum(increase(celery_task_retries_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Duplicates Blocked (24h)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 32},
+        "targets": [
+          {
+            "expr": "sum(increase(celery_idempotency_dedupe_total{result=\"hit\"}[24h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "Avg Task Duration",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 32},
+        "targets": [
+          {
+            "expr": "avg(rate(celery_task_duration_seconds_sum[5m]) / rate(celery_task_duration_seconds_count[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "red", "value": 60}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Task Retry Reasons",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 36},
+        "targets": [
+          {
+            "expr": "sum by(reason) (rate(celery_task_retries_total[5m]))",
+            "legendFormat": "{{reason}}",
+            "refId": "A"
+          }
+        ],
+        "pieType": "donut",
+        "legend": {"show": true, "values": true}
+      },
+      {
+        "id": 14,
+        "title": "Idempotency Check Source",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 36},
+        "targets": [
+          {
+            "expr": "sum by(source) (rate(celery_idempotency_dedupe_total[5m]))",
+            "legendFormat": "{{source}}",
+            "refId": "A"
+          }
+        ],
+        "pieType": "donut",
+        "legend": {"show": true, "values": true},
+        "description": "Redis vs PostgreSQL idempotency checks"
+      },
+      {
+        "id": 15,
+        "title": "Queue Depth",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 36},
+        "targets": [
+          {
+            "expr": "sum by(queue) (celery_queue_depth)",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tasks in Queue"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 2,
+        "linewidth": 2,
+        "stack": true,
+        "thresholds": [
+          {"value": 100, "colorMode": "custom", "fillColor": "rgba(255, 150, 0, 0.2)", "op": "gt", "line": true},
+          {"value": 500, "colorMode": "critical", "fillColor": "rgba(255, 0, 0, 0.3)", "op": "gt", "line": true}
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "text": "Prometheus",
+            "value": "Prometheus"
+          }
+        },
+        {
+          "name": "task_name",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(celery_task_executed_total, task_name)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        },
+        {
+          "name": "queue",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(celery_queue_depth, queue)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    }
+  }
+}

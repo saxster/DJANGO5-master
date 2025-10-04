@@ -13,12 +13,29 @@ Security Features:
 - Implements rate limiting for GraphQL operations
 
 Compliance: Addresses CVSS 8.1 vulnerability - CSRF Protection Bypass on GraphQL
+
+IMPORTANT: Middleware Ordering
+This middleware MUST be placed BEFORE Django's CsrfViewMiddleware in settings.MIDDLEWARE:
+
+    MIDDLEWARE = [
+        ...
+        "apps.core.middleware.graphql_csrf_protection.GraphQLCSRFProtectionMiddleware",  # FIRST
+        ...
+        "django.middleware.csrf.CsrfViewMiddleware",  # SECOND (global CSRF)
+        ...
+    ]
+
+Architecture:
+- This middleware identifies GraphQL mutations and prepares the request
+- Django's global CsrfViewMiddleware performs the actual validation
+- No duplicate CSRF instances (performance optimization)
 """
 
 import json
 import logging
 import time
 from typing import Dict, Any, Optional, Union
+
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.middleware.csrf import CsrfViewMiddleware
@@ -27,6 +44,7 @@ from django.utils.cache import get_cache_key
 from django.utils.deprecation import MiddlewareMixin
 from django.core.exceptions import PermissionDenied
 from django.core.cache import cache
+
 from apps.core.error_handling import CorrelationIDMiddleware
 
 
@@ -43,11 +61,18 @@ class GraphQLCSRFProtectionMiddleware(MiddlewareMixin):
     This middleware addresses the critical CSRF vulnerability (CVSS 8.1) in
     GraphQL endpoints by removing the blanket csrf_exempt and implementing
     smart CSRF protection based on operation type.
+
+    Design Pattern:
+    - This middleware identifies GraphQL operations (query/mutation/subscription)
+    - For mutations, it ensures CSRF token is present and accessible
+    - Django's global CsrfViewMiddleware (later in the stack) performs validation
+    - This avoids duplicate CSRF middleware instances
     """
 
     def __init__(self, get_response=None):
         super().__init__(get_response)
-        self.csrf_middleware = CsrfViewMiddleware(get_response)
+        # NOTE: We do NOT create a duplicate CsrfViewMiddleware instance
+        # The global CsrfViewMiddleware in settings.MIDDLEWARE handles validation
         self.graphql_paths = getattr(settings, 'GRAPHQL_PATHS', [
             '/api/graphql/',
             '/graphql/',
@@ -206,14 +231,17 @@ class GraphQLCSRFProtectionMiddleware(MiddlewareMixin):
 
     def _validate_csrf_for_mutation(self, request: HttpRequest, correlation_id: str) -> Optional[HttpResponse]:
         """
-        Validate CSRF token for GraphQL mutations.
+        Prepare GraphQL mutation for CSRF validation by global CsrfViewMiddleware.
+
+        This method ensures the CSRF token is present and accessible, then delegates
+        actual validation to Django's global CsrfViewMiddleware (later in the stack).
 
         Args:
             request: The HTTP request
             correlation_id: Request correlation ID for tracking
 
         Returns:
-            HttpResponse if validation fails, None if validation passes
+            HttpResponse if token is missing, None to continue (validation happens later)
         """
         # Check for CSRF token in various places
         csrf_token = self._get_csrf_token_from_request(request)
@@ -229,39 +257,21 @@ class GraphQLCSRFProtectionMiddleware(MiddlewareMixin):
                 correlation_id
             )
 
-        # Validate CSRF token using Django's built-in validation
-        original_method = request.method
+        # Ensure token is in request.POST or request.META for global middleware
+        # This makes the token accessible to Django's CsrfViewMiddleware
+        if csrf_token:
+            # Store in META for CsrfViewMiddleware to validate
+            request.META['HTTP_X_CSRFTOKEN'] = csrf_token
 
-        try:
-            # Temporarily set method to POST to trigger CSRF validation
-            request.method = 'POST'
+        graphql_logger.info(
+            f"GraphQL mutation prepared for CSRF validation. "
+            f"Path: {request.path}, User: {getattr(request, 'user', 'anonymous')}, "
+            f"Correlation ID: {correlation_id}"
+        )
 
-            # Use Django's CSRF middleware to validate
-            response = self.csrf_middleware.process_request(request)
-
-            if response is not None:
-                # CSRF validation failed
-                security_logger.error(
-                    f"GraphQL mutation CSRF validation failed. "
-                    f"Path: {request.path}, User: {getattr(request, 'user', 'anonymous')}, "
-                    f"IP: {self._get_client_ip(request)}, Correlation ID: {correlation_id}"
-                )
-                return self._create_csrf_error_response(
-                    "CSRF token validation failed. Please refresh the page and try again.",
-                    correlation_id
-                )
-
-            # CSRF validation passed
-            graphql_logger.info(
-                f"GraphQL mutation CSRF validation successful. "
-                f"Path: {request.path}, User: {getattr(request, 'user', 'anonymous')}, "
-                f"Correlation ID: {correlation_id}"
-            )
-            return None
-
-        finally:
-            # Restore original method
-            request.method = original_method
+        # Return None - global CsrfViewMiddleware will validate
+        # If validation fails, it will return 403 response
+        return None
 
     def _get_csrf_token_from_request(self, request: HttpRequest) -> Optional[str]:
         """

@@ -1,0 +1,97 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block base_head %}
+<!-- People Onboarding Module Styles -->
+<link href="{% static 'people_onboarding/css/onboarding.css' %}" rel="stylesheet" type="text/css" />
+{% endblock base_head %}
+
+{% block title %}People Onboarding - {{ block.super }}{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-root">
+    <div class="page d-flex flex-row flex-column-fluid">
+
+        <!-- BEGIN: Aside Menu (using existing global aside) -->
+        {% include "globals/aside_menu.html" %}
+        <!-- END: Aside Menu -->
+
+        <!-- BEGIN: Wrapper -->
+        <div class="wrapper d-flex flex-column flex-row-fluid" id="kt_wrapper">
+
+            <!-- BEGIN: Header -->
+            <div id="kt_header" class="header align-items-stretch">
+                <div class="container-fluid d-flex align-items-stretch justify-content-between">
+                    <!-- BEGIN: Toolbar -->
+                    <div class="d-flex align-items-center flex-grow-1 flex-lg-grow-0">
+                        <div class="d-flex align-items-center" id="kt_header_nav">
+                            <div class="page-title d-flex flex-column justify-content-center flex-wrap me-3">
+                                <h1 class="page-heading d-flex text-dark fw-bold fs-3 flex-column justify-content-center my-0">
+                                    {% block page_title %}People Onboarding{% endblock %}
+                                </h1>
+                                <ul class="breadcrumb breadcrumb-separatorless fw-semibold fs-7 my-0 pt-1">
+                                    <li class="breadcrumb-item text-muted">
+                                        <a href="{% url 'people_onboarding:dashboard' %}" class="text-muted text-hover-primary">Home</a>
+                                    </li>
+                                    {% block breadcrumbs %}{% endblock %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- END: Toolbar -->
+
+                    <!-- BEGIN: Topbar (user menu, notifications) -->
+                    {% include "globals/topbar.html" %}
+                    <!-- END: Topbar -->
+                </div>
+            </div>
+            <!-- END: Header -->
+
+            <!-- BEGIN: Content -->
+            <div class="content d-flex flex-column flex-column-fluid" id="kt_content">
+                <div class="post d-flex flex-column-fluid" id="kt_post">
+                    <div id="kt_content_container" class="container-xxl">
+
+                        <!-- BEGIN: Messages/Alerts -->
+                        {% if messages %}
+                        <div class="mb-5">
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                <div class="alert-text">{{ message }}</div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <!-- END: Messages/Alerts -->
+
+                        <!-- BEGIN: Page Content -->
+                        {% block content %}{% endblock %}
+                        <!-- END: Page Content -->
+
+                    </div>
+                </div>
+            </div>
+            <!-- END: Content -->
+
+            <!-- BEGIN: Footer -->
+            {% include "globals/footer.html" %}
+            <!-- END: Footer -->
+
+        </div>
+        <!-- END: Wrapper -->
+
+    </div>
+</div>
+
+<!-- BEGIN: Modals -->
+{% block modals %}{% endblock %}
+<!-- END: Modals -->
+
+{% endblock body %}
+
+{% block extra_js %}
+<!-- People Onboarding Module Scripts -->
+<script src="{% static 'people_onboarding/js/onboarding.js' %}"></script>
+{% block page_scripts %}{% endblock %}
+{% endblock extra_js %}

@@ -18,7 +18,7 @@ ONBOARDING_CELERY_BEAT_SCHEDULE = {
 
     # Check knowledge freshness daily
     'check-knowledge-freshness': {
-        'task': 'background_tasks.onboarding_tasks_phase2.check_knowledge_freshness',
+        'task': 'background_tasks.onboarding_tasks_phase2.validate_knowledge_freshness_task',
         'schedule': crontab(hour=2, minute=0),  # Run at 2 AM daily
         'options': {
             'queue': 'maintenance',
@@ -26,13 +26,13 @@ ONBOARDING_CELERY_BEAT_SCHEDULE = {
         }
     },
 
-    # Process embedding queue every 5 minutes
-    'process-embedding-queue': {
-        'task': 'background_tasks.onboarding_tasks_phase2.process_embedding_queue',
-        'schedule': timedelta(minutes=5),
+    # Cleanup old traces (replaces process-embedding-queue)
+    'cleanup-old-traces': {
+        'task': 'background_tasks.onboarding_tasks_phase2.cleanup_old_traces_task',
+        'schedule': timedelta(minutes=30),
         'options': {
-            'queue': 'high_priority',
-            'expires': 240,
+            'queue': 'maintenance',
+            'expires': 1800,
         }
     },
 
@@ -46,23 +46,23 @@ ONBOARDING_CELERY_BEAT_SCHEDULE = {
         }
     },
 
-    # Generate usage analytics weekly
-    'generate-onboarding-analytics': {
-        'task': 'background_tasks.onboarding_tasks_phase2.generate_weekly_analytics',
+    # Weekly knowledge verification
+    'weekly-knowledge-verification': {
+        'task': 'background_tasks.onboarding_tasks_phase2.weekly_knowledge_verification',
         'schedule': crontab(day_of_week=1, hour=0, minute=0),  # Run Monday at midnight
         'options': {
-            'queue': 'reports',
+            'queue': 'maintenance',
             'expires': 7200,
         }
     },
 
-    # Monitor LLM costs daily
-    'monitor-llm-costs': {
-        'task': 'background_tasks.onboarding_tasks_phase2.monitor_llm_costs',
-        'schedule': crontab(hour=23, minute=45),  # Run at 11:45 PM daily
+    # Nightly knowledge maintenance
+    'nightly-knowledge-maintenance': {
+        'task': 'background_tasks.onboarding_tasks_phase2.nightly_knowledge_maintenance',
+        'schedule': crontab(hour=2, minute=30),  # Run at 2:30 AM daily
         'options': {
-            'queue': 'reports',
-            'expires': 600,
+            'queue': 'maintenance',
+            'expires': 3600,
         }
     },
 
@@ -76,10 +76,10 @@ ONBOARDING_CELERY_BEAT_SCHEDULE = {
         }
     },
 
-    # Update knowledge embeddings weekly
-    'update-knowledge-embeddings': {
-        'task': 'background_tasks.onboarding_tasks_phase2.update_all_embeddings',
-        'schedule': crontab(day_of_week=0, hour=3, minute=0),  # Run Sunday at 3 AM
+    # Batch retire stale documents monthly
+    'batch-retire-stale-documents': {
+        'task': 'background_tasks.onboarding_tasks_phase2.batch_retire_stale_documents',
+        'schedule': crontab(day_of_month=1, hour=4, minute=0),  # Run 1st of month at 4 AM
         'options': {
             'queue': 'maintenance',
             'expires': 10800,

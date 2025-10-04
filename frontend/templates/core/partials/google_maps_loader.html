@@ -1,0 +1,298 @@
+<!-- Google Maps Secure Loader Template -->
+{% load google_maps_tags %}
+
+<div id="google-maps-container" class="position-relative">
+    {% if config.enabled %}
+        <!-- Loading Spinner -->
+        <div id="maps-loading-spinner" class="d-flex justify-content-center align-items-center p-4"
+             style="min-height: 300px; background-color: #f8f9fa;">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                <p class="mt-2 text-muted">{{ loading_text|default:"Loading Map..." }}</p>
+            </div>
+        </div>
+
+        <!-- Map Container (hidden until loaded) -->
+        <div id="map" style="display: none; min-height: 300px;"></div>
+
+        <!-- Error Container -->
+        <div id="maps-error-container" class="alert alert-warning d-none" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="maps-error-message">Failed to load map. Please try again later.</span>
+        </div>
+
+        <!-- Google Maps Configuration Script -->
+        <script>
+            // Global Maps Configuration
+            window.GoogleMapsConfig = {% google_maps_config %};
+            window.GoogleMapsPerformance = {% google_maps_performance_config %};
+
+            // Enhanced Map Initialization
+            function {{ callback }}() {
+                console.log('Initializing Google Maps with secure configuration');
+
+                try {
+                    // Hide loading spinner
+                    const spinner = document.getElementById('maps-loading-spinner');
+                    if (spinner) spinner.style.display = 'none';
+
+                    // Show map container
+                    const mapContainer = document.getElementById('map');
+                    if (mapContainer) {
+                        mapContainer.style.display = 'block';
+
+                        // Initialize map with performance optimizations
+                        window.googleMapsInstance = new google.maps.Map(mapContainer, {
+                            zoom: 10,
+                            center: { lat: 19.0760, lng: 72.8777 }, // Default to Mumbai
+                            mapTypeId: google.maps.MapTypeId.ROADMAP,
+
+                            // Performance optimizations
+                            optimized: GoogleMapsPerformance.optimization.optimizeMarkers,
+                            disableDoubleClickZoom: !GoogleMapsPerformance.optimization.disableDoubleClickZoom,
+                            scrollwheel: GoogleMapsPerformance.optimization.scrollwheel,
+                            draggable: GoogleMapsPerformance.optimization.draggable,
+
+                            // UI Controls
+                            mapTypeControl: true,
+                            mapTypeControlOptions: {
+                                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                                position: google.maps.ControlPosition.BOTTOM_LEFT,
+                            },
+                            zoomControl: true,
+                            zoomControlOptions: {
+                                position: google.maps.ControlPosition.RIGHT_CENTER,
+                            },
+                            scaleControl: true,
+                            streetViewControl: true,
+                            fullscreenControl: true
+                        });
+
+                        // Initialize marker clustering if enabled
+                        if (GoogleMapsPerformance.clustering.enabled && typeof MarkerClusterer !== 'undefined') {
+                            window.markerCluster = new MarkerClusterer(
+                                window.googleMapsInstance,
+                                [],
+                                {
+                                    gridSize: GoogleMapsPerformance.clustering.gridSize,
+                                    maxZoom: GoogleMapsPerformance.clustering.maxZoom,
+                                    minimumClusterSize: GoogleMapsPerformance.clustering.minimumClusterSize,
+                                    styles: GoogleMapsPerformance.clustering.styles
+                                }
+                            );
+                        }
+
+                        // Fire custom initialization event
+                        const initEvent = new CustomEvent('googleMapsInitialized', {
+                            detail: {
+                                map: window.googleMapsInstance,
+                                cluster: window.markerCluster || null
+                            }
+                        });
+                        document.dispatchEvent(initEvent);
+
+                        console.log('Google Maps initialized successfully');
+                    }
+
+                } catch (error) {
+                    console.error('Google Maps initialization error:', error);
+                    showMapsError(error.message);
+                }
+            }
+
+            // Error handling function
+            function showMapsError(message) {
+                const spinner = document.getElementById('maps-loading-spinner');
+                const errorContainer = document.getElementById('maps-error-container');
+                const errorMessage = document.getElementById('maps-error-message');
+
+                if (spinner) spinner.style.display = 'none';
+                if (errorContainer) {
+                    errorContainer.classList.remove('d-none');
+                    if (errorMessage) errorMessage.textContent = message;
+                }
+            }
+
+            // Global error handler for Maps API
+            window.gm_authFailure = function() {
+                showMapsError('Google Maps authentication failed. Please check API key configuration.');
+            };
+
+            // Add debounced event handlers for performance
+            function debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // Advanced Clustering Integration Functions
+            window.initializeAdvancedClustering = function(viewType = 'default', markers = []) {
+                if (!window.googleMapsInstance || !GoogleMapsPerformance.clustering.enabled) {
+                    return null;
+                }
+
+                console.log(`Initializing advanced clustering for ${viewType} view with ${markers.length} markers`);
+
+                // Load clustering service script
+                return loadClusteringService().then(() => {
+                    if (typeof AdvancedMarkerCluster !== 'undefined') {
+                        window.clusterManager = new AdvancedMarkerCluster(
+                            window.googleMapsInstance,
+                            markers,
+                            {
+                                viewType: viewType,
+                                ...GoogleMapsPerformance.clustering
+                            }
+                        );
+                        return window.clusterManager;
+                    }
+                    return null;
+                });
+            };
+
+            // Load clustering service dynamically
+            function loadClusteringService() {
+                return new Promise((resolve, reject) => {
+                    if (typeof AdvancedMarkerCluster !== 'undefined') {
+                        resolve();
+                        return;
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = '/static/js/advanced_marker_clustering.js';
+                    script.onload = () => {
+                        console.log('Advanced clustering service loaded successfully');
+                        resolve();
+                    };
+                    script.onerror = (error) => {
+                        console.error('Failed to load clustering service:', error);
+                        reject(error);
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+
+            // Utility function to add performance-optimized markers
+            window.addOptimizedMarker = function(position, options = {}) {
+                if (!window.googleMapsInstance) return null;
+
+                const marker = new google.maps.Marker({
+                    position: position,
+                    map: window.googleMapsInstance,
+                    optimized: GoogleMapsPerformance.optimization.optimizeMarkers,
+                    ...options
+                });
+
+                // Add to cluster if enabled and available
+                if (window.clusterManager && GoogleMapsPerformance.clustering.enabled) {
+                    window.clusterManager.addMarker(marker);
+                } else if (window.markerCluster) {
+                    window.markerCluster.addMarker(marker);
+                }
+
+                return marker;
+            };
+
+            // Utility function to add multiple markers with clustering
+            window.addMarkersWithClustering = function(markersData, viewType = 'default') {
+                if (!window.googleMapsInstance || !markersData.length) {
+                    return [];
+                }
+
+                const markers = [];
+
+                // Create markers from data
+                markersData.forEach((markerData, index) => {
+                    const marker = new google.maps.Marker({
+                        position: { lat: parseFloat(markerData.lat), lng: parseFloat(markerData.lng) },
+                        map: null, // Don't add to map directly if clustering
+                        title: markerData.title || `Location ${index + 1}`,
+                        optimized: GoogleMapsPerformance.optimization.optimizeMarkers
+                    });
+
+                    // Store additional data
+                    marker.data = markerData.data || {};
+                    marker.id = markerData.id || `marker_${index}`;
+
+                    markers.push(marker);
+                });
+
+                // Initialize clustering if enabled
+                if (GoogleMapsPerformance.clustering.enabled && markers.length >= GoogleMapsPerformance.clustering.minimumClusterSize) {
+                    window.initializeAdvancedClustering(viewType, markers).then((clusterManager) => {
+                        if (!clusterManager) {
+                            // Fallback: add markers directly to map
+                            markers.forEach(marker => marker.setMap(window.googleMapsInstance));
+                        }
+                    }).catch((error) => {
+                        console.error('Clustering initialization failed, using direct markers:', error);
+                        markers.forEach(marker => marker.setMap(window.googleMapsInstance));
+                    });
+                } else {
+                    // Add markers directly to map if clustering not enabled or too few markers
+                    markers.forEach(marker => marker.setMap(window.googleMapsInstance));
+                }
+
+                return markers;
+            };
+
+            // Enhanced marker clearing function
+            window.clearAllMarkers = function() {
+                if (window.clusterManager) {
+                    window.clusterManager.clearMarkers();
+                } else if (window.markerCluster) {
+                    window.markerCluster.clearMarkers();
+                } else if (window.allMarkers) {
+                    window.allMarkers.forEach(marker => marker.setMap(null));
+                    window.allMarkers = [];
+                }
+            };
+
+            // Utility function for location-based actions
+            window.showLocationDetails = function(markerId) {
+                console.log(`Showing details for marker: ${markerId}`);
+                // This can be overridden by specific views
+            };
+
+            window.navigateToLocation = function(lat, lng) {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                window.open(url, '_blank');
+            };
+
+            // Global marker storage for fallback scenarios
+            window.allMarkers = window.allMarkers || [];
+        </script>
+
+        <!-- Load Google Maps API securely -->
+        {{ script_tag|safe }}
+
+    {% else %}
+        <!-- Maps disabled or misconfigured -->
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-map-marked-alt me-2"></i>
+            Google Maps is currently unavailable.
+            {% if config.error %}
+                <br><small class="text-muted">{{ config.error }}</small>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- Optional: Load Marker Clusterer library if clustering is enabled -->
+{% if config.enabled %}
+    <script>
+        if (GoogleMapsPerformance.clustering.enabled) {
+            // Load MarkerClusterer library dynamically
+            const script = document.createElement('script');
+            script.src = 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js';
+            script.async = true;
+            document.head.appendChild(script);
+        }
+    </script>
+{% endif %}

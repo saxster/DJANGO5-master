@@ -8,14 +8,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-
+from rest_framework import viewsets, status
+from django.http import StreamingHttpResponse, JsonResponse
+from apps.mentor.permissions import (
     CanUsePlanGenerator, CanUsePatchGenerator, CanApplyPatches,
     CanUseTestRunner, CanViewSensitiveCode, CanAdminMentor
 )
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-
-)
+from apps.core.utils_new.sse_cors_utils import get_secure_sse_cors_headers
+from .serializers import PlanRequestSerializer
 
 
 class BaseMentorViewSet(viewsets.ViewSet):
@@ -50,8 +52,29 @@ class BaseMentorViewSet(viewsets.ViewSet):
         )
         response['Cache-Control'] = 'no-cache'
         response['Connection'] = 'keep-alive'
-        response['Access-Control-Allow-Origin'] = '*'
-        response['Access-Control-Allow-Headers'] = 'Cache-Control'
+
+        # SECURITY FIX: Use secure CORS validation instead of wildcard (CVSS 8.1 vulnerability)
+        # Wildcard CORS with credentials allows any origin to access SSE stream, enabling CSRF attacks
+        # Note: get_streaming_response is called from viewset methods, so we need to access request
+        request = kwargs.get('request') or args[0] if args else None
+        if request is None:
+            # Fallback to self.request if available (in ViewSet context)
+            request = getattr(self, 'request', None)
+
+        if request:
+            cors_headers = get_secure_sse_cors_headers(request)
+            if cors_headers:
+                for key, value in cors_headers.items():
+                    response[key] = value
+            else:
+                # Origin blocked - return error response instead
+                return JsonResponse({'error': 'Unauthorized origin'}, status=403)
+        else:
+            # No request context available - log warning and deny
+            import logging
+            logger = logging.getLogger('security.cors')
+            logger.error("No request context available for SSE CORS validation")
+            return JsonResponse({'error': 'Internal server error'}, status=500)
 
         return response
 

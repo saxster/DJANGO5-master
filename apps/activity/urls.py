@@ -30,6 +30,26 @@ from apps.activity.views.transcript_views import (
     TranscriptManagementView,
     SpeechServiceStatusView,
 )
+from apps.activity.views.meter_reading_views import (
+    MeterReadingUploadAPIView,
+    MeterReadingValidateAPIView,
+    MeterReadingListAPIView,
+    MeterReadingAnalyticsAPIView,
+    MeterReadingDashboard,
+    MeterReadingCapture,
+    MeterReadingValidation,
+    MeterReadingAssetView,
+)
+from apps.activity.views.vehicle_entry_views import (
+    VehicleEntryUploadAPIView,
+    VehicleExitAPIView,
+    VehicleHistoryAPIView,
+    ActiveVehiclesAPIView,
+    VehicleEntryDashboard,
+    VehicleEntryCapture,
+    VehicleEntryApproval,
+    VehicleSecurityAlerts,
+)
 
 app_name = "activity"
 urlpatterns = [
@@ -67,4 +87,28 @@ urlpatterns = [
     path("transcript_status/", TranscriptStatusView.as_view(), name="transcript_status"),
     path("transcript_management/", TranscriptManagementView.as_view(), name="transcript_management"),
     path("speech_service_status/", SpeechServiceStatusView.as_view(), name="speech_service_status"),
+
+    # Meter Reading endpoints
+    path("meter_readings/", MeterReadingDashboard.as_view(), name="meter_reading_dashboard"),
+    path("meter_readings/capture/", MeterReadingCapture.as_view(), name="meter_reading_capture"),
+    path("meter_readings/validation/", MeterReadingValidation.as_view(), name="meter_reading_validation"),
+    path("meter_readings/asset/<int:asset_id>/", MeterReadingAssetView.as_view(), name="meter_reading_asset"),
+
+    # Meter Reading API endpoints (for mobile/external access)
+    path("api/meter_readings/upload/", MeterReadingUploadAPIView.as_view(), name="api_meter_reading_upload"),
+    path("api/meter_readings/<int:reading_id>/validate/", MeterReadingValidateAPIView.as_view(), name="api_meter_reading_validate"),
+    path("api/meter_readings/asset/<int:asset_id>/", MeterReadingListAPIView.as_view(), name="api_meter_reading_list"),
+    path("api/meter_readings/asset/<int:asset_id>/analytics/", MeterReadingAnalyticsAPIView.as_view(), name="api_meter_reading_analytics"),
+
+    # Vehicle Entry endpoints
+    path("vehicle_entries/", VehicleEntryDashboard.as_view(), name="vehicle_entry_dashboard"),
+    path("vehicle_entries/capture/", VehicleEntryCapture.as_view(), name="vehicle_entry_capture"),
+    path("vehicle_entries/approval/", VehicleEntryApproval.as_view(), name="vehicle_entry_approval"),
+    path("vehicle_entries/alerts/", VehicleSecurityAlerts.as_view(), name="vehicle_security_alerts"),
+
+    # Vehicle Entry API endpoints (for gate systems/mobile access)
+    path("api/vehicle_entries/upload/", VehicleEntryUploadAPIView.as_view(), name="api_vehicle_entry_upload"),
+    path("api/vehicle_entries/exit/", VehicleExitAPIView.as_view(), name="api_vehicle_exit"),
+    path("api/vehicle_entries/history/<str:license_plate>/", VehicleHistoryAPIView.as_view(), name="api_vehicle_history"),
+    path("api/vehicle_entries/active/", ActiveVehiclesAPIView.as_view(), name="api_active_vehicles"),
 ]

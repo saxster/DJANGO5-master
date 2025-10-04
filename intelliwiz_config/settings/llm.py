@@ -174,3 +174,33 @@ CACHE_VERSION = env('CACHE_VERSION', default='1.0')
 
 # Provider Configuration
 DEFAULT_LLM_PROVIDER = env('DEFAULT_LLM_PROVIDER', default='gpt-3.5-turbo')
+
+# ============================================================================
+# Parlant Conversational AI Agent Configuration (Phase 3 - October 2025)
+# ============================================================================
+# Parlant provides ensured rule compliance for Security & Facility Mentor
+# conversations. See: https://github.com/emcie-co/parlant
+
+# Enable/Disable Parlant Agent
+ENABLE_PARLANT_AGENT = env.bool('ENABLE_PARLANT_AGENT', default=False)
+
+# Parlant LLM Provider Configuration
+PARLANT_LLM_PROVIDER = env('PARLANT_LLM_PROVIDER', default='openai')  # openai, anthropic, huggingface
+PARLANT_MODEL_NAME = env('PARLANT_MODEL_NAME', default='gpt-4-turbo')  # Model for Parlant agent
+PARLANT_TEMPERATURE = env.float('PARLANT_TEMPERATURE', default=0.3)  # Lower = more consistent
+PARLANT_MAX_TOKENS = env.int('PARLANT_MAX_TOKENS', default=1000)
+
+# Parlant Agent Behavior
+PARLANT_AGENT_NAME = env('PARLANT_AGENT_NAME', default='SecurityFacilityMentor')
+PARLANT_ENABLE_JOURNEYS = env.bool('PARLANT_ENABLE_JOURNEYS', default=True)
+PARLANT_ENABLE_TOOLS = env.bool('PARLANT_ENABLE_TOOLS', default=True)
+PARLANT_STRICT_COMPLIANCE = env.bool('PARLANT_STRICT_COMPLIANCE', default=True)  # Enforce prohibition rules
+
+# Parlant Performance
+PARLANT_RESPONSE_TIMEOUT = env.int('PARLANT_RESPONSE_TIMEOUT', default=30)  # seconds
+PARLANT_MAX_CONVERSATION_TURNS = env.int('PARLANT_MAX_CONVERSATION_TURNS', default=50)
+
+# Parlant Monitoring
+PARLANT_LOG_GUIDELINES = env.bool('PARLANT_LOG_GUIDELINES', default=True)  # Log guideline matches
+PARLANT_LOG_TOOLS = env.bool('PARLANT_LOG_TOOLS', default=True)  # Log tool executions
+PARLANT_LOG_JOURNEYS = env.bool('PARLANT_LOG_JOURNEYS', default=True)  # Log journey states

@@ -7,6 +7,7 @@ import re
 import logging
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
+from typing import Dict, List, Any, Optional, Union
 from django.core.validators import validate_email, URLValidator
 from django.core.exceptions import ValidationError
 from apps.core.error_handling import ErrorHandler
@@ -126,7 +127,7 @@ class ValidationService:
         return errors
 
     @classmethod
-    def validate_email_field(cls, value: Any, field_name: str = 'email') -> List[str]:
+    def validate_email_field(cls, value: Optional[str], field_name: str = 'email') -> List[str]:
         """
         Validate email field.
 
@@ -155,7 +156,7 @@ class ValidationService:
         return errors
 
     @classmethod
-    def validate_phone_field(cls, value: Any, field_name: str = 'phone') -> List[str]:
+    def validate_phone_field(cls, value: Optional[str], field_name: str = 'phone') -> List[str]:
         """
         Validate phone number field.
 
@@ -311,7 +312,7 @@ class ValidationService:
         return errors
 
     @classmethod
-    def validate_url_field(cls, value: Any, field_name: str = 'url') -> List[str]:
+    def validate_url_field(cls, value: Optional[str], field_name: str = 'url') -> List[str]:
         """
         Validate URL field.
 

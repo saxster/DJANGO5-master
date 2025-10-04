@@ -1,6 +1,7 @@
 from logging import getLogger
 from datetime import datetime, timedelta, timezone
 from apps.core import utils
+from apps.core.constants.datetime_constants import DISPLAY_DATETIME_FORMAT
 from apps.core.queries import QueryRepository
 import traceback as tb
 from django.apps import apps
@@ -374,9 +375,9 @@ def update_ticket_log(id, item, result):
 
 def check_for_checkpoints_status(obj, Jobneed):
     """
-    Atomically auto-close all assigned checkpoints of a parent job.
+    Atomically auto-close all assigned checkpoints using TaskStateMachine.
 
-    Uses row-level locking to prevent race conditions.
+    Uses state machine with distributed locking to prevent race conditions.
     Multiple concurrent workers could attempt to autoclose same checkpoints.
 
     Args:
@@ -384,32 +385,63 @@ def check_for_checkpoints_status(obj, Jobneed):
         Jobneed: Jobneed model class
 
     Returns:
-        None (updates checkpoints in-place)
+        None (updates checkpoints in-place via state machine)
     """
-    with transaction.atomic():
-        assigned_checkpoints = Jobneed.objects.select_for_update().filter(
-            parent_id=obj.id,
-            identifier__in=['INTERNALTOUR', 'EXTERNALTOUR'],
-            jobstatus='ASSIGNED'
-        )
+    from apps.activity.state_machines.task_state_machine import TaskStateMachine
+    from apps.core.state_machines.base import TransitionContext
 
-        checkpoint_count = 0
-        for checkpoint in assigned_checkpoints:
-            log.info(f'Checkpoint {checkpoint.id} status: {checkpoint.jobstatus}')
+    assigned_checkpoints = Jobneed.objects.filter(
+        parent_id=obj.id,
+        identifier__in=['INTERNALTOUR', 'EXTERNALTOUR'],
+        jobstatus='ASSIGNED'
+    )
 
+    checkpoint_count = 0
+    for checkpoint in assigned_checkpoints:
+        log.info(f'Checkpoint {checkpoint.id} status: {checkpoint.jobstatus}')
+
+        try:
+            # Use state machine for checkpoint transitions
+            state_machine = TaskStateMachine(checkpoint)
+
+            context = TransitionContext(
+                user=None,  # System-initiated
+                reason='system_auto',
+                comments='Auto-closed checkpoint by server',
+                skip_permissions=True,
+                metadata={'autoclosed_by_server': True}
+            )
+
+            # Execute transition with automatic locking
+            result = state_machine.transition_with_lock(
+                to_state='AUTOCLOSED',
+                context=context,
+                lock_timeout=10,
+                blocking_timeout=5
+            )
+
+            # Update metadata
+            checkpoint.refresh_from_db()
             other_info = dict(checkpoint.other_info)
             other_info['autoclosed_by_server'] = True
-
-            checkpoint.jobstatus = 'AUTOCLOSED'
             checkpoint.other_info = other_info
-            checkpoint.mdtz = datetime.now(timezone.utc)
-            checkpoint.save(update_fields=['jobstatus', 'other_info', 'mdtz'])
+            checkpoint.save(update_fields=['other_info'])
 
             checkpoint_count += 1
-            log.info(f'Checkpoint {checkpoint.id} auto-closed successfully')
+            log.info(
+                f'Checkpoint {checkpoint.id} auto-closed via TaskStateMachine '
+                f'(result: {result.success})'
+            )
 
-        if checkpoint_count > 0:
-            log.info(f'Successfully auto-closed {checkpoint_count} checkpoints for job {obj.id}')
+        except Exception as e:
+            log.error(
+                f'Failed to auto-close checkpoint {checkpoint.id}: {e}',
+                exc_info=True
+            )
+            # Continue with other checkpoints even if one fails
+
+    if checkpoint_count > 0:
+        log.info(f'Successfully auto-closed {checkpoint_count} checkpoints for job {obj.id}')
 
 def check_child_of_jobneed_status(obj,Jobneed):
     pass
@@ -417,10 +449,10 @@ def check_child_of_jobneed_status(obj,Jobneed):
 
 def update_job_autoclose_status(record, resp):
     """
-    Atomically update job autoclose status with race condition protection.
+    Atomically update job autoclose status using TaskStateMachine.
 
-    Prevents concurrent autoclose operations from corrupting job state.
-    Uses distributed lock + select_for_update + transaction for multi-layer protection.
+    Uses state machine pattern to ensure valid transitions and prevent
+    race conditions through coordinated locking.
 
     Args:
         record: Dict with job data from expired jobs query
@@ -431,55 +463,88 @@ def update_job_autoclose_status(record, resp):
 
     Raises:
         LockAcquisitionError: If cannot acquire distributed lock
+        InvalidTransitionError: If state transition is not valid
         DatabaseError: On database failures
     """
+    from apps.activity.state_machines.task_state_machine import TaskStateMachine
+    from apps.core.state_machines.base import TransitionContext
+
     Jobneed = apps.get_model('activity', 'Jobneed')
-    lock_key = f"autoclose_job:{record['id']}"
 
     try:
-        with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
-            with transaction.atomic():
-                obj = Jobneed.objects.select_for_update().get(id=record['id'])
+        # Fetch job instance
+        obj = Jobneed.objects.select_related('assignedtopeople').get(id=record['id'])
 
-                log.info(f'Before status update of job {record["id"]}: jobstatus={obj.jobstatus}')
+        log.info(f'Before status update of job {record["id"]}: jobstatus={obj.jobstatus}')
 
-                if obj.jobstatus == 'INPROGRESS':
-                    checkpoints = Jobneed.objects.filter(
-                        parent_id=obj.id,
-                        identifier__in=['INTERNALTOUR', 'EXTERNALTOUR']
-                    )
-                    total = checkpoints.count()
-                    completed = checkpoints.filter(jobstatus='COMPLETED').count()
+        # Initialize state machine
+        state_machine = TaskStateMachine(obj)
 
-                    if completed > 0 and completed < total:
-                        obj.jobstatus = 'PARTIALLYCOMPLETED'
-                        obj.mdtz = datetime.now(timezone.utc)
-                        obj.save(update_fields=['jobstatus', 'mdtz'])
-                        log.info(f'Status updated to {obj.jobstatus}')
+        # Determine target state based on completion criteria
+        target_state = None
 
-                if obj.jobstatus not in ['PARTIALLYCOMPLETED', 'COMPLETED']:
-                    other_info = dict(obj.other_info)
-                    other_info['email_sent'] = record['ticketcategory__tacode'] == 'AUTOCLOSENOTIFY'
-                    other_info['ticket_generated'] = record['ticketcategory__tacode'] == 'RAISETICKETNOTIFY'
-                    other_info['autoclosed_by_server'] = True
+        if obj.jobstatus == 'INPROGRESS':
+            checkpoints = Jobneed.objects.filter(
+                parent_id=obj.id,
+                identifier__in=['INTERNALTOUR', 'EXTERNALTOUR']
+            )
+            total = checkpoints.count()
+            completed = checkpoints.filter(jobstatus='COMPLETED').count()
 
-                    obj.jobstatus = 'AUTOCLOSED'
-                    obj.other_info = other_info
-                    obj.mdtz = datetime.now(timezone.utc)
-                    obj.save(update_fields=['jobstatus', 'other_info', 'mdtz'])
-                    log.info(f'Status updated to {obj.jobstatus}')
+            if completed > 0 and completed < total:
+                target_state = 'PARTIALLYCOMPLETED'
+            elif obj.jobstatus not in ['PARTIALLYCOMPLETED', 'COMPLETED']:
+                target_state = 'AUTOCLOSED'
+        elif obj.jobstatus not in ['PARTIALLYCOMPLETED', 'COMPLETED']:
+            target_state = 'AUTOCLOSED'
 
-                check_for_checkpoints_status(obj, Jobneed)
+        # Execute state transition with automatic locking
+        if target_state:
+            # Prepare transition context
+            context = TransitionContext(
+                user=None,  # System-initiated
+                reason='system_auto',
+                comments=f"Auto-closed by system - {record['ticketcategory__tacode']}",
+                skip_permissions=True,  # System transition
+                metadata={
+                    'email_sent': record['ticketcategory__tacode'] == 'AUTOCLOSENOTIFY',
+                    'ticket_generated': record['ticketcategory__tacode'] == 'RAISETICKETNOTIFY',
+                    'autoclosed_by_server': True
+                }
+            )
 
-                log.info(
-                    f'Jobneed {record["id"]}: status={obj.jobstatus}, '
-                    f'email_sent={obj.other_info.get("email_sent")}, '
-                    f'ticket_generated={obj.other_info.get("ticket_generated")}, '
-                    f'autoclosed_by_server={obj.other_info.get("autoclosed_by_server")}'
-                )
+            # Use transition_with_lock for automatic distributed locking
+            result = state_machine.transition_with_lock(
+                to_state=target_state,
+                context=context,
+                lock_timeout=15,
+                blocking_timeout=10
+            )
 
-                resp['id'].append(record['id'])
-                return resp
+            # Update other_info with autoclose metadata
+            obj.refresh_from_db()  # Get latest state after transition
+            other_info = dict(obj.other_info)
+            other_info.update(context.metadata)
+            obj.other_info = other_info
+            obj.save(update_fields=['other_info'])
+
+            log.info(
+                f'State transition executed: {obj.jobstatus} via TaskStateMachine '
+                f'(result: {result.success})'
+            )
+
+        # Auto-close child checkpoints (uses existing logic)
+        check_for_checkpoints_status(obj, Jobneed)
+
+        log.info(
+            f'Jobneed {record["id"]}: status={obj.jobstatus}, '
+            f'email_sent={obj.other_info.get("email_sent")}, '
+            f'ticket_generated={obj.other_info.get("ticket_generated")}, '
+            f'autoclosed_by_server={obj.other_info.get("autoclosed_by_server")}'
+        )
+
+        resp['id'].append(record['id'])
+        return resp
 
     except LockAcquisitionError as e:
         correlation_id = ErrorHandler.handle_exception(
@@ -597,7 +662,7 @@ def get_context_for_mailtemplate(jobneed, subject):
     when = jobneed.endtime + timedelta(minutes=jobneed.ctzoffset)
     return  {
         'details'     : list(JobneedDetails.objects.get_e_tour_checklist_details(jobneedid=jobneed.id)),
-        'when'        : when.strftime("%d-%m-%Y %H:%M"),
+        'when'        : when.strftime(DISPLAY_DATETIME_FORMAT),
         'tourtype'    : jobneed.identifier,
         'performedby' : jobneed.people.peoplename if jobneed.people else 'Unknown',
         'site'        : jobneed.bu.buname,

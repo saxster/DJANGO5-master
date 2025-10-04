@@ -30,10 +30,10 @@ def reverse_geocode_google(api_key):
         'latlng': '19.2291751,72.9855854',
         'key': api_key
     }
-    
-    response = requests.get(url, params=params)
+
+    response = requests.get(url, params=params, timeout=(5, 15))
     data = response.json()
-    
+
     if data['status'] == 'OK':
         print("Address from Google Maps:")
         print(data['results'][0]['formatted_address'])
@@ -58,7 +58,7 @@ def reverse_geocode_osm_api():
         'User-Agent': 'YoutilityApp/1.0'
     }
     
-    response = requests.get(url, params=params, headers=headers)
+    response = requests.get(url, params=params, headers=headers, timeout=(5, 15))
     data = response.json()
     
     print("Address from OpenStreetMap API:")
@@ -88,10 +88,10 @@ def reverse_geocode_django():
         'latlng': '19.2291751,72.9855854',
         'key': api_key
     }
-    
-    response = requests.get(url, params=params)
+
+    response = requests.get(url, params=params, timeout=(5, 15))
     data = response.json()
-    
+
     if data['status'] == 'OK':
         return data['results'][0]['formatted_address']
     else:

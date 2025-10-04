@@ -1,96 +1,393 @@
 """
-Settings validation utilities.
-Lightweight validation functions for runtime checks.
+Settings Contract Validation Module
+
+Provides boot-time validation for critical Django settings to prevent runtime
+configuration errors and security misconfigurations.
+
+Features:
+- Critical environment variable validation
+- CORS configuration consistency checks
+- GraphQL security settings validation
+- Cookie security settings validation
+- Human-readable error messages with correlation IDs
+- Environment-specific validation rules
+- Fail-fast on misconfiguration
+
+Author: Claude Code
+Date: 2025-10-01
+Compliance: Rule #4 (Secure Secret Management), Rule #6 (Settings < 200 lines)
 """
 
-import os
-from typing import Dict, Any
+import logging
+import uuid
+from typing import Dict, List, Optional, Any
+from django.core.exceptions import ImproperlyConfigured
 
-def quick_health_check() -> Dict[str, Any]:
-    """Quick health check for settings modules."""
-    errors, warnings = [], []
+logger = logging.getLogger('settings.validation')
 
-    # Check critical environment variables
-    critical_vars = ['SECRET_KEY', 'ENCRYPT_KEY', 'DBUSER', 'DBNAME', 'DBPASS', 'DBHOST']
-    missing_critical = [var for var in critical_vars if not os.getenv(var)]
-    if missing_critical:
-        errors.append(f"Missing critical variables: {', '.join(missing_critical)}")
 
-    # Check SSL in production
-    django_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
-    if 'production' in django_module.lower():
-        if not os.getenv('SECURE_SSL_REDIRECT', '').lower() == 'true':
-            warnings.append("SSL redirect not enabled in production")
+class SettingsValidationError(ImproperlyConfigured):
+    """
+    Raised when settings validation fails.
+    Extends Django's ImproperlyConfigured for consistency.
+    """
 
-    return {
-        'status': 'healthy' if not errors else 'unhealthy',
-        'errors': errors,
-        'warnings': warnings,
-        'summary': f"{'✅' if not errors else '❌'} {len(errors)} errors, {len(warnings)} warnings"
-    }
+    def __init__(self, message: str, correlation_id: str, failed_checks: List[str]):
+        self.correlation_id = correlation_id
+        self.failed_checks = failed_checks
+        super().__init__(message)
 
-def validate_line_count_compliance() -> Dict[str, Any]:
-    """Quick line count compliance check including security submodules."""
-    violations = []
-    settings_files = [
-        ('base.py', 'intelliwiz_config.settings.base'),
-        ('development.py', 'intelliwiz_config.settings.development'),
-        ('production.py', 'intelliwiz_config.settings.production'),
-        ('logging.py', 'intelliwiz_config.settings.logging'),
-        ('security.py', 'intelliwiz_config.settings.security'),
-        ('integrations.py', 'intelliwiz_config.settings.integrations'),
-        ('llm.py', 'intelliwiz_config.settings.llm'),
-        ('onboarding.py', 'intelliwiz_config.settings.onboarding')
-    ]
 
-    # Add security submodules for detailed compliance checking
-    security_submodules = [
-        ('security/headers.py', 'intelliwiz_config.settings.security.headers'),
-        ('security/csp.py', 'intelliwiz_config.settings.security.csp'),
-        ('security/cors.py', 'intelliwiz_config.settings.security.cors'),
-        ('security/authentication.py', 'intelliwiz_config.settings.security.authentication'),
-        ('security/rate_limiting.py', 'intelliwiz_config.settings.security.rate_limiting'),
-        ('security/graphql.py', 'intelliwiz_config.settings.security.graphql'),
-        ('security/file_upload.py', 'intelliwiz_config.settings.security.file_upload'),
-        ('security/validation.py', 'intelliwiz_config.settings.security.validation'),
-    ]
+class SettingsValidator:
+    """
+    Validates Django settings at boot time to prevent misconfiguration.
 
-    all_files = settings_files + security_submodules
+    Usage:
+        validator = SettingsValidator(settings_module)
+        validator.validate_all()  # Raises SettingsValidationError on failure
+    """
 
-    for file_name, module_name in all_files:
+    def __init__(self, settings: Any):
+        """
+        Initialize validator with Django settings module.
+
+        Args:
+            settings: Django settings module (from django.conf import settings)
+        """
+        self.settings = settings
+        self.correlation_id = str(uuid.uuid4())
+        self.failed_checks: List[str] = []
+        self.warnings: List[str] = []
+
+    def validate_all(self, environment: str = 'development') -> None:
+        """
+        Run all validation checks appropriate for the environment.
+
+        Args:
+            environment: 'development', 'production', or 'test'
+
+        Raises:
+            SettingsValidationError: If any critical validation fails
+        """
+        logger.info(
+            f"Starting settings validation",
+            extra={
+                'correlation_id': self.correlation_id,
+                'environment': environment
+            }
+        )
+
+        # Critical validations (all environments)
+        self._validate_database_settings()
+        self._validate_secret_keys()
+        self._validate_middleware_stack()
+        self._validate_cors_configuration()
+        self._validate_graphql_security()
+        self._validate_cookie_security()
+
+        # Environment-specific validations
+        if environment == 'production':
+            self._validate_production_security()
+        elif environment == 'development':
+            self._validate_development_settings()
+
+        # Report results
+        self._report_validation_results(environment)
+
+        # Fail if any critical checks failed
+        if self.failed_checks:
+            raise SettingsValidationError(
+                f"Settings validation failed: {len(self.failed_checks)} critical issues found",
+                self.correlation_id,
+                self.failed_checks
+            )
+
+    def _validate_database_settings(self) -> None:
+        """Validate database configuration."""
         try:
-            import importlib, inspect
-            module = importlib.import_module(module_name)
-            source_lines = len(inspect.getsourcelines(module)[0])
-            if source_lines > 200:
-                violations.append(f"{file_name}: {source_lines} lines (limit: 200)")
+            databases = getattr(self.settings, 'DATABASES', {})
+
+            if not databases:
+                self.failed_checks.append("DATABASES setting is empty")
+                return
+
+            default_db = databases.get('default', {})
+
+            # Check required keys
+            required_keys = ['ENGINE', 'NAME']
+            for key in required_keys:
+                if key not in default_db:
+                    self.failed_checks.append(f"DATABASES['default']['{key}'] is missing")
+
+            # Check PostGIS engine for geospatial support
+            engine = default_db.get('ENGINE', '')
+            if 'postgis' not in engine:
+                self.warnings.append("PostGIS engine not detected - geospatial features may fail")
+
+            # Check connection pooling
+            if 'CONN_MAX_AGE' not in default_db or default_db['CONN_MAX_AGE'] == 0:
+                self.warnings.append("Connection pooling disabled (CONN_MAX_AGE=0) - performance impact")
+
         except Exception as e:
-            violations.append(f"Could not check {file_name}: {e}")
+            self.failed_checks.append(f"Database validation error: {str(e)}")
 
-    return {
-        'compliant': len(violations) == 0,
-        'violations': violations,
-        'summary': f"{'✅' if not violations else '❌'} {len(violations)} violations found"
-    }
+    def _validate_secret_keys(self) -> None:
+        """Validate secret keys are present and meet minimum requirements."""
+        try:
+            # Check SECRET_KEY
+            secret_key = getattr(self.settings, 'SECRET_KEY', '')
+            if not secret_key:
+                self.failed_checks.append("SECRET_KEY is not set")
+            elif len(secret_key) < 50:
+                self.failed_checks.append(f"SECRET_KEY too short (< 50 chars)")
 
-def validate_security_basics() -> Dict[str, Any]:
-    """Basic security validation."""
-    errors, warnings = [], []
+            # Check ENCRYPT_KEY (if using encryption)
+            if hasattr(self.settings, 'ENCRYPT_KEY'):
+                encrypt_key = getattr(self.settings, 'ENCRYPT_KEY', '')
+                if not encrypt_key:
+                    self.failed_checks.append("ENCRYPT_KEY is set but empty")
+                elif len(encrypt_key) < 32:
+                    self.failed_checks.append(f"ENCRYPT_KEY too short (< 32 chars)")
 
-    # Check secret key strength
-    secret_key = os.getenv('SECRET_KEY', '')
-    if len(secret_key) < 32:
-        errors.append("SECRET_KEY too short (minimum 32 characters)")
+        except Exception as e:
+            self.failed_checks.append(f"Secret key validation error: {str(e)}")
 
-    # Check debug mode in production
-    django_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
-    if 'production' in django_module.lower():
-        if os.getenv('DEBUG', '').lower() == 'true':
-            errors.append("DEBUG=True in production environment")
+    def _validate_middleware_stack(self) -> None:
+        """Validate middleware configuration."""
+        try:
+            middleware = getattr(self.settings, 'MIDDLEWARE', [])
 
-    return {
-        'secure': len(errors) == 0,
-        'errors': errors,
-        'warnings': warnings,
-        'summary': f"{'✅' if not errors else '❌'} Security check: {len(errors)} errors"
-    }
+            if not middleware:
+                self.failed_checks.append("MIDDLEWARE setting is empty")
+                return
+
+            # Required security middleware
+            required_middleware = [
+                'django.middleware.security.SecurityMiddleware',
+                'django.middleware.csrf.CsrfViewMiddleware',
+                'django.contrib.auth.middleware.AuthenticationMiddleware',
+            ]
+
+            for mw in required_middleware:
+                if mw not in middleware:
+                    self.failed_checks.append(f"Required middleware missing: {mw}")
+
+            # Check ordering: SecurityMiddleware must be first
+            if middleware[0] != 'django.middleware.security.SecurityMiddleware':
+                self.failed_checks.append(
+                    f"SecurityMiddleware must be first, found: {middleware[0]}"
+                )
+
+            # Check TenantMiddleware comes after SessionMiddleware
+            if 'apps.tenants.middlewares.TenantMiddleware' in middleware:
+                if 'django.contrib.sessions.middleware.SessionMiddleware' in middleware:
+                    session_idx = middleware.index('django.contrib.sessions.middleware.SessionMiddleware')
+                    tenant_idx = middleware.index('apps.tenants.middlewares.TenantMiddleware')
+                    if tenant_idx < session_idx:
+                        self.failed_checks.append(
+                            "TenantMiddleware must come after SessionMiddleware"
+                        )
+
+        except Exception as e:
+            self.failed_checks.append(f"Middleware validation error: {str(e)}")
+
+    def _validate_cors_configuration(self) -> None:
+        """Validate CORS configuration consistency."""
+        try:
+            # Check CORS_ALLOW_CREDENTIALS compatibility
+            cors_allow_credentials = getattr(self.settings, 'CORS_ALLOW_CREDENTIALS', False)
+
+            if cors_allow_credentials:
+                cors_allowed_origins = getattr(self.settings, 'CORS_ALLOWED_ORIGINS', [])
+
+                if not cors_allowed_origins:
+                    self.warnings.append(
+                        "CORS_ALLOW_CREDENTIALS=True but no CORS_ALLOWED_ORIGINS defined"
+                    )
+
+                # Check for wildcard (security issue)
+                if '*' in cors_allowed_origins:
+                    self.failed_checks.append(
+                        "CORS wildcard (*) conflicts with CORS_ALLOW_CREDENTIALS=True"
+                    )
+
+        except Exception as e:
+            self.failed_checks.append(f"CORS validation error: {str(e)}")
+
+    def _validate_graphql_security(self) -> None:
+        """Validate GraphQL security settings."""
+        try:
+            # Check rate limiting is enabled
+            enable_rate_limiting = getattr(self.settings, 'ENABLE_GRAPHQL_RATE_LIMITING', True)
+            if not enable_rate_limiting:
+                self.warnings.append("GraphQL rate limiting is disabled")
+
+            # Check complexity validation is enabled
+            enable_complexity = getattr(self.settings, 'GRAPHQL_ENABLE_COMPLEXITY_VALIDATION', True)
+            if not enable_complexity:
+                self.failed_checks.append("GraphQL complexity validation is disabled (DoS risk)")
+
+            # Check complexity limits are set
+            max_depth = getattr(self.settings, 'GRAPHQL_MAX_QUERY_DEPTH', None)
+            if max_depth is None or max_depth > 20:
+                self.warnings.append(
+                    f"GraphQL max query depth high or unset: {max_depth} (recommend < 15)"
+                )
+
+            max_complexity = getattr(self.settings, 'GRAPHQL_MAX_QUERY_COMPLEXITY', None)
+            if max_complexity is None or max_complexity > 2000:
+                self.warnings.append(
+                    f"GraphQL max complexity high or unset: {max_complexity} (recommend < 1000)"
+                )
+
+        except Exception as e:
+            self.failed_checks.append(f"GraphQL validation error: {str(e)}")
+
+    def _validate_cookie_security(self) -> None:
+        """Validate cookie security settings."""
+        try:
+            # Check HTTPONLY flags
+            csrf_httponly = getattr(self.settings, 'CSRF_COOKIE_HTTPONLY', False)
+            session_httponly = getattr(self.settings, 'SESSION_COOKIE_HTTPONLY', False)
+            language_httponly = getattr(self.settings, 'LANGUAGE_COOKIE_HTTPONLY', False)
+
+            if not csrf_httponly:
+                self.failed_checks.append("CSRF_COOKIE_HTTPONLY is False (XSS risk)")
+
+            if not session_httponly:
+                self.failed_checks.append("SESSION_COOKIE_HTTPONLY is False (XSS risk)")
+
+            if not language_httponly:
+                self.warnings.append(
+                    "LANGUAGE_COOKIE_HTTPONLY is False (consider True for security)"
+                )
+
+            # Check SAMESITE settings
+            csrf_samesite = getattr(self.settings, 'CSRF_COOKIE_SAMESITE', None)
+            if csrf_samesite not in ['Lax', 'Strict']:
+                self.warnings.append(
+                    f"CSRF_COOKIE_SAMESITE should be 'Lax' or 'Strict', got: {csrf_samesite}"
+                )
+
+            session_samesite = getattr(self.settings, 'SESSION_COOKIE_SAMESITE', None)
+            if session_samesite not in ['Lax', 'Strict']:
+                self.warnings.append(
+                    f"SESSION_COOKIE_SAMESITE should be 'Lax' or 'Strict', got: {session_samesite}"
+                )
+
+        except Exception as e:
+            self.failed_checks.append(f"Cookie security validation error: {str(e)}")
+
+    def _validate_production_security(self) -> None:
+        """Production-specific security validations."""
+        try:
+            debug = getattr(self.settings, 'DEBUG', True)
+            if debug:
+                self.failed_checks.append("DEBUG must be False in production")
+
+            # Check HTTPS enforcement
+            secure_ssl_redirect = getattr(self.settings, 'SECURE_SSL_REDIRECT', False)
+            if not secure_ssl_redirect:
+                self.failed_checks.append("SECURE_SSL_REDIRECT must be True in production")
+
+            # Check HTTPS cookies
+            csrf_secure = getattr(self.settings, 'CSRF_COOKIE_SECURE', False)
+            session_secure = getattr(self.settings, 'SESSION_COOKIE_SECURE', False)
+
+            if not csrf_secure:
+                self.failed_checks.append("CSRF_COOKIE_SECURE must be True in production")
+
+            if not session_secure:
+                self.failed_checks.append("SESSION_COOKIE_SECURE must be True in production")
+
+            # Check GraphQL introspection disabled
+            introspection_disabled = getattr(
+                self.settings,
+                'GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION',
+                False
+            )
+            if not introspection_disabled:
+                self.failed_checks.append(
+                    "GraphQL introspection must be disabled in production (security risk)"
+                )
+
+            # Check HSTS
+            hsts_seconds = getattr(self.settings, 'SECURE_HSTS_SECONDS', 0)
+            if hsts_seconds < 31536000:  # 1 year
+                self.warnings.append(
+                    f"SECURE_HSTS_SECONDS should be >= 31536000 (1 year), got: {hsts_seconds}"
+                )
+
+        except Exception as e:
+            self.failed_checks.append(f"Production security validation error: {str(e)}")
+
+    def _validate_development_settings(self) -> None:
+        """Development-specific validations (warnings only)."""
+        try:
+            # Check DEBUG is enabled (expected in dev)
+            debug = getattr(self.settings, 'DEBUG', False)
+            if not debug:
+                self.warnings.append("DEBUG is False in development (expected True)")
+
+            # Check allowed hosts
+            allowed_hosts = getattr(self.settings, 'ALLOWED_HOSTS', [])
+            if not allowed_hosts:
+                self.warnings.append("ALLOWED_HOSTS is empty (may cause issues)")
+
+        except Exception as e:
+            self.warnings.append(f"Development settings validation error: {str(e)}")
+
+    def _report_validation_results(self, environment: str) -> None:
+        """Log validation results."""
+        if not self.failed_checks and not self.warnings:
+            logger.info(
+                "✅ Settings validation passed",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'environment': environment,
+                    'status': 'success'
+                }
+            )
+            return
+
+        if self.warnings:
+            logger.warning(
+                f"⚠️  Settings validation warnings: {len(self.warnings)}",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'environment': environment,
+                    'warnings': self.warnings
+                }
+            )
+
+        if self.failed_checks:
+            logger.error(
+                f"❌ Settings validation failed: {len(self.failed_checks)} critical issues",
+                extra={
+                    'correlation_id': self.correlation_id,
+                    'environment': environment,
+                    'failed_checks': self.failed_checks
+                }
+            )
+
+
+def validate_settings(settings: Any, environment: str = 'development') -> None:
+    """
+    Convenience function to validate Django settings.
+
+    Args:
+        settings: Django settings module
+        environment: 'development', 'production', or 'test'
+
+    Raises:
+        SettingsValidationError: If validation fails
+    """
+    validator = SettingsValidator(settings)
+    validator.validate_all(environment)
+
+
+__all__ = [
+    'SettingsValidator',
+    'SettingsValidationError',
+    'validate_settings',
+]

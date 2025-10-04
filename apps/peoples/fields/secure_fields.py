@@ -3,6 +3,11 @@ Secure Field implementations with enhanced encryption.
 
 This module provides database field classes that use cryptographically secure
 encryption instead of the previous insecure zlib compression approach.
+
+Security Features:
+- Automatic masking in string representation (__str__ and __repr__)
+- Audit logging when raw values are accessed
+- GDPR-compliant privacy protection
 """
 import logging
 from django.db.models import CharField
@@ -11,6 +16,171 @@ from apps.core.services.secure_encryption_service import SecureEncryptionService
 from apps.core.error_handling import ErrorHandler
 
 logger = logging.getLogger("secure_fields")
+audit_logger = logging.getLogger("security_audit")
+
+
+class MaskedSecureValue:
+    """
+    Wrapper class that masks decrypted values in string representation.
+
+    This class provides automatic privacy protection by masking sensitive
+    data in __str__ and __repr__ methods, preventing accidental exposure
+    in logs, admin interfaces, or debugging output.
+
+    Features:
+        - Automatic masking in string representations
+        - Audit logging when raw value is accessed
+        - Configurable masking pattern
+        - Preserves original value for legitimate access
+
+    Security:
+        - Prevents shoulder-surfing attacks
+        - Reduces log exposure risk
+        - Complies with GDPR privacy requirements
+        - Audits all raw value access
+
+    Example:
+        >>> email = MaskedSecureValue("user@example.com")
+        >>> str(email)
+        'us***@***'
+        >>> email.raw_value  # Logged for audit
+        'user@example.com'
+    """
+
+    def __init__(self, value, mask_char='*', visible_chars=2):
+        """
+        Initialize masked secure value.
+
+        Args:
+            value: The sensitive value to protect
+            mask_char: Character to use for masking (default: '*')
+            visible_chars: Number of characters to show at start (default: 2)
+        """
+        self._value = value
+        self._mask_char = mask_char
+        self._visible_chars = visible_chars
+
+    def __str__(self):
+        """
+        Return masked string representation for display.
+
+        Returns:
+            Masked string safe for display/logging
+        """
+        if not self._value:
+            return ''
+
+        value_str = str(self._value)
+
+        # For email addresses, mask local and domain parts
+        if '@' in value_str:
+            local, domain = value_str.split('@', 1)
+            if len(local) <= self._visible_chars:
+                masked_local = self._mask_char * 6
+            else:
+                masked_local = f"{local[:self._visible_chars]}{self._mask_char * 4}"
+
+            # Mask domain except TLD
+            domain_parts = domain.split('.')
+            if len(domain_parts) > 1:
+                masked_domain = f"{self._mask_char * 3}.{domain_parts[-1]}"
+            else:
+                masked_domain = self._mask_char * 3
+
+            return f"{masked_local}@{masked_domain}"
+
+        # For phone numbers or other values
+        if len(value_str) <= self._visible_chars:
+            return self._mask_char * 8
+
+        # Show first few chars, mask the rest, show last 2
+        if len(value_str) > 4:
+            return f"{value_str[:self._visible_chars]}{self._mask_char * 4}{value_str[-2:]}"
+        else:
+            return f"{value_str[:self._visible_chars]}{self._mask_char * 6}"
+
+    def __repr__(self):
+        """
+        Return masked representation for debugging.
+
+        Returns:
+            Masked representation string
+        """
+        return f"<MaskedValue: {str(self)}>"
+
+    def __eq__(self, other):
+        """
+        Compare values (for database operations).
+
+        Args:
+            other: Value to compare with
+
+        Returns:
+            bool: True if values are equal
+        """
+        if isinstance(other, MaskedSecureValue):
+            return self._value == other._value
+        return self._value == other
+
+    def __hash__(self):
+        """
+        Return hash of the underlying value.
+
+        Returns:
+            int: Hash value
+        """
+        return hash(self._value)
+
+    def __bool__(self):
+        """
+        Boolean evaluation based on underlying value.
+
+        Returns:
+            bool: True if value is truthy
+        """
+        return bool(self._value)
+
+    def __len__(self):
+        """
+        Return length of underlying value.
+
+        Returns:
+            int: Length of value
+        """
+        return len(self._value) if self._value else 0
+
+    @property
+    def raw_value(self):
+        """
+        Access unmasked value with audit logging.
+
+        Security:
+            - All access is logged with correlation ID
+            - Includes stack trace for forensics
+            - Triggers security monitoring alerts
+
+        Returns:
+            The unmasked sensitive value
+        """
+        # Log raw value access for security audit
+        import traceback
+        import uuid
+
+        correlation_id = str(uuid.uuid4())
+        stack_trace = ''.join(traceback.format_stack()[:-1])
+
+        audit_logger.warning(
+            "Unmasked secure field access detected",
+            extra={
+                'correlation_id': correlation_id,
+                'access_type': 'raw_value_property',
+                'stack_trace': stack_trace,
+                'value_type': type(self._value).__name__,
+                'value_length': len(str(self._value)) if self._value else 0
+            }
+        )
+
+        return self._value
 
 
 class EnhancedSecureString(CharField):
@@ -46,7 +216,12 @@ class EnhancedSecureString(CharField):
 
     def from_db_value(self, value, expression, connection):
         """
-        Decrypt value when reading from database with migration support.
+        Decrypt value when reading from database with migration support and privacy protection.
+
+        Security Features:
+            - Automatic masking in string representation
+            - Audit logging when raw value accessed
+            - Privacy protection in admin/logs
 
         Args:
             value: Encrypted value from database
@@ -54,13 +229,20 @@ class EnhancedSecureString(CharField):
             connection: Database connection (unused)
 
         Returns:
-            Decrypted string value or None if decryption fails
+            MaskedSecureValue wrapping decrypted string, or None if decryption fails
         """
         if not value:
             return value
 
         try:
-            return self._decrypt_with_migration(value)
+            decrypted_value = self._decrypt_with_migration(value)
+
+            # Wrap decrypted value in MaskedSecureValue for privacy protection
+            if decrypted_value is not None:
+                return MaskedSecureValue(decrypted_value)
+
+            return None
+
         except (TypeError, ValidationError, ValueError) as e:
             # Log security incidents without exposing sensitive details
             correlation_id = ErrorHandler.handle_exception(
@@ -86,8 +268,10 @@ class EnhancedSecureString(CharField):
         """
         Encrypt value when saving to database with enhanced validation.
 
+        Handles both plain strings and MaskedSecureValue objects.
+
         Args:
-            value: Plain text value to encrypt
+            value: Plain text value, MaskedSecureValue, or None to encrypt
 
         Returns:
             Encrypted value with version prefix
@@ -97,6 +281,10 @@ class EnhancedSecureString(CharField):
         """
         if not value:
             return value
+
+        # Unwrap MaskedSecureValue if present
+        if isinstance(value, MaskedSecureValue):
+            value = value._value
 
         # Validate input data
         if not isinstance(value, (str, type(None))):

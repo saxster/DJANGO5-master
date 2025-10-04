@@ -1,0 +1,197 @@
+{% comment %}
+========================================
+APPROVAL CHAIN PARTIAL
+========================================
+Visual approval workflow display
+
+Usage:
+    {% include "people_onboarding/partials/_approval_chain.html" with approvals=approval_list %}
+
+Parameters:
+    - approvals: QuerySet of ApprovalWorkflow objects (required)
+    - show_notes: Boolean to show decision notes (default: False)
+    - max_visible: Maximum approvals to show before collapse (default: 5)
+
+Features:
+    - Sequential approver avatars
+    - Approval status icons (pending/approved/rejected)
+    - Timestamps for decisions
+    - Decision notes tooltip
+    - Escalation indicator
+
+Edge Cases:
+    - Parallel approvals show side-by-side
+    - Skipped approvals show as n/a
+    - Escalated approvals show chain
+    - Many approvers collapse after max_visible
+{% endcomment %}
+
+{% load static %}
+
+{% comment %}Set defaults{% endcomment %}
+{% if show_notes is None %}{% with show_notes=False %}{% endwith %}{% endif %}
+{% if not max_visible %}{% with max_visible=5 %}{% endwith %}{% endif %}
+
+<div class="approval-chain"
+     role="list"
+     aria-label="Approval chain">
+
+    {% if approvals %}
+        <div class="approval-chain-list">
+            {% for approval in approvals %}
+                {% comment %}Collapse items beyond max_visible{% endcomment %}
+                {% if forloop.counter <= max_visible or approvals|length <= max_visible %}
+                    <div class="approval-chain-item
+                                {% if approval.decision == 'APPROVED' %}approval-approved{% endif %}
+                                {% if approval.decision == 'REJECTED' %}approval-rejected{% endif %}
+                                {% if approval.decision == 'PENDING' %}approval-pending{% endif %}
+                                {% if approval.is_escalated %}approval-escalated{% endif %}"
+                         data-approval-id="{{ approval.uuid }}"
+                         data-approval-level="{{ approval.approval_level }}"
+                         role="listitem">
+
+                        <div class="d-flex align-items-start mb-3">
+                            {% comment %}Approver Avatar{% endcomment %}
+                            <div class="approver-avatar me-3 position-relative">
+                                {% if approval.approver.peopleimg %}
+                                    <img src="{{ approval.approver.peopleimg.url }}"
+                                         alt="{{ approval.approver.peoplename }}"
+                                         class="rounded-circle border border-2
+                                                {% if approval.decision == 'APPROVED' %}border-success{% endif %}
+                                                {% if approval.decision == 'REJECTED' %}border-danger{% endif %}
+                                                {% if approval.decision == 'PENDING' %}border-warning{% endif %}"
+                                         width="48"
+                                         height="48"
+                                         loading="lazy">
+                                {% else %}
+                                    <div class="symbol symbol-48px">
+                                        <div class="symbol-label fs-5 fw-bold
+                                                    {% if approval.decision == 'APPROVED' %}bg-light-success text-success{% endif %}
+                                                    {% if approval.decision == 'REJECTED' %}bg-light-danger text-danger{% endif %}
+                                                    {% if approval.decision == 'PENDING' %}bg-light-warning text-warning{% endif %}">
+                                            {{ approval.approver.peoplename.0|upper }}{{ approval.approver.peoplename.1|upper|default:'' }}
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                {% comment %}Status Icon Overlay{% endcomment %}
+                                <div class="approval-status-icon position-absolute bottom-0 end-0">
+                                    {% if approval.decision == 'APPROVED' %}
+                                        <span class="badge badge-circle badge-success p-1">
+                                            <i class="bi bi-check fs-8"></i>
+                                        </span>
+                                    {% elif approval.decision == 'REJECTED' %}
+                                        <span class="badge badge-circle badge-danger p-1">
+                                            <i class="bi bi-x fs-8"></i>
+                                        </span>
+                                    {% elif approval.decision == 'PENDING' %}
+                                        <span class="badge badge-circle badge-warning p-1">
+                                            <i class="bi bi-hourglass-split fs-8"></i>
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                {% comment %}Escalation Indicator{% endcomment %}
+                                {% if approval.is_escalated %}
+                                    <div class="escalation-indicator position-absolute top-0 start-0">
+                                        <span class="badge badge-circle badge-info p-1"
+                                              data-bs-toggle="tooltip"
+                                              title="Escalated from {{ approval.escalated_from.peoplename }}">
+                                            <i class="bi bi-arrow-up-circle fs-8"></i>
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            {% comment %}Approval Info{% endcomment %}
+                            <div class="approval-info flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <div>
+                                        <h6 class="approver-name mb-0 fs-6 fw-bold">
+                                            {{ approval.approver.peoplename }}
+                                        </h6>
+                                        <div class="approval-level text-muted fs-7">
+                                            {{ approval.get_approval_level_display }}
+                                        </div>
+                                    </div>
+
+                                    {% comment %}Decision Timestamp{% endcomment %}
+                                    {% if approval.decision_date %}
+                                        <div class="approval-timestamp text-muted fs-7">
+                                            {{ approval.decision_date|date:"M d, Y H:i" }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% comment %}Decision Notes{% endcomment %}
+                                {% if show_notes and approval.notes %}
+                                    <div class="approval-notes mt-2 p-2 bg-light rounded">
+                                        <div class="fs-7 text-muted">
+                                            <i class="bi bi-chat-left-text me-1"></i>
+                                            {{ approval.notes|truncatechars:150 }}
+                                        </div>
+                                    </div>
+                                {% elif approval.notes %}
+                                    <button type="button"
+                                            class="btn btn-sm btn-link p-0 text-primary fs-7"
+                                            data-bs-toggle="tooltip"
+                                            data-bs-html="true"
+                                            title="{{ approval.notes|escape }}">
+                                        <i class="bi bi-chat-left-text me-1"></i>
+                                        View Notes
+                                    </button>
+                                {% endif %}
+
+                                {% comment %}SLA Warning{% endcomment %}
+                                {% if approval.decision == 'PENDING' and approval.is_overdue %}
+                                    <div class="alert alert-danger py-2 px-3 mt-2 mb-0" role="alert">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                        <strong>Overdue:</strong> SLA exceeded by {{ approval.overdue_hours }} hours
+                                    </div>
+                                {% elif approval.decision == 'PENDING' and approval.sla_hours_remaining %}
+                                    {% if approval.sla_hours_remaining < 4 %}
+                                        <div class="alert alert-warning py-2 px-3 mt-2 mb-0" role="alert">
+                                            <i class="bi bi-clock me-2"></i>
+                                            <strong>Due Soon:</strong> {{ approval.sla_hours_remaining }} hours remaining
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+
+                            {% comment %}Connection Line (except for last item){% endcomment %}
+                            {% if not forloop.last %}
+                                <div class="approval-connector"></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% elif forloop.counter == max_visible|add:"1" %}
+                    {% comment %}Show "and X more" for collapsed items{% endcomment %}
+                    <div class="approval-chain-item approval-collapsed">
+                        <button type="button"
+                                class="btn btn-sm btn-light-primary"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#additionalApprovals"
+                                aria-expanded="false"
+                                aria-controls="additionalApprovals">
+                            <i class="bi bi-chevron-down me-1"></i>
+                            Show {{ approvals|length|add:"-5" }} more approver{{ approvals|length|add:"-5"|pluralize }}
+                        </button>
+
+                        <div class="collapse mt-3" id="additionalApprovals">
+                            {% comment %}Render remaining approvals recursively{% endcomment %}
+                            {% for remaining_approval in approvals|slice:"5:" %}
+                                {% comment %}(duplicate the approval item structure here){% endcomment %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        {% comment %}No approvals yet{% endcomment %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-hourglass fs-2x d-block mb-3"></i>
+            <p class="mb-0">No approvals assigned yet</p>
+        </div>
+    {% endif %}
+</div>

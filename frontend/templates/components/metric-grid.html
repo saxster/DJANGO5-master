@@ -1,0 +1,113 @@
+{% comment %}
+Metric Grid Component - Responsive grid of KPI cards for dashboards
+
+USAGE:
+  {% include 'components/metric-grid.html' with columns=3 metrics=kpi_data %}
+
+Where metrics is a list of dicts:
+  [
+    {'title': 'Guards', 'value': '247', 'icon': 'people', 'trend': 'up', 'trend_value': '+12%'},
+    {'title': 'Sites', 'value': '142', 'icon': 'location_on'},
+    ...
+  ]
+
+PARAMETERS:
+  metrics (required) - List of metric dictionaries
+  columns (optional) - Number of columns: 2, 3, 4, 5 (default: 4)
+  gap (optional)     - Grid gap: 'small', 'medium', 'large' (default: 'medium')
+{% endcomment %}
+
+{% with
+  grid_columns=columns|default:4
+  grid_gap=gap|default:'medium'
+%}
+
+<div class="yt-metric-grid yt-metric-grid--cols-{{ grid_columns }} yt-metric-grid--gap-{{ grid_gap }}">
+  {% for metric in metrics %}
+    {% include 'components/kpi-card.html' with
+      title=metric.title
+      value=metric.value
+      icon=metric.icon|default:''
+      trend=metric.trend|default:''
+      trend_value=metric.trend_value|default:''
+      comparison=metric.comparison|default:''
+      status=metric.status|default:'neutral'
+      subtitle=metric.subtitle|default:''
+      target=metric.target|default:''
+      href=metric.href|default:''
+      loading=metric.loading|default:False
+    %}
+  {% endfor %}
+</div>
+
+{% endwith %}
+
+<style>
+.yt-metric-grid {
+  display: grid;
+  width: 100%;
+}
+
+/* Column variants */
+.yt-metric-grid--cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.yt-metric-grid--cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.yt-metric-grid--cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.yt-metric-grid--cols-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* Gap variants */
+.yt-metric-grid--gap-small {
+  gap: var(--space-3);
+}
+
+.yt-metric-grid--gap-medium {
+  gap: var(--space-4);
+}
+
+.yt-metric-grid--gap-large {
+  gap: var(--space-6);
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1280px) {
+  .yt-metric-grid--cols-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .yt-metric-grid--cols-4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .yt-metric-grid--cols-5,
+  .yt-metric-grid--cols-4,
+  .yt-metric-grid--cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .yt-metric-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media print {
+  .yt-metric-grid {
+    display: grid !important;
+    gap: 12pt;
+    page-break-inside: avoid;
+  }
+}
+</style>

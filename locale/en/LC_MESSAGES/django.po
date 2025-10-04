@@ -1,0 +1,265 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: IntelliWiz Facility Management\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-27 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Sample strings from the codebase analysis
+#: apps/peoples/models/user_model.py:66
+msgid "User Code"
+msgstr "User Code"
+
+#: apps/peoples/models/user_model.py:72
+msgid "Full Name"
+msgstr "Full Name"
+
+#: apps/peoples/models/user_model.py:78
+msgid "Login ID"
+msgstr "Login ID"
+
+#: apps/peoples/models/user_model.py:86
+msgid "Administrator"
+msgstr "Administrator"
+
+#: apps/peoples/models/user_model.py:87
+msgid "Staff Status"
+msgstr "Staff Status"
+
+#: apps/peoples/models/user_model.py:114
+msgid "Person"
+msgstr "Person"
+
+#: apps/peoples/models/user_model.py:115
+msgid "People"
+msgstr "People"
+
+#: apps/core/exceptions.py:XX
+msgid "Authentication failed"
+msgstr "Authentication failed"
+
+#: apps/core/exceptions.py:XX
+msgid "Cannot login on multiple devices"
+msgstr "Cannot login on multiple devices"
+
+#: apps/core/exceptions.py:XX
+msgid "Device not registered"
+msgstr "Device not registered"
+
+#: apps/core/exceptions.py:XX
+msgid "Invalid credentials"
+msgstr "Invalid credentials"
+
+#: apps/core/exceptions.py:XX
+msgid "Permission denied"
+msgstr "Permission denied"
+
+# Error template strings
+#: frontend/templates/errors/404.html:5
+msgid "Page Not Found"
+msgstr "Page Not Found"
+
+#: frontend/templates/errors/404.html:312
+msgid "Oops! Page Not Found"
+msgstr "Oops! Page Not Found"
+
+#: frontend/templates/errors/404.html:314
+msgid "The page you're looking for seems to have wandered off. Don't worry, it happens to the best of us!"
+msgstr "The page you're looking for seems to have wandered off. Don't worry, it happens to the best of us!"
+
+#: frontend/templates/errors/404.html:323
+msgid "Go back to previous page"
+msgstr "Go back to previous page"
+
+#: frontend/templates/errors/404.html:325
+msgid "Go Back"
+msgstr "Go Back"
+
+#: frontend/templates/errors/404.html:330
+msgid "Return to home page"
+msgstr "Return to home page"
+
+#: frontend/templates/errors/404.html:332
+msgid "Home Page"
+msgstr "Home Page"
+
+#: frontend/templates/errors/404.html:338
+msgid "Search for content"
+msgstr "Search for content"
+
+#: frontend/templates/errors/404.html:340
+msgid "Search"
+msgstr "Search"
+
+#: frontend/templates/errors/404.html:347
+msgid "What can you try?"
+msgstr "What can you try?"
+
+#: frontend/templates/errors/500.html:5
+msgid "Server Error"
+msgstr "Server Error"
+
+#: frontend/templates/errors/500.html:152
+msgid "Something Went Wrong"
+msgstr "Something Went Wrong"
+
+#: frontend/templates/errors/500.html:154
+msgid "We're experiencing technical difficulties. Our team has been automatically notified and is working to fix the issue."
+msgstr "We're experiencing technical difficulties. Our team has been automatically notified and is working to fix the issue."
+
+#: frontend/templates/errors/500.html:175
+msgid "Error Reference:"
+msgstr "Error Reference:"
+
+#: frontend/templates/errors/500.html:176
+msgid "Time:"
+msgstr "Time:"
+
+#: frontend/templates/errors/500.html:177
+msgid "Support:"
+msgstr "Support:"
+
+#: frontend/templates/errors/403.html:5
+msgid "Access Denied"
+msgstr "Access Denied"
+
+#: frontend/templates/errors/403.html:116
+msgid "You don't have permission to access this resource. Please contact your administrator if you believe this is an error."
+msgstr "You don't have permission to access this resource. Please contact your administrator if you believe this is an error."
+
+# Language switcher component
+#: frontend/templates/globals/components/language_switcher.html:6
+msgid "Language selection"
+msgstr "Language selection"
+
+#: frontend/templates/globals/components/language_switcher.html:9
+msgid "Choose your language"
+msgstr "Choose your language"
+
+#: frontend/templates/globals/components/language_switcher.html:14
+msgid "Current language"
+msgstr "Current language"
+
+#: frontend/templates/globals/components/language_switcher.html:23
+msgid "Change Language"
+msgstr "Change Language"
+
+# API Response Messages
+#: apps/onboarding/views.py:291
+msgid "Contract saved successfully"
+msgstr "Contract saved successfully"
+
+#: apps/schedhuler/views/internal_tour_views.py:293
+msgid "Checkpoint added"
+msgstr "Checkpoint added"
+
+#: apps/schedhuler/views/internal_tour_views.py:313
+msgid "Checkpoint deleted"
+msgstr "Checkpoint deleted"
+
+# Model help_text strings
+#: apps/onboarding/models/site_onboarding.py:75
+msgid "Primary language for audit (ISO 639-1 code)"
+msgstr "Primary language for audit (ISO 639-1 code)"
+
+#: apps/onboarding/models/site_onboarding.py:319
+msgid "AI confidence (0.00 to 1.00)"
+msgstr "AI confidence (0.00 to 1.00)"
+
+#: apps/onboarding/models/site_onboarding.py:400
+msgid "Direction in degrees (0-360)"
+msgstr "Direction in degrees (0-360)"
+
+#: apps/onboarding/models/conversational_ai.py:110
+msgid "Language code for speech recognition (e.g., 'en-US', 'hi-IN')"
+msgstr "Language code for speech recognition (e.g., 'en-US', 'hi-IN')"
+
+#: apps/onboarding/models/conversational_ai.py:187
+msgid "Overall confidence score (0.0 to 1.0)"
+msgstr "Overall confidence score (0.0 to 1.0)"
+
+# Form validation messages
+#: apps/schedhuler/forms.py:216
+#: apps/schedhuler/forms.py:482
+#: apps/schedhuler/forms.py:632
+msgid "Invalid Cron"
+msgstr "Invalid Cron"
+
+# Checkpoint service validation messages
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Invalid checkpoint data format"
+msgstr "Invalid checkpoint data format"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Checkpoint not found"
+msgstr "Checkpoint not found"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "At least one checkpoint is required"
+msgstr "At least one checkpoint is required"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Invalid checkpoint IDs provided"
+msgstr "Invalid checkpoint IDs provided"
+
+#: apps/schedhuler/services/checkpoint_manager.py:XX
+msgid "Invalid checkpoint order"
+msgstr "Invalid checkpoint order"
+
+# JavaScript UI strings
+#: frontend/static/js/conversational_onboarding.js:486
+msgid "Business Unit Configuration"
+msgstr "Business Unit Configuration"
+
+#: frontend/static/js/conversational_onboarding.js:487
+msgid "Shift Management Setup"
+msgstr "Shift Management Setup"
+
+#: frontend/static/js/conversational_onboarding.js:488
+msgid "System Type Configuration"
+msgstr "System Type Configuration"
+
+#: frontend/static/js/conversational_onboarding.js:489
+msgid "Security Settings"
+msgstr "Security Settings"
+
+#: frontend/static/js/conversational_onboarding.js:491
+msgid "System Configuration"
+msgstr "System Configuration"
+
+# View response messages
+#: apps/reports/views.py:1043
+msgid "UAN Not Found"
+msgstr "UAN Not Found"
+
+#: apps/work_order_management/views.py:333
+msgid "The work order are already submitted!"
+msgstr "The work order are already submitted!"
+
+#: apps/work_order_management/views.py:327
+msgid "Sorry the work order is cancelled already!"
+msgstr "Sorry the work order is cancelled already!"
+
+#: apps/work_order_management/views.py:330
+msgid "Please accept the work order and start the work!"
+msgstr "Please accept the work order and start the work!"
+
+#: apps/work_order_management/views.py:XX
+msgid "The page you are looking for is not found"
+msgstr "The page you are looking for is not found"
+
+#: apps/work_order_management/views.py:1433
+msgid "The work order is already approved"
+msgstr "The work order is already approved"

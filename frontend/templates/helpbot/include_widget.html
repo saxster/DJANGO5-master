@@ -1,0 +1,15 @@
+<!-- HelpBot Widget Include -->
+<!--
+    Include this template in your base template or any page where you want HelpBot to appear.
+
+    Usage in templates:
+    {% include 'helpbot/include_widget.html' %}
+
+    The widget will only appear for authenticated users when HELPBOT_ENABLED is True.
+-->
+
+{% load static %}
+
+{% if user.is_authenticated and settings.HELPBOT_ENABLED %}
+    {% include 'helpbot/widget.html' %}
+{% endif %}

@@ -180,7 +180,7 @@ def get_timezone_from_offset(offset_minutes: int) -> Optional[str]:
 
         for zone in pytz.all_timezones:
             tz = pytz.timezone(zone)
-            utc_offset = tz.utcoffset(datetime.utcnow())
+            utc_offset = tz.utcoffset(datetime.now(dt_timezone.utc))
 
             if utc_offset == delta:
                 return zone

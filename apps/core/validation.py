@@ -3,6 +3,8 @@ Comprehensive input validation and XSS prevention for YOUTILITY3.
 """
 import re
 import html
+import logging
+from typing import Dict, Any, List, Union
 from django import forms
 from django.core.exceptions import ValidationError
 
@@ -15,6 +17,9 @@ except ImportError:
     HAS_BLEACH = False
 
 logger = logging.getLogger("validation")
+
+# Dedicated logger for secret validation (security-critical)
+secret_validation_logger = logging.getLogger("security.secret_validation")
 
 
 class XSSPrevention:
@@ -585,6 +590,124 @@ class SecretValidationError(Exception):
         super().__init__(message)
 
 
+class SecretValidationLogger:
+    """
+    Secure logging for secret validation operations.
+
+    CRITICAL SECURITY REQUIREMENTS:
+    - Never log actual secret values
+    - Sanitize all error messages before logging
+    - Use correlation IDs for debugging
+    - Environment-aware verbosity
+    """
+
+    @staticmethod
+    def _sanitize_message(message: str) -> str:
+        """
+        Sanitize message to ensure no sensitive data is logged.
+
+        Args:
+            message: Raw message that may contain sensitive data
+
+        Returns:
+            Sanitized message safe for logging
+        """
+        # Remove any potential secret values (anything after colons, in quotes, etc.)
+        import re
+
+        # Remove content in quotes that might be secret values
+        sanitized = re.sub(r'["\']([^"\']{8,})["\']', r'"[REDACTED]"', message)
+
+        # Remove base64-like strings (potential encryption keys)
+        sanitized = re.sub(r'\b[A-Za-z0-9+/]{32,}={0,2}\b', '[REDACTED_KEY]', sanitized)
+
+        # Remove long alphanumeric strings (potential secret keys)
+        sanitized = re.sub(r'\b[A-Za-z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?]{50,}\b', '[REDACTED_SECRET]', sanitized)
+
+        return sanitized
+
+    @staticmethod
+    def _get_generic_remediation(secret_type: str) -> str:
+        """
+        Get generic remediation guidance without exposing validation requirements.
+
+        Args:
+            secret_type: Type of secret (secret_key, encryption_key, admin_password)
+
+        Returns:
+            Generic remediation message
+        """
+        generic_guidance = {
+            'secret_key': 'Generate a new SECRET_KEY using Django utilities',
+            'encryption_key': 'Generate a new encryption key using cryptography library',
+            'admin_password': 'Set a strong admin password following security best practices',
+            'default': 'Review secret configuration and regenerate if needed'
+        }
+        return generic_guidance.get(secret_type, generic_guidance['default'])
+
+    @staticmethod
+    def log_validation_success(secret_name: str, secret_type: str, metadata: Dict[str, Any] = None):
+        """
+        Log successful secret validation.
+
+        Args:
+            secret_name: Name of the secret (e.g., SECRET_KEY)
+            secret_type: Type of secret (secret_key, encryption_key, admin_password)
+            metadata: Optional metadata (length, entropy, etc.) - NO secret values
+        """
+        log_data = {
+            'secret_name': secret_name,
+            'secret_type': secret_type,
+            'status': 'validated',
+        }
+
+        # Add safe metadata if provided
+        if metadata:
+            # Only include safe numeric values, never the secret itself
+            safe_metadata = {
+                k: v for k, v in metadata.items()
+                if k in ['length', 'entropy', 'char_types_count'] and isinstance(v, (int, float))
+            }
+            log_data.update(safe_metadata)
+
+        secret_validation_logger.info(
+            f"Secret validation passed: {secret_name}",
+            extra=log_data
+        )
+
+    @staticmethod
+    def log_validation_error(
+        secret_name: str,
+        secret_type: str,
+        error_category: str,
+        correlation_id: str = None
+    ):
+        """
+        Log secret validation failure with sanitized details.
+
+        Args:
+            secret_name: Name of the secret (e.g., SECRET_KEY)
+            secret_type: Type of secret (secret_key, encryption_key, admin_password)
+            error_category: Generic error category (length, entropy, format, missing)
+            correlation_id: Optional correlation ID for debugging
+        """
+        log_data = {
+            'secret_name': secret_name,
+            'secret_type': secret_type,
+            'error_category': error_category,
+            'status': 'validation_failed',
+            'remediation': SecretValidationLogger._get_generic_remediation(secret_type)
+        }
+
+        if correlation_id:
+            log_data['correlation_id'] = correlation_id
+
+        secret_validation_logger.error(
+            f"Secret validation failed: {secret_name} ({error_category})",
+            extra=log_data
+        )
+
+
 class SecretValidator:
     """
     Comprehensive secret validation for Django applications.
@@ -702,7 +825,12 @@ class SecretValidator:
                 "Use a SECRET_KEY with uppercase, lowercase, digits, and special characters"
             )
 
-        logger.info(f"✓ {secret_name} validation passed (length: {len(secret_value)}, entropy: {entropy:.2f})")
+        # Log success securely (no secret values)
+        SecretValidationLogger.log_validation_success(
+            secret_name,
+            'secret_key',
+            {'length': len(secret_value), 'entropy': entropy, 'char_types_count': sum(char_types.values())}
+        )
         return secret_value
 
     @staticmethod
@@ -770,7 +898,12 @@ class SecretValidator:
                 "Use a properly random encryption key"
             )
 
-        logger.info(f"✓ {secret_name} validation passed (32 bytes, entropy: {entropy:.2f})")
+        # Log success securely (no secret values)
+        SecretValidationLogger.log_validation_success(
+            secret_name,
+            'encryption_key',
+            {'length': 32, 'entropy': entropy}
+        )
         return secret_value
 
     @staticmethod
@@ -837,7 +970,12 @@ class SecretValidator:
                 "Use a more complex password with varied characters"
             )
 
-        logger.info(f"✓ {secret_name} validation passed (length: {len(secret_value)}, entropy: {entropy:.2f})")
+        # Log success securely (no secret values)
+        SecretValidationLogger.log_validation_success(
+            secret_name,
+            'admin_password',
+            {'length': len(secret_value), 'entropy': entropy}
+        )
         return secret_value
 
     @staticmethod
@@ -894,7 +1032,11 @@ class SecretValidator:
                 "Review and update all failing secrets in your environment configuration"
             )
 
-        logger.info(f"✅ All {len(validated_secrets)} secrets validated successfully")
+        # Log batch validation success securely
+        secret_validation_logger.info(
+            f"Batch secret validation completed successfully",
+            extra={'validated_count': len(validated_secrets), 'status': 'all_validated'}
+        )
         return validated_secrets
 
 

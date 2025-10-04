@@ -1,0 +1,133 @@
+{% extends "admin/base_modern_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Dead Letter Queue Management{% endblock %}
+{% block admin_subtitle %}Failed task monitoring, retry management, and recovery{% endblock %}
+
+{% block admin_content %}
+<div class="content-wrapper">
+  <!-- Filter Bar -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <form method="get" style="display: flex; gap: var(--yt-space-4); align-items: end; flex-wrap: wrap;">
+      <div>
+        <label style="display: block; font-size: var(--yt-text-sm); margin-bottom: var(--yt-space-2);">Status</label>
+        <select name="status" class="yt-input">
+          <option value="PENDING" {% if filters.status == 'PENDING' %}selected{% endif %}>Pending</option>
+          <option value="RETRYING" {% if filters.status == 'RETRYING' %}selected{% endif %}>Retrying</option>
+          <option value="RESOLVED" {% if filters.status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+          <option value="ABANDONED" {% if filters.status == 'ABANDONED' %}selected{% endif %}>Abandoned</option>
+        </select>
+      </div>
+      <div>
+        <label style="display: block; font-size: var(--yt-text-sm); margin-bottom: var(--yt-space-2);">Task Name</label>
+        <input type="text" name="task_name" value="{{ filters.task_name }}" placeholder="Filter by task..." class="yt-input">
+      </div>
+      <div>
+        <label style="display: block; font-size: var(--yt-text-sm); margin-bottom: var(--yt-space-2);">Failure Type</label>
+        <input type="text" name="failure_type" value="{{ filters.failure_type }}" placeholder="Filter by type..." class="yt-input">
+      </div>
+      <button type="submit" class="yt-button yt-button-primary">Apply Filters</button>
+      <a href="{% url 'dlq_management' %}" class="yt-button yt-button-text">Clear Filters</a>
+    </form>
+  </div>
+
+  <!-- Summary Statistics -->
+  <div class="admin-stats-grid" style="margin-bottom: var(--yt-space-8);">
+    <div class="stat-card" style="--stat-color: var(--yt-warning-500);">
+      <h3 class="stat-title">Pending Retries</h3>
+      <p class="stat-value">{{ summary.total_pending }}</p>
+    </div>
+    <div class="stat-card" style="--stat-color: var(--yt-info-500);">
+      <h3 class="stat-title">Currently Retrying</h3>
+      <p class="stat-value">{{ summary.total_retrying }}</p>
+    </div>
+    <div class="stat-card" style="--stat-color: var(--yt-success-500);">
+      <h3 class="stat-title">Resolved (24h)</h3>
+      <p class="stat-value">{{ summary.total_resolved }}</p>
+    </div>
+    <div class="stat-card" style="--stat-color: var(--yt-danger-500);">
+      <h3 class="stat-title">Abandoned</h3>
+      <p class="stat-value">{{ summary.total_abandoned }}</p>
+    </div>
+  </div>
+
+  <!-- Failure Type Distribution -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <h2 class="chart-title">Failure Type Distribution (24h)</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--yt-space-3); margin-top: var(--yt-space-4);">
+      {% for dist in failure_distribution %}
+      <div style="padding: var(--yt-space-3); background: var(--yt-bg-secondary); border-radius: var(--yt-radius-md); text-align: center;">
+        <p style="margin: 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">{{ dist.failure_type }}</p>
+        <p style="margin: var(--yt-space-1) 0 0 0; font-size: var(--yt-text-2xl); font-weight: bold;">{{ dist.count }}</p>
+      </div>
+      {% empty %}
+      <p style="grid-column: 1 / -1; text-align: center; color: var(--yt-text-secondary);">No failures in last 24 hours</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- DLQ Tasks Table -->
+  <div class="chart-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--yt-space-4);">
+      <h2 class="chart-title">DLQ Tasks</h2>
+      <form method="post" action="{% url 'bulk_retry_dlq' %}" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="yt-button yt-button-primary">Retry All Pending</button>
+      </form>
+    </div>
+    
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--yt-border-primary);">
+            <th style="text-align: left; padding: var(--yt-space-3);">Task Name</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Failure Type</th>
+            <th style="text-align: center; padding: var(--yt-space-3);">Retry Count</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">First Failed</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Next Retry</th>
+            <th style="text-align: center; padding: var(--yt-space-3);">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in dlq_tasks %}
+          <tr style="border-bottom: 1px solid var(--yt-border-secondary);">
+            <td style="padding: var(--yt-space-3);">
+              <code style="font-size: var(--yt-text-sm);">{{ task.task_name }}</code>
+              <p style="margin: var(--yt-space-1) 0 0 0; font-size: var(--yt-text-xs); color: var(--yt-text-secondary);">
+                {{ task.exception_message|truncatewords:10 }}
+              </p>
+            </td>
+            <td style="padding: var(--yt-space-3);">
+              <span style="padding: var(--yt-space-1) var(--yt-space-2); background: var(--yt-warning-100); color: var(--yt-warning-700); border-radius: var(--yt-radius-sm); font-size: var(--yt-text-xs); font-weight: bold;">
+                {{ task.failure_type }}
+              </span>
+            </td>
+            <td style="text-align: center; padding: var(--yt-space-3);">{{ task.retry_count }} / {{ task.max_retries }}</td>
+            <td style="padding: var(--yt-space-3); font-size: var(--yt-text-sm);">{{ task.first_failed_at|date:"Y-m-d H:i" }}</td>
+            <td style="padding: var(--yt-space-3); font-size: var(--yt-text-sm);">
+              {% if task.next_retry_at %}{{ task.next_retry_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}
+            </td>
+            <td style="text-align: center; padding: var(--yt-space-3);">
+              <form method="post" action="{% url 'retry_dlq_task' task.id %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="yt-button yt-button-sm yt-button-primary">Retry Now</button>
+              </form>
+              <form method="post" action="{% url 'abandon_dlq_task' task.id %}" style="display: inline; margin-left: var(--yt-space-2);">
+                {% csrf_token %}
+                <button type="submit" class="yt-button yt-button-sm yt-button-danger" onclick="return confirm('Are you sure you want to abandon this task?');">Abandon</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="padding: var(--yt-space-6); text-align: center; color: var(--yt-text-secondary);">
+              No DLQ tasks found with current filters
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}

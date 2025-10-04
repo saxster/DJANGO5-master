@@ -10,6 +10,9 @@ from logging import getLogger
 from apps.service.types import SelectOutputType
 from apps.service.decorators import require_authentication, require_tenant_access
 
+# Import unified serializer for consistent GraphQL responses
+from apps.y_helpdesk.serializers.unified_ticket_serializer import serialize_for_mobile_sync
+
 log = getLogger("mobile_service_log")
 
 

@@ -1,0 +1,1712 @@
+{% extends "ml_training/base/ml_training_base.html" %}
+{% load static %}
+
+{% block title %}ML Training - Feedback Loop Dashboard{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.6.1/dist/d3.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="ml-container">
+    <!-- Header Section -->
+    <div class="ml-header">
+        <div class="ml-header-content">
+            <h1 class="ml-page-title">
+                <i class="material-icons">loop</i>
+                Feedback Loop Dashboard
+            </h1>
+            <p class="ml-page-subtitle">Monitor production feedback integration and continuous learning</p>
+        </div>
+        <div class="ml-header-actions">
+            <button class="ml-btn ml-btn-secondary" id="configure-feedback">
+                <i class="material-icons">settings</i>
+                Configure
+            </button>
+            <button class="ml-btn ml-btn-primary" id="trigger-learning">
+                <i class="material-icons">psychology</i>
+                Trigger Learning
+            </button>
+        </div>
+    </div>
+
+    <!-- Feedback Loop Flow Visualization -->
+    <div class="ml-feedback-flow-container">
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Feedback Loop Flow</h2>
+            <div class="ml-flow-controls">
+                <button class="ml-control-btn active" data-view="realtime">
+                    <i class="material-icons">play_arrow</i>
+                    Real-time
+                </button>
+                <button class="ml-control-btn" data-view="historical">
+                    <i class="material-icons">history</i>
+                    Historical
+                </button>
+            </div>
+        </div>
+
+        <div class="ml-feedback-flow" id="feedback-flow">
+            <!-- Production Stage -->
+            <div class="ml-flow-stage" id="production-stage">
+                <div class="ml-stage-header">
+                    <div class="ml-stage-icon ml-stage-production">
+                        <i class="material-icons">precision_manufacturing</i>
+                    </div>
+                    <div class="ml-stage-info">
+                        <h3 class="ml-stage-title">Production</h3>
+                        <p class="ml-stage-subtitle">Live model inference</p>
+                    </div>
+                </div>
+                <div class="ml-stage-metrics">
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="production-predictions">2,847</span>
+                        <span class="ml-metric-label">Predictions Today</span>
+                    </div>
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="production-confidence">87.3%</span>
+                        <span class="ml-metric-label">Avg Confidence</span>
+                    </div>
+                </div>
+                <div class="ml-stage-status ml-status-active">
+                    <div class="ml-status-indicator"></div>
+                    <span>Active</span>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 1 -->
+            <div class="ml-flow-arrow">
+                <div class="ml-arrow-line">
+                    <div class="ml-arrow-animation"></div>
+                </div>
+                <div class="ml-arrow-head"></div>
+                <div class="ml-flow-label">
+                    <span class="ml-flow-count">234</span>
+                    <span class="ml-flow-type">Low Confidence</span>
+                </div>
+            </div>
+
+            <!-- Uncertainty Detection Stage -->
+            <div class="ml-flow-stage" id="uncertainty-stage">
+                <div class="ml-stage-header">
+                    <div class="ml-stage-icon ml-stage-uncertainty">
+                        <i class="material-icons">help_outline</i>
+                    </div>
+                    <div class="ml-stage-info">
+                        <h3 class="ml-stage-title">Uncertainty Detection</h3>
+                        <p class="ml-stage-subtitle">Identify uncertain predictions</p>
+                    </div>
+                </div>
+                <div class="ml-stage-metrics">
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="uncertainty-detected">234</span>
+                        <span class="ml-metric-label">Detected Today</span>
+                    </div>
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="uncertainty-threshold">0.7</span>
+                        <span class="ml-metric-label">Threshold</span>
+                    </div>
+                </div>
+                <div class="ml-stage-status ml-status-active">
+                    <div class="ml-status-indicator"></div>
+                    <span>Processing</span>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 2 -->
+            <div class="ml-flow-arrow">
+                <div class="ml-arrow-line">
+                    <div class="ml-arrow-animation"></div>
+                </div>
+                <div class="ml-arrow-head"></div>
+                <div class="ml-flow-label">
+                    <span class="ml-flow-count">89</span>
+                    <span class="ml-flow-type">Auto-imported</span>
+                </div>
+            </div>
+
+            <!-- Training Data Stage -->
+            <div class="ml-flow-stage" id="training-data-stage">
+                <div class="ml-stage-header">
+                    <div class="ml-stage-icon ml-stage-training">
+                        <i class="material-icons">storage</i>
+                    </div>
+                    <div class="ml-stage-info">
+                        <h3 class="ml-stage-title">Training Data</h3>
+                        <p class="ml-stage-subtitle">Curated dataset</p>
+                    </div>
+                </div>
+                <div class="ml-stage-metrics">
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="training-examples">15,624</span>
+                        <span class="ml-metric-label">Total Examples</span>
+                    </div>
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="training-labeled">12,490</span>
+                        <span class="ml-metric-label">Labeled</span>
+                    </div>
+                </div>
+                <div class="ml-stage-status ml-status-warning">
+                    <div class="ml-status-indicator"></div>
+                    <span>Needs Labeling</span>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 3 -->
+            <div class="ml-flow-arrow">
+                <div class="ml-arrow-line">
+                    <div class="ml-arrow-animation"></div>
+                </div>
+                <div class="ml-arrow-head"></div>
+                <div class="ml-flow-label">
+                    <span class="ml-flow-count">1,847</span>
+                    <span class="ml-flow-type">Ready for Training</span>
+                </div>
+            </div>
+
+            <!-- Model Training Stage -->
+            <div class="ml-flow-stage" id="model-training-stage">
+                <div class="ml-stage-header">
+                    <div class="ml-stage-icon ml-stage-model">
+                        <i class="material-icons">model_training</i>
+                    </div>
+                    <div class="ml-stage-info">
+                        <h3 class="ml-stage-title">Model Training</h3>
+                        <p class="ml-stage-subtitle">Continuous improvement</p>
+                    </div>
+                </div>
+                <div class="ml-stage-metrics">
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="model-accuracy">94.2%</span>
+                        <span class="ml-metric-label">Latest Accuracy</span>
+                    </div>
+                    <div class="ml-metric-item">
+                        <span class="ml-metric-value" id="model-improvement">+2.3%</span>
+                        <span class="ml-metric-label">Improvement</span>
+                    </div>
+                </div>
+                <div class="ml-stage-status ml-status-success">
+                    <div class="ml-status-indicator"></div>
+                    <span>Training Complete</span>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 4 (back to production) -->
+            <div class="ml-flow-arrow ml-flow-arrow-return">
+                <div class="ml-arrow-line">
+                    <div class="ml-arrow-animation"></div>
+                </div>
+                <div class="ml-arrow-head"></div>
+                <div class="ml-flow-label">
+                    <span class="ml-flow-count">v2.1</span>
+                    <span class="ml-flow-type">Model Deploy</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Activity Stream -->
+        <div class="ml-activity-stream" id="activity-stream">
+            <div class="ml-stream-header">
+                <h4>Real-time Activity</h4>
+                <div class="ml-stream-controls">
+                    <button class="ml-stream-control active" data-filter="all">All</button>
+                    <button class="ml-stream-control" data-filter="corrections">Corrections</button>
+                    <button class="ml-stream-control" data-filter="training">Training</button>
+                    <button class="ml-stream-control" data-filter="deployment">Deployment</button>
+                </div>
+            </div>
+            <div class="ml-stream-content" id="stream-content">
+                <!-- Real-time events will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Analytics Grid -->
+    <div class="ml-feedback-analytics">
+        <!-- User Corrections Analysis -->
+        <div class="ml-analytics-card">
+            <div class="ml-card-header">
+                <h3 class="ml-card-title">User Corrections Analysis</h3>
+                <div class="ml-card-period">Last 30 days</div>
+            </div>
+            <div class="ml-card-content">
+                <div class="ml-corrections-chart-container">
+                    <canvas id="corrections-chart"></canvas>
+                </div>
+                <div class="ml-corrections-summary">
+                    <div class="ml-summary-item">
+                        <span class="ml-summary-value">387</span>
+                        <span class="ml-summary-label">Total Corrections</span>
+                    </div>
+                    <div class="ml-summary-item">
+                        <span class="ml-summary-value">23.4%</span>
+                        <span class="ml-summary-label">Correction Rate</span>
+                    </div>
+                    <div class="ml-summary-item">
+                        <span class="ml-summary-value">-5.2%</span>
+                        <span class="ml-summary-label">vs Last Month</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Learning Effectiveness -->
+        <div class="ml-analytics-card">
+            <div class="ml-card-header">
+                <h3 class="ml-card-title">Active Learning Effectiveness</h3>
+                <div class="ml-card-controls">
+                    <select class="ml-select ml-select-small" id="learning-metric">
+                        <option value="efficiency">Selection Efficiency</option>
+                        <option value="diversity">Sample Diversity</option>
+                        <option value="uncertainty">Uncertainty Distribution</option>
+                    </select>
+                </div>
+            </div>
+            <div class="ml-card-content">
+                <div class="ml-learning-chart-container">
+                    <canvas id="active-learning-effectiveness-chart"></canvas>
+                </div>
+                <div class="ml-learning-insights">
+                    <div class="ml-insight-box">
+                        <div class="ml-insight-icon">
+                            <i class="material-icons">trending_up</i>
+                        </div>
+                        <div class="ml-insight-content">
+                            <span class="ml-insight-title">Selection Efficiency</span>
+                            <span class="ml-insight-description">89.3% of selected samples improved model performance</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Performance Drift -->
+        <div class="ml-analytics-card ml-card-large">
+            <div class="ml-card-header">
+                <h3 class="ml-card-title">Model Performance Drift Detection</h3>
+                <div class="ml-drift-status ml-drift-stable">
+                    <div class="ml-drift-indicator"></div>
+                    <span>Stable</span>
+                </div>
+            </div>
+            <div class="ml-card-content">
+                <div class="ml-drift-chart-container">
+                    <canvas id="drift-detection-chart"></canvas>
+                </div>
+                <div class="ml-drift-metrics">
+                    <div class="ml-drift-metric">
+                        <span class="ml-drift-label">Statistical Distance</span>
+                        <div class="ml-drift-value-container">
+                            <span class="ml-drift-value">0.023</span>
+                            <div class="ml-drift-bar">
+                                <div class="ml-drift-fill" style="width: 23%;"></div>
+                            </div>
+                            <span class="ml-drift-threshold">Threshold: 0.1</span>
+                        </div>
+                    </div>
+                    <div class="ml-drift-metric">
+                        <span class="ml-drift-label">Prediction Confidence</span>
+                        <div class="ml-drift-value-container">
+                            <span class="ml-drift-value">0.87</span>
+                            <div class="ml-drift-bar">
+                                <div class="ml-drift-fill" style="width: 87%;"></div>
+                            </div>
+                            <span class="ml-drift-threshold">Target: 0.85+</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Impact Analysis -->
+        <div class="ml-analytics-card">
+            <div class="ml-card-header">
+                <h3 class="ml-card-title">Feedback Impact Analysis</h3>
+                <div class="ml-card-subtitle">Accuracy improvement from feedback integration</div>
+            </div>
+            <div class="ml-card-content">
+                <div class="ml-impact-visualization">
+                    <div class="ml-impact-timeline" id="impact-timeline">
+                        <!-- Timeline will be populated by D3.js -->
+                    </div>
+                </div>
+                <div class="ml-impact-summary">
+                    <div class="ml-impact-stat">
+                        <span class="ml-impact-value">+6.7%</span>
+                        <span class="ml-impact-label">Accuracy Gain</span>
+                        <span class="ml-impact-period">Last 3 months</span>
+                    </div>
+                    <div class="ml-impact-stat">
+                        <span class="ml-impact-value">2.4 days</span>
+                        <span class="ml-impact-label">Avg Feedback Cycle</span>
+                        <span class="ml-impact-period">Production to Training</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Automated Actions -->
+        <div class="ml-analytics-card">
+            <div class="ml-card-header">
+                <h3 class="ml-card-title">Automated Actions</h3>
+                <div class="ml-automation-toggle">
+                    <label class="ml-toggle-switch">
+                        <input type="checkbox" checked>
+                        <span class="ml-toggle-slider"></span>
+                    </label>
+                    <span>Auto-trigger enabled</span>
+                </div>
+            </div>
+            <div class="ml-card-content">
+                <div class="ml-automation-rules">
+                    <div class="ml-rule-item">
+                        <div class="ml-rule-header">
+                            <div class="ml-rule-icon ml-rule-active">
+                                <i class="material-icons">rule</i>
+                            </div>
+                            <div class="ml-rule-info">
+                                <span class="ml-rule-name">Low Confidence Auto-Import</span>
+                                <span class="ml-rule-description">Automatically import predictions below 0.7 confidence</span>
+                            </div>
+                            <div class="ml-rule-status ml-status-active">Active</div>
+                        </div>
+                        <div class="ml-rule-stats">
+                            <span class="ml-rule-stat">89 triggered today</span>
+                        </div>
+                    </div>
+
+                    <div class="ml-rule-item">
+                        <div class="ml-rule-header">
+                            <div class="ml-rule-icon ml-rule-active">
+                                <i class="material-icons">psychology</i>
+                            </div>
+                            <div class="ml-rule-info">
+                                <span class="ml-rule-name">Weekly Active Learning</span>
+                                <span class="ml-rule-description">Select optimal batches for labeling every Sunday</span>
+                            </div>
+                            <div class="ml-rule-status ml-status-scheduled">Scheduled</div>
+                        </div>
+                        <div class="ml-rule-stats">
+                            <span class="ml-rule-stat">Next run: Sunday 09:00</span>
+                        </div>
+                    </div>
+
+                    <div class="ml-rule-item">
+                        <div class="ml-rule-header">
+                            <div class="ml-rule-icon ml-rule-warning">
+                                <i class="material-icons">trending_down</i>
+                            </div>
+                            <div class="ml-rule-info">
+                                <span class="ml-rule-name">Performance Alert</span>
+                                <span class="ml-rule-description">Alert when accuracy drops below 90%</span>
+                            </div>
+                            <div class="ml-rule-status ml-status-monitoring">Monitoring</div>
+                        </div>
+                        <div class="ml-rule-stats">
+                            <span class="ml-rule-stat">Last triggered: 3 days ago</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Modal -->
+<div id="feedback-config-modal" class="ml-modal">
+    <div class="ml-modal-content ml-modal-large">
+        <div class="ml-modal-header">
+            <h3>Feedback Loop Configuration</h3>
+            <button class="ml-modal-close" id="close-config-modal">
+                <i class="material-icons">close</i>
+            </button>
+        </div>
+        <div class="ml-modal-body">
+            <div class="ml-config-tabs">
+                <button class="ml-tab-btn active" data-tab="thresholds">Thresholds</button>
+                <button class="ml-tab-btn" data-tab="automation">Automation</button>
+                <button class="ml-tab-btn" data-tab="notifications">Notifications</button>
+            </div>
+
+            <div class="ml-config-content">
+                <div class="ml-config-tab active" id="thresholds-tab">
+                    <div class="ml-config-section">
+                        <h4>Uncertainty Detection</h4>
+                        <div class="ml-config-grid">
+                            <div class="ml-config-item">
+                                <label>Confidence Threshold</label>
+                                <input type="range" min="0.1" max="1.0" step="0.1" value="0.7" class="ml-range-input">
+                                <span class="ml-range-value">0.7</span>
+                            </div>
+                            <div class="ml-config-item">
+                                <label>Auto-import Threshold</label>
+                                <input type="range" min="0.1" max="0.7" step="0.1" value="0.5" class="ml-range-input">
+                                <span class="ml-range-value">0.5</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-config-tab" id="automation-tab">
+                    <div class="ml-config-section">
+                        <h4>Automated Actions</h4>
+                        <div class="ml-automation-settings">
+                            <!-- Automation settings would go here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ml-config-tab" id="notifications-tab">
+                    <div class="ml-config-section">
+                        <h4>Alert Configuration</h4>
+                        <div class="ml-notification-settings">
+                            <!-- Notification settings would go here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ml-modal-footer">
+            <button class="ml-btn ml-btn-secondary">Reset to Defaults</button>
+            <button class="ml-btn ml-btn-primary">Save Configuration</button>
+        </div>
+    </div>
+</div>
+
+<script>
+class FeedbackDashboard {
+    constructor() {
+        this.charts = {};
+        this.realTimeMode = true;
+        this.activityFilter = 'all';
+
+        this.initializeDashboard();
+        this.setupEventListeners();
+        this.startRealTimeUpdates();
+    }
+
+    initializeDashboard() {
+        // Initialize flow visualization
+        this.initializeFlowVisualization();
+
+        // Initialize charts
+        this.initializeCharts();
+
+        // Start activity stream
+        this.initializeActivityStream();
+
+        // Initialize impact timeline
+        this.initializeImpactTimeline();
+    }
+
+    setupEventListeners() {
+        // Flow controls
+        document.querySelectorAll('.ml-control-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.switchFlowView(e.target.dataset.view);
+            });
+        });
+
+        // Activity stream filters
+        document.querySelectorAll('.ml-stream-control').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.filterActivity(e.target.dataset.filter);
+            });
+        });
+
+        // Configuration modal
+        document.getElementById('configure-feedback').addEventListener('click', () => {
+            this.showConfigModal();
+        });
+
+        document.getElementById('close-config-modal').addEventListener('click', () => {
+            this.hideConfigModal();
+        });
+
+        // Trigger learning
+        document.getElementById('trigger-learning').addEventListener('click', () => {
+            this.triggerActiveLearning();
+        });
+
+        // Config tabs
+        document.querySelectorAll('.ml-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.switchConfigTab(e.target.dataset.tab);
+            });
+        });
+    }
+
+    initializeFlowVisualization() {
+        // Add pulse animations to active stages
+        this.addFlowAnimations();
+
+        // Simulate real-time metrics updates
+        this.animateFlowMetrics();
+    }
+
+    addFlowAnimations() {
+        const arrows = document.querySelectorAll('.ml-arrow-animation');
+        arrows.forEach((arrow, index) => {
+            arrow.style.animationDelay = `${index * 0.5}s`;
+        });
+
+        const stages = document.querySelectorAll('.ml-flow-stage');
+        stages.forEach(stage => {
+            if (stage.querySelector('.ml-status-active')) {
+                stage.classList.add('ml-stage-pulse');
+            }
+        });
+    }
+
+    animateFlowMetrics() {
+        // Animate production predictions counter
+        this.animateCounter('production-predictions', 2847, 3000);
+        this.animateCounter('uncertainty-detected', 234, 2000);
+        this.animateCounter('training-examples', 15624, 4000);
+    }
+
+    animateCounter(elementId, target, duration) {
+        const element = document.getElementById(elementId);
+        const start = 0;
+        const increment = target / (duration / 16);
+        let current = start;
+
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            }
+            element.textContent = Math.floor(current).toLocaleString();
+        }, 16);
+    }
+
+    initializeCharts() {
+        this.initializeCorrectionsChart();
+        this.initializeActiveLearningChart();
+        this.initializeDriftDetectionChart();
+    }
+
+    initializeCorrectionsChart() {
+        const ctx = document.getElementById('corrections-chart').getContext('2d');
+
+        this.charts.corrections = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.generateDateLabels(30),
+                datasets: [{
+                    label: 'User Corrections',
+                    data: this.generateCorrectionsData(30),
+                    borderColor: '#ff6b6b',
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Auto-corrections',
+                    data: this.generateAutoCorrectionsData(30),
+                    borderColor: '#4c84ff',
+                    backgroundColor: 'rgba(76, 132, 255, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Corrections'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    initializeActiveLearningChart() {
+        const ctx = document.getElementById('active-learning-effectiveness-chart').getContext('2d');
+
+        this.charts.activeLearning = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Efficiency', 'Diversity', 'Uncertainty', 'Coverage', 'Quality', 'Speed'],
+                datasets: [{
+                    label: 'Current Performance',
+                    data: [89, 76, 92, 84, 91, 78],
+                    borderColor: '#4c84ff',
+                    backgroundColor: 'rgba(76, 132, 255, 0.1)',
+                    pointBackgroundColor: '#4c84ff'
+                }, {
+                    label: 'Target Performance',
+                    data: [95, 85, 95, 90, 95, 85],
+                    borderColor: '#00d084',
+                    backgroundColor: 'rgba(0, 208, 132, 0.1)',
+                    pointBackgroundColor: '#00d084'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+
+    initializeDriftDetectionChart() {
+        const ctx = document.getElementById('drift-detection-chart').getContext('2d');
+
+        this.charts.drift = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.generateDateLabels(14),
+                datasets: [{
+                    label: 'Model Accuracy',
+                    data: this.generateDriftData(14, 'accuracy'),
+                    borderColor: '#4c84ff',
+                    backgroundColor: 'rgba(76, 132, 255, 0.1)',
+                    yAxisID: 'y'
+                }, {
+                    label: 'Data Drift Score',
+                    data: this.generateDriftData(14, 'drift'),
+                    borderColor: '#ff6b6b',
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Accuracy (%)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Drift Score'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    initializeActivityStream() {
+        this.addActivityEvent('correction', 'User corrected meter reading: 12345 → 12346', 'now');
+        this.addActivityEvent('training', 'Model training started: Meter Reading v2.2', '2 minutes ago');
+        this.addActivityEvent('import', 'Auto-imported 15 uncertain predictions', '5 minutes ago');
+        this.addActivityEvent('deployment', 'Model deployed: License Plate v1.4', '1 hour ago');
+
+        // Start adding real-time events
+        this.startActivityStream();
+    }
+
+    addActivityEvent(type, message, time) {
+        const streamContent = document.getElementById('stream-content');
+        const eventElement = document.createElement('div');
+        eventElement.className = `ml-stream-event ml-event-${type}`;
+        eventElement.innerHTML = `
+            <div class="ml-event-indicator"></div>
+            <div class="ml-event-content">
+                <div class="ml-event-message">${message}</div>
+                <div class="ml-event-time">${time}</div>
+            </div>
+        `;
+
+        streamContent.insertBefore(eventElement, streamContent.firstChild);
+
+        // Animate in
+        setTimeout(() => {
+            eventElement.classList.add('ml-event-animate');
+        }, 100);
+
+        // Remove old events (keep max 20)
+        const events = streamContent.querySelectorAll('.ml-stream-event');
+        if (events.length > 20) {
+            events[events.length - 1].remove();
+        }
+    }
+
+    startActivityStream() {
+        // Simulate real-time activity
+        setInterval(() => {
+            if (this.realTimeMode) {
+                const events = [
+                    { type: 'correction', message: 'User corrected license plate: ABC123 → XBC123' },
+                    { type: 'import', message: 'Auto-imported 3 uncertain predictions' },
+                    { type: 'training', message: 'Active learning selected 50 samples for labeling' },
+                    { type: 'system', message: 'Model performance check completed' }
+                ];
+
+                const randomEvent = events[Math.floor(Math.random() * events.length)];
+                this.addActivityEvent(randomEvent.type, randomEvent.message, 'now');
+            }
+        }, 5000 + Math.random() * 10000); // 5-15 seconds
+    }
+
+    initializeImpactTimeline() {
+        // Use D3.js to create impact timeline visualization
+        const svg = d3.select('#impact-timeline')
+            .append('svg')
+            .attr('width', '100%')
+            .attr('height', 200);
+
+        // Timeline implementation would go here
+        this.createImpactTimeline(svg);
+    }
+
+    createImpactTimeline(svg) {
+        // Sample timeline data
+        const timelineData = [
+            { date: '2024-01-01', accuracy: 87.2, event: 'Baseline' },
+            { date: '2024-01-15', accuracy: 89.1, event: 'Feedback Integration' },
+            { date: '2024-02-01', accuracy: 91.3, event: 'Active Learning' },
+            { date: '2024-02-15', accuracy: 93.7, event: 'Model Update' },
+            { date: '2024-03-01', accuracy: 94.2, event: 'Current' }
+        ];
+
+        // Create timeline visualization
+        // Implementation would continue here...
+    }
+
+    // Event handlers
+    switchFlowView(view) {
+        document.querySelectorAll('.ml-control-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-view="${view}"]`).classList.add('active');
+
+        this.realTimeMode = view === 'realtime';
+        console.log('Switched to', view, 'view');
+    }
+
+    filterActivity(filter) {
+        document.querySelectorAll('.ml-stream-control').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+
+        this.activityFilter = filter;
+
+        // Filter events
+        const events = document.querySelectorAll('.ml-stream-event');
+        events.forEach(event => {
+            if (filter === 'all' || event.classList.contains(`ml-event-${filter}`)) {
+                event.style.display = 'flex';
+            } else {
+                event.style.display = 'none';
+            }
+        });
+    }
+
+    showConfigModal() {
+        document.getElementById('feedback-config-modal').style.display = 'flex';
+    }
+
+    hideConfigModal() {
+        document.getElementById('feedback-config-modal').style.display = 'none';
+    }
+
+    switchConfigTab(tab) {
+        document.querySelectorAll('.ml-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+        document.querySelectorAll('.ml-config-tab').forEach(tabContent => {
+            tabContent.classList.remove('active');
+        });
+        document.getElementById(`${tab}-tab`).classList.add('active');
+    }
+
+    triggerActiveLearning() {
+        console.log('Triggering active learning...');
+        this.addActivityEvent('training', 'Manual active learning trigger initiated', 'now');
+    }
+
+    startRealTimeUpdates() {
+        // Update metrics every 30 seconds
+        setInterval(() => {
+            this.updateRealTimeMetrics();
+        }, 30000);
+    }
+
+    updateRealTimeMetrics() {
+        // Update flow stage metrics
+        const metrics = {
+            'production-predictions': Math.floor(Math.random() * 100) + 2800,
+            'production-confidence': (Math.random() * 5 + 85).toFixed(1),
+            'uncertainty-detected': Math.floor(Math.random() * 50) + 200,
+            'training-examples': Math.floor(Math.random() * 100) + 15600
+        };
+
+        Object.entries(metrics).forEach(([id, value]) => {
+            document.getElementById(id).textContent = value;
+        });
+    }
+
+    // Data generation utilities
+    generateDateLabels(days) {
+        const labels = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            labels.push(date.toLocaleDateString());
+        }
+        return labels;
+    }
+
+    generateCorrectionsData(length) {
+        return Array.from({length}, () => Math.floor(Math.random() * 20) + 5);
+    }
+
+    generateAutoCorrectionsData(length) {
+        return Array.from({length}, () => Math.floor(Math.random() * 15) + 2);
+    }
+
+    generateDriftData(length, type) {
+        if (type === 'accuracy') {
+            return Array.from({length}, () => Math.random() * 5 + 90);
+        } else {
+            return Array.from({length}, () => Math.random() * 0.1 + 0.01);
+        }
+    }
+}
+
+// Initialize dashboard when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    new FeedbackDashboard();
+});
+</script>
+
+<style>
+/* Feedback Dashboard Specific Styles */
+.ml-feedback-flow-container {
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    border: 1px solid var(--ml-border-light);
+    padding: 32px;
+    margin-bottom: 32px;
+}
+
+.ml-flow-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.ml-control-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius);
+    background: var(--ml-bg-primary);
+    color: var(--ml-text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ml-control-btn:hover,
+.ml-control-btn.active {
+    background: var(--ml-primary);
+    color: white;
+    border-color: var(--ml-primary);
+}
+
+/* Feedback Flow Visualization */
+.ml-feedback-flow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 32px 0;
+    overflow-x: auto;
+    padding: 20px 0;
+}
+
+.ml-flow-stage {
+    background: var(--ml-bg-primary);
+    border: 2px solid var(--ml-border-light);
+    border-radius: var(--ml-border-radius-lg);
+    padding: 24px;
+    min-width: 280px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.ml-flow-stage:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--ml-shadow-hover);
+}
+
+.ml-stage-pulse {
+    animation: stagePulse 2s infinite;
+}
+
+@keyframes stagePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+.ml-stage-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ml-stage-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--ml-border-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    position: relative;
+}
+
+.ml-stage-production { background: var(--ml-gradient-primary); }
+.ml-stage-uncertainty { background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%); }
+.ml-stage-training { background: linear-gradient(135deg, #00d084 0%, #00a86b 100%); }
+.ml-stage-model { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); }
+
+.ml-stage-info {
+    flex: 1;
+}
+
+.ml-stage-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+    margin: 0 0 4px;
+}
+
+.ml-stage-subtitle {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+    margin: 0;
+}
+
+.ml-stage-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ml-metric-item {
+    text-align: center;
+}
+
+.ml-metric-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ml-primary);
+    line-height: 1;
+}
+
+.ml-metric-label {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+    margin-top: 4px;
+}
+
+.ml-stage-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 16px;
+}
+
+.ml-status-active {
+    background: rgba(0, 208, 132, 0.1);
+    color: var(--ml-success);
+}
+
+.ml-status-warning {
+    background: rgba(255, 167, 38, 0.1);
+    color: var(--ml-warning);
+}
+
+.ml-status-success {
+    background: rgba(0, 208, 132, 0.1);
+    color: var(--ml-success);
+}
+
+.ml-status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Flow Arrows */
+.ml-flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 16px;
+    position: relative;
+}
+
+.ml-arrow-line {
+    width: 60px;
+    height: 4px;
+    background: var(--ml-border-light);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.ml-arrow-animation {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 30px;
+    height: 100%;
+    background: var(--ml-gradient-primary);
+    border-radius: 2px;
+    animation: flowAnimation 3s infinite;
+}
+
+@keyframes flowAnimation {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.ml-arrow-head {
+    width: 0;
+    height: 0;
+    border-left: 8px solid var(--ml-primary);
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    margin-left: 4px;
+}
+
+.ml-flow-label {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 0.75rem;
+}
+
+.ml-flow-count {
+    display: block;
+    font-weight: 700;
+    color: var(--ml-primary);
+}
+
+.ml-flow-type {
+    color: var(--ml-text-secondary);
+}
+
+.ml-flow-arrow-return {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+}
+
+.ml-flow-arrow-return .ml-arrow-line {
+    width: 100%;
+    background: var(--ml-success);
+}
+
+.ml-flow-arrow-return .ml-arrow-head {
+    border-left-color: var(--ml-success);
+}
+
+/* Activity Stream */
+.ml-activity-stream {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--ml-border-light);
+}
+
+.ml-stream-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.ml-stream-header h4 {
+    margin: 0;
+    color: var(--ml-text-primary);
+}
+
+.ml-stream-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.ml-stream-control {
+    padding: 4px 12px;
+    border: 1px solid var(--ml-border-light);
+    border-radius: 16px;
+    background: var(--ml-bg-primary);
+    color: var(--ml-text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ml-stream-control:hover,
+.ml-stream-control.active {
+    background: var(--ml-primary);
+    color: white;
+    border-color: var(--ml-primary);
+}
+
+.ml-stream-content {
+    height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ml-stream-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: var(--ml-bg-secondary);
+    border-radius: var(--ml-border-radius);
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.3s ease;
+}
+
+.ml-stream-event.ml-event-animate {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.ml-event-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ml-primary);
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.ml-event-correction .ml-event-indicator { background: var(--ml-error); }
+.ml-event-training .ml-event-indicator { background: var(--ml-warning); }
+.ml-event-import .ml-event-indicator { background: var(--ml-info); }
+.ml-event-deployment .ml-event-indicator { background: var(--ml-success); }
+
+.ml-event-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.ml-event-message {
+    font-size: 0.875rem;
+    color: var(--ml-text-primary);
+    margin-bottom: 2px;
+}
+
+.ml-event-time {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+/* Feedback Analytics */
+.ml-feedback-analytics {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 24px;
+}
+
+.ml-analytics-card {
+    background: var(--ml-bg-card);
+    border-radius: var(--ml-border-radius-lg);
+    border: 1px solid var(--ml-border-light);
+    padding: 24px;
+    grid-column: span 6;
+}
+
+.ml-card-large {
+    grid-column: span 12;
+}
+
+.ml-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.ml-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+    margin: 0;
+}
+
+.ml-card-subtitle {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+    margin-top: 4px;
+}
+
+.ml-card-period {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+    background: var(--ml-bg-secondary);
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.ml-corrections-chart-container,
+.ml-learning-chart-container,
+.ml-drift-chart-container {
+    height: 200px;
+    margin-bottom: 16px;
+}
+
+.ml-corrections-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.ml-summary-item {
+    text-align: center;
+}
+
+.ml-summary-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ml-primary);
+}
+
+.ml-summary-label {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+/* Learning Insights */
+.ml-learning-insights {
+    margin-top: 16px;
+}
+
+.ml-insight-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--ml-bg-secondary);
+    border-radius: var(--ml-border-radius);
+}
+
+.ml-insight-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--ml-gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.ml-insight-content {
+    flex: 1;
+}
+
+.ml-insight-title {
+    display: block;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+    margin-bottom: 4px;
+}
+
+.ml-insight-description {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+}
+
+/* Drift Detection */
+.ml-drift-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 16px;
+}
+
+.ml-drift-stable {
+    background: rgba(0, 208, 132, 0.1);
+    color: var(--ml-success);
+}
+
+.ml-drift-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.ml-drift-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ml-drift-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ml-drift-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ml-text-primary);
+}
+
+.ml-drift-value-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ml-drift-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ml-primary);
+    min-width: 60px;
+}
+
+.ml-drift-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--ml-bg-secondary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.ml-drift-fill {
+    height: 100%;
+    background: var(--ml-gradient-primary);
+    transition: width 0.6s ease;
+}
+
+.ml-drift-threshold {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+/* Impact Analysis */
+.ml-impact-visualization {
+    height: 150px;
+    margin-bottom: 16px;
+}
+
+.ml-impact-timeline {
+    width: 100%;
+    height: 100%;
+}
+
+.ml-impact-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.ml-impact-stat {
+    text-align: center;
+}
+
+.ml-impact-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ml-success);
+}
+
+.ml-impact-label {
+    font-size: 0.875rem;
+    color: var(--ml-text-primary);
+    margin-bottom: 2px;
+}
+
+.ml-impact-period {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+/* Automation Rules */
+.ml-automation-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--ml-text-primary);
+}
+
+.ml-toggle-switch {
+    position: relative;
+    width: 40px;
+    height: 20px;
+}
+
+.ml-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ml-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--ml-border-light);
+    border-radius: 20px;
+    transition: 0.3s;
+}
+
+.ml-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.ml-toggle-switch input:checked + .ml-toggle-slider {
+    background: var(--ml-primary);
+}
+
+.ml-toggle-switch input:checked + .ml-toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.ml-automation-rules {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ml-rule-item {
+    padding: 16px;
+    background: var(--ml-bg-secondary);
+    border-radius: var(--ml-border-radius);
+}
+
+.ml-rule-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.ml-rule-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.ml-rule-active { background: var(--ml-success); }
+.ml-rule-warning { background: var(--ml-warning); }
+
+.ml-rule-info {
+    flex: 1;
+}
+
+.ml-rule-name {
+    display: block;
+    font-weight: 600;
+    color: var(--ml-text-primary);
+    margin-bottom: 2px;
+}
+
+.ml-rule-description {
+    font-size: 0.875rem;
+    color: var(--ml-text-secondary);
+}
+
+.ml-rule-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ml-status-scheduled {
+    background: rgba(255, 167, 38, 0.1);
+    color: var(--ml-warning);
+}
+
+.ml-status-monitoring {
+    background: rgba(76, 132, 255, 0.1);
+    color: var(--ml-primary);
+}
+
+.ml-rule-stats {
+    font-size: 0.75rem;
+    color: var(--ml-text-secondary);
+}
+
+/* Configuration Modal */
+.ml-config-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--ml-border-light);
+    margin-bottom: 24px;
+}
+
+.ml-config-content {
+    min-height: 300px;
+}
+
+.ml-config-tab {
+    display: none;
+}
+
+.ml-config-tab.active {
+    display: block;
+}
+
+.ml-config-section {
+    margin-bottom: 24px;
+}
+
+.ml-config-section h4 {
+    margin: 0 0 16px;
+    color: var(--ml-text-primary);
+}
+
+.ml-config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.ml-config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ml-config-item label {
+    font-size: 0.875rem;
+    color: var(--ml-text-primary);
+    font-weight: 500;
+}
+
+.ml-range-input {
+    width: 100%;
+    accent-color: var(--ml-primary);
+}
+
+.ml-range-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ml-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .ml-feedback-flow {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 24px;
+    }
+
+    .ml-flow-arrow {
+        transform: rotate(90deg);
+        margin: 16px 0;
+    }
+
+    .ml-flow-arrow-return {
+        position: static;
+        transform: rotate(90deg);
+    }
+
+    .ml-analytics-card {
+        grid-column: span 12;
+    }
+}
+
+@media (max-width: 768px) {
+    .ml-feedback-flow-container {
+        padding: 16px;
+    }
+
+    .ml-flow-stage {
+        min-width: 100%;
+        padding: 16px;
+    }
+
+    .ml-stage-metrics {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .ml-corrections-summary,
+    .ml-impact-summary {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .ml-config-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

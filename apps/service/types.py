@@ -1,8 +1,6 @@
 import graphene
 from graphene_django.types import DjangoObjectType
 from graphene_file_upload.scalars import Upload
-    convert_polygon_field,
-)
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
 from apps.activity.models.question_model import (
@@ -11,6 +9,7 @@ from apps.activity.models.question_model import (
     QuestionSetBelonging,
 )
 from apps.attendance.models import PeopleEventlog, TestGeo, Tracking
+from apps.attendance.services.geospatial_service import GeospatialService
 from apps.onboarding.models import TypeAssist
 from apps.peoples.models import People, Pgbelonging, Pgroup
 
@@ -44,12 +43,20 @@ class PELogType(DjangoObjectType):
 
     def resolve_startlocation(self, info):
         if self.startlocation:
-            return {"latitude": self.startlocation.y, "longitude": self.startlocation.x}
+            try:
+                lon, lat = GeospatialService.extract_coordinates(self.startlocation)
+                return {"latitude": lat, "longitude": lon}
+            except Exception:
+                return None
         return None
 
     def resolve_endlocation(self, info):
         if self.endlocation:
-            return {"latitude": self.endlocation.y, "longitude": self.endlocation.x}
+            try:
+                lon, lat = GeospatialService.extract_coordinates(self.endlocation)
+                return {"latitude": lat, "longitude": lon}
+            except Exception:
+                return None
         return None
 
     def resolve_journeypath(self, info):
@@ -119,9 +126,11 @@ class AssetType(DjangoObjectType):
 
     def resolve_gpslocation(self, info):
         if self.gpslocation:
-            return PointFieldType(
-                latitude=self.gpslocation.y, longitude=self.gpslocation.x
-            )
+            try:
+                lon, lat = GeospatialService.extract_coordinates(self.gpslocation)
+                return PointFieldType(latitude=lat, longitude=lon)
+            except Exception:
+                return None
         return None
 
     class Meta:
@@ -248,14 +257,35 @@ class JobneedDetailsType(DjangoObjectType):
 
 
 class JobneedType(DjangoObjectType):
-    details = graphene.List(JobneedDetailsType)
+    """
+    Jobneed GraphQL Type (Legacy Schema).
+
+    Represents a concrete execution instance of a Job.
+    """
+    details = graphene.List(
+        JobneedDetailsType,
+        description="Checklist question details for this jobneed"
+    )
+    job = graphene.Field(
+        JobType,
+        description="Job template that generated this execution"
+    )
 
     class Meta:
         model = Jobneed
         exclude = ["other_info", "receivedonserver"]  # Only using exclude
 
     def resolve_details(self, info):
-        return JobneedDetails.objects.filter(jobneed=self)
+        """Resolve checklist details ordered by seqno."""
+        return JobneedDetails.objects.filter(
+            jobneed=self
+        ).select_related('question').order_by('seqno')
+
+    def resolve_job(self, info):
+        """Resolve parent Job template."""
+        if self.job_id:
+            return Job.objects.select_related('asset', 'people', 'qset').get(id=self.job_id)
+        return None
 
 
 class JobneedMdtzAfter(graphene.ObjectType):

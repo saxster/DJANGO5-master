@@ -1,0 +1,836 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}Operational Monitoring Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
+<style>
+    .monitoring-dashboard {
+        padding: 20px;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .status-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #007bff;
+    }
+
+    .status-card.critical { border-left-color: #dc3545; }
+    .status-card.warning { border-left-color: #ffc107; }
+    .status-card.good { border-left-color: #28a745; }
+
+    .alert-item {
+        background: white;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid #6c757d;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .alert-item.CRITICAL { border-left-color: #dc3545; background: #fff5f5; }
+    .alert-item.HIGH { border-left-color: #fd7e14; background: #fff8f0; }
+    .alert-item.WARNING { border-left-color: #ffc107; background: #fffdf0; }
+
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .metric-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .metric-label {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .device-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .device-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #007bff;
+    }
+
+    .device-card.at-risk { border-left-color: #dc3545; }
+    .device-card.warning { border-left-color: #ffc107; }
+    .device-card.good { border-left-color: #28a745; }
+
+    .connection-status {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+
+    .connection-status.online { background: #28a745; }
+    .connection-status.offline { background: #dc3545; }
+    .connection-status.warning { background: #ffc107; }
+
+    .real-time-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .refresh-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .btn-action {
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+
+    .btn-primary { background: #007bff; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-warning { background: #ffc107; color: #212529; }
+    .btn-danger { background: #dc3545; color: white; }
+
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .notification-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        z-index: 1000;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .notification-toast.show {
+        transform: translateX(0);
+    }
+
+    .notification-toast.error { background: #dc3545; }
+    .notification-toast.warning { background: #ffc107; color: #212529; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="monitoring-dashboard">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div>
+            <h1>
+                <span class="real-time-indicator"></span>
+                Operational Monitoring Dashboard
+            </h1>
+            <p class="text-muted">Real-time device monitoring and alerting system</p>
+        </div>
+        <div class="refresh-controls">
+            <span id="last-update">Last update: --</span>
+            <button class="btn-action btn-primary" onclick="forceRefresh()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button class="btn-action btn-success" onclick="toggleAutoRefresh()" id="auto-refresh-btn">
+                <i class="fas fa-play"></i> Auto-refresh ON
+            </button>
+        </div>
+    </div>
+
+    <!-- System Health Overview -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="total-devices">--</div>
+                <div class="metric-label">Active Devices</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="active-alerts">--</div>
+                <div class="metric-label">Active Alerts</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="avg-battery">--%</div>
+                <div class="metric-label">Avg Battery</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="devices-at-risk">--</div>
+                <div class="metric-label">Devices at Risk</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Alerts Section -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="status-card">
+                <h3>🚨 Active Alerts</h3>
+                <div id="alerts-container">
+                    <div class="text-center text-muted">Loading alerts...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="status-card">
+                <h3>📊 Alert Breakdown</h3>
+                <canvas id="alert-severity-chart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h4>🔋 Battery Levels Over Time</h4>
+                <canvas id="battery-trend-chart" width="400" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h4>📶 Signal Strength Distribution</h4>
+                <canvas id="signal-strength-chart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h4>🚶 Activity Monitoring</h4>
+                <canvas id="activity-chart" width="400" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h4>🏥 System Health Metrics</h4>
+                <canvas id="system-health-chart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Status Grid -->
+    <div class="status-card">
+        <h3>📱 Device Status Overview</h3>
+        <div id="device-grid" class="device-grid">
+            <div class="text-center text-muted">Loading device status...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Action Modal -->
+<div class="modal fade" id="alert-action-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alert Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="alert-details"></div>
+                <div class="mt-3">
+                    <label for="action-notes" class="form-label">Notes:</label>
+                    <textarea class="form-control" id="action-notes" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="acknowledgeAlert()">Acknowledge</button>
+                <button type="button" class="btn btn-success" onclick="resolveAlert()">Resolve</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Toast -->
+<div id="notification-toast" class="notification-toast">
+    <span id="toast-message"></span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+<script>
+// Monitoring Dashboard JavaScript
+class MonitoringDashboard {
+    constructor() {
+        this.websocket = null;
+        this.autoRefresh = true;
+        this.refreshInterval = 30000; // 30 seconds
+        this.charts = {};
+        this.currentAlertId = null;
+
+        this.init();
+    }
+
+    init() {
+        this.connectWebSocket();
+        this.initializeCharts();
+        this.loadInitialData();
+        this.setupEventListeners();
+    }
+
+    connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/monitoring/dashboard/`;
+
+        this.websocket = new WebSocket(wsUrl);
+
+        this.websocket.onopen = () => {
+            console.log('Monitoring dashboard WebSocket connected');
+            this.showNotification('Connected to monitoring system', 'success');
+        };
+
+        this.websocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            this.handleWebSocketMessage(data);
+        };
+
+        this.websocket.onclose = () => {
+            console.log('Monitoring dashboard WebSocket disconnected');
+            this.showNotification('Disconnected from monitoring system', 'error');
+
+            // Attempt to reconnect after 5 seconds
+            setTimeout(() => this.connectWebSocket(), 5000);
+        };
+
+        this.websocket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            this.showNotification('Connection error', 'error');
+        };
+    }
+
+    handleWebSocketMessage(data) {
+        switch(data.type) {
+            case 'dashboard_initial_data':
+                this.updateDashboard(data.data);
+                break;
+            case 'dashboard_update':
+                this.updateMetrics(data.data);
+                break;
+            case 'new_alert':
+                this.addNewAlert(data.alert);
+                break;
+            case 'alert_acknowledged':
+                this.updateAlertStatus(data.alert_id, 'ACKNOWLEDGED');
+                break;
+            case 'alert_resolved':
+                this.updateAlertStatus(data.alert_id, 'RESOLVED');
+                break;
+            case 'system_metric_update':
+                this.updateSystemMetrics(data.metrics);
+                break;
+            case 'device_status_update':
+                this.updateDeviceStatuses(data.device_updates);
+                break;
+            case 'heartbeat':
+                document.getElementById('last-update').textContent =
+                    `Last update: ${new Date().toLocaleTimeString()}`;
+                break;
+        }
+    }
+
+    updateDashboard(data) {
+        // Update system metrics
+        this.updateSystemOverview(data.system_health);
+
+        // Update alerts
+        this.updateAlerts(data.active_alerts);
+
+        // Update device summary
+        this.updateDeviceSummary(data.device_summary);
+
+        // Update charts
+        this.updateCharts(data.recent_metrics);
+    }
+
+    updateSystemOverview(systemHealth) {
+        const stats = systemHealth.monitoring_statistics || {};
+
+        document.getElementById('total-devices').textContent = stats.active_devices || '--';
+        document.getElementById('active-alerts').textContent =
+            systemHealth.alert_statistics?.active_alerts || '--';
+    }
+
+    updateAlerts(alerts) {
+        const container = document.getElementById('alerts-container');
+
+        if (!alerts || alerts.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted">No active alerts</div>';
+            return;
+        }
+
+        container.innerHTML = alerts.map(alert => `
+            <div class="alert-item ${alert.severity}" data-alert-id="${alert.alert_id}">
+                <div>
+                    <strong>${alert.title}</strong>
+                    <br>
+                    <small class="text-muted">
+                        ${alert.user_name} • ${alert.site_name} •
+                        ${new Date(alert.triggered_at).toLocaleString()}
+                    </small>
+                    <br>
+                    <span class="badge bg-${this.getSeverityColor(alert.severity)}">${alert.severity}</span>
+                    ${alert.is_overdue ? '<span class="badge bg-danger">OVERDUE</span>' : ''}
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary"
+                            onclick="dashboard.showAlertActions('${alert.alert_id}', '${alert.title}')">
+                        Actions
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        // Update alert severity chart
+        this.updateAlertSeverityChart(alerts);
+    }
+
+    updateDeviceSummary(deviceSummary) {
+        if (!deviceSummary) return;
+
+        document.getElementById('avg-battery').textContent =
+            `${deviceSummary.avg_battery_level || '--'}%`;
+        document.getElementById('devices-at-risk').textContent =
+            deviceSummary.devices_at_risk || '--';
+    }
+
+    initializeCharts() {
+        // Battery trend chart
+        const batteryCtx = document.getElementById('battery-trend-chart').getContext('2d');
+        this.charts.batteryTrend = new Chart(batteryCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Average Battery Level',
+                    data: [],
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Battery Level (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Alert severity chart
+        const alertCtx = document.getElementById('alert-severity-chart').getContext('2d');
+        this.charts.alertSeverity = new Chart(alertCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['CRITICAL', 'HIGH', 'WARNING', 'INFO'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#17a2b8']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Activity chart
+        const activityCtx = document.getElementById('activity-chart').getContext('2d');
+        this.charts.activity = new Chart(activityCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Average Steps/Hour',
+                    data: [],
+                    backgroundColor: '#28a745'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Steps per Hour'
+                        }
+                    }
+                }
+            }
+        });
+
+        // System health chart
+        const healthCtx = document.getElementById('system-health-chart').getContext('2d');
+        this.charts.systemHealth = new Chart(healthCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Battery', 'Network', 'Activity', 'Security', 'Performance'],
+                datasets: [{
+                    label: 'Health Scores',
+                    data: [100, 100, 100, 100, 100],
+                    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                    borderColor: '#28a745',
+                    pointBackgroundColor: '#28a745'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Signal strength chart
+        const signalCtx = document.getElementById('signal-strength-chart').getContext('2d');
+        this.charts.signalStrength = new Chart(signalCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Excellent', 'Good', 'Poor', 'Critical'],
+                datasets: [{
+                    label: 'Device Count',
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Devices'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    updateAlertSeverityChart(alerts) {
+        const severityCounts = { 'CRITICAL': 0, 'HIGH': 0, 'WARNING': 0, 'INFO': 0 };
+
+        alerts.forEach(alert => {
+            if (severityCounts.hasOwnProperty(alert.severity)) {
+                severityCounts[alert.severity]++;
+            }
+        });
+
+        this.charts.alertSeverity.data.datasets[0].data = [
+            severityCounts.CRITICAL,
+            severityCounts.HIGH,
+            severityCounts.WARNING,
+            severityCounts.INFO
+        ];
+        this.charts.alertSeverity.update();
+    }
+
+    updateCharts(metrics) {
+        if (!metrics || !Array.isArray(metrics)) return;
+
+        // Update battery trend chart
+        const batteryMetrics = metrics.filter(m => m.metric_type === 'BATTERY_LEVEL');
+        if (batteryMetrics.length > 0) {
+            const last10 = batteryMetrics.slice(-10);
+            this.charts.batteryTrend.data.labels = last10.map(m =>
+                new Date(m.recorded_at).toLocaleTimeString()
+            );
+            this.charts.batteryTrend.data.datasets[0].data = last10.map(m => m.value);
+            this.charts.batteryTrend.update();
+        }
+
+        // Update activity chart
+        const stepMetrics = metrics.filter(m => m.metric_type === 'STEP_COUNT');
+        if (stepMetrics.length > 0) {
+            // Group by hour and calculate averages
+            const hourlySteps = this.groupMetricsByHour(stepMetrics);
+            this.charts.activity.data.labels = Object.keys(hourlySteps);
+            this.charts.activity.data.datasets[0].data = Object.values(hourlySteps);
+            this.charts.activity.update();
+        }
+    }
+
+    loadInitialData() {
+        // Load initial data via API
+        fetch('/api/monitoring/dashboard/')
+            .then(response => response.json())
+            .then(data => {
+                this.updateDashboard(data);
+            })
+            .catch(error => {
+                console.error('Error loading initial data:', error);
+                this.showNotification('Error loading dashboard data', 'error');
+            });
+    }
+
+    showAlertActions(alertId, alertTitle) {
+        this.currentAlertId = alertId;
+        document.getElementById('alert-details').innerHTML = `
+            <strong>Alert:</strong> ${alertTitle}<br>
+            <strong>Alert ID:</strong> ${alertId}
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('alert-action-modal'));
+        modal.show();
+    }
+
+    acknowledgeAlert() {
+        if (!this.currentAlertId) return;
+
+        const notes = document.getElementById('action-notes').value;
+
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            this.websocket.send(JSON.stringify({
+                type: 'acknowledge_alert',
+                alert_id: this.currentAlertId,
+                notes: notes
+            }));
+        }
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('alert-action-modal'));
+        modal.hide();
+
+        this.showNotification('Alert acknowledged', 'success');
+    }
+
+    resolveAlert() {
+        if (!this.currentAlertId) return;
+
+        const notes = document.getElementById('action-notes').value;
+
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            this.websocket.send(JSON.stringify({
+                type: 'resolve_alert',
+                alert_id: this.currentAlertId,
+                notes: notes
+            }));
+        }
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('alert-action-modal'));
+        modal.hide();
+
+        this.showNotification('Alert resolved', 'success');
+    }
+
+    addNewAlert(alert) {
+        // Add new alert to the top of the list
+        const container = document.getElementById('alerts-container');
+        const alertHtml = `
+            <div class="alert-item ${alert.severity}" data-alert-id="${alert.alert_id}">
+                <div>
+                    <strong>${alert.title}</strong>
+                    <br>
+                    <small class="text-muted">
+                        ${alert.user_name} • ${alert.site_name} •
+                        ${new Date(alert.triggered_at).toLocaleString()}
+                    </small>
+                    <br>
+                    <span class="badge bg-${this.getSeverityColor(alert.severity)}">${alert.severity}</span>
+                    <span class="badge bg-primary">NEW</span>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary"
+                            onclick="dashboard.showAlertActions('${alert.alert_id}', '${alert.title}')">
+                        Actions
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('afterbegin', alertHtml);
+
+        // Show notification
+        this.showNotification(`New ${alert.severity} alert: ${alert.title}`, 'warning');
+
+        // Play notification sound if enabled
+        this.playNotificationSound();
+    }
+
+    updateAlertStatus(alertId, newStatus) {
+        const alertElement = document.querySelector(`[data-alert-id="${alertId}"]`);
+        if (alertElement) {
+            if (newStatus === 'RESOLVED') {
+                alertElement.style.opacity = '0.6';
+                alertElement.querySelector('.badge.bg-primary')?.remove();
+
+                // Add resolved badge
+                const badgeContainer = alertElement.querySelector('div:first-child');
+                badgeContainer.insertAdjacentHTML('beforeend',
+                    '<span class="badge bg-success">RESOLVED</span>');
+            }
+        }
+    }
+
+    getSeverityColor(severity) {
+        const colorMap = {
+            'CRITICAL': 'danger',
+            'HIGH': 'warning',
+            'WARNING': 'warning',
+            'INFO': 'info'
+        };
+        return colorMap[severity] || 'secondary';
+    }
+
+    groupMetricsByHour(metrics) {
+        const hourlyData = {};
+
+        metrics.forEach(metric => {
+            const hour = new Date(metric.recorded_at).getHours();
+            if (!hourlyData[hour]) {
+                hourlyData[hour] = [];
+            }
+            hourlyData[hour].push(metric.value);
+        });
+
+        // Calculate averages
+        const hourlyAverages = {};
+        Object.keys(hourlyData).forEach(hour => {
+            const values = hourlyData[hour];
+            hourlyAverages[`${hour}:00`] = values.reduce((a, b) => a + b, 0) / values.length;
+        });
+
+        return hourlyAverages;
+    }
+
+    showNotification(message, type = 'info') {
+        const toast = document.getElementById('notification-toast');
+        const messageEl = document.getElementById('toast-message');
+
+        messageEl.textContent = message;
+        toast.className = `notification-toast ${type} show`;
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 5000);
+    }
+
+    playNotificationSound() {
+        // Play notification sound for new alerts
+        try {
+            const audio = new Audio('/static/monitoring/sounds/alert.mp3');
+            audio.volume = 0.3;
+            audio.play().catch(e => console.log('Could not play notification sound'));
+        } catch (e) {
+            // Silent fail if audio not available
+        }
+    }
+
+    setupEventListeners() {
+        // Setup refresh controls
+        document.addEventListener('DOMContentLoaded', () => {
+            // Any additional setup
+        });
+    }
+}
+
+// Global functions
+function forceRefresh() {
+    if (dashboard.websocket && dashboard.websocket.readyState === WebSocket.OPEN) {
+        dashboard.websocket.send(JSON.stringify({
+            type: 'get_system_health'
+        }));
+    }
+    dashboard.loadInitialData();
+}
+
+function toggleAutoRefresh() {
+    dashboard.autoRefresh = !dashboard.autoRefresh;
+    const btn = document.getElementById('auto-refresh-btn');
+
+    if (dashboard.autoRefresh) {
+        btn.innerHTML = '<i class="fas fa-pause"></i> Auto-refresh ON';
+        btn.className = 'btn-action btn-success';
+    } else {
+        btn.innerHTML = '<i class="fas fa-play"></i> Auto-refresh OFF';
+        btn.className = 'btn-action btn-secondary';
+    }
+}
+
+// Initialize dashboard when page loads
+let dashboard;
+document.addEventListener('DOMContentLoaded', () => {
+    dashboard = new MonitoringDashboard();
+});
+</script>
+{% endblock %}

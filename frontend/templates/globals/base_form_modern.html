@@ -1,6 +1,13 @@
-{% extends "globals/base_modern.html" %}
+{% extends "globals/base_accessible.html" %}
+
+{% block content %}
+<div class="form-container">
+  {% include "globals/components/form_modern.html" with form_id="modern-form" form_title="Modern Form" form_description="Experience enhanced form validation and UX" form_icon="edit" auto_save=True show_progress=True %}
+</div>
+{% endblock content %}
 
 {% block extra_css %}
+{{ block.super }}
 <style>
   .form-container {
     max-width: 800px;

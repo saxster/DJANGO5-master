@@ -1,6 +1,9 @@
 """
 Django monitoring middleware and utilities for production monitoring.
 Tracks query performance, errors, and system health.
+
+PII Compliance: All metric tags and SQL queries are sanitized
+Correlation ID: All metrics include correlation_id for end-to-end tracking
 """
 
 import time
@@ -24,6 +27,14 @@ from django.dispatch import receiver
 logger = logging.getLogger('monitoring')
 
 
+# Import PII redaction service
+try:
+    from monitoring.services.pii_redaction_service import MonitoringPIIRedactionService
+except ImportError:
+    # Fallback if service not yet available
+    MonitoringPIIRedactionService = None
+
+
 class MetricsCollector:
     """Collects and aggregates performance metrics"""
     
@@ -41,16 +52,31 @@ class MetricsCollector:
             'cache_miss_rate': 0.5,    # 50% cache miss rate
         }
     
-    def record_metric(self, metric_type: str, value: float, tags: Optional[Dict] = None):
-        """Record a metric value"""
+    def record_metric(self, metric_type: str, value: float, tags: Optional[Dict] = None,
+                     correlation_id: Optional[str] = None):
+        """
+        Record a metric value with PII sanitization and correlation tracking.
+
+        Args:
+            metric_type: Type of metric (e.g., 'query_time', 'response_time')
+            value: Metric value
+            tags: Optional tags dictionary (will be sanitized)
+            correlation_id: Optional correlation ID for request tracking
+        """
         with self.lock:
+            # Sanitize tags to remove PII
+            sanitized_tags = tags or {}
+            if MonitoringPIIRedactionService and tags:
+                sanitized_tags = MonitoringPIIRedactionService.sanitize_metric_tags(tags)
+
             metric_data = {
                 'timestamp': datetime.now().isoformat(),
                 'value': value,
-                'tags': tags or {}
+                'tags': sanitized_tags,
+                'correlation_id': correlation_id
             }
             self.metrics[metric_type].append(metric_data)
-            
+
             # Keep only last 1000 metrics per type
             if len(self.metrics[metric_type]) > 1000:
                 self.metrics[metric_type] = self.metrics[metric_type][-1000:]
@@ -135,15 +161,21 @@ class QueryMonitoringMiddleware(MiddlewareMixin):
         """Start monitoring for this request"""
         request._monitoring_start_time = time.time()
         request._monitoring_query_count = len(connection.queries)
-        
-        # Record request start
+
+        # Get correlation ID from request (added by CorrelationIDMiddleware)
+        correlation_id = getattr(request, 'correlation_id', None)
+
+        # Record request start with correlation ID
         metrics_collector.record_metric('request', 1, {
             'method': request.method,
             'path': request.path
-        })
+        }, correlation_id=correlation_id)
     
     def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
         """End monitoring and record metrics"""
+        # Get correlation ID from request
+        correlation_id = getattr(request, 'correlation_id', None)
+
         if hasattr(request, '_monitoring_start_time'):
             # Calculate response time
             response_time = time.time() - request._monitoring_start_time
@@ -151,49 +183,66 @@ class QueryMonitoringMiddleware(MiddlewareMixin):
                 'method': request.method,
                 'path': request.path,
                 'status': response.status_code
-            })
-            
+            }, correlation_id=correlation_id)
+
             # Calculate query metrics
             if hasattr(request, '_monitoring_query_count'):
                 query_count = len(connection.queries) - request._monitoring_query_count
                 metrics_collector.record_metric('query_count', query_count, {
                     'path': request.path
-                })
-                
-                # Log slow requests
+                }, correlation_id=correlation_id)
+
+                # Log slow requests with correlation ID
                 if response_time > 1.0 or query_count > 50:
                     logger.warning(
                         f"Slow request: {request.method} {request.path} - "
-                        f"{response_time:.2f}s, {query_count} queries"
+                        f"{response_time:.2f}s, {query_count} queries",
+                        extra={'correlation_id': correlation_id}
                     )
-                
-                # Analyze individual queries
+
+                # Analyze individual queries (with PII sanitization)
                 if settings.DEBUG or getattr(settings, 'MONITOR_QUERIES', False):
                     for query in connection.queries[request._monitoring_query_count:]:
                         query_time = float(query.get('time', 0))
+
+                        # Sanitize SQL before recording
+                        sql = query['sql'][:100]  # First 100 chars
+                        if MonitoringPIIRedactionService:
+                            sql = MonitoringPIIRedactionService.sanitize_sql_query(sql)
+
                         metrics_collector.record_metric('query_time', query_time, {
-                            'sql': query['sql'][:100]  # First 100 chars
-                        })
-                        
-                        # Log slow queries
+                            'sql': sql
+                        }, correlation_id=correlation_id)
+
+                        # Log slow queries with sanitized SQL
                         if query_time > 0.1:
+                            sanitized_full_sql = query['sql'][:200]
+                            if MonitoringPIIRedactionService:
+                                sanitized_full_sql = MonitoringPIIRedactionService.sanitize_sql_query(
+                                    sanitized_full_sql
+                                )
+
                             logger.warning(
-                                f"Slow query ({query_time}s): {query['sql'][:200]}"
+                                f"Slow query ({query_time}s): {sanitized_full_sql}",
+                                extra={'correlation_id': correlation_id}
                             )
-        
+
         return response
     
     def process_exception(self, request: HttpRequest, exception: Exception):
-        """Record exceptions"""
+        """Record exceptions with correlation ID"""
+        correlation_id = getattr(request, 'correlation_id', None)
+
         metrics_collector.record_metric('error', 1, {
             'type': type(exception).__name__,
             'path': request.path,
             'method': request.method
-        })
-        
-        # Log the full exception
+        }, correlation_id=correlation_id)
+
+        # Log the full exception with correlation ID
         logger.error(
             f"Exception in {request.method} {request.path}: {exception}",
+            extra={'correlation_id': correlation_id},
             exc_info=True
         )
 
@@ -226,30 +275,40 @@ class CacheMonitoringMiddleware(MiddlewareMixin):
             start_time = time.time()
             result = self._original_cache_get(key, default, version)
             elapsed = time.time() - start_time
-            
-            # Record metrics
+
+            # Sanitize cache key before recording
+            sanitized_key = key
+            if MonitoringPIIRedactionService:
+                sanitized_key = MonitoringPIIRedactionService.sanitize_cache_key(key)
+
+            # Record metrics (correlation_id not available in cache context)
             is_hit = result is not default
             metrics_collector.record_metric('cache_get', elapsed, {
                 'hit': is_hit,
-                'key_prefix': key.split(':')[0] if ':' in key else 'unknown'
+                'key_prefix': sanitized_key.split(':')[0] if ':' in sanitized_key else 'unknown'
             })
-            
+
             if is_hit:
                 metrics_collector.record_metric('cache_hit', 1)
             else:
                 metrics_collector.record_metric('cache_miss', 1)
-            
+
             return result
-        
+
         def monitored_set(key, value, timeout=None, version=None):
             start_time = time.time()
             result = self._original_cache_set(key, value, timeout, version)
             elapsed = time.time() - start_time
-            
+
+            # Sanitize cache key before recording
+            sanitized_key = key
+            if MonitoringPIIRedactionService:
+                sanitized_key = MonitoringPIIRedactionService.sanitize_cache_key(key)
+
             metrics_collector.record_metric('cache_set', elapsed, {
-                'key_prefix': key.split(':')[0] if ':' in key else 'unknown'
+                'key_prefix': sanitized_key.split(':')[0] if ':' in sanitized_key else 'unknown'
             })
-            
+
             return result
         
         cache.get = monitored_get

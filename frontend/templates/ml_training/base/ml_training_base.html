@@ -1,0 +1,811 @@
+{% extends "globals/base_modern.html" %}
+{% load static %}
+
+{% block title %}{% block page_title %}ML Training Platform{% endblock %} - IntelliWiz{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+
+<!-- ML Training Platform Specific Styles -->
+<style>
+  /* Enhanced ML-specific CSS variables */
+  :root {
+    --ml-primary: #4c84ff;
+    --ml-secondary: #8392a5;
+    --ml-success: #00c9a7;
+    --ml-warning: #ffc107;
+    --ml-danger: #de4437;
+    --ml-info: #00d4ff;
+    --ml-confidence-high: #00c9a7;
+    --ml-confidence-medium: #ffc107;
+    --ml-confidence-low: #de4437;
+    --ml-uncertain: #8392a5;
+    --ml-processing: #4c84ff;
+    --ml-gradient-primary: linear-gradient(135deg, #4c84ff 0%, #377dff 100%);
+    --ml-gradient-success: linear-gradient(135deg, #00c9a7 0%, #20bf6b 100%);
+    --ml-gradient-warning: linear-gradient(135deg, #ffc107 0%, #f39c12 100%);
+    --ml-gradient-danger: linear-gradient(135deg, #de4437 0%, #c0392b 100%);
+    --ml-shadow-card: 0 4px 20px rgba(76, 132, 255, 0.1);
+    --ml-shadow-float: 0 8px 30px rgba(76, 132, 255, 0.15);
+    --ml-radius-card: 16px;
+    --ml-radius-button: 12px;
+    --ml-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Body and Layout Enhancements */
+  body {
+    background: linear-gradient(135deg, #f8fafd 0%, #e8f2ff 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Main Content Area */
+  .ml-content {
+    margin-left: var(--sidebar-width);
+    min-height: 100vh;
+    padding: 2rem;
+    transition: var(--ml-transition);
+  }
+
+  .sidebar-collapsed .ml-content {
+    margin-left: var(--sidebar-collapsed-width);
+  }
+
+  /* Page Header */
+  .ml-page-header {
+    background: white;
+    border-radius: var(--ml-radius-card);
+    box-shadow: var(--ml-shadow-card);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(76, 132, 255, 0.1);
+  }
+
+  .ml-page-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .ml-page-title i {
+    color: var(--ml-primary);
+    background: rgba(76, 132, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: var(--ml-radius-button);
+    font-size: 1.5rem;
+  }
+
+  .ml-page-subtitle {
+    color: var(--ml-secondary);
+    font-size: 1.1rem;
+    font-weight: 400;
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .ml-page-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* Modern Cards */
+  .ml-card {
+    background: white;
+    border-radius: var(--ml-radius-card);
+    box-shadow: var(--ml-shadow-card);
+    border: 1px solid rgba(76, 132, 255, 0.08);
+    transition: var(--ml-transition);
+    overflow: hidden;
+  }
+
+  .ml-card:hover {
+    box-shadow: var(--ml-shadow-float);
+    transform: translateY(-2px);
+  }
+
+  .ml-card-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(76, 132, 255, 0.1);
+    background: linear-gradient(135deg, rgba(76, 132, 255, 0.05) 0%, rgba(76, 132, 255, 0.02) 100%);
+  }
+
+  .ml-card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--dark-color);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .ml-card-title i {
+    color: var(--ml-primary);
+    font-size: 1.1rem;
+  }
+
+  .ml-card-body {
+    padding: 2rem;
+  }
+
+  .ml-card-footer {
+    padding: 1rem 2rem;
+    background: rgba(76, 132, 255, 0.02);
+    border-top: 1px solid rgba(76, 132, 255, 0.1);
+  }
+
+  /* Statistics Cards */
+  .ml-stat-card {
+    background: white;
+    border-radius: var(--ml-radius-card);
+    padding: 2rem;
+    box-shadow: var(--ml-shadow-card);
+    border: 1px solid rgba(76, 132, 255, 0.08);
+    transition: var(--ml-transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ml-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--ml-gradient-primary);
+  }
+
+  .ml-stat-card:hover {
+    box-shadow: var(--ml-shadow-float);
+    transform: translateY(-4px);
+  }
+
+  .ml-stat-card.success::before {
+    background: var(--ml-gradient-success);
+  }
+
+  .ml-stat-card.warning::before {
+    background: var(--ml-gradient-warning);
+  }
+
+  .ml-stat-card.danger::before {
+    background: var(--ml-gradient-danger);
+  }
+
+  .ml-stat-number {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--dark-color);
+    margin: 0 0 0.5rem 0;
+    line-height: 1;
+  }
+
+  .ml-stat-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--ml-secondary);
+    margin: 0 0 1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .ml-stat-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .ml-stat-trend.positive {
+    color: var(--ml-success);
+  }
+
+  .ml-stat-trend.negative {
+    color: var(--ml-danger);
+  }
+
+  .ml-stat-trend.neutral {
+    color: var(--ml-secondary);
+  }
+
+  .ml-stat-icon {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+    background: var(--ml-gradient-primary);
+  }
+
+  .ml-stat-card.success .ml-stat-icon {
+    background: var(--ml-gradient-success);
+  }
+
+  .ml-stat-card.warning .ml-stat-icon {
+    background: var(--ml-gradient-warning);
+  }
+
+  .ml-stat-card.danger .ml-stat-icon {
+    background: var(--ml-gradient-danger);
+  }
+
+  /* Progress Indicators */
+  .ml-progress {
+    background: rgba(76, 132, 255, 0.1);
+    border-radius: 50px;
+    height: 8px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+
+  .ml-progress-bar {
+    height: 100%;
+    background: var(--ml-gradient-primary);
+    border-radius: 50px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .ml-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .ml-progress.success .ml-progress-bar {
+    background: var(--ml-gradient-success);
+  }
+
+  .ml-progress.warning .ml-progress-bar {
+    background: var(--ml-gradient-warning);
+  }
+
+  .ml-progress.danger .ml-progress-bar {
+    background: var(--ml-gradient-danger);
+  }
+
+  /* Confidence Indicators */
+  .ml-confidence {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .ml-confidence.high {
+    background: rgba(0, 201, 167, 0.1);
+    color: var(--ml-confidence-high);
+    border: 1px solid rgba(0, 201, 167, 0.3);
+  }
+
+  .ml-confidence.medium {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--ml-confidence-medium);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+  }
+
+  .ml-confidence.low {
+    background: rgba(222, 68, 55, 0.1);
+    color: var(--ml-confidence-low);
+    border: 1px solid rgba(222, 68, 55, 0.3);
+  }
+
+  .ml-confidence.uncertain {
+    background: rgba(131, 146, 165, 0.1);
+    color: var(--ml-uncertain);
+    border: 1px solid rgba(131, 146, 165, 0.3);
+  }
+
+  /* Status Badges */
+  .ml-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .ml-status.active {
+    background: rgba(0, 201, 167, 0.1);
+    color: var(--ml-success);
+  }
+
+  .ml-status.pending {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--ml-warning);
+  }
+
+  .ml-status.flagged {
+    background: rgba(222, 68, 55, 0.1);
+    color: var(--ml-danger);
+  }
+
+  .ml-status.processing {
+    background: rgba(76, 132, 255, 0.1);
+    color: var(--ml-processing);
+  }
+
+  /* Enhanced Buttons */
+  .ml-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--ml-radius-button);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: var(--ml-transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ml-btn:hover {
+    transform: translateY(-2px);
+    text-decoration: none;
+  }
+
+  .ml-btn.primary {
+    background: var(--ml-gradient-primary);
+    color: white;
+    box-shadow: 0 4px 15px rgba(76, 132, 255, 0.3);
+  }
+
+  .ml-btn.primary:hover {
+    box-shadow: 0 6px 25px rgba(76, 132, 255, 0.4);
+    color: white;
+  }
+
+  .ml-btn.success {
+    background: var(--ml-gradient-success);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 201, 167, 0.3);
+  }
+
+  .ml-btn.success:hover {
+    box-shadow: 0 6px 25px rgba(0, 201, 167, 0.4);
+    color: white;
+  }
+
+  .ml-btn.warning {
+    background: var(--ml-gradient-warning);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+  }
+
+  .ml-btn.warning:hover {
+    box-shadow: 0 6px 25px rgba(255, 193, 7, 0.4);
+    color: white;
+  }
+
+  .ml-btn.outline {
+    background: transparent;
+    color: var(--ml-primary);
+    border: 2px solid var(--ml-primary);
+  }
+
+  .ml-btn.outline:hover {
+    background: var(--ml-primary);
+    color: white;
+  }
+
+  .ml-btn.ghost {
+    background: rgba(76, 132, 255, 0.1);
+    color: var(--ml-primary);
+    border: 1px solid rgba(76, 132, 255, 0.2);
+  }
+
+  .ml-btn.ghost:hover {
+    background: rgba(76, 132, 255, 0.2);
+    color: var(--ml-primary);
+  }
+
+  /* Grid Layouts */
+  .ml-grid {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .ml-grid.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ml-grid.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .ml-grid.cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .ml-grid.cols-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .ml-content {
+      margin-left: 0;
+      padding: 1rem;
+    }
+
+    .ml-page-header {
+      padding: 1.5rem;
+    }
+
+    .ml-page-title {
+      font-size: 2rem;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .ml-grid.cols-2,
+    .ml-grid.cols-3,
+    .ml-grid.cols-4 {
+      grid-template-columns: 1fr;
+    }
+
+    .ml-stat-card {
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    .ml-stat-icon {
+      position: static;
+      margin: 0 auto 1rem;
+    }
+
+    .ml-page-actions {
+      justify-content: center;
+    }
+
+    .ml-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .ml-page-title {
+      font-size: 1.5rem;
+    }
+
+    .ml-stat-number {
+      font-size: 2.5rem;
+    }
+
+    .ml-card-body {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Animation Enhancements */
+  .ml-fade-in {
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  .ml-fade-in-delay {
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Accessibility Enhancements */
+  @media (prefers-reduced-motion: reduce) {
+    .ml-card,
+    .ml-btn,
+    .ml-stat-card,
+    .ml-progress-bar {
+      transition: none;
+    }
+
+    .ml-progress-bar::after {
+      animation: none;
+    }
+
+    .ml-fade-in,
+    .ml-fade-in-delay {
+      animation: none;
+    }
+  }
+
+  /* Focus States */
+  .ml-btn:focus-visible {
+    outline: 2px solid var(--ml-primary);
+    outline-offset: 2px;
+  }
+
+  /* Dark Mode Support */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    }
+
+    .ml-card,
+    .ml-stat-card,
+    .ml-page-header {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .ml-page-title,
+    .ml-card-title,
+    .ml-stat-number {
+      color: white;
+    }
+
+    .ml-page-subtitle,
+    .ml-stat-label {
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+</style>
+
+{% block ml_training_css %}{% endblock %}
+{% endblock %}
+
+{% block body %}
+<div class="ml-content">
+  <!-- Page Header -->
+  <div class="ml-page-header ml-fade-in">
+    <h1 class="ml-page-title">
+      {% block page_icon %}<i class="material-icons">psychology</i>{% endblock %}
+      {% block page_title %}ML Training Platform{% endblock %}
+    </h1>
+    <p class="ml-page-subtitle">
+      {% block page_subtitle %}Intelligent training data management with active learning and continuous improvement{% endblock %}
+    </p>
+
+    {% block page_actions %}
+    <div class="ml-page-actions">
+      <!-- Override in child templates -->
+    </div>
+    {% endblock %}
+  </div>
+
+  <!-- Page Content -->
+  <div class="ml-fade-in-delay">
+    {% block ml_content %}
+    <!-- Main content goes here -->
+    {% endblock %}
+  </div>
+</div>
+
+<!-- Enhanced Navigation -->
+<nav class="modern-sidebar">
+  <div class="sidebar-header">
+    <a href="{% url 'ml_training:dataset_list' %}" class="sidebar-brand">
+      <i class="material-icons">psychology</i>
+      <span class="brand-text">ML Training</span>
+    </a>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-section">Datasets</div>
+    <div class="nav-item">
+      <a href="{% url 'ml_training:dataset_list' %}" class="nav-link">
+        <i class="material-icons">dataset</i>
+        <span class="nav-text">All Datasets</span>
+      </a>
+    </div>
+    <div class="nav-item">
+      <a href="{% url 'ml_training:dataset_create' %}" class="nav-link">
+        <i class="material-icons">add_circle</i>
+        <span class="nav-text">Create Dataset</span>
+      </a>
+    </div>
+
+    <div class="nav-section">Active Learning</div>
+    <div class="nav-item">
+      <a href="{% url 'ml_training:active_learning_dashboard' %}" class="nav-link">
+        <i class="material-icons">psychology</i>
+        <span class="nav-text">Smart Selection</span>
+      </a>
+    </div>
+    <div class="nav-item">
+      <a href="{% url 'ml_training:labeling_dashboard' %}" class="nav-link">
+        <i class="material-icons">label</i>
+        <span class="nav-text">Labeling Tasks</span>
+      </a>
+    </div>
+
+    <div class="nav-section">Production</div>
+    <div class="nav-item">
+      <a href="{% url 'ml_training:feedback_dashboard' %}" class="nav-link">
+        <i class="material-icons">feedback</i>
+        <span class="nav-text">Feedback Loop</span>
+      </a>
+    </div>
+    <div class="nav-item">
+      <a href="#" class="nav-link">
+        <i class="material-icons">trending_up</i>
+        <span class="nav-text">Model Performance</span>
+      </a>
+    </div>
+
+    <div class="nav-section">Tools</div>
+    <div class="nav-item">
+      <a href="#" class="nav-link">
+        <i class="material-icons">analytics</i>
+        <span class="nav-text">Analytics</span>
+      </a>
+    </div>
+    <div class="nav-item">
+      <a href="#" class="nav-link">
+        <i class="material-icons">settings</i>
+        <span class="nav-text">Settings</span>
+      </a>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+
+<!-- ML Training Platform JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize ML Training Platform features
+
+    // Animate statistics on page load
+    const statNumbers = document.querySelectorAll('.ml-stat-number');
+    statNumbers.forEach(stat => {
+        const finalValue = parseInt(stat.textContent);
+        if (!isNaN(finalValue)) {
+            animateCounter(stat, 0, finalValue, 1000);
+        }
+    });
+
+    // Animate progress bars
+    const progressBars = document.querySelectorAll('.ml-progress-bar');
+    progressBars.forEach(bar => {
+        const width = bar.getAttribute('data-width') || bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 300);
+    });
+
+    // Initialize tooltips for confidence indicators
+    initializeTooltips();
+
+    // Auto-refresh functionality for real-time updates
+    initializeAutoRefresh();
+});
+
+function animateCounter(element, start, end, duration) {
+    const startTime = performance.now();
+
+    function updateCounter(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing function for smooth animation
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const current = Math.floor(start + (end - start) * easeOut);
+
+        element.textContent = current.toLocaleString();
+
+        if (progress < 1) {
+            requestAnimationFrame(updateCounter);
+        } else {
+            element.textContent = end.toLocaleString();
+        }
+    }
+
+    requestAnimationFrame(updateCounter);
+}
+
+function initializeTooltips() {
+    const confidenceElements = document.querySelectorAll('.ml-confidence');
+    confidenceElements.forEach(element => {
+        const value = element.getAttribute('data-confidence');
+        if (value) {
+            element.title = `Confidence: ${Math.round(value * 100)}%`;
+        }
+    });
+}
+
+function initializeAutoRefresh() {
+    // Check if auto-refresh is enabled for this page
+    const autoRefresh = document.body.getAttribute('data-auto-refresh');
+    if (autoRefresh === 'true') {
+        // Refresh every 30 seconds for dashboards
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                location.reload();
+            }
+        }, 30000);
+    }
+}
+
+// Utility functions for common ML Training operations
+window.MLTraining = {
+    // Show confidence tooltip
+    showConfidence: function(element, confidence) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'ml-tooltip';
+        tooltip.textContent = `Confidence: ${Math.round(confidence * 100)}%`;
+
+        // Position and show tooltip
+        document.body.appendChild(tooltip);
+
+        // Remove after 2 seconds
+        setTimeout(() => {
+            tooltip.remove();
+        }, 2000);
+    },
+
+    // Update progress bar
+    updateProgress: function(element, percentage) {
+        const bar = element.querySelector('.ml-progress-bar');
+        if (bar) {
+            bar.style.width = percentage + '%';
+        }
+    },
+
+    // Show notification
+    showNotification: function(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `ml-notification ml-notification-${type}`;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+};
+</script>
+
+{% block ml_training_js %}{% endblock %}
+{% endblock %}

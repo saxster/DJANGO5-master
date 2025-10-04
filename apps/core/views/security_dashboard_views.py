@@ -20,6 +20,8 @@ from django.views import View
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 from django.utils import timezone
 from apps.core.services.security_monitoring_service import SecurityMonitoringService
 import logging

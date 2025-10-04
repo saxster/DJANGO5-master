@@ -1,0 +1,308 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}Vehicle Entry Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.dashboard-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.alert-item {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+    border-left: 4px solid;
+}
+
+.alert-critical {
+    background-color: #f8d7da;
+    border-left-color: #dc3545;
+}
+
+.alert-high {
+    background-color: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.alert-medium {
+    background-color: #d1ecf1;
+    border-left-color: #17a2b8;
+}
+
+.vehicle-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-pending { background-color: #fff3cd; color: #856404; }
+.status-approved { background-color: #d4edda; color: #155724; }
+.status-flagged { background-color: #f8d7da; color: #721c24; }
+.status-active { background-color: #d1ecf1; color: #0c5460; }
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-dashboard {
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-car"></i> Vehicle Entry Management Dashboard</h2>
+            <p class="text-muted">AI/ML-powered license plate recognition and vehicle tracking system</p>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ pending_count|default:0 }}</div>
+                <div class="stat-label">Pending Approvals</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ active_count|default:0 }}</div>
+                <div class="stat-label">Vehicles in Facility</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ alert_count|default:0 }}</div>
+                <div class="stat-label">Security Alerts</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ gate_locations.count|default:0 }}</div>
+                <div class="stat-label">Active Gates</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Pending Approvals -->
+        <div class="col-md-6">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clock"></i> Pending Approvals</h5>
+                    <div class="quick-actions">
+                        <a href="{% url 'activity:vehicle_entry_approval' %}" class="btn btn-primary btn-sm btn-dashboard">
+                            View All Pending
+                        </a>
+                        <a href="{% url 'activity:vehicle_entry_capture' %}" class="btn btn-success btn-sm btn-dashboard">
+                            Capture Vehicle
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if pending_entries %}
+                        {% for entry in pending_entries %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div>
+                                <strong>{{ entry.license_plate }}</strong>
+                                <span class="vehicle-status status-{{ entry.status|lower }}">{{ entry.get_status_display }}</span>
+                                <br>
+                                <small class="text-muted">
+                                    {{ entry.entry_timestamp|date:"M d, H:i" }} at {{ entry.gate_location.locationname|default:"Unknown Gate" }}
+                                </small>
+                            </div>
+                            <div class="text-right">
+                                {% if entry.confidence_score %}
+                                <small class="text-info">{{ entry.confidence_score|floatformat:2 }} confidence</small><br>
+                                {% endif %}
+                                <small class="text-muted">{{ entry.captured_by.peoplename }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">No pending approvals</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Alerts -->
+        <div class="col-md-6">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Security Alerts</h5>
+                    <div class="quick-actions">
+                        <a href="{% url 'activity:vehicle_security_alerts' %}" class="btn btn-warning btn-sm btn-dashboard">
+                            Manage Alerts
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if active_alerts %}
+                        {% for alert in active_alerts %}
+                        <div class="alert-item alert-{{ alert.severity|lower }}">
+                            <strong>{{ alert.get_alert_type_display }}</strong>
+                            <span class="badge badge-{{ alert.severity|lower }}">{{ alert.get_severity_display }}</span>
+                            <br>
+                            <small>{{ alert.message|truncatechars:80 }}</small>
+                            <br>
+                            <small class="text-muted">
+                                Vehicle: {{ alert.vehicle_entry.license_plate }} | {{ alert.created_at|date:"M d, H:i" }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">No active security alerts</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Vehicles -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cars"></i> Currently Active Vehicles</h5>
+                    <div class="quick-actions">
+                        <button class="btn btn-info btn-sm btn-dashboard" onclick="refreshActiveVehicles()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if active_vehicles %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>License Plate</th>
+                                        <th>Entry Time</th>
+                                        <th>Gate Location</th>
+                                        <th>Type</th>
+                                        <th>Visitor</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vehicle in active_vehicles %}
+                                    <tr class="{% if vehicle.is_overdue %}table-warning{% endif %}">
+                                        <td><strong>{{ vehicle.license_plate }}</strong></td>
+                                        <td>{{ vehicle.entry_timestamp|date:"M d, H:i" }}</td>
+                                        <td>{{ vehicle.gate_location.locationname|default:"-" }}</td>
+                                        <td>{{ vehicle.get_entry_type_display }}</td>
+                                        <td>{{ vehicle.visitor_name|default:"-" }}</td>
+                                        <td>
+                                            {% if vehicle.is_overdue %}
+                                                <span class="text-warning"><i class="fas fa-clock"></i> Overdue</span>
+                                            {% else %}
+                                                <span class="text-muted">{{ vehicle.time_in_facility }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="vehicle-status status-active">Active</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3">No vehicles currently in facility</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action Buttons -->
+<div class="floating-actions" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+    <div class="btn-group-vertical">
+        <a href="{% url 'activity:vehicle_entry_capture' %}" class="btn btn-success btn-lg mb-2" title="Capture Vehicle">
+            <i class="fas fa-camera"></i>
+        </a>
+        <button class="btn btn-primary btn-lg" onclick="refreshDashboard()" title="Refresh Dashboard">
+            <i class="fas fa-sync"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshActiveVehicles() {
+    // Simple page refresh for now - could be enhanced with AJAX
+    window.location.reload();
+}
+
+function refreshDashboard() {
+    window.location.reload();
+}
+
+// Auto-refresh dashboard every 5 minutes
+setInterval(function() {
+    // Only auto-refresh if user is still active (not idle)
+    if (document.hasFocus()) {
+        refreshDashboard();
+    }
+}, 300000); // 5 minutes
+
+// Add some basic interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight overdue vehicles
+    const overdueRows = document.querySelectorAll('tr.table-warning');
+    overdueRows.forEach(row => {
+        row.style.animation = 'pulse 2s infinite';
+    });
+});
+
+// CSS animation for overdue vehicles
+const style = document.createElement('style');
+style.textContent = `
+@keyframes pulse {
+    0% { background-color: transparent; }
+    50% { background-color: rgba(255, 193, 7, 0.1); }
+    100% { background-color: transparent; }
+}
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

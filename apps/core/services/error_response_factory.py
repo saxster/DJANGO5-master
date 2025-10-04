@@ -16,7 +16,8 @@ Complies with: .claude/rules.md Rule #5 (No Debug Information in Production)
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
+from django.utils import timezone
 from typing import Optional, Dict, Any, List
 from http import HTTPStatus
 
@@ -92,7 +93,7 @@ class ErrorResponseFactory:
                 'code': error_code,
                 'message': sanitized_message,
                 'correlation_id': correlation_id,
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': timezone.now().isoformat() + 'Z',
             }
         }
 
@@ -340,7 +341,7 @@ class ErrorResponseFactory:
             'success': True,
             'message': message,
             'correlation_id': correlation_id,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': timezone.now().isoformat() + 'Z',
         }
 
         if data is not None:

@@ -11,14 +11,69 @@ import logging
 logger = logging.getLogger("django")
 
 
-from apps.core.utils_new.business_logic import *
-from apps.core.utils_new.date_utils import *
-from apps.core.utils_new.db_utils import *
-from apps.core.utils_new.file_utils import *
-from apps.core.utils_new.http_utils import *
-from apps.core.utils_new.string_utils import *
-from apps.core.utils_new.validation import *
+# Explicit imports to avoid namespace pollution
+from apps.core.utils_new.string_utils import (
+    CustomJsonEncoderWithDistance, encrypt, decrypt, clean_record,
+    getformatedjson, sumDig, orderedRandom, format_data
+)
 
+# Explicit imports from business_logic (23 items)
+from apps.core.utils_new.business_logic import (
+    JobFields, Instructions, get_appropriate_client_url,
+    save_capsinfo_inside_session, save_user_session, update_timeline_data,
+    process_wizard_form, update_wizard_form, update_prev_step,
+    update_next_step, update_other_info, update_wizard_steps,
+    save_msg, initailize_form_fields, apply_error_classes,
+    get_instance_for_update, get_model_obj, get_index_for_deletion,
+    delete_object, delete_unsaved_objects, cache_it, get_from_cache
+)
+
+# Explicit imports from date_utils (7 items)
+from apps.core.utils_new.date_utils import (
+    get_current_year, to_utc, getawaredatetime, format_timedelta,
+    convert_seconds_to_human_readable, get_timezone, find_closest_shift
+)
+
+# Explicit imports from db_utils (32 items)
+from apps.core.utils_new.db_utils import (
+    save_common_stuff, create_tenant_with_alias, check_nones,
+    get_record_from_input, dictfetchall, namedtuplefetchall,
+    runrawsql, get_action_on_ticket_states, store_ticket_history,
+    get_or_create_none_people, get_none_typeassist, get_or_create_none_pgroup,
+    get_or_create_none_location, hostname_from_request, get_tenants_map,
+    tenant_db_from_request, get_or_create_none_cap, get_or_create_none_bv,
+    get_or_create_none_typeassist, get_or_create_none_tenant,
+    get_or_create_none_jobneed, get_or_create_none_wom, get_or_create_none_qset,
+    get_or_create_none_question, get_or_create_none_qsetblng,
+    get_or_create_none_asset, get_or_create_none_ticket, get_or_create_none_job,
+    get_or_create_none_gf, create_none_entries, create_super_admin,
+    THREAD_LOCAL, get_current_db_name, set_db_for_router
+)
+
+# Explicit imports from file_utils (11 items)
+from apps.core.utils_new.file_utils import (
+    HEADER_MAPPING, Example_data, HEADER_MAPPING_UPDATE, Example_data_update,
+    get_home_dir, upload, upload_vendor_file, download_qrcode,
+    excel_file_creation, excel_file_creation_update, get_type_data
+)
+
+# Explicit imports from http_utils (20 items)
+from apps.core.utils_new.http_utils import (
+    clean_encoded_form_data, get_clean_form_data, handle_other_exception,
+    handle_does_not_exist, get_filter, searchValue, searchValue2,
+    render_form, handle_DoesNotExist, handle_Exception, render_form_for_delete,
+    handle_RestrictedError, handle_EmptyResultSet, handle_intergrity_error,
+    render_form_for_update, handle_invalid_form, render_grid,
+    paginate_results, get_paginated_results, get_paginated_results2
+)
+
+# Explicit imports from validation (7 items)
+from apps.core.utils_new.validation import (
+    clean_gpslocation, isValidEMEI, verify_mobno, verify_emailaddr,
+    verify_loginid, verify_peoplename, validate_date_format
+)
+
+# Keep module references for backwards compatibility
 from apps.core.utils_new import business_logic
 from apps.core.utils_new import date_utils
 from apps.core.utils_new import db_utils

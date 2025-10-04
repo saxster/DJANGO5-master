@@ -1,0 +1,170 @@
+{% extends "admin/base_modern_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Smart Retry Policy Dashboard{% endblock %}
+{% block admin_subtitle %}Retry success rates, circuit breaker status, and adaptive policy performance{% endblock %}
+
+{% block admin_content %}
+<div class="content-wrapper">
+  <!-- Task Filter -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <form method="get">
+      <div style="display: flex; gap: var(--yt-space-4); align-items: end;">
+        <div style="flex: 1;">
+          <label style="display: block; font-size: var(--yt-text-sm); margin-bottom: var(--yt-space-2);">Tasks to Monitor (comma-separated)</label>
+          <input type="text" name="tasks" value="{{ task_names|join:',' }}" placeholder="autoclose_job,ticket_escalation,..." class="yt-input">
+        </div>
+        <button type="submit" class="yt-button yt-button-primary">Update</button>
+      </div>
+    </form>
+  </div>
+
+  {% if not stats_by_task %}
+  <!-- No Data Message -->
+  <div class="chart-card" style="text-align: center; padding: var(--yt-space-8);">
+    <i class="material-icons" style="font-size: 64px; color: var(--yt-text-secondary); margin-bottom: var(--yt-space-4);">info</i>
+    <h2 style="margin: 0 0 var(--yt-space-2) 0;">No Retry Statistics Available</h2>
+    <p style="color: var(--yt-text-secondary);">No retry attempts have been recorded yet for the specified tasks.</p>
+  </div>
+  {% else %}
+
+  <!-- Task Retry Statistics -->
+  {% for task_name, stats in stats_by_task.items %}
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <h2 class="chart-title">
+      <code>{{ task_name }}</code>
+    </h2>
+    
+    <!-- Stats Grid for this task -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--yt-space-4); margin-top: var(--yt-space-4);">
+      {% for failure_type, metrics in stats.items %}
+      <div style="padding: var(--yt-space-4); background: var(--yt-bg-secondary); border-radius: var(--yt-radius-lg); border-left: 4px solid {% if metrics.success_rate >= 80 %}var(--yt-success-500){% elif metrics.success_rate >= 50 %}var(--yt-warning-500){% else %}var(--yt-danger-500){% endif %};">
+        <p style="margin: 0; font-size: var(--yt-text-sm); font-weight: bold; color: var(--yt-text-secondary); text-transform: uppercase;">{{ failure_type }}</p>
+        
+        <!-- Success Rate -->
+        <div style="margin-top: var(--yt-space-3);">
+          <p style="margin: 0; font-size: var(--yt-text-xs); color: var(--yt-text-secondary);">Success Rate</p>
+          <p style="margin: var(--yt-space-1) 0 0 0; font-size: var(--yt-text-2xl); font-weight: bold; color: {% if metrics.success_rate >= 80 %}var(--yt-success-600){% elif metrics.success_rate >= 50 %}var(--yt-warning-600){% else %}var(--yt-danger-600){% endif %};">
+            {{ metrics.success_rate }}%
+          </p>
+        </div>
+
+        <!-- Retry Counts -->
+        <div style="margin-top: var(--yt-space-3); display: flex; justify-content: space-between; font-size: var(--yt-text-sm);">
+          <div>
+            <p style="margin: 0; color: var(--yt-text-secondary);">Total</p>
+            <p style="margin: var(--yt-space-1) 0 0 0; font-weight: bold;">{{ metrics.total_retries }}</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="margin: 0; color: var(--yt-success-600);">Success</p>
+            <p style="margin: var(--yt-space-1) 0 0 0; font-weight: bold;">{{ metrics.successful_retries }}</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="margin: 0; color: var(--yt-danger-600);">Failed</p>
+            <p style="margin: var(--yt-space-1) 0 0 0; font-weight: bold;">{{ metrics.failed_retries }}</p>
+          </div>
+        </div>
+
+        <!-- Last Updated -->
+        <div style="margin-top: var(--yt-space-3); padding-top: var(--yt-space-3); border-top: 1px solid var(--yt-border-secondary);">
+          <p style="margin: 0; font-size: var(--yt-text-xs); color: var(--yt-text-secondary);">
+            <i class="material-icons" style="font-size: 12px; vertical-align: middle;">schedule</i>
+            Updated: {{ metrics.last_updated }}
+          </p>
+        </div>
+      </div>
+      {% empty %}
+      <p style="grid-column: 1 / -1; text-align: center; color: var(--yt-text-secondary); padding: var(--yt-space-4);">No retry statistics for this task yet</p>
+      {% endfor %}
+    </div>
+
+    <!-- Recommendations Based on Success Rates -->
+    <div style="margin-top: var(--yt-space-4);">
+      {% for failure_type, metrics in stats.items %}
+        {% if metrics.success_rate < 30 and metrics.total_retries >= 10 %}
+        <div style="padding: var(--yt-space-3); background: var(--yt-danger-50); border-left: 3px solid var(--yt-danger-500); margin-bottom: var(--yt-space-2);">
+          <p style="margin: 0; font-weight: bold; color: var(--yt-danger-700);">
+            ⚠️ Low success rate for {{ failure_type }}
+          </p>
+          <p style="margin: var(--yt-space-1) 0 0 0; font-size: var(--yt-text-sm); color: var(--yt-danger-600);">
+            Success rate: {{ metrics.success_rate }}% ({{ metrics.successful_retries }}/{{ metrics.total_retries }}). 
+            Consider increasing retry delays or investigating root cause.
+          </p>
+        </div>
+        {% elif metrics.success_rate > 80 and metrics.total_retries >= 10 %}
+        <div style="padding: var(--yt-space-3); background: var(--yt-success-50); border-left: 3px solid var(--yt-success-500); margin-bottom: var(--yt-space-2);">
+          <p style="margin: 0; font-weight: bold; color: var(--yt-success-700);">
+            ✅ High success rate for {{ failure_type }}
+          </p>
+          <p style="margin: var(--yt-space-1) 0 0 0; font-size: var(--yt-text-sm); color: var(--yt-success-600);">
+            Success rate: {{ metrics.success_rate }}% ({{ metrics.successful_retries }}/{{ metrics.total_retries }}). 
+            Retry policy working well - could potentially reduce delays.
+          </p>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Circuit Breaker Status -->
+  <div class="chart-card">
+    <h2 class="chart-title">
+      <i class="material-icons" style="vertical-align: middle;">power</i>
+      Circuit Breaker Status
+    </h2>
+    <div style="margin-top: var(--yt-space-4);">
+      <div style="padding: var(--yt-space-4); background: var(--yt-info-50); border-left: 3px solid var(--yt-info-500);">
+        <p style="margin: 0; font-weight: bold;">ℹ️ Circuit Breaker Information</p>
+        <p style="margin: var(--yt-space-2) 0 0 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+          Circuit breakers automatically open after repeated failures to prevent cascading issues. 
+          They will automatically transition to half-open state after the timeout period to test recovery.
+        </p>
+        <p style="margin: var(--yt-space-2) 0 0 0; font-size: var(--yt-text-sm);">
+          <strong>States:</strong> 
+          <span style="color: var(--yt-success-600);">CLOSED</span> (normal), 
+          <span style="color: var(--yt-danger-600);">OPEN</span> (blocking), 
+          <span style="color: var(--yt-warning-600);">HALF-OPEN</span> (testing recovery)
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Adaptive Policy Adjustments -->
+  <div class="chart-card" style="margin-top: var(--yt-space-6);">
+    <h2 class="chart-title">
+      <i class="material-icons" style="vertical-align: middle;">tune</i>
+      Adaptive Policy Features
+    </h2>
+    <div style="margin-top: var(--yt-space-4); display: grid; gap: var(--yt-space-3);">
+      <div style="padding: var(--yt-space-3); background: var(--yt-bg-secondary); border-radius: var(--yt-radius-md);">
+        <h4 style="margin: 0 0 var(--yt-space-2) 0; font-weight: bold;">📈 Historical Learning</h4>
+        <p style="margin: 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+          Success rate > 80%: Reduces retry delays by 30%<br>
+          Success rate < 30%: Increases delays by 50%, reduces max retries
+        </p>
+      </div>
+      <div style="padding: var(--yt-space-3); background: var(--yt-bg-secondary); border-radius: var(--yt-radius-md);">
+        <h4 style="margin: 0 0 var(--yt-space-2) 0; font-weight: bold;">⚖️ System Load Adaptation</h4>
+        <p style="margin: 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+          Queue depth > 100: Extends retry delays by 30% to reduce system pressure
+        </p>
+      </div>
+      <div style="padding: var(--yt-space-3); background: var(--yt-bg-secondary); border-radius: var(--yt-radius-md);">
+        <h4 style="margin: 0 0 var(--yt-space-2) 0; font-weight: bold;">💰 Cost Optimization</h4>
+        <p style="margin: 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+          Low-priority tasks deferred to off-peak hours (9 PM - 9 AM) to reduce infrastructure costs
+        </p>
+      </div>
+      <div style="padding: var(--yt-space-3); background: var(--yt-bg-secondary); border-radius: var(--yt-radius-md);">
+        <h4 style="margin: 0 0 var(--yt-space-2) 0; font-weight: bold;">🎲 Jitter Support</h4>
+        <p style="margin: 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+          Random variation added to retry delays (10-30%) to prevent thundering herd problem
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock admin_content %}

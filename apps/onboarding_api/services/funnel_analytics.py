@@ -8,11 +8,17 @@ start → first answer → recommendations generated → approval decision → c
 import logging
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
 
 from django.utils import timezone
 from django.core.cache import cache
+from django.db.models import Count, Avg, F, Q
+from django.db.models.functions import TruncHour, TruncDate
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 
-)
+from apps.onboarding.models import ConversationSession, LLMRecommendation
+from apps.onboarding_api.services.llm import LLMServiceException
 
 logger = logging.getLogger(__name__)
 

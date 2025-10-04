@@ -70,11 +70,11 @@ def test_assetlog_newstatus(client_bt, bu_bt):
         bu=bu_bt,
     )
     assetlog = AssetLog(asset=asset, newstatus="WORKING")
-    assert assetlog.cdtz == None
-    assert assetlog.gpslocation == None
+    assert assetlog.cdtz is None
+    assert assetlog.gpslocation is None
     assert assetlog.ctzoffset == -1
-    assert assetlog.oldstatus == None
+    assert assetlog.oldstatus is None
     assert assetlog.asset == asset
-    assert assetlog.people == None
-    assert assetlog.bu == None
-    assert assetlog.client == None
+    assert assetlog.people is None
+    assert assetlog.bu is None
+    assert assetlog.client is None

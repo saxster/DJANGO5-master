@@ -266,7 +266,7 @@ class GitHubBot:
         }
 
         try:
-            response = requests.post(url, headers=headers, json=data)
+            response = requests.post(url, headers=headers, json=data, timeout=(5, 15))
 
             if response.status_code == 201:
                 print(f"Successfully posted comment to PR #{pr_number}")
@@ -295,7 +295,7 @@ class GitHubBot:
         }
 
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=(5, 15))
 
             if response.status_code == 200:
                 files_data = response.json()
@@ -427,7 +427,7 @@ class GitHubBot:
         }
 
         try:
-            pr_response = requests.get(pr_url, headers=headers)
+            pr_response = requests.get(pr_url, headers=headers, timeout=(5, 15))
             if pr_response.status_code != 200:
                 return False
 
@@ -443,7 +443,7 @@ class GitHubBot:
                 'context': context
             }
 
-            status_response = requests.post(status_url, headers=headers, json=status_data)
+            status_response = requests.post(status_url, headers=headers, json=status_data, timeout=(5, 15))
             return status_response.status_code == 201
 
         except (FileNotFoundError, IOError, OSError, PermissionError, requests.ConnectionError, requests.RequestException, requests.Timeout) as e:

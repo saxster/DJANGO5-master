@@ -1,0 +1,317 @@
+{% comment %}
+===========================================
+  YOUTILITY Card Component
+  Industrial Minimal Design System
+===========================================
+
+A reusable card/panel component for grouping related content.
+
+USAGE:
+  {% include 'components/card.html' with
+    title='Site Information'
+    elevated=True
+  %}
+  ... card content ...
+  {% endinclude %}
+
+  Or using {% call %} macro (if using Jinja2 macros):
+  {% call card(title='Site Info', icon='location_on') %}
+    ... card content ...
+  {% endcall %}
+
+PARAMETERS:
+  title (optional)       - Card header title
+  subtitle (optional)    - Card header subtitle
+  icon (optional)        - Material icon for header
+  elevated (optional)    - Boolean, adds shadow
+  clickable (optional)   - Boolean, adds hover effect
+  href (optional)        - Makes entire card clickable
+  variant (optional)     - Color variant: 'default'|'primary'|'success'|'warning'|'danger'
+                          Default: 'default'
+  padding (optional)     - Padding size: 'none'|'small'|'medium'|'large'
+                          Default: 'medium'
+  class (optional)       - Additional CSS classes
+  attrs (optional)       - Additional HTML attributes
+
+EXAMPLES:
+
+  1. Basic card:
+     <div>{% include 'components/card.html' with title='Site Details' %}
+       <p>Content goes here</p>
+     </div>
+
+  2. Elevated card with icon:
+     {% include 'components/card.html' with
+       title='Active Guards'
+       icon='people'
+       elevated=True
+     %}
+
+  3. Clickable card:
+     {% include 'components/card.html' with
+       title='View Report'
+       clickable=True
+       href='/reports/123/'
+     %}
+
+  4. Status card with variant:
+     {% include 'components/card.html' with
+       title='Critical Alert'
+       variant='danger'
+       icon='warning'
+     %}
+
+  5. Card with header actions:
+     {% include 'components/card.html' with
+       title='Tours Today'
+       subtitle='12 completed, 3 pending'
+     %}
+
+{% endcomment %}
+
+{% with
+  card_variant=variant|default:'default'
+  card_padding=padding|default:'medium'
+  is_elevated=elevated|default:False
+  is_clickable=clickable|default:False
+  tag=href|yesno:'a,div'
+%}
+
+{% with
+  base_class='yt-card'
+  variant_class='yt-card--'|add:card_variant
+  elevated_class=is_elevated|yesno:'yt-card--elevated,'
+  clickable_class=is_clickable|yesno:'yt-card--clickable,'
+  padding_class='yt-card--padding-'|add:card_padding
+  additional_class=class|default:''
+  all_classes=base_class|add:' '|add:variant_class|add:' '|add:elevated_class|add:clickable_class|add:' '|add:padding_class|add:' '|add:additional_class
+%}
+
+{# Render card #}
+{% if href %}
+  <a
+    href="{{ href }}"
+    class="{{ all_classes }}"
+    {% if attrs %}{{ attrs|safe }}{% endif %}>
+{% else %}
+  <div
+    class="{{ all_classes }}"
+    {% if attrs %}{{ attrs|safe }}{% endif %}>
+{% endif %}
+
+  {# Header #}
+  {% if title %}
+    <div class="yt-card__header {% if card_variant != 'default' %}yt-card__header--{{ card_variant }}{% endif %}">
+      <div class="yt-card__header-content">
+        {% if icon %}
+          <i class="material-icons yt-card__header-icon" aria-hidden="true">{{ icon }}</i>
+        {% endif %}
+
+        <div class="yt-card__header-text">
+          <h3 class="yt-card__title">{{ title }}</h3>
+          {% if subtitle %}
+            <p class="yt-card__subtitle">{{ subtitle }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if header_actions %}
+        <div class="yt-card__header-actions">
+          {{ header_actions|safe }}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# Body #}
+  <div class="yt-card__body">
+    {{ caller() if caller else '' }}
+  </div>
+
+  {# Footer #}
+  {% if footer %}
+    <div class="yt-card__footer">
+      {{ footer|safe }}
+    </div>
+  {% endif %}
+
+{% if href %}
+  </a>
+{% else %}
+  </div>
+{% endif %}
+
+{% endwith %}
+{% endwith %}
+
+<style>
+/* Card Base */
+.yt-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+/* Elevated variant */
+.yt-card--elevated {
+  box-shadow: var(--shadow-base);
+}
+
+/* Clickable variant */
+.yt-card--clickable {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.yt-card--clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.yt-card--clickable:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-base);
+}
+
+/* Header */
+.yt-card__header {
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border-default);
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.yt-card__header-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.yt-card__header-icon {
+  font-size: 24px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.yt-card__header-text {
+  flex: 1;
+  min-width: 0; /* Prevent overflow */
+}
+
+.yt-card__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+  line-height: var(--leading-tight);
+}
+
+.yt-card__subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+  line-height: var(--leading-normal);
+}
+
+/* Header variants */
+.yt-card__header--primary {
+  background: var(--color-primary-600);
+  border-bottom-color: var(--color-primary-700);
+}
+
+.yt-card__header--primary .yt-card__title,
+.yt-card__header--primary .yt-card__subtitle,
+.yt-card__header--primary .yt-card__header-icon {
+  color: var(--text-inverse);
+}
+
+.yt-card__header--success {
+  background: var(--color-success-600);
+  border-bottom-color: var(--color-success-700);
+}
+
+.yt-card__header--success .yt-card__title,
+.yt-card__header--success .yt-card__subtitle,
+.yt-card__header--success .yt-card__header-icon {
+  color: var(--text-inverse);
+}
+
+.yt-card__header--warning {
+  background: var(--color-warning-600);
+  border-bottom-color: var(--color-warning-700);
+}
+
+.yt-card__header--warning .yt-card__title,
+.yt-card__header--warning .yt-card__subtitle,
+.yt-card__header--warning .yt-card__header-icon {
+  color: var(--text-inverse);
+}
+
+.yt-card__header--danger {
+  background: var(--color-danger-600);
+  border-bottom-color: var(--color-danger-700);
+}
+
+.yt-card__header--danger .yt-card__title,
+.yt-card__header--danger .yt-card__subtitle,
+.yt-card__header--danger .yt-card__header-icon {
+  color: var(--text-inverse);
+}
+
+/* Body */
+.yt-card__body {
+  padding: var(--space-4);
+  color: var(--text-primary);
+}
+
+.yt-card--padding-none .yt-card__body {
+  padding: 0;
+}
+
+.yt-card--padding-small .yt-card__body {
+  padding: var(--space-3);
+}
+
+.yt-card--padding-large .yt-card__body {
+  padding: var(--space-6);
+}
+
+/* Footer */
+.yt-card__footer {
+  background: var(--bg-muted);
+  border-top: 1px solid var(--border-default);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .yt-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .yt-card__header-actions {
+    width: 100%;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .yt-card--clickable {
+    transition: none;
+  }
+
+  .yt-card--clickable:hover {
+    transform: none;
+  }
+}
+</style>

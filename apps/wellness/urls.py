@@ -18,6 +18,27 @@ from .views import (
     ContextualWellnessContentView, PersonalizedWellnessContentView,
     WellnessProgressView, WellnessAnalyticsView
 )
+
+# Import wisdom conversation views
+from .views.wisdom_conversation_views import (
+    conversations_with_wisdom_view,
+    toggle_conversation_bookmark,
+    track_conversation_engagement,
+    conversation_reflection_view,
+    conversation_export_view,
+    conversation_analytics_api,
+    conversation_search_api,
+)
+
+# Import translation API views
+from .views.translation_api_views import (
+    translate_conversation,
+    get_supported_languages,
+    get_translation_status,
+    submit_translation_feedback,
+    get_translation_analytics,
+    batch_translate_conversations,
+)
 from django.views.generic import TemplateView
 from django.contrib.auth.decorators import login_required
 
@@ -32,6 +53,20 @@ urlpatterns = [
     path('content/', login_required(TemplateView.as_view(template_name='wellness/content_discovery.html')), name='wellness-content-discovery'),
     path('settings/', login_required(TemplateView.as_view(template_name='wellness/settings.html')), name='wellness-settings'),
 
+    # Conversations with Wisdom - Main feature
+    path('conversations/', conversations_with_wisdom_view, name='conversations_with_wisdom'),
+    path('conversations/wisdom/', conversations_with_wisdom_view, name='conversations_with_wisdom_alt'),
+
+    # Conversation interaction APIs
+    path('conversations/<uuid:conversation_id>/bookmark/', toggle_conversation_bookmark, name='toggle_bookmark'),
+    path('conversations/<uuid:conversation_id>/track/', track_conversation_engagement, name='track_engagement'),
+    path('conversations/<uuid:conversation_id>/reflect/', conversation_reflection_view, name='conversation_reflection'),
+
+    # Export and conversation analytics
+    path('conversations/export/', conversation_export_view, name='conversation_export'),
+    path('api/conversations/analytics/', conversation_analytics_api, name='conversation_analytics'),
+    path('api/conversations/search/', conversation_search_api, name='conversation_search'),
+
     # REST API endpoints from router
     path('api/', include(router.urls)),
 
@@ -45,6 +80,14 @@ urlpatterns = [
 
     # Analytics and insights
     path('api/analytics/', WellnessAnalyticsView.as_view(), name='wellness-analytics'),
+
+    # Translation API endpoints
+    path('api/translate-conversation/', translate_conversation, name='translate_conversation'),
+    path('api/supported-languages/', get_supported_languages, name='supported_languages'),
+    path('api/translation-status/<uuid:conversation_id>/', get_translation_status, name='translation_status'),
+    path('api/translation-feedback/', submit_translation_feedback, name='translation_feedback'),
+    path('api/translation-analytics/', get_translation_analytics, name='translation_analytics'),
+    path('api/batch-translate/', batch_translate_conversations, name='batch_translate'),
 
     # Additional API endpoints provided by WellnessContentViewSet custom actions:
     # POST /api/content/{id}/track_interaction/ - Track user interaction with content

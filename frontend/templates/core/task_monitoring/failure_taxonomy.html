@@ -1,0 +1,189 @@
+{% extends "admin/base_modern_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Failure Taxonomy Dashboard{% endblock %}
+{% block admin_subtitle %}Failure type analysis, remediation tracking, and alert trends{% endblock %}
+
+{% block admin_content %}
+<div class="content-wrapper">
+  <!-- Timeframe Filter -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <form method="get" style="display: flex; gap: var(--yt-space-4); align-items: end;">
+      <div>
+        <label style="display: block; font-size: var(--yt-text-sm); margin-bottom: var(--yt-space-2);">Timeframe</label>
+        <select name="hours" class="yt-input" onchange="this.form.submit()">
+          <option value="1" {% if hours == 1 %}selected{% endif %}>Last Hour</option>
+          <option value="24" {% if hours == 24 %}selected{% endif %}>Last 24 Hours</option>
+          <option value="168" {% if hours == 168 %}selected{% endif %}>Last 7 Days</option>
+          <option value="720" {% if hours == 720 %}selected{% endif %}>Last 30 Days</option>
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="admin-stats-grid" style="margin-bottom: var(--yt-space-8);">
+    <div class="stat-card">
+      <h3 class="stat-title">Total Failures</h3>
+      <p class="stat-value">{{ total_failures }}</p>
+    </div>
+    <div class="stat-card">
+      <h3 class="stat-title">Failure Types</h3>
+      <p class="stat-value">{{ failure_distribution|length }}</p>
+    </div>
+    <div class="stat-card">
+      <h3 class="stat-title">Avg Retry Count</h3>
+      <p class="stat-value">
+        {% if failure_distribution %}
+          {{ failure_distribution.0.avg_retry_count|floatformat:1 }}
+        {% else %}
+          0
+        {% endif %}
+      </p>
+    </div>
+    <div class="stat-card">
+      <h3 class="stat-title">Affected Tasks</h3>
+      <p class="stat-value">{{ top_failing_tasks|length }}</p>
+    </div>
+  </div>
+
+  <!-- Failure Type Distribution -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <h2 class="chart-title">Failure Type Distribution</h2>
+    <div class="chart-container" style="margin-top: var(--yt-space-4);">
+      <canvas id="failureTypeChart" width="400" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Failure Type Breakdown Table -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <h2 class="chart-title">Failure Type Breakdown</h2>
+    <div style="overflow-x: auto; margin-top: var(--yt-space-4);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--yt-border-primary);">
+            <th style="text-align: left; padding: var(--yt-space-3);">Failure Type</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Count</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Avg Retry Count</th>
+            <th style="text-align: center; padding: var(--yt-space-3);">Percentage</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Recommended Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dist in failure_distribution %}
+          <tr style="border-bottom: 1px solid var(--yt-border-secondary);">
+            <td style="padding: var(--yt-space-3);">
+              <span style="padding: var(--yt-space-1) var(--yt-space-2); background: var(--yt-danger-100); color: var(--yt-danger-700); border-radius: var(--yt-radius-sm); font-weight: bold; font-size: var(--yt-text-sm);">
+                {{ dist.failure_type }}
+              </span>
+            </td>
+            <td style="text-align: right; padding: var(--yt-space-3); font-weight: bold;">{{ dist.count }}</td>
+            <td style="text-align: right; padding: var(--yt-space-3);">{{ dist.avg_retry_count|floatformat:1 }}</td>
+            <td style="text-align: center; padding: var(--yt-space-3);">
+              {% widthratio dist.count total_failures 100 %}%
+            </td>
+            <td style="padding: var(--yt-space-3); font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+              {% if 'TRANSIENT' in dist.failure_type %}
+                🔄 Auto-retry with backoff
+              {% elif 'PERMANENT' in dist.failure_type %}
+                🔧 Fix data/validation
+              {% elif 'CONFIG' in dist.failure_type %}
+                ⚙️ Update configuration
+              {% elif 'EXTERNAL' in dist.failure_type %}
+                🌐 Check external service
+              {% elif 'SYSTEM' in dist.failure_type %}
+                💻 Scale resources
+              {% else %}
+                🔍 Investigate
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" style="padding: var(--yt-space-4); text-align: center; color: var(--yt-text-secondary);">No failures recorded</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Top Failing Tasks -->
+  <div class="chart-card">
+    <h2 class="chart-title">Top 10 Failing Tasks</h2>
+    <div style="overflow-x: auto; margin-top: var(--yt-space-4);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--yt-border-primary);">
+            <th style="text-align: left; padding: var(--yt-space-3);">Task Name</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Failure Type</th>
+            <th style="text-align: right; padding: var(--yt-space-3);">Failure Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in top_failing_tasks %}
+          <tr style="border-bottom: 1px solid var(--yt-border-secondary);">
+            <td style="padding: var(--yt-space-3);"><code>{{ task.task_name }}</code></td>
+            <td style="padding: var(--yt-space-3);">
+              <span style="font-size: var(--yt-text-sm); color: var(--yt-danger-600);">{{ task.failure_type }}</span>
+            </td>
+            <td style="text-align: right; padding: var(--yt-space-3); font-weight: bold;">{{ task.count }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="3" style="padding: var(--yt-space-4); text-align: center;">No failing tasks</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+<script>
+// Failure Type Distribution Chart
+const failureData = {{ failure_distribution|safe }};
+const ctx = document.getElementById('failureTypeChart');
+if (ctx && failureData && failureData.length > 0) {
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: failureData.map(d => d.failure_type),
+      datasets: [{
+        data: failureData.map(d => d.count),
+        backgroundColor: [
+          'rgba(255, 77, 79, 0.8)',
+          'rgba(255, 159, 28, 0.8)',
+          'rgba(255, 206, 86, 0.8)',
+          'rgba(75, 192, 192, 0.8)',
+          'rgba(54, 162, 235, 0.8)',
+          'rgba(153, 102, 255, 0.8)',
+        ],
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'right',
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const item = failureData[context.dataIndex];
+              const total = failureData.reduce((sum, d) => sum + d.count, 0);
+              const percentage = ((item.count / total) * 100).toFixed(1);
+              return `${context.label}: ${item.count} (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+{% endblock extra_scripts %}

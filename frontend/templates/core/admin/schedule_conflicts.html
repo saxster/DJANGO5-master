@@ -1,0 +1,144 @@
+{% extends "admin/base_modern_admin.html" %}
+{% load static %}
+
+{% block admin_title %}Schedule Conflict Analysis{% endblock %}
+{% block admin_subtitle %}Schedule hotspots, overlaps, and optimization recommendations{% endblock %}
+
+{% block admin_content %}
+<div class="content-wrapper">
+  <!-- Health Summary -->
+  <div class="admin-stats-grid" style="margin-bottom: var(--yt-space-8);">
+    <div class="stat-card" style="--stat-color: {% if health_analysis.overall_score >= 80 %}var(--yt-success-500){% else %}var(--yt-danger-500){% endif %};">
+      <h3 class="stat-title">Overall Health Score</h3>
+      <p class="stat-value">{{ health_analysis.overall_score }}/100</p>
+    </div>
+    <div class="stat-card">
+      <h3 class="stat-title">Active Schedules</h3>
+      <p class="stat-value">{{ total_schedules }}</p>
+    </div>
+    <div class="stat-card" style="--stat-color: var(--yt-warning-500);">
+      <h3 class="stat-title">Hotspots Detected</h3>
+      <p class="stat-value">{{ hotspot_count }}</p>
+    </div>
+    <div class="stat-card">
+      <h3 class="stat-title">Critical Conflicts</h3>
+      <p class="stat-value">{{ critical_conflicts|length }}</p>
+    </div>
+  </div>
+
+  <!-- Critical Conflicts -->
+  {% if critical_conflicts %}
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6); border-left: 4px solid var(--yt-danger-500);">
+    <h2 class="chart-title" style="color: var(--yt-danger-600);">🚨 Critical Conflicts Requiring Attention</h2>
+    <div style="margin-top: var(--yt-space-4);">
+      {% for conflict in critical_conflicts %}
+      <div style="padding: var(--yt-space-3); background: var(--yt-danger-50); border-radius: var(--yt-radius-md); margin-bottom: var(--yt-space-3);">
+        <p style="margin: 0; font-weight: bold; color: var(--yt-danger-700);">{{ conflict.message }}</p>
+        <p style="margin: var(--yt-space-2) 0 0 0; font-size: var(--yt-text-sm); color: var(--yt-danger-600);">
+          <strong>Action:</strong> {{ conflict.action }}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Optimization Recommendations -->
+  <div class="chart-card" style="margin-bottom: var(--yt-space-6);">
+    <h2 class="chart-title">Optimization Recommendations</h2>
+    <div style="margin-top: var(--yt-space-4);">
+      {% for rec in optimization.recommendations %}
+      <div style="padding: var(--yt-space-3); background: var(--yt-info-50); border-left: 3px solid var(--yt-info-500); margin-bottom: var(--yt-space-3);">
+        <p style="margin: 0; font-weight: bold;">{{ rec.message }}</p>
+        {% if rec.suggestion %}
+        <p style="margin: var(--yt-space-2) 0 0 0; font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+          💡 Suggestion: {{ rec.suggestion }}
+        </p>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p style="color: var(--yt-success-600); font-weight: bold;">✅ No optimization needed - schedules are well distributed</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Load Distribution Chart -->
+  <div class="chart-card">
+    <h2 class="chart-title">24-Hour Load Distribution</h2>
+    <div class="chart-container" style="margin-top: var(--yt-space-4);">
+      <canvas id="loadDistributionChart" width="400" height="200"></canvas>
+    </div>
+    <p style="margin-top: var(--yt-space-4); font-size: var(--yt-text-sm); color: var(--yt-text-secondary);">
+      Red bars indicate hotspots (>70% capacity). Consider redistributing schedules from these time slots.
+    </p>
+  </div>
+
+  <!-- Active Schedules Table -->
+  <div class="chart-card" style="margin-top: var(--yt-space-6);">
+    <h2 class="chart-title">Active Recurring Schedules</h2>
+    <div style="overflow-x: auto; margin-top: var(--yt-space-4);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--yt-border-primary);">
+            <th style="text-align: left; padding: var(--yt-space-3);">Identifier</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Cron Expression</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Asset</th>
+            <th style="text-align: left; padding: var(--yt-space-3);">Business Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for schedule in active_schedules %}
+          <tr style="border-bottom: 1px solid var(--yt-border-secondary);">
+            <td style="padding: var(--yt-space-3);"><code>{{ schedule.identifier }}</code></td>
+            <td style="padding: var(--yt-space-3);"><code>{{ schedule.cron_expression }}</code></td>
+            <td style="padding: var(--yt-space-3);">{{ schedule.asset__assetname|default:"-" }}</td>
+            <td style="padding: var(--yt-space-3);">{{ schedule.client__businessunitname|default:"-" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" style="padding: var(--yt-space-4); text-align: center;">No active schedules</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock admin_content %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+<script>
+// Load Distribution Chart
+const chartData = {{ chart_data|safe }};
+const ctx = document.getElementById('loadDistributionChart');
+if (ctx && chartData) {
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: chartData.map(d => d.time),
+      datasets: [{
+        label: 'Worker Load',
+        data: chartData.map(d => d.load),
+        backgroundColor: chartData.map(d => 
+          d.is_hotspot ? 'rgba(255, 77, 79, 0.8)' : 'rgba(0, 201, 167, 0.8)'
+        ),
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 1.0,
+          ticks: {
+            callback: value => (value * 100).toFixed(0) + '%'
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+{% endblock extra_scripts %}

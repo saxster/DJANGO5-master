@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic.base import View
+from django.utils.translation import gettext_lazy as _
 from django.db import transaction, IntegrityError
 from .forms import VendorForm, WorkOrderForm, WorkPermitForm, ApproverForm, SlaForm
 from .models import Vendor, Wom, WomDetails, Approver
@@ -289,7 +290,7 @@ class ReplyWorkOrder(View):
             if R["action"] == "accepted" and R["womid"]:
                 wo = Wom.objects.get(id=R["womid"])
                 if wo.workstatus == Wom.Workstatus.COMPLETED:
-                    return HttpResponse("The work order are already submitted!")
+                    return HttpResponse(str(_("The work order are already submitted!")))
                 wo.workstatus = Wom.Workstatus.INPROGRESS
                 logger.info("work order accepted by vendor")
                 wo.starttime = timezone.now()
@@ -300,7 +301,7 @@ class ReplyWorkOrder(View):
             if R["action"] == "declined" and R["womid"]:
                 wo = Wom.objects.get(id=R["womid"])
                 if wo.workstatus == Wom.Workstatus.COMPLETED:
-                    return HttpResponse("The work order are already submitted!")
+                    return HttpResponse(str(_("The work order are already submitted!")))
                 wo.isdenied = True
                 wo.workstatus = Wom.Workstatus.CANCELLED
                 logger.info(f"work order cancelled/denied by vendor")
@@ -323,16 +324,16 @@ class ReplyWorkOrder(View):
                     }
                     return render(request, self.params["template_emailform"], cxt)
                 elif wo.workstatus == Wom.Workstatus.CANCELLED:
-                    return HttpResponse("Sorry the work order is cancelled already!")
+                    return HttpResponse(str(_("Sorry the work order is cancelled already!")))
                 elif wo.workstatus == Wom.Workstatus.ASSIGNED:
                     return HttpResponse(
-                        "Please accept the work order and start the work!"
+                        str(_("Please accept the work order and start the work!"))
                     )
                 elif wo.workstatus == Wom.Workstatus.COMPLETED:
-                    return HttpResponse("The work order are already submitted!")
+                    return HttpResponse(str(_("The work order are already submitted!")))
 
         except self.params["model"].DoesNotExist as e:
-            return HttpResponse("The page you are looking for is not found")
+            return HttpResponse(str(_("The page you are looking for is not found")))
 
     def post(self, request, *args, **kwargs):
         R = request.POST
@@ -351,7 +352,7 @@ class ReplyWorkOrder(View):
                     request, self.params["template_emailform"], {"wod_saved": True}
                 )
         except self.params["model"].DoesNotExist as e:
-            return HttpResponse("The page you are looking for is not found")
+            return HttpResponse(str(_("The page you are looking for is not found")))
 
     def save_work_order_details(self, R, wo, request):
         logger.info(f"form post data {R}")
@@ -1429,7 +1430,7 @@ class SLA_View(LoginRequiredMixin, View):
         if action == "reject_sla" and R.get("slaid"):
             wom = P["model"].objects.get(id=R["slaid"])
             if wom.workpermit == Wom.WorkPermitStatus.APPROVED:
-                return HttpResponse("The work order is already approved")
+                return HttpResponse(str(_("The work order is already approved")))
             Wom.objects.filter(id=R["slaid"]).update(
                 workpermit=Wom.WorkPermitStatus.REJECTED.value
             )

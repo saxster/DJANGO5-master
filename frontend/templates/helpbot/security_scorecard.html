@@ -1,0 +1,483 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block title %}Security & Facility Mentor - Scorecard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scorecard-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 1rem;
+    }
+
+    .scorecard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .scorecard-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .scorecard-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .overall-health {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .health-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    .health-card h3 {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin: 0 0 0.5rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .health-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-GREEN {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-AMBER {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-RED {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+
+    .pillars-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .pillar-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .pillar-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .pillar-header {
+        padding: 1rem;
+        background: #f9fafb;
+        border-bottom: 2px solid transparent;
+    }
+
+    .pillar-header.GREEN {
+        border-bottom-color: #10b981;
+    }
+
+    .pillar-header.AMBER {
+        border-bottom-color: #f59e0b;
+    }
+
+    .pillar-header.RED {
+        border-bottom-color: #ef4444;
+    }
+
+    .pillar-header h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.125rem;
+        color: #1f2937;
+    }
+
+    .pillar-body {
+        padding: 1rem;
+    }
+
+    .score-display {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .score-number {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    .score-number.GREEN {
+        color: #10b981;
+    }
+
+    .score-number.AMBER {
+        color: #f59e0b;
+    }
+
+    .score-number.RED {
+        color: #ef4444;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        transition: width 0.3s;
+    }
+
+    .progress-fill.GREEN {
+        background: #10b981;
+    }
+
+    .progress-fill.AMBER {
+        background: #f59e0b;
+    }
+
+    .progress-fill.RED {
+        background: #ef4444;
+    }
+
+    .violations-list {
+        margin-top: 1rem;
+    }
+
+    .violation-item {
+        padding: 0.75rem;
+        background: #fef2f2;
+        border-left: 3px solid #ef4444;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    .violation-item.MEDIUM {
+        background: #fef3c7;
+        border-left-color: #f59e0b;
+    }
+
+    .violation-item.LOW {
+        background: #f3f4f6;
+        border-left-color: #6b7280;
+    }
+
+    .recommendations {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .recommendations h3 {
+        margin: 0 0 1rem 0;
+        color: #1f2937;
+    }
+
+    .recommendation-item {
+        padding: 0.75rem;
+        background: #dbeafe;
+        border-left: 3px solid #3b82f6;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .btn-primary {
+        background: #667eea;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #5568d3;
+    }
+
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .btn-secondary:hover {
+        background: #d1d5db;
+    }
+
+    .loading {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .spinner {
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scorecard-container">
+    <!-- Scorecard Header -->
+    <div class="scorecard-header">
+        <h1>
+            <span>🛡️</span>
+            Security & Facility Mentor Scorecard
+        </h1>
+        <p id="scorecard-date">Loading scorecard data...</p>
+        <p id="scorecard-client"></p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Generating scorecard...</p>
+    </div>
+
+    <!-- Overall Health Metrics -->
+    <div id="overall-health" class="overall-health" style="display: none;">
+        <div class="health-card">
+            <h3>Overall Health</h3>
+            <p class="health-value">
+                <span id="health-score">--</span>
+                <span style="font-size: 1.5rem; color: #6b7280;">/100</span>
+            </p>
+            <span id="health-status" class="status-badge"></span>
+        </div>
+        <div class="health-card">
+            <h3>Total Violations</h3>
+            <p class="health-value" id="total-violations">--</p>
+        </div>
+        <div class="health-card">
+            <h3>Critical Violations</h3>
+            <p class="health-value" id="critical-violations" style="color: #ef4444;">--</p>
+        </div>
+    </div>
+
+    <!-- 7 Pillars Grid -->
+    <div id="pillars-grid" class="pillars-grid" style="display: none;"></div>
+
+    <!-- Recommendations -->
+    <div id="recommendations" class="recommendations" style="display: none;">
+        <h3>📋 Recommendations for Improvement</h3>
+        <div id="recommendations-list"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons" style="display: none;" id="action-buttons">
+        <button class="btn btn-primary" onclick="refreshScorecard()">🔄 Refresh Scorecard</button>
+        <button class="btn btn-secondary" onclick="generateReport()">📄 Generate Client Report</button>
+        <button class="btn btn-secondary" onclick="viewTrends()">📈 View 7-Day Trends</button>
+    </div>
+</div>
+
+<script>
+    let currentScorecard = null;
+
+    // Load scorecard on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadScorecard();
+    });
+
+    async function loadScorecard(checkDate = null) {
+        const loadingEl = document.getElementById('loading');
+        const overallHealthEl = document.getElementById('overall-health');
+        const pillarsGridEl = document.getElementById('pillars-grid');
+        const recommendationsEl = document.getElementById('recommendations');
+        const actionButtonsEl = document.getElementById('action-buttons');
+
+        // Show loading
+        loadingEl.style.display = 'block';
+        overallHealthEl.style.display = 'none';
+        pillarsGridEl.style.display = 'none';
+        recommendationsEl.style.display = 'none';
+        actionButtonsEl.style.display = 'none';
+
+        try {
+            const url = checkDate
+                ? `/helpbot/api/v1/scorecard/?check_date=${checkDate}`
+                : '/helpbot/api/v1/scorecard/';
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            currentScorecard = await response.json();
+            renderScorecard(currentScorecard);
+
+        } catch (error) {
+            console.error('Error loading scorecard:', error);
+            loadingEl.innerHTML = `
+                <div style="color: #ef4444;">
+                    <p>❌ Failed to load scorecard</p>
+                    <p style="font-size: 0.875rem; color: #6b7280;">${error.message}</p>
+                    <button class="btn btn-primary" onclick="loadScorecard()" style="margin-top: 1rem;">Try Again</button>
+                </div>
+            `;
+        }
+    }
+
+    function renderScorecard(data) {
+        // Hide loading
+        document.getElementById('loading').style.display = 'none';
+
+        // Update header
+        document.getElementById('scorecard-date').textContent = `Scorecard for ${data.check_date}`;
+        document.getElementById('scorecard-client').textContent = data.client_name;
+
+        // Update overall health
+        document.getElementById('health-score').textContent = data.overall_health_score;
+        document.getElementById('total-violations').textContent = data.total_violations;
+        document.getElementById('critical-violations').textContent = data.critical_violations;
+
+        const statusBadge = document.getElementById('health-status');
+        statusBadge.textContent = data.overall_health_status;
+        statusBadge.className = `status-badge status-${data.overall_health_status}`;
+
+        // Show overall health
+        document.getElementById('overall-health').style.display = 'grid';
+
+        // Render pillars
+        const pillarsGrid = document.getElementById('pillars-grid');
+        pillarsGrid.innerHTML = '';
+
+        data.pillars.forEach(pillar => {
+            const pillarCard = createPillarCard(pillar);
+            pillarsGrid.appendChild(pillarCard);
+        });
+        pillarsGrid.style.display = 'grid';
+
+        // Render recommendations
+        if (data.recommendations && data.recommendations.length > 0) {
+            const recommendationsList = document.getElementById('recommendations-list');
+            recommendationsList.innerHTML = data.recommendations.map(rec =>
+                `<div class="recommendation-item">${rec}</div>`
+            ).join('');
+            document.getElementById('recommendations').style.display = 'block';
+        }
+
+        // Show action buttons
+        document.getElementById('action-buttons').style.display = 'flex';
+    }
+
+    function createPillarCard(pillar) {
+        const card = document.createElement('div');
+        card.className = 'pillar-card';
+
+        const violationsHTML = pillar.violations && pillar.violations.length > 0
+            ? `<div class="violations-list">
+                <strong style="color: #ef4444;">⚠️ ${pillar.violations.length} Violation(s):</strong>
+                ${pillar.violations.map(v => `
+                    <div class="violation-item ${v.severity || 'MEDIUM'}">
+                        <strong>${v.type || 'Violation'}:</strong> ${v.description || 'No description'}
+                    </div>
+                `).join('')}
+            </div>`
+            : '<p style="color: #10b981; margin: 0;">✅ No violations detected</p>';
+
+        card.innerHTML = `
+            <div class="pillar-header ${pillar.status}">
+                <h4>${pillar.pillar_id}. ${pillar.name}</h4>
+                <span class="status-badge status-${pillar.status}">${pillar.status}</span>
+            </div>
+            <div class="pillar-body">
+                <div class="score-display">
+                    <span class="score-number ${pillar.status}">${pillar.score}</span>
+                    <span style="color: #6b7280;">/100</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill ${pillar.status}" style="width: ${pillar.score}%"></div>
+                </div>
+                ${violationsHTML}
+            </div>
+        `;
+
+        return card;
+    }
+
+    function refreshScorecard() {
+        loadScorecard();
+    }
+
+    function generateReport() {
+        alert('Client report generation will be implemented in Phase 3');
+    }
+
+    function viewTrends() {
+        alert('7-day trends dashboard will be implemented in Phase 3');
+    }
+</script>
+{% endblock %}

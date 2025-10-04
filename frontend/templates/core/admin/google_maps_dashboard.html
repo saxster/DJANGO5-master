@@ -1,0 +1,641 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link href="{{ static('assets/plugins/custom/DataTables/datatables.min.css') }}" rel="stylesheet" type="text/css"/>
+<style>
+    .metric-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .metric-card.healthy {
+        border-left-color: #28a745;
+    }
+    .metric-card.warning {
+        border-left-color: #ffc107;
+    }
+    .metric-card.error {
+        border-left-color: #dc3545;
+    }
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    .status-healthy { background-color: #28a745; }
+    .status-warning { background-color: #ffc107; }
+    .status-error { background-color: #dc3545; }
+    .status-inactive { background-color: #6c757d; }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+
+    .pulse-dot {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+        }
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+        }
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+        }
+    }
+
+    .api-logs {
+        max-height: 400px;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+    }
+
+    .alert-banner {
+        animation: slideDown 0.5s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">
+                        <i class="fas fa-map-marked-alt me-2"></i>
+                        {{ page_title }}
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Real-time monitoring and analytics for Google Maps Platform integration
+                        <span class="pulse-dot status-indicator status-{{ stats.status|lower }}"></span>
+                        <span class="badge badge-{{ stats.status|lower }}">{{ stats.status }}</span>
+                    </p>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" id="refresh-data">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="export-metrics">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" id="test-connection">
+                        <i class="fas fa-satellite-dish me-1"></i> Test API
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" id="clear-cache">
+                        <i class="fas fa-trash me-1"></i> Clear Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Banners -->
+    <div id="alert-container"></div>
+
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card {{ stats.status|lower }}">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-phone-alt fa-2x text-primary"></i>
+                    </div>
+                    <h4 class="mb-1" id="total-calls">{{ stats.total_calls|default:0 }}</h4>
+                    <p class="text-muted mb-0">Total API Calls</p>
+                    <small class="text-muted">Last 24 hours</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card {{ stats.status|lower }}">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                    <h4 class="mb-1" id="success-rate">{{ stats.success_rate|floatformat:1 }}%</h4>
+                    <p class="text-muted mb-0">Success Rate</p>
+                    <small class="text-muted">API reliability</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card {{ stats.status|lower }}">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-tachometer-alt fa-2x text-info"></i>
+                    </div>
+                    <h4 class="mb-1" id="avg-response-time">{{ stats.avg_response_time|floatformat:0 }}ms</h4>
+                    <p class="text-muted mb-0">Avg Response Time</p>
+                    <small class="text-muted">Performance metric</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card metric-card {{ stats.status|lower }}">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-memory fa-2x text-warning"></i>
+                    </div>
+                    <h4 class="mb-1" id="cache-hit-rate">{{ stats.cache_hit_rate|floatformat:1 }}%</h4>
+                    <p class="text-muted mb-0">Cache Hit Rate</p>
+                    <small class="text-muted">Efficiency metric</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-3">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        API Usage Trends
+                    </h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-1h" value="1" checked>
+                        <label class="btn btn-outline-primary" for="chart-1h">1H</label>
+
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-6h" value="6">
+                        <label class="btn btn-outline-primary" for="chart-6h">6H</label>
+
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-24h" value="24">
+                        <label class="btn btn-outline-primary" for="chart-24h">24H</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="usage-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Active Alerts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="alerts-list">
+                        {% if stats.alerts %}
+                            {% for alert in stats.alerts %}
+                            <div class="alert alert-{{ alert.type }} py-2 mb-2">
+                                <small>
+                                    <i class="fas fa-{{ alert.type == 'error'|yesno:'exclamation-circle,exclamation-triangle' }} me-1"></i>
+                                    {{ alert.message }}
+                                    <br>
+                                    <span class="text-muted">Threshold: {{ alert.threshold }}</span>
+                                </small>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                                <p class="mb-0">No active alerts</p>
+                                <small>System operating normally</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operations Breakdown -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Operations Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="operations-chart-container">
+                        {% if stats.operations %}
+                            {% for operation, data in stats.operations.items %}
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <h6 class="mb-1">{{ operation|title }}</h6>
+                                    <small class="text-muted">{{ data.count }} calls</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">{{ data.duration|floatformat:0 }}ms</div>
+                                    <small class="text-muted">avg: {{ data.duration|div:data.count|floatformat:0 }}ms</small>
+                                </div>
+                            </div>
+                            <div class="progress mb-3" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ data.count|div:stats.total_calls|mul:100 }}%">
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-chart-pie fa-2x mb-2"></i>
+                                <p class="mb-0">No operations data</p>
+                                <small>Start using Google Maps to see breakdown</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-server me-2"></i>
+                        System Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><strong>API Key Configured</strong></td>
+                                <td>
+                                    <span class="status-indicator status-{{ api_configured|yesno:'healthy,error' }}"></span>
+                                    {{ api_configured|yesno:"Yes,No" }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Client Initialized</strong></td>
+                                <td>
+                                    <span class="status-indicator status-{{ client_initialized|yesno:'healthy,error' }}"></span>
+                                    {{ client_initialized|yesno:"Yes,No" }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Cache Backend</strong></td>
+                                <td><code>{{ cache_backend }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Debug Mode</strong></td>
+                                <td>
+                                    <span class="status-indicator status-{{ debug_mode|yesno:'warning,healthy' }}"></span>
+                                    {{ debug_mode|yesno:"Enabled,Disabled" }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Auto Refresh</strong></td>
+                                <td>{{ refresh_interval|div:1000 }}s</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-info" id="view-full-config">
+                            <i class="fas fa-eye me-1"></i> View Full Config
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" id="health-check">
+                            <i class="fas fa-heartbeat me-1"></i> Health Check
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent API Calls Log -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent API Activity
+                    </h5>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggle-logs">
+                        <i class="fas fa-eye me-1"></i> Toggle Details
+                    </button>
+                </div>
+                <div class="card-body p-0" id="logs-container" style="display: none;">
+                    <div class="api-logs p-3" id="api-logs">
+                        <!-- Logs will be populated here -->
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-file-alt fa-2x mb-2"></i>
+                            <p class="mb-0">API activity logs will appear here</p>
+                            <small>Logs are updated in real-time</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<!-- Config Details Modal -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Google Maps Configuration Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="config-details" class="bg-light p-3 rounded"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Export Metrics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Export Format</label>
+                    <select class="form-select" id="export-format">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-export">
+                    <i class="fas fa-download me-1"></i> Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ static('assets/plugins/custom/DataTables/datatables.min.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Global variables
+    let usageChart;
+    let autoRefreshInterval;
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCharts();
+        setupEventListeners();
+        startAutoRefresh();
+    });
+
+    // Initialize charts
+    function initializeCharts() {
+        const ctx = document.getElementById('usage-chart').getContext('2d');
+        usageChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'API Calls',
+                    data: [],
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Cache Hits',
+                    data: [],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        document.getElementById('refresh-data').addEventListener('click', refreshData);
+        document.getElementById('export-metrics').addEventListener('click', () => {
+            new bootstrap.Modal(document.getElementById('exportModal')).show();
+        });
+        document.getElementById('test-connection').addEventListener('click', testConnection);
+        document.getElementById('clear-cache').addEventListener('click', clearCache);
+        document.getElementById('view-full-config').addEventListener('click', viewFullConfig);
+        document.getElementById('health-check').addEventListener('click', runHealthCheck);
+        document.getElementById('toggle-logs').addEventListener('click', toggleLogs);
+        document.getElementById('confirm-export').addEventListener('click', confirmExport);
+
+        // Chart period buttons
+        document.querySelectorAll('input[name="chart-period"]').forEach(radio => {
+            radio.addEventListener('change', updateChartPeriod);
+        });
+    }
+
+    // Refresh data
+    function refreshData() {
+        const btn = document.getElementById('refresh-data');
+        const icon = btn.querySelector('i');
+
+        icon.classList.add('fa-spin');
+        btn.disabled = true;
+
+        fetch('/admin/google-maps/api/stats/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateMetrics(data.data);
+                    showAlert('Data refreshed successfully', 'success');
+                } else {
+                    showAlert('Failed to refresh data: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Network error: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                icon.classList.remove('fa-spin');
+                btn.disabled = false;
+            });
+    }
+
+    // Update metrics display
+    function updateMetrics(stats) {
+        document.getElementById('total-calls').textContent = stats.total_calls || 0;
+        document.getElementById('success-rate').textContent = (stats.success_rate * 100).toFixed(1) + '%';
+        document.getElementById('avg-response-time').textContent = Math.round(stats.avg_response_time) + 'ms';
+        document.getElementById('cache-hit-rate').textContent = (stats.cache_hit_rate * 100).toFixed(1) + '%';
+
+        // Update alerts
+        updateAlerts(stats.alerts || []);
+    }
+
+    // Update alerts display
+    function updateAlerts(alerts) {
+        const alertsList = document.getElementById('alerts-list');
+        if (alerts.length === 0) {
+            alertsList.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                    <p class="mb-0">No active alerts</p>
+                    <small>System operating normally</small>
+                </div>
+            `;
+        } else {
+            alertsList.innerHTML = alerts.map(alert => `
+                <div class="alert alert-${alert.type} py-2 mb-2">
+                    <small>
+                        <i class="fas fa-${alert.type === 'error' ? 'exclamation-circle' : 'exclamation-triangle'} me-1"></i>
+                        ${alert.message}
+                        <br>
+                        <span class="text-muted">Threshold: ${alert.threshold}</span>
+                    </small>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Test API connection
+    function testConnection() {
+        const btn = document.getElementById('test-connection');
+        btn.disabled = true;
+
+        fetch('/admin/google-maps/test-connection/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(`API connection successful! Test result: ${data.test_result.address}`, 'success');
+                } else {
+                    showAlert('API connection failed: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Connection test error: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                btn.disabled = false;
+            });
+    }
+
+    // Clear cache
+    function clearCache() {
+        if (!confirm('Are you sure you want to clear the Google Maps cache?')) return;
+
+        const btn = document.getElementById('clear-cache');
+        btn.disabled = true;
+
+        fetch('/admin/google-maps/clear-cache/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showAlert('Cache cleared successfully', 'success');
+                refreshData();
+            } else {
+                showAlert('Failed to clear cache: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('Cache clear error: ' + error.message, 'danger');
+        })
+        .finally(() => {
+            btn.disabled = false;
+        });
+    }
+
+    // Show alert banner
+    function showAlert(message, type) {
+        const alertContainer = document.getElementById('alert-container');
+        const alertId = 'alert-' + Date.now();
+
+        const alertHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show alert-banner" role="alert" id="${alertId}">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+
+        alertContainer.insertAdjacentHTML('beforeend', alertHTML);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            const alert = document.getElementById(alertId);
+            if (alert) alert.remove();
+        }, 5000);
+    }
+
+    // Start auto-refresh
+    function startAutoRefresh() {
+        autoRefreshInterval = setInterval(refreshData, {{ refresh_interval }});
+    }
+
+    // Stop auto-refresh when page is hidden
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        } else {
+            startAutoRefresh();
+        }
+    });
+
+    // Placeholder functions for other features
+    function updateChartPeriod() { /* Implementation needed */ }
+    function viewFullConfig() { /* Implementation needed */ }
+    function runHealthCheck() { /* Implementation needed */ }
+    function toggleLogs() { /* Implementation needed */ }
+    function confirmExport() { /* Implementation needed */ }
+</script>
+{% endblock %}

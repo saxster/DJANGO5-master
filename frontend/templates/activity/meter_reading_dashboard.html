@@ -1,0 +1,256 @@
+{% extends "globals/base.html" %}
+{% load static %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Meter Readings Dashboard
+{% endblock card_title %}
+<!---- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Meter Readings Dashboard
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Meter Readings</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+{% block content %}
+<div class="row">
+    <!-- Summary Cards -->
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-warning">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Pending Validation
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-danger">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Active Alerts
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ alert_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-bell fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-success">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Meter Assets
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ meter_assets|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-tachometer-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-info">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Readings Today
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-camera fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Actions -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <a href="{% url 'activity:meter_reading_capture' %}" class="btn btn-primary btn-lg btn-block">
+                            <i class="fas fa-camera mr-2"></i>
+                            Capture Reading
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <a href="{% url 'activity:meter_reading_validation' %}" class="btn btn-warning btn-lg btn-block">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Validate Readings
+                        </a>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <select class="form-control mb-3" id="assetSelect">
+                            <option value="">Select Meter Asset for Analytics</option>
+                            {% for asset in meter_assets %}
+                            <option value="{{ asset.id }}">{{ asset.assetname }} ({{ asset.assetcode }})</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-info btn-block" onclick="viewAssetAnalytics()">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            View Analytics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Alerts -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Alerts</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_alerts %}
+                <div style="max-height: 300px; overflow-y: auto;">
+                    {% for alert in recent_alerts %}
+                    <div class="d-flex align-items-center mb-3 p-2 border-left border-{{ alert.severity|lower }}">
+                        <div class="mr-3">
+                            {% if alert.severity == 'CRITICAL' %}
+                            <i class="fas fa-exclamation-circle text-danger fa-lg"></i>
+                            {% elif alert.severity == 'HIGH' %}
+                            <i class="fas fa-exclamation-triangle text-warning fa-lg"></i>
+                            {% else %}
+                            <i class="fas fa-info-circle text-info fa-lg"></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="small font-weight-bold">{{ alert.asset.assetname }}</div>
+                            <div class="text-gray-600 small">{{ alert.message }}</div>
+                            <div class="text-muted small">{{ alert.created_at|timesince }} ago</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-check-circle fa-3x mb-2"></i>
+                    <p>No active alerts</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Readings Table -->
+{% if pending_readings %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Readings Pending Validation</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Reading</th>
+                                <th>Confidence</th>
+                                <th>Captured By</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reading in pending_readings %}
+                            <tr>
+                                <td>{{ reading.asset.assetname }}</td>
+                                <td>{{ reading.reading_value }} {{ reading.unit }}</td>
+                                <td>
+                                    {% if reading.confidence_score %}
+                                    <span class="badge badge-{% if reading.confidence_score > 0.8 %}success{% elif reading.confidence_score > 0.6 %}warning{% else %}danger{% endif %}">
+                                        {{ reading.confidence_score|floatformat:2 }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ reading.captured_by.peoplename|default:"System" }}</td>
+                                <td>{{ reading.reading_timestamp|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <span class="badge badge-{% if reading.status == 'FLAGGED' %}warning{% else %}info{% endif %}">
+                                        {{ reading.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'activity:meter_reading_validation' %}?reading={{ reading.id }}"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye"></i> Review
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if pending_readings|length >= 10 %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'activity:meter_reading_validation' %}" class="btn btn-outline-primary">
+                        View All Pending Readings
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function viewAssetAnalytics() {
+    const assetId = document.getElementById('assetSelect').value;
+    if (assetId) {
+        window.location.href = "{% url 'activity:meter_reading_asset' 0 %}".replace('0', assetId);
+    } else {
+        alert('Please select an asset first');
+    }
+}
+</script>
+
+{% endblock content %}

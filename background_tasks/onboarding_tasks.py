@@ -9,19 +9,34 @@ from typing import Dict, Any, Optional
 
 from celery import shared_task
 from django.conf import settings
-from django.db import transaction
+from django.db import transaction, DatabaseError, OperationalError, IntegrityError
+from django.core.exceptions import ValidationError
 
 # Local imports
 from apps.onboarding.models import ConversationSession, LLMRecommendation
 from apps.onboarding_api.services.llm import get_llm_service, get_checker_service
 from apps.onboarding_api.services.knowledge import get_knowledge_service
 from apps.onboarding_api.services.translation import get_conversation_translator
+from apps.onboarding_api.services.circuit_breaker import get_circuit_breaker
+
+# Resilience imports
+from background_tasks.onboarding_retry_strategies import (
+    llm_api_task_config,
+    database_task_config,
+    DATABASE_EXCEPTIONS,
+    LLM_API_EXCEPTIONS
+)
+from background_tasks.dead_letter_queue import dlq_handler
 
 logger = logging.getLogger("django")
 task_logger = logging.getLogger("celery.task")
 
 
-@shared_task(bind=True, name='process_conversation_step')
+@shared_task(
+    bind=True,
+    name='process_conversation_step',
+    **llm_api_task_config()  # Apply LLM API retry config with exponential backoff
+)
 def process_conversation_step(self, conversation_id: str, user_input: str, context: Dict[str, Any], task_id: str):
     """
     Process a conversation step asynchronously
@@ -51,12 +66,32 @@ def process_conversation_step(self, conversation_id: str, user_input: str, conte
         knowledge_service = get_knowledge_service()
         translator = get_conversation_translator()
 
-        # Process with maker LLM
+        # Get circuit breaker for LLM API protection
+        llm_circuit_breaker = get_circuit_breaker('llm_api')
+
+        # Process with maker LLM (with circuit breaker protection)
         task_logger.info(f"Processing with Maker LLM for session {conversation_id}")
-        maker_result = llm_service.process_conversation_step(
-            session=session,
-            user_input=user_input,
-            context=context
+
+        def llm_call():
+            return llm_service.process_conversation_step(
+                session=session,
+                user_input=user_input,
+                context=context
+            )
+
+        def llm_fallback():
+            """Fallback when LLM circuit is open"""
+            task_logger.warning(f"LLM circuit breaker open - using fallback response")
+            return {
+                'recommendations': {'message': 'Service temporarily unavailable. Please try again.'},
+                'confidence_score': 0.0,
+                'fallback_used': True
+            }
+
+        # Execute with circuit breaker
+        maker_result = llm_circuit_breaker.call(
+            llm_call,
+            fallback=llm_fallback
         )
 
         # Validate with authoritative knowledge
@@ -146,19 +181,67 @@ def process_conversation_step(self, conversation_id: str, user_input: str, conte
             'session_state': session.current_state
         }
 
-    except ConversationSession.DoesNotExist:
+    except ConversationSession.DoesNotExist as e:
         error_msg = f"Conversation session {conversation_id} not found"
         task_logger.error(error_msg)
+        # Non-retryable - return error immediately
         return {
             'status': 'failed',
             'error': error_msg
         }
 
-    except (ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-        error_msg = f"Error processing conversation {conversation_id}: {str(e)}"
+    except DATABASE_EXCEPTIONS as e:
+        # Database errors - will be retried automatically via retry config
+        error_msg = f"Database error processing conversation {conversation_id}: {str(e)}"
         task_logger.error(f"{error_msg}\n{traceback.format_exc()}")
 
-        # Update session to error state
+        # Check if this is the final retry
+        if self.request.retries >= self.max_retries:
+            task_logger.error(f"Max retries exceeded - sending to DLQ")
+
+            # Send to dead letter queue for manual intervention
+            dlq_handler.send_to_dlq(
+                task_id=task_id,
+                task_name=self.name,
+                args=(conversation_id, user_input, context, task_id),
+                kwargs={},
+                exception=e,
+                retry_count=self.request.retries,
+                correlation_id=task_id
+            )
+
+        # Re-raise to trigger Celery auto-retry
+        raise
+
+    except LLM_API_EXCEPTIONS as e:
+        # LLM API errors - will be retried automatically via retry config
+        error_msg = f"LLM API error processing conversation {conversation_id}: {str(e)}"
+        task_logger.error(f"{error_msg}\n{traceback.format_exc()}")
+
+        # Check if this is the final retry
+        if self.request.retries >= self.max_retries:
+            task_logger.error(f"Max retries exceeded - sending to DLQ")
+
+            # Send to dead letter queue
+            dlq_handler.send_to_dlq(
+                task_id=task_id,
+                task_name=self.name,
+                args=(conversation_id, user_input, context, task_id),
+                kwargs={},
+                exception=e,
+                retry_count=self.request.retries,
+                correlation_id=task_id
+            )
+
+        # Re-raise to trigger Celery auto-retry
+        raise
+
+    except (ValueError, TypeError, ValidationError) as e:
+        # Validation errors - usually NOT retryable
+        error_msg = f"Validation error processing conversation {conversation_id}: {str(e)}"
+        task_logger.error(f"{error_msg}\n{traceback.format_exc()}")
+
+        # Update session to error state (don't retry validation errors)
         try:
             with transaction.atomic():
                 session = ConversationSession.objects.select_for_update().get(
@@ -167,8 +250,19 @@ def process_conversation_step(self, conversation_id: str, user_input: str, conte
                 session.current_state = ConversationSession.StateChoices.ERROR
                 session.error_message = str(e)
                 session.save()
-        except (ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as session_error:
+        except DATABASE_EXCEPTIONS as session_error:
             task_logger.error(f"Failed to update session error state: {str(session_error)}")
+
+        # Send to DLQ immediately (not retryable)
+        dlq_handler.send_to_dlq(
+            task_id=task_id,
+            task_name=self.name,
+            args=(conversation_id, user_input, context, task_id),
+            kwargs={},
+            exception=e,
+            retry_count=self.request.retries,
+            correlation_id=task_id
+        )
 
         return {
             'status': 'failed',
