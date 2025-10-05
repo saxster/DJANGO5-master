@@ -1,7 +1,7 @@
 # Sentry Error Tracking and Performance Monitoring
 
 # Sentry SDK with Django and Celery integrations
-sentry-sdk[django,celery]==1.40.0
+sentry-sdk[django,celery]==1.45.1  # Security update: CVE-2024-40647
 
 # Optional: Better stack traces and local variables
 executing==2.0.1

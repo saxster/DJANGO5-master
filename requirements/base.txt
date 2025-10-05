@@ -28,7 +28,7 @@ colorlog==6.9.0
 confection==0.1.5
 coverage==7.9.1
 cron-descriptor==1.4.5
-cryptography==44.0.0
+cryptography==44.0.1  # Security update: CVE-2024-12797
 croniter==6.0.0
 cssselect2==0.8.0
 cymem==2.0.11
@@ -37,7 +37,7 @@ deepface==0.0.93
 deprecation==2.1.0
 diff-match-patch==20241021
 dj-database-url==3.0.0
-Django==5.2.1
+Django==5.2.7  # Security update: CVE-2025-59681, CVE-2025-57833, CVE-2025-48432, CVE-2025-59682
 django-appconf==1.1.0
 django-celery-beat==2.8.0
 django-cleanup==9.0.0
@@ -50,7 +50,7 @@ django-filter==25.1
 django-graphql-jwt==0.4.0
 django-import-export==4.3.7
 django-redis==5.4.0
-django-select2==8.4.0
+django-select2==8.4.1  # Security update: CVE-2025-48383
 django-ses==4.3.0
 django-timezone-field==7.1
 django-weasyprint==2.4.0
@@ -58,7 +58,7 @@ django-widget-tweaks==1.5.0
 django_celery_results==2.6.0
 djangorestframework==3.16.0
 djangorestframework-api-key==3.0.0
-djangorestframework-simplejwt==5.3.1
+djangorestframework-simplejwt==5.5.1  # Security update: CVE-2024-22513
 dnspython==2.7.0
 drf-spectacular==0.27.2
 drf-spectacular-sidecar==2024.7.1
@@ -70,8 +70,8 @@ faiss-cpu==1.12.0
 Faker==37.6.0
 filelock==3.18.0
 fire==0.7.0
-Flask==3.1.0
-flask-cors==5.0.1
+Flask==3.1.1  # Security update: CVE-2025-47278
+flask-cors==5.1.0  # Security update: CVE-2024-6839, CVE-2024-6844, CVE-2024-6866
 flatbuffers==25.2.10
 fonttools==4.57.0
 fsspec==2025.9.0
@@ -117,7 +117,7 @@ jmespath==1.0.1
 joblib==1.5.0
 jsonschema==4.25.1
 jsonschema-specifications==2025.4.1
-keras==3.9.2
+keras==3.11.3  # Security update: CVE-2025-9905, CVE-2025-9906, CVE-2025-8747
 kombu==5.5.3
 langcodes==3.5.0
 language_data==1.3.0
@@ -160,14 +160,14 @@ pandas==2.2.3
 parso==0.8.4
 pexpect==4.9.0
 phonenumbers==9.0.5
-pillow==11.2.1
+pillow==11.3.0  # Security update: CVE-2025-48379
 pluggy==1.6.0
 preshed==3.0.10
 psutil==6.1.1
 promise==2.3
 prompt_toolkit==3.0.51
 proto-plus==1.26.1
-protobuf==5.29.4
+protobuf==5.29.5  # Security update: CVE-2025-4565
 psycopg==3.2.7
 psycopg-binary==3.2.7
 psycopg2==2.9.10
@@ -196,7 +196,7 @@ qrcode==8.2
 redis==5.3.0
 referencing==0.36.2
 regex==2025.9.1
-requests==2.32.3
+requests==2.32.4  # Security update: CVE-2024-47081
 requests-oauthlib==2.0.0
 retina-face==0.0.17
 rich==14.0.0
@@ -231,10 +231,10 @@ threadpoolctl==3.6.0
 tinycss2==1.4.0
 tinyhtml5==2.0.0
 tokenizers==0.19.1
-torch==2.4.0
+torch==2.7.2  # Security update: CVE-2025-32434, CVE-2025-3730, CVE-2025-2953
 tqdm==4.67.1
 traitlets==5.14.3
-transformers==4.44.0
+transformers==4.53.0  # Security update: Multiple CVEs - deserialization & ReDoS
 triton==3.0.0
 txtai==7.3.0
 typer==0.17.3
@@ -242,7 +242,7 @@ typing-inspection==0.4.1
 typing_extensions==4.13.2
 tzdata==2025.2
 uritemplate==4.1.1
-urllib3==2.4.0
+urllib3==2.5.0  # Security update: CVE-2025-50181, CVE-2025-50182
 validators==0.35.0
 vine==5.1.0
 wasabi==1.1.3

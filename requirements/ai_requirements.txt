@@ -15,19 +15,19 @@ faiss-cpu>=1.7.4  # For CPU-based vector search
 hnswlib>=0.7.0    # Hierarchical Navigable Small World graphs
 
 # Machine Learning and Data Science
-scikit-learn>=1.3.0
+scikit-learn>=1.5.0  # Security update: CVE-2024-5206 (already satisfied with 1.5.0)
 numpy>=1.24.0
 pandas>=2.0.0
 scipy>=1.11.0
 
 # Deep Learning and Transformers
-torch>=2.0.0
-transformers>=4.35.0
+torch>=2.7.2  # Security update: CVE-2025-32434, CVE-2025-3730, CVE-2025-2953
+transformers>=4.53.0  # Security update: Multiple CVEs - deserialization & ReDoS
 sentence-transformers>=2.2.2
 accelerate>=0.24.0
 
 # Natural Language Processing
-nltk>=3.8.1
+nltk>=3.9  # Security update: CVE-2024-39705 (already satisfied with 3.9.1)
 spacy>=3.7.0
 textblob>=0.17.1
 
@@ -70,7 +70,7 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 
 # HTTP and API clients
-requests>=2.31.0
+requests>=2.32.4  # Security update: CVE-2024-47081
 httpx>=0.25.0     # Modern HTTP client
 aiohttp>=3.9.0    # Async HTTP client
 
@@ -87,12 +87,12 @@ factory-boy>=3.3.0
 faker>=19.12.0
 
 # Security and Authentication
-cryptography>=41.0.0
+cryptography>=44.0.1  # Security update: CVE-2024-12797
 PyJWT>=2.8.0
 
 # File Processing
 python-magic>=0.4.27
-Pillow>=10.0.0
+Pillow>=11.3.0  # Security update: CVE-2025-48379
 pypdf>=3.17.0     # For PDF processing
 
 # Async and Concurrency

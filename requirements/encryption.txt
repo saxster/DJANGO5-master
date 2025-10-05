@@ -2,5 +2,5 @@
 # Required for field-level encryption of sensitive PII/PHI data
 # Complies with GDPR Article 32 and HIPAA Security Rule
 
-cryptography>=42.0.0  # Fernet symmetric encryption
+cryptography>=44.0.1  # Fernet symmetric encryption - Security update: CVE-2024-12797
 django-fernet-fields>=0.6  # Django model field encryption
