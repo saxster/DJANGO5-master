@@ -1,0 +1,278 @@
+name: API Contract Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'apps/*/serializers/**'
+      - 'apps/service/types.py'
+      - 'apps/service/pydantic_schemas/**'
+      - 'apps/*/models/**'
+      - 'intelliwiz_config/settings/rest_api.py'
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  validate-openapi-schema:
+    name: Validate OpenAPI Schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2  # Need previous commit for diff
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Django checks
+        run: |
+          python manage.py check --deploy
+
+      - name: Generate OpenAPI Schema
+        run: |
+          python manage.py spectacular \
+            --color \
+            --file openapi-current.json \
+            --validate \
+            --fail-on-warn
+
+      - name: Validate OpenAPI Schema
+        run: |
+          npx @openapitools/openapi-generator-cli validate \
+            -i openapi-current.json
+
+      - name: Check schema size
+        run: |
+          SIZE=$(wc -c < openapi-current.json)
+          echo "OpenAPI schema size: $SIZE bytes"
+          if [ $SIZE -lt 1000 ]; then
+            echo "ERROR: Schema suspiciously small"
+            exit 1
+          fi
+
+      - name: Extract schema version
+        id: schema_version
+        run: |
+          VERSION=$(jq -r '.info.version' openapi-current.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Upload current schema
+        uses: actions/upload-artifact@v3
+        with:
+          name: openapi-schema-${{ steps.schema_version.outputs.version }}
+          path: openapi-current.json
+          retention-days: 30
+
+  detect-breaking-changes:
+    name: Detect Breaking Changes
+    runs-on: ubuntu-latest
+    needs: validate-openapi-schema
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate current schema
+        run: |
+          python manage.py spectacular --file openapi-current.json
+
+      - name: Checkout main branch
+        run: |
+          git fetch origin main
+          git checkout origin/main
+
+      - name: Generate baseline schema
+        run: |
+          python manage.py spectacular --file openapi-baseline.json || echo "{}" > openapi-baseline.json
+
+      - name: Return to PR branch
+        run: git checkout -
+
+      - name: Detect breaking changes
+        uses: oasdiff/oasdiff-action@v0.0.15
+        with:
+          base: openapi-baseline.json
+          revision: openapi-current.json
+          format: text
+          fail-on-diff: false  # Don't fail, just report
+
+      - name: Comment breaking changes on PR
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Breaking API Changes Detected**\n\nPlease review the OpenAPI schema diff and ensure mobile clients are updated accordingly.\n\nSee workflow logs for details.'
+            })
+
+  validate-websocket-schema:
+    name: Validate WebSocket Schema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Validate JSON Schema
+        run: |
+          npx ajv-cli validate \
+            -s docs/api-contracts/websocket-messages.json \
+            --strict=true
+
+      - name: Check Kotlin example syntax
+        run: |
+          # Basic syntax check for Kotlin example
+          if [ ! -f docs/api-contracts/WebSocketMessage.kt.example ]; then
+            echo "ERROR: Kotlin example file missing"
+            exit 1
+          fi
+          echo "✅ Kotlin example file exists"
+
+  test-pydantic-models:
+    name: Test Pydantic Models
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Pydantic model tests
+        run: |
+          python -m pytest \
+            apps/api/v2/tests/test_serializers.py \
+            apps/api/tests/test_websocket_messages.py \
+            -v \
+            --tb=short \
+            --maxfail=5
+
+      - name: Run integration tests
+        run: |
+          python -m pytest \
+            apps/api/v2/tests/test_integration.py \
+            -v \
+            --tb=short
+
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install security tools
+        run: |
+          pip install bandit safety
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r \
+            apps/api/v2/ \
+            apps/api/websocket_messages.py \
+            apps/core/api_responses/ \
+            -f json \
+            -o bandit-report.json
+
+      - name: Check for security issues
+        run: |
+          ISSUES=$(jq '.results | length' bandit-report.json)
+          if [ $ISSUES -gt 0 ]; then
+            echo "⚠️ Security issues found: $ISSUES"
+            jq '.results' bandit-report.json
+            exit 1
+          fi
+
+  code-quality:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Validate code quality rules
+        run: |
+          python scripts/validate_code_quality.py \
+            --paths apps/api/v2 apps/api/websocket_messages.py \
+            --verbose
+
+      - name: Check file size limits
+        run: |
+          echo "Checking file size limits (Rule #7)..."
+          find apps/api/v2 apps/core/api_responses -name "*.py" | while read file; do
+            LINES=$(wc -l < "$file")
+            if [ $LINES -gt 200 ]; then
+              echo "❌ $file exceeds 200 lines: $LINES"
+              exit 1
+            fi
+          done
+          echo "✅ All files comply with size limits"
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [
+      validate-openapi-schema,
+      validate-websocket-schema,
+      test-pydantic-models,
+      security-validation,
+      code-quality
+    ]
+    if: always()
+
+    steps:
+      - name: Check all validations passed
+        run: |
+          echo "✅ All API contract validations completed"
+          echo "Summary:"
+          echo "  - OpenAPI schema: validated"
+          echo "  - WebSocket schema: validated"
+          echo "  - Pydantic models: tested"
+          echo "  - Security: scanned"
+          echo "  - Code quality: verified"

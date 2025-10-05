@@ -85,8 +85,9 @@ urlpatterns = [
     path('', include('apps.core.urls.cron_management')),  # Unified Cron Management API
     path('api/noc/', include('apps.noc.urls')),  # NOC API endpoints
 
-    # REST API v2 (planned for 2026-06-30)
-    path('api/v2/', include('apps.service.rest_service.v2.urls')),
+    # REST API v2 (Type-safe endpoints with Pydantic validation)
+    path('api/v2/', include('apps.api.v2.urls')),  # Typed sync/device endpoints
+    path('api/v2/status/', include('apps.service.rest_service.v2.urls')),  # Status endpoint
 
     # GraphQL endpoints with CSRF protection (vulnerability fix: CVSS 8.1)
     # CSRF protection is now handled by GraphQLCSRFProtectionMiddleware
@@ -101,7 +102,13 @@ urlpatterns = [
         graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
     )),   # Without trailing slash
     path('api/upload/att_file/', SecureUploadFile.as_view()),
-    
+
+    # ========== API DOCUMENTATION (OpenAPI/Swagger) ==========
+    # Consolidated OpenAPI schema for v1 + v2 REST endpoints
+    # Enables Kotlin/Swift codegen for mobile clients
+    # Generated from: drf-spectacular (intelliwiz_config/settings/rest_api.py:138)
+    path('api/schema/', include('apps.api.docs.urls')),
+
     # ========== MONITORING & HEALTH ==========
     path('monitoring/', include('monitoring.urls')),
     path('security/', include('apps.core.urls_security')),  # Security monitoring dashboard (CVSS 8.1 fix)

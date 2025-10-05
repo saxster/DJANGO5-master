@@ -67,9 +67,16 @@ class Query(graphene.ObjectType):
         )
         mdtzinput = utils.getawaredatetime(mdtz, ctzoffset)
         data = Location.objects.get_locations_modified_after(mdtzinput, buid, ctzoffset)
-        records, count, msg = utils.get_select_output(data)
+        # ✅ NEW: Use typed output for Apollo Kotlin codegen
+        records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'location')
         log.info(f"{count} objects returned...")
-        return SelectOutputType(nrows=count, records=records, msg=msg)
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,  # Deprecated but still works
+            records_typed=typed_records,  # NEW: Type-safe
+            record_type=record_type,  # NEW: Discriminator
+            msg=msg
+        )
 
     @staticmethod
     def resolve_get_groupsmodifiedafter(self, info, mdtz, ctzoffset, buid):
@@ -78,17 +85,31 @@ class Query(graphene.ObjectType):
         )
         mdtzinput = utils.getawaredatetime(mdtz, ctzoffset)
         data = Pgroup.objects.get_groups_modified_after(mdtzinput, buid)
-        records, count, msg = utils.get_select_output(data)
+        # ✅ NEW: Use typed output for Apollo Kotlin codegen
+        records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'pgroup')
         log.info(f"{count} objects returned...")
-        return SelectOutputType(nrows=count, records=records, msg=msg)
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,
+            records_typed=typed_records,
+            record_type=record_type,
+            msg=msg
+        )
 
     @staticmethod
     def resolve_get_gfs_for_siteids(self, info, siteids):
         log.info(f"\n\nrequest for getgeofence inputs : siteids:{siteids}")
         data = GeofenceMaster.objects.get_gfs_for_siteids(siteids)
-        records, count, msg = utils.get_select_output(data)
+        # ✅ NEW: Use typed output (geofence as generic asset-related type)
+        records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'location')
         log.info(f"{count} objects returned...")
-        return SelectOutputType(nrows=count, records=records, msg=msg)
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,
+            records_typed=typed_records,
+            record_type=record_type,
+            msg=msg
+        )
 
     @staticmethod
     def resolve_getsitelist(self, info, clientid, peopleid):
@@ -101,9 +122,16 @@ class Query(graphene.ObjectType):
         # change bupreferences back to json
         for i in range(len(data)):
             data[i]["bupreferences"] = json.dumps(data[i]["bupreferences"])
-        records, count, msg = utils.get_select_output(data)
+        # ✅ NEW: Use typed output (pgbelonging as location-related type)
+        records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'location')
         log.info(f"{count} objects returned...")
-        return SelectOutputType(nrows=count, records=records, msg=msg)
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,
+            records_typed=typed_records,
+            record_type=record_type,
+            msg=msg
+        )
 
     @staticmethod
     def resolve_verifyclient(self, info, clientcode):
@@ -122,9 +150,16 @@ class Query(graphene.ObjectType):
     def resolve_get_shifts(self, info, buid, clientid, mdtz):
         log.info(f"request get shifts input are: {buid} {clientid}")
         data = Shift.objects.get_shift_data(buid, clientid, mdtz)
-        records, count, msg = utils.get_select_output(data)
+        # ✅ NEW: Use typed output for Apollo Kotlin codegen
+        records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'typeassist')
         log.info(f"total {count} objects returned")
-        return SelectOutputType(nrows=count, records=records, msg=msg)
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,
+            records_typed=typed_records,
+            record_type=record_type,
+            msg=msg
+        )
 
     def resolve_get_superadmin_message(self, info, client_id):
         log.info(f"resolve_get_superadmin_message {client_id = }")
@@ -148,9 +183,16 @@ class Query(graphene.ObjectType):
             f"resolve_get_sitevisited_log {clientid = } {peopleid = } {ctzoffset = }"
         )
         data = PeopleEventlog.objects.get_sitevisited_log(clientid, peopleid, ctzoffset)
-        records, count, msg = utils.get_select_output(data)
+        # ✅ NEW: Use typed output for Apollo Kotlin codegen
+        records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'location')
         log.info(f"total {count} objects returned")
-        return SelectOutputType(nrows=count, records=records, msg=msg)
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,
+            records_typed=typed_records,
+            record_type=record_type,
+            msg=msg
+        )
 
 
 # NOTE: get_db_rows function has been removed

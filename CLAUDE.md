@@ -437,6 +437,153 @@ python manage.py collectstatic --no-input
 # Production: WhiteNoise (dev) / Nginx (prod)
 ```
 
+### Type-Safe API Contracts (Oct 2025)
+
+**Comprehensive data contracts for Kotlin/Swift mobile codegen** with Pydantic validation.
+
+#### Quick Access
+
+```bash
+# OpenAPI schema (REST v1/v2)
+curl http://localhost:8000/api/schema/swagger.json > openapi.json
+
+# WebSocket message schema (JSON Schema)
+cat docs/api-contracts/websocket-messages.json
+
+# Interactive API docs
+open http://localhost:8000/api/schema/swagger/
+open http://localhost:8000/api/schema/redoc/
+
+# Schema metadata
+curl http://localhost:8000/api/schema/metadata/
+```
+
+#### Architecture
+
+**Three API surfaces with complete type safety**:
+
+| API Type | Validation | Codegen | Example |
+|----------|-----------|---------|---------|
+| **REST v1** | DRF Serializers | OpenAPI Generator | `TaskSyncSerializer` |
+| **REST v2** | Pydantic + DRF | OpenAPI Generator | `VoiceSyncRequestSerializer` |
+| **GraphQL** | Pydantic Queries | Apollo Kotlin | `JobQueries` uses Pydantic |
+| **WebSocket** | Pydantic Messages | JSON Schema | `SyncStartMessage` |
+
+#### REST v2 Pattern (Type-Safe)
+
+```python
+# Pydantic model for validation
+from apps.core.validation.pydantic_base import BusinessLogicModel
+
+class VoiceSyncDataModel(BusinessLogicModel):
+    device_id: str = Field(..., min_length=5)
+    voice_data: List[VoiceDataItem] = Field(..., max_items=100)
+
+# DRF serializer with Pydantic integration
+from apps.core.serializers.pydantic_integration import PydanticSerializerMixin
+
+class VoiceSyncRequestSerializer(PydanticSerializerMixin, serializers.Serializer):
+    pydantic_model = VoiceSyncDataModel  # ✅ Auto-validation
+    full_validation = True
+
+    device_id = serializers.CharField(...)  # For OpenAPI schema
+
+# View with standardized responses
+from apps.core.api_responses import create_success_response, create_error_response
+
+class SyncVoiceView(APIView):
+    def post(self, request):
+        serializer = VoiceSyncRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(create_error_response([...]), 400)
+
+        return Response(create_success_response(result))
+```
+
+#### WebSocket Pattern (Type-Safe)
+
+```python
+# Pydantic message models
+from apps.api.websocket_messages import parse_websocket_message
+
+async def receive(self, text_data):
+    raw = json.loads(text_data)
+    validated = parse_websocket_message(raw)  # ✅ Type-safe
+
+    if isinstance(validated, SyncStartMessage):
+        await self._handle_sync_start(validated)  # ✅ Type hints
+```
+
+#### Pydantic Domain Models
+
+**Enhanced schemas for Kotlin codegen** (14 total):
+
+```python
+# apps/service/pydantic_schemas/
+task_enhanced_schema.py          # TaskDetailSchema (30 fields)
+asset_enhanced_schema.py         # AssetDetailSchema (25 fields)
+ticket_enhanced_schema.py        # TicketDetailSchema (20 fields)
+attendance_enhanced_schema.py    # AttendanceDetailSchema (10 fields)
+location_enhanced_schema.py      # LocationDetailSchema (15 fields)
+question_enhanced_schema.py      # QuestionDetailSchema (15 fields)
+# ... original minimal schemas
+```
+
+**Usage**:
+
+```python
+from apps.service.pydantic_schemas import TaskDetailSchema
+
+# Runtime validation
+task_data = TaskDetailSchema(**request_data)  # ✅ Validates immediately
+
+# Convert to Django model
+task = Jobneed(**task_data.to_django_dict())
+
+# Use in GraphQL
+from apps.core.graphql.pydantic_validators import create_pydantic_input_type
+TaskInputType = create_pydantic_input_type(TaskDetailSchema)
+```
+
+#### Standard Response Envelope
+
+**ALL v2 endpoints use**:
+
+```python
+from apps.core.api_responses import APIResponse, APIError, create_success_response
+
+# Success
+return Response(create_success_response(
+    data={'id': 123, 'name': 'Test'},
+    execution_time_ms=25.5
+))
+
+# Error
+return Response(create_error_response([
+    APIError(field='device_id', message='Required', code='REQUIRED')
+]), status=400)
+```
+
+**Kotlin mapping**:
+
+```kotlin
+data class APIResponse<T>(
+    val success: Boolean,
+    val data: T?,
+    val errors: List<APIError>?,
+    val meta: APIMeta
+)
+```
+
+#### For Kotlin/Swift Teams
+
+**Complete guide**: `docs/mobile/kotlin-codegen-guide.md`
+**Migration guide**: `docs/mobile/MIGRATION_GUIDE_TYPE_SAFE_CONTRACTS.md`
+**WebSocket contracts**: `docs/api-contracts/websocket-messages.json`
+**Kotlin example**: `docs/api-contracts/WebSocketMessage.kt.example`
+
+**Reference**: `DATA_CONTRACTS_COMPREHENSIVE_COMPLETE.md`
+
 ---
 
 ## Domain-Specific Systems

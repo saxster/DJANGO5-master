@@ -41,9 +41,16 @@ class TypeAssistQueries(graphene.ObjectType):
             data = TypeAssist.objects.get_typeassist_modified_after(
                 mdtz=mdtzinput, clientid=validated.clientid
             )
-            records, count, msg = utils.get_select_output(data)
+            # ✅ NEW: Use typed output for Apollo Kotlin codegen
+            records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'typeassist')
             log.info(f"{count} objects returned...")
-            return SelectOutputType(nrows=count, records=records, msg=msg)
+            return SelectOutputType(
+                nrows=count,
+                records=records_json,
+                records_typed=typed_records,
+                record_type=record_type,
+                msg=msg
+            )
         except ValidationError as ve:
             log.error("Validation error in get_typeassistmodifiedafter", exc_info=True)
             raise GraphQLError(f"Invalid input parameters: {str(ve)}")

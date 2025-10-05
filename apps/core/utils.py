@@ -152,12 +152,74 @@ def printsql(objs):
 
 
 def get_select_output(objs):
+    """
+    Convert QuerySet to JSON string for GraphQL SelectOutputType.
+
+    DEPRECATED (2025-10-05): Use get_select_output_typed() for type-safe responses.
+
+    Args:
+        objs: Django QuerySet with .values() call
+
+    Returns:
+        tuple: (records_json, count, msg)
+    """
     if not objs:
         return None, 0, "No records"
     records = json.dumps(list(objs), default=str)
     count = objs.count()
     msg = f"Total {count} records fetched successfully!"
     return records, count, msg
+
+
+def get_select_output_typed(objs, record_type: str):
+    """
+    Convert QuerySet to typed records for GraphQL (NEW - supports Apollo Kotlin codegen).
+
+    Returns both legacy JSON string AND typed list for dual-field backward compatibility.
+
+    Args:
+        objs: Django QuerySet with .values() call
+        record_type: Type discriminator (question, location, asset, pgroup, typeassist, questionset)
+
+    Returns:
+        tuple: (records_json, typed_records_list, count, msg, record_type)
+
+    Example:
+        >>> data = Question.objects.filter(...).values(*fields)
+        >>> records_json, typed_list, count, msg, rec_type = get_select_output_typed(data, 'question')
+        >>> # records_json: JSON string (backward compatibility)
+        >>> # typed_list: List[dict] (for GraphQL type resolution)
+        >>> # count: int
+        >>> # msg: str
+        >>> # rec_type: str (discriminator)
+
+    Usage in resolvers:
+        records_json, typed_records, count, msg, record_type = get_select_output_typed(data, 'question')
+        return SelectOutputType(
+            nrows=count,
+            records=records_json,  # Deprecated field
+            records_typed=typed_records,  # NEW: Type-safe field
+            record_type=record_type,  # NEW: Discriminator
+            msg=msg
+        )
+    """
+    if not objs:
+        return None, [], 0, "No records", record_type
+
+    # Get list of dicts from QuerySet
+    records_list = list(objs)
+
+    # Legacy JSON string (for backward compatibility with mobile clients using old queries)
+    records_json = json.dumps(records_list, default=str)
+
+    # NEW: Return list of dicts for GraphQL type conversion
+    # The SelectOutputType.resolve_records_typed() will convert these to typed objects
+    typed_records = records_list
+
+    count = len(records_list)
+    msg = f"Total {count} records fetched successfully!"
+
+    return records_json, typed_records, count, msg, record_type
 
 
 def get_qobjs_dir_fields_start_length(R):

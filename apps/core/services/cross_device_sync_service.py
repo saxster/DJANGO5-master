@@ -202,6 +202,39 @@ class CrossDeviceSyncService:
         return list(UserDevice.objects.filter(user=user, is_active=True))
 
     @classmethod
+    def get_device_by_id(cls, device_id: str) -> UserDevice:
+        """
+        Get device by ID.
+
+        Args:
+            device_id: Device identifier
+
+        Returns:
+            UserDevice instance
+
+        Raises:
+            ObjectDoesNotExist: If device not found
+        """
+        return UserDevice.objects.get(device_id=device_id)
+
+    @classmethod
+    def get_device_sync_states(cls, device_id: str) -> list:
+        """
+        Get sync states for a device.
+
+        Args:
+            device_id: Device identifier
+
+        Returns:
+            List of DeviceSyncState instances
+
+        Raises:
+            ObjectDoesNotExist: If device not found
+        """
+        device = UserDevice.objects.get(device_id=device_id)
+        return list(DeviceSyncState.objects.filter(device=device))
+
+    @classmethod
     def deactivate_device(cls, device_id: str) -> bool:
         """Deactivate device (lost/stolen)."""
         try:

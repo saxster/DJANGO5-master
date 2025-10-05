@@ -12,8 +12,14 @@ from apps.attendance.models import PeopleEventlog, TestGeo, Tracking
 from apps.attendance.services.geospatial_service import GeospatialService
 from apps.onboarding.models import TypeAssist
 from apps.peoples.models import People, Pgbelonging, Pgroup
+import logging
 
 from .scalars import LineStringScalar, PointScalar, PolygonScalar
+
+# Import typed record definitions (avoid circular import with lambda in field definition)
+# SelectRecordUnion is imported lazily in SelectOutputType.records_typed field
+
+logger = logging.getLogger(__name__)
 
 
 class PointFieldType(graphene.ObjectType):
@@ -317,11 +323,70 @@ class JobneedMdtzAfter(graphene.ObjectType):
 
 
 class SelectOutputType(graphene.ObjectType):
+    """
+    Standard output type for select queries.
+
+    MIGRATION (2025-10-05): Adding typed records for Apollo Kotlin codegen.
+
+    Fields:
+    - records: DEPRECATED JSONString (backward compatibility until 2026-06-30)
+    - records_typed: NEW type-safe List[SelectRecordUnion] for Apollo Kotlin
+    - record_type: NEW discriminator indicating type of records
+    """
     nrows = graphene.Int(description="Number of rows")
     ncols = graphene.Int(description="Number of columns")
     msg = graphene.String(description="Message")
     rc = graphene.Int(default_value=0, description="Response code")
-    records = graphene.JSONString(description="Records")
+
+    # DEPRECATED: Will be removed in v2.0 (2026-06-30)
+    records = graphene.JSONString(
+        description="Records as JSON string (DEPRECATED - use records_typed for type safety)",
+        deprecation_reason="Use records_typed field for Apollo Kotlin type safety. Migration guide: /docs/api-migrations/GRAPHQL_TYPED_RECORDS_V2.md. Will be removed in v2.0 (2026-06-30)."
+    )
+
+    # NEW: Type-safe field for Apollo Kotlin codegen
+    records_typed = graphene.List(
+        lambda: SelectRecordUnion,
+        description="Type-safe records (NEW - use this for Apollo Kotlin codegen). Returns union of QuestionRecordType | LocationRecordType | AssetRecordType | PgroupRecordType | TypeAssistRecordType | QuestionSetRecordType"
+    )
+
+    # NEW: Discriminator to indicate record type
+    record_type = graphene.String(
+        description="Type of records in this response (question, location, asset, pgroup, typeassist, questionset)"
+    )
+
+    @staticmethod
+    def resolve_records_typed(parent, info):
+        """
+        Resolve typed records list.
+
+        Converts list of dicts into typed GraphQL objects based on record_type discriminator.
+
+        Returns:
+            List of typed record objects (QuestionRecordType, LocationRecordType, etc.)
+        """
+        # Get the raw records data and type from parent object
+        if not hasattr(parent, 'records_typed') or not hasattr(parent, 'record_type'):
+            return []
+
+        if parent.records_typed is None or parent.record_type is None:
+            return []
+
+        from apps.service.graphql_types.record_types import resolve_typed_record
+
+        try:
+            # Convert each dict to appropriate typed GraphQL object
+            return [
+                resolve_typed_record(record, parent.record_type)
+                for record in parent.records_typed
+            ]
+        except (ValueError, TypeError) as e:
+            logger.error(
+                f"Failed to resolve typed records: {e}",
+                exc_info=True,
+                extra={'record_type': parent.record_type}
+            )
+            return []
 
 
 class UploadAttType(graphene.InputObjectType):

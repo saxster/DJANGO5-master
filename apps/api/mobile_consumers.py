@@ -262,12 +262,38 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            message = json.loads(text_data)
-            message_type = message.get('type', 'unknown')
+            # Parse raw JSON
+            raw_message = json.loads(text_data)
+            message_type = raw_message.get('type', 'unknown')
+
+            # ✅ Type-safe validation using Pydantic models
+            from apps.api.websocket_messages import parse_websocket_message
+            from pydantic import ValidationError as PydanticValidationError
+
+            try:
+                validated_message = parse_websocket_message(raw_message)
+            except (PydanticValidationError, KeyError, ValueError) as validation_error:
+                logger.error(
+                    "WebSocket message validation failed",
+                    extra={
+                        'correlation_id': self.correlation_id,
+                        'message_correlation_id': message_correlation_id,
+                        'user_id': str(self.user.id) if self.user else None,
+                        'device_id': self.device_id,
+                        'message_type': message_type,
+                        'validation_error': str(validation_error),
+                        'raw_message_size': len(text_data),
+                    }
+                )
+                await self.send_error(
+                    f"Invalid message format: {str(validation_error)}",
+                    "MESSAGE_VALIDATION_ERROR"
+                )
+                return
 
             # Structured logging for Stream Testbench
             logger.info(
-                "WebSocket message received",
+                "WebSocket message received (validated)",
                 extra={
                     'correlation_id': self.correlation_id,
                     'message_correlation_id': message_correlation_id,
@@ -276,10 +302,12 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                     'message_type': message_type,
                     'message_size': len(text_data),
                     'endpoint': 'ws/mobile/sync',
+                    'validated': True,
                 }
             )
 
-            await self._handle_message(message, message_correlation_id)
+            # Handle typed message
+            await self._handle_typed_message(validated_message, message_correlation_id)
             self.last_activity = timezone.now()
 
             # Log successful processing
@@ -387,11 +415,56 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 error_details={'error_code': 'INTEGRATION_ERROR', 'error_message': str(e)}
             )
     
+    async def _handle_typed_message(self, message, message_correlation_id: str = None):
+        """
+        Handle type-safe WebSocket messages (new Pydantic-based handler).
+
+        Args:
+            message: Validated Pydantic message model
+            message_correlation_id: Correlation ID for logging
+        """
+        from apps.api.websocket_messages import (
+            SyncStartMessage,
+            SyncDataMessage,
+            SyncCompleteMessage,
+            ServerDataRequestMessage,
+            ConflictResolutionMessage,
+            HeartbeatMessage,
+        )
+
+        try:
+            # Type-safe dispatch based on Pydantic model type
+            if isinstance(message, SyncStartMessage):
+                await self._handle_start_sync_typed(message)
+            elif isinstance(message, SyncDataMessage):
+                await self._handle_sync_data_typed(message)
+            elif isinstance(message, SyncCompleteMessage):
+                await self._handle_sync_complete_typed(message)
+            elif isinstance(message, ConflictResolutionMessage):
+                await self._handle_conflict_resolution_typed(message)
+            elif isinstance(message, HeartbeatMessage):
+                # Client heartbeat acknowledgment
+                await self.send_message({'type': 'heartbeat_ack', 'timestamp': timezone.now().isoformat()})
+            else:
+                # Fallback to dict-based handler for backward compatibility
+                await self._handle_message(message.model_dump(), message_correlation_id)
+
+        except (KeyError, AttributeError) as e:
+            logger.warning(f"Invalid message structure: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Invalid message format: {str(e)}", "INVALID_MESSAGE")
+        except (ValidationError, ValueError) as e:
+            logger.warning(f"Message validation error: {str(e)}", extra={'correlation_id': self.correlation_id})
+            await self.send_error(f"Validation error: {str(e)}", "VALIDATION_ERROR")
+
     async def _handle_message(self, message: Dict[str, Any], message_correlation_id: str = None):
-        """Handle different message types"""
+        """
+        Handle different message types (legacy dict-based handler for backward compatibility).
+
+        DEPRECATED: Use _handle_typed_message for new code.
+        """
         try:
             message_type = message.get('type')
-            
+
             if message_type == 'start_sync':
                 await self._handle_start_sync(message)
             elif message_type == 'sync_data':
@@ -415,6 +488,30 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
         except (ValidationError, ValueError) as e:
             logger.warning(f"Message validation error: {str(e)}", extra={'correlation_id': self.correlation_id})
             await self.send_error(f"Validation error: {str(e)}", "VALIDATION_ERROR")
+
+    # Type-safe message handlers (new Pydantic-based)
+
+    async def _handle_start_sync_typed(self, message: 'SyncStartMessage'):
+        """Handle type-safe sync start message."""
+        # Convert to dict for compatibility with existing handler
+        await self._handle_start_sync(message.model_dump())
+
+    async def _handle_sync_data_typed(self, message: 'SyncDataMessage'):
+        """Handle type-safe sync data message."""
+        # Convert to dict for compatibility with existing handler
+        await self._handle_sync_data(message.model_dump())
+
+    async def _handle_sync_complete_typed(self, message: 'SyncCompleteMessage'):
+        """Handle type-safe sync complete message."""
+        logger.info(
+            f"Sync completed for domain: {message.domain}, items: {message.item_count}",
+            extra={'correlation_id': self.correlation_id}
+        )
+
+    async def _handle_conflict_resolution_typed(self, message: 'ConflictResolutionMessage'):
+        """Handle type-safe conflict resolution message."""
+        # Convert to dict for compatibility with existing handler
+        await self._handle_conflict_resolution(message.model_dump())
     
     async def _handle_start_sync(self, message: Dict[str, Any]):
         """Handle sync session initiation"""

@@ -1,0 +1,326 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WebSocketMessages",
+  "description": "Type-safe WebSocket message contracts for mobile SDK synchronization",
+  "version": "1.0.0",
+  "x-kotlin-package": "com.youtility.api.websocket",
+  "x-kotlin-sealed-class": "WebSocketMessage",
+  "x-discriminator": {
+    "propertyName": "type",
+    "mapping": {
+      "connection_established": "ConnectionEstablished",
+      "heartbeat": "Heartbeat",
+      "heartbeat_ack": "HeartbeatAck",
+      "start_sync": "SyncStart",
+      "sync_data": "SyncData",
+      "sync_complete": "SyncComplete",
+      "server_data_request": "ServerDataRequest",
+      "server_data": "ServerData",
+      "conflict_notification": "ConflictNotification",
+      "conflict_resolution": "ConflictResolution",
+      "sync_status": "SyncStatus",
+      "error": "Error"
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/definitions/ConnectionEstablished" },
+    { "$ref": "#/definitions/Heartbeat" },
+    { "$ref": "#/definitions/HeartbeatAck" },
+    { "$ref": "#/definitions/SyncStart" },
+    { "$ref": "#/definitions/SyncData" },
+    { "$ref": "#/definitions/SyncComplete" },
+    { "$ref": "#/definitions/ServerDataRequest" },
+    { "$ref": "#/definitions/ServerData" },
+    { "$ref": "#/definitions/ConflictNotification" },
+    { "$ref": "#/definitions/ConflictResolution" },
+    { "$ref": "#/definitions/SyncStatus" },
+    { "$ref": "#/definitions/Error" }
+  ],
+  "definitions": {
+    "ConnectionEstablished": {
+      "type": "object",
+      "required": ["type", "user_id", "device_id", "server_time"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "connection_established",
+          "description": "Message type identifier"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Authenticated user ID"
+        },
+        "device_id": {
+          "type": "string",
+          "description": "Connected device ID"
+        },
+        "server_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (ISO 8601)"
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" },
+          "description": "Enabled features (real_time_sync, push_notifications, etc.)"
+        }
+      }
+    },
+    "Heartbeat": {
+      "type": "object",
+      "required": ["type", "timestamp"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "heartbeat"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp"
+        }
+      }
+    },
+    "HeartbeatAck": {
+      "type": "object",
+      "required": ["type", "timestamp"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "heartbeat_ack",
+          "description": "Message type identifier"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (ISO 8601)"
+        }
+      },
+      "description": "Server heartbeat acknowledgment sent in response to client heartbeat"
+    },
+    "SyncStart": {
+      "type": "object",
+      "required": ["type", "domain", "device_id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "start_sync"
+        },
+        "domain": {
+          "type": "string",
+          "enum": ["voice", "attendance", "task", "journal", "ticket"],
+          "description": "Data domain to sync"
+        },
+        "since_timestamp": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Last sync timestamp (null for full sync)"
+        },
+        "full_sync": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to perform full sync"
+        },
+        "device_id": {
+          "type": "string",
+          "description": "Device identifier"
+        }
+      }
+    },
+    "SyncData": {
+      "type": "object",
+      "required": ["type", "payload", "idempotency_key", "domain", "client_timestamp"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sync_data"
+        },
+        "payload": {
+          "type": "object",
+          "description": "Sync data payload"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 16,
+          "description": "Idempotency key"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Data domain"
+        },
+        "client_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Client timestamp"
+        }
+      }
+    },
+    "SyncComplete": {
+      "type": "object",
+      "required": ["type", "domain", "item_count"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sync_complete"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Data domain"
+        },
+        "item_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of items synced"
+        }
+      }
+    },
+    "ServerDataRequest": {
+      "type": "object",
+      "required": ["type", "domain", "entity_ids", "request_id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "server_data_request"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Data domain"
+        },
+        "entity_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Requested entity IDs"
+        },
+        "request_id": {
+          "type": "string",
+          "description": "Request ID for correlation"
+        }
+      }
+    },
+    "ServerData": {
+      "type": "object",
+      "required": ["type", "domain", "data", "server_timestamp"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "server_data"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Data domain"
+        },
+        "data": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Server data items"
+        },
+        "next_sync_token": {
+          "type": ["string", "null"],
+          "description": "Token for next delta sync"
+        },
+        "server_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp"
+        }
+      }
+    },
+    "ConflictNotification": {
+      "type": "object",
+      "required": ["type", "conflicts", "resolution_required", "conflict_ids"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "conflict_notification"
+        },
+        "conflicts": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Conflict details"
+        },
+        "resolution_required": {
+          "type": "boolean",
+          "description": "Whether manual resolution needed"
+        },
+        "conflict_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Conflict identifiers"
+        }
+      }
+    },
+    "ConflictResolution": {
+      "type": "object",
+      "required": ["type", "conflict_id", "strategy"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "conflict_resolution"
+        },
+        "conflict_id": {
+          "type": "string",
+          "description": "Conflict ID to resolve"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["client_wins", "server_wins", "merge", "manual"],
+          "description": "Resolution strategy"
+        },
+        "data": {
+          "type": ["object", "null"],
+          "description": "Resolution data if strategy=manual"
+        }
+      }
+    },
+    "SyncStatus": {
+      "type": "object",
+      "required": ["type", "domain", "status"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sync_status"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Data domain"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "completed", "failed"],
+          "description": "Current sync status"
+        },
+        "progress": {
+          "type": "object",
+          "description": "Progress details (processed, total, etc.)"
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": ["type", "error_code", "message"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "error"
+        },
+        "error_code": {
+          "type": "string",
+          "description": "Error code (RATE_LIMIT_EXCEEDED, etc.)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "retryable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether client should retry"
+        },
+        "details": {
+          "type": ["object", "null"],
+          "description": "Additional error context"
+        }
+      }
+    }
+  }
+}

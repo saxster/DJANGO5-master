@@ -71,9 +71,16 @@ class QuestionQueries(graphene.ObjectType):
             data = Question.objects.get_questions_modified_after(
                 mdtz=validated.mdtz, clientid=validated.clientid
             )
-            records, count, msg = utils.get_select_output(data)
+            # ✅ NEW: Use typed output for Apollo Kotlin codegen
+            records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'question')
             log.info(f"{count} objects returned...")
-            return SelectOutputType(nrows=count, records=records, msg=msg)
+            return SelectOutputType(
+                nrows=count,
+                records=records_json,
+                records_typed=typed_records,
+                record_type=record_type,
+                msg=msg
+            )
         except ValidationError as ve:
             log.error("Validation error in get_questionsmodifiedafter", exc_info=True)
             raise GraphQLError(f"Invalid input parameters: {str(ve)}")
@@ -104,9 +111,16 @@ class QuestionQueries(graphene.ObjectType):
                 clientid=validated.clientid,
                 peopleid=validated.peopleid,
             )
-            records, count, msg = utils.get_select_output(data)
+            # ✅ NEW: Use typed output for Apollo Kotlin codegen
+            records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'questionset')
             log.info(f"{count} objects returned...")
-            return SelectOutputType(nrows=count, records=records, msg=msg)
+            return SelectOutputType(
+                nrows=count,
+                records=records_json,
+                records_typed=typed_records,
+                record_type=record_type,
+                msg=msg
+            )
         except ValidationError as ve:
             log.error("Validation error in get_qsetmodifiedafter", exc_info=True)
             raise GraphQLError(f"Invalid input parameters: {str(ve)}")
@@ -208,14 +222,24 @@ class QuestionQueries(graphene.ObjectType):
                         # Skip problematic records
                         continue
                 
-                records = json.dumps(serializable_data, default=str, ensure_ascii=False)
+                # ✅ NEW: Use typed output for enhanced records (list of dicts)
+                records_json = json.dumps(serializable_data, default=str, ensure_ascii=False)
+                typed_records = serializable_data
                 count = len(serializable_data)
                 msg = f"Total {count} records with conditional logic fetched successfully!"
+                record_type = 'questionset'
             else:
                 # Use standard utils function for QuerySet data
-                records, count, msg = utils.get_select_output(data)
+                # ✅ NEW: Use typed output for Apollo Kotlin codegen
+                records_json, typed_records, count, msg, record_type = utils.get_select_output_typed(data, 'questionset')
             log.info(f"{count} objects returned...")
-            return SelectOutputType(nrows=count, records=records, msg=msg)
+            return SelectOutputType(
+                nrows=count,
+                records=records_json,
+                records_typed=typed_records,
+                record_type=record_type,
+                msg=msg
+            )
         except ValidationError as ve:
             log.error("Validation error in get_qsetbelongingmodifiedafter", exc_info=True)
             raise GraphQLError(f"Invalid input parameters: {str(ve)}")
@@ -294,7 +318,7 @@ class QuestionQueries(graphene.ObjectType):
             # }
 
             # Convert to format expected by GraphQL SelectOutputType
-            records = [logic_data]  # Wrap the structured response
+            records_list = [logic_data]  # Wrap the structured response
             count = 1
             msg = f"Questionset {qset_id} with conditional logic retrieved successfully"
 
@@ -305,7 +329,18 @@ class QuestionQueries(graphene.ObjectType):
                     f"conditional logic: {logic_data.get('has_conditional_logic', False)}, "
                     f"warnings: {len(logic_data.get('validation_warnings', []))}")
 
-            return SelectOutputType(nrows=count, records=records, msg=msg)
+            # ✅ NEW: Provide typed output for Apollo Kotlin codegen
+            records_json = json.dumps(records_list, default=str)
+            typed_records = records_list
+            record_type = 'questionset'
+
+            return SelectOutputType(
+                nrows=count,
+                records=records_json,
+                records_typed=typed_records,
+                record_type=record_type,
+                msg=msg
+            )
 
         except ValidationError as ve:
             log.error("Validation error in get_questionset_with_conditional_logic", exc_info=True)
