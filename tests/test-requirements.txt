@@ -26,7 +26,7 @@ requests-mock==1.11.0
 
 # AI/ML testing utilities
 #unittest-mock==1.0.1  # Additional mocking utilities
-scikit-learn==1.3.2  # For testing ML components (already in main requirements)
+scikit-learn==1.5.0  # Security update: CVE-2024-5206 (matches production)
 numpy>=1.26.0  # For numerical testing (Python 3.12 compatible)
 pandas==2.1.4  # For data testing
 
@@ -45,7 +45,7 @@ pytest-json-report==1.5.0  # For JSON test reports
 
 # Static analysis for tests
 flake8==6.1.0
-black==23.11.0
+black==24.3.0  # Security update: CVE-2024-21503 (ReDoS vulnerability)
 isort==5.12.0
 
 # Memory profiling for performance tests
@@ -53,12 +53,12 @@ memory-profiler==0.61.0
 psutil==5.9.6
 
 # Image processing testing (for Quality Assurance tests)
-Pillow==10.1.0  # For image quality testing
+Pillow==11.3.0  # Security update: CVE-2023-50447, CVE-2024-28219 (matches production)
 opencv-python-headless==4.8.1.78  # For computer vision testing
 
 # Text processing testing (for NLP tests)
 textblob==0.17.1
-nltk==3.8.1
+nltk==3.9.1  # Security update: CVE-2024-39705 (matches production)
 
 # Time zone testing
 pytz==2023.3

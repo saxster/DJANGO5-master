@@ -71,7 +71,7 @@ Faker==37.6.0
 filelock==3.18.0
 fire==0.7.0
 Flask==3.1.1  # Security update: CVE-2025-47278
-flask-cors==5.1.0  # Security update: CVE-2024-6839, CVE-2024-6844, CVE-2024-6866
+flask-cors==6.0.1  # Security update: CVE-2024-6839, CVE-2024-6844, CVE-2024-6866
 flatbuffers==25.2.10
 fonttools==4.57.0
 fsspec==2025.9.0
@@ -231,7 +231,7 @@ threadpoolctl==3.6.0
 tinycss2==1.4.0
 tinyhtml5==2.0.0
 tokenizers==0.19.1
-torch==2.7.2  # Security update: CVE-2025-32434, CVE-2025-3730, CVE-2025-2953
+torch==2.8.0  # Security update: CVE-2025-32434, CVE-2025-3730, CVE-2025-2953 (note: 2.7.2 doesn't exist on PyPI)
 tqdm==4.67.1
 traitlets==5.14.3
 transformers==4.53.0  # Security update: Multiple CVEs - deserialization & ReDoS
