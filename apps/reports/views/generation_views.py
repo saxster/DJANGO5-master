@@ -5,11 +5,32 @@ Views for generating, downloading, and exporting various report types.
 
 Migrated from apps/reports/views.py
 Date: 2025-09-30
+Updated: 2025-10-10 - Frappe service extraction
 """
 from .base import *
 import pandas as pd
-from frappeclient import FrappeClient
-from apps.onboarding.models import ScheduleReport
+
+# Optional ERP integration - only needed for specific report types
+try:
+    from frappeclient import FrappeClient
+    FRAPPE_AVAILABLE = True
+except ImportError:
+    FrappeClient = None
+    FRAPPE_AVAILABLE = False
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("frappeclient not installed - ERP integration features disabled")
+
+from apps.reports.models import ScheduleReport
+
+# Import centralized Frappe ERP service (Oct 2025 - technical debt elimination)
+from apps.reports.services.frappe_service import (
+    FrappeService,
+    get_frappe_service,
+    FrappeCompany,
+    PayrollDocumentType,
+    FrappeServiceException
+)
 
 
 class DownloadReports(LoginRequiredMixin, View):
@@ -275,11 +296,12 @@ class DesignReport(LoginRequiredMixin, View):
     def get_col_widths(self, dataframe):
         """
         Get the maximum width of each column in a Pandas DataFrame.
+
+        DEDUPLICATED (Oct 2025): Delegates to ReportExportService.get_column_widths()
+        This method is kept for backward compatibility within DesignReport class.
         """
-        return [
-            max([len(str(s)) for s in dataframe[col].values] + [len(col)])
-            for col in dataframe.columns
-        ]
+        from apps.reports.services.report_export_service import ReportExportService
+        return ReportExportService.get_column_widths(dataframe)
 
 
 class ScheduleEmailReport(LoginRequiredMixin, View):
@@ -490,231 +512,158 @@ def get_data(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
 
-def getClient(company):
-    """Get FrappeClient instance for specified company"""
-    client = None
-    server_url = None
-    secerate_key = None
-    api_key = None
-    if company == "SPS":
-        server_url = "http://leave.spsindia.com:8007"
-        secerate_key = "c7047cc28b4a14e"
-        api_key = "3a6bfc7224a228c"
-        client = FrappeClient(server_url, api_key=api_key, api_secret=secerate_key)
-    elif company == "SFS":
-        server_url = "http://leave.spsindia.com:8008"
-        secerate_key = "8dc1421ac748917"
-        api_key = "ca9b240aa73a9b8"
-        client = FrappeClient(server_url, api_key=api_key, api_secret=secerate_key)
-    elif company == "TARGET":
-        server_url = "http://leave.spsindia.com:8002"
+# ============================================================================
+# BACKWARD COMPATIBILITY WRAPPERS (DEPRECATED - Oct 2025)
+# These functions delegate to the new FrappeService.
+# Will be removed in 2 sprints (target: 2025-12-10)
+# ============================================================================
 
-        client = FrappeClient(server_url, api_key=api_key, api_secret=secerate_key)
-    else:
+def getClient(company: str):
+    """
+    Get FrappeClient instance for specified company.
+
+    DEPRECATED: Use FrappeService.get_client() instead.
+    This wrapper is for backward compatibility only.
+
+    Args:
+        company: Company code string (e.g., "SPS", "SFS", "TARGET")
+
+    Returns:
+        FrappeClient instance or None
+    """
+    import warnings
+    warnings.warn(
+        "getClient() is deprecated. Use FrappeService.get_client() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    try:
+        frappe_service = get_frappe_service()
+        company_enum = FrappeCompany(company)
+        return frappe_service.get_client(company_enum)
+    except (ValueError, FrappeServiceException) as e:
+        logger.error(f"Failed to get Frappe client for {company}: {e}")
         return None
-    client = FrappeClient(server_url, api_key=api_key, api_secret=secerate_key)
-    return client
 
 
-def getCustomer(company):
-    """Get customer list from Frappe"""
-    filters = {"disabled": 0}
-    fields = ["name", "customer_code"]
-    frappe_data = get_frappe_data(company, "Customer", filters, fields)
-    return frappe_data
+def getCustomer(company: str):
+    """
+    Get customer list from Frappe.
+
+    DEPRECATED: Use FrappeService.get_customers() instead.
+    """
+    import warnings
+    warnings.warn(
+        "getCustomer() is deprecated. Use FrappeService.get_customers() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    try:
+        frappe_service = get_frappe_service()
+        company_enum = FrappeCompany(company)
+        return frappe_service.get_customers(company_enum)
+    except (ValueError, FrappeServiceException) as e:
+        logger.error(f"Failed to get customers for {company}: {e}")
+        return []
 
 
-def getPeriod(company):
-    """Get active payroll periods from Frappe"""
-    filters = {"status": "Active"}
-    fields = ["name", "start_date", "end_date"]
-    frappe_data = get_frappe_data(company, "Salary Payroll Period", filters, fields)
-    return frappe_data
+def getPeriod(company: str):
+    """
+    Get active payroll periods from Frappe.
+
+    DEPRECATED: Use FrappeService.get_periods() instead.
+    """
+    import warnings
+    warnings.warn(
+        "getPeriod() is deprecated. Use FrappeService.get_periods() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    try:
+        frappe_service = get_frappe_service()
+        company_enum = FrappeCompany(company)
+        return frappe_service.get_periods(company_enum)
+    except (ValueError, FrappeServiceException) as e:
+        logger.error(f"Failed to get periods for {company}: {e}")
+        return []
 
 
-def getCustomersSites(company, customer_code):
-    """Get sites for specific customer from Frappe"""
-    filters = {"status": "Active", "business_unit": customer_code, "bu_type": "Site"}
-    fields = ["name", "bu_name"]
-    frappe_data = get_frappe_data(company, "Business Unit", filters, fields)
-    return frappe_data
+def getCustomersSites(company: str, customer_code: str):
+    """
+    Get sites for specific customer from Frappe.
+
+    DEPRECATED: Use FrappeService.get_customer_sites() instead.
+    """
+    import warnings
+    warnings.warn(
+        "getCustomersSites() is deprecated. Use FrappeService.get_customer_sites() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    try:
+        frappe_service = get_frappe_service()
+        company_enum = FrappeCompany(company)
+        return frappe_service.get_customer_sites(company_enum, customer_code)
+    except (ValueError, FrappeServiceException) as e:
+        logger.error(f"Failed to get customer sites for {company}: {e}")
+        return []
 
 
-def getAllUAN(company, customer_code, site_code, periods, document_type):
-    """Get UAN, ESIC, and payroll data from Frappe for specified criteria"""
-    # Set filters based on the presence of site_code
-    filters = None
-    if site_code:
-        filters = {
-            "customer_code": customer_code,
-            "site": site_code,
-            "period": ["in", periods],
-        }
-    else:
-        filters = {"customer_code": customer_code, "period": ["in", periods]}
+def getAllUAN(company: str, customer_code: str, site_code: str, periods: list, document_type: str):
+    """
+    Get UAN, ESIC, and payroll data from Frappe for specified criteria.
 
-    if document_type == "PAYROLL":
-        # Define fields to fetch from Processed Payroll and Difference Processed Payroll
-        fields = ["emp_id", "bank_ac_no"]
-        client = getClient(company)
-        # Fetch data from Processed Payroll
-        processed_payroll_emp_list = (
-            get_frappe_data(company, "Processed Payroll", filters, fields) or []
+    DEPRECATED: Use FrappeService.get_payroll_data() instead.
+    """
+    import warnings
+    warnings.warn(
+        "getAllUAN() is deprecated. Use FrappeService.get_payroll_data() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    try:
+        frappe_service = get_frappe_service()
+        company_enum = FrappeCompany(company)
+        doc_type_enum = PayrollDocumentType(document_type)
+        return frappe_service.get_payroll_data(
+            company=company_enum,
+            customer_code=customer_code,
+            site_code=site_code,
+            periods=periods,
+            document_type=doc_type_enum
         )
-        # Prepare a dictionary for easier access to payroll data by emp_id
-        payroll_data_map = {row["emp_id"]: row for row in processed_payroll_emp_list}
-        # Separate fields into lists
-        employee_list = []
-        bank_ac_no_list = []
-        for payroll_detail in processed_payroll_emp_list:
-            employee_list.append(
-                payroll_detail.get("emp_id", "").strip()
-                if payroll_detail.get("emp_id", "")
-                else ""
-            )
-            bank_ac_no_list.append(
-                payroll_detail.get("bank_ac_no", "").strip()
-                if payroll_detail.get("bank_ac_no", "")
-                else ""
-            )
-        return (
-            employee_list,
-            bank_ac_no_list,
+    except (ValueError, FrappeServiceException) as e:
+        logger.error(f"Failed to get payroll data for {company}: {e}")
+        # Return empty tuples matching expected structure
+        return ([], [], [], [], [], [], [], [], [], [])
+
+
+def get_frappe_data(company: str, document_type: str, filters: dict, fields: list):
+    """
+    Get paginated data from Frappe with specified filters.
+
+    DEPRECATED: Use FrappeService.get_paginated_data() instead.
+    """
+    import warnings
+    warnings.warn(
+        "get_frappe_data() is deprecated. Use FrappeService.get_paginated_data() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    try:
+        frappe_service = get_frappe_service()
+        company_enum = FrappeCompany(company)
+        return frappe_service.get_paginated_data(
+            company=company_enum,
+            document_type=document_type,
+            filters=filters,
+            fields=fields
         )
-    elif document_type == "ATTENDANCE":
-        if site_code:
-            filters = {
-                "customer_code": customer_code,
-                "site": site_code,
-                "attendance_period": ["in", periods],
-            }
-        else:
-            filters = {
-                "customer_code": customer_code,
-                "attendance_period": ["in", periods],
-            }
-        fields = ["attendance_name"]
-        client = getClient(company)
-        people_attendance_emp_list = (
-            get_frappe_data(company, "People Attendance", filters, fields) or []
-        )
-        filters = {"attendance_name": ["in", people_attendance_emp_list]}
-        fields = ["employee", "employee_name", "work_type"]
-        client = getClient(company)
-        attendance_data = client.get_doc(
-            "People Attendance", people_attendance_emp_list[0]["attendance_name"]
-        )
-        return attendance_data
+    except (ValueError, FrappeServiceException) as e:
+        logger.error(f"Failed to get Frappe data for {company}/{document_type}: {e}")
+        return []
 
-    else:
-        # Define fields to fetch from Processed Payroll and Difference Processed Payroll
-        fields = [
-            "emp_id",
-            "pf_deduction_amount",
-            "pf_employee_amount",
-            "calcesi",
-            "esi_employee",
-        ]
-        client = getClient(company)
 
-        # Fetch data from Processed Payroll and Difference Processed Payroll
-        processed_payroll_emp_list = (
-            get_frappe_data(company, "Processed Payroll", filters, fields) or []
-        )
-        difference_processed_payroll_emp_list = (
-            get_frappe_data(company, "Difference Processed Payroll", filters, fields)
-            or []
-        )
-
-        # Combine the two lists
-        combined_payroll_data = (
-            processed_payroll_emp_list + difference_processed_payroll_emp_list
-        )
-        emp_id_list = [row["emp_id"] for row in combined_payroll_data]
-
-        # Fetch UAN data for the filtered employees
-        filters = {"name": ["in", emp_id_list]}
-        fields = [
-            "uan_number",
-            "esi_number",
-            "employee",
-            "bank_ac_no",
-            "employee_name",
-            "work_type",
-        ]
-        uan_data = get_frappe_data(company, "Employee", filters, fields) or []
-
-        # Prepare a dictionary for easier access to payroll data by emp_id
-        payroll_data_map = {row["emp_id"]: row for row in combined_payroll_data}
-
-        # Separate fields into lists
-        uan_list = []
-        esic_list = []
-        employee_list = []
-        bank_ac_no_list = []
-        name_list = []
-        designation_list = []
-        pf_deduction_amount_list = []
-        pf_employee_amount_list = []
-        calcesi_list = []
-        esi_employee_list = []
-
-        for uan_detail in uan_data:
-            emp_id = uan_detail.get("employee")
-            payroll_data = payroll_data_map.get(emp_id, {})
-
-            # Append data to respective lists
-            uan_list.append(
-                uan_detail.get("uan_number", "").strip()
-                if uan_detail.get("uan_number", "")
-                else ""
-            )
-            esic_list.append(
-                uan_detail.get("esi_number", "").strip()
-                if uan_detail.get("esi_number", "")
-                else ""
-            )
-            employee_list.append(
-                uan_detail.get("employee", "").strip()
-                if uan_detail.get("employee", "")
-                else ""
-            )
-            bank_ac_no_list.append(
-                uan_detail.get("bank_ac_no", "").strip()
-                if uan_detail.get("bank_ac_no", "")
-                else ""
-            )
-            name_list.append(
-                uan_detail.get("employee_name", "").strip()
-                if uan_detail.get("employee_name", "")
-                else ""
-            )
-            designation_list.append(
-                uan_detail.get("work_type", "").strip()
-                if uan_detail.get("work_type", "")
-                else ""
-            )
-            pf_deduction_amount_list.append(
-                int(payroll_data.get("pf_deduction_amount", 0))
-            )
-            pf_employee_amount_list.append(
-                int(payroll_data.get("pf_employee_amount", 0))
-            )
-            calcesi_list.append(int(payroll_data.get("calcesi", 0)))
-            esi_employee_list.append(int(payroll_data.get("esi_employee", 0)))
-
-        return (
-            uan_list,
-            esic_list,
-            employee_list,
-            bank_ac_no_list,
-            name_list,
-            designation_list,
-            pf_deduction_amount_list,
-            pf_employee_amount_list,
-            calcesi_list,
-            esi_employee_list,
-        )
 
 
 def highlight_text_in_pdf(
@@ -804,28 +753,6 @@ def highlight_text_in_pdf(
     new_document.save(output_pdf_path)
     new_document.close()
     document.close()
-
-
-def get_frappe_data(company, document_type, filters, fields):
-    """Get paginated data from Frappe with specified filters"""
-    client = getClient(company)
-    all_frappe_data = []
-    if client:
-        start = 0
-        limit = 100
-        while True:
-            frappe_data = client.get_list(
-                document_type,
-                filters=filters,
-                fields=fields,
-                limit_start=start,
-                limit_page_length=limit,
-            )
-            if not frappe_data:
-                break
-            all_frappe_data.extend(frappe_data)
-            start += limit
-        return all_frappe_data
 
 
 # SECURE REPLACEMENT: This function has been replaced with a secure implementation

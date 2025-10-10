@@ -7,7 +7,9 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import JsonResponse, HttpResponse
-from apps.reports.views import RetriveSiteReports, RetriveIncidentReports, DesignReport
+# Updated imports to use new view structure (name collision fix)
+from apps.reports.views.template_views import RetriveSiteReports, RetriveIncidentReports
+from apps.reports.views.generation_views import DesignReport
 from apps.activity.models.job_model import Jobneed
 
 
@@ -35,7 +37,7 @@ class TestRetriveSiteReportsSimple:
         else:
             request.user = AnonymousUser()
 
-    @patch("apps.reports.views.render")
+    @patch("apps.reports.views.template_views.render")
     def test_get_template_request_basic(self, mock_render, test_user_reports):
         """Test basic GET request with template parameter"""
         mock_render.return_value = HttpResponse("<html>Test</html>")
@@ -48,7 +50,7 @@ class TestRetriveSiteReportsSimple:
         assert response.status_code == 200
         mock_render.assert_called_once()
 
-    @patch("apps.reports.views.utils.printsql")
+    @patch("apps.reports.views.template_views.utils.printsql")
     @patch.object(Jobneed.objects, "get_sitereportlist")
     def test_get_data_request_basic(
         self, mock_get_sitereportlist, mock_printsql, test_user_reports
@@ -64,8 +66,8 @@ class TestRetriveSiteReportsSimple:
         request = self.factory.get("/reports/sitereport_list/")
         self.add_session_and_messages(request, test_user_reports)
 
-        with patch("apps.reports.views.utils.CustomJsonEncoderWithDistance"):
-            with patch("apps.reports.views.rp.JsonResponse") as mock_json_response:
+        with patch("apps.reports.views.template_views.utils.CustomJsonEncoderWithDistance"):
+            with patch("apps.reports.views.template_views.rp.JsonResponse") as mock_json_response:
                 mock_response = Mock()
                 mock_response.status_code = 200
                 mock_response.content = b'{"data": [{"id": 1}, {"id": 2}]}'
@@ -134,7 +136,7 @@ class TestDesignReportSimple:
         self.view = DesignReport()
         self.view.design_file = "reports/pdf_reports/testdesign.html"
 
-    @patch("apps.reports.views.render")
+    @patch("apps.reports.views.generation_views.render")
     def test_get_html_request_basic(self, mock_render):
         """Test basic GET request for HTML output"""
         mock_render.return_value = HttpResponse("<html>Test</html>")
@@ -146,10 +148,10 @@ class TestDesignReportSimple:
         assert response.status_code == 200
         mock_render.assert_called_once_with(request, self.view.design_file)
 
-    @patch("apps.reports.views.render_to_string")
-    @patch("apps.reports.views.HTML")
-    @patch("apps.reports.views.CSS")
-    @patch("apps.reports.views.FontConfiguration")
+    @patch("apps.reports.views.generation_views.render_to_string")
+    @patch("apps.reports.views.generation_views.HTML")
+    @patch("apps.reports.views.generation_views.CSS")
+    @patch("apps.reports.views.generation_views.FontConfiguration")
     def test_get_pdf_request_basic(
         self, mock_font_config, mock_css, mock_html, mock_render
     ):
@@ -280,13 +282,13 @@ class TestViewRequestTypes:
 
             # Should not raise an exception for any text parameter
             try:
-                with patch("apps.reports.views.render") as mock_render:
+                with patch("apps.reports.views.generation_views.render") as mock_render:
                     mock_render.return_value = HttpResponse("<html>Test</html>")
                     with patch(
-                        "apps.reports.views.render_to_string"
+                        "apps.reports.views.generation_views.render_to_string"
                     ) as mock_render_string:
                         mock_render_string.return_value = "<html>Test</html>"
-                        with patch("apps.reports.views.HTML") as mock_html:
+                        with patch("apps.reports.views.generation_views.HTML") as mock_html:
                             mock_html_instance = Mock()
                             mock_html_instance.write_pdf.return_value = b"PDF content"
                             mock_html.return_value = mock_html_instance
@@ -327,7 +329,7 @@ class TestViewResponseTypes:
             setattr(request, "_messages", messages)
             request.user = AnonymousUser()
 
-            with patch("apps.reports.views.utils.printsql"):
+            with patch("apps.reports.views.template_views.utils.printsql"):
                 response = view.get(request)
 
             assert isinstance(response, JsonResponse)

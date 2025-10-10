@@ -34,15 +34,17 @@ from apps.activity.admin.question_admin import (
     QuestionSetBelongingResource,
     QuestionSetBelongingResourceUpdate,
 )
-from apps.schedhuler import admin as sc_admin
+from apps.scheduler import admin as sc_admin
 from apps.y_helpdesk.models import Ticket
 from apps.work_order_management.models import Wom
 from apps.work_order_management.admin import VendorResource, VendorResourceUpdate
-from django.core.exceptions import ObjectDoesNotExist, ValidationError, DatabaseError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import DatabaseError
 from pprint import pformat
 import uuid
 import json
-from apps.core.utils import polygon_to_address
+# Import polygon_to_address from correct location
+from apps.onboarding.utils import polygon_to_address
 from apps.core.utils_new.db_utils import get_current_db_name
 
 CACHE_TTL = getattr(settings, "CACHE_TTL", DEFAULT_TIMEOUT)
@@ -144,12 +146,20 @@ class SuperTypeAssist(LoginRequiredMixin, View):
         return resp
 
     def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests for SuperTypeAssist.
+
+        REFACTORED (Oct 2025): Consolidated overlapping exception handlers
+        from 84 lines (4 duplicate blocks) to 30 lines (single comprehensive handler).
+        """
         resp, create = None, True
         R = request.POST
+
         try:
             form_data = html.unescape(request.POST["formData"])
             data = QueryDict(form_data)
             pk = request.POST.get("pk", None)
+
             if pk:
                 msg = "supertypeassist_view"
                 form = utils.get_instance_for_update(
@@ -158,96 +168,50 @@ class SuperTypeAssist(LoginRequiredMixin, View):
                 create = False
             else:
                 form = self.params["form_class"](data, request=request)
+
             if form.is_valid():
                 resp = self.handle_valid_form(form, request, create)
             else:
                 cxt = {"errors": form.errors}
                 resp = utils.handle_invalid_form(request, self.params, cxt)
-        except (ValidationError, ValueError) as e:
 
+        except (ValidationError, ValueError, TypeError) as e:
             logger.error(
-
-                f"Validation error in onboarding view: {type(e).__name__}",
-
-                extra={'error_message': str(e), 'user_id': request.user.id, 'view': self.__class__.__name__}
-
+                f"Validation error in SuperTypeAssist: {type(e).__name__}",
+                extra={
+                    'error_message': str(e),
+                    'user_id': getattr(request.user, 'id', None),
+                    'view': self.__class__.__name__,
+                    'operation': 'supertypeassist_post'
+                },
+                exc_info=True
             )
-
             resp = utils.handle_invalid_form(request, self.params, {"errors": {"form": str(e)}})
 
         except (DatabaseError, IntegrityError) as e:
-
             logger.error(
-
-                f"Database error in onboarding view: {type(e).__name__}",
-
-                extra={'error_message': str(e), 'user_id': request.user.id, 'view': self.__class__.__name__}
-
+                f"Database error in SuperTypeAssist: {type(e).__name__}",
+                extra={
+                    'error_message': str(e),
+                    'user_id': getattr(request.user, 'id', None),
+                    'view': self.__class__.__name__,
+                    'operation': 'supertypeassist_post'
+                },
+                exc_info=True
             )
-
             resp = utils.handle_intergrity_error("Onboarding")
 
-        except (ValidationError, ValueError, TypeError) as e:
-
-
-            logger.error(
-
-
-                f"Validation error: {type(e).__name__}",
-
-
-                extra={'error_message': str(e), 'user_id': getattr(request, 'user', {}), 'operation': 'onboarding'},
-
-
-                exc_info=True
-
-
+        except ObjectDoesNotExist as e:
+            logger.warning(
+                f"Object not found in SuperTypeAssist: {type(e).__name__}",
+                extra={
+                    'error_message': str(e),
+                    'user_id': getattr(request.user, 'id', None),
+                    'view': self.__class__.__name__
+                }
             )
-
-
             resp = utils.handle_Exception(request)
 
-
-        except (DatabaseError, IntegrityError) as e:
-
-
-            logger.error(
-
-
-                f"Database error: {type(e).__name__}",
-
-
-                extra={'error_message': str(e), 'operation': 'onboarding'},
-
-
-                exc_info=True
-
-
-            )
-
-
-            resp = utils.handle_Exception(request)
-
-
-        except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError) as e:
-
-
-            logger.critical(
-
-
-                f"Unexpected error: {type(e).__name__}",
-
-
-                extra={'error_message': str(e), 'operation': 'onboarding'},
-
-
-                exc_info=True
-
-
-            )
-
-
-            resp = utils.handle_Exception(request)
         return resp
 
     def handle_valid_form(self, form, request, create, designations_count, obj):
@@ -365,3 +329,72 @@ def get_list_of_peoples(request):
         or Pgbelonging.objects.none()
     )
     return rp.JsonResponse({"data": list(data)}, status=200)
+
+
+# ========== MISSING VIEW CLASSES (Placeholders for URL routing) ==========
+# These views are referenced in URLs but were not yet implemented
+# Created: 2025-10-10 to unblock Django startup
+
+
+class BtView(LoginRequiredMixin, View):
+    """Business Unit management view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("BtView placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "BtView POST placeholder"}, status=501)
+
+
+class Client(LoginRequiredMixin, View):
+    """Client management view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Client view placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "Client POST placeholder"}, status=501)
+
+
+class ContractView(LoginRequiredMixin, View):
+    """Contract management view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ContractView placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "ContractView POST placeholder"}, status=501)
+
+
+class TypeAssistView(LoginRequiredMixin, View):
+    """TypeAssist configuration view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("TypeAssistView placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "TypeAssistView POST placeholder"}, status=501)
+
+
+class ShiftView(LoginRequiredMixin, View):
+    """Shift management view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ShiftView placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "ShiftView POST placeholder"}, status=501)
+
+
+class GeoFence(LoginRequiredMixin, View):
+    """Geofence management view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("GeoFence placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "GeoFence POST placeholder"}, status=501)
+
+
+class BulkImportData(LoginRequiredMixin, View):
+    """Bulk data import view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("BulkImportData placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "BulkImportData POST placeholder"}, status=501)
+
+
+class BulkImportUpdate(LoginRequiredMixin, View):
+    """Bulk data update view - PLACEHOLDER"""
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("BulkImportUpdate placeholder - to be implemented")
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "BulkImportUpdate POST placeholder"}, status=501)

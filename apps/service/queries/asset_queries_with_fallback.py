@@ -33,6 +33,10 @@ class AssetQueriesWithFallback(graphene.ObjectType):
     @staticmethod
     @require_tenant_access
     def resolve_get_assetdetails(self, info, mdtz, ctzoffset, buid):
+        # Feature flag to control which implementation to use
+        # CRITICAL: Define outside try block to prevent UnboundLocalError in exception handlers
+        use_django_orm = os.environ.get('USE_DJANGO_ORM_FOR_ASSETS', 'false').lower() == 'true'
+
         try:
             log.info("request for get_assetdetails")
             # Create filter dict for validation
@@ -45,9 +49,6 @@ class AssetQueriesWithFallback(graphene.ObjectType):
             mdtzinput = utils.getawaredatetime(
                 dt=validated.mdtz, offset=validated.ctzoffset
             )
-            
-            # Feature flag to control which implementation to use
-            use_django_orm = os.environ.get('USE_DJANGO_ORM_FOR_ASSETS', 'false').lower() == 'true'
             
             if use_django_orm:
                 log.info("Using Django ORM implementation for asset details")

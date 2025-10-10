@@ -183,11 +183,12 @@ class BaseReportsExport(WeasyTemplateResponseMixin):
     def get_col_widths(self, dataframe):
         """
         Get the maximum width of each column in a Pandas DataFrame.
+
+        DEDUPLICATED (Oct 2025): Delegates to ReportExportService.get_column_widths()
+        This method is kept for backward compatibility but should not be used in new code.
         """
-        return [
-            max([len(str(s)) for s in dataframe[col].values] + [len(col)])
-            for col in dataframe.columns
-        ]
+        from apps.reports.services.report_export_service import ReportExportService
+        return ReportExportService.get_column_widths(dataframe)
 
     def excel_columns(self, df):
         """

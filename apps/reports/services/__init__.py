@@ -9,16 +9,33 @@ Services included:
 - ReportGenerationService: Manages report generation workflows
 - ReportExportService: Handles report export functionality
 - ReportTemplateService: Manages report templates and configurations
+- FrappeService: Handles Frappe/ERPNext ERP integration (Oct 2025)
 """
 
 from .report_data_service import ReportDataService
 from .report_generation_service import ReportGenerationService
 from .report_export_service import ReportExportService
 from .report_template_service import ReportTemplateService
+from .frappe_service import (
+    FrappeService,
+    get_frappe_service,
+    FrappeCompany,
+    PayrollDocumentType,
+    FrappeServiceException,
+    FrappeConnectionException,
+    FrappeDataException
+)
 
 __all__ = [
     'ReportDataService',
     'ReportGenerationService',
     'ReportExportService',
-    'ReportTemplateService'
+    'ReportTemplateService',
+    'FrappeService',
+    'get_frappe_service',
+    'FrappeCompany',
+    'PayrollDocumentType',
+    'FrappeServiceException',
+    'FrappeConnectionException',
+    'FrappeDataException'
 ]

@@ -454,15 +454,24 @@ class ReportExportService:
             return None, str(e)
 
     @staticmethod
-    def _get_column_widths(dataframe) -> List[int]:
+    def get_column_widths(dataframe) -> List[int]:
         """
         Calculate optimal column widths for Excel export.
+
+        PUBLIC API: Use this instead of duplicating get_col_widths() logic.
+        This method is now the canonical implementation for all column width calculations.
 
         Args:
             dataframe: Pandas DataFrame
 
         Returns:
-            List of column widths
+            List of column widths (integers representing character widths)
+
+        Example:
+            >>> df = pd.DataFrame({'A': [1, 2], 'BB': [10, 20]})
+            >>> widths = ReportExportService.get_column_widths(df)
+            >>> widths
+            [1, 2]
         """
         try:
             return [
@@ -484,6 +493,14 @@ class ReportExportService:
         except Exception as e:
             logger.exception(f"Unexpected error calculating column widths: {e}")
             return [15] * len(dataframe.columns)
+
+    @staticmethod
+    def _get_column_widths(dataframe) -> List[int]:
+        """
+        DEPRECATED: Use get_column_widths() instead.
+        This private method is kept for backward compatibility in internal service calls.
+        """
+        return ReportExportService.get_column_widths(dataframe)
 
     @staticmethod
     def _sanitize_filename(filename: str) -> str:

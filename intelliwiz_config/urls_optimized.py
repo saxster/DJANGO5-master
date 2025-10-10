@@ -4,7 +4,7 @@ Implements clean, domain-driven information architecture
 """
 from django.contrib import admin
 from django.conf import settings
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
 from django.views.i18n import JavaScriptCatalog
@@ -18,11 +18,13 @@ import debug_toolbar
 from apps.service.mutations import SecureUploadFile
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.views.dashboard_views import ModernDashboardView
-from apps.core.health_checks import (
+
+# Import health check views
+from apps.core.health_check_views import (
     health_check,
     readiness_check,
     liveness_check,
-    detailed_health_check,
+    detailed_health_check
 )
 
 # Main URL patterns with optimized structure
@@ -92,15 +94,13 @@ urlpatterns = [
     # GraphQL endpoints with CSRF protection (vulnerability fix: CVSS 8.1)
     # CSRF protection is now handled by GraphQLCSRFProtectionMiddleware
     # Security: graphiql interface disabled in production (CVSS 7.5 - Information Disclosure)
-    path('api/graphql/', FileUploadGraphQLView.as_view(
+    # Consolidated: 3 routes → 2 with optional trailing slash (Oct 2025 - code quality fix)
+    re_path(r'^api/graphql/?$', FileUploadGraphQLView.as_view(
         graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
-    )),
-    path('graphql/', FileUploadGraphQLView.as_view(
+    ), name='api_graphql'),
+    re_path(r'^graphql/?$', FileUploadGraphQLView.as_view(
         graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
-    )),  # With trailing slash
-    path('graphql', FileUploadGraphQLView.as_view(
-        graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
-    )),   # Without trailing slash
+    ), name='graphql'),
     path('api/upload/att_file/', SecureUploadFile.as_view()),
 
     # ========== API DOCUMENTATION (OpenAPI/Swagger) ==========
@@ -167,8 +167,8 @@ LEGACY_PATTERNS = [
     path('peoples/', include('apps.peoples.urls')),
     path('attendance/', include('apps.attendance.urls')),
     path('activity/', include('apps.activity.urls')),
-    path('schedhuler/', include('apps.schedhuler.urls')),
-    path('schedhule/', include(('apps.schedhuler.urls', 'schedhuler'), namespace='schedhuler_typo')),  # Common typo with different namespace
+    path('schedhuler/', include('apps.scheduler.urls')),
+    path('schedhule/', include(('apps.scheduler.urls', 'scheduler'), namespace='schedhuler_typo')),  # Common typo with different namespace
     path('helpdesk/', include('apps.y_helpdesk.urls')),
     path('y_helpdesk/', include(('apps.y_helpdesk.urls', 'helpdesk'), namespace='y_helpdesk')),
     path('clientbilling/', include('apps.clientbilling.urls')),
@@ -176,7 +176,7 @@ LEGACY_PATTERNS = [
 
     # ========== INTERNATIONALIZATION ==========
     path('i18n/', include('django.conf.urls.i18n')),  # Language switching URLs
-    path('jsi18n/', JavaScriptCatalog.as_view(packages=['apps.core', 'apps.peoples', 'apps.onboarding', 'apps.schedhuler']), name='javascript-catalog'),
+    path('jsi18n/', JavaScriptCatalog.as_view(packages=['apps.core', 'apps.peoples', 'apps.onboarding', 'apps.scheduler']), name='javascript-catalog'),
 ]
 
 # Add legacy patterns only if feature flag is enabled
