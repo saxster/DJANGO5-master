@@ -48,4 +48,5 @@ urlpatterns = [
     path('attendance/', include('apps.api.v1.attendance_urls')),
     path('help-desk/', include('apps.api.v1.helpdesk_urls')),
     path('reports/', include('apps.api.v1.reports_urls')),
+    path('files/', include('apps.api.v1.file_urls')),
 ]
