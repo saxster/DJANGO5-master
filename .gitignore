@@ -186,11 +186,33 @@ logs/
 *.sqlite3
 *.db
 
-# Secret files
+# Secret files (comprehensive patterns)
 .env
+.env.*
 *.pem
 *.key
+*.p12
+*.pfx
+*secret*
+*credentials*
 secrets.json
+secrets.*.json
+credentials.json
+credentials.*.json
+
+# Prevent accidental commit of secret file patterns
+*_secret.py
+*_credentials.py
+*_keys.py
+
+# Service account keys (GCP, AWS, Azure)
+*service-account*.json
+*serviceaccount*.json
+*-*.json
+!package-lock.json
+!tsconfig.json
+!.eslintrc.json
+!.prettierrc.json
 
 # Claude Code
 .claude/
@@ -209,8 +231,18 @@ test_reports/
 
 sukhi-group-e35476d5ef6e.json
 
-# Environment files with secrets
-intelliwiz_config/envs/.env.*
+# Environment files with secrets (comprehensive)
+intelliwiz_config/envs/.env*
+intelliwiz_config/envs/*.env
+!intelliwiz_config/envs/.env.example
+!intelliwiz_config/envs/README.md
+
+# Additional environment patterns
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # ============================================================================
 # CODE QUALITY: Backup and Stub File Prevention
@@ -246,3 +278,6 @@ CODE_SMELL_*.md
 code_smells.json
 
 .archive/generation_views_split_20251010/
+
+# Git worktrees (isolated development workspaces)
+.worktrees/
