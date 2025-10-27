@@ -12,23 +12,18 @@ Compliance with .claude/rules.md:
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
-# Import viewsets when they're created
-# from apps.y_helpdesk.api import views
+from apps.y_helpdesk.api.viewsets import TicketViewSet
 
 app_name = 'helpdesk'
 
 router = DefaultRouter()
-# router.register(r'tickets', views.TicketViewSet, basename='tickets')
-# router.register(r'escalation-policies', views.EscalationPolicyViewSet, basename='escalation-policies')
-# router.register(r'sla-policies', views.SLAPolicyViewSet, basename='sla-policies')
+router.register(r'tickets', TicketViewSet, basename='tickets')
 
 urlpatterns = [
     # Router URLs (CRUD operations)
+    # Includes custom actions:
+    # - POST /tickets/{id}/transition/
+    # - POST /tickets/{id}/escalate/
+    # - GET  /tickets/sla-breaches/
     path('', include(router.urls)),
-
-    # Additional endpoints (to be implemented)
-    # path('tickets/<int:pk>/transition/', views.TicketTransitionView.as_view(), name='ticket-transition'),
-    # path('tickets/<int:pk>/escalate/', views.TicketEscalateView.as_view(), name='ticket-escalate'),
-    # path('sla-breaches/', views.SLABreachView.as_view(), name='sla-breaches'),
 ]
