@@ -12,7 +12,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from apps.y_helpdesk.models import Ticket, TicketHistory
+from apps.y_helpdesk.models import Ticket
+from apps.y_helpdesk.models.ticket_workflow import TicketWorkflow
 from apps.y_helpdesk.api.serializers import (
     TicketListSerializer,
     TicketDetailSerializer,
@@ -125,14 +126,19 @@ class TicketViewSet(viewsets.ModelViewSet):
 
         ticket.save()
 
-        # Log transition in history
-        TicketHistory.objects.create(
-            ticket=ticket,
-            changed_by=request.user,
-            old_status=old_status,
-            new_status=new_status,
-            comment=comment
-        )
+        # Log transition in workflow history
+        workflow = ticket.get_or_create_workflow()
+        if not workflow.workflow_data:
+            workflow.workflow_data = {'workflow_history': []}
+
+        workflow.workflow_data['workflow_history'].append({
+            'changed_by': request.user.username,
+            'old_status': old_status,
+            'new_status': new_status,
+            'comment': comment,
+            'timestamp': datetime.now(dt_timezone.utc).isoformat()
+        })
+        workflow.save()
 
         logger.info(f"Ticket {ticket.ticket_number} transitioned: {old_status} → {new_status}")
 

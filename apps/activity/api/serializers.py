@@ -9,8 +9,8 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import serializers
-from apps.activity.models import Job, Jobneed, JobneedDetails, Task, QuestionSet
-from apps.activity.models import Question, QuestionCondition
+from apps.activity.models import Job, Jobneed, JobneedDetails, QuestionSet, Question
+from apps.activity.models.job_model import JobneedDetails as JobneedDetailsModel
 from django.db import transaction
 import logging
 
@@ -107,21 +107,6 @@ class JobneedDetailsSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'modified_at']
 
 
-class TaskSerializer(serializers.ModelSerializer):
-    """Serializer for task operations."""
-
-    class Meta:
-        model = Task
-        fields = [
-            'id', 'task_number', 'title', 'status',
-            'assigned_to', 'job', 'priority',
-            'due_date', 'completed_date',
-            'description', 'is_active',
-            'created_at', 'modified_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'modified_at']
-
-
 class QuestionSerializer(serializers.ModelSerializer):
     """Serializer for question operations."""
 
@@ -156,7 +141,6 @@ __all__ = [
     'JobneedListSerializer',
     'JobneedDetailSerializer',
     'JobneedDetailsSerializer',
-    'TaskSerializer',
     'QuestionSerializer',
     'QuestionSetSerializer',
 ]

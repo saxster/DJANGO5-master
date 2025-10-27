@@ -13,14 +13,13 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from apps.activity.models import Job, Jobneed, JobneedDetails, Task, QuestionSet
+from apps.activity.models import Job, Jobneed, JobneedDetails, QuestionSet
 from apps.activity.api.serializers import (
     JobListSerializer,
     JobDetailSerializer,
     JobneedListSerializer,
     JobneedDetailSerializer,
     JobneedDetailsSerializer,
-    TaskSerializer,
     QuestionSetSerializer,
 )
 from apps.api.permissions import TenantIsolationPermission
@@ -242,38 +241,6 @@ class JobneedViewSet(viewsets.ModelViewSet):
             )
 
 
-class TaskViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint for Task management.
-
-    Endpoints:
-    - GET    /api/v1/operations/tasks/       List tasks
-    - POST   /api/v1/operations/tasks/       Create task
-    - GET    /api/v1/operations/tasks/{id}/  Retrieve task
-    - PATCH  /api/v1/operations/tasks/{id}/  Update task
-    - DELETE /api/v1/operations/tasks/{id}/  Delete task
-    """
-    permission_classes = [IsAuthenticated, TenantIsolationPermission]
-    serializer_class = TaskSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    pagination_class = MobileSyncCursorPagination
-
-    filterset_fields = ['status', 'priority', 'assigned_to', 'job']
-    search_fields = ['task_number', 'title', 'description']
-    ordering_fields = ['due_date', 'created_at', 'priority']
-    ordering = ['-created_at']
-
-    def get_queryset(self):
-        """Get queryset with tenant filtering."""
-        queryset = Task.objects.all()
-
-        if not self.request.user.is_superuser:
-            queryset = queryset.filter(job__client_id=self.request.user.client_id)
-
-        queryset = queryset.select_related('assigned_to', 'job')
-        return queryset
-
-
 class QuestionSetViewSet(viewsets.ModelViewSet):
     """
     API endpoint for QuestionSet management.
@@ -301,6 +268,5 @@ class QuestionSetViewSet(viewsets.ModelViewSet):
 __all__ = [
     'JobViewSet',
     'JobneedViewSet',
-    'TaskViewSet',
     'QuestionSetViewSet',
 ]

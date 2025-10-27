@@ -15,7 +15,6 @@ from rest_framework.routers import DefaultRouter
 from apps.activity.api.viewsets import (
     JobViewSet,
     JobneedViewSet,
-    TaskViewSet,
     QuestionSetViewSet,
 )
 
@@ -24,7 +23,6 @@ app_name = 'operations'
 router = DefaultRouter()
 router.register(r'jobs', JobViewSet, basename='jobs')
 router.register(r'jobneeds', JobneedViewSet, basename='jobneeds')
-router.register(r'tasks', TaskViewSet, basename='tasks')
 router.register(r'questionsets', QuestionSetViewSet, basename='questionsets')
 
 urlpatterns = [
