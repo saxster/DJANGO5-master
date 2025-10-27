@@ -12,23 +12,20 @@ Compliance with .claude/rules.md:
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
-# Import views when they're created
-# from apps.attendance.api import views
+from apps.attendance.api.viewsets import AttendanceViewSet, FraudDetectionView
 
 app_name = 'attendance'
 
 router = DefaultRouter()
-# router.register(r'', views.AttendanceViewSet, basename='attendance')
+router.register(r'', AttendanceViewSet, basename='attendance')
 
 urlpatterns = [
     # Router URLs (CRUD operations)
+    # Includes custom actions:
+    # - POST /clock-in/
+    # - POST /clock-out/
     path('', include(router.urls)),
 
-    # Additional endpoints (to be implemented)
-    # path('clock-in/', views.ClockInView.as_view(), name='clock-in'),
-    # path('clock-out/', views.ClockOutView.as_view(), name='clock-out'),
-    # path('validate-location/', views.ValidateLocationView.as_view(), name='validate-location'),
-    # path('history/', views.AttendanceHistoryView.as_view(), name='history'),
-    # path('fraud-alerts/', views.FraudAlertsView.as_view(), name='fraud-alerts'),
+    # Fraud detection (admin only)
+    path('fraud-alerts/', FraudDetectionView.as_view(), name='fraud-alerts'),
 ]

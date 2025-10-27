@@ -12,22 +12,16 @@ Compliance with .claude/rules.md:
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
-# Import viewsets when they're created
-# from apps.activity.api import views as asset_views
-# from apps.attendance.api import views as geo_views
+from apps.attendance.api.viewsets import GeofenceViewSet
 
 app_name = 'assets'
 
 router = DefaultRouter()
-# router.register(r'', asset_views.AssetViewSet, basename='assets')
-# router.register(r'geofences', geo_views.GeofenceViewSet, basename='geofences')
-# router.register(r'locations', asset_views.LocationViewSet, basename='locations')
+router.register(r'geofences', GeofenceViewSet, basename='geofences')
 
 urlpatterns = [
     # Router URLs (CRUD operations)
+    # Includes custom actions:
+    # - POST /geofences/validate/
     path('', include(router.urls)),
-
-    # Additional endpoints (to be implemented)
-    # path('geofences/<int:pk>/validate/', geo_views.GeofenceValidateView.as_view(), name='geofence-validate'),
 ]
