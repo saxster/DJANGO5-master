@@ -4,6 +4,11 @@ Implements clean, domain-driven information architecture
 """
 from django.contrib import admin
 from django.conf import settings
+
+# Set admin site branding (centralized to prevent conflicts)
+admin.site.site_header = 'IntelliWiz Administration'
+admin.site.site_title = 'IntelliWiz Admin'
+admin.site.index_title = 'System Administration Dashboard'
 from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
@@ -74,18 +79,22 @@ urlpatterns = [
 
     # ========== ADMINISTRATION ==========
     path('admin/', include('apps.core.urls_admin')),
+    path('admin/secrets/', include('apps.core.urls_secrets')),  # Encrypted Secrets Management
     
     # ========== API ENDPOINTS ==========
     # REST API v1 (current stable)
     path('api/v1/', include('apps.service.rest_service.urls')),
     path('api/v1/sync/', include('apps.api.v1.urls')),  # Mobile Sync API (Sprint 2)
+    path('api/v1/biometrics/', include('apps.api.biometrics_urls')),  # Biometric Authentication API (Sprint 2)
+    path('api/v1/assets/nfc/', include('apps.activity.api.nfc_urls')),  # NFC Asset Tracking API (Sprint 4)
     path('api/v1/onboarding/', include('apps.onboarding_api.urls')),  # Conversational Onboarding API (Phase 1 MVP)
-    path('api/v1/journal/', include('apps.journal.urls')),  # Journal & Wellness API endpoints
-    path('api/v1/wellness/', include('apps.wellness.urls')),  # Wellness education API endpoints
+    path('api/v1/journal/', include(('apps.journal.urls', 'journal'), namespace='journal_api')),  # Journal & Wellness API endpoints
+    path('api/v1/wellness/', include(('apps.wellness.urls', 'wellness'), namespace='wellness_api')),  # Wellness education API endpoints
     path('api/v1/search/', include(('apps.search.urls', 'search'))),  # Global Cross-Domain Search API
     path('api/v1/helpbot/', include('apps.helpbot.urls')),  # AI HelpBot API endpoints
+    path('api/dashboard/', include('apps.core.urls_agent_api')),  # Dashboard Agent Intelligence API
     path('', include('apps.core.urls.cron_management')),  # Unified Cron Management API
-    path('api/noc/', include('apps.noc.urls')),  # NOC API endpoints
+    path('api/noc/', include(('apps.noc.urls', 'noc'), namespace='noc_api')),  # NOC API endpoints
 
     # REST API v2 (Type-safe endpoints with Pydantic validation)
     path('api/v2/', include('apps.api.v2.urls')),  # Typed sync/device endpoints
@@ -111,6 +120,7 @@ urlpatterns = [
 
     # ========== MONITORING & HEALTH ==========
     path('monitoring/', include('monitoring.urls')),
+    path('admin/monitoring/', include('apps.core.urls_performance_monitoring')),  # Performance dashboards (Celery/Cache/DB)
     path('security/', include('apps.core.urls_security')),  # Security monitoring dashboard (CVSS 8.1 fix)
     path('api/spatial-performance/', include('apps.core.urls.spatial_performance_urls')),  # GPS/Geolocation performance monitoring
 
@@ -128,8 +138,8 @@ urlpatterns = [
     
     # ========== AI & INTELLIGENCE ==========
     # AI Mentor system (development only)
-    path('mentor/', include('apps.mentor_api.urls')),
-    path('api/v1/mentor/', include('apps.mentor_api.urls')),
+    path('mentor/', include(('apps.mentor_api.urls', 'mentor_api'), namespace='mentor_web')),
+    path('api/v1/mentor/', include(('apps.mentor_api.urls', 'mentor_api'), namespace='mentor_api')),
     
     # ========== UTILITIES ==========
     path('select2/', include('django_select2.urls')),
@@ -164,11 +174,10 @@ LEGACY_PATTERNS = [
     # These are included but will trigger redirects from OptimizedURLRouter
     path('onboarding/', include('apps.onboarding.urls')),
     path('work_order_management/', include('apps.work_order_management.urls')),
-    path('peoples/', include('apps.peoples.urls')),
+    path('peoples/', include(('apps.peoples.urls', 'people'), namespace='peoples_legacy')),  # Legacy redirect for peoples → people
     path('attendance/', include('apps.attendance.urls')),
     path('activity/', include('apps.activity.urls')),
-    path('schedhuler/', include('apps.scheduler.urls')),
-    path('schedhule/', include(('apps.scheduler.urls', 'scheduler'), namespace='schedhuler_typo')),  # Common typo with different namespace
+    path('scheduler/', include('apps.scheduler.urls')),
     path('helpdesk/', include('apps.y_helpdesk.urls')),
     path('y_helpdesk/', include(('apps.y_helpdesk.urls', 'helpdesk'), namespace='y_helpdesk')),
     path('clientbilling/', include('apps.clientbilling.urls')),
@@ -183,7 +192,8 @@ LEGACY_PATTERNS = [
 if getattr(settings, 'ENABLE_LEGACY_URLS', True):
     urlpatterns += LEGACY_PATTERNS
 
-# ========== CUSTOM 404 HANDLER ==========
-# Track 404s for dead URL detection
-handler404 = 'apps.core.views.base_views.custom_404_view'
-handler500 = 'apps.core.views.base_views.custom_500_view'
+# ========== CUSTOM ERROR HANDLERS ==========
+# Custom error views for user-friendly error pages
+# Defined in: apps/core/middleware/user_friendly_error_middleware.py
+handler404 = 'apps.core.middleware.user_friendly_error_middleware.custom_404_view'
+handler500 = 'apps.core.middleware.user_friendly_error_middleware.custom_500_view'

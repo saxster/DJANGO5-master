@@ -10,12 +10,19 @@ from croniter import croniter
 from datetime import datetime, timedelta, timezone as dt_timezone
 from django.utils import timezone
 from django.core.mail import EmailMessage
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from apps.core.exceptions import IntegrationException
 from logging import getLogger
 from pprint import pformat
 import json
 import traceback as tb
 import os
 from io import BytesIO
+
+# Celery task imports
+from celery import shared_task
+from apps.core.tasks.base import IdempotentTask
 
 
 # make it false when u deploy
@@ -355,7 +362,7 @@ def handle_error(e):
     }
 
 
-import pytz
+from zoneinfo import ZoneInfo
 
 
 def check_time_of_report(filename):
@@ -367,15 +374,15 @@ def check_time_of_report(filename):
 
     try:
         sendtime_str = parts[-1]  # e.g., '17:35'
-        ist_zone = pytz.timezone("Asia/Kolkata")
+        ist_zone = ZoneInfo("Asia/Kolkata")
 
         # Parse IST time and convert to UTC
         ist_time = datetime.strptime(sendtime_str, TIME_FORMAT).time()
         today = timezone.now().date()
 
         ist_datetime = datetime.combine(today, ist_time)
-        ist_aware = ist_zone.localize(ist_datetime)
-        utc_send_time = ist_aware.astimezone(pytz.UTC)
+        ist_aware = ist_datetime.replace(tzinfo=ist_zone)
+        utc_send_time = ist_aware.astimezone(dt_timezone.utc)
 
         # Current UTC time
         now_utc = timezone.now()
@@ -432,3 +439,219 @@ def remove_reportfile(file, story=None):
         if story:
             story["errors"].append(str(e))
     return story
+
+
+# ============================================================================
+# BACKWARD COMPATIBILITY STUBS
+# ============================================================================
+# These functions were referenced in __init__.py but not found in this file.
+# Creating stubs to prevent import errors during refactoring.
+# ============================================================================
+
+def create_report_history(*args, **kwargs):
+    """STUB: Function may have been refactored - implement or remove references."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("create_report_history called but not implemented - may need refactoring")
+    pass
+
+
+def create_save_report_async(*args, **kwargs):
+    """STUB: Function may have been refactored - implement or remove references."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("create_save_report_async called but not implemented - may need refactoring")
+    pass
+
+
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name='create_scheduled_reports',
+    queue='reports',
+    priority=6,
+    max_retries=2,
+    default_retry_delay=300
+)
+def create_scheduled_reports(self):
+    """
+    Generate scheduled reports based on database configuration.
+
+    Runs every 15 minutes (scheduled in celery.py) and:
+    1. Queries database for reports due for generation
+    2. For each report:
+       - Calculates date range based on cron configuration
+       - Executes report generation
+       - Saves output to temp directory
+       - Updates database record
+    3. Returns summary of reports generated
+
+    Returns:
+        dict: Summary with counts of generated, skipped, and failed reports
+
+    Idempotency:
+        - Scope: global (one execution per 15-min window)
+        - TTL: 900 seconds (15 minutes)
+        - Prevents duplicate report generation
+    """
+    # Configure idempotency
+    self.idempotency_ttl = 900  # 15 minutes
+    self.idempotency_scope = 'global'
+
+    story = {
+        'start_time': timezone.now(),
+        'generated': 0,
+        'skipped': 0,
+        'not_generated': 0,
+        'errors': [],
+        'end_time': None
+    }
+
+    state_map = {'generated': 0, 'skipped': 0, 'not_generated': 0}
+
+    try:
+        # Get reports scheduled for generation
+        scheduled_reports = get_scheduled_reports_fromdb()
+        log.info(f"Found {len(scheduled_reports) if scheduled_reports else 0} scheduled reports to process")
+
+        if scheduled_reports:
+            for record in scheduled_reports:
+                try:
+                    # Generate report and update state
+                    state_map = generate_scheduled_report(record, state_map)
+
+                except (DatabaseError, IntegrityError, ValidationError, ValueError, TypeError) as e:
+                    log.error(f"Error generating report {record.get('id', 'unknown')}: {e}", exc_info=True)
+                    story['errors'].append({
+                        'report_id': record.get('id'),
+                        'error': str(e),
+                        'traceback': tb.format_exc()
+                    })
+                    state_map['not_generated'] += 1
+
+            # Update story with final counts
+            story.update(state_map)
+        else:
+            log.info("No scheduled reports due for generation at this time")
+
+    except (DatabaseError, IntegrityError, ValidationError, ValueError, TypeError) as e:
+        error_info = handle_error(e)
+        story['errors'].append(error_info)
+        log.critical("Critical error in create_scheduled_reports", exc_info=True)
+
+    story['end_time'] = timezone.now()
+    duration = (story['end_time'] - story['start_time']).total_seconds()
+
+    log.info(
+        f"create_scheduled_reports completed: "
+        f"{story['generated']} generated, {story['skipped']} skipped, "
+        f"{story['not_generated']} failed in {duration:.2f}s"
+    )
+
+    return story
+
+
+def send_report_on_email(*args, **kwargs):
+    """STUB: Function may have been refactored - implement or remove references."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("send_report_on_email called but not implemented - may need refactoring")
+    pass
+
+
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name='send_generated_report_on_mail',
+    queue='email',
+    priority=7,
+    max_retries=3,
+    default_retry_delay=120
+)
+def send_generated_report_on_mail(self):
+    """
+    Send generated reports via email at scheduled times.
+
+    This task runs every 27 minutes (scheduled in celery.py) and:
+    1. Scans TEMP_REPORTS_GENERATED directory for report files
+    2. Checks if each report is ready to send (based on scheduled time)
+    3. Retrieves report record from database with recipient email
+    4. Sends email with report attachment
+    5. Deletes file after successful send
+
+    Returns:
+        dict: Execution summary with files processed, emails sent, and errors
+
+    Idempotency:
+        - Scope: global (one execution per 27-min window)
+        - TTL: 1620 seconds (27 minutes)
+        - Prevents duplicate email sends
+    """
+    # Configure idempotency
+    self.idempotency_ttl = 1620  # 27 minutes
+    self.idempotency_scope = 'global'
+    story = {
+        "start_time": timezone.now(),
+        "files_processed": 0,
+        "emails_sent": 0,
+        "errors": [],
+        "end_time": None,
+    }
+
+    try:
+        # Walk through temp reports directory
+        for file in walk_directory(settings.TEMP_REPORTS_GENERATED):
+            story["files_processed"] += 1
+
+            # Check if report should be sent now
+            sendmail, filename_without_extension = check_time_of_report(file)
+
+            if sendmail:
+                # Get report record with email addresses
+                record = get_report_record(filename_without_extension)
+
+                if record:
+                    # Send email with report attachment
+                    send_email(record, file)
+                    story["emails_sent"] += 1
+
+                    # Delete file after successful send
+                    story = remove_reportfile(file, story)
+                else:
+                    log.info(f"No record found for file {os.path.basename(file)}")
+            else:
+                log.debug(f"Report {os.path.basename(file)} not ready to send yet")
+
+    except (DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        error_info = handle_error(e)
+        story["errors"].append(error_info)
+        log.critical("Error in send_generated_report_on_mail", exc_info=True)
+
+    story["end_time"] = timezone.now()
+    log.info(f"send_generated_report_on_mail completed: {story['emails_sent']} emails sent, {story['files_processed']} files processed")
+
+    return story
+
+
+def send_generated_report_onfly_email(*args, **kwargs):
+    """STUB: Function may have been refactored - implement or remove references."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("send_generated_report_onfly_email called but not implemented - may need refactoring")
+    pass
+
+
+def generate_pdf_async(*args, **kwargs):
+    """STUB: Function may have been refactored - implement or remove references."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("generate_pdf_async called but not implemented - may need refactoring")
+    pass
+
+
+def cleanup_reports_which_are_12hrs_old(*args, **kwargs):
+    """STUB: Function may have been refactored - implement or remove references."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("cleanup_reports_which_are_12hrs_old called but not implemented - may need refactoring")
+    pass

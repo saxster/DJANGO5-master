@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cache Performance{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-database text-info"></i> Cache Performance Dashboard
+            </h1>
+            <p class="text-muted">Redis caching metrics and health</p>
+        </div>
+    </div>
+
+    <!-- Cache Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Memory Usage</h5>
+                    <h3 class="text-primary">{{ cache_stats.used_memory_human|default:'N/A' }}</h3>
+                    <small class="text-muted">Connected clients: {{ cache_stats.connected_clients|default:0 }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Cache Hits</h5>
+                    <h3 class="text-success">{{ cache_stats.keyspace_hits|default:0|intcomma }}</h3>
+                    <small class="text-muted">Total hits</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Cache Misses</h5>
+                    <h3 class="text-warning">{{ cache_stats.keyspace_misses|default:0|intcomma }}</h3>
+                    <small class="text-muted">Total misses</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commands Processed -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Performance Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Commands Processed:</strong> {{ cache_stats.total_commands_processed|default:0|intcomma }}</p>
+                    <p class="text-muted">Last updated: {{ last_updated|date:"Y-m-d H:i:s" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        setTimeout(() => location.reload(), 30000); // Refresh every 30 seconds
+    </script>
+</div>
+{% endblock %}

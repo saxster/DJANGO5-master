@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}File Upload Security{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-shield-alt text-danger"></i> File Upload Security Dashboard
+            </h1>
+            <p class="text-muted">Real-time monitoring of file upload security events</p>
+        </div>
+    </div>
+
+    <!-- Security Status Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h5 class="card-title">ClamAV Status</h5>
+                    <h3 class="text-success">
+                        {% if clamav_status.operational %}
+                            <i class="fas fa-check-circle"></i> OPERATIONAL
+                        {% else %}
+                            <i class="fas fa-exclamation-triangle text-warning"></i> OFFLINE
+                        {% endif %}
+                    </h3>
+                    <small class="text-muted">{{ clamav_status.version|default:'Not detected' }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Quarantined Files</h5>
+                    <h3 class="text-warning">{{ quarantine_status.file_count|default:0 }}</h3>
+                    <small class="text-muted">{{ quarantine_status.total_size_mb|floatformat:2 }} MB</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h5 class="card-title">Upload Success Rate</h5>
+                    <h3 class="text-info">{{ upload_statistics.success_rate|floatformat:1 }}%</h3>
+                    <small class="text-muted">Last {{ hours_back }} hours</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Malware Detected</h5>
+                    <h3 class="text-danger">{{ upload_statistics.malware_detected|default:0 }}</h3>
+                    <small class="text-muted">Last {{ hours_back }} hours</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Security Events -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Security Events</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-toggle="tab" href="#malware">
+                                Malware Detections ({{ security_events.malware|length }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="tab" href="#path-traversal">
+                                Path Traversal ({{ security_events.path_traversal|length }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="tab" href="#mime">
+                                MIME Mismatches ({{ security_events.mime_mismatch|length }})
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <div id="malware" class="tab-pane active">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Filename</th>
+                                        <th>User</th>
+                                        <th>Timestamp</th>
+                                        <th>Signature</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in security_events.malware %}
+                                    <tr>
+                                        <td><code>{{ event.filename }}</code></td>
+                                        <td>{{ event.user__username }}</td>
+                                        <td>{{ event.created_at|date:"Y-m-d H:i" }}</td>
+                                        <td><span class="badge badge-danger">{{ event.malware_signature }}</span></td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4" class="text-center text-muted">No malware detected</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="path-traversal" class="tab-pane">
+                            <p class="text-success">No path traversal attempts detected</p>
+                        </div>
+                        <div id="mime" class="tab-pane">
+                            <p class="text-success">No MIME mismatches detected</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        setTimeout(() => location.reload(), 60000); // Auto-refresh every minute
+    </script>
+</div>
+{% endblock %}

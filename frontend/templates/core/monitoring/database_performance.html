@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Database Performance{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-server text-success"></i> Database Performance Dashboard
+            </h1>
+            <p class="text-muted">PostgreSQL performance monitoring</p>
+        </div>
+    </div>
+
+    <!-- Connection Pool Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Pool Size</h5>
+                    <h3>{{ connection_stats.min_size }}-{{ connection_stats.max_size }}</h3>
+                    <small class="text-muted">Min-Max connections</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Active</h5>
+                    <h3 class="text-success">{{ connection_stats.active_connections|default:0 }}</h3>
+                    <small class="text-muted">Active queries</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Idle</h5>
+                    <h3 class="text-info">{{ connection_stats.idle_connections|default:0 }}</h3>
+                    <small class="text-muted">Idle connections</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Database Size</h5>
+                    <h3>{{ database_size.total_size_mb|floatformat:0 }} MB</h3>
+                    <small class="text-muted">Total size</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Performance -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Query Performance (Last 24h)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Total Queries:</strong> {{ query_performance.total_queries|intcomma }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Avg Time:</strong> {{ query_performance.avg_execution_time_ms|floatformat:2 }} ms</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Slowest:</strong> {{ query_performance.slowest_query_ms|floatformat:2 }} ms</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slow Queries -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Slow Queries (>1 second)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Execution Time (ms)</th>
+                                <th>Rows Affected</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for query in slow_queries %}
+                            <tr>
+                                <td><code>{{ query.query_type }}</code></td>
+                                <td class="text-danger">{{ query.execution_time|floatformat:0 }}</td>
+                                <td>{{ query.rows_affected|intcomma }}</td>
+                                <td>{{ query.executed_at|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-success">No slow queries detected</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
