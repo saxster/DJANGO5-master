@@ -12,23 +12,21 @@ Compliance with .claude/rules.md:
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
-# Import viewsets when they're created
-# from apps.reports.api import views
+from apps.reports.api.viewsets import (
+    ReportGenerateView,
+    ReportStatusView,
+    ReportDownloadView,
+    ReportScheduleView,
+)
 
 app_name = 'reports'
 
 router = DefaultRouter()
-# router.register(r'schedules', views.ScheduledReportViewSet, basename='schedules')
-# router.register(r'templates', views.ReportTemplateViewSet, basename='templates')
 
 urlpatterns = [
-    # Router URLs (CRUD operations)
-    path('', include(router.urls)),
-
-    # Additional endpoints (to be implemented)
-    # path('generate/', views.GenerateReportView.as_view(), name='generate'),
-    # path('<str:report_id>/download/', views.DownloadReportView.as_view(), name='download'),
-    # path('<str:report_id>/status/', views.ReportStatusView.as_view(), name='status'),
-    # path('templates/<int:pk>/preview/', views.TemplatePreviewView.as_view(), name='template-preview'),
+    # Report generation and management
+    path('generate/', ReportGenerateView.as_view(), name='generate'),
+    path('<str:report_id>/status/', ReportStatusView.as_view(), name='status'),
+    path('<str:report_id>/download/', ReportDownloadView.as_view(), name='download'),
+    path('schedules/', ReportScheduleView.as_view(), name='schedules'),
 ]
