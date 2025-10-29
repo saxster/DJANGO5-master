@@ -1,0 +1,274 @@
+{
+  "dashboard": {
+    "title": "REST API Security",
+    "tags": ["rest-api", "security", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Rate Limit Violations",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(django_rate_limit_violations_total{endpoint=~\"/api/v1/.*\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "Violations (5m)",
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Authentication Failures by Endpoint",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 0, "w": 18, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (view) (rate(django_http_requests_total_by_view_transport_method{view=~\"/api/v1/.*\", status=~\"401|403\"}[5m]))",
+            "legendFormat": "{{view}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Failed Requests/sec"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "High Authentication Failure Rate",
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Authentication failure rate exceeded 5 req/s - potential brute force attack",
+          "noDataState": "no_data",
+          "executionErrorState": "alerting"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Blocked IPs (Last Hour)",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(20, sum by (client_ip, endpoint_type) (rate_limit_blocked_ip_active{is_active=\"true\"}))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "client_ip": "IP Address",
+                "endpoint_type": "Endpoint Type",
+                "Value": "Violation Count"
+              }
+            }
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"displayName": "Violation Count", "desc": true}]
+        }
+      },
+      {
+        "id": 4,
+        "title": "CSRF Violations",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(django_csrf_violations_total{endpoint=~\"/api/v1/.*\"}[1h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "CSRF Violations (1h)",
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Permission Denials by Resource",
+        "type": "bargauge",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (resource) (rate(django_permission_denied_total{endpoint=~\"/api/v1/.*\"}[5m]))",
+            "legendFormat": "{{resource}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.5, "color": "yellow"},
+                {"value": 2, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "SQL Injection Attempts Blocked",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(django_sql_injection_attempts_blocked_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "Blocked Attempts (1h)",
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "XSS Attempts Blocked",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(django_xss_attempts_blocked_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "Blocked Attempts (1h)",
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "File Upload Security Violations",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (violation_type) (rate(django_file_upload_violations_total[5m]))",
+            "legendFormat": "{{violation_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Violations/sec"}
+        ],
+        "legend": {"show": true, "values": true, "current": true}
+      },
+      {
+        "id": 9,
+        "title": "Suspicious IP Activity Heatmap",
+        "type": "heatmap",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (client_ip) (rate(django_http_requests_total_by_view_transport_method{status=~\"4..|5..\"}[5m]))",
+            "format": "heatmap",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "tsbuckets",
+        "yAxis": {"format": "short"}
+      }
+    ],
+    "time": {"from": "now-6h", "to": "now"},
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m"]
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\".*Security.*|.*Auth.*|.*CSRF.*\"}",
+          "iconColor": "rgba(255, 0, 0, 1)",
+          "name": "Security Alerts",
+          "titleFormat": "Security Alert: {{alertname}}"
+        }
+      ]
+    }
+  }
+}

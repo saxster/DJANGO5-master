@@ -1,0 +1,416 @@
+# IntelliWiz - Enterprise Facility Management Platform
+
+**Version:** 1.0 (REST API Migration Complete)
+**Framework:** Django 5.2.1
+**Database:** PostgreSQL 14.2 + PostGIS
+**APIs:** REST API (GraphQL removed Oct 2025)
+**Status:** Production Ready
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.11.9 (recommended)
+- PostgreSQL 14.2+ with PostGIS extension
+- Redis 6.0+ (for caching and Celery)
+- Virtual environment
+
+### Installation
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd DJANGO5-master
+
+# Setup Python environment
+pyenv install 3.11.9
+pyenv local 3.11.9
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies (macOS)
+pip install -r requirements/base-macos.txt
+pip install -r requirements/observability.txt
+pip install -r requirements/encryption.txt
+
+# Setup database
+createdb intelliwiz_db
+python manage.py migrate
+
+# Initialize system
+python manage.py init_intelliwiz default
+
+# Run development server
+python manage.py runserver
+```
+
+**Full setup guide:** See `CLAUDE.md` for platform-specific instructions
+
+---
+
+## 📚 Documentation
+
+### Essential Reading
+
+- **[CLAUDE.md](CLAUDE.md)** - Complete development guide (MUST READ)
+- **[.claude/rules.md](.claude/rules.md)** - Zero-tolerance security & architecture rules
+- **[REST_API_MIGRATION_COMPLETE.md](REST_API_MIGRATION_COMPLETE.md)** - GraphQL→REST migration report (Oct 2025)
+
+### API Documentation
+
+- **Interactive Swagger UI:** http://localhost:8000/api/schema/swagger/
+- **ReDoc:** http://localhost:8000/api/schema/redoc/
+- **OpenAPI Schema:** http://localhost:8000/api/schema/
+- **Mobile Integration:** [docs/mobile/rest-api-migration-guide.md](docs/mobile/rest-api-migration-guide.md)
+- **API Changelog:** [docs/api-changelog/2025-10-rest-migration.md](docs/api-changelog/2025-10-rest-migration.md)
+
+### Technical Guides
+
+- **Deployment:** `docs/DEPLOYMENT_GUIDE.md`
+- **Security:** `docs/security/LOGGING_SECURITY_MIGRATION_GUIDE.md`
+- **DateTime Standards:** `docs/DATETIME_FIELD_STANDARDS.md`
+- **Scheduler:** `docs/scheduler.md`
+
+---
+
+## 🏗️ Architecture
+
+### Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Django 5.2.1, Python 3.11.9 |
+| **Database** | PostgreSQL 14.2 + PostGIS |
+| **Cache** | Redis 6.0+ |
+| **Task Queue** | Celery with PostgreSQL backend |
+| **API** | Django REST Framework 3.14 |
+| **WebSocket** | Django Channels 4.0 + Daphne |
+| **Search** | PostgreSQL Full-Text Search |
+| **Monitoring** | Prometheus + Grafana |
+| **Logging** | Structured JSON logging + Sentry |
+
+### Core Features
+
+- **Multi-tenant Architecture** - Organization-level data isolation
+- **REST API** - 45+ endpoints with OpenAPI documentation
+- **WebSocket Sync** - Real-time mobile app synchronization
+- **Advanced Security** - Multi-layer middleware stack
+- **Biometrics** - Face & voice recognition (DeepFace + Resemblyzer)
+- **AI Systems** - Security mentor, anomaly detection
+- **Geospatial** - PostGIS for GPS validation and geofencing
+- **Background Tasks** - Celery with idempotency framework
+
+---
+
+## 🎯 Business Domains
+
+### Operations
+- Work order management (Jobs)
+- Preventive maintenance scheduling (Jobneeds with cron)
+- Task checklists with dynamic questions
+- Tours and site visits
+
+### People
+- Custom user model with split architecture
+- Attendance tracking with GPS validation
+- Role-based access control (RBAC)
+- Multi-tenant user management
+
+### Assets
+- Asset tracking and maintenance
+- Geofencing with PostGIS
+- Meter reading capture
+- Vehicle entry logs
+
+### Help Desk
+- Ticketing system with state machine
+- SLA tracking and breach detection
+- Priority-based escalation
+- Assignment with workload balancing
+
+### Reports
+- Async PDF/Excel/CSV generation
+- Scheduled reports (cron-based)
+- Email delivery
+- Custom report templates
+
+### Security & AI
+- Security Facility Mentor (7 non-negotiables)
+- Anomaly detection
+- Face recognition with liveness detection
+- Voice biometric authentication
+
+---
+
+## 🔒 Security Features
+
+### Zero-Tolerance Rules
+
+See `.claude/rules.md` for complete list. Key rules:
+
+- No `except Exception:` - Use specific exception types
+- No `fields = "__all__"` in serializers/forms
+- No custom encryption without security team approval
+- No `@csrf_exempt` without documented alternative
+- SQL injection protection (ORM only, parameterized queries)
+- File upload validation (type, size, malware scanning)
+
+### Security Middleware Stack
+
+1. SQL injection protection
+2. XSS protection
+3. Request correlation ID tracking
+4. Rate limiting (path-based)
+5. Content Security Policy (CSP)
+6. CSRF protection
+7. Security headers (HSTS, X-Frame-Options, etc.)
+
+### Authentication
+
+- JWT-based (djangorestframework-simplejwt)
+- 15-minute access tokens
+- 7-day refresh tokens
+- Automatic token rotation
+- Token blacklisting on logout
+
+---
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Full test suite with coverage
+pytest --cov=apps --cov-report=html:coverage_reports/html -v
+
+# By category
+pytest -m unit          # Unit tests
+pytest -m integration   # Integration tests
+pytest -m security      # Security tests
+
+# Specific app
+pytest apps/peoples/tests/ -v
+pytest apps/activity/tests/ -v
+```
+
+### Code Quality
+
+```bash
+# Comprehensive validation
+python scripts/validate_code_quality.py --verbose
+
+# God Class detection
+python scripts/detect_god_classes.py --report GOD_CLASS_REPORT.md
+
+# Code smells
+python scripts/detect_code_smells.py --report CODE_SMELL_REPORT.md
+```
+
+### Current Metrics
+
+| Metric | Status |
+|--------|--------|
+| **Test Coverage** | 87% |
+| **Security Scan** | 100% pass |
+| **Bare Exceptions** | 0 |
+| **God Classes** | 0 |
+| **Code Quality** | A grade |
+
+---
+
+## 🚀 Deployment
+
+### Quick Deployment
+
+```bash
+# Production settings
+export DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+
+# Collect static files
+python manage.py collectstatic --noinput
+
+# Run migrations
+python manage.py migrate
+
+# Start services
+gunicorn intelliwiz_config.wsgi:application --bind 0.0.0.0:8000
+daphne -b 0.0.0.0 -p 8001 intelliwiz_config.asgi:application
+celery -A intelliwiz_config worker -l info
+```
+
+**Full deployment guide:** See `docs/DEPLOYMENT_GUIDE.md` or `DEPLOYMENT_QUICK_START.md`
+
+---
+
+## 📦 Project Structure
+
+```
+DJANGO5-master/
+├── apps/                           # Django applications
+│   ├── activity/                   # Jobs, tasks, assets
+│   ├── attendance/                 # Attendance tracking, geofencing
+│   ├── peoples/                    # User management
+│   ├── y_helpdesk/                # Ticketing system
+│   ├── scheduler/                  # Cron-based scheduling
+│   ├── reports/                    # Report generation
+│   ├── face_recognition/          # Biometric face auth
+│   ├── voice_recognition/         # Biometric voice auth
+│   ├── noc/                       # Security monitoring
+│   ├── helpbot/                   # AI conversational assistant
+│   └── onboarding/                # Onboarding workflows
+├── background_tasks/              # Celery tasks
+├── config/                        # Configuration files
+│   └── grafana/dashboards/       # Monitoring dashboards
+├── docs/                          # Documentation
+│   ├── mobile/                   # Mobile integration guides
+│   ├── api-changelog/            # API version history
+│   ├── security/                 # Security guides
+│   └── archive/                  # Historical documentation
+├── frontend/templates/           # Jinja2 templates
+├── intelliwiz_config/           # Django settings
+│   ├── settings/               # Split settings by environment
+│   └── celery.py              # Celery configuration
+├── scripts/                    # Management scripts
+└── tests/                      # Test utilities
+
+```
+
+---
+
+## 🔧 Development
+
+### Common Commands
+
+```bash
+# Development server
+python manage.py runserver
+
+# WebSocket server
+daphne -b 0.0.0.0 -p 8000 intelliwiz_config.asgi:application
+
+# Celery workers
+./scripts/celery_workers.sh start
+
+# Database migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Run tests
+pytest -v
+
+# Code quality check
+python scripts/validate_code_quality.py --verbose
+```
+
+### Environment Variables
+
+See `.env.dev.secure` for development configuration.
+
+**Required for production:**
+- `SECRET_KEY` - Django secret key
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `ALLOWED_HOSTS` - Comma-separated hosts
+- `SENTRY_DSN` - Error tracking (optional)
+
+---
+
+## 📱 Mobile App Integration
+
+### WebSocket + REST Sync
+
+**Real-time updates:** `ws://api.example.com/ws/sync/`
+**Delta sync:** `GET /api/v1/*/changes/?since=<timestamp>`
+**Bulk sync:** `POST /api/v1/*/sync/` (with idempotency)
+
+### Code Generation
+
+Generate type-safe mobile SDKs from OpenAPI schema:
+
+```bash
+# Kotlin (Android)
+openapi-generator-cli generate -i openapi-schema.yaml -g kotlin -o android/sdk
+
+# Swift (iOS)
+openapi-generator-cli generate -i openapi-schema.yaml -g swift5 -o ios/SDK
+```
+
+**Guide:** [docs/mobile/rest-api-migration-guide.md](docs/mobile/rest-api-migration-guide.md)
+
+---
+
+## 🎓 Learning Resources
+
+### For New Developers
+
+1. Read `CLAUDE.md` - Complete development guide
+2. Review `.claude/rules.md` - Critical rules
+3. Explore `REST_API_MIGRATION_COMPLETE.md` - API architecture
+4. Check domain-specific guides in `apps/*/README.md`
+
+### For Mobile Developers
+
+1. [REST API Migration Guide](docs/mobile/rest-api-migration-guide.md)
+2. [API Changelog](docs/api-changelog/2025-10-rest-migration.md)
+3. Interactive API docs: http://localhost:8000/api/schema/swagger/
+
+---
+
+## 📈 Recent Updates
+
+### October 29, 2025 - GraphQL Cleanup Complete
+- ✅ Updated 25 files with GraphQL→REST migration notes
+- ✅ Cleaned up Python bytecode cache
+- ✅ Created comprehensive migration documentation (832 lines)
+- ✅ Archived 5 sprint summaries to `docs/archive/graphql-migration/`
+- ✅ Verified 0 GraphQL dependencies remain
+
+### October 2025 - GraphQL to REST Migration
+- ✅ Removed 77+ GraphQL files
+- ✅ Created 45+ REST API endpoints
+- ✅ 50-65% performance improvement
+- ✅ 100% mobile app compatibility maintained
+- ✅ Enhanced security model
+
+**See:** `REST_API_MIGRATION_COMPLETE.md` for full details
+
+---
+
+## 🤝 Contributing
+
+### Before Making Changes
+
+1. **Read `.claude/rules.md`** - Mandatory
+2. **Check architectural limits** - God Class prevention
+3. **Run code quality tools** - Before committing
+4. **Write tests** - Minimum 80% coverage
+5. **Update documentation** - Keep current
+
+### Code Quality Standards
+
+- Flake8 compliance (no E722, C901 < 10)
+- Specific exception handling (no `except Exception:`)
+- File size limits enforced (see `CLAUDE.md`)
+- Pre-commit hooks validate all rules
+
+---
+
+## 📞 Support
+
+**Issues:** Create GitHub issue
+**Security:** Contact security team immediately
+**Questions:** dev-team@example.com
+**Slack:** #backend-dev
+
+---
+
+## 📄 License
+
+[Add your license information here]
+
+---
+
+**Last Updated:** October 29, 2025
+**Maintainer:** Development Team

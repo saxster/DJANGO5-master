@@ -865,8 +865,9 @@ curl http://localhost:8000/api/schema/metadata/
 |----------|-----------|---------|---------|
 | **REST v1** | DRF Serializers | OpenAPI Generator | `TaskSyncSerializer` |
 | **REST v2** | Pydantic + DRF | OpenAPI Generator | `VoiceSyncRequestSerializer` |
-| **GraphQL** | Pydantic Queries | Apollo Kotlin | `JobQueries` uses Pydantic |
 | **WebSocket** | Pydantic Messages | JSON Schema | `SyncStartMessage` |
+
+**Note:** GraphQL removed Oct 2025. See `REST_API_MIGRATION_COMPLETE.md` for details.
 
 #### REST v2 Pattern (Type-Safe)
 
@@ -1606,20 +1607,27 @@ print("Output")  # noqa: T001
 
 ### Documentation
 
-- **GraphQL Configuration**: `docs/configuration/graphql-settings-guide.md`
-- **GraphQL Security**: `docs/security/graphql-complexity-validation-guide.md`
+**Core:**
 - **DateTime Standards**: `docs/DATETIME_FIELD_STANDARDS.md`
 - **DateTime Refactoring**: `DATETIME_REFACTORING_COMPLETE.md`
 - **God File Refactoring**: `GOD_FILE_REFACTORING_PHASES_5-7_COMPLETE.md`
 - **Security Mentor**: `SECURITY_FACILITY_MENTOR_PHASE2_COMPLETE.md`
 - **Operator Guide**: `NON_NEGOTIABLES_OPERATOR_GUIDE.md`
 - **Team Setup**: `TEAM_SETUP.md`
+
+**Quality & Monitoring:**
 - **Removed Code Inventory**: `REMOVED_CODE_INVENTORY.md`
 - **Code Smell Detection**: `CODE_SMELL_DETECTION_REPORT.md`
 - **Celery Task Inventory**: `CELERY_TASK_INVENTORY_REPORT.md`
 - **Code Quality Remediation**: `CODE_QUALITY_OBSERVATIONS_RESOLUTION_FINAL.md` ✨ NEW (Oct 2025)
 - **Transitional Artifacts Tracker**: `TRANSITIONAL_ARTIFACTS_TRACKER.md` ✨ NEW (Oct 2025)
 - **Reports Views Split Plan**: `REPORTS_GENERATION_VIEWS_SPLIT_PLAN.md` ✨ NEW (Oct 2025)
+
+**API Migration:**
+- **REST API Migration Complete**: `REST_API_MIGRATION_COMPLETE.md` ✨ NEW (Oct 29, 2025)
+- **GraphQL→REST Archive**: `docs/archive/graphql-migration/` (Historical sprint summaries)
+- ~~GraphQL Configuration~~ (Removed Oct 2025 - See REST API migration)
+- ~~GraphQL Security~~ (Removed Oct 2025 - REST API uses standard DRF security)
 
 ### Key Files
 
@@ -1640,6 +1648,6 @@ print("Output")  # noqa: T001
 
 ---
 
-**Last Updated**: October 2025
+**Last Updated**: October 29, 2025 (GraphQL-to-REST migration cleanup complete)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes

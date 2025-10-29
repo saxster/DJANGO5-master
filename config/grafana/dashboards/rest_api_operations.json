@@ -1,0 +1,220 @@
+{
+  "dashboard": {
+    "title": "REST API Operations",
+    "tags": ["rest-api", "operations", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate by Endpoint",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(django_http_requests_total_by_view_transport_method{view=~\"/api/v1/.*\"}[5m])",
+            "legendFormat": "{{view}} - {{method}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"},
+          {"format": "short"}
+        ],
+        "legend": {"show": true, "values": true, "current": true},
+        "tooltip": {"shared": true, "sort": 2}
+      },
+      {
+        "id": 2,
+        "title": "Response Time P50/P95/P99",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(django_http_request_duration_seconds_bucket{view=~\"/api/v1/.*\"}[5m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(django_http_request_duration_seconds_bucket{view=~\"/api/v1/.*\"}[5m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(django_http_request_duration_seconds_bucket{view=~\"/api/v1/.*\"}[5m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Response Time"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Error Rate by Status Code",
+        "type": "bargauge",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (status) (rate(django_http_requests_total_by_view_transport_method{view=~\"/api/v1/.*\", status=~\"4..|5..\"}[5m]))",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Top 10 Slowest Endpoints",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(10, avg by (view) (rate(django_http_request_duration_seconds_sum{view=~\"/api/v1/.*\"}[5m]) / rate(django_http_request_duration_seconds_count{view=~\"/api/v1/.*\"}[5m])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {"view": "Endpoint", "Value": "Avg Response Time (s)"}
+            }
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Request Volume Heatmap (24h)",
+        "type": "heatmap",
+        "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(django_http_requests_total_by_view_transport_method{view=~\"/api/v1/.*\"}[5m])) by (le)",
+            "format": "heatmap",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "tsbuckets",
+        "yAxis": {"format": "short", "decimals": 0}
+      },
+      {
+        "id": 6,
+        "title": "Authentication Success vs Failure",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(django_http_requests_total_by_view_transport_method{view=\"/api/v1/auth/login/\", status=\"200\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "Success",
+            "unit": "reqps",
+            "color": {"mode": "fixed", "fixedColor": "green"}
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Total API Calls (All Endpoints)",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(django_http_requests_total_by_view_transport_method{view=~\"/api/v1/.*\"}[1h]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "Total Calls (1h)",
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Average Response Time Trend",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "avg(rate(django_http_request_duration_seconds_sum{view=~\"/api/v1/.*\"}[5m]) / rate(django_http_request_duration_seconds_count{view=~\"/api/v1/.*\"}[5m]))",
+            "legendFormat": "Avg Response Time",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Avg Response Time"}
+        ],
+        "alert": {
+          "name": "High API Response Time",
+          "conditions": [
+            {
+              "evaluator": {"params": [500], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "1m",
+          "handler": 1,
+          "message": "API response time exceeded 500ms",
+          "noDataState": "no_data",
+          "executionErrorState": "alerting"
+        }
+      }
+    ],
+    "time": {"from": "now-6h", "to": "now"},
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m", "15m"]
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\".*API.*\"}",
+          "iconColor": "rgba(255, 96, 96, 1)",
+          "name": "API Alerts",
+          "titleFormat": "Alert: {{alertname}}"
+        }
+      ]
+    }
+  }
+}
