@@ -136,7 +136,7 @@ class Migration(migrations.Migration):
                 )),
                 ('endpoint_type', models.CharField(
                     db_index=True,
-                    help_text='Type of endpoint (admin, api, graphql, etc.)',
+                    help_text='Type of endpoint (admin, api, rest, etc.) - GraphQL removed Oct 2025',
                     max_length=50
                 )),
                 ('violation_reason', models.CharField(

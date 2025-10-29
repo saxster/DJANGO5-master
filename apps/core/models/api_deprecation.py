@@ -10,7 +10,8 @@ Compliance with .claude/rules.md:
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from apps.tenants.models import BaseModel, TenantAwareModel
+from apps.tenants.models import TenantAwareModel
+from apps.core.models.enhanced_base_model import BaseModelCompat as BaseModel
 import logging
 
 logger = logging.getLogger('api.deprecation')
@@ -24,9 +25,9 @@ class APIDeprecation(BaseModel, TenantAwareModel):
 
     API_TYPE_CHOICES = [
         ('rest', 'REST API'),
-        ('graphql_query', 'GraphQL Query'),
-        ('graphql_mutation', 'GraphQL Mutation'),
-        ('graphql_field', 'GraphQL Field'),
+        ('graphql_query', 'Legacy API Query (GraphQL removed Oct 2025)'),
+        ('graphql_mutation', 'Legacy API Mutation (GraphQL removed Oct 2025)'),
+        ('graphql_field', 'Legacy API Field (GraphQL removed Oct 2025)'),
     ]
 
     STATUS_CHOICES = [
@@ -36,7 +37,7 @@ class APIDeprecation(BaseModel, TenantAwareModel):
         ('removed', 'Removed - No longer available'),
     ]
 
-    endpoint_pattern = models.CharField(max_length=255, help_text="URL pattern or GraphQL field path")
+    endpoint_pattern = models.CharField(max_length=255, help_text="URL pattern or API field path (GraphQL legacy)")
     api_type = models.CharField(max_length=20, choices=API_TYPE_CHOICES, default='rest')
     version_deprecated = models.CharField(max_length=10, help_text="Version when deprecated")
     version_removed = models.CharField(max_length=10, null=True, blank=True, help_text="Version when removed")

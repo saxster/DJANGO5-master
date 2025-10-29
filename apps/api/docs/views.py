@@ -120,7 +120,7 @@ class SchemaMetadataView(SpectacularAPIView):
                 'codegen_guide': '/docs/mobile/kotlin-codegen-guide.md',
             },
             'api_versions': ['v1', 'v2'],
-            'graphql_endpoint': '/api/graphql/',
+            'graphql_endpoint': '/api/graphql/',  # Legacy - GraphQL removed Oct 2025
             'websocket_endpoint': 'ws://*/ws/mobile/sync',
         })
 

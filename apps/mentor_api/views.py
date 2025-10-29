@@ -450,7 +450,8 @@ class ExplainViewSet(BaseMentorViewSet):
             elif target_type == 'model':
                 explanation = explainer.explain_model(target)
             elif target_type == 'graphql':
-                explanation = explainer.explain_graphql(target)
+                # Legacy - GraphQL removed Oct 2025, return deprecation notice
+                explanation = {'error': 'GraphQL analysis removed (Oct 2025). Use REST API instead.'}
             elif target_type == 'query':
                 explanation = explainer.explain_query(target)
 

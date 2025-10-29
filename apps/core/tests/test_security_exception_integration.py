@@ -281,7 +281,7 @@ class TestSecurityMiddlewareIntegration(TestCase):
         # API request tests
         api_requests = [
             self.factory.get('/api/users'),
-            self.factory.get('/graphql/'),
+            self.factory.get('/graphql/'),  # Legacy - GraphQL removed Oct 2025
             self.factory.get('/data', HTTP_ACCEPT='application/json'),
             self.factory.post('/submit', content_type='application/json')
         ]

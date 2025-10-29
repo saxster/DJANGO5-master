@@ -3,6 +3,9 @@ Serializers for Mentor API endpoints.
 """
 
 from rest_framework import serializers
+
+
+class PlanRequestSerializer(serializers.Serializer):
     """Serializer for plan generation requests."""
     request = serializers.CharField(
         help_text="Natural language description of the requested change"
@@ -10,17 +13,17 @@ from rest_framework import serializers
     scope = serializers.ListField(
         child=serializers.CharField(),
         required=False,
-        help_text="Limit the scope to specific apps or directories"
+        help_text="Limit the scope to specific apps or directories",
     )
     complexity = serializers.ChoiceField(
         choices=['simple', 'medium', 'complex'],
         required=False,
-        help_text="Override complexity estimation"
+        help_text="Override complexity estimation",
     )
     format = serializers.ChoiceField(
         choices=['json', 'markdown', 'summary'],
         default='json',
-        help_text="Output format for the plan"
+        help_text="Output format for the plan",
     )
 
 
@@ -224,7 +227,7 @@ class ExplainRequestSerializer(serializers.Serializer):
         help_text="What to explain (symbol reference, file path, URL pattern, etc.)"
     )
     type = serializers.ChoiceField(
-        choices=['symbol', 'file', 'url', 'model', 'graphql', 'query'],
+        choices=['symbol', 'file', 'url', 'model', 'graphql', 'query'],  # graphql=legacy (removed Oct 2025)
         required=False,
         help_text="Type of target to explain (auto-detected if not specified)"
     )

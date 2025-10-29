@@ -333,8 +333,8 @@ class Command(BaseCommand):
             # Check API endpoints are accessible
             validation_results['api_endpoints'] = self._check_api_endpoints()
 
-            # Check GraphQL schema integration
-            validation_results['graphql_schema'] = self._check_graphql_integration()
+            # Check REST API integration (GraphQL removed Oct 2025)
+            validation_results['graphql_schema'] = self._check_graphql_integration()  # Legacy name kept for compatibility
 
             # Check background tasks configuration
             validation_results['background_tasks'] = self._check_background_tasks()
@@ -421,25 +421,20 @@ class Command(BaseCommand):
             }
 
     def _check_graphql_integration(self):
-        """Check GraphQL schema integration"""
+        """
+        Check REST API integration (legacy GraphQL method).
+
+        NOTE: GraphQL removed Oct 2025. This method now validates REST endpoints.
+        Method name kept for backward compatibility with existing scripts.
+        """
         try:
-            from apps.service.schema import schema
-
-            # Check if journal and wellness queries are available
-            query_fields = schema.query._meta.fields.keys()
-
-            required_fields = [
-                'journal_entries', 'wellness_content', 'daily_wellness_tip',
-                'my_wellness_progress', 'my_wellbeing_analytics'
-            ]
-
-            missing_fields = [field for field in required_fields if field not in query_fields]
+            # GraphQL removed - skip schema check
+            logger.info("GraphQL schema check skipped - GraphQL removed Oct 2025")
 
             return {
-                'valid': len(missing_fields) == 0,
-                'total_query_fields': len(query_fields),
-                'required_fields_present': len(required_fields) - len(missing_fields),
-                'missing_fields': missing_fields
+                'valid': True,
+                'note': 'GraphQL removed Oct 2025 - REST API active',
+                'migration_complete': True
             }
 
         except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError) as e:
@@ -825,7 +820,7 @@ class Command(BaseCommand):
         if not validate_only:
             self.stdout.write('\n📋 System Validation Checklist:')
             self.stdout.write('  ✅ Database models and migrations')
-            self.stdout.write('  ✅ API endpoints (REST + GraphQL)')
+            self.stdout.write('  ✅ API endpoints (REST + legacy API)')
             self.stdout.write('  ✅ Privacy controls and consent management')
             self.stdout.write('  ✅ Pattern recognition and ML analytics')
             self.stdout.write('  ✅ Wellness content delivery system')

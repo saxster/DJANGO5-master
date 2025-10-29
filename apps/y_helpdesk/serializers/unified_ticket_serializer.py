@@ -8,7 +8,6 @@ Contexts supported:
 - Mobile sync operations
 - Web API responses
 - Data export operations
-- GraphQL integration
 - Admin interface display
 
 Following .claude/rules.md:
@@ -39,7 +38,7 @@ class SerializationContext(Enum):
     WEB_API = "web_api"
     DASHBOARD = "dashboard"
     EXPORT = "export"
-    GRAPHQL = "graphql"
+    GRAPHQL = "graphql"  # Legacy - GraphQL removed Oct 2025, mapped to WEB_API
     ADMIN = "admin"
     MINIMAL = "minimal"
 
@@ -231,14 +230,16 @@ class TicketUnifiedSerializer(serializers.ModelSerializer):
         """Get workflow status from TicketWorkflow model."""
         try:
             return obj.workflow.workflow_status if hasattr(obj, 'workflow') else 'ACTIVE'
-        except:
+        except (AttributeError, ObjectDoesNotExist) as e:
+            logger.debug(f"Could not retrieve workflow status for ticket {obj.id}: {e}")
             return 'ACTIVE'
 
     def get_escalation_level(self, obj) -> int:
         """Get escalation level from TicketWorkflow model."""
         try:
             return obj.workflow.escalation_level if hasattr(obj, 'workflow') else obj.level
-        except:
+        except (AttributeError, ObjectDoesNotExist) as e:
+            logger.debug(f"Could not retrieve escalation level for ticket {obj.id}: {e}")
             return getattr(obj, 'level', 0)
 
     def get_audit_trail_summary(self, obj) -> Dict[str, Any]:
@@ -254,8 +255,8 @@ class TicketUnifiedSerializer(serializers.ModelSerializer):
                     'last_activity': workflow.last_activity_at.isoformat() if workflow.last_activity_at else None,
                     'escalation_count': workflow.escalation_count
                 }
-        except:
-            pass
+        except (AttributeError, ObjectDoesNotExist, TypeError) as e:
+            logger.debug(f"Could not retrieve audit trail for ticket {obj.id}: {e}")
 
         return {'total_activities': 0, 'last_activity': None, 'escalation_count': 0}
 

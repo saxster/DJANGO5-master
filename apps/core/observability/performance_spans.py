@@ -1,13 +1,12 @@
 """
 Performance Spans Instrumentation
 
-Automatic span creation for database queries, Celery tasks, GraphQL operations,
+Automatic span creation for database queries, Celery tasks, REST API operations,
 and external API calls.
 
 Features:
     - Database query spans with SQL sanitization
     - Celery task execution spans
-    - GraphQL operation spans (query, mutation, subscription)
     - External HTTP API call spans
     - Redis operation spans
 
@@ -19,6 +18,8 @@ Compliance:
 Usage:
     from apps.core.observability.performance_spans import PerformanceSpanInstrumentor
     PerformanceSpanInstrumentor.instrument_all()
+
+MIGRATION NOTE (Oct 2025): GraphQL spans removed - use REST API tracing
 """
 
 import logging
@@ -120,12 +121,15 @@ class PerformanceSpanInstrumentor:
 
 def trace_graphql_operation(operation_name: Optional[str] = None):
     """
-    Decorator to trace GraphQL operations.
+    Decorator to trace API operations (legacy GraphQL support).
+
+    DEPRECATED: GraphQL removed Oct 2025. Use REST API tracing instead.
+    Maintained for backward compatibility - acts as pass-through.
 
     Args:
         operation_name: Custom operation name
 
-    Usage:
+    Usage (deprecated):
         @trace_graphql_operation('UserQuery')
         def resolve_user(root, info, user_id):
             return User.objects.get(id=user_id)
@@ -133,30 +137,9 @@ def trace_graphql_operation(operation_name: Optional[str] = None):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            try:
-                from opentelemetry import trace
-
-                tracer = trace.get_tracer(__name__)
-                op_name = operation_name or func.__name__
-
-                with tracer.start_as_current_span(
-                    f"graphql.{op_name}",
-                    attributes={
-                        'graphql.operation.name': op_name,
-                        'graphql.operation.type': 'query',  # Could parse from args
-                    }
-                ) as span:
-                    result = func(*args, **kwargs)
-
-                    # Add result metadata if available
-                    if hasattr(result, '__len__'):
-                        span.set_attribute('graphql.result.count', len(result))
-
-                    return result
-
-            except Exception as e:
-                logger.error(f"Error in GraphQL span: {e}", exc_info=True)
-                return func(*args, **kwargs)
+            # Pass-through - GraphQL removed Oct 2025
+            logger.warning(f"trace_graphql_operation deprecated - GraphQL removed Oct 2025")
+            return func(*args, **kwargs)
 
         return wrapper
     return decorator

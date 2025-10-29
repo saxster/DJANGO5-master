@@ -1,13 +1,13 @@
 """
-Unified Sync Operation Interface - Common interface for GraphQL and REST sync endpoints
+Unified Sync Operation Interface - Common interface for REST sync endpoints
 
-Eliminates duplication between GraphQL mutations and REST API endpoints by
-providing a single service interface with adapter pattern.
+Provides a single service interface with adapter pattern for sync operations.
 
 Following .claude/rules.md:
 - Rule #7: Service <150 lines
 - Rule #11: Specific exception handling
-- Rule #1: Unified GraphQL security protection
+
+MIGRATION NOTE (Oct 2025): GraphQL support removed. REST API only.
 """
 
 import logging
@@ -115,34 +115,23 @@ class SyncResponseFormatter:
 
     @staticmethod
     def format_for_graphql(response: SyncResponse) -> Dict[str, Any]:
-        """Format response for GraphQL API with type compliance."""
-        # GraphQL requires specific error format
-        formatted_errors = []
-        for error in response.errors:
-            formatted_errors.append({
-                'code': error.get('code', 'SYNC_ERROR'),
-                'message': error.get('message', error.get('error', 'Unknown error')),
-                'item_id': error.get('item_id'),
-            })
+        """
+        Format response for legacy API compatibility.
 
-        return {
-            'success': response.success,
-            'synced_items': response.synced_items,
-            'failed_items': response.failed_items,
-            'conflicts': response.conflicts,
-            'errors': formatted_errors,
-            'metrics': response.metrics,
-            'server_timestamp': response.server_timestamp,
-            'idempotency_key': response.idempotency_key,
-        }
+        NOTE: GraphQL removed Oct 2025. This method maintained for backward
+        compatibility. Returns same format as REST.
+        """
+        # Return REST format (GraphQL removed)
+        return SyncResponseFormatter.format_for_rest(response)
 
 
 class SyncOperationInterface:
     """
     Unified interface for all sync operations.
 
-    Provides single entry point that can be used by both GraphQL and REST APIs,
-    eliminating duplication between sync_schema.py and REST views.
+    Provides single entry point for REST APIs.
+
+    MIGRATION NOTE (Oct 2025): GraphQL removed - now REST-only interface.
     """
 
     def __init__(self):
@@ -160,7 +149,8 @@ class SyncOperationInterface:
 
         Args:
             request: Standardized sync request
-            api_type: 'rest' or 'graphql' for response formatting
+            api_type: API type for response formatting (default: 'rest')
+                     'graphql' legacy support (Oct 2025: returns REST format)
 
         Returns:
             Formatted sync response
@@ -347,7 +337,7 @@ class SyncOperationInterface:
     def _format_cached_response(self, cached_data: Dict, api_type: str) -> Dict[str, Any]:
         """Format cached response for API type."""
         if api_type == 'graphql':
-            # Convert REST format to GraphQL format if needed
+            # Convert REST format to legacy API format if needed
             return self.formatter.format_for_graphql(
                 SyncResponse(**cached_data) if isinstance(cached_data, dict) else cached_data
             )

@@ -187,14 +187,14 @@ class TestPIIRedactor(TestCase):
             '/api/users/123/profile',
             '/ws/mobile/device/abc-def-123/',
             '/api/sessions/session-uuid-here',
-            '/graphql?query=sensitive'
+            '/graphql?query=sensitive'  # Legacy - GraphQL removed Oct 2025
         ]
 
         expected = [
             '/api/users/{id}/profile',
             '/ws/mobile/device/{device_id}/',
             '/api/sessions/{session_id}',
-            '/graphql'
+            '/graphql'  # Legacy endpoint
         ]
 
         for endpoint, expected_result in zip(endpoints, expected):

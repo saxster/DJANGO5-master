@@ -2,7 +2,7 @@
 Validation Compliance Monitor
 
 Management command to audit and monitor Rule #13 compliance across all
-forms, serializers, and GraphQL inputs.
+forms, serializers, and legacy API inputs.
 
 Usage:
     python manage.py validate_input_compliance
@@ -53,7 +53,7 @@ class Command(BaseCommand):
         violations = {
             'forms': [],
             'serializers': [],
-            'graphql_inputs': [],
+            'graphql_inputs': [],  # Legacy - GraphQL removed Oct 2025
         }
 
         app_filter = options.get('app')
@@ -214,31 +214,13 @@ class Command(BaseCommand):
         return False
 
     def _audit_graphql_inputs(self, app_config):
-        """Audit GraphQL InputObjectTypes for validation."""
-        violations = []
+        """
+        Audit legacy API InputObjectTypes for validation.
 
-        inputs_dir = Path(app_config.path) / 'inputs'
-        if not inputs_dir.exists():
-            return violations
-
-        for input_file in inputs_dir.glob('*_input.py'):
-            try:
-                with open(input_file, 'r') as f:
-                    source = f.read()
-
-                    if 'InputObjectType' in source and 'validate' not in source:
-                        violations.append({
-                            'app': app_config.name,
-                            'type': 'graphql_input',
-                            'name': input_file.name,
-                            'violation': 'no validation methods',
-                            'severity': 'HIGH'
-                        })
-
-            except (IOError, SyntaxError) as e:
-                logger.error(f"Error reading {input_file}: {e}")
-
-        return violations
+        NOTE: GraphQL removed in Oct 2025. This method maintained for backward
+        compatibility with validation reports. Always returns empty list.
+        """
+        return []  # GraphQL removed - no inputs to audit
 
     def _print_summary(self, violations):
         """Print violation summary."""
@@ -261,9 +243,10 @@ class Command(BaseCommand):
                 self.stdout.write(f"   - {v['app']}.{v['name']}: {v['violation']}")
 
         if graphql_count > 0:
-            self.stdout.write(self.style.ERROR(f"❌ GraphQL Inputs: {graphql_count} violations"))
+            self.stdout.write(self.style.ERROR(f"❌ Legacy API Inputs: {graphql_count} violations"))
             for v in violations['graphql_inputs'][:5]:
                 self.stdout.write(f"   - {v['app']}/{v['name']}: {v['violation']}")
+            self.stdout.write(self.style.WARNING("   NOTE: GraphQL removed Oct 2025 - migrate to REST API"))
 
         total = form_count + serializer_count + graphql_count
         if total == 0:
@@ -322,7 +305,7 @@ class Command(BaseCommand):
         <ul>
             <li>Django Forms: {len(violations['forms'])}</li>
             <li>DRF Serializers: {len(violations['serializers'])}</li>
-            <li>GraphQL Inputs: {len(violations['graphql_inputs'])}</li>
+            <li>legacy API Inputs: {len(violations['graphql_inputs'])}</li>
         </ul>
         {"<p class='compliant'>✅ 100% COMPLIANT</p>" if total == 0 else ""}
     </div>

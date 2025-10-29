@@ -3,11 +3,12 @@ Security Dashboards URL Configuration
 
 Centralized URL routing for security monitoring dashboards including:
 - CSRF violation monitoring
-- GraphQL permission auditing
 - Rate limiting analytics
 - Security overview dashboard
 
 All views require staff-level permissions.
+
+MIGRATION NOTE (Oct 2025): GraphQL removed - API permission auditing now uses REST API
 """
 
 from django.urls import path
@@ -39,7 +40,8 @@ urlpatterns = [
     ),
 
     # ========================================================================
-    # GraphQL Permission Auditing
+    # Legacy API Permission Auditing (GraphQL removed Oct 2025)
+    # TODO: Update to REST API permission auditing
     # ========================================================================
 
     path(

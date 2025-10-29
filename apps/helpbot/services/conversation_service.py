@@ -475,7 +475,7 @@ class HelpBotConversationService:
         intent_keywords = {
             'troubleshooting': ['error', 'problem', 'issue', 'not working', 'broken', 'bug', 'fix', 'trouble'],
             'how_to': ['how', 'how to', 'tutorial', 'guide', 'step', 'instructions'],
-            'api': ['api', 'endpoint', 'rest', 'graphql', 'authentication', 'token'],
+            'api': ['api', 'endpoint', 'rest', 'graphql', 'authentication', 'token'],  # graphql=legacy
             'navigation': ['navigate', 'find', 'where', 'menu', 'page', 'section'],
             'features': ['feature', 'capability', 'function', 'what does', 'what can'],
         }

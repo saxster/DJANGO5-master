@@ -491,13 +491,13 @@ def register_core_dashboards():
 
     dashboard_registry.register(
         id='security_graphql_audit',
-        title='GraphQL Permission Audit',
+        title='Legacy API Permission Audit',
         url='/admin/security/graphql-audit/',
         permission='staff',
         category='security',
-        description='GraphQL authorization analytics and permission denials',
+        description='API authorization analytics and permission denials (migrated from GraphQL)',
         icon='fa-lock',
-        tags=['security', 'graphql', 'audit'],
+        tags=['security', 'api', 'audit', 'legacy'],
         priority=31,
         refresh_interval=30
     )
