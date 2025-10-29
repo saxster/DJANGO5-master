@@ -1,0 +1,175 @@
+groups:
+  - name: rest_api_alerts
+    interval: 30s
+    rules:
+      # Performance Alerts
+      - alert: HighAPIResponseTime
+        expr: |
+          avg(
+            rate(django_http_request_duration_seconds_sum{view=~"/api/v1/.*"}[5m])
+            /
+            rate(django_http_request_duration_seconds_count{view=~"/api/v1/.*"}[5m])
+          ) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "API response time exceeded 500ms"
+          description: "Average API response time is {{ $value | humanizeDuration }}"
+
+      - alert: VeryHighAPIResponseTime
+        expr: |
+          avg(
+            rate(django_http_request_duration_seconds_sum{view=~"/api/v1/.*"}[5m])
+            /
+            rate(django_http_request_duration_seconds_count{view=~"/api/v1/.*"}[5m])
+          ) > 2.0
+        for: 1m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "API response time exceeded 2 seconds"
+          description: "Average API response time is {{ $value | humanizeDuration }}"
+
+      # Security Alerts
+      - alert: HighAuthenticationFailureRate
+        expr: |
+          sum(rate(django_http_requests_total_by_view_transport_method{status=~"401|403"}[5m])) > 5
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Potential brute force attack detected"
+          description: "Authentication failure rate: {{ $value }} req/s"
+
+      - alert: RateLimitViolations
+        expr: |
+          sum(increase(django_rate_limit_violations_total[5m])) > 50
+        for: 1m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High rate limit violation count"
+          description: "{{ $value }} violations in last 5 minutes"
+
+      - alert: CSRFViolationDetected
+        expr: |
+          sum(increase(django_csrf_violations_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "CSRF violation detected"
+          description: "{{ $value }} CSRF violations in last 5 minutes"
+
+      # Error Rate Alerts
+      - alert: HighAPIErrorRate
+        expr: |
+          sum(rate(django_http_requests_total_by_view_transport_method{status=~"5.."}[5m]))
+          /
+          sum(rate(django_http_requests_total_by_view_transport_method[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "API error rate exceeded 5%"
+          description: "Error rate: {{ $value | humanizePercentage }}"
+
+      - alert: CriticalAPIErrorRate
+        expr: |
+          sum(rate(django_http_requests_total_by_view_transport_method{status=~"5.."}[5m]))
+          /
+          sum(rate(django_http_requests_total_by_view_transport_method[5m])) > 0.10
+        for: 1m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "API error rate exceeded 10%"
+          description: "Error rate: {{ $value | humanizePercentage }}"
+
+  - name: mobile_sync_alerts
+    interval: 30s
+    rules:
+      # WebSocket Alerts
+      - alert: HighWebSocketQueueDepth
+        expr: django_websocket_message_queue_depth > 1000
+        for: 2m
+        labels:
+          severity: warning
+          category: mobile
+        annotations:
+          summary: "WebSocket message queue depth exceeded 1000"
+          description: "Queue depth: {{ $value }} messages"
+
+      - alert: WebSocketConnectionDrop
+        expr: |
+          rate(django_websocket_connections_closed_total[5m]) >
+          rate(django_websocket_connections_opened_total[5m]) * 2
+        for: 3m
+        labels:
+          severity: warning
+          category: mobile
+        annotations:
+          summary: "High WebSocket connection drop rate"
+          description: "Connections closing faster than opening"
+
+      # Sync Performance Alerts
+      - alert: LowSyncSuccessRate
+        expr: |
+          sum(rate(django_sync_operations_success_total[5m]))
+          /
+          sum(rate(django_sync_operations_total[5m])) < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          category: mobile
+        annotations:
+          summary: "Sync success rate below 95%"
+          description: "Success rate: {{ $value | humanizePercentage }}"
+
+      - alert: HighConflictResolutionRate
+        expr: |
+          sum(rate(django_sync_conflicts_total[5m]))
+          /
+          sum(rate(django_sync_operations_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: mobile
+        annotations:
+          summary: "Conflict resolution rate exceeded 5%"
+          description: "Conflict rate: {{ $value | humanizePercentage }}"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      - alert: HighDatabaseConnectionUsage
+        expr: |
+          sum(django_db_connection_pool_active)
+          /
+          sum(django_db_connection_pool_size) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Database connection pool usage exceeded 80%"
+          description: "Connection usage: {{ $value | humanizePercentage }}"
+
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95, rate(django_db_query_duration_seconds_bucket[5m])) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "P95 database query time exceeded 1 second"
+          description: "P95 query time: {{ $value | humanizeDuration }}"

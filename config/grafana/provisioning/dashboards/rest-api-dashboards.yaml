@@ -1,0 +1,24 @@
+apiVersion: 1
+
+providers:
+  - name: 'REST API Dashboards'
+    orgId: 1
+    folder: 'REST API'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards/rest-api
+      foldersFromFilesStructure: false
+
+  - name: 'Mobile Sync Dashboards'
+    orgId: 1
+    folder: 'Mobile'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards/mobile
+      foldersFromFilesStructure: false

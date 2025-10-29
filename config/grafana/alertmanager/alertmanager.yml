@@ -1,0 +1,105 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'alertmanager@intelliwiz.com'
+  smtp_require_tls: false
+
+# Templates for alert formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route alerts to receivers
+route:
+  group_by: ['alertname', 'category', 'severity']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  # Child routes for specific alert types
+  routes:
+    # Critical security alerts - immediate notification
+    - match:
+        severity: critical
+        category: security
+      receiver: 'security-team'
+      group_wait: 0s
+      repeat_interval: 1h
+
+    # Performance alerts - notify dev team
+    - match:
+        category: performance
+      receiver: 'dev-team'
+      group_wait: 30s
+      repeat_interval: 4h
+
+    # Mobile sync alerts - notify mobile team
+    - match:
+        category: mobile
+      receiver: 'mobile-team'
+      group_wait: 1m
+      repeat_interval: 6h
+
+# Receivers (notification channels)
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://django:8000/api/v1/monitoring/alerts/webhook/'
+        send_resolved: true
+
+  - name: 'security-team'
+    email_configs:
+      - to: 'security-team@intelliwiz.com'
+        headers:
+          Subject: '[CRITICAL] IntelliWiz Security Alert'
+        html: |
+          <h2>Security Alert</h2>
+          <p><strong>Alert:</strong> {{ .GroupLabels.alertname }}</p>
+          <p><strong>Severity:</strong> {{ .GroupLabels.severity }}</p>
+          <p><strong>Description:</strong> {{ .CommonAnnotations.description }}</p>
+          <p><strong>Time:</strong> {{ .StartsAt }}</p>
+    webhook_configs:
+      - url: 'http://django:8000/api/v1/monitoring/alerts/webhook/'
+        send_resolved: true
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#security-alerts'
+        title: 'Security Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ .CommonAnnotations.description }}'
+
+  - name: 'dev-team'
+    email_configs:
+      - to: 'dev-team@intelliwiz.com'
+        headers:
+          Subject: '[{{ .GroupLabels.severity | toUpper }}] IntelliWiz Performance Alert'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#api-monitoring'
+        title: 'Performance Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ .CommonAnnotations.description }}'
+
+  - name: 'mobile-team'
+    email_configs:
+      - to: 'mobile-team@intelliwiz.com'
+        headers:
+          Subject: '[{{ .GroupLabels.severity | toUpper }}] Mobile Sync Alert'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#mobile-dev'
+        title: 'Mobile Sync Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ .CommonAnnotations.description }}'
+
+# Inhibition rules (prevent duplicate alerts)
+inhibit_rules:
+  # Inhibit warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'category']
+
+  # Inhibit individual endpoint alerts if global alert fires
+  - source_match:
+      alertname: 'CriticalAPIErrorRate'
+    target_match:
+      alertname: 'HighAPIErrorRate'
