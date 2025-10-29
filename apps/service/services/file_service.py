@@ -37,7 +37,7 @@ import uuid as uuid_module
 
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.service.auth import Messages as AM
-from apps.service.types import ServiceOutputType
+from apps.service.rest_types import ServiceOutputType  # GraphQL types removed Oct 2025
 
 
 log = getLogger("message_q")

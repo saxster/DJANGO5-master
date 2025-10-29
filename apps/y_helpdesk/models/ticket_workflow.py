@@ -14,7 +14,8 @@ from django.db import models
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
-from apps.peoples.models import BaseModel, TenantAwareModel
+from apps.core.models.enhanced_base_model import BaseModelCompat as BaseModel
+from apps.tenants.models import TenantAwareModel
 import logging
 
 logger = logging.getLogger(__name__)

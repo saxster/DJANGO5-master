@@ -5,7 +5,7 @@ Migrated from god file refactoring
 Date: 2025-09-30
 """
 from celery import shared_task
-from intelliwiz_config.celery import app
+from django.core.exceptions import ObjectDoesNotExist
 from .move_files_to_GCS import move_files_to_GCS, del_empty_dir, get_files
 from .report_tasks import (
     get_scheduled_reports_fromdb,
@@ -29,12 +29,12 @@ from apps.core.services.async_pdf_service import AsyncPDFGenerationService
 from apps.core.services.cache_warming_service import warm_critical_caches_task
 from apps.core.services.speech_to_text_service import SpeechToTextService
 from apps.core.tasks.base import (
-    BaseTask, EmailTask, ExternalServiceTask, MaintenanceTask, TaskMetrics, log_task_context
+    BaseTask, EmailTask, ExternalServiceTask, MaintenanceTask, IdempotentTask, TaskMetrics, log_task_context
 )
 from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validation import XSSPrevention
-from apps.face_recognition.services import get_face_recognition_service
+# from apps.face_recognition.services import get_face_recognition_service  # Unused import - removed Oct 2025
 from apps.onboarding.models import Bt
 from apps.peoples.models import People
 from apps.reminder.models import Reminder
@@ -43,14 +43,14 @@ from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (
             ServiceLevelAgreement,
         )
-from apps.schedhuler.utils import (
+from apps.scheduler.utils import (
         calculate_startdtz_enddtz_for_ppm,
         get_datetime_list,
         insert_into_jn_and_jnd,
         get_readable_dates,
         create_ppm_reminder,
     )
-from apps.service.utils import execute_graphql_mutations
+# from apps.service.utils import execute_graphql_mutations  # GraphQL removed Oct 2025
 from apps.service.utils import get_model_or_form
 from apps.service.validators import clean_record
 from apps.work_order_management.models import Vendor
@@ -60,7 +60,8 @@ from apps.work_order_management.utils import (
             get_peoplecode,
         )
 from apps.work_order_management.utils import save_pdf_to_tmp_location
-from apps.work_order_management.views import SLA_View
+# SLA_View import removed - use constants.MONTH_CHOICES instead
+# from apps.work_order_management.views import SLA_View
 from apps.y_helpdesk.models import Ticket
 from background_tasks import utils as butils
 from celery import shared_task
@@ -96,7 +97,7 @@ import traceback as tb
 import uuid
 
 
-@app.task(bind=True, default_retry_delay=300, max_retries=5, name="send_ticket_email")
+@shared_task(bind=True, default_retry_delay=300, max_retries=5, name="send_ticket_email")
 def send_ticket_email(self, ticket=None, id=None):
     """
     Send ticket notification email with secure error handling.
@@ -232,8 +233,14 @@ def send_ticket_email(self, ticket=None, id=None):
         )
 
 
-@shared_task(name="ticket_escalation")
-def ticket_escalation():
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="ticket_escalation",
+    idempotency_scope='global',
+    idempotency_ttl=14400  # 4 hours
+)
+def ticket_escalation(self):
     result = {"story": "", "traceback": "", "id": []}
     try:
         # get all records of tickets which can be escalated
@@ -255,7 +262,7 @@ def ticket_escalation():
     return result
 
 
-@app.task(bind=True, name="alert_sendmail")
+@shared_task(bind=True, name="alert_sendmail")
 def alert_sendmail(self, id, event, atts=False):
     """
     takes uuid, ownername (which is the model name) and event (observation or deviation)
@@ -269,5 +276,4 @@ def alert_sendmail(self, id, event, atts=False):
         return alert_observation(obj, atts)
     if event == "deviation" and obj:
         return alert_deviation(obj, atts)
-
 

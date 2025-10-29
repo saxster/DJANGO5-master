@@ -40,19 +40,20 @@ from apps.core.constants import JobConstants, DatabaseConstants
 from apps.core import exceptions as excp
 from apps.service import serializers as sz
 from apps.y_helpdesk.models import Ticket
-from background_tasks.tasks import (
-    alert_sendmail,
-    send_email_notification_for_wp_from_mobile_for_verifier,
-    insert_json_records_async,
-)
-from intelliwiz_config.celery import app
+# Lazy imports to avoid circular dependency - imported where used
+# from background_tasks.tasks import (
+#     alert_sendmail,
+#     send_email_notification_for_wp_from_mobile_for_verifier,
+#     insert_json_records_async,
+# )
+from celery import shared_task
 from apps.work_order_management.utils import (
     save_approvers_injson,
     save_verifiers_injson,
 )
-from apps.schedhuler.utils import create_dynamic_job
+from apps.scheduler.utils import create_dynamic_job
 from apps.service.validators import clean_record
-from apps.service.types import ServiceOutputType
+from apps.service.rest_types import ServiceOutputType  # GraphQL types removed Oct 2025
 
 # Import Messages class for consistency
 from apps.service.auth import Messages as AM
@@ -105,6 +106,9 @@ def insertrecord_json(records, tablename):
                     record = json.loads(record)
                 record = clean_record(record)
                 uuids.append(record["uuid"])
+
+            # Lazy import to avoid circular dependency
+            from background_tasks.tasks import insert_json_records_async
             insert_json_records_async.delay(records, tablename)
     except IntegrityError as e:
         tlog.info(f"record already exist in {tablename}")
@@ -378,6 +382,9 @@ def update_record(details, jobneed_record, JnModel, JndModel):
                 return True
             elif isJndUpdated := update_jobneeddetails(details, JndModel):
                 log.info("parent jobneed and its details are updated successully")
+
+                # Lazy import to avoid circular dependency
+                from background_tasks.tasks import alert_sendmail
                 alert_sendmail.delay(jobneed.id, "observation", atts=True)
                 return True
         else:
@@ -623,6 +630,9 @@ def save_parent_childs(
                         report_number=parent.other_data["wp_seqno"],
                     )
                     log.info(f"PDF Path: {pdf_path}")
+
+                    # Lazy import to avoid circular dependency
+                    from background_tasks.tasks import send_email_notification_for_wp_from_mobile_for_verifier
                     send_email_notification_for_wp_from_mobile_for_verifier.delay(
                         wom_id,
                         verifers,
@@ -675,8 +685,8 @@ def save_parent_childs(
         raise
 
 
-@app.task(
-    bind=True, default_retry_delay=300, max_retries=5, name="perform_insertrecord()"
+@shared_task(
+    bind=True, default_retry_delay=300, max_retries=5, name="perform_insertrecord"
 )
 def perform_insertrecord(
     self, records, db="default", filebased=True, bg=False, userid=None

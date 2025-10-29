@@ -1,11 +1,11 @@
 """
-Integration tasks for MQTT, GraphQL, and external APIs
+Integration tasks for MQTT and external APIs
 
 Migrated from god file refactoring
 Date: 2025-09-30
 """
 from celery import shared_task
-from intelliwiz_config.celery import app
+from django.core.exceptions import ObjectDoesNotExist
 from .move_files_to_GCS import move_files_to_GCS, del_empty_dir, get_files
 from .report_tasks import (
     get_scheduled_reports_fromdb,
@@ -34,7 +34,8 @@ from apps.core.tasks.base import (
 from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validation import XSSPrevention
-from apps.face_recognition.services import get_face_recognition_service
+# Face recognition import removed - not used in this file (Oct 2025 cleanup)
+# from apps.face_recognition.services import get_face_recognition_service
 from apps.onboarding.models import Bt
 from apps.peoples.models import People
 from apps.reminder.models import Reminder
@@ -43,14 +44,14 @@ from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (
             ServiceLevelAgreement,
         )
-from apps.schedhuler.utils import (
+from apps.scheduler.utils import (
         calculate_startdtz_enddtz_for_ppm,
         get_datetime_list,
         insert_into_jn_and_jnd,
         get_readable_dates,
         create_ppm_reminder,
     )
-from apps.service.utils import execute_graphql_mutations
+# from apps.service.utils import execute_graphql_mutations  # Removed Oct 2025 - GraphQL deleted
 from apps.service.utils import get_model_or_form
 from apps.service.validators import clean_record
 from apps.work_order_management.models import Vendor
@@ -60,7 +61,8 @@ from apps.work_order_management.utils import (
             get_peoplecode,
         )
 from apps.work_order_management.utils import save_pdf_to_tmp_location
-from apps.work_order_management.views import SLA_View
+# SLA_View import removed - never used (dead code that caused circular import)
+# from apps.work_order_management.views import SLA_View
 from apps.y_helpdesk.models import Ticket
 from background_tasks import utils as butils
 from celery import shared_task
@@ -291,74 +293,6 @@ def validate_mqtt_payload(payload: Union[str, Dict[str, Any], List[Any], int, fl
         return payload
 
 
-@app.task(
-    bind=True,
-    default_retry_delay=300,
-    max_retries=5,
-    name="process_graphql_mutation_async",
-)
-def process_graphql_mutation_async(self, payload):
-    """
-    Process the incoming payload containing a GraphQL mutation and file data.
-
-    Args:
-        payload (str): The JSON-encoded payload containing the mutation query and variables.
-
-    Returns:
-        str: The JSON-encoded response containing the mutation result or errors.
-    """
-    from apps.service.utils import execute_graphql_mutations
-
-    try:
-        post_data = json.loads(payload)
-        query = post_data.get("mutation")
-        variables = post_data.get("variables", {})
-
-        if query and variables:
-            resp = execute_graphql_mutations(query, variables)
-        else:
-            mqlog.warning("Invalid records or query in the payload.")
-            resp = json.dumps({"errors": ["No file data found"]})
-    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-        mqlog.error(f"Error processing payload: {e}", exc_info=True)
-        resp = json.dumps({"errors": [str(e)]})
-        raise e
-    return resp
-
-
-@app.task(
-    bind=True,
-    default_retry_delay=300,
-    max_retries=5,
-    name="process_graphql_download_async",
-)
-def process_graphql_download_async(self, payload):
-    """
-    Process the incoming payload containing a GraphQL download and file data.
-
-    Args:
-        payload (str): The JSON-encoded payload containing the mutation query and variables.
-
-    Returns:
-        str: The JSON-encoded response containing the mutation result or errors.
-    """
-    from apps.service.utils import execute_graphql_mutations
-
-    try:
-        post_data = json.loads(payload)
-        query = post_data.get("query")
-
-        if query:
-            resp = execute_graphql_mutations(query, download=True)
-        else:
-            mqlog.warning("Invalid records or query in the payload.")
-            resp = json.dumps({"errors": ["No file data found"]})
-    except (AttributeError, DatabaseError, FileNotFoundError, IOError, IntegrationException, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-        mqlog.error(f"Error processing payload: {e}", exc_info=True)
-        resp = json.dumps({"errors": [str(e)]})
-        raise e
-    return resp
-
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=30)
 def external_api_call_async(
@@ -485,7 +419,7 @@ def external_api_call_async(
         }
 
 
-@app.task(bind=True, name="insert_json_records_async")
+@shared_task(bind=True, name="insert_json_records_async")
 def insert_json_records_async(self, records, tablename):
     from apps.service.utils import get_model_or_form
     from apps.service.validators import clean_record
@@ -505,5 +439,3 @@ def insert_json_records_async(self, records, tablename):
                 tlog.info("record is not exist so creating new one..")
                 model.objects.create(**record)
         return "Records inserted/updated successfully"
-
-

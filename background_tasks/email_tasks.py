@@ -5,6 +5,7 @@ Migrated from god file refactoring
 Date: 2025-09-30
 """
 from celery import shared_task
+from django.core.exceptions import ObjectDoesNotExist
 from .move_files_to_GCS import move_files_to_GCS, del_empty_dir, get_files
 from .report_tasks import (
     get_scheduled_reports_fromdb,
@@ -33,7 +34,7 @@ from apps.core.tasks.base import (
 from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validation import XSSPrevention
-from apps.face_recognition.services import get_face_recognition_service
+# from apps.face_recognition.services import get_face_recognition_service  # Unused import - removed Oct 2025
 from apps.onboarding.models import Bt
 from apps.peoples.models import People
 from apps.reminder.models import Reminder
@@ -42,14 +43,14 @@ from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (
             ServiceLevelAgreement,
         )
-from apps.schedhuler.utils import (
+from apps.scheduler.utils import (
         calculate_startdtz_enddtz_for_ppm,
         get_datetime_list,
         insert_into_jn_and_jnd,
         get_readable_dates,
         create_ppm_reminder,
     )
-from apps.service.utils import execute_graphql_mutations
+# from apps.service.utils import execute_graphql_mutations  # GraphQL removed Oct 2025
 from apps.service.utils import get_model_or_form
 from apps.service.validators import clean_record
 from apps.work_order_management.models import Vendor
@@ -59,7 +60,8 @@ from apps.work_order_management.utils import (
             get_peoplecode,
         )
 from apps.work_order_management.utils import save_pdf_to_tmp_location
-from apps.work_order_management.views import SLA_View
+# SLA_View import moved to function scope to avoid circular dependency
+# from apps.work_order_management.views import SLA_View
 from apps.y_helpdesk.models import Ticket
 from background_tasks import utils as butils
 from celery import shared_task
@@ -622,9 +624,10 @@ def send_email_notification_for_sla_vendor(self, wom_id, report_attachment, site
             approvers_email_and_name,
             get_peoplecode,
         )
-        from apps.work_order_management.views import SLA_View
+        # Import constants instead of view class to avoid circular dependency
+        from apps.work_order_management.constants import MONTH_CHOICES
 
-        monthly_choices = SLA_View.MONTH_CHOICES
+        monthly_choices = MONTH_CHOICES
         wom = Wom.objects.get(uuid=wom_id)
         is_month_present = wom.other_data.get("month", None)
         if not is_month_present:
@@ -699,9 +702,10 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
         from dateutil.relativedelta import relativedelta
         from datetime import datetime
         from apps.work_order_management.utils import save_pdf_to_tmp_location
-        from apps.work_order_management.views import SLA_View
+        # Import constants instead of view class to avoid circular dependency
+        from apps.work_order_management.constants import MONTH_CHOICES
 
-        monthly_choices = SLA_View.MONTH_CHOICES
+        monthly_choices = MONTH_CHOICES
         Wom = apps.get_model("work_order_management", "Wom")
         People = apps.get_model("peoples", "People")
         (
@@ -800,8 +804,12 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
     return jsonresp
 
 
-@shared_task(name="send_reminder_email")
-def send_reminder_email():
+@shared_task(
+    base=EmailTask,
+    bind=True,
+    name="send_reminder_email"
+)
+def send_reminder_email(self):
     from django.template.loader import render_to_string
     from django.conf import settings
     from apps.reminder.models import Reminder
@@ -872,5 +880,4 @@ def send_reminder_email():
 def send_mismatch_notification(mismatch_data):
     # This task sends mismatch data to the NOC dashboard
     logger.info(f"Mismatched detected: {mismatch_data}")
-
 

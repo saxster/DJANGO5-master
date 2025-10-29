@@ -16,7 +16,7 @@ Organized by domain:
 Enhanced schemas mirror existing DRF serializers for consistency.
 """
 
-# Original schemas (minimal, for GraphQL queries)
+# Legacy-compatible schemas for incremental sync
 from .job_schema import (
     JobneedModifiedAfterSchema,
     JobneedDetailsModifiedAfterSchema,
@@ -30,11 +30,12 @@ from .people_schema import (
     AttachmentSchema,
 )
 from .asset_schema import AssetFilterSchema
-from .bt_schema import BtModifiedAfterSchema
-from .question_schema import QuestionSetModifiedAfterSchema
-from .ticket_schema import TicketModifiedAfterSchema
-from .typeassist_schema import TypeAssistModifiedAfterSchema
-from .workpermit_schema import WorkPermitModifiedAfterSchema
+# Removed imports - schemas don't exist (GraphQL migration Oct 2025):
+# - BtModifiedAfterSchema
+# - QuestionSetModifiedAfterSchema
+# - TicketModifiedAfterSchema
+# - TypeAssistModifiedAfterSchema
+# - WorkPermitModifiedAfterSchema
 
 # Enhanced schemas (comprehensive, for mobile sync and codegen)
 from .task_enhanced_schema import (

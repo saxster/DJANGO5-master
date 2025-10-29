@@ -41,9 +41,10 @@ from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisit
 from apps.core.error_handling import ErrorHandler
 from apps.service import serializers as sz
 from apps.service.validators import clean_record
-from apps.service.types import ServiceOutputType
-from intelliwiz_config.celery import app
-from background_tasks.tasks import alert_sendmail
+from apps.service.rest_types import ServiceOutputType  # GraphQL types removed Oct 2025
+from celery import shared_task
+# Lazy import to avoid circular dependency - imported where used
+# from background_tasks.tasks import alert_sendmail
 
 # Import Messages from database_service
 from apps.service.auth import Messages as AM
@@ -150,6 +151,9 @@ def update_adhoc_record(scheduletask, jobneedrecord, details):
                     jndsz.save()
     recordcount += 1
     rc = 0
+
+    # Lazy import to avoid circular dependency
+    from background_tasks.tasks import alert_sendmail
     alert_sendmail.delay(scheduletask["id"], "observation", atts=True)
     msg = "Scheduled Record (ADHOC) updated successfully!"
     return rc, traceback, msg, recordcount
@@ -180,14 +184,17 @@ def insert_adhoc_record(jobneedrecord, details):
         msg = "Record (ADHOC) inserted successfully!"
         recordcount += 1
         rc = 0
+
+        # Lazy import to avoid circular dependency
+        from background_tasks.tasks import alert_sendmail
         alert_sendmail.delay(jn_instance.id, "observation", atts=True)
     else:
         rc, traceback = 1, jnsz.errors
     return rc, traceback, msg, recordcount
 
 
-@app.task(
-    bind=True, default_retry_delay=300, max_retries=5, name="perform_tasktourupdate()"
+@shared_task(
+    bind=True, default_retry_delay=300, max_retries=5, name="perform_tasktourupdate"
 )
 def perform_tasktourupdate(self, records, request=None, db="default", bg=False):
     """
