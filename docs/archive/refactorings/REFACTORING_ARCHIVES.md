@@ -1,0 +1,231 @@
+# Refactoring Archives
+
+**Archive Date:** 2025-10-29
+**Reason:** Refactoring complete, implementation details historical
+**Status:** Final patterns retained in main docs
+
+---
+
+## Archived Refactorings
+
+### 1. God File Refactoring Phases (Sep 2025)
+
+**Completion:** September 2025
+**Scope:** Eliminated monolithic files across codebase
+
+#### Phase 5-7 Highlights
+- **Reports Views:** 2,070 lines → 5 focused modules
+- **Onboarding Admin:** 1,796 lines → 9 domain modules
+- **Service Layer:** Monolithic → 6 service modules (31 functions)
+
+#### Key Achievements
+- All files now under architectural limits (150 lines models, 200 lines settings)
+- Single responsibility per module
+- Backward compatibility maintained
+- Import paths preserved via `__init__.py` aggregation
+
+#### Lessons Learned
+1. **Extract shared logic first** (base.py modules)
+2. **One responsibility per file** (avoid mixing concerns)
+3. **Maintain import compatibility** (gradual migration)
+4. **Document canonical paths** (recommended vs legacy imports)
+
+#### Final Patterns (in Main Docs)
+- **Location:** `docs/ARCHITECTURE.md#refactored-architecture`
+- **Limits:** `docs/RULES.md#architecture-limits`
+
+#### Original Documentation
+- **Full phases:** `GOD_FILE_REFACTORING_PHASES_5-7_COMPLETE.md` (root, to archive)
+- **Progress:** `GOD_FILE_REFACTORING_PROGRESS_SUMMARY.md` (root, to archive)
+- **Roadmap:** `GOD_FILE_REFACTORING_FINAL_STATUS_AND_ROADMAP.md` (root, to archive)
+
+---
+
+### 2. Exception Handling Refactoring (Oct 2025)
+
+**Completion:** October 2025
+**Scope:** Eliminated bare except blocks (56 → 0)
+
+#### What Changed
+- Replaced `except:` and `except Exception:` with specific exception types
+- Created exception pattern groups in `apps/core/exceptions/patterns.py`
+- Exception groups: `DATABASE_EXCEPTIONS`, `NETWORK_EXCEPTIONS`, `FILE_EXCEPTIONS`
+- Enforcement via flake8 E722 rule (pre-commit hook)
+
+#### Before/After Example
+```python
+# ❌ BEFORE (Generic)
+try:
+    user.save()
+except Exception as e:
+    logger.error(f"Error: {e}")
+
+# ✅ AFTER (Specific)
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+try:
+    user.save()
+except DATABASE_EXCEPTIONS as e:
+    logger.error(f"Database error: {e}", exc_info=True)
+    raise
+```
+
+#### Enforcement
+- **Pre-commit:** Flake8 E722 blocks commits with bare except
+- **CI/CD:** Automated checks on all PRs
+- **Migration tool:** `scripts/migrate_exception_handling.py`
+
+#### Final Patterns (in Main Docs)
+- **Location:** `docs/RULES.md#exception-handling`
+- **Examples:** `docs/RULES.md#rule-2-bare-except-blocks`
+
+#### Original Documentation
+- **Report:** `EXCEPTION_REFACTORING_REPORT.md` (root, to archive)
+- **Migration:** `CODE_QUALITY_REFACTORING_COMPLETE.md` (root, to archive)
+
+---
+
+### 3. Code Smell Detection System (Oct 2025)
+
+**Completion:** October 2025
+**Scope:** Automated detection of anti-patterns
+
+#### What Was Created
+- **Script:** `scripts/detect_code_smells.py`
+- **Detections:**
+  1. Bare except blocks (E722)
+  2. Backup/stub files (`_refactored`, `_backup`, `_old`, `_temp`)
+  3. Oversized files (models >150, services >150, forms >100, settings >200)
+
+#### Results
+- **Bare except:** 56 → 0 (100% elimination)
+- **Backup files:** 9 items archived (313 KB cleanup)
+- **Oversized files:** 1 remaining (generation_views.py, split plan ready)
+
+#### Enforcement
+- **Pre-commit hook:** Prevents new violations
+- **CI/CD integration:** No-regression policy
+- **Monthly audit:** Track progressive improvement
+
+#### Final Patterns (in Main Docs)
+- **Location:** `docs/REFERENCE.md#code-quality-tools`
+- **Usage:** `python scripts/detect_code_smells.py --report`
+
+#### Original Documentation
+- **Report:** `CODE_SMELL_DETECTION_REPORT.md` (root, to archive)
+- **Progress:** `CODE_QUALITY_OBSERVATIONS_RESOLUTION_FINAL.md` (root, to archive)
+
+---
+
+### 4. Unused Code Detection & Cleanup (Oct 2025)
+
+**Completion:** October 2025
+**Scope:** Identified and archived unused code
+
+#### What Was Cleaned
+1. **apps/_UNUSED_monitoring/** (227 KB, never registered)
+2. **5 `*_refactored.py` files** (79.8 KB total)
+3. **Large commented code blocks** (>10 lines)
+
+#### Archive Results
+- **Total archived:** 313 KB (9 items)
+- **Documentation:** `REMOVED_CODE_INVENTORY.md`
+- **Retention:** 1 sprint cycle (2 weeks), then permanent deletion
+
+#### Detection Script
+```bash
+# Scan for unused code
+python scripts/detect_unused_code.py --verbose
+
+# Generate report
+python scripts/detect_unused_code.py --report unused_code_report.md
+```
+
+#### Archive Policy
+- **Archived location:** `.archive/` directory (if exists) or `docs/archive/`
+- **Retention:** 1 sprint (2 weeks) for restoration if needed
+- **Deletion:** After team review and sprint completion
+
+#### Final Patterns (in Main Docs)
+- **Location:** `docs/REFERENCE.md#code-quality-tools`
+- **Inventory:** `REMOVED_CODE_INVENTORY.md` (to be maintained)
+
+#### Original Documentation
+- **Detection report:** Generated by `detect_unused_code.py`
+- **Inventory:** `REMOVED_CODE_INVENTORY.md` (current)
+
+---
+
+### 5. Celery Task Refactoring (Oct 2025)
+
+**Completion:** October 2025
+**Scope:** Consolidated task definitions, eliminated duplicates
+
+#### What Changed
+- **Duplicate tasks:** 29 tasks with multiple implementations → Single canonical
+- **@app.task → @shared_task:** 22 instances migrated
+- **Task naming:** Removed parentheses (e.g., `create_job()` → `create_job`)
+- **File organization:** God file (`tasks.py` 2,320 lines) → Domain files + import aggregator
+
+#### Key Achievements
+- **Total tasks:** 94 unique (was 130 definitions with duplicates)
+- **God file:** 2,320 lines → Import aggregator only (target <300 lines)
+- **@shared_task usage:** 108/130 (83%) → Target >95%
+
+#### Configuration Standards
+- **Single source of truth:** `intelliwiz_config/celery.py`
+- **Task decorator:** `@shared_task` (standard), `@app.task` (exception cases only)
+- **Beat schedule:** Centralized in `celery.py` only
+- **Orphaned task prevention:** `validate_schedules --check-orphaned-tasks`
+
+#### Final Patterns (in Main Docs)
+- **Location:** `docs/CELERY.md` (to be created)
+- **Quick ref:** New CLAUDE.md Daily Commands table
+
+#### Original Documentation
+- **Inventory:** `CELERY_TASK_INVENTORY_REPORT.md` (root, to archive)
+- **Progress:** `CELERY_REFACTORING_PROGRESS_SUMMARY.md` (root, to archive)
+
+---
+
+## Restoration Policy
+
+**When to Restore:**
+- **Never:** Final patterns in main docs, implementations active in codebase
+- **Historical reference:** If need to understand refactoring decisions
+
+**How to Access:**
+- Git history: `git log --all --full-history -- "pattern"`
+- Original docs: Root directory (will be archived during CLAUDE.md optimization)
+
+---
+
+## Current Documentation Locations
+
+Final patterns and current implementations:
+
+1. **Architecture:** `docs/ARCHITECTURE.md#refactored-architecture`
+2. **Exceptions:** `docs/RULES.md#exception-handling`
+3. **Code Quality:** `docs/REFERENCE.md#code-quality-tools`
+4. **Unused Code:** `REMOVED_CODE_INVENTORY.md` (current, to be maintained)
+5. **Celery:** `docs/CELERY.md` (to be created in Phase 3)
+
+---
+
+## Transitional Artifacts to Archive
+
+These root-level completion documents should be moved to this archive:
+
+- `GOD_FILE_REFACTORING_*.md` (3 files)
+- `EXCEPTION_REFACTORING_REPORT.md`
+- `CODE_QUALITY_*.md` (7 files)
+- `CODE_SMELL_DETECTION_REPORT.md`
+- `CELERY_*.md` (2 files)
+
+**Action:** Move during Phase 6 (final cleanup)
+
+---
+
+**Archived By:** AI Assistant (Claude Code)
+**Retention:** 1 year (until 2026-10-29)
+**Next Review:** 2026-10-29 (delete after team approval)
