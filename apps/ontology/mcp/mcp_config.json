@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ontology": {
+      "command": "python",
+      "args": [
+        "/Users/amar/Desktop/MyCode/DJANGO5-master/apps/ontology/mcp/run_server.py"
+      ],
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "intelliwiz_config.settings.development"
+      },
+      "description": "Codebase ontology knowledge graph for semantic code understanding"
+    }
+  }
+}
