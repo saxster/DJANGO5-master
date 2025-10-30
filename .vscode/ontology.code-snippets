@@ -1,0 +1,160 @@
+{
+  "Ontology Model Decorator": {
+    "prefix": "ontology-model",
+    "body": [
+      "@ontology_class(",
+      "    business_term='${1:BusinessEntity}',",
+      "    definition='${2:Brief definition of what this model represents}',",
+      "    domain='${3|OPERATIONS,ASSETS,PEOPLE,HELPDESK,REPORTS,SECURITY,WELLNESS,CORE,ONBOARDING|}',",
+      "    criticality='${4|CRITICAL,HIGH,MEDIUM,LOW|}',",
+      "    tags=[${5:'${6:primary-tag}', '${7:secondary-tag}'}],",
+      "    examples=[${8:'${9:Example usage or instance}'}],",
+      "    context={'${10:key}': '${11:value}'}",
+      ")",
+      "class ${12:ModelName}(models.Model):",
+      "    \"\"\"",
+      "    ${13:Detailed docstring explaining the model's purpose, relationships, and business logic.}",
+      "    \"\"\"",
+      "    $0"
+    ],
+    "description": "Add ontology decorator to Django model class"
+  },
+
+  "Ontology Service Decorator": {
+    "prefix": "ontology-service",
+    "body": [
+      "@ontology_service(",
+      "    business_term='${1:BusinessOperation}',",
+      "    definition='${2:Brief definition of what this service does}',",
+      "    domain='${3|OPERATIONS,ASSETS,PEOPLE,HELPDESK,REPORTS,SECURITY,WELLNESS,CORE,ONBOARDING|}',",
+      "    criticality='${4|CRITICAL,HIGH,MEDIUM,LOW|}',",
+      "    tags=[${5:'${6:service-type}', '${7:integration}'}],",
+      "    examples=[${8:'${9:Example method call or usage pattern}'}],",
+      "    context={",
+      "        'idempotent': ${10|True,False|},",
+      "        'async_capable': ${11|True,False|},",
+      "        'timeout_seconds': ${12:30}",
+      "    }",
+      ")",
+      "class ${13:ServiceName}:",
+      "    \"\"\"",
+      "    ${14:Detailed docstring explaining the service's responsibilities and usage.}",
+      "    \"\"\"",
+      "    $0"
+    ],
+    "description": "Add ontology decorator to service class"
+  },
+
+  "Ontology API Decorator": {
+    "prefix": "ontology-api",
+    "body": [
+      "@ontology_api(",
+      "    business_term='${1:APIEndpoint}',",
+      "    definition='${2:Brief definition of what this API endpoint provides}',",
+      "    domain='${3|OPERATIONS,ASSETS,PEOPLE,HELPDESK,REPORTS,SECURITY,WELLNESS,CORE,ONBOARDING|}',",
+      "    criticality='${4|CRITICAL,HIGH,MEDIUM,LOW|}',",
+      "    tags=[${5:'${6:rest-api}', '${7:v1}'}],",
+      "    examples=[",
+      "        '${8:GET /api/v1/resource/ - Description}',",
+      "        '${9:POST /api/v1/resource/ - Description}'",
+      "    ],",
+      "    context={",
+      "        'version': '${10:v1}',",
+      "        'authentication': '${11:required}',",
+      "        'rate_limit': '${12:100/hour}'",
+      "    }",
+      ")",
+      "class ${13:ViewSetName}(viewsets.ModelViewSet):",
+      "    \"\"\"",
+      "    ${14:Detailed docstring explaining the API endpoint's purpose and usage.}",
+      "    \"\"\"",
+      "    $0"
+    ],
+    "description": "Add ontology decorator to API view/viewset"
+  },
+
+  "Ontology Middleware Decorator": {
+    "prefix": "ontology-middleware",
+    "body": [
+      "@ontology_middleware(",
+      "    business_term='${1:MiddlewareComponent}',",
+      "    definition='${2:Brief definition of what this middleware does}',",
+      "    domain='${3|CORE,SECURITY,OPERATIONS|}',",
+      "    criticality='${4|CRITICAL,HIGH|}',",
+      "    tags=[${5:'${6:security}', '${7:request-processing}'}],",
+      "    examples=[${8:'${9:Example of middleware behavior}'}],",
+      "    context={",
+      "        'processing_phase': '${10|request,response,exception|}',",
+      "        'order': ${11:100}",
+      "    }",
+      ")",
+      "class ${12:MiddlewareName}:",
+      "    \"\"\"",
+      "    ${13:Detailed docstring explaining the middleware's purpose and behavior.}",
+      "    \"\"\"",
+      "    $0"
+    ],
+    "description": "Add ontology decorator to middleware class"
+  },
+
+  "Ontology Import Statement": {
+    "prefix": "ontology-import",
+    "body": [
+      "from apps.ontology.decorators import (",
+      "    ontology_class,",
+      "    ontology_service,",
+      "    ontology_api,",
+      "    ontology_middleware,",
+      ")"
+    ],
+    "description": "Import ontology decorators"
+  },
+
+  "Ontology Quick Model": {
+    "prefix": "ont-model",
+    "body": [
+      "@ontology_class(",
+      "    business_term='${1:Term}',",
+      "    definition='${2:Definition}',",
+      "    domain='${3:OPERATIONS}',",
+      "    criticality='${4:MEDIUM}'",
+      ")",
+      "class ${5:ModelName}(models.Model):",
+      "    \"\"\"${6:Docstring}\"\"\"",
+      "    $0"
+    ],
+    "description": "Quick ontology model decorator (minimal fields)"
+  },
+
+  "Ontology Quick Service": {
+    "prefix": "ont-service",
+    "body": [
+      "@ontology_service(",
+      "    business_term='${1:Term}',",
+      "    definition='${2:Definition}',",
+      "    domain='${3:OPERATIONS}',",
+      "    criticality='${4:MEDIUM}'",
+      ")",
+      "class ${5:ServiceName}:",
+      "    \"\"\"${6:Docstring}\"\"\"",
+      "    $0"
+    ],
+    "description": "Quick ontology service decorator (minimal fields)"
+  },
+
+  "Ontology Field Documentation": {
+    "prefix": "ont-field-doc",
+    "body": [
+      "# Ontology Decorator Fields:",
+      "# - business_term: Business-friendly name for the entity",
+      "# - definition: Clear, concise definition of purpose",
+      "# - domain: OPERATIONS|ASSETS|PEOPLE|HELPDESK|REPORTS|SECURITY|WELLNESS|CORE|ONBOARDING",
+      "# - criticality: CRITICAL|HIGH|MEDIUM|LOW",
+      "# - tags: List of searchable keywords",
+      "# - examples: List of usage examples",
+      "# - context: Additional metadata as dictionary",
+      "$0"
+    ],
+    "description": "Insert ontology field reference comment"
+  }
+}

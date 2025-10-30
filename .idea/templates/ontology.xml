@@ -1,0 +1,85 @@
+<templateSet group="Ontology Decorators">
+  <template name="ont-model" value="@ontology_class(&#10;    business_term='$TERM$',&#10;    definition='$DEFINITION$',&#10;    domain='$DOMAIN$',&#10;    criticality='$CRITICALITY$',&#10;    tags=[$TAGS$],&#10;    examples=[$EXAMPLES$],&#10;    context={$CONTEXT$}&#10;)&#10;class $CLASS_NAME$(models.Model):&#10;    &quot;&quot;&quot;&#10;    $DOCSTRING$&#10;    &quot;&quot;&quot;&#10;    $END$" description="Ontology Model Decorator" toReformat="true" toShortenFQNames="true">
+    <variable name="TERM" expression="" defaultValue="&quot;BusinessEntity&quot;" alwaysStopAt="true" />
+    <variable name="DEFINITION" expression="" defaultValue="&quot;Brief definition&quot;" alwaysStopAt="true" />
+    <variable name="DOMAIN" expression="enum(&quot;OPERATIONS&quot;,&quot;ASSETS&quot;,&quot;PEOPLE&quot;,&quot;HELPDESK&quot;,&quot;REPORTS&quot;,&quot;SECURITY&quot;,&quot;WELLNESS&quot;,&quot;CORE&quot;,&quot;ONBOARDING&quot;)" defaultValue="&quot;OPERATIONS&quot;" alwaysStopAt="true" />
+    <variable name="CRITICALITY" expression="enum(&quot;CRITICAL&quot;,&quot;HIGH&quot;,&quot;MEDIUM&quot;,&quot;LOW&quot;)" defaultValue="&quot;MEDIUM&quot;" alwaysStopAt="true" />
+    <variable name="TAGS" expression="" defaultValue="'tag1', 'tag2'" alwaysStopAt="true" />
+    <variable name="EXAMPLES" expression="" defaultValue="'Example usage'" alwaysStopAt="true" />
+    <variable name="CONTEXT" expression="" defaultValue="'key': 'value'" alwaysStopAt="true" />
+    <variable name="CLASS_NAME" expression="className()" defaultValue="&quot;ModelName&quot;" alwaysStopAt="true" />
+    <variable name="DOCSTRING" expression="" defaultValue="&quot;Detailed docstring&quot;" alwaysStopAt="true" />
+    <context>
+      <option name="PYTHON_CLASS" value="true" />
+    </context>
+  </template>
+
+  <template name="ont-service" value="@ontology_service(&#10;    business_term='$TERM$',&#10;    definition='$DEFINITION$',&#10;    domain='$DOMAIN$',&#10;    criticality='$CRITICALITY$',&#10;    tags=[$TAGS$],&#10;    examples=[$EXAMPLES$],&#10;    context={&#10;        'idempotent': $IDEMPOTENT$,&#10;        'async_capable': $ASYNC$,&#10;        'timeout_seconds': $TIMEOUT$&#10;    }&#10;)&#10;class $CLASS_NAME$:&#10;    &quot;&quot;&quot;&#10;    $DOCSTRING$&#10;    &quot;&quot;&quot;&#10;    $END$" description="Ontology Service Decorator" toReformat="true" toShortenFQNames="true">
+    <variable name="TERM" expression="" defaultValue="&quot;BusinessOperation&quot;" alwaysStopAt="true" />
+    <variable name="DEFINITION" expression="" defaultValue="&quot;Brief definition&quot;" alwaysStopAt="true" />
+    <variable name="DOMAIN" expression="enum(&quot;OPERATIONS&quot;,&quot;ASSETS&quot;,&quot;PEOPLE&quot;,&quot;HELPDESK&quot;,&quot;REPORTS&quot;,&quot;SECURITY&quot;,&quot;WELLNESS&quot;,&quot;CORE&quot;,&quot;ONBOARDING&quot;)" defaultValue="&quot;OPERATIONS&quot;" alwaysStopAt="true" />
+    <variable name="CRITICALITY" expression="enum(&quot;CRITICAL&quot;,&quot;HIGH&quot;,&quot;MEDIUM&quot;,&quot;LOW&quot;)" defaultValue="&quot;MEDIUM&quot;" alwaysStopAt="true" />
+    <variable name="TAGS" expression="" defaultValue="'service-type', 'integration'" alwaysStopAt="true" />
+    <variable name="EXAMPLES" expression="" defaultValue="'Example method call'" alwaysStopAt="true" />
+    <variable name="IDEMPOTENT" expression="enum(&quot;True&quot;,&quot;False&quot;)" defaultValue="True" alwaysStopAt="true" />
+    <variable name="ASYNC" expression="enum(&quot;True&quot;,&quot;False&quot;)" defaultValue="False" alwaysStopAt="true" />
+    <variable name="TIMEOUT" expression="" defaultValue="30" alwaysStopAt="true" />
+    <variable name="CLASS_NAME" expression="className()" defaultValue="&quot;ServiceName&quot;" alwaysStopAt="true" />
+    <variable name="DOCSTRING" expression="" defaultValue="&quot;Detailed docstring&quot;" alwaysStopAt="true" />
+    <context>
+      <option name="PYTHON_CLASS" value="true" />
+    </context>
+  </template>
+
+  <template name="ont-api" value="@ontology_api(&#10;    business_term='$TERM$',&#10;    definition='$DEFINITION$',&#10;    domain='$DOMAIN$',&#10;    criticality='$CRITICALITY$',&#10;    tags=[$TAGS$],&#10;    examples=[&#10;        '$EXAMPLE1$',&#10;        '$EXAMPLE2$'&#10;    ],&#10;    context={&#10;        'version': '$VERSION$',&#10;        'authentication': '$AUTH$',&#10;        'rate_limit': '$RATE_LIMIT$'&#10;    }&#10;)&#10;class $CLASS_NAME$(viewsets.ModelViewSet):&#10;    &quot;&quot;&quot;&#10;    $DOCSTRING$&#10;    &quot;&quot;&quot;&#10;    $END$" description="Ontology API Decorator" toReformat="true" toShortenFQNames="true">
+    <variable name="TERM" expression="" defaultValue="&quot;APIEndpoint&quot;" alwaysStopAt="true" />
+    <variable name="DEFINITION" expression="" defaultValue="&quot;Brief definition&quot;" alwaysStopAt="true" />
+    <variable name="DOMAIN" expression="enum(&quot;OPERATIONS&quot;,&quot;ASSETS&quot;,&quot;PEOPLE&quot;,&quot;HELPDESK&quot;,&quot;REPORTS&quot;,&quot;SECURITY&quot;,&quot;WELLNESS&quot;,&quot;CORE&quot;,&quot;ONBOARDING&quot;)" defaultValue="&quot;OPERATIONS&quot;" alwaysStopAt="true" />
+    <variable name="CRITICALITY" expression="enum(&quot;CRITICAL&quot;,&quot;HIGH&quot;,&quot;MEDIUM&quot;,&quot;LOW&quot;)" defaultValue="&quot;MEDIUM&quot;" alwaysStopAt="true" />
+    <variable name="TAGS" expression="" defaultValue="'rest-api', 'v1'" alwaysStopAt="true" />
+    <variable name="EXAMPLE1" expression="" defaultValue="'GET /api/v1/resource/'" alwaysStopAt="true" />
+    <variable name="EXAMPLE2" expression="" defaultValue="'POST /api/v1/resource/'" alwaysStopAt="true" />
+    <variable name="VERSION" expression="" defaultValue="'v1'" alwaysStopAt="true" />
+    <variable name="AUTH" expression="" defaultValue="'required'" alwaysStopAt="true" />
+    <variable name="RATE_LIMIT" expression="" defaultValue="'100/hour'" alwaysStopAt="true" />
+    <variable name="CLASS_NAME" expression="className()" defaultValue="&quot;ViewSetName&quot;" alwaysStopAt="true" />
+    <variable name="DOCSTRING" expression="" defaultValue="&quot;Detailed docstring&quot;" alwaysStopAt="true" />
+    <context>
+      <option name="PYTHON_CLASS" value="true" />
+    </context>
+  </template>
+
+  <template name="ont-middleware" value="@ontology_middleware(&#10;    business_term='$TERM$',&#10;    definition='$DEFINITION$',&#10;    domain='$DOMAIN$',&#10;    criticality='$CRITICALITY$',&#10;    tags=[$TAGS$],&#10;    examples=[$EXAMPLES$],&#10;    context={&#10;        'processing_phase': '$PHASE$',&#10;        'order': $ORDER$&#10;    }&#10;)&#10;class $CLASS_NAME$:&#10;    &quot;&quot;&quot;&#10;    $DOCSTRING$&#10;    &quot;&quot;&quot;&#10;    $END$" description="Ontology Middleware Decorator" toReformat="true" toShortenFQNames="true">
+    <variable name="TERM" expression="" defaultValue="&quot;MiddlewareComponent&quot;" alwaysStopAt="true" />
+    <variable name="DEFINITION" expression="" defaultValue="&quot;Brief definition&quot;" alwaysStopAt="true" />
+    <variable name="DOMAIN" expression="enum(&quot;CORE&quot;,&quot;SECURITY&quot;,&quot;OPERATIONS&quot;)" defaultValue="&quot;CORE&quot;" alwaysStopAt="true" />
+    <variable name="CRITICALITY" expression="enum(&quot;CRITICAL&quot;,&quot;HIGH&quot;)" defaultValue="&quot;CRITICAL&quot;" alwaysStopAt="true" />
+    <variable name="TAGS" expression="" defaultValue="'security', 'request-processing'" alwaysStopAt="true" />
+    <variable name="EXAMPLES" expression="" defaultValue="'Example behavior'" alwaysStopAt="true" />
+    <variable name="PHASE" expression="enum(&quot;request&quot;,&quot;response&quot;,&quot;exception&quot;)" defaultValue="&quot;request&quot;" alwaysStopAt="true" />
+    <variable name="ORDER" expression="" defaultValue="100" alwaysStopAt="true" />
+    <variable name="CLASS_NAME" expression="className()" defaultValue="&quot;MiddlewareName&quot;" alwaysStopAt="true" />
+    <variable name="DOCSTRING" expression="" defaultValue="&quot;Detailed docstring&quot;" alwaysStopAt="true" />
+    <context>
+      <option name="PYTHON_CLASS" value="true" />
+    </context>
+  </template>
+
+  <template name="ont-import" value="from apps.ontology.decorators import (&#10;    ontology_class,&#10;    ontology_service,&#10;    ontology_api,&#10;    ontology_middleware,&#10;)" description="Import Ontology Decorators" toReformat="true" toShortenFQNames="true">
+    <context>
+      <option name="PYTHON_FILE" value="true" />
+    </context>
+  </template>
+
+  <template name="ont-quick" value="@ontology_class(&#10;    business_term='$TERM$',&#10;    definition='$DEFINITION$',&#10;    domain='$DOMAIN$',&#10;    criticality='$CRITICALITY$'&#10;)&#10;class $CLASS_NAME$(models.Model):&#10;    &quot;&quot;&quot;$DOCSTRING$&quot;&quot;&quot;&#10;    $END$" description="Quick Ontology Model (Minimal)" toReformat="true" toShortenFQNames="true">
+    <variable name="TERM" expression="" defaultValue="&quot;Term&quot;" alwaysStopAt="true" />
+    <variable name="DEFINITION" expression="" defaultValue="&quot;Definition&quot;" alwaysStopAt="true" />
+    <variable name="DOMAIN" expression="enum(&quot;OPERATIONS&quot;,&quot;ASSETS&quot;,&quot;PEOPLE&quot;,&quot;HELPDESK&quot;,&quot;REPORTS&quot;,&quot;SECURITY&quot;,&quot;WELLNESS&quot;,&quot;CORE&quot;,&quot;ONBOARDING&quot;)" defaultValue="&quot;OPERATIONS&quot;" alwaysStopAt="true" />
+    <variable name="CRITICALITY" expression="enum(&quot;CRITICAL&quot;,&quot;HIGH&quot;,&quot;MEDIUM&quot;,&quot;LOW&quot;)" defaultValue="&quot;MEDIUM&quot;" alwaysStopAt="true" />
+    <variable name="CLASS_NAME" expression="className()" defaultValue="&quot;ModelName&quot;" alwaysStopAt="true" />
+    <variable name="DOCSTRING" expression="" defaultValue="&quot;Docstring&quot;" alwaysStopAt="true" />
+    <context>
+      <option name="PYTHON_CLASS" value="true" />
+    </context>
+  </template>
+</templateSet>
