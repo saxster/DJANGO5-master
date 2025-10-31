@@ -30,7 +30,7 @@ from .people_schema import (
     AttachmentSchema,
 )
 from .asset_schema import AssetFilterSchema
-# Removed imports - schemas don't exist (GraphQL migration Oct 2025):
+# Removed imports - schemas don't exist (legacy query migration Oct 2025):
 # - BtModifiedAfterSchema
 # - QuestionSetModifiedAfterSchema
 # - TicketModifiedAfterSchema

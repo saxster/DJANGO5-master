@@ -68,6 +68,10 @@ class CronScheduleRegistry(BaseService):
         self._registered_jobs = {}
         self._discovered_modules = set()
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "CronScheduleRegistry"
+
     def register_management_command(
         self,
         command_name: str,

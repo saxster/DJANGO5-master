@@ -9,8 +9,8 @@ import django.utils.timezone
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('core', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('core', '__latest__'),  # Replace with actual latest migration
     ]
 
     operations = [

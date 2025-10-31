@@ -6,8 +6,11 @@ import json
 import time
 import uuid
 from datetime import datetime
+from typing import Dict, Any
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -15,6 +18,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from django.http import StreamingHttpResponse, JsonResponse
+from django.db import DatabaseError, IntegrityError
+from apps.core.exceptions import IntegrationException
 from apps.onboarding.models import (
     ConversationSession,
     LLMRecommendation,

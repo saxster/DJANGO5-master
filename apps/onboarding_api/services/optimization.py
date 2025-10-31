@@ -12,10 +12,17 @@ This module provides comprehensive cost and performance optimization including:
 import logging
 import json
 import hashlib
+from typing import Dict, Any, List, Optional
+from django.conf import settings
 from django.core.cache import cache
-    Bt
-)
+from django.utils import timezone
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+
+from apps.onboarding.models import Bt
 from apps.peoples.models import People
+from apps.onboarding_api.services.learning import PreferenceProfile
+from apps.core.exceptions import LLMServiceException
 
 logger = logging.getLogger(__name__)
 

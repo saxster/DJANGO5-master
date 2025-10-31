@@ -2,7 +2,7 @@
 Sync Testing Framework - Comprehensive testing utilities for mobile sync operations
 
 Addresses testing gaps identified in analysis:
-- No integration tests between GraphQL and REST sync endpoints
+- Missing parity tests for REST sync endpoints
 - Missing race condition tests for concurrent sync operations
 - Missing device simulation and conflict scenarios
 
@@ -176,66 +176,6 @@ class MockSyncClient:
             self.error_count += 1
             return {'error': str(e), 'synced_items': 0, 'failed_items': len(data)}
 
-    def sync_graphql_endpoint(self, data_type: str, data: List[Dict]) -> Dict[str, Any]:
-        """Simulate GraphQL sync mutation call."""
-        try:
-            self.client.force_login(self.device.user)
-
-            # Simulate network issues
-            if self.device.network_quality == 'poor' and random.random() < 0.3:
-                raise ConnectionError("Simulated GraphQL network error")
-
-            # Build GraphQL mutation based on data type
-            if data_type == 'voice':
-                mutation = '''
-                mutation SyncVoiceData($data: [VoiceDataInput!]!, $idempotencyKey: String!, $deviceId: String!) {
-                    syncVoiceData(data: $data, idempotencyKey: $idempotencyKey, deviceId: $deviceId) {
-                        success
-                        syncedItems
-                        failedItems
-                        conflicts
-                        errors { code message }
-                        serverTimestamp
-                    }
-                }
-                '''
-            else:
-                mutation = '''
-                mutation SyncBatch($batch: SyncBatchInput!) {
-                    syncBatch(batch: $batch) {
-                        success
-                        overallMetrics { totalItems syncedItems failedItems }
-                    }
-                }
-                '''
-
-            variables = {
-                'data': data,
-                'idempotencyKey': str(uuid.uuid4()),
-                'deviceId': self.device.device_id,
-            }
-
-            response = self.client.post(
-                '/api/graphql/',
-                data={
-                    'query': mutation,
-                    'variables': variables,
-                },
-                content_type='application/json'
-            )
-
-            self.sync_count += 1
-            result = response.json() if hasattr(response, 'json') else {}
-
-            if 'errors' in result:
-                self.error_count += 1
-
-            return result
-
-        except Exception as e:
-            self.error_count += 1
-            return {'error': str(e), 'data': {'syncVoiceData': {'success': False}}}
-
     def get_sync_statistics(self) -> Dict[str, Any]:
         """Get sync statistics for this device."""
         return {
@@ -377,25 +317,14 @@ class SyncTestFramework:
             for data_type in scenario.data_types:
                 data = client.generate_sync_data(data_type, device.data_generation_rate)
 
-                # Randomly choose between REST and GraphQL
-                if random.choice([True, False]):
-                    result = client.sync_rest_endpoint(data_type, data)
-                    sync_operations.append({
-                        'type': f'{data_type}_rest',
-                        'timestamp': timezone.now().isoformat(),
-                        'success': result.get('error') is None,
-                        'items': len(data),
-                        'result': result,
-                    })
-                else:
-                    result = client.sync_graphql_endpoint(data_type, data)
-                    sync_operations.append({
-                        'type': f'{data_type}_graphql',
-                        'timestamp': timezone.now().isoformat(),
-                        'success': 'error' not in result,
-                        'items': len(data),
-                        'result': result,
-                    })
+                result = client.sync_rest_endpoint(data_type, data)
+                sync_operations.append({
+                    'type': f'{data_type}_rest',
+                    'timestamp': timezone.now().isoformat(),
+                    'success': result.get('error') is None,
+                    'items': len(data),
+                    'result': result,
+                })
 
             # Wait before next sync
             time.sleep(device.sync_frequency / 1000)  # Convert to seconds

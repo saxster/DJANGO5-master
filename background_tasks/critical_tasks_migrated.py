@@ -293,7 +293,7 @@ def create_ppm_job(self, schedule_id: int, site_id: int):
     ppm_key = ppm_generation_key(schedule_id, site_id, generation_date)
 
     # Additional uniqueness check
-    from apps.schedhuler.services.schedule_uniqueness_service import ScheduleUniquenessService
+    from apps.scheduler.services.schedule_uniqueness_service import ScheduleUniquenessService
 
     uniqueness_service = ScheduleUniquenessService()
 

@@ -161,7 +161,7 @@ class PatternAnalyzer:
         features = []
 
         # Common endpoint patterns
-        patterns = ['/api/', '/graphql/', '/health', '/auth', '/user', '/admin', '/ws/', '/mqtt/']
+        patterns = ['/api/', '/health', '/auth', '/user', '/admin', '/ws/', '/mqtt/']
         for pattern in patterns:
             features.append(1.0 if pattern in endpoint_pattern.lower() else 0.0)
 

@@ -374,11 +374,6 @@ class APIException(IntegrationException):
     pass
 
 
-class GraphQLException(IntegrationException):
-    """GraphQL operation failed."""
-    pass
-
-
 class LLMServiceException(IntegrationException):
     """LLM/AI service operation failed."""
     pass

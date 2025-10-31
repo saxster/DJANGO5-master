@@ -18,6 +18,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.conf import settings
+from django.http import Http404
 from datetime import datetime
 from typing import List
 import logging
@@ -296,3 +298,21 @@ class AdminOverrideMixin:
 
         # Regular users get tenant filtering
         return queryset
+
+
+class MigrationFeatureFlagMixin:
+    """
+    Mixin to guard REST endpoints behind migration feature flags.
+
+    Raises 404 when the backing feature flag is disabled.
+    """
+
+    feature_flag_name: str = ""
+
+    def ensure_feature_flag_enabled(self) -> None:
+        if not self.feature_flag_name:
+            return
+
+        flags = getattr(settings, "API_MIGRATION_FEATURE_FLAGS", {})
+        if not flags.get(self.feature_flag_name, False):
+            raise Http404()

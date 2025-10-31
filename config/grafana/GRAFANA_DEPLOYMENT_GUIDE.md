@@ -1,6 +1,6 @@
 # Grafana + Prometheus Deployment Guide
 
-**Purpose:** Deploy REST API monitoring stack (post-GraphQL migration, Oct 2025)
+**Purpose:** Deploy REST API monitoring stack (post-legacy query migration, Oct 2025)
 **Components:** Grafana, Prometheus, Alertmanager
 **Estimated Setup Time:** 30 minutes
 

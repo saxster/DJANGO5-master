@@ -3,6 +3,7 @@
 import apps.peoples.models
 import django.contrib.postgres.fields
 import django.core.serializers.json
+import django.utils.timezone
 from django.db import migrations, models
 
 
@@ -18,8 +19,8 @@ class Migration(migrations.Migration):
             name='AntiSpoofingModel',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('name', models.CharField(max_length=100, unique=True)),
                 ('model_type', models.CharField(choices=[('TEXTURE_BASED', 'Texture-based'), ('MOTION_BASED', 'Motion-based'), ('DEPTH_BASED', 'Depth-based'), ('CHALLENGE_RESPONSE', 'Challenge-Response'), ('MULTI_MODAL', 'Multi-modal')], max_length=20)),
@@ -48,8 +49,8 @@ class Migration(migrations.Migration):
             name='FaceEmbedding',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('embedding_vector', django.contrib.postgres.fields.ArrayField(base_field=models.FloatField(), help_text='Face embedding vector', size=512)),
                 ('source_image_path', models.CharField(blank=True, max_length=500, null=True)),
@@ -77,8 +78,8 @@ class Migration(migrations.Migration):
             name='FaceQualityMetrics',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('image_path', models.CharField(max_length=500, unique=True)),
                 ('image_hash', models.CharField(max_length=64, unique=True)),
@@ -109,8 +110,8 @@ class Migration(migrations.Migration):
             name='FaceRecognitionConfig',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('name', models.CharField(max_length=100, unique=True)),
                 ('config_type', models.CharField(choices=[('SYSTEM', 'System Configuration'), ('SECURITY', 'Security Settings'), ('PERFORMANCE', 'Performance Settings'), ('INTEGRATION', 'Integration Settings')], max_length=20)),
@@ -136,8 +137,8 @@ class Migration(migrations.Migration):
             name='FaceRecognitionModel',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('name', models.CharField(max_length=100, unique=True)),
                 ('model_type', models.CharField(choices=[('FACENET512', 'FaceNet512'), ('ARCFACE', 'ArcFace'), ('INSIGHTFACE', 'InsightFace'), ('ENSEMBLE', 'Ensemble Model'), ('CUSTOM', 'Custom Model')], max_length=20)),
@@ -171,8 +172,8 @@ class Migration(migrations.Migration):
             name='FaceVerificationLog',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('verification_timestamp', models.DateTimeField(auto_now_add=True)),
                 ('result', models.CharField(choices=[('SUCCESS', 'Verification Successful'), ('FAILED', 'Verification Failed'), ('ERROR', 'Verification Error'), ('REJECTED', 'Rejected by Anti-spoofing'), ('NO_FACE', 'No Face Detected'), ('MULTIPLE_FACES', 'Multiple Faces Detected')], max_length=20)),

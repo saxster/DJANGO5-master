@@ -38,7 +38,6 @@ class SerializationContext(Enum):
     WEB_API = "web_api"
     DASHBOARD = "dashboard"
     EXPORT = "export"
-    GRAPHQL = "graphql"  # Legacy - GraphQL removed Oct 2025, mapped to WEB_API
     ADMIN = "admin"
     MINIMAL = "minimal"
 

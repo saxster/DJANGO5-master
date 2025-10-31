@@ -103,7 +103,7 @@ class Command(BaseCommand):
         
         # Check mapping completeness
         critical_urls = [
-            'schedhuler/jobneedtasks/', 'activity/asset/', 'peoples/people/',
+            'scheduler/jobneedtasks/', 'activity/asset/', 'peoples/people/',
             'helpdesk/ticket/', 'reports/get_reports/', 'onboarding/bu/',
         ]
         
@@ -156,7 +156,7 @@ class Command(BaseCommand):
         test_urls = [
             ('activity/asset/', 'assets/'),
             ('peoples/people/', 'people/'),
-            ('schedhuler/jobneedtasks/', 'operations/tasks/'),
+            ('scheduler/jobneedtasks/', 'operations/tasks/'),
         ]
         
         failed_redirects = []

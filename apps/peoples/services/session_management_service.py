@@ -26,7 +26,8 @@ from django.db.models import Q, Count
 from django.contrib.sessions.models import Session
 
 from apps.peoples.models.session_models import UserSession, SessionActivityLog
-from apps.core.services import BaseService
+from apps.core.services import BaseService, monitor_service_performance
+from apps.ontology.decorators import ontology
 
 logger = logging.getLogger('security.sessions')
 
@@ -48,6 +49,111 @@ class SessionInfo:
     suspicious_reason: str = ""
 
 
+@ontology(
+    domain="people",
+    purpose="Multi-device session management with security monitoring and suspicious activity detection",
+    criticality="critical",
+    inputs={
+        "get_user_sessions": "user (People), include_revoked (bool) -> List[SessionInfo]",
+        "revoke_session": "session_id (int), revoked_by (People), reason (str), current_session_key (str) -> (bool, str)",
+        "revoke_all_sessions": "user (People), except_current (bool), current_session_key (str), reason (str) -> (int, str)",
+        "get_suspicious_sessions": "user (People), limit (int) -> List[SessionInfo]",
+        "cleanup_expired_sessions": "None -> int (sessions cleaned)",
+        "get_session_statistics": "user (People) -> Dict[session_metrics]"
+    },
+    outputs={
+        "SessionInfo": "Comprehensive session metadata (device, browser, OS, IP, location, activity timestamps)",
+        "session_counts": "Total, active, suspicious sessions with device breakdown",
+        "revocation_status": "Success/failure with message for session termination",
+        "statistics": "Session patterns, device breakdown, recent logins, suspicious activity counts"
+    },
+    side_effects=[
+        "Writes to SessionActivityLog for audit trail (GDPR, SOC 2 compliance)",
+        "Updates UserSession.revoked and revoked_at timestamps",
+        "Deletes Django Session records for expired sessions",
+        "Logs security events: session_revoked, bulk_session_revoke, unauthorized_session_revoke_attempt"
+    ],
+    depends_on=[
+        "apps.peoples.models.session_models.UserSession",
+        "apps.peoples.models.session_models.SessionActivityLog",
+        "django.contrib.sessions.models.Session",
+        "apps.core.services.BaseService"
+    ],
+    used_by=[
+        "apps.peoples.views.SessionManagementViews (API endpoints)",
+        "apps.peoples.middleware.SessionSecurityMiddleware (automatic cleanup)",
+        "Security dashboard (suspicious session monitoring)"
+    ],
+    tags=["session-management", "multi-device", "security", "authentication", "audit-trail", "gdpr"],
+    security_notes=[
+        "Timeout: 30min idle, 12hr absolute (configurable per user role)",
+        "Device limits: Max 5 concurrent sessions per user (configurable)",
+        "Prevents users from revoking their own current session (except admins)",
+        "Users can only revoke their own sessions; admins can revoke any session",
+        "Suspicious session detection: IP changes, unusual locations, concurrent logins",
+        "Distributed lock + row-level locking for race condition protection",
+        "Comprehensive audit logging with attacker_id for security events",
+        "GDPR compliant: User control over session data with explicit revocation"
+    ],
+    performance_notes=[
+        "select_related('session', 'user') for foreign key optimization",
+        "Indexed queries on UserSession.user, revoked, last_activity",
+        "Bulk session revocation uses list() to prevent N+1 queries",
+        "Session statistics use Count/Avg aggregations for efficiency",
+        "Cleanup job recommended: Daily celery task to purge expired sessions"
+    ],
+    architecture_notes=[
+        "Session timeout policy: SessionTimeoutMiddleware enforces idle/absolute limits",
+        "Device tracking: Browser, OS, IP, location extracted via user-agent parsing",
+        "Security features: Suspicious session flagging, admin oversight, bulk revocation",
+        "Audit trail: All session actions logged to SessionActivityLog (retention: 90 days)",
+        "Multi-device support: Users see all active devices with 'This device' indicator",
+        "Session model: UserSession wraps Django Session with metadata (created_at, last_activity, device_info)",
+        "Security monitoring: get_suspicious_sessions() feeds real-time security dashboard"
+    ],
+    examples={
+        "get_user_sessions": """
+# List all active sessions for a user
+sessions = session_management_service.get_user_sessions(user, include_revoked=False)
+for session in sessions:
+    print(f"{session.device_name} - Last active: {session.last_activity}")
+    if session.is_suspicious:
+        print(f"  ⚠️  Suspicious: {session.suspicious_reason}")
+""",
+        "revoke_session": """
+# Revoke a specific session (user clicking "Log out device")
+success, message = session_management_service.revoke_session(
+    session_id=123,
+    revoked_by=request.user,
+    reason='user_action',
+    current_session_key=request.session.session_key
+)
+if success:
+    return Response({'message': message}, status=200)
+""",
+        "revoke_all_sessions": """
+# Revoke all sessions except current (e.g., after password change)
+count, message = session_management_service.revoke_all_sessions(
+    user=request.user,
+    except_current=True,
+    current_session_key=request.session.session_key,
+    reason='password_change'
+)
+logger.info(f"Revoked {count} sessions for security measure")
+""",
+        "suspicious_session_detection": """
+# Monitor suspicious sessions for security team
+suspicious = session_management_service.get_suspicious_sessions(limit=50)
+for session in suspicious:
+    alert_security_team(
+        user=session.people,
+        device=session.device_name,
+        ip=session.ip_address,
+        reason=session.suspicious_reason
+    )
+"""
+    }
+)
 class SessionManagementService(BaseService):
     """
     Service for managing user sessions.
@@ -58,7 +164,7 @@ class SessionManagementService(BaseService):
     def __init__(self):
         super().__init__()
 
-    @BaseService.monitor_performance("get_user_sessions")
+    @monitor_service_performance("get_user_sessions")
     def get_user_sessions(
         self,
         user,
@@ -104,7 +210,7 @@ class SessionManagementService(BaseService):
             logger.error(f"Error getting user sessions: {e}", exc_info=True)
             return []
 
-    @BaseService.monitor_performance("revoke_session")
+    @monitor_service_performance("revoke_session")
     def revoke_session(
         self,
         session_id: int,
@@ -191,7 +297,7 @@ class SessionManagementService(BaseService):
             logger.error(f"Error revoking session: {e}", exc_info=True)
             return False, "Error revoking session"
 
-    @BaseService.monitor_performance("revoke_all_sessions")
+    @monitor_service_performance("revoke_all_sessions")
     def revoke_all_sessions(
         self,
         user,
@@ -269,7 +375,7 @@ class SessionManagementService(BaseService):
             logger.error(f"Error revoking all sessions: {e}", exc_info=True)
             return 0, "Error revoking sessions"
 
-    @BaseService.monitor_performance("get_suspicious_sessions")
+    @monitor_service_performance("get_suspicious_sessions")
     def get_suspicious_sessions(
         self,
         user=None,
@@ -318,7 +424,7 @@ class SessionManagementService(BaseService):
             logger.error(f"Error getting suspicious sessions: {e}", exc_info=True)
             return []
 
-    @BaseService.monitor_performance("cleanup_expired_sessions")
+    @monitor_service_performance("cleanup_expired_sessions")
     def cleanup_expired_sessions(self) -> int:
         """
         Clean up expired sessions.
@@ -360,7 +466,7 @@ class SessionManagementService(BaseService):
             logger.error(f"Error cleaning up expired sessions: {e}", exc_info=True)
             return 0
 
-    @BaseService.monitor_performance("get_session_statistics")
+    @monitor_service_performance("get_session_statistics")
     def get_session_statistics(self, user) -> Dict[str, any]:
         """
         Get session statistics for a user.

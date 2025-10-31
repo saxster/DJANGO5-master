@@ -1,0 +1,75 @@
+{# Inline Recommendation Component #}
+{# Embedded within dashboard module cards (Tasks, Tours, etc.) #}
+{# Phase 5.2: Inline Recommendations #}
+
+{# Usage: Include within each dashboard card and populate via JavaScript #}
+
+<div class="agent-recommendations-container" data-module="{{ module }}">
+    {# Recommendations will be injected here by JavaScript #}
+    {# Template structure defined in JavaScript #}
+</div>
+
+{# Recommendation Card Template (used by JavaScript) #}
+<template id="recommendation-card-template">
+    <div class="agent-recommendation-card gemini-powered mb-3 p-3 rounded border border-warning" data-recommendation-id="">
+        <div class="recommendation-header d-flex align-items-center justify-content-between mb-2">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-lightbulb-fill text-warning fs-4 me-2"></i>
+                <span class="recommendation-summary fw-semibold"></span>
+            </div>
+            <div>
+                <span class="badge badge-severity me-2"></span>
+                <small class="text-muted">via <span class="llm-provider">Gemini</span></small>
+            </div>
+        </div>
+
+        <div class="recommendation-body">
+            <p class="recommendation-details text-gray-700 mb-3"></p>
+
+            <div class="recommendation-actions d-flex gap-2">
+                {# Action buttons injected by JavaScript based on actions array #}
+            </div>
+        </div>
+
+        <div class="recommendation-footer mt-2 pt-2 border-top border-gray-300">
+            <small class="text-muted">
+                Confidence: <span class="confidence-score"></span>% |
+                Agent: <span class="agent-name"></span>
+            </small>
+        </div>
+    </div>
+</template>
+
+<style>
+.agent-recommendation-card {
+    background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+    border-left: 4px solid #ffc107;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.agent-recommendation-card:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.agent-recommendation-card .recommendation-summary {
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.agent-recommendation-card .badge-severity {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.agent-recommendation-card.gemini-powered {
+    /* Distinct styling for Gemini-powered recommendations */
+}
+
+/* Severity badge colors */
+.badge-critical { background-color: #dc3545; color: white; }
+.badge-high { background-color: #fd7e14; color: white; }
+.badge-medium { background-color: #ffc107; color: black; }
+.badge-low { background-color: #28a745; color: white; }
+</style>

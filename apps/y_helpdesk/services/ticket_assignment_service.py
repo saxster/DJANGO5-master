@@ -15,7 +15,7 @@ Following .claude/rules.md:
 """
 
 import logging
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple, TYPE_CHECKING
 from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
@@ -27,7 +27,12 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist, Permissi
 from django.contrib.auth.models import AbstractUser
 
 from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
-from apps.y_helpdesk.models import Ticket
+
+# TYPE_CHECKING import to break circular dependency
+# (y_helpdesk.models → .managers → optimized_managers → services → ticket_workflow_service → ticket_assignment_service → y_helpdesk.models)
+if TYPE_CHECKING:
+    from apps.y_helpdesk.models import Ticket
+
 from apps.peoples.models import People, Pgroup
 
 # Import audit service for comprehensive logging
@@ -136,6 +141,9 @@ class TicketAssignmentService:
         Returns:
             AssignmentResult with operation details
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         lock_key = f"ticket_assign:{ticket_id}"
 
         with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
@@ -216,6 +224,9 @@ class TicketAssignmentService:
         Returns:
             AssignmentResult with operation details
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         lock_key = f"ticket_assign:{ticket_id}"
 
         with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
@@ -288,6 +299,9 @@ class TicketAssignmentService:
         Returns:
             AssignmentResult with operation details
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         try:
             ticket = Ticket.objects.get(pk=ticket_id)
 
@@ -318,7 +332,7 @@ class TicketAssignmentService:
     @classmethod
     def _determine_auto_assignee(
         cls,
-        ticket: Ticket,
+        ticket,  # Type: Ticket (hint removed due to circular import)
         context: AssignmentContext
     ) -> Optional[Dict]:
         """
@@ -357,7 +371,7 @@ class TicketAssignmentService:
         return None
 
     @classmethod
-    def _find_available_people(cls, ticket: Ticket) -> List[Dict]:
+    def _find_available_people(cls, ticket) -> List[Dict]:  # ticket type: Ticket (hint removed due to circular import)
         """Find people available for assignment based on business unit and client."""
         # This would be enhanced with actual business logic
         # For now, return people from same BU/client
@@ -380,7 +394,7 @@ class TicketAssignmentService:
         return available_people[0] if available_people else None
 
     @classmethod
-    def _select_round_robin_assignee(cls, available_people: List[Dict], ticket: Ticket) -> Dict:
+    def _select_round_robin_assignee(cls, available_people: List[Dict], ticket) -> Dict:  # ticket type: Ticket (hint removed)
         """Select assignee using round-robin algorithm."""
         # Enhanced logic would track assignment rotation
         # For now, use modulo based on ticket ID
@@ -390,7 +404,7 @@ class TicketAssignmentService:
         return None
 
     @classmethod
-    def _find_priority_specialists(cls, ticket: Ticket) -> List[Dict]:
+    def _find_priority_specialists(cls, ticket) -> List[Dict]:  # ticket type: Ticket (hint removed)
         """Find specialists for high-priority tickets."""
         # This would query people with specific skills/roles
         # For now, return senior team members
@@ -402,7 +416,7 @@ class TicketAssignmentService:
         return specialists[0] if specialists else None
 
     @classmethod
-    def _get_assignee_info(cls, ticket: Ticket) -> Optional[Dict]:
+    def _get_assignee_info(cls, ticket) -> Optional[Dict]:  # ticket type: Ticket (hint removed)
         """Get current assignee information."""
         if ticket.assignedtopeople:
             return {
@@ -421,7 +435,7 @@ class TicketAssignmentService:
     @classmethod
     def _validate_assignment_permissions(
         cls,
-        ticket: Ticket,
+        ticket,  # Type: Ticket (hint removed due to circular import)
         person: People,
         context: AssignmentContext
     ):
@@ -442,7 +456,7 @@ class TicketAssignmentService:
     @classmethod
     def _validate_group_assignment_permissions(
         cls,
-        ticket: Ticket,
+        ticket,  # Type: Ticket (hint removed due to circular import)
         group: Pgroup,
         context: AssignmentContext
     ):

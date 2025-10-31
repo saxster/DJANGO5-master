@@ -10,7 +10,7 @@ Fields being encrypted:
 - InterventionDeliveryLog.user_response (user's responses to mental health questions)
 """
 
-from django.db import migrations
+from django.db import migrations, models
 from apps.core.fields.encrypted_fields import EncryptedJSONField
 
 
@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='interventiondeliverylog',
             name='is_encrypted',
-            field=migrations.BooleanField(
+            field=models.BooleanField(
                 default=False,
                 help_text="Flag indicating if this entry has been migrated to encrypted fields"
             ),

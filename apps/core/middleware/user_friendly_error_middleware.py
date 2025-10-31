@@ -19,7 +19,6 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
 from django.urls import reverse
-from django.contrib.auth.models import AnonymousUser
 
 logger = logging.getLogger(__name__)
 
@@ -185,10 +184,19 @@ class UserFriendlyErrorMiddleware(MiddlewareMixin):
         """
         Get support context for error reporting
         """
+        from django.core.exceptions import DisallowedHost
+
+        # Safely get page URL (may fail if HTTP_HOST not in ALLOWED_HOSTS)
+        try:
+            page_url = request.build_absolute_uri()
+        except DisallowedHost:
+            # Fallback to relative path
+            page_url = request.path
+
         return {
             'error_id': self.generate_error_id(),
             'timestamp': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'page_url': request.build_absolute_uri(),
+            'page_url': page_url,
             'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown')[:100],
             'support_email': getattr(settings, 'SUPPORT_EMAIL', 'support@youtility.com'),
             'support_phone': getattr(settings, 'SUPPORT_PHONE', '+1-800-YOUTILITY'),
@@ -409,6 +417,19 @@ class UserFriendlyErrorMiddleware(MiddlewareMixin):
         import uuid
         return str(uuid.uuid4())[:8]
 
+    def _safe_build_absolute_uri(self, request) -> str:
+        """
+        Safely build absolute URI, falling back to relative path on error.
+
+        Handles DisallowedHost exception when HTTP_HOST is not in ALLOWED_HOSTS.
+        """
+        from django.core.exceptions import DisallowedHost
+
+        try:
+            return request.build_absolute_uri()
+        except DisallowedHost:
+            return request.path
+
 
 class ErrorReportingService:
     """
@@ -458,7 +479,7 @@ def custom_404_view(request, exception=None):
             {'title': 'Help Center', 'url': '/help/', 'icon': 'help'},
         ],
         'support_context': {
-            'page_url': request.build_absolute_uri(),
+            'page_url': self._safe_build_absolute_uri(request),
             'timestamp': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
     }

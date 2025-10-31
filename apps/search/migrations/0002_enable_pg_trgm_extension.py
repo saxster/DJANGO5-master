@@ -17,7 +17,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('search', '0001_initial'),
+        ('search', '0001_enable_fts_extensions'),
     ]
 
     operations = [

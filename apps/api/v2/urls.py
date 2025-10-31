@@ -2,7 +2,7 @@
 API v2 URL Configuration
 
 Enhanced API with:
-- GraphQL mutations
+- legacy API mutations
 - Real-time push
 - ML predictions
 - Cross-device sync

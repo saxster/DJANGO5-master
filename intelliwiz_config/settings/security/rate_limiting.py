@@ -26,8 +26,6 @@ RATE_LIMIT_PATHS = [
     "/reset-password/",
     "/password-reset/",
     "/api/upload/",
-    "/graphql/",
-    "/api/graphql/",
     "/admin/",
     "/admin/django/",
 ]
@@ -52,12 +50,6 @@ RATE_LIMITS = {
     'api': {
         'max_requests': 100,
         'window_seconds': 3600
-    },
-
-    # GraphQL endpoints - moderate limits
-    'graphql': {
-        'max_requests': 100,
-        'window_seconds': 300
     },
 
     # Report generation - lower limits (resource intensive)

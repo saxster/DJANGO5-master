@@ -62,7 +62,7 @@ ext_schdtour_list = 'External ScheduleTour List',
         //datatable initialization
         table = $(table_id).DataTable({
             ajax:{
-                url: '{{ url("schedhuler:schd_external_tour") }}?action=list'
+                url: '{{ url("scheduler:schd_external_tour") }}?action=list'
             },
 			columns:[
                 {data: 'id', title:"ID", visible:false},
@@ -88,7 +88,7 @@ ext_schdtour_list = 'External ScheduleTour List',
             columnDefs:[
                 {targets:0, data: 'id', visible: 'false', searchable:false, className:'noVis' },
                 {targets:1, data: 'jobname', render:function(data, type, row, meta){
-                    let urlname = "{{ url('schedhuler:schd_external_tour') }}"
+                    let urlname = "{{ url('scheduler:schd_external_tour') }}"
                     return `<a href="${urlname}?id=${row['id']}">${data}</a>`
                 }
                 },
@@ -134,7 +134,7 @@ ext_schdtour_list = 'External ScheduleTour List',
 					className: "btn btn-sm border border-primary btn-light-primary add_new_job",
 					//action for add_new_button
 					action: function(e, dt, node, config){
-        				window.location.href = "{% url 'schedhuler:create_externaltour' %}?action=form";
+        				window.location.href = "{% url 'scheduler:create_externaltour' %}?action=form";
 					}
 				}
 			]

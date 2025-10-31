@@ -1,7 +1,71 @@
 """
 Journal Analytics Service
 
-Centralized analytics service that consolidates all journal analysis functionality:
+Centralized analytics service that consolidates all journal analysis functionality.
+
+ROLE IN WELLNESS AGGREGATION:
+==============================
+This service is the **core analysis engine** that processes journal entries from Kotlin mobile
+frontends and determines what wellness content to deliver. It serves as the bridge between
+raw journal data and the Wellness module's content delivery system.
+
+AGGREGATION WORKFLOW:
+---------------------
+1. **Input**: Journal entries from mobile clients (mood/stress/energy ratings)
+2. **Analysis**: Real-time urgency scoring and pattern detection
+3. **Output**: Structured analysis results used by Wellness module to select content
+4. **Tracking**: Results aggregated for site admin dashboards
+
+KEY FUNCTIONS:
+--------------
+1. **analyze_entry_for_immediate_action(journal_entry)**
+   - Real-time urgency scoring (0-10 scale)
+   - Crisis keyword detection
+   - Intervention category identification
+   - Used by: /api/wellness/contextual/ endpoint
+
+2. **generate_comprehensive_analytics(user, days=30)**
+   - Wellbeing trend analysis (mood/stress/energy over time)
+   - Behavioral pattern recognition
+   - Predictive insights for proactive intervention
+   - Used by: /journal/analytics/ dashboard (site admins)
+
+3. **analyze_long_term_patterns(user, days=90)**
+   - Extended pattern analysis for site-wide insights
+   - Aggregated metrics for admin reporting
+   - Privacy-respecting anonymization
+
+URGENCY SCORING ALGORITHM:
+--------------------------
+urgency_score = 0
+if stress_level >= 4:           urgency += 3
+if mood_rating <= 2:            urgency += 4
+if energy_level <= 3:           urgency += 1
+if crisis_keywords_found:       urgency += 2
+if entry_type == 'SAFETY_CONCERN': urgency += 2
+
+Classification:
+- 7-10: CRITICAL → immediate wellness content delivery
+- 5-6:  HIGH     → same hour delivery
+- 3-4:  MEDIUM   → same day delivery
+- 1-2:  LOW      → next session delivery
+
+DATA OUTPUT FOR AGGREGATION:
+----------------------------
+Results are consumed by:
+- WellnessContentViewSet.post() → contextual content selection
+- Django Admin: /admin/wellness/wellnesscontentinteraction/ → effectiveness metrics
+- Analytics Dashboard: /journal/analytics/ → site-wide wellbeing trends
+
+PRIVACY & SECURITY:
+-------------------
+- Never logs PII or journal content
+- Respects JournalPrivacySettings consent flags
+- Aggregated metrics anonymize individual users
+- Crisis detection requires explicit opt-in consent
+
+FEATURES:
+---------
 - Wellbeing trend analysis
 - Pattern recognition
 - Performance metrics
@@ -16,10 +80,134 @@ from django.db.models import Avg, Count, Q
 from datetime import timedelta, datetime
 from collections import defaultdict, Counter
 from apps.journal.logging import get_journal_logger
+from apps.ontology.decorators import ontology
 
 logger = get_journal_logger(__name__)
 
 
+@ontology(
+    domain="wellness",
+    purpose="Wellbeing trend analysis and insights from journal entries",
+    criticality="high",
+    inputs={
+        "journal_entries": "JournalEntry objects with mood/stress/energy ratings",
+        "user": "User object for pattern analysis",
+        "days": "Lookback period for trend analysis (default 30/90)"
+    },
+    outputs={
+        "urgency_analysis": "Urgency score (0-10), intervention categories, delivery timing",
+        "wellbeing_trends": "Mood/stress/energy trends with direction (improving/declining/stable)",
+        "behavioral_patterns": "Entry type distribution, time patterns, consistency scores",
+        "predictive_insights": "Risk factors, intervention recommendations, predicted challenges",
+        "wellbeing_score": "Composite score from mood (40%), energy (30%), inverted stress (30%)"
+    },
+    side_effects=[
+        "Logs CRITICAL level alerts for crisis detection (urgency >= 6)",
+        "No PII logging - respects JournalPrivacySettings consent flags"
+    ],
+    depends_on=[
+        "apps.journal.models.JournalEntry",
+        "apps.wellness.viewsets.WellnessContentViewSet",
+        "apps.journal.logging.get_journal_logger"
+    ],
+    used_by=[
+        "/api/wellness/contextual/ - Contextual content delivery endpoint",
+        "/journal/analytics/ - Admin wellbeing trends dashboard",
+        "/admin/wellness/wellnesscontentinteraction/ - Effectiveness metrics"
+    ],
+    tags=["wellness", "analytics", "ml", "crisis-detection", "aggregation", "time-series"],
+    security_notes=[
+        "NEVER logs PII or raw journal content - only aggregated metrics",
+        "Crisis keyword detection: 'hopeless', 'overwhelmed', 'suicidal', etc.",
+        "Requires JournalPrivacySettings opt-in for crisis detection",
+        "Anonymizes individual users in site-wide aggregation",
+        "No external API calls - fully internal analysis"
+    ],
+    performance_notes=[
+        "Optimized queries: select_related('wellbeing_metrics', 'work_context', 'sync_data')",
+        "Minimum data points: 3 for basic analytics, 14 for pattern analysis",
+        "Confidence threshold: 0.6 baseline, scales with data points",
+        "Time complexity: O(n) for trend analysis, O(n log n) for pattern detection",
+        "Memory efficient: processes entries sequentially, no large in-memory arrays"
+    ],
+    architecture_notes=[
+        "Core component of Wellness Aggregation System (journal + wellness apps)",
+        "Urgency scoring algorithm: stress(3pts) + mood(4pts) + energy(1pt) + keywords(2pts)",
+        "Classification tiers: CRITICAL(7-10), HIGH(5-6), MEDIUM(3-4), LOW(1-2)",
+        "ML foundations: trend direction, outlier detection, pattern recognition",
+        "Evidence-based interventions: mapped to psychological frameworks",
+        "Real-time processing: analyze_entry_for_immediate_action() for live content",
+        "Batch analytics: generate_comprehensive_analytics() for dashboard reporting",
+        "Long-term patterns: analyze_long_term_patterns() for 90-day cycles"
+    ],
+    examples=[
+        {
+            "use_case": "Immediate intervention for low mood entry",
+            "code": """
+# Real-time urgency analysis
+analytics_service = JournalAnalyticsService()
+result = analytics_service.analyze_entry_for_immediate_action(journal_entry)
+
+# Example output for crisis scenario
+{
+    'urgency_score': 8,
+    'urgency_level': 'critical',
+    'intervention_categories': ['mood_crisis_support', 'stress_management'],
+    'immediate_actions': ['immediate_mood_support', 'breathing_exercises'],
+    'delivery_timing': 'immediate',
+    'crisis_detected': True,
+    'crisis_indicators': ['Very low mood rating: 2/10', 'Crisis keywords: hopeless'],
+    'recommended_content_count': 4,
+    'confidence_score': 0.85
+}
+            """
+        },
+        {
+            "use_case": "30-day wellbeing trend analysis for admin dashboard",
+            "code": """
+# Generate comprehensive analytics
+analytics = analytics_service.generate_comprehensive_analytics(user, days=30)
+
+# Example output structure
+{
+    'wellbeing_trends': {
+        'mood_analysis': {'average_mood': 6.2, 'trend_direction': 'improving', 'variability': 1.5},
+        'stress_analysis': {'average_stress': 3.1, 'trend_direction': 'stable', 'high_stress_days': 4},
+        'energy_analysis': {'average_energy': 5.8, 'trend_direction': 'declining', 'low_energy_days': 8}
+    },
+    'overall_scores': {'mood_score': 6.2, 'stress_score': 5.8, 'energy_score': 5.8, 'composite_wellbeing': 5.93},
+    'predictive_insights': {
+        'risk_factors': ['Declining energy trend detected'],
+        'intervention_recommendations': ['Energy management intensive']
+    },
+    'analysis_metadata': {'data_points_analyzed': 27, 'confidence_level': 0.75, 'algorithm_version': '3.0.0'}
+}
+            """
+        },
+        {
+            "use_case": "Long-term pattern detection for proactive intervention",
+            "code": """
+# 90-day pattern analysis
+patterns = analytics_service.analyze_long_term_patterns(user, days=90)
+
+# Example output
+{
+    'detected_patterns': {
+        'stress_cycles': {'weekly_patterns': {'Monday': 4.2, 'Friday': 2.8}, 'high_stress_days': ['Monday', 'Tuesday']},
+        'mood_seasonality': {'monthly_averages': {'January': 5.5, 'February': 6.2}},
+        'trigger_patterns': {'top_triggers': [('deadline pressure', 15), ('equipment failure', 8)]}
+    },
+    'risk_predictions': {
+        'identified_risks': [{'type': 'mood_decline', 'severity': 'high', 'description': 'Low mood ratings detected'}],
+        'overall_risk_level': 'high'
+    },
+    'optimal_intervention_timing': {'optimal_hours': [9, 12, 18], 'peak_engagement_hour': 12},
+    'confidence_metrics': {'pattern_confidence': 0.9, 'prediction_confidence': 0.72, 'data_sufficiency': True}
+}
+            """
+        }
+    ]
+)
 class JournalAnalyticsService:
     """
     Unified analytics service for journal system

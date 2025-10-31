@@ -39,23 +39,26 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Enable pg_stat_statements extension for query monitoring
+        # Note: pg_stat_statements disabled - requires PostgreSQL config changes (shared_preload_libraries)
+        # For development: skip this extension. For production: configure PostgreSQL server first.
+        # To enable: Add 'pg_stat_statements' to shared_preload_libraries in postgresql.conf and restart
         migrations.RunSQL(
             sql=[
                 """
-                -- Enable pg_stat_statements extension
-                -- Note: Requires shared_preload_libraries = 'pg_stat_statements' in postgresql.conf
-                CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+                -- Skip pg_stat_statements - requires server configuration
+                -- CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+                SELECT 1; -- No-op
                 """,
 
                 """
-                -- Reset statistics to start fresh monitoring
-                -- This clears any existing query statistics
-                SELECT pg_stat_statements_reset();
+                -- Skip pg_stat_statements_reset - extension not enabled
+                -- SELECT pg_stat_statements_reset();
+                SELECT 1; -- No-op
                 """,
 
                 """
-                -- Create function to get top slow queries
+                -- Skip helper functions - pg_stat_statements not enabled
+                /*
                 CREATE OR REPLACE FUNCTION get_slow_queries(limit_count integer DEFAULT 10)
                 RETURNS TABLE(
                     query_hash bigint,
@@ -86,10 +89,13 @@ class Migration(migrations.Migration):
                     LIMIT limit_count;
                 END;
                 $$ LANGUAGE plpgsql;
+                */
+                SELECT 1; -- No-op
                 """,
 
                 """
-                -- Create function to get most frequently called queries
+                /*
+                CREATE function to get most frequently called queries
                 CREATE OR REPLACE FUNCTION get_frequent_queries(limit_count integer DEFAULT 10)
                 RETURNS TABLE(
                     query_hash bigint,
@@ -116,10 +122,13 @@ class Migration(migrations.Migration):
                     LIMIT limit_count;
                 END;
                 $$ LANGUAGE plpgsql;
+                */
+                SELECT 1; -- No-op
                 """,
 
                 """
-                -- Create function to analyze query patterns
+                /*
+                CREATE function to analyze query patterns
                 CREATE OR REPLACE FUNCTION get_query_stats_summary()
                 RETURNS TABLE(
                     total_queries bigint,
@@ -140,10 +149,13 @@ class Migration(migrations.Migration):
                     WHERE pss.query NOT LIKE '%pg_stat_statements%';
                 END;
                 $$ LANGUAGE plpgsql;
+                */
+                SELECT 1; -- No-op
                 """,
 
                 """
-                -- Create view for easy query analysis
+                /*
+                CREATE view for easy query analysis
                 CREATE OR REPLACE VIEW query_performance_analysis AS
                 SELECT
                     queryid as query_hash,
@@ -163,6 +175,8 @@ class Migration(migrations.Migration):
                     AND query NOT LIKE '%COMMIT%'
                     AND query NOT LIKE '%BEGIN%'
                 ORDER BY total_exec_time DESC;
+                */
+                SELECT 1; -- No-op
                 """,
             ],
             reverse_sql=[
@@ -174,32 +188,5 @@ class Migration(migrations.Migration):
             ]
         ),
 
-        # Add helpful comments for DBAs
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Add comments for database administrators
-                COMMENT ON EXTENSION pg_stat_statements IS
-                'Query performance monitoring extension - tracks execution statistics for all SQL statements';
-                """,
-
-                """
-                COMMENT ON FUNCTION get_slow_queries IS
-                'Returns top N slowest queries by total execution time with detailed metrics';
-                """,
-
-                """
-                COMMENT ON FUNCTION get_frequent_queries IS
-                'Returns top N most frequently executed queries with efficiency metrics';
-                """,
-
-                """
-                COMMENT ON VIEW query_performance_analysis IS
-                'Comprehensive query performance analysis with percentage breakdown and resource usage';
-                """,
-            ],
-            reverse_sql=[
-                # Comments are dropped automatically when objects are dropped
-            ]
-        ),
+        # Note: Skipped COMMENT statements - pg_stat_statements extension not enabled
     ]

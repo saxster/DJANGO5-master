@@ -12,6 +12,7 @@ from apps.core.utils_new.db_utils import (
     get_or_create_none_bv,
     get_or_create_none_asset,
 )
+from apps.core.widgets import ClientAwareTypeAssistWidget
 
 logger = logging.getLogger(__name__)
 from apps.service.validators import clean_point_field, clean_string
@@ -31,6 +32,8 @@ def clean_value(value):
 
 
 class AssetResource(resources.ModelResource):
+    """Resource for bulk asset import with validation and field mapping."""
+
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
@@ -222,6 +225,7 @@ class AssetResource(resources.ModelResource):
             )
 
     def initialize_attributes(self, row):
+        """Initialize instance attributes from import row data."""
         attributes = [
             ("_ismeter", "Is Meter", False),
             ("_is_nonengg_asset", "Is Non Engg. Asset", False),
@@ -241,6 +245,7 @@ class AssetResource(resources.ModelResource):
             ("_inst_date", "Installation Date", ""),
             ("_po_number", "PO Number", ""),
             ("_far_asset_id", "FAR Asset ID", ""),
+            ("_tempcode", "Temp Code", ""),
         ]
 
         for attribute_name, key, default_value in attributes:
@@ -250,11 +255,12 @@ class AssetResource(resources.ModelResource):
             setattr(self, attribute_name, value)
 
     def before_save_instance(self, instance, row, **kwargs):
+        """Map import row attributes to asset_json before saving instance."""
         asset_json = instance.asset_json
 
         attributes = {
             "ismeter": self._ismeter,
-            "tempcode": self._ismeter,  # I assume this is intentional, otherwise, replace with the correct value
+            "tempcode": self._tempcode,  # FIXED: Was incorrectly using self._ismeter
             "is_nonengg_asset": self._is_nonengg_asset,
             "supplier": self._supplier,
             "service": self._service,
@@ -265,10 +271,10 @@ class AssetResource(resources.ModelResource):
             "invoice_no": self._invoice_no,
             "msn": self._msn,
             "bill_date": self._bill_date,
-            "purchase_date": self._purchase_date,  # I assume this is intentional, otherwise, replace with the correct value
+            "purchase_date": self._purchase_date,
             "inst_date": self._inst_date,
             "sfdate": self._sfdate,
-            "stdate": self._po_number,
+            "stdate": self._stdate,  # FIXED: Was incorrectly using self._po_number
             "yom": self._yom,
             "po_number": self._po_number,
             "far_asset_id": self._far_asset_id,
@@ -641,10 +647,11 @@ class AssetResourceUpdate(resources.ModelResource):
                 setattr(self, attribute_name, value)
 
     def before_save_instance(self, instance, row, **kwargs):
+        """Map import row attributes to asset_json before saving instance (update mode)."""
         asset_json = instance.asset_json
         attributes = {
             "ismeter": "_ismeter",
-            "tempcode": "_ismeter",  # I assume this is intentional, otherwise, replace with the correct value
+            "tempcode": "_tempcode",  # FIXED: Was incorrectly using "_ismeter"
             "is_nonengg_asset": "_is_nonengg_asset",
             "supplier": "_supplier",
             "service": "_service",
@@ -655,10 +662,10 @@ class AssetResourceUpdate(resources.ModelResource):
             "invoice_no": "_invoice_no",
             "msn": "_msn",
             "bill_date": "_bill_date",
-            "purchase_date": "_purchase_date",  # I assume this is intentional, otherwise, replace with the correct value
+            "purchase_date": "_purchase_date",
             "inst_date": "_inst_date",
             "sfdate": "_sfdate",
-            "stdate": "_po_number",
+            "stdate": "_stdate",  # FIXED: Was incorrectly using "_po_number"
             "yom": "_yom",
             "po_number": "_po_number",
             "far_asset_id": "_far_asset_id",

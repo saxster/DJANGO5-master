@@ -344,7 +344,7 @@ class CSRFViolationDashboardView(UserPassesTestMixin, View):
 
     def _calculate_severity(self, violation: Dict) -> str:
         """Calculate severity of individual violation."""
-        admin_paths = ['/admin/', '/monitoring/', '/graphql/']
+        admin_paths = ['/admin/', '/monitoring/']
         mutation_operations = ['cancel', 'delete', 'purge', 'restart']
 
         path = violation.get('path', '')

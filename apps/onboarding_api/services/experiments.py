@@ -12,15 +12,56 @@ This module provides comprehensive experiment management including:
 import logging
 import math
 from typing import Dict, List, Any, Optional, Tuple
+from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
+from django.db import transaction
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from apps.onboarding.models import (
+    # Experiment,  # TBD - Model not yet implemented
+    # ExperimentAssignment,  # TBD - Model not yet implemented
+    # RecommendationInteraction,  # TBD - Model not yet implemented
     ConversationSession,
     LLMRecommendation
 )
 from apps.peoples.models import People
+from apps.core.exceptions import LLMServiceException
 import numpy as np
 import scipy.stats as stats
 from dataclasses import dataclass, asdict
+
+# Temporary stubs for unimplemented models (TBD)
+class Experiment:
+    """Stub for Experiment model (TBD)"""
+    objects = None
+    class StatusChoices:
+        DRAFT = 'draft'
+        RUNNING = 'running'
+        PAUSED = 'paused'
+        COMPLETED = 'completed'
+    class DoesNotExist(Exception):
+        pass
+    def get_arm_count(self):
+        return 0
+    def is_active(self):
+        return False
+    def update_results(self, results):
+        pass
+
+class ExperimentAssignment:
+    """Stub for ExperimentAssignment model (TBD)"""
+    objects = None
+
+class RecommendationInteraction:
+    """Stub for RecommendationInteraction model (TBD)"""
+    objects = None
+    def get_time_to_decision(self):
+        return 0
+
+class ExperimentError(Exception):
+    """Exception for experiment-related errors"""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -381,7 +422,7 @@ class ExperimentAnalyzer:
             upper = diff + z * se
 
             return (lower, upper)
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return (-1.0, 1.0)
 
     def _analyze_effect_sizes(self, arm_performances: List[ArmPerformance]) -> Dict[str, Any]:

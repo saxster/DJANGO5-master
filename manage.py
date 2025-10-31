@@ -6,9 +6,11 @@ import sys
 
 def main():
     """Run administrative tasks."""
+    # Default to development settings for local CLI usage only.
+    # Production services should rely on wsgi/asgi which default to production.
     os.environ.setdefault(
-        "DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings"
-    )  # change it to productions_settings in production
+        "DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings.development"
+    )
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

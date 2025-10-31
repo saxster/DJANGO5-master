@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 from django.core.cache import cache
 from django.conf import settings
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class PeopleCachingService(BaseService):
     CACHE_PREFIX = "people_list"
     CACHE_TTL = 300
 
-    @BaseService.monitor_performance("get_cached_people_list")
+    @monitor_service_performance("get_cached_people_list")
     def get_cached_people_list(
         self,
         cache_key_params: Dict[str, Any]
@@ -53,7 +53,7 @@ class PeopleCachingService(BaseService):
             self.logger.error(f"Cache retrieval error: {str(e)}")
             return None
 
-    @BaseService.monitor_performance("cache_people_list")
+    @monitor_service_performance("cache_people_list")
     def cache_people_list(
         self,
         cache_key_params: Dict[str, Any],
@@ -80,7 +80,7 @@ class PeopleCachingService(BaseService):
             self.logger.error(f"Cache write error: {str(e)}")
             return False
 
-    @BaseService.monitor_performance("invalidate_people_cache")
+    @monitor_service_performance("invalidate_people_cache")
     def invalidate_people_cache(
         self,
         session: Dict[str, Any]

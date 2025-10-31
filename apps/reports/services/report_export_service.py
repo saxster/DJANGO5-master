@@ -12,6 +12,7 @@ Security Features:
 """
 
 import os
+import re
 import json
 import tempfile
 import logging

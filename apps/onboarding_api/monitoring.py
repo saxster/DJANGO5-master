@@ -11,6 +11,7 @@ This module provides comprehensive monitoring capabilities including:
 
 import logging
 import time
+from typing import Dict, Any, List
 from django.core.cache import cache
 from django.utils import timezone
 
@@ -226,7 +227,7 @@ class ConversationalOnboardingMonitor:
                         max_tokens=5
                     )
                     health_status = {'status': 'available', 'test_response': True}
-                except:
+                except (ValueError, TypeError, AttributeError) as e:
                     health_status = {'status': 'degraded', 'test_response': False}
 
             response_time = (time.time() - start_time) * 1000
@@ -275,7 +276,7 @@ class ConversationalOnboardingMonitor:
                 try:
                     search_results = knowledge_service.search_knowledge("test", limit=1)
                     health_status = {'status': 'available', 'search_test': True}
-                except:
+                except (ValueError, TypeError, AttributeError) as e:
                     health_status = {'status': 'degraded', 'search_test': False}
 
             response_time = (time.time() - start_time) * 1000

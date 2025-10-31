@@ -315,6 +315,10 @@ class AuthoritativeKnowledge(BaseModel, TenantAwareModel):
         verbose_name = "Authoritative Knowledge"
         verbose_name_plural = "Authoritative Knowledge"
         get_latest_by = ["publication_date", "mdtz"]
+        indexes = [
+            models.Index(fields=['cdtz'], name='auth_know_cdtz_idx'),
+            models.Index(fields=['mdtz'], name='auth_know_mdtz_idx'),
+        ]
 
     def __str__(self):
         return f"{self.document_title} - {self.source_organization}"

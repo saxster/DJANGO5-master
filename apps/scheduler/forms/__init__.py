@@ -41,7 +41,7 @@ try:
     forms_path = os.path.join(os.path.dirname(__file__), '..', 'forms.py')
     if os.path.exists(forms_path):
         # Load module spec from file path
-        spec = importlib.util.spec_from_file_location("schedhuler_legacy_forms", forms_path)
+        spec = importlib.util.spec_from_file_location("scheduler_legacy_forms", forms_path)
         if spec and spec.loader:
             # Import the module without modifying sys.path
             original_forms = importlib.util.module_from_spec(spec)

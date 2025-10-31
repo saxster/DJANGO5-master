@@ -9,9 +9,10 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 
 from apps.peoples.models import People
+from apps.onboarding_api.permissions import (
     CanApproveAIRecommendations,
     CanManageKnowledgeBase,
-    CanEscalateConversations
+    CanEscalateConversations,
 )
 from apps.onboarding.models import Bt
 

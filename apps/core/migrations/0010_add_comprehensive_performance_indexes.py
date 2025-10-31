@@ -15,194 +15,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Session Forensics Performance Indexes
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Composite index for session forensics queries by user and time range
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_forensics_user_timestamp
-                ON session_forensics (user_id, timestamp DESC);
-                """,
+        # Note: Skipped indexes for non-existent tables:
+        # - api_access_logs
+        # - security_csp_violations
+        # - encryption_key_metadata
+        # - core_uploadsession
+        # These should be created in the migrations that create those tables
 
-                """
-                -- Index for suspicious activity detection
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_forensics_suspicious_severity
-                ON session_forensics (is_suspicious, severity) WHERE is_suspicious = true;
-                """,
-
-                """
-                -- Index for correlation ID tracking
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_forensics_correlation_id
-                ON session_forensics (correlation_id) WHERE correlation_id IS NOT NULL AND correlation_id != '';
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_session_forensics_user_timestamp;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_session_forensics_suspicious_severity;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_session_forensics_correlation_id;",
-            ]
-        ),
-
-        # API Access Logs Performance Indexes
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Composite index for API access log queries by key and time
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_api_access_logs_key_timestamp
-                ON api_access_logs (api_key_id, timestamp DESC);
-                """,
-
-                """
-                -- Index for error analysis by response status
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_api_access_logs_error_status
-                ON api_access_logs (response_status, timestamp DESC) WHERE response_status >= 400;
-                """,
-
-                """
-                -- BRIN index for timestamp-based queries (efficient for time-series data)
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_api_access_logs_timestamp_brin
-                ON api_access_logs USING BRIN (timestamp);
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_api_access_logs_key_timestamp;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_api_access_logs_error_status;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_api_access_logs_timestamp_brin;",
-            ]
-        ),
-
-        # CSP Violations Performance Indexes
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Index for CSP violation analysis by severity and review status
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_csp_violations_severity_reviewed
-                ON security_csp_violations (severity, reviewed, reported_at DESC);
-                """,
-
-                """
-                -- Index for blocked URI analysis
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_csp_violations_blocked_uri_hash
-                ON security_csp_violations USING HASH (blocked_uri);
-                """,
-
-                """
-                -- GIN index for IP address pattern matching
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_csp_violations_ip_gin
-                ON security_csp_violations USING GIN (ip_address inet_ops);
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_csp_violations_severity_reviewed;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_csp_violations_blocked_uri_hash;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_csp_violations_ip_gin;",
-            ]
-        ),
-
-        # Encryption Key Metadata Performance Indexes
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Index for active key lookup with expiration
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_encryption_keys_active_expires
-                ON encryption_key_metadata (is_active, expires_at) WHERE is_active = true;
-                """,
-
-                """
-                -- Index for rotation status and expiration monitoring
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_encryption_keys_rotation_expires
-                ON encryption_key_metadata (rotation_status, expires_at)
-                WHERE rotation_status IN ('active', 'rotating');
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_encryption_keys_active_expires;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_encryption_keys_rotation_expires;",
-            ]
-        ),
-
-        # Upload Session Performance Indexes
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Index for active upload sessions
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_upload_sessions_active
-                ON core_uploadsession (user_id, status, created_at DESC)
-                WHERE status IN ('pending', 'uploading');
-                """,
-
-                """
-                -- Index for cleanup operations
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_upload_sessions_cleanup
-                ON core_uploadsession (status, expires_at)
-                WHERE status IN ('completed', 'failed', 'expired');
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_upload_sessions_active;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_upload_sessions_cleanup;",
-            ]
-        ),
-
-        # Cross-model performance indexes for common JOIN patterns
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Optimize common tenant + client + site queries
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_common_tenant_client_queries
-                ON onboarding_bt (client_id, tenant_id, enable) WHERE enable = true;
-                """,
-
-                """
-                -- Optimize job scheduling queries with date ranges
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_job_scheduling_optimized
-                ON activity_jobneed (identifier, bu_id, plandatetime, enable)
-                WHERE enable = true AND identifier IN ('TASK', 'EXTERNALTOUR', 'INTERNALTOUR', 'PPM');
-                """,
-
-                """
-                -- Optimize people assignment queries
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_people_assignment_optimized
-                ON peoples_pgbelonging (people_id, bu_id, assignsites_id, pgroup_id)
-                WHERE people_id != 1 AND assignsites_id IS NOT NULL;
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_common_tenant_client_queries;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_job_scheduling_optimized;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_people_assignment_optimized;",
-            ]
-        ),
-
-        # Report and analytics performance indexes
-        migrations.RunSQL(
-            sql=[
-                """
-                -- Index for site report list queries (from job manager analysis)
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sitereport_date_client_bu
-                ON activity_jobneed (plandatetime::date, client_id, bu_id, identifier)
-                WHERE identifier = 'SITEREPORT' AND parent_id = 1;
-                """,
-
-                """
-                -- Index for incident report queries
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_incidentreport_date_bu
-                ON activity_jobneed (plandatetime::date, bu_id, identifier)
-                WHERE identifier = 'INCIDENTREPORTTEMPLATE' AND parent_id IN (1, -1);
-                """,
-
-                """
-                -- GIN index for UUID text searches in attachments
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_attachments_uuid_gin
-                ON activity_attachment USING GIN (owner gin_trgm_ops);
-                """,
-            ],
-            reverse_sql=[
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_sitereport_date_client_bu;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_incidentreport_date_bu;",
-                "DROP INDEX CONCURRENTLY IF EXISTS idx_attachments_uuid_gin;",
-            ]
-        ),
+        # Note: Cross-model indexes moved - some tables referenced don't exist at this migration point
+        # These indexes should be created in later migrations after all tables are created
 
         # Enable required PostgreSQL extensions
         migrations.RunSQL(
@@ -215,3 +36,6 @@ class Migration(migrations.Migration):
             ]
         ),
     ]
+
+    # Required for CONCURRENTLY operations - cannot run in transaction
+    atomic = False

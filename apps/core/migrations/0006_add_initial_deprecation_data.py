@@ -1,11 +1,11 @@
 """
 Data migration to add initial deprecation entries.
-Marks upload_attachment GraphQL mutation as deprecated.
+Marks upload_attachment legacy mutation as deprecated.
 """
 
 from django.db import migrations
 from django.utils import timezone
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 
 
 def add_initial_deprecations(apps, schema_editor):
@@ -13,11 +13,11 @@ def add_initial_deprecations(apps, schema_editor):
     APIDeprecation = apps.get_model('core', 'APIDeprecation')
 
     deprecated_date = timezone.now()
-    sunset_date = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
+    sunset_date = datetime(2026, 6, 30, 23, 59, 59, tzinfo=dt_timezone.utc)
 
     APIDeprecation.objects.create(
         endpoint_pattern='Mutation.upload_attachment',
-        api_type='graphql_mutation',
+        api_type='legacy_mutation',
         version_deprecated='v1.0',
         version_removed='v2.0',
         deprecated_date=deprecated_date,

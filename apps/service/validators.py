@@ -1,7 +1,9 @@
 from logging import getLogger
-from django.core.exceptions import ValidationError
-
+from datetime import datetime
 import re
+
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 log = getLogger("mobile_service_log")
 

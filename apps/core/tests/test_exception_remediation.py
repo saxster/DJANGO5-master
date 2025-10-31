@@ -83,7 +83,7 @@ class TestExceptionHandlingCompliance:
 
     @pytest.mark.security
     def test_service_mutations_no_generic_exceptions(self):
-        """Test GraphQL mutations have no generic exception handling"""
+        """Test legacy mutation handlers have no generic exception handling"""
         file_path = settings.BASE_DIR / 'apps' / 'service' / 'mutations.py'
 
         if not file_path.exists():
@@ -103,7 +103,6 @@ class TestExceptionHandlingCompliance:
         critical_modules = [
             'apps/core/middleware/api_authentication.py',
             'apps/core/security/jwt_csrf_protection.py',
-            'apps/core/middleware/graphql_csrf_protection.py',
         ]
 
         total_violations = 0

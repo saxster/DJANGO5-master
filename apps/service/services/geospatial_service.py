@@ -22,12 +22,14 @@ from logging import getLogger
 from django.contrib.gis.geos import LineString
 from django.db.utils import DatabaseError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.conf import settings
 import googlemaps
 import json
 
-from intelliwiz_config.settings import GOOGLE_MAP_SECRET_KEY as google_map_key
 from apps.attendance.services.geospatial_service import GeospatialService, CoordinateParsingError
 
+# Get Google Maps API key from settings with fallback
+google_map_key = getattr(settings, 'GOOGLE_MAP_SECRET_KEY', '')
 
 log = getLogger("message_q")
 tlog = getLogger("tracking")

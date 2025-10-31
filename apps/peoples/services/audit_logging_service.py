@@ -13,7 +13,7 @@ from enum import Enum
 from django.utils import timezone
 from django.http import HttpRequest
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class AuditLogEntry:
 class AuditLoggingService(BaseService):
     """Service for comprehensive audit logging of people operations."""
 
-    @BaseService.monitor_performance("log_audit_event")
+    @monitor_service_performance("log_audit_event")
     def log_audit_event(
         self,
         action: AuditAction,

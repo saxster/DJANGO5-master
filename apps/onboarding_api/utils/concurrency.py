@@ -155,8 +155,18 @@ def advisory_lock_with_timeout(
         # Use a transaction with a statement timeout
         with transaction.atomic():
             with connection.cursor() as cursor:
-                # Set statement timeout for this lock acquisition
-                cursor.execute(f"SET statement_timeout = '{timeout_seconds}s'")
+                # SECURITY FIX: Sanitize timeout_seconds to prevent SQL injection
+                # Force integer conversion and clamp to safe bounds (1-60 seconds)
+                try:
+                    safe_timeout = max(1, min(int(timeout_seconds), 60))
+                except (ValueError, TypeError):
+                    safe_timeout = 10  # Default fallback
+                    logger.warning(
+                        f"Invalid timeout_seconds value: {timeout_seconds}, using default {safe_timeout}s"
+                    )
+
+                # Set statement timeout for this lock acquisition (now safe from injection)
+                cursor.execute(f"SET statement_timeout = '{safe_timeout}s'")
 
                 try:
                     # This will block until lock is acquired or timeout

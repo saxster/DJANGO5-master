@@ -56,6 +56,7 @@ class NOCExportTemplate(TenantAwareModel, BaseModel):
     entity_type = models.CharField(
         max_length=20,
         choices=ENTITY_CHOICES,
+        default='alerts',
         verbose_name=_("Entity Type"),
         help_text=_("Type of data to export")
     )
@@ -140,16 +141,19 @@ class NOCExportHistory(TenantAwareModel, BaseModel):
 
     entity_type = models.CharField(
         max_length=20,
+        default='alerts',
         verbose_name=_("Entity Type"),
         help_text=_("Type of data exported")
     )
 
     format = models.CharField(
         max_length=10,
+        default='csv',
         verbose_name=_("Format")
     )
 
     record_count = models.IntegerField(
+        default=0,
         verbose_name=_("Record Count"),
         help_text=_("Number of records exported")
     )

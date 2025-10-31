@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional, List
 from celery import shared_task, chain, chord, group
 from django.conf import settings
 from django.db import transaction
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 
 # Local imports
 from apps.onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
@@ -673,8 +675,40 @@ def ingest_document(self, job_id: str):
         fetch_time = int((time.time() - fetch_start) * 1000)
         job.record_timing('fetch_ms', fetch_time)
 
-        # Stage 2: Parse document
-        task_logger.info(f"Stage 2: Parsing document ({fetch_result['content_type']})")
+        # Stage 2: Sanitize content (SECURITY CRITICAL)
+        task_logger.info(f"Stage 2: Sanitizing content (security validation)")
+        from apps.onboarding_api.services.knowledge import ContentSanitizationService
+
+        sanitizer = ContentSanitizationService()
+        sanitize_start = time.time()
+
+        try:
+            sanitized_content, sanitization_report = sanitizer.sanitize_document_content(
+                content=fetch_result['content'],
+                mime_type=fetch_result['content_type'],
+                source_url=job.source_url
+            )
+            sanitize_time = int((time.time() - sanitize_start) * 1000)
+            job.record_timing('sanitize_ms', sanitize_time)
+
+            task_logger.info(
+                f"Content sanitized successfully: {sanitization_report['original_size_bytes']} → "
+                f"{sanitization_report['sanitized_size_bytes']} bytes"
+            )
+
+            # Use sanitized content for parsing
+            fetch_result['content'] = sanitized_content
+            fetch_result['metadata']['sanitization_report'] = sanitization_report
+
+        except Exception as sanitize_error:
+            task_logger.error(f"Content sanitization failed: {str(sanitize_error)}")
+            job.update_status(KnowledgeIngestionJob.StatusChoices.FAILED, str(sanitize_error))
+            job.source.fetch_error_count += 1
+            job.source.save()
+            raise
+
+        # Stage 3: Parse document
+        task_logger.info(f"Stage 3: Parsing document ({fetch_result['content_type']})")
         job.update_status(KnowledgeIngestionJob.StatusChoices.PARSING)
 
         parser = get_document_parser()
@@ -687,7 +721,7 @@ def ingest_document(self, job_id: str):
         parse_time = int((time.time() - parse_start) * 1000)
         job.record_timing('parse_ms', parse_time)
 
-        # Stage 3: Create knowledge document
+        # Stage 4: Create knowledge document
         document_info = parse_result.get('document_info', {})
         document = AuthoritativeKnowledge.objects.create(
             source_organization=job.source.name,
@@ -708,15 +742,37 @@ def ingest_document(self, job_id: str):
                 'source_type': job.source.source_type
             },
             ingestion_version=1,
-            is_current=False  # Will be set to True after review approval
+            is_current=False  # SECURITY: Will be set to True ONLY after two-person approval
         )
 
         # Link document to job
         job.document = document
         job.save()
 
-        # Stage 4: Chunk document
-        task_logger.info(f"Stage 4: Chunking document into segments")
+        # PUBLISH GATE ENFORCEMENT: Create draft review requiring two-person approval
+        # This ensures NO document is published without maker-checker review
+        from apps.onboarding.models import KnowledgeReview
+        draft_review = KnowledgeReview.objects.create(
+            document=document,
+            status='draft',
+            notes='Auto-generated review for ingested document. Requires two-person approval before publication.',
+            provenance_data={
+                'ingestion_job_id': str(job.job_id),
+                'ingested_at': datetime.now().isoformat(),
+                'ingested_by': job.created_by.email if job.created_by else 'system',
+                'source': job.source.name,
+                'source_type': job.source.source_type,
+                'publish_gate': 'enforced'
+            }
+        )
+
+        task_logger.info(
+            f"PUBLISH GATE: Created draft review {draft_review.review_id} for document {document.knowledge_id}. "
+            f"Requires two-person approval before publication."
+        )
+
+        # Stage 5: Chunk document
+        task_logger.info(f"Stage 5: Chunking document into segments")
         job.update_status(KnowledgeIngestionJob.StatusChoices.CHUNKING)
 
         chunker = get_document_chunker()
@@ -737,8 +793,8 @@ def ingest_document(self, job_id: str):
         chunk_time = int((time.time() - chunk_start) * 1000)
         job.record_timing('chunk_ms', chunk_time)
 
-        # Stage 5: Generate embeddings and index
-        task_logger.info(f"Stage 5: Generating embeddings for {len(chunks)} chunks")
+        # Stage 6: Generate embeddings and index
+        task_logger.info(f"Stage 6: Generating embeddings for {len(chunks)} chunks")
         job.update_status(KnowledgeIngestionJob.StatusChoices.EMBEDDING)
 
         embedding_generator = get_embedding_generator()

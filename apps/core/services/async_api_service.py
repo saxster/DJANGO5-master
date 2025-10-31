@@ -45,6 +45,10 @@ class AsyncExternalAPIService(BaseService):
         super().__init__()
         self.rate_limits = {}
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "AsyncExternalAPIService"
+
     def initiate_api_call(
         self,
         url: str,

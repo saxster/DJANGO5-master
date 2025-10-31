@@ -124,7 +124,7 @@ class OnboardingRequest(EnhancedTenantModel):
         verbose_name_plural = _('Onboarding Requests')
         indexes = [
             models.Index(fields=['request_number']),
-            models.Index(fields=['current_state', 'cdtz']),
+            models.Index(fields=['current_state', 'created_at']),
             models.Index(fields=['person_type']),
             models.Index(fields=['start_date']),
         ]

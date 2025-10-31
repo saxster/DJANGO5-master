@@ -13,26 +13,26 @@ Service Classes:
 - JobneedManagementService: Generic jobneed CRUD operations
 """
 
-from apps.schedhuler.services.scheduling_service import (
+from apps.scheduler.services.scheduling_service import (
     SchedulingService,
     CheckpointData,
     TourConfiguration,
     SchedulingResult
 )
-from apps.schedhuler.services.cron_calculation_service import (
+from apps.scheduler.services.cron_calculation_service import (
     CronCalculationService,
     SchedulerOptimizationService
 )
-from apps.schedhuler.services.internal_tour_service import (
+from apps.scheduler.services.internal_tour_service import (
     InternalTourService,
     InternalTourJobneedService
 )
-from apps.schedhuler.services.external_tour_service import ExternalTourService
-from apps.schedhuler.services.task_service import (
+from apps.scheduler.services.external_tour_service import ExternalTourService
+from apps.scheduler.services.task_service import (
     TaskService,
     TaskJobneedService
 )
-from apps.schedhuler.services.jobneed_management_service import JobneedManagementService
+from apps.scheduler.services.jobneed_management_service import JobneedManagementService
 
 __all__ = [
     'SchedulingService',

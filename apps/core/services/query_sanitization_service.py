@@ -10,7 +10,13 @@ import html
 import logging
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import unquote
-import bleach
+try:
+    import bleach
+    HAS_BLEACH = True
+except ImportError:
+    # bleach not installed - HTML sanitization will use basic escaping
+    bleach = None
+    HAS_BLEACH = False
 from django.core.exceptions import ValidationError
 from django.utils.html import escape
 from django.conf import settings

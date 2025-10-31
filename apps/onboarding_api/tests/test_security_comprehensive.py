@@ -15,9 +15,12 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-
-    Bt, ConversationSession, LLMRecommendation,
-    AIChangeSet, ChangeSetApproval
+from apps.onboarding.models import (
+    Bt,
+    ConversationSession,
+    LLMRecommendation,
+    AIChangeSet,
+    ChangeSetApproval,
 )
 from apps.onboarding_api.utils.security import (
     TenantScopeValidator,

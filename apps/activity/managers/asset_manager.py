@@ -6,12 +6,24 @@ from django.db.models import Q, F, Count
 from django.contrib.gis.db.models.functions import  AsWKT, AsGeoJSON
 from datetime import datetime
 from apps.core import utils
+from apps.tenants.managers import TenantAwareManager
 import logging
 import json
 logger = logging.getLogger('__main__')
 log = logger
 
-class AssetManager(models.Manager):
+class AssetManager(TenantAwareManager):
+    """
+    Custom manager for Asset model with tenant-aware filtering.
+
+    Extends TenantAwareManager to provide automatic tenant filtering while
+    maintaining Asset-specific business logic methods.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    - Inherited from TenantAwareManager (apps/tenants/managers.py)
+    """
     use_in_migrations = True
     related = ['category', 'client', 'cuser', 'muser', 'parent', 'subcategory', 'tenant', 'type', 'unit', 'brand', 'bu', 'serv_prov']
     fields = ['id', 'cdtz', 'mdtz', 'ctzoffset', 'assetcode', 'assetname', 'enable', 'iscritical', 'gpslocation', 'identifier', 'runningstatus', 'capacity', 'brand_id', 'bu_id',
@@ -252,7 +264,17 @@ class AssetManager(models.Manager):
 
 
     
-class AssetLogManager(models.Manager):
+class AssetLogManager(TenantAwareManager):
+    """
+    Custom manager for AssetLog model with tenant-aware filtering.
+
+    Extends TenantAwareManager to provide automatic tenant filtering for asset logs.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    - Inherited from TenantAwareManager (apps/tenants/managers.py)
+    """
     use_in_migrations = True
     
     def get_asset_logs(self, request):

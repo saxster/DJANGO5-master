@@ -19,7 +19,7 @@ from enum import Enum
 from django.conf import settings
 from django.utils import timezone
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 from apps.core.services.log_rotation_monitoring_service import LogRotationMonitoringService
 from apps.core.services.log_access_auditing_service import LogAccessAuditingService
 from apps.core.services.realtime_log_scanner_service import RealtimeLogScannerService
@@ -68,7 +68,11 @@ class LoggingComplianceService(BaseService):
         self.scanner_service = RealtimeLogScannerService()
         self.compliance_settings = getattr(settings, 'COMPLIANCE_SETTINGS', {})
 
-    @BaseService.monitor_performance("generate_gdpr_report")
+    @monitor_service_performance("generate_gdpr_report")
+
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "LoggingComplianceService"
     def generate_gdpr_report(
         self,
         start_date: Optional[datetime] = None,
@@ -141,7 +145,7 @@ class LoggingComplianceService(BaseService):
             audit_period_end=end_date
         )
 
-    @BaseService.monitor_performance("generate_hipaa_report")
+    @monitor_service_performance("generate_hipaa_report")
     def generate_hipaa_report(
         self,
         start_date: Optional[datetime] = None,
@@ -274,7 +278,7 @@ class LoggingComplianceService(BaseService):
 
         return recommendations
 
-    @BaseService.monitor_performance("generate_comprehensive_report")
+    @monitor_service_performance("generate_comprehensive_report")
     def generate_comprehensive_report(self) -> Dict[str, any]:
         """
         Generate comprehensive compliance report across all frameworks.

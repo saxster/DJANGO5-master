@@ -31,7 +31,7 @@ from apps.core.services.base_service import BaseService
 from apps.core.models.cron_job_definition import CronJobDefinition
 from apps.core.models.cron_job_execution import CronJobExecution
 from apps.core.utils_new.cron_utilities import validate_cron_expression
-from apps.schedhuler.services.cron_calculation_service import CronCalculationService
+from apps.scheduler.services.cron_calculation_service import CronCalculationService
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,10 @@ class CronJobRegistry(BaseService):
         super().__init__()
         self.cron_calculator = CronCalculationService()
         self._command_cache = {}
+
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "CronJobRegistry"
 
     def register_management_command(
         self,

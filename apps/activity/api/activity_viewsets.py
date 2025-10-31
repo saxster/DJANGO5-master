@@ -10,6 +10,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import viewsets, status
+from apps.ontology.decorators import ontology
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -34,6 +35,33 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="operations",
+    purpose="REST API for Job (work order) management with PPM scheduling and task completion tracking",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "TenantIsolationPermission"],
+    rate_limit="100/minute",
+    request_schema="JobListSerializer|JobDetailSerializer",
+    response_schema="JobListSerializer|JobDetailSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "operations", "jobs", "work-orders", "ppm", "mobile"],
+    security_notes="Tenant isolation via client_id filtering. Jobs assigned to tenant users only",
+    endpoints={
+        "list": "GET /api/v1/operations/jobs/ - List jobs (tenant-filtered)",
+        "create": "POST /api/v1/operations/jobs/ - Create new job",
+        "retrieve": "GET /api/v1/operations/jobs/{id}/ - Get job details",
+        "update": "PATCH /api/v1/operations/jobs/{id}/ - Update job",
+        "delete": "DELETE /api/v1/operations/jobs/{id}/ - Delete job",
+        "complete": "POST /api/v1/operations/jobs/{id}/complete/ - Mark job complete"
+    },
+    examples=[
+        "curl -X GET https://api.example.com/api/v1/operations/jobs/ -H 'Authorization: Bearer <token>'",
+        "curl -X POST https://api.example.com/api/v1/operations/jobs/{id}/complete/ -H 'Authorization: Bearer <token>'"
+    ]
+)
 class JobViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Job management.
@@ -49,6 +77,7 @@ class JobViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, TenantIsolationPermission]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Exclude outdated job API until aligned with new models
 
     filterset_fields = ['status', 'job_type', 'bu_id', 'client_id', 'assigned_to']
     search_fields = ['job_number', 'description']
@@ -105,6 +134,35 @@ class JobViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+@ontology(
+    domain="operations",
+    purpose="REST API for Jobneed (PPM schedule template) management with cron scheduling and job generation",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "TenantIsolationPermission"],
+    rate_limit="100/minute",
+    request_schema="JobneedListSerializer|JobneedDetailSerializer",
+    response_schema="JobneedListSerializer|JobneedDetailSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "operations", "jobneed", "ppm", "scheduling", "cron", "mobile"],
+    security_notes="Tenant isolation via client_id filtering. Cron expression validation prevents invalid schedules",
+    endpoints={
+        "list": "GET /api/v1/operations/jobneeds/ - List jobneeds",
+        "create": "POST /api/v1/operations/jobneeds/ - Create jobneed template",
+        "retrieve": "GET /api/v1/operations/jobneeds/{id}/ - Get jobneed details",
+        "update": "PATCH /api/v1/operations/jobneeds/{id}/ - Update jobneed",
+        "delete": "DELETE /api/v1/operations/jobneeds/{id}/ - Delete jobneed",
+        "details": "GET /api/v1/operations/jobneeds/{id}/details/ - Get PPM schedule details",
+        "schedule": "POST /api/v1/operations/jobneeds/{id}/schedule/ - Update cron schedule",
+        "generate": "POST /api/v1/operations/jobneeds/{id}/generate/ - Generate jobs immediately"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v1/operations/jobneeds/{id}/schedule/ -H 'Authorization: Bearer <token>' -d '{\"cron_expression\":\"0 9 * * 1\",\"frequency\":\"weekly\"}'",
+        "curl -X POST https://api.example.com/api/v1/operations/jobneeds/{id}/generate/ -H 'Authorization: Bearer <token>'"
+    ]
+)
 class JobneedViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Jobneed (PPM schedule) management.
@@ -122,6 +180,7 @@ class JobneedViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, TenantIsolationPermission]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Exclude outdated jobneed API until aligned with new models
 
     filterset_fields = ['status', 'jobneed_type', 'bu_id', 'client_id', 'is_active']
     search_fields = ['jobneed_number', 'description']
@@ -241,6 +300,31 @@ class JobneedViewSet(viewsets.ModelViewSet):
             )
 
 
+@ontology(
+    domain="operations",
+    purpose="REST API for QuestionSet management for dynamic forms and checklists",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated"],
+    rate_limit="100/minute",
+    request_schema="QuestionSetSerializer",
+    response_schema="QuestionSetSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="medium",
+    tags=["api", "rest", "operations", "questions", "forms", "mobile"],
+    security_notes="Questions available to all authenticated users. Active questions only returned",
+    endpoints={
+        "list": "GET /api/v1/operations/questionsets/ - List question sets",
+        "create": "POST /api/v1/operations/questionsets/ - Create question set",
+        "retrieve": "GET /api/v1/operations/questionsets/{id}/ - Get question set with questions",
+        "update": "PATCH /api/v1/operations/questionsets/{id}/ - Update question set",
+        "delete": "DELETE /api/v1/operations/questionsets/{id}/ - Delete question set"
+    },
+    examples=[
+        "curl -X GET https://api.example.com/api/v1/operations/questionsets/ -H 'Authorization: Bearer <token>'"
+    ]
+)
 class QuestionSetViewSet(viewsets.ModelViewSet):
     """
     API endpoint for QuestionSet management.
@@ -256,6 +340,7 @@ class QuestionSetViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSetSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Exclude outdated questionset API until aligned with new models
 
     filterset_fields = ['is_active']
     search_fields = ['name', 'description']

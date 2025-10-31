@@ -11,7 +11,7 @@ from datetime import datetime, time, date, timedelta
 from django.test import TestCase, TransactionTestCase
 from django.db import IntegrityError
 
-from apps.schedhuler.services.scheduling_service import (
+from apps.scheduler.services.scheduling_service import (
     SchedulingService,
     CheckpointData,
     TourConfiguration,
@@ -199,7 +199,7 @@ class TestSchedulingService(TestCase):
         with self.assertRaises(BusinessLogicException):
             self.scheduling_service._validate_tour_configuration(invalid_config)
 
-    @patch('apps.schedhuler.services.scheduling_service.putils.save_userinfo')
+    @patch('apps.scheduler.services.scheduling_service.putils.save_userinfo')
     def test_create_tour_job_success(self, mock_save_userinfo):
         """Test successful tour job creation."""
         mock_job = Mock(spec=Job)
@@ -207,7 +207,7 @@ class TestSchedulingService(TestCase):
         mock_job.jobname = "Test Security Tour"
         mock_save_userinfo.return_value = mock_job
 
-        with patch('apps.schedhuler.services.scheduling_service.Job') as mock_job_class:
+        with patch('apps.scheduler.services.scheduling_service.Job') as mock_job_class:
             mock_job_instance = Mock()
             mock_job_class.return_value = mock_job_instance
             mock_job_instance.save.return_value = None
@@ -221,8 +221,8 @@ class TestSchedulingService(TestCase):
                 mock_job_instance, self.mock_user, self.mock_session, create=True
             )
 
-    @patch('apps.schedhuler.services.scheduling_service.Job.objects')
-    @patch('apps.schedhuler.services.scheduling_service.putils.save_userinfo')
+    @patch('apps.scheduler.services.scheduling_service.Job.objects')
+    @patch('apps.scheduler.services.scheduling_service.putils.save_userinfo')
     def test_update_tour_job_success(self, mock_save_userinfo, mock_job_objects):
         """Test successful tour job update."""
         mock_job = Mock(spec=Job)
@@ -241,7 +241,7 @@ class TestSchedulingService(TestCase):
             mock_job, self.mock_user, self.mock_session, create=False
         )
 
-    @patch('apps.schedhuler.services.scheduling_service.Job.objects')
+    @patch('apps.scheduler.services.scheduling_service.Job.objects')
     def test_update_tour_job_not_found(self, mock_job_objects):
         """Test tour job update when job not found."""
         mock_job_objects.get.side_effect = Job.DoesNotExist
@@ -253,13 +253,13 @@ class TestSchedulingService(TestCase):
 
         self.assertIn("not found", str(context.exception))
 
-    @patch('apps.schedhuler.services.scheduling_service.Job.objects')
+    @patch('apps.scheduler.services.scheduling_service.Job.objects')
     def test_build_checkpoint_fields(self, mock_job_objects):
         """Test building checkpoint fields."""
         mock_job = Mock(spec=Job)
         checkpoint_data = CheckpointData(1, 100, "Gate", 200, expiry_time=300)
 
-        with patch('apps.schedhuler.services.scheduling_service.sutils.job_fields') as mock_job_fields:
+        with patch('apps.scheduler.services.scheduling_service.sutils.job_fields') as mock_job_fields:
             mock_job_fields.return_value = {'field1': 'value1', 'field2': 'value2'}
 
             result = self.scheduling_service._build_checkpoint_fields(mock_job, checkpoint_data)
@@ -280,7 +280,7 @@ class TestSchedulingService(TestCase):
             datetime(2024, 1, 1, 17, 0, 0)
         )
 
-        with patch('apps.schedhuler.services.scheduling_service.Job.objects') as mock_objects:
+        with patch('apps.scheduler.services.scheduling_service.Job.objects') as mock_objects:
             mock_objects.filter.return_value.exclude.return_value = []
 
             conflicts = self.scheduling_service.validate_schedule_conflicts(mock_job, time_range)
@@ -307,7 +307,7 @@ class TestSchedulingService(TestCase):
         conflict_job.uptodate = datetime(2024, 1, 1, 16, 0, 0)
         conflict_job.asset = mock_asset
 
-        with patch('apps.schedhuler.services.scheduling_service.Job.objects') as mock_objects:
+        with patch('apps.scheduler.services.scheduling_service.Job.objects') as mock_objects:
             mock_objects.filter.return_value.exclude.return_value = [conflict_job]
 
             conflicts = self.scheduling_service.validate_schedule_conflicts(mock_job, time_range)
@@ -316,7 +316,7 @@ class TestSchedulingService(TestCase):
             self.assertEqual(conflicts[0]['conflict_type'], 'schedule_overlap')
             self.assertEqual(conflicts[0]['conflicting_job'], 'Conflicting Tour')
 
-    @patch('apps.schedhuler.services.scheduling_service.Job.objects')
+    @patch('apps.scheduler.services.scheduling_service.Job.objects')
     def test_get_tour_analytics_success(self, mock_job_objects):
         """Test successful tour analytics retrieval."""
         # Mock main job
@@ -349,7 +349,7 @@ class TestSchedulingService(TestCase):
         self.assertEqual(analytics['pending_checkpoints'], 2)
         self.assertEqual(analytics['completion_rate'], 60.0)
 
-    @patch('apps.schedhuler.services.scheduling_service.Job.objects')
+    @patch('apps.scheduler.services.scheduling_service.Job.objects')
     def test_get_tour_analytics_not_found(self, mock_job_objects):
         """Test tour analytics when tour not found."""
         mock_job_objects.get.side_effect = Job.DoesNotExist
@@ -359,7 +359,7 @@ class TestSchedulingService(TestCase):
 
         self.assertIn("not found", str(context.exception))
 
-    @patch('apps.schedhuler.services.scheduling_service.transaction_manager')
+    @patch('apps.scheduler.services.scheduling_service.transaction_manager')
     def test_create_guard_tour_success_path(self, mock_transaction_manager):
         """Test successful guard tour creation workflow."""
         # Mock saga execution result
@@ -386,7 +386,7 @@ class TestSchedulingService(TestCase):
         self.assertEqual(mock_transaction_manager.add_saga_step.call_count, 3)
         mock_transaction_manager.execute_saga.assert_called_once()
 
-    @patch('apps.schedhuler.services.scheduling_service.transaction_manager')
+    @patch('apps.scheduler.services.scheduling_service.transaction_manager')
     def test_create_guard_tour_failure_path(self, mock_transaction_manager):
         """Test guard tour creation failure workflow."""
         # Mock saga execution failure
@@ -405,8 +405,8 @@ class TestSchedulingService(TestCase):
         self.assertEqual(result.error_message, 'Validation failed')
         self.assertEqual(result.correlation_id, 'corr-123')
 
-    @patch('apps.schedhuler.services.scheduling_service.transaction_manager')
-    @patch('apps.schedhuler.services.scheduling_service.ErrorHandler.handle_exception')
+    @patch('apps.scheduler.services.scheduling_service.transaction_manager')
+    @patch('apps.scheduler.services.scheduling_service.ErrorHandler.handle_exception')
     def test_create_guard_tour_exception_handling(self, mock_error_handler, mock_transaction_manager):
         """Test guard tour creation exception handling."""
         mock_error_handler.return_value = "error-correlation-id"
@@ -423,7 +423,7 @@ class TestSchedulingService(TestCase):
 
     def test_create_guard_tour_update_mode(self):
         """Test guard tour creation in update mode."""
-        with patch('apps.schedhuler.services.scheduling_service.transaction_manager') as mock_tm:
+        with patch('apps.scheduler.services.scheduling_service.transaction_manager') as mock_tm:
             mock_saga_result = {
                 'status': 'committed',
                 'results': {

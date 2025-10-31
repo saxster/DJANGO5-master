@@ -6,8 +6,12 @@ import time
 import logging
 from django.core.signals import request_started, request_finished
 from django.db.backends.signals import connection_created
-from django.dispatch import receiver
-from django.core.cache.signals import cache_touched
+from django.dispatch import receiver, Signal
+from django.conf import settings
+
+# Note: django.core.cache.signals doesn't exist in Django
+# Creating custom signal for cache monitoring
+cache_touched = Signal()
 
 from .django_monitoring import metrics_collector
 
@@ -41,28 +45,28 @@ if hasattr(settings, 'DEBUG') and settings.DEBUG:
     
     class QueryLogger:
         """Log slow queries in development"""
-        
-        def __init__(self, execute, sql, params, many, context):
+
+        def __init__(self, cursor_self, execute, sql, params):
+            self.cursor_self = cursor_self
             self.execute = execute
             self.sql = sql
             self.params = params
-            self.many = many
-            self.context = context
-        
+
         def __call__(self):
             start_time = time.time()
-            result = self.execute(self.sql, self.params, self.many, self.context)
+            # Call original execute with correct signature: execute(self, sql, params=None)
+            result = self.execute(self.cursor_self, self.sql, self.params)
             duration = time.time() - start_time
-            
+
             if duration > 0.01:  # Log queries over 10ms
                 logger.debug(f"Slow query ({duration:.3f}s): {self.sql[:100]}")
-            
+
             return result
-    
+
     # Monkey patch execute wrapper
     original_execute = utils.CursorWrapper.execute
-    
+
     def patched_execute(self, sql, params=None):
-        return QueryLogger(original_execute, sql, params, False, {'connection': self.db})()
-    
+        return QueryLogger(self, original_execute, sql, params)()
+
     utils.CursorWrapper.execute = patched_execute

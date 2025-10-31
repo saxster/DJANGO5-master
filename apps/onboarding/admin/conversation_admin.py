@@ -152,7 +152,7 @@ class LLMRecommendationAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Information', {
-            'fields': ('recommendation_id', 'session', 'status', 'user_decision', 'rejection_reason')
+            'fields': ('recommendation_id', 'session', 'status', 'user_decision')
         }),
         ('AI Output', {
             'fields': ('maker_output', 'checker_output', 'consensus', 'confidence_score', 'authoritative_sources')
@@ -161,7 +161,7 @@ class LLMRecommendationAdmin(admin.ModelAdmin):
             'fields': ('latency_ms', 'provider_cost_cents', 'eval_scores', 'trace_id')
         }),
         ('User Feedback', {
-            'fields': ('rejection_reason', 'user_modifications', 'learning_data')
+            'fields': ('rejection_reason', 'modifications')
         }),
         ('Timestamps', {
             'fields': ('cdtz', 'mdtz', 'cuser', 'muser'),

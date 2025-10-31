@@ -26,7 +26,10 @@ from apps.peoples import admin as people_admin
 from apps.onboarding import admin as ob_admin
 from apps.activity.admin.asset_admin import AssetResource, AssetResourceUpdate
 from apps.activity.admin.location_admin import LocationResource, LocationResourceUpdate
-from apps.activity.admin.question_admin import (
+# Updated import path after question_admin.py refactoring (2025-10-10)
+# Original: from apps.activity.admin.question_admin import ...
+# New: Use modular question admin structure (11 focused modules)
+from apps.activity.admin.question import (
     QuestionResource,
     QuestionResourceUpdate,
     QuestionSetResource,
@@ -339,7 +342,7 @@ def get_list_of_peoples(request):
 class BtView(LoginRequiredMixin, View):
     """Business Unit management view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("BtView placeholder - to be implemented")
+        return rp.HttpResponse("BtView placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "BtView POST placeholder"}, status=501)
 
@@ -347,7 +350,7 @@ class BtView(LoginRequiredMixin, View):
 class Client(LoginRequiredMixin, View):
     """Client management view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("Client view placeholder - to be implemented")
+        return rp.HttpResponse("Client view placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "Client POST placeholder"}, status=501)
 
@@ -355,7 +358,7 @@ class Client(LoginRequiredMixin, View):
 class ContractView(LoginRequiredMixin, View):
     """Contract management view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("ContractView placeholder - to be implemented")
+        return rp.HttpResponse("ContractView placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "ContractView POST placeholder"}, status=501)
 
@@ -363,7 +366,7 @@ class ContractView(LoginRequiredMixin, View):
 class TypeAssistView(LoginRequiredMixin, View):
     """TypeAssist configuration view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("TypeAssistView placeholder - to be implemented")
+        return rp.HttpResponse("TypeAssistView placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "TypeAssistView POST placeholder"}, status=501)
 
@@ -371,7 +374,7 @@ class TypeAssistView(LoginRequiredMixin, View):
 class ShiftView(LoginRequiredMixin, View):
     """Shift management view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("ShiftView placeholder - to be implemented")
+        return rp.HttpResponse("ShiftView placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "ShiftView POST placeholder"}, status=501)
 
@@ -379,7 +382,7 @@ class ShiftView(LoginRequiredMixin, View):
 class GeoFence(LoginRequiredMixin, View):
     """Geofence management view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("GeoFence placeholder - to be implemented")
+        return rp.HttpResponse("GeoFence placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "GeoFence POST placeholder"}, status=501)
 
@@ -387,7 +390,7 @@ class GeoFence(LoginRequiredMixin, View):
 class BulkImportData(LoginRequiredMixin, View):
     """Bulk data import view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("BulkImportData placeholder - to be implemented")
+        return rp.HttpResponse("BulkImportData placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "BulkImportData POST placeholder"}, status=501)
 
@@ -395,6 +398,46 @@ class BulkImportData(LoginRequiredMixin, View):
 class BulkImportUpdate(LoginRequiredMixin, View):
     """Bulk data update view - PLACEHOLDER"""
     def get(self, request, *args, **kwargs):
-        return HttpResponse("BulkImportUpdate placeholder - to be implemented")
+        return rp.HttpResponse("BulkImportUpdate placeholder - to be implemented")
     def post(self, request, *args, **kwargs):
         return rp.JsonResponse({"message": "BulkImportUpdate POST placeholder"}, status=501)
+
+
+class EditorTa(LoginRequiredMixin, View):
+    """TypeAssist editor view (restored from initial commit)"""
+    template = "onboarding/testEditorTa.html"
+    fields = ["id", "tacode", "taname", "tatype__tacode", "cuser__peoplecode"]
+    model = TypeAssist
+    related = ["cuser", "tatype"]
+
+    def get(self, request, *args, **kwargs):
+        R = request.GET
+        if R.get("template"):
+            return render(request, self.template)
+        return rp.HttpResponse("EditorTa - template parameter required")
+
+    def post(self, request, *args, **kwargs):
+        return rp.JsonResponse({"message": "EditorTa POST - to be implemented"}, status=501)
+
+
+class FileUpload(LoginRequiredMixin, View):
+    """File upload view (restored from initial commit)"""
+    def post(self, request, *args, **kwargs):
+        # TODO: Implement file upload logic
+        return rp.JsonResponse({"message": "File upload - to be implemented"}, status=501)
+
+
+class LicenseSubscriptionView(LoginRequiredMixin, View):
+    """License subscription management (restored from initial commit)"""
+    P = {"model": Subscription}
+
+    def get(self, request, *args, **kwargs):
+        R, P = request.GET, self.P
+        if R.get("action") == "getLicenseList":
+            try:
+                qset = P["model"].objects.get_license_list(R["client_id"])
+                return rp.JsonResponse({"data": list(qset)}, status=200)
+            except (AttributeError, TypeError, ValueError, KeyError) as e:
+                logger.error(f"LicenseSubscriptionView error: {e}")
+                return rp.JsonResponse({"error": "Invalid request"}, status=400)
+        return rp.JsonResponse({"error": "Action parameter required"}, status=400)

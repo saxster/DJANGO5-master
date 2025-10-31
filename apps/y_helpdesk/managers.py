@@ -14,6 +14,7 @@ from django.db.models import (
 from django.db.models.functions import Cast
 from apps.onboarding.models import TypeAssist
 from apps.peoples.models import Pgbelonging
+from apps.tenants.managers import TenantAwareManager
 import logging
 
 log = logging.getLogger("django")
@@ -25,12 +26,17 @@ from apps.core.json_utils import safe_json_parse_params
 from .managers.optimized_managers import OptimizedTicketManagerMixin
 
 
-class TicketManager(OptimizedTicketManagerMixin, models.Manager):
+class TicketManager(OptimizedTicketManagerMixin, TenantAwareManager):
     """
-    Enhanced TicketManager with performance optimizations.
+    Enhanced TicketManager with performance optimizations and tenant awareness.
 
     Combines original functionality with optimized query methods
     that eliminate N+1 queries and provide significant performance improvements.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    - Inherited from TenantAwareManager (apps/tenants/managers.py)
     """
     use_in_migrations = True
 
@@ -226,7 +232,14 @@ class TicketManager(OptimizedTicketManagerMixin, models.Manager):
         return qset or self.none()
 
 
-class ESCManager(models.Manager):
+class ESCManager(TenantAwareManager):
+    """
+    Custom manager for EscalationMatrix model with tenant-aware filtering.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    """
     use_in_migrations = True
 
     def get_reminder_config_forppm(self, job_id, fields):

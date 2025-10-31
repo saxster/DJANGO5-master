@@ -13,7 +13,7 @@ sys.path.append(
 )
 
 # Set Django settings
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings.development")
 django.setup()
 
 from django_celery_beat.models import PeriodicTask, IntervalSchedule

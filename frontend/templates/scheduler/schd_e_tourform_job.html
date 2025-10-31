@@ -17,7 +17,7 @@ Route Plan Setup
 {% block pagebreadcumb %}
 <!--will call parent contents -->
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('schedhuler:retrieve_externaltours') }}" class="pe-3">Routes</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('scheduler:retrieve_externaltours') }}" class="pe-3">Routes</a></li>
 <li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Route Plan Setup</a></li>
 {% endblock pagebreadcumb %}
 <!-------------------------- END PAGE BREADCUMB ------------------------->
@@ -521,7 +521,7 @@ handleChange('#id_gracetime', 'error_gracetime');
 //UPDATE CRONDATETIME ON CRON CHANGE
 function updateCronDate(){
         var cron = $("#id_cron").val()
-        var params = {'url':`{{ url('schedhuler:getCronDateTime') }}?cron=${cron}`,
+        var params = {'url':`{{ url('scheduler:getCronDateTime') }}?cron=${cron}`,
         'beforeSend':function(){}
         }
         fire_ajax_get(params)
@@ -929,7 +929,7 @@ $(document).ready(() => {
                 confirmButtonText: "Schedule it!"
             }).then((result) => {
                 if(result.isConfirmed){
-                    const params = {url: "{{ url('schedhuler:runJob') }}"}
+                    const params = {url: "{{ url('scheduler:runJob') }}"}
                     var payLoad = {
                         job_id: '{{ schdexternaltourform.instance.id }}',
                         csrfmiddlewaretoken: '{{ csrf_token }}'

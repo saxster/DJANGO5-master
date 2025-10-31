@@ -5,6 +5,7 @@ Integrates existing CSV/Excel import flows into conversational recommendations
 to shorten decision loops and accelerate onboarding completion.
 """
 import logging
+from typing import Dict, Any, List
 
 from django.urls import reverse
 

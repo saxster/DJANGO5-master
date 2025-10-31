@@ -333,8 +333,8 @@ class Command(BaseCommand):
             # Check API endpoints are accessible
             validation_results['api_endpoints'] = self._check_api_endpoints()
 
-            # Check REST API integration (GraphQL removed Oct 2025)
-            validation_results['graphql_schema'] = self._check_graphql_integration()  # Legacy name kept for compatibility
+            # Check REST API integration
+            validation_results['api_schema'] = self._check_rest_api_integration()
 
             # Check background tasks configuration
             validation_results['background_tasks'] = self._check_background_tasks()
@@ -420,21 +420,24 @@ class Command(BaseCommand):
                 'error': str(e)
             }
 
-    def _check_graphql_integration(self):
-        """
-        Check REST API integration (legacy GraphQL method).
-
-        NOTE: GraphQL removed Oct 2025. This method now validates REST endpoints.
-        Method name kept for backward compatibility with existing scripts.
-        """
+    def _check_rest_api_integration(self):
+        """Validate REST API exposure and schema availability."""
         try:
-            # GraphQL removed - skip schema check
-            logger.info("GraphQL schema check skipped - GraphQL removed Oct 2025")
+            rest_endpoints = ['openapi-schema', 'schema-list']
+            resolved = []
+            invalid = []
+
+            for endpoint_name in rest_endpoints:
+                try:
+                    url = reverse(endpoint_name)
+                    resolved.append({'name': endpoint_name, 'url': url})
+                except Exception:
+                    invalid.append(endpoint_name)
 
             return {
-                'valid': True,
-                'note': 'GraphQL removed Oct 2025 - REST API active',
-                'migration_complete': True
+                'valid': len(invalid) == 0,
+                'resolved': resolved,
+                'missing': invalid
             }
 
         except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError, TypeError, ValidationError, ValueError) as e:

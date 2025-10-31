@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 import logging
 import re
 
@@ -23,18 +23,17 @@ def get_current_year():
 
 def to_utc(date, format=None):
     logger.info("to_utc() start [+]")
-    import pytz
 
     if isinstance(date, list) and date:
         logger.info(f"found total {len(date)} datetimes")
         logger.info(f"before conversion datetimes {date}")
         dtlist = []
         for dt in date:
-            dt = dt.astimezone(pytz.utc).replace(microsecond=0, tzinfo=pytz.utc)
+            dt = dt.astimezone(dt_timezone.utc).replace(microsecond=0, tzinfo=dt_timezone.utc)
             dtlist.append(dt)
         logger.info(f"after conversion datetime list returned {dtlist=}")
         return dtlist
-    dt = date.astimezone(pytz.utc).replace(microsecond=0, tzinfo=pytz.utc)
+    dt = date.astimezone(dt_timezone.utc).replace(microsecond=0, tzinfo=dt_timezone.utc)
     if format:
         dt.strftime(format)
     logger.info("to_utc() end [-]")
@@ -42,9 +41,7 @@ def to_utc(date, format=None):
 
 
 def getawaredatetime(dt, offset):
-    from datetime import datetime, timedelta, timezone
-
-    tz = timezone(timedelta(minutes=int(offset)))
+    tz = dt_timezone(timedelta(minutes=int(offset)))
     if isinstance(dt, datetime):
         val = dt
     else:
@@ -96,7 +93,8 @@ def convert_seconds_to_human_readable(seconds):
 
 
 def get_timezone(offset):  # sourcery skip: aware-datetime-for-utc
-    import pytz
+    import zoneinfo
+    from zoneinfo import ZoneInfo
     from datetime import datetime, timedelta
 
     # Convert the offset string to a timedelta object
@@ -109,9 +107,9 @@ def get_timezone(offset):  # sourcery skip: aware-datetime-for-utc
 
     # Loop through all the timezones and find the ones that match the offset
     matching_zones = []  # A list to store the matching zones
-    for zone in pytz.all_timezones:  # For each timezone
-        tz = pytz.timezone(zone)  # Get the timezone object
-        utc_offset = tz.utcoffset(datetime.now(timezone.utc))  # Get the current UTC offset
+    for zone in zoneinfo.available_timezones():  # For each timezone
+        tz = ZoneInfo(zone)  # Get the timezone object
+        utc_offset = tz.utcoffset(datetime.now(dt_timezone.utc))  # Get the current UTC offset
         if utc_offset == delta:  # If the offset matches the input
             matching_zones.append(zone)  # Add the zone to the list
 
@@ -134,7 +132,7 @@ def find_closest_shift(log_starttime, shifts):
 
         # Combine the shift's start time with the logger's date, and make it offset-aware
         shift_datetime = datetime.combine(
-            log_starttime.date(), shift_start_time, tzinfo=timezone.utc
+            log_starttime.date(), shift_start_time, tzinfo=dt_timezone.utc
         )
 
         # Calculate the time difference

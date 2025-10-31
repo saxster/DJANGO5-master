@@ -7,6 +7,7 @@ import logging
 import json
 import time
 import os
+from django.conf import settings
 from django.utils import timezone
 from django.db import connection
 from django.db import OperationalError, ProgrammingError, DatabaseError

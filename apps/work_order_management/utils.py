@@ -9,7 +9,8 @@ from apps.peoples import utils as putils
 from apps.activity.models.question_model import QuestionSetBelonging, QuestionSet
 from apps.work_order_management.models import WomDetails
 from django.http import response as rp
-from background_tasks.tasks import send_email_notification_for_sla_report
+# Lazy import to avoid circular dependency - imported in handle_valid_form()
+# from background_tasks.tasks import send_email_notification_for_sla_report
 import logging
 import getpass
 
@@ -203,6 +204,9 @@ def handle_valid_form(form, R, request, create):
     wom_parent.other_data["uptime_score"] = uptime_score
     wom.other_data["section_weightage"] = 0
     wom_parent.save()
+
+    # Lazy import to avoid circular dependency
+    from background_tasks.tasks import send_email_notification_for_sla_report
     send_email_notification_for_sla_report.delay(sla.id, sitename)
     return rp.JsonResponse({"pk": sla.id})
 

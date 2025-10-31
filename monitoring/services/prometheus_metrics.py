@@ -22,13 +22,13 @@ Usage:
     from monitoring.services.prometheus_metrics import prometheus
 
     # Counter
-    prometheus.increment_counter('graphql_rate_limit_hits_total', {'endpoint': '/api/graphql'})
+    prometheus.increment_counter('api_rate_limit_hits_total', {'endpoint': '/api/v1/users/'})
 
     # Gauge
     prometheus.set_gauge('celery_queue_depth', 42, {'queue': 'critical'})
 
     # Histogram
-    prometheus.observe_histogram('graphql_query_duration_seconds', 0.123, {'mutation_type': 'login'})
+    prometheus.observe_histogram('api_request_duration_seconds', 0.123, {'endpoint': '/api/v1/users/'})
 """
 
 import time
@@ -82,15 +82,15 @@ class PrometheusMetricsService:
         Increment a counter metric.
 
         Args:
-            name: Metric name (e.g., 'graphql_rate_limit_hits_total')
-            labels: Label dictionary (e.g., {'endpoint': '/api/graphql', 'user_type': 'anonymous'})
+            name: Metric name (e.g., 'api_rate_limit_hits_total')
+            labels: Label dictionary (e.g., {'endpoint': '/api/v1/users/', 'user_type': 'anonymous'})
             value: Increment value (default: 1.0)
             help_text: Metric description for Prometheus
 
         Example:
             prometheus.increment_counter(
-                'graphql_mutations_total',
-                {'mutation_type': 'login', 'status': 'success'}
+                'api_requests_total',
+                {'endpoint': '/api/v1/users/', 'status': 'success'}
             )
         """
         labels = labels or {}
@@ -156,9 +156,9 @@ class PrometheusMetricsService:
 
         Example:
             prometheus.observe_histogram(
-                'graphql_query_duration_seconds',
+                'api_request_duration_seconds',
                 0.045,
-                {'endpoint': '/api/graphql', 'operation': 'query'}
+                {'endpoint': '/api/v1/users/', 'operation': 'GET'}
             )
         """
         labels = labels or {}

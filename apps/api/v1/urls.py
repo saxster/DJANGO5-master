@@ -38,12 +38,15 @@ urlpatterns = [
     path('', include('apps.core.api.urls', namespace='core')),
 
     # ============================================
-    # Domain-Driven REST API (GraphQL Migration - Oct 2025)
+    # Domain-Driven REST API (legacy API Migration - Oct 2025)
     # ============================================
     # Clean, domain-driven URL structure for REST API
     path('auth/', include('apps.api.v1.auth_urls')),
     path('people/', include('apps.api.v1.people_urls')),
     path('operations/', include('apps.api.v1.operations_urls')),
+    path('wellness/', include('apps.api.v1.wellness_urls')),
+    path('admin/', include('apps.api.v1.admin_urls')),
+    path('helpbot/', include('apps.api.v1.helpbot_urls')),
     path('assets/', include('apps.api.v1.assets_urls')),
     path('attendance/', include('apps.api.v1.attendance_urls')),
     path('help-desk/', include('apps.api.v1.helpdesk_urls')),

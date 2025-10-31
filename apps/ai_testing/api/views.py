@@ -17,7 +17,9 @@ from apps.ai_testing.models.test_coverage_gaps import TestCoverageGap, TestCover
 from apps.ai_testing.models.adaptive_thresholds import AdaptiveThreshold
 from apps.ai_testing.models.regression_predictions import RegressionPrediction
 from apps.ai_testing.dashboard_integration import get_ai_insights_summary
+from .serializers import (
     TestCoverageGapSummarySerializer,
+    TestCoverageGapSerializer,
     TestCoveragePatternSerializer,
     AdaptiveThresholdSerializer,
     RegressionPredictionSerializer,
@@ -29,6 +31,10 @@ from apps.ai_testing.dashboard_integration import get_ai_insights_summary
     ExportRequestSerializer,
     APIErrorSerializer
 )
+from django.http import HttpResponse, JsonResponse
+from django.db import models, DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from io import StringIO
 
 logger = logging.getLogger(__name__)
 

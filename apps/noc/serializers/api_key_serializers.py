@@ -3,6 +3,17 @@ NOC API Key Serializers.
 
 Serializers for NOC API key management.
 Follows .claude/rules.md Rule #7 (serializers <150 lines).
+
+Ontology: data_contract=True, api_layer=True, validation_rules=True, security_critical=True
+Category: serializers, api_keys, noc, monitoring
+Domain: api_key_management, noc_security, key_rotation, access_control
+Responsibility: API key CRUD; rotation scheduling; expiry validation; permission enforcement
+Dependencies: noc.models (MonitoringAPIKey, MonitoringPermission), rest_framework
+Security: API key hashing (never returns raw key after creation), IP whitelisting, permission scoping
+Validation: NOC-specific permissions, IP format, expiry dates, rotation schedules
+API: REST v1 /api/v1/noc/api-keys/*, admin-only endpoints
+Key Rotation: Automatic rotation schedules (monthly, quarterly, biannually, annually, never)
+Permissions: health, metrics, alerts, dashboard, admin (NOC-specific scopes)
 """
 
 from rest_framework import serializers
@@ -16,7 +27,19 @@ __all__ = [
 
 
 class NOCAPIKeySerializer(serializers.ModelSerializer):
-    """Display serializer for NOC API keys."""
+    """
+    Display serializer for NOC API keys.
+
+    Ontology: data_contract=True
+    Purpose: Read-only API key details (NEVER returns raw key)
+    Fields: 14 fields including computed is_expired, needs_rotation
+    Read-Only: id, created_by_name, timestamps, usage_count, computed fields
+    Computed Fields:
+      - is_expired: Calls obj.is_expired() (checks expires_at < now)
+      - needs_rotation: Calls obj.needs_rotation() (checks next_rotation_at < now)
+    Security: Raw API key NEVER exposed (only on creation via NOCAPIKeyCreateSerializer)
+    Use Case: List/detail API key info, rotation monitoring dashboard
+    """
 
     created_by_name = serializers.CharField(
         source='created_by.peoplename',
@@ -41,17 +64,33 @@ class NOCAPIKeySerializer(serializers.ModelSerializer):
             'usage_count', 'is_expired', 'needs_rotation'
         ]
 
-    def get_is_expired(self, obj):
+    def get_is_expired(self, obj) -> bool:
         """Check if key has expired."""
         return obj.is_expired()
 
-    def get_needs_rotation(self, obj):
+    def get_needs_rotation(self, obj) -> bool:
         """Check if key needs rotation."""
         return obj.needs_rotation()
 
 
 class NOCAPIKeyCreateSerializer(serializers.Serializer):
-    """Serializer for creating NOC API keys."""
+    """
+    Serializer for creating NOC API keys.
+
+    Ontology: data_contract=True, validation_rules=True, security_critical=True
+    Purpose: Create new API key with permission scoping and rotation schedule
+    Model: None (Serializer, not ModelSerializer - custom create logic)
+    Fields: 7 fields (name, permissions, allowed_ips, expiry, rotation)
+    Validation: NOC permission whitelist, IP format, expiry range (1-3650 days)
+    Security: Returns raw API key ONLY on creation (stored as hash)
+    Validation Rules:
+      - permissions: Must be NOC-specific (health, metrics, alerts, dashboard) or admin
+      - allowed_ips: Optional IP whitelist (null = allow all)
+      - expires_days: 1-3650 days (null = never expires)
+      - rotation_schedule: monthly, quarterly, biannually, annually, never
+    Use Case: NOC admin creates API keys for external monitoring systems
+    Create Flow: Calls MonitoringAPIKey.create_key() which returns (instance, raw_key)
+    """
 
     name = serializers.CharField(
         max_length=100,
@@ -101,7 +140,19 @@ class NOCAPIKeyCreateSerializer(serializers.Serializer):
     )
 
     def validate_permissions(self, value):
-        """Validate NOC-specific permissions."""
+        """
+        Validate NOC-specific permissions.
+
+        Ontology: validation_rules=True, security_critical=True
+        Validates: Permission whitelist for NOC operations
+        Allowed Permissions:
+          - health: /noc/health endpoint
+          - metrics: /noc/metrics endpoint
+          - alerts: /noc/alerts endpoint
+          - dashboard: /noc/dashboard endpoint
+          - admin: All NOC endpoints (superuser-equivalent)
+        Security: Prevents granting non-NOC permissions via NOC API keys
+        """
         noc_permissions = [
             MonitoringPermission.HEALTH.value,
             MonitoringPermission.METRICS.value,
@@ -119,7 +170,15 @@ class NOCAPIKeyCreateSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        """Create new NOC API key."""
+        """
+        Create new NOC API key.
+
+        Ontology: security_critical=True
+        Returns: Instance with raw_api_key attribute (ONLY time raw key is exposed)
+        Flow: MonitoringAPIKey.create_key() generates key, hashes it, returns (instance, raw_key)
+        Security: Raw key stored in instance.raw_api_key for one-time display to user
+        Storage: Only hash stored in database, raw key never retrievable
+        """
         user = self.context['request'].user
 
         instance, api_key = MonitoringAPIKey.create_key(
@@ -138,7 +197,17 @@ class NOCAPIKeyCreateSerializer(serializers.Serializer):
 
 
 class APIKeyUsageSerializer(serializers.Serializer):
-    """Serializer for API key usage statistics."""
+    """
+    Serializer for API key usage statistics.
+
+    Ontology: data_contract=True
+    Purpose: Read-only usage analytics for API key monitoring
+    Model: None (output-only serializer)
+    Fields: 9 fields (request counts, IPs, endpoints, response times)
+    Read-Only: All fields (computed from logs)
+    Use Case: NOC dashboard, API key rotation decisions, anomaly detection
+    Data Source: Aggregated from API request logs (MonitoringAPIKey.usage_count)
+    """
 
     api_key_id = serializers.IntegerField(read_only=True)
     api_key_name = serializers.CharField(read_only=True)

@@ -275,10 +275,16 @@ class RecommendationMiddleware(MiddlewareMixin):
     def _track_recommendation_interactions(self, request, response):
         """Track user interactions with recommendations"""
         try:
+            from django.core.exceptions import DisallowedHost
+
             # Check if this is a recommendation click
             referer = request.META.get('HTTP_REFERER', '')
-            current_url = request.build_absolute_uri()
-            
+            try:
+                current_url = request.build_absolute_uri()
+            except DisallowedHost:
+                # Fallback to relative URL if host validation fails
+                current_url = request.path
+
             # Look for recommendation tracking parameters
             rec_id = request.GET.get('rec_id')
             rec_type = request.GET.get('rec_type')

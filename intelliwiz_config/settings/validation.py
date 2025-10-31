@@ -7,7 +7,6 @@ configuration errors and security misconfigurations.
 Features:
 - Critical environment variable validation
 - CORS configuration consistency checks
-- GraphQL security settings validation
 - Cookie security settings validation
 - Human-readable error messages with correlation IDs
 - Environment-specific validation rules
@@ -82,7 +81,6 @@ class SettingsValidator:
         self._validate_secret_keys()
         self._validate_middleware_stack()
         self._validate_cors_configuration()
-        self._validate_graphql_security()
         self._validate_cookie_security()
 
         # Environment-specific validations
@@ -214,35 +212,6 @@ class SettingsValidator:
         except Exception as e:
             self.failed_checks.append(f"CORS validation error: {str(e)}")
 
-    def _validate_graphql_security(self) -> None:
-        """Validate GraphQL security settings."""
-        try:
-            # Check rate limiting is enabled
-            enable_rate_limiting = getattr(self.settings, 'ENABLE_GRAPHQL_RATE_LIMITING', True)
-            if not enable_rate_limiting:
-                self.warnings.append("GraphQL rate limiting is disabled")
-
-            # Check complexity validation is enabled
-            enable_complexity = getattr(self.settings, 'GRAPHQL_ENABLE_COMPLEXITY_VALIDATION', True)
-            if not enable_complexity:
-                self.failed_checks.append("GraphQL complexity validation is disabled (DoS risk)")
-
-            # Check complexity limits are set
-            max_depth = getattr(self.settings, 'GRAPHQL_MAX_QUERY_DEPTH', None)
-            if max_depth is None or max_depth > 20:
-                self.warnings.append(
-                    f"GraphQL max query depth high or unset: {max_depth} (recommend < 15)"
-                )
-
-            max_complexity = getattr(self.settings, 'GRAPHQL_MAX_QUERY_COMPLEXITY', None)
-            if max_complexity is None or max_complexity > 2000:
-                self.warnings.append(
-                    f"GraphQL max complexity high or unset: {max_complexity} (recommend < 1000)"
-                )
-
-        except Exception as e:
-            self.failed_checks.append(f"GraphQL validation error: {str(e)}")
-
     def _validate_cookie_security(self) -> None:
         """Validate cookie security settings."""
         try:
@@ -299,17 +268,6 @@ class SettingsValidator:
 
             if not session_secure:
                 self.failed_checks.append("SESSION_COOKIE_SECURE must be True in production")
-
-            # Check GraphQL introspection disabled
-            introspection_disabled = getattr(
-                self.settings,
-                'GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION',
-                False
-            )
-            if not introspection_disabled:
-                self.failed_checks.append(
-                    "GraphQL introspection must be disabled in production (security risk)"
-                )
 
             # Check HSTS
             hsts_seconds = getattr(self.settings, 'SECURE_HSTS_SECONDS', 0)

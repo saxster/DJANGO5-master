@@ -8,6 +8,8 @@ Handles all business logic for Capability model operations including:
 - Search and filtering
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
@@ -17,10 +19,9 @@ from django.db import IntegrityError
 from django.db.models import Q, QuerySet
 
 from apps.core.services.base_service import BaseService
-from apps.core.services import with_transaction
+from apps.core.services import with_transaction, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import UserManagementException, DatabaseException
-from apps.peoples.models import Capability
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ class CapabilityManagementService(BaseService):
         self.related_fields = ["parent"]
         self.list_fields = ["id", "capscode", "capsname", "cfor", "parent__capscode"]
 
-    @BaseService.monitor_performance("get_capability_list")
+    @monitor_service_performance("get_capability_list")
     def get_capability_list(
         self,
         session: Dict[str, Any],
@@ -64,6 +65,8 @@ class CapabilityManagementService(BaseService):
         Returns:
             List of capability dictionaries
         """
+        from apps.peoples.models import Capability  # Late import to prevent circular dependency
+
         try:
             queryset = Capability.objects.select_related(
                 *self.related_fields
@@ -78,7 +81,7 @@ class CapabilityManagementService(BaseService):
             self.logger.error(f"Database error retrieving capabilities: {str(e)}")
             raise
 
-    @BaseService.monitor_performance("create_capability")
+    @monitor_service_performance("create_capability")
     @with_transaction()
     def create_capability(
         self,
@@ -97,6 +100,8 @@ class CapabilityManagementService(BaseService):
         Returns:
             CapabilityOperationResult with created capability
         """
+        from apps.peoples.models import Capability  # Late import to prevent circular dependency
+
         try:
             capability = Capability(**form_data)
             capability.save()
@@ -141,7 +146,7 @@ class CapabilityManagementService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("update_capability")
+    @monitor_service_performance("update_capability")
     @with_transaction()
     def update_capability(
         self,
@@ -162,6 +167,8 @@ class CapabilityManagementService(BaseService):
         Returns:
             CapabilityOperationResult with updated capability
         """
+        from apps.peoples.models import Capability  # Late import to prevent circular dependency
+
         try:
             capability = Capability.objects.get(id=capability_id)
 
@@ -210,7 +217,7 @@ class CapabilityManagementService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("get_capability")
+    @monitor_service_performance("get_capability")
     def get_capability(
         self,
         capability_id: int
@@ -224,6 +231,8 @@ class CapabilityManagementService(BaseService):
         Returns:
             Capability instance or None
         """
+        from apps.peoples.models import Capability  # Late import to prevent circular dependency
+
         try:
             return Capability.objects.select_related(
                 *self.related_fields
@@ -232,7 +241,7 @@ class CapabilityManagementService(BaseService):
             self.logger.warning(f"Capability not found: {capability_id}")
             return None
 
-    @BaseService.monitor_performance("delete_capability")
+    @monitor_service_performance("delete_capability")
     @with_transaction()
     def delete_capability(
         self,
@@ -251,6 +260,8 @@ class CapabilityManagementService(BaseService):
         Returns:
             CapabilityOperationResult with deletion status
         """
+        from apps.peoples.models import Capability  # Late import to prevent circular dependency
+
         try:
             capability = Capability.objects.get(id=capability_id)
             capscode = capability.capscode

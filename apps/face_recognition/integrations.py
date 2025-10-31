@@ -30,6 +30,53 @@ anomaly_detected = Signal()
 behavioral_pattern_updated = Signal()
 
 
+# ============================================================================
+# STUB IMPLEMENTATIONS FOR REMOVED APPS
+# Apps 'anomaly_detection' and 'behavioral_analytics' were removed
+# These stubs prevent runtime errors while maintaining API compatibility
+# TODO: Sprint 5 - Implement real ML-based anomaly detection models
+# ============================================================================
+
+class AnomalyDataCollector:
+    """Stub implementation - collects attendance features for anomaly detection."""
+
+    def collect_attendance_features(self, attendance):
+        """Collect features from attendance record (stub implementation)."""
+        logger.debug(f"AnomalyDataCollector: Stub implementation called for attendance {attendance.id}")
+        # Return empty features - real implementation in Sprint 5
+        return {}
+
+
+class EnsembleAnomalyDetector:
+    """Stub implementation - detects anomalies using ensemble methods."""
+
+    def detect_anomalies_single(self, features, detection_type):
+        """Detect anomalies in single record (stub implementation)."""
+        logger.debug(f"EnsembleAnomalyDetector: Stub implementation called for {detection_type}")
+        # Return safe defaults - no anomaly detected
+        return {
+            'is_anomaly': False,
+            'confidence_score': 0.0,
+            'anomaly_type': 'NONE',
+            'description': 'Anomaly detection not yet implemented'
+        }
+
+
+class AttendanceFraudDetector:
+    """Stub implementation - detects potential fraud in attendance records."""
+
+    def analyze_attendance(self, attendance, fraud_indicators):
+        """Analyze attendance for fraud (stub implementation)."""
+        logger.debug(f"AttendanceFraudDetector: Stub implementation called for attendance {attendance.id}")
+        # Return safe defaults - no fraud detected
+        return {
+            'fraud_probability': 0.0,
+            'fraud_indicators': fraud_indicators or [],
+            'risk_level': 'LOW',
+            'explanation': 'Fraud detection not yet implemented'
+        }
+
+
 class AIAttendanceIntegration:
     """Main integration class for AI-enhanced attendance system"""
     

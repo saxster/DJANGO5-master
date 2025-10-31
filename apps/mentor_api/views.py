@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status
 from django.http import StreamingHttpResponse, JsonResponse
-from apps.mentor.permissions import (
+from .permissions import (
     CanUsePlanGenerator, CanUsePatchGenerator, CanApplyPatches,
     CanUseTestRunner, CanViewSensitiveCode, CanAdminMentor
 )
@@ -449,11 +449,13 @@ class ExplainViewSet(BaseMentorViewSet):
                 explanation = explainer.explain_url(target)
             elif target_type == 'model':
                 explanation = explainer.explain_model(target)
-            elif target_type == 'graphql':
-                # Legacy - GraphQL removed Oct 2025, return deprecation notice
-                explanation = {'error': 'GraphQL analysis removed (Oct 2025). Use REST API instead.'}
             elif target_type == 'query':
                 explanation = explainer.explain_query(target)
+            else:
+                return Response(
+                    {'error': f"Unsupported explanation type: {target_type}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             if 'error' in explanation:
                 return Response(explanation, status=status.HTTP_404_NOT_FOUND)

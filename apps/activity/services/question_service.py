@@ -15,7 +15,7 @@ from django.http import QueryDict
 
 from apps.activity.models.question_model import Question, QuestionSet, QuestionSetBelonging
 from apps.activity.forms.question_form import QuestionForm, QuestionSetForm
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.utils_new.db_utils import get_current_db_name
 import apps.peoples.utils as putils
@@ -31,7 +31,7 @@ class QuestionService(BaseService):
     def get_service_name(self) -> str:
         return "QuestionService"
 
-    @BaseService.monitor_performance("get_questions_list")
+    @monitor_service_performance("get_questions_list")
     def get_questions_list(self, request, fields: List[str], related: List[str]) -> List[Dict[str, Any]]:
         """
         Get formatted questions list for display.
@@ -53,7 +53,7 @@ class QuestionService(BaseService):
             )
             return []
 
-    @BaseService.monitor_performance("create_question")
+    @monitor_service_performance("create_question")
     def create_question(self, form_data: Dict[str, Any], request) -> Dict[str, Any]:
         """
         Create a new question with proper validation.
@@ -112,7 +112,7 @@ class QuestionService(BaseService):
                 'error_type': 'general_error'
             }
 
-    @BaseService.monitor_performance("update_question")
+    @monitor_service_performance("update_question")
     def update_question(self, question_id: int, form_data: Dict[str, Any], request) -> Dict[str, Any]:
         """
         Update an existing question.
@@ -181,7 +181,7 @@ class QuestionService(BaseService):
                 'error_type': 'general_error'
             }
 
-    @BaseService.monitor_performance("delete_question")
+    @monitor_service_performance("delete_question")
     def delete_question(self, question_id: int) -> Dict[str, Any]:
         """
         Delete a question if it's not in use.
@@ -242,7 +242,7 @@ class QuestionSetService(BaseService):
     def get_service_name(self) -> str:
         return "QuestionSetService"
 
-    @BaseService.monitor_performance("get_questionsets_list")
+    @monitor_service_performance("get_questionsets_list")
     def get_questionsets_list(self, request, fields: List[str], related: List[str]) -> List[Dict[str, Any]]:
         """
         Get formatted question sets list for display.
@@ -264,7 +264,7 @@ class QuestionSetService(BaseService):
             )
             return []
 
-    @BaseService.monitor_performance("create_questionset")
+    @monitor_service_performance("create_questionset")
     def create_questionset(self, form_data: Dict[str, Any], request) -> Dict[str, Any]:
         """
         Create a new question set with proper validation.
@@ -318,7 +318,7 @@ class QuestionSetService(BaseService):
                 'error_type': 'general_error'
             }
 
-    @BaseService.monitor_performance("get_questions_for_qset")
+    @monitor_service_performance("get_questions_for_qset")
     def get_questions_for_qset(self, qset_id: int) -> List[Dict[str, Any]]:
         """
         Get questions for a specific question set with their configuration.

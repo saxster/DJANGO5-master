@@ -47,7 +47,6 @@ class TestSanitizingFilterEnforcement(TestCase):
             'security_file',
             'api_file',
             'celery_file',
-            'graphql_file',
             'sql_file'
         ]
 

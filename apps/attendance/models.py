@@ -402,7 +402,7 @@ class Geofence(BaseModel):
     bu = models.ForeignKey('onboarding.Bt', null=True, blank=True, on_delete=models.CASCADE)
     client = models.ForeignKey(
         'onboarding.Bt', null=True, blank=True,
-        on_delete=models.CASCADE, related_name='geofence_clients'
+        on_delete=models.CASCADE, related_name='attendance_geofence_clients'
     )
     is_active = models.BooleanField(default=True)
     description = models.TextField(blank=True)

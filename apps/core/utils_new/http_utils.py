@@ -69,29 +69,35 @@ def clean_encoded_form_data(form_data):
 
     # If it's a string, check if it needs cleaning
     elif isinstance(form_data, str):
-        logger.info(f"clean_encoded_form_data - Raw string length: {len(form_data)}")
-        logger.info(f"clean_encoded_form_data - Contains 'options': {'options' in form_data}")
-        logger.info(f"clean_encoded_form_data - Raw string contains gracetime: {'gracetime' in form_data}")
-        logger.info(f"clean_encoded_form_data - Raw string contains cron: {'cron' in form_data}")
-        logger.info(f"clean_encoded_form_data - Raw string contains fromdate: {'fromdate' in form_data}")
-        
+        # SECURITY HARDENING: Guard verbose logging behind DEBUG mode
+        # PRIVACY: Avoid logging raw form data that may contain PII/passwords
+        from django.conf import settings
+
+        if settings.DEBUG:
+            # DEBUG mode only: Log metadata, not raw data
+            logger.debug(f"clean_encoded_form_data - String length: {len(form_data)}")
+            logger.debug(f"clean_encoded_form_data - Contains 'options': {'options' in form_data}")
+            logger.debug(f"clean_encoded_form_data - Contains 'gracetime': {'gracetime' in form_data}")
+
         if "amp;" in form_data:
             # Replace all occurrences of amp; in the raw string
             form_data = form_data.replace("amp;", "")
-            logger.info(f"clean_encoded_form_data - After removing amp;: length={len(form_data)}")
-        
-        logger.info(f"clean_encoded_form_data - String before QueryDict: {form_data[:500]}...")
+            if settings.DEBUG:
+                logger.debug(f"clean_encoded_form_data - After removing amp;: length={len(form_data)}")
+
+        # SECURITY: Never log raw form data (may contain passwords, SSN, credit cards, etc.)
+        # Original: logger.info(f"String before QueryDict: {form_data[:500]}...")
+        # Removed to prevent PII leakage
+
         result = QueryDict(form_data)
-        
-        # Check all keys to see if any contain 'opti'
-        for key in result.keys():
-            if 'opti' in key.lower():
-                logger.info(f"Found key containing 'opti': '{key}' with value: '{result.get(key)}'")
-        
-        logger.info(f"clean_encoded_form_data - QueryDict keys: {list(result.keys())}")
-        logger.info(f"clean_encoded_form_data - options value: {result.get('options', 'NOT FOUND')}")
-        logger.info(f"clean_encoded_form_data - gracetime value: {result.get('gracetime', 'NOT FOUND')}")
-        logger.info(f"clean_encoded_form_data - cron value: {result.get('cron', 'NOT FOUND')}")
+
+        if settings.DEBUG:
+            # DEBUG mode only: Log safe metadata
+            # Filter out sensitive field names from logs
+            sensitive_fields = {'password', 'passwd', 'pwd', 'secret', 'token', 'ssn', 'card', 'cvv', 'pin'}
+            safe_keys = [k for k in result.keys() if not any(s in k.lower() for s in sensitive_fields)]
+            logger.debug(f"clean_encoded_form_data - Safe keys: {safe_keys[:10]}")  # First 10 only
+
         return result
 
     # If neither, try to convert to QueryDict
@@ -171,13 +177,13 @@ def get_filter(field_name, filter_condition, filter_value):
     if filter_condition.strip() == "starts_with":
         kwargs = {"{0}__istartswith".format(field_name): filter_value}
         return Q(**kwargs)
+
     if filter_condition.strip() == "equal":
         kwargs = {"{0}__iexact".format(field_name): filter_value}
         return Q(**kwargs)
 
-    if filter_condition.strip() == "not_equal":
-        kwargs = {"{0}__iexact".format(field_name): filter_value}
-        return ~Q(**kwargs)
+    # CODE QUALITY FIX: Removed duplicate "not_equal" branch (was at line 178)
+    # The condition is already handled above at line 167-169
 
 
 def searchValue(objects, fields, related, model, ST):
@@ -203,8 +209,9 @@ def render_form(request, params, cxt):
 
 def handle_DoesNotExist(request):
     data = {"errors": "Unable to edit object not found"}
-    error_logger.error("%s", data["error"], exc_info=True)
-    msg.error(request, data["error"], "alert-danger")
+    # BUGFIX: Use correct key 'errors' instead of 'error'
+    error_logger.error("%s", data["errors"], exc_info=True)
+    msg.error(request, data["errors"], "alert-danger")
     return rp.JsonResponse(data, status=404)
 
 
@@ -235,7 +242,9 @@ def render_form_for_delete(request, params, master=False):
     except RestrictedError:
         return handle_RestrictedError(request)
     except (DatabaseError, IntegrityError, ObjectDoesNotExist):
-        return handle_Exception(request, params)
+        # BUGFIX: Remove params argument - handle_Exception expects (request, force_return=None)
+        # Passing params (a dict) as force_return would return dict instead of HttpResponse
+        return handle_Exception(request)
 
 
 def handle_RestrictedError(request):

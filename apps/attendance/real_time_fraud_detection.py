@@ -3,13 +3,20 @@ Real-Time Fraud Detection System for YOUTILITY5
 Advanced AI-powered fraud detection with immediate response capabilities
 """
 
+from __future__ import annotations
+
 import logging
 import asyncio
 from enum import Enum
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Dict, Any
+
 from django.utils import timezone
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 
 from apps.attendance.models import PeopleEventlog
-)
 logger = logging.getLogger(__name__)
 
 

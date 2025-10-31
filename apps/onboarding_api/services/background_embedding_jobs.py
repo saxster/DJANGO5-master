@@ -5,6 +5,7 @@ Provides automated, scheduled embedding generation for knowledge base documents
 with chunk-level caching and production-grade error handling.
 """
 import logging
+from typing import Dict, Any
 from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
@@ -12,8 +13,11 @@ from django.db import transaction
 from apps.onboarding.models import (
     AuthoritativeKnowledge,
     AuthoritativeKnowledgeChunk,
-    KnowledgeIngestionJob
+    KnowledgeIngestionJob,
 )
+
+# Sprint 3: KnowledgeIngestionJob model now implemented ✅
+# Stub class removed - using real model from apps.onboarding.models
 
 logger = logging.getLogger(__name__)
 

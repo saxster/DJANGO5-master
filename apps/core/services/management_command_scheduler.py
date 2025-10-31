@@ -68,6 +68,10 @@ class ManagementCommandScheduler(BaseService):
         super().__init__()
         self._active_processes = {}
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "ManagementCommandScheduler"
+
     def execute_job(
         self,
         job_definition: CronJobDefinition,

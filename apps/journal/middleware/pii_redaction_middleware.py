@@ -45,7 +45,6 @@ class JournalPIIRedactionMiddleware(MiddlewareMixin):
         '/journal/',
         '/api/journal/',
         '/api/v1/journal/',
-        '/graphql/',  # May include journal queries
     ]
 
     # Fields that are ALWAYS redacted for non-owners

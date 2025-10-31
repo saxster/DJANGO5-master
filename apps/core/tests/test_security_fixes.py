@@ -13,15 +13,20 @@ Enhanced to test:
 import os
 import logging
 import pytest
+from unittest.mock import patch, Mock
+from django.test import TestCase, RequestFactory
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from apps.peoples.models import People, SecureString
 
 # Import our new security enhancements
-from apps.core.xss_protection import XSSProtectionMiddleware
-    QueryAnalyzer, CommonOptimizations
+from apps.core.xss_protection import (
+    XSSProtectionMiddleware,
+    QueryAnalyzer,
+    CommonOptimizations,
 )
+from apps.core.decorators import atomic_task
 
 
 class SecurityFixesTestCase(TestCase):

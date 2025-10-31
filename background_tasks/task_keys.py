@@ -124,46 +124,6 @@ def report_generation_key(
     return f"report:{report_name}:{params_hash}:U{user_id}:{format}"
 
 
-def graphql_mutation_key(
-    mutation_name: str,
-    variables: Dict[str, Any],
-    user_id: int,
-    timestamp_window: Optional[datetime] = None
-) -> str:
-    """
-    Unique key for GraphQL mutation operations.
-
-    Ensures: One mutation per variables per user per time window
-
-    Args:
-        mutation_name: GraphQL mutation name
-        variables: Mutation variables
-        user_id: User executing mutation
-        timestamp_window: Optional timestamp rounded to minute (for deduplication window)
-
-    Returns:
-        Idempotency key
-
-    Example:
-        key = graphql_mutation_key(
-            'createJob',
-            {'jobName': 'Test Job', 'siteId': 5},
-            user_id=789
-        )
-    """
-    # Hash variables for deterministic key
-    variables_str = json.dumps(variables, sort_keys=True, default=str)
-    variables_hash = hashlib.sha256(variables_str.encode()).hexdigest()[:16]
-
-    # Optional time window for short-term deduplication
-    time_part = ''
-    if timestamp_window:
-        # Round to nearest minute for 1-minute deduplication window
-        time_part = f":{timestamp_window.strftime('%Y%m%d%H%M')}"
-
-    return f"mutation:{mutation_name}:{variables_hash}:U{user_id}{time_part}"
-
-
 def bulk_insert_key(
     table_name: str,
     record_uuids: list,

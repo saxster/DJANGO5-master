@@ -6,7 +6,7 @@ import django.core.validators
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('streamlab', '0007_add_performance_indexes'),
+        ('streamlab', '0001_initial'),
     ]
 
     operations = [

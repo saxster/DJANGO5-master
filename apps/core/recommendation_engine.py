@@ -1,13 +1,25 @@
 """
 Advanced recommendation engine for intelligent navigation and content suggestions
 """
+import logging
+from collections import defaultdict
+from datetime import timedelta
+from typing import List, Dict, Tuple
+
 import numpy as np
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 
 from apps.core.models.heatmap import HeatmapSession, ClickHeatmap, ScrollHeatmap
-    UserBehaviorProfile, NavigationRecommendation, ContentRecommendation,
-    UserSimilarity, RecommendationFeedback
+from apps.core.models.recommendation import (
+    UserBehaviorProfile,
+    NavigationRecommendation,
+    ContentRecommendation,
+    UserSimilarity,
+    RecommendationFeedback,
 )
 from apps.ab_testing.models import Experiment, Assignment, Conversion
 

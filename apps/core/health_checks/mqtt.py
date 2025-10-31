@@ -72,7 +72,7 @@ def check_mqtt_broker() -> Dict[str, Any]:
             finally:
                 try:
                     test_client.disconnect()
-                except:
+                except (ValueError, TypeError, AttributeError) as e:
                     pass
 
             if not connection_result.get("connected"):

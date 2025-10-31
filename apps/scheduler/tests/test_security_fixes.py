@@ -11,7 +11,7 @@ import json
 from django.test import TestCase, Client, RequestFactory
 from django.urls import reverse
 
-from apps.schedhuler.forms import SchdITourFormJob, SchdETourFormJob, SchdTaskFormJob
+from apps.scheduler.forms import SchdITourFormJob, SchdETourFormJob, SchdTaskFormJob
 from apps.activity.models.asset_model import Asset
 from apps.peoples.models import People
 
@@ -58,7 +58,7 @@ class SecurityFixesTestCase(TestCase):
 
     def test_delete_checkpoint_requires_post(self):
         """Test that deleteChekpointFromTour only accepts POST requests."""
-        url = reverse('schedhuler:delete_checkpointTour')
+        url = reverse('scheduler:delete_checkpointTour')
 
         # Test GET request is rejected
         response = self.client.get(url, {
@@ -75,10 +75,10 @@ class SecurityFixesTestCase(TestCase):
     def test_delete_checkpoint_with_post(self):
         """Test that deleteChekpointFromTour works with POST and proper data."""
         self.client.login(email='test@example.com', password='testpass123')
-        url = reverse('schedhuler:delete_checkpointTour')
+        url = reverse('scheduler:delete_checkpointTour')
 
         # Mock the delete functions to avoid actual deletion
-        with patch('apps.schedhuler.utils.delete_from_job') as mock_delete:
+        with patch('apps.scheduler.utils.delete_from_job') as mock_delete:
             mock_delete.return_value = None
 
             response = self.client.post(url, {
@@ -97,7 +97,7 @@ class SecurityFixesTestCase(TestCase):
         """Test CSRF protection on delete endpoints."""
         # This test verifies that Django's CSRF middleware is working
         # The actual CSRF token validation is handled by Django middleware
-        url = reverse('schedhuler:delete_checkpointTour')
+        url = reverse('scheduler:delete_checkpointTour')
 
         # Without CSRF token, request should be rejected by middleware
         response = self.client.post(url, {
@@ -211,11 +211,11 @@ class SecurityFixesTestCase(TestCase):
     def test_delete_with_restricted_error(self):
         """Test delete endpoint handles RestrictedError properly."""
         self.client.login(email='test@example.com', password='testpass123')
-        url = reverse('schedhuler:delete_checkpointTour')
+        url = reverse('scheduler:delete_checkpointTour')
 
         # Mock the delete function to raise RestrictedError
         from django.db.models.deletion import RestrictedError
-        with patch('apps.schedhuler.utils.delete_from_job') as mock_delete:
+        with patch('apps.scheduler.utils.delete_from_job') as mock_delete:
             mock_delete.side_effect = RestrictedError("Cannot delete", None)
 
             response = self.client.post(url, {
@@ -232,10 +232,10 @@ class SecurityFixesTestCase(TestCase):
     def test_delete_with_general_exception(self):
         """Test delete endpoint handles general exceptions properly."""
         self.client.login(email='test@example.com', password='testpass123')
-        url = reverse('schedhuler:delete_checkpointTour')
+        url = reverse('scheduler:delete_checkpointTour')
 
         # Mock the delete function to raise a general exception
-        with patch('apps.schedhuler.utils.delete_from_job') as mock_delete:
+        with patch('apps.scheduler.utils.delete_from_job') as mock_delete:
             mock_delete.side_effect = Exception("Database error")
 
             response = self.client.post(url, {
@@ -252,10 +252,10 @@ class SecurityFixesTestCase(TestCase):
     def test_delete_jobneed_datasource(self):
         """Test delete endpoint works with jobneed datasource."""
         self.client.login(email='test@example.com', password='testpass123')
-        url = reverse('schedhuler:delete_checkpointTour')
+        url = reverse('scheduler:delete_checkpointTour')
 
         # Mock the delete function for jobneed
-        with patch('apps.schedhuler.utils.delete_from_jobneed') as mock_delete:
+        with patch('apps.scheduler.utils.delete_from_jobneed') as mock_delete:
             mock_delete.return_value = None
 
             response = self.client.post(url, {

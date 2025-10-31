@@ -45,7 +45,7 @@ External Tour List
     var peopleList = null;
     var ajaxData = {}
     const table_id = '#externaltour_table'
-    const urlname = "{{ url('schedhuler:jobneedexternaltours') }}"
+    const urlname = "{{ url('scheduler:jobneedexternaltours') }}"
 
     //if you want to modifiy here, then modify in custom.js initDateRange also
     var params = null
@@ -156,7 +156,7 @@ External Tour List
                     if(row['jobstatus'] !== 'ASSIGNED'){
                         let lat = coords.split(', ')[0]
                         let lng = coords.split(', ')[1]
-                        return `<a href="{{ url('schedhuler:site_tour_tracking') }}?jobneed_id=${row['id']}" target='_blank'>View on map</a>`
+                        return `<a href="{{ url('scheduler:site_tour_tracking') }}?jobneed_id=${row['id']}" target='_blank'>View on map</a>`
                     }
                     return '--'
                 }

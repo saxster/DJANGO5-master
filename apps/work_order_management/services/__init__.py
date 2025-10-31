@@ -1,13 +1,3 @@
-"""
-Work Order Management Services Package
-
-This package contains service classes for managing work order operations
-in a secure, maintainable way following separation of concerns principles.
-
-Service Classes:
-- WorkOrderService: Work order lifecycle, status management, and approval workflows
-"""
-
 from .work_order_service import (
     WorkOrderService,
     WorkOrderData,
@@ -17,6 +7,7 @@ from .work_order_service import (
     WorkOrderStatus,
     WorkOrderPriority
 )
+from .work_permit_service import WorkPermitService
 
 __all__ = [
     'WorkOrderService',
@@ -26,4 +17,25 @@ __all__ = [
     'WorkOrderMetrics',
     'WorkOrderStatus',
     'WorkOrderPriority',
+    'WorkPermitService',
 ]
+
+# Import from parent services.py module (not this package) for backward compatibility
+try:
+    # Need to import from parent services.py file
+    import sys
+    import os
+    import importlib.util
+    
+    # Get path to sibling services.py file (not this __init__.py)
+    services_file = os.path.join(os.path.dirname(__file__), '..', 'services.py')
+    if os.path.exists(services_file):
+        spec = importlib.util.spec_from_file_location("wom_services_legacy", services_file)
+        legacy_services = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(legacy_services)
+        
+        if hasattr(legacy_services, 'WorkOrderQueryOptimizer'):
+            WorkOrderQueryOptimizer = legacy_services.WorkOrderQueryOptimizer
+            __all__.append('WorkOrderQueryOptimizer')
+except (ImportError, AttributeError, OSError):
+    pass

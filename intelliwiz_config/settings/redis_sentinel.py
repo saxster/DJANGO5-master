@@ -27,11 +27,17 @@ env = environ.Env()
 
 def get_sentinel_settings() -> Dict[str, Any]:
     """
-    Get Redis Sentinel configuration from environment.
+    Get Redis Sentinel configuration from environment with TLS/SSL support.
 
     Returns:
-        Dictionary with Sentinel connection settings
+        Dictionary with Sentinel connection settings (including TLS config if enabled)
     """
+    # Import TLS configuration from redis_optimized
+    from .redis_optimized import get_redis_tls_config
+
+    # Detect environment
+    environment = env('DJANGO_ENVIRONMENT', default='production')
+
     # Sentinel nodes configuration
     sentinel_hosts = [
         (env('SENTINEL_1_IP', default='127.0.0.1'), env.int('SENTINEL_1_PORT', default=26379)),
@@ -48,27 +54,42 @@ def get_sentinel_settings() -> Dict[str, Any]:
     # Redis authentication
     redis_password = env('REDIS_PASSWORD', default=None)
 
+    # Get TLS configuration (for PCI DSS compliance)
+    tls_config = get_redis_tls_config(environment)
+
+    # Base sentinel kwargs
+    sentinel_kwargs = {
+        'password': sentinel_password,
+        'socket_timeout': 5.0,
+        'socket_connect_timeout': 5.0,
+    }
+
+    # Base redis kwargs
+    redis_kwargs = {
+        'password': redis_password,
+        'socket_timeout': 5.0,
+        'socket_connect_timeout': 5.0,
+        'socket_keepalive': True,
+        'socket_keepalive_options': {
+            'TCP_KEEPIDLE': 1,
+            'TCP_KEEPINTVL': 3,
+            'TCP_KEEPCNT': 5,
+        },
+        'retry_on_timeout': True,
+        'health_check_interval': 30,
+    }
+
+    # Add TLS configuration to both Sentinel and Redis connections
+    if tls_config:
+        sentinel_kwargs.update(tls_config)
+        redis_kwargs.update(tls_config)
+        logger.info(f"Sentinel TLS/SSL enabled for {environment} (encrypted connections)")
+
     return {
         'sentinels': sentinel_hosts,
         'service_name': master_name,
-        'sentinel_kwargs': {
-            'password': sentinel_password,
-            'socket_timeout': 5.0,
-            'socket_connect_timeout': 5.0,
-        },
-        'redis_kwargs': {
-            'password': redis_password,
-            'socket_timeout': 5.0,
-            'socket_connect_timeout': 5.0,
-            'socket_keepalive': True,
-            'socket_keepalive_options': {
-                'TCP_KEEPIDLE': 1,
-                'TCP_KEEPINTVL': 3,
-                'TCP_KEEPCNT': 5,
-            },
-            'retry_on_timeout': True,
-            'health_check_interval': 30,
-        }
+        'sentinel_kwargs': sentinel_kwargs,
+        'redis_kwargs': redis_kwargs,
     }
 
 

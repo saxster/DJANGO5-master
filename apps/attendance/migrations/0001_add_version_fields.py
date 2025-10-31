@@ -15,13 +15,23 @@ import concurrency.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('attendance', '__latest__'),  # Replace with actual latest migration
+        ('attendance', '0011_add_mobile_sync_fields'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='peopleeventlog',
-            name='version',
-            field=concurrency.fields.IntegerVersionField(default=0, help_text='Version number for optimistic locking'),
+        # Note: Make idempotent - version field may already exist from earlier migrations
+        migrations.RunSQL(
+            sql="""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='peopleeventlog' AND column_name='version'
+                ) THEN
+                    ALTER TABLE peopleeventlog ADD COLUMN version INTEGER DEFAULT 0;
+                END IF;
+            END $$;
+            """,
+            reverse_sql="ALTER TABLE peopleeventlog DROP COLUMN IF EXISTS version;"
         ),
     ]

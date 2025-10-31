@@ -1,3 +1,18 @@
+"""
+Onboarding & Site Configuration Serializers
+
+Serializers for business units, shifts, geofences, and type assists (master data).
+
+Ontology: data_contract=True, api_layer=True, validation_rules=True
+Category: serializers, api, onboarding, master_data
+Domain: site_onboarding, business_unit_management, shift_scheduling, geofencing
+Responsibility: Serialize/validate site setup data; XSS protection; code uniqueness validation
+Dependencies: onboarding.models, core.serializers (ValidatedModelSerializer)
+Security: XSS sanitization, code field validation, SQL injection prevention
+Validation: Business unit code uniqueness, shift time logic, geofence completeness
+API: REST v1 /api/v1/onboarding/*, site setup flows
+"""
+
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Bt, Shift, TypeAssist, GeofenceMaster
@@ -17,11 +32,34 @@ class BtSerializers(ValidatedModelSerializer):
     Secure Bt (Business Unit/Site) serializer with comprehensive validation.
 
     Compliance with Rule #13: Form Validation Requirements
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Business unit/site master data with hierarchical relationships
+    Inherits: ValidatedModelSerializer (XSS protection, code/name validation)
+    Fields: 21 fields (bucode, buname, parent, GPS, preferences)
+    Read-Only: id, timestamps
+    Security: XSS protection on buname/address; code uniqueness validation
+    Validation Rules:
+      - bucode: Required, alphanumeric, unique, validated via validate_code_field()
+      - buname: Required, XSS-sanitized, validated via validate_name_field()
+      - permissibledistance: Must be positive (geofence radius in meters)
+      - parent: Cannot have same code as child (prevents circular references)
+      - gpslocation: Validated when gpsenable=true
+    Hierarchy: parent FK for client-site relationships
+    Use Case: Site onboarding, org structure setup, mobile site sync
     """
 
     xss_protect_fields = ['buname', 'address']
     code_fields = ['bucode']
     name_fields = ['buname']
+    address = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    permissibledistance = serializers.FloatField(allow_null=True, required=False)
+    client = serializers.PrimaryKeyRelatedField(
+        source='parent',
+        queryset=Bt.objects.all(),
+        allow_null=True,
+        required=False
+    )
 
     class Meta:
         model = Bt
@@ -115,6 +153,18 @@ class BtSerializers(ValidatedModelSerializer):
 class ShiftSerializers(ValidatedModelSerializer):
     """
     Secure Shift serializer with comprehensive validation.
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Shift schedule definitions for staffing requirements
+    Inherits: ValidatedModelSerializer (XSS protection)
+    Fields: 14 fields (shiftname, start/end times, duration, night shift)
+    Read-Only: id, timestamps, shiftduration (computed)
+    Validation Rules:
+      - shiftname: Required, XSS-sanitized
+      - peoplecount: Must be >= 1
+      - starttime/endtime: Supports midnight-spanning shifts
+    Business Logic: Night shift detection for differential pay
+    Use Case: Shift template management, roster scheduling
     """
 
     xss_protect_fields = ['shiftname']
@@ -133,7 +183,6 @@ class ShiftSerializers(ValidatedModelSerializer):
             'captchafreq',
             'peoplecount',
             'shift_data',
-            'overtime',
             'bu',
             'client',
             'enable',
@@ -157,19 +206,12 @@ class ShiftSerializers(ValidatedModelSerializer):
             raise serializers.ValidationError("People count must be at least 1")
         return value
 
-    def validate_overtime(self, value):
-        """Validate overtime is not negative."""
-        if value is not None and value < 0:
-            raise serializers.ValidationError("Overtime cannot be negative")
-        return value
-
     def validate(self, attrs):
         """Cross-field validation."""
         attrs = super().validate(attrs)
 
         starttime = attrs.get('starttime')
         endtime = attrs.get('endtime')
-        overtime = attrs.get('overtime')
         shiftduration = attrs.get('shiftduration')
 
         if starttime and endtime:
@@ -179,19 +221,24 @@ class ShiftSerializers(ValidatedModelSerializer):
                 if not (isinstance(endtime, datetime) and endtime > starttime):
                     logger.info("Shift spans midnight")
 
-        if overtime and shiftduration:
-            shift_hours = shiftduration / 60
-            if overtime > shift_hours:
-                raise serializers.ValidationError(
-                    "Overtime hours cannot exceed shift duration"
-                )
-
         return attrs
 
 
 class TypeAssistSerializers(ValidatedModelSerializer):
     """
     Secure TypeAssist serializer with comprehensive validation.
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Master data for types (job types, asset types, question types, etc.)
+    Inherits: ValidatedModelSerializer (XSS protection, code validation)
+    Fields: 10 fields (tacode, taname, tatype)
+    Read-Only: id, timestamps
+    Validation Rules:
+      - tacode: Required, max 25 chars, validated via validate_code_field()
+      - taname: Required, XSS-sanitized
+      - tacode+tatype: Must be unique combination
+    Use Case: Dropdown options, type definitions, mobile picklists
+    Domain: Supports multiple type categories (job, asset, question, etc.)
     """
 
     xss_protect_fields = ['taname']
@@ -205,7 +252,6 @@ class TypeAssistSerializers(ValidatedModelSerializer):
             'tacode',
             'taname',
             'tatype',
-            'sortorder',
             'enable',
             'bu',
             'client',
@@ -263,6 +309,19 @@ class TypeAssistSerializers(ValidatedModelSerializer):
 class GeofenceMasterSerializers(ValidatedModelSerializer):
     """
     Secure GeofenceMaster serializer with comprehensive validation.
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Geofence alert configuration (deprecated in favor of attendance.Geofence)
+    Inherits: ValidatedModelSerializer (XSS protection, code validation)
+    Fields: 11 fields (gfcode, gfname, alert config)
+    Read-Only: id, timestamps
+    Validation Rules:
+      - gfcode: Required, unique, validated via validate_code_field()
+      - gfname: Required, XSS-sanitized
+      - alerttext: Required, non-empty
+      - alerttopeople OR alerttogroup: At least one must be specified
+    Use Case: Geofence breach alerts, security notifications
+    Status: Legacy model (attendance.Geofence preferred for new implementations)
     """
 
     xss_protect_fields = ['gfname', 'alerttext']

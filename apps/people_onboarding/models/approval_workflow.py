@@ -109,7 +109,7 @@ class ApprovalWorkflow(EnhancedTenantModel):
         indexes = [
             models.Index(fields=['onboarding_request', 'sequence_number']),
             models.Index(fields=['approver', 'decision']),
-            models.Index(fields=['decision', 'cdtz']),
+            models.Index(fields=['decision', 'created_at']),
         ]
         constraints = [
             models.UniqueConstraint(

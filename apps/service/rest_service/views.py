@@ -21,6 +21,11 @@ from apps.onboarding import models as ob_models
 from apps.activity import models as act_models
 from apps.attendance.models import PeopleEventlog
 
+# Add Job and Jobneed to act_models namespace (they're in job_model submodule)
+from apps.activity.models.job_model import Job, Jobneed
+act_models.Job = Job
+act_models.Jobneed = Jobneed
+
 
 class PeopleViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     """

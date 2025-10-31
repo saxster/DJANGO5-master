@@ -20,7 +20,7 @@ from .views import (
 )
 
 # Import wisdom conversation views
-from .views.wisdom_conversation_views import (
+from .views_extra.wisdom_conversation_views import (
     conversations_with_wisdom_view,
     toggle_conversation_bookmark,
     track_conversation_engagement,
@@ -31,7 +31,7 @@ from .views.wisdom_conversation_views import (
 )
 
 # Import translation API views
-from .views.translation_api_views import (
+from .views_extra.translation_api_views import (
     translate_conversation,
     get_supported_languages,
     get_translation_status,

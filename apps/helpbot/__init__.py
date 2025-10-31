@@ -14,6 +14,4 @@ Features:
 - Analytics and continuous improvement through user feedback
 """
 
-default_app_config = 'apps.helpbot.apps.HelpBotConfig'
-
 __version__ = '1.0.0'

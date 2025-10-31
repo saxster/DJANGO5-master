@@ -1,0 +1,121 @@
+{% comment %}
+KPI Card Component
+==================
+Reusable card for displaying key performance indicators with RAG status,
+trend information, and interactive elements.
+
+Usage:
+  {% include "components/kpi_card.html" with
+    title="Attendance"
+    value="87%"
+    label="Compliance Rate"
+    status="green"
+    trend_direction="up"
+    trend_text="+5% from yesterday"
+    metric_name="attendance"
+    link_url="/attendance/exceptions/"
+    link_text="View Details"
+  %}
+
+Parameters:
+  - title: Card title (required)
+  - value: Main metric value (required)
+  - label: Description of the value (required)
+  - sublabel: Additional description (optional)
+  - status: RAG status - "green", "amber", "red", "blue", "gray" (default: "blue")
+  - trend_direction: "up", "down", "neutral" (optional)
+  - trend_text: Trend description (optional)
+  - metric_name: Identifier for JavaScript updates (required for auto-refresh)
+  - link_url: URL for "View Details" link (optional)
+  - link_text: Text for link (default: "View Details")
+  - clickable: Make entire card clickable (default: true)
+  - compact: Use compact variant (default: false)
+  - badge_text: Show badge in top-right (optional)
+  - badge_type: "new", "alert" (default: "alert")
+  - sparkline_data: Array of values for sparkline chart (optional)
+  - icon: Material icon name for icon variant (optional)
+{% endcomment %}
+
+{% if not status %}{% set status = "blue" %}{% endif %}
+{% if clickable is none %}{% set clickable = true %}{% endif %}
+{% if compact is none %}{% set compact = false %}{% endif %}
+{% if not link_text %}{% set link_text = "View Details" %}{% endif %}
+
+<div
+  class="kpi-card {% if icon %}kpi-card--icon{% endif %} {% if compact %}kpi-card--compact{% endif %}"
+  data-status="{{ status }}"
+  data-metric="{{ metric_name }}"
+  data-clickable="{{ clickable|lower }}"
+  {% if link_url and clickable %}onclick="window.location.href='{{ link_url }}'"{% endif %}
+  role="article"
+  aria-label="{{ title }}: {{ value }}"
+>
+  {# Badge (optional) #}
+  {% if badge_text %}
+    <span class="kpi-card__badge {% if badge_type %}kpi-card__badge--{{ badge_type }}{% endif %}">
+      {{ badge_text }}
+    </span>
+  {% endif %}
+
+  {# Icon variant #}
+  {% if icon %}
+    <div class="kpi-card__icon">
+      <span class="material-icons">{{ icon }}</span>
+    </div>
+  {% endif %}
+
+  <div class="kpi-card__content" style="{% if icon %}flex: 1;{% endif %}">
+    {# Header #}
+    <div class="kpi-card__header">
+      <h3 class="kpi-card__title">{{ title }}</h3>
+      {% if not clickable %}
+        <button class="kpi-card__action-btn" aria-label="More actions" data-metric="{{ metric_name }}">
+          ⋮
+        </button>
+      {% endif %}
+    </div>
+
+    {# Body #}
+    <div class="kpi-card__body">
+      <div class="kpi-card__value" data-value="{{ value }}">
+        {{ value }}
+      </div>
+      <div class="kpi-card__label">{{ label }}</div>
+      {% if sublabel %}
+        <div class="kpi-card__sublabel">{{ sublabel }}</div>
+      {% endif %}
+
+      {# Sparkline (optional) #}
+      {% if sparkline_data %}
+        <div class="kpi-card__sparkline" id="sparkline-{{ metric_name }}" data-sparkline="{{ sparkline_data|tojson }}"></div>
+      {% endif %}
+    </div>
+
+    {# Footer #}
+    <div class="kpi-card__footer">
+      {# Trend indicator #}
+      {% if trend_direction and trend_text %}
+        <div class="kpi-card__trend kpi-card__trend--{{ trend_direction }}">
+          {% if trend_direction == "up" %}
+            <span class="material-icons">trending_up</span>
+          {% elif trend_direction == "down" %}
+            <span class="material-icons">trending_down</span>
+          {% else %}
+            <span class="material-icons">trending_flat</span>
+          {% endif %}
+          <span>{{ trend_text }}</span>
+        </div>
+      {% else %}
+        <div></div>
+      {% endif %}
+
+      {# Link #}
+      {% if link_url and not clickable %}
+        <a href="{{ link_url }}" class="kpi-card__link" onclick="event.stopPropagation();">
+          {{ link_text }}
+          <span class="material-icons">arrow_forward</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>

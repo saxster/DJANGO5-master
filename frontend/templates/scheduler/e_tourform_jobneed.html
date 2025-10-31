@@ -10,7 +10,7 @@
 {% block pagebreadcumb %}
 <!--will call parent contents -->
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('schedhuler:jobneedexternaltours') }}?template=true" class="pe-3">Tours</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('scheduler:jobneedexternaltours') }}?template=true" class="pe-3">Tours</a></li>
 <li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">External Tour Form</a></li>
 {% endblock pagebreadcumb %}
 <!-------------------------- END PAGE BREADCUMB ------------------------->
@@ -429,7 +429,7 @@ var israndom = "{{ externaltourform.instance.other_info['is_randomized'] }}";
         //Datatable
         asgdsites_table = $("#external_tour").DataTable({
             ajax:{
-                url:"{{ url('schedhuler:jobneedexternaltours') }}?action=checkpoints&parent_id={{ externaltourform.instance.id }}"},
+                url:"{{ url('scheduler:jobneedexternaltours') }}?action=checkpoints&parent_id={{ externaltourform.instance.id }}"},
             columns:[
                 {data:"id", title:'id',visible:false},
                 {data:"seqno", title:'Slno'},
@@ -535,7 +535,7 @@ var israndom = "{{ externaltourform.instance.other_info['is_randomized'] }}";
             checklistdetails = $("#tabChecklistDetails").DataTable(
             {
                 ajax:{
-                    url:`{{ url("schedhuler:jobneedexternaltours") }}`,
+                    url:`{{ url("scheduler:jobneedexternaltours") }}`,
                     data:function(d){
                     return  $.extend(d, ajaxData);
                     }
@@ -581,7 +581,7 @@ var israndom = "{{ externaltourform.instance.other_info['is_randomized'] }}";
                 attachmentDetails = $("#tabAttachmentDetails").DataTable(
                 {
                     ajax:{
-                        url:`{{ url("schedhuler:jobneedexternaltours") }}`,
+                        url:`{{ url("scheduler:jobneedexternaltours") }}`,
                         data:function(d){
                         return  $.extend(d, ajaxData);
                         }

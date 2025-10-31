@@ -14,8 +14,10 @@ from django.utils.decorators import method_decorator
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.utils import timezone
-from django.shortcuts import redirect
-from django.http import Http404
+from django.shortcuts import redirect, render
+from django.http import Http404, JsonResponse
+from django.db import models, DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 
 from apps.core.decorators import csrf_protect_ajax, rate_limit
 from apps.core.recommendation_engine import RecommendationEngine

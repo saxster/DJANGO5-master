@@ -16,14 +16,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Add PreferenceProfile model
+        # Add PreferenceProfile model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='PreferenceProfile',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('profile_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Created')),
                 ('mdtz', models.DateTimeField(auto_now=True, db_index=True, verbose_name='Modified')),
-                ('profile_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('preference_vector', django.contrib.postgres.fields.ArrayField(
                     base_field=models.FloatField(), blank=True, help_text='Vector embedding of user preferences',
                     null=True, size=128, verbose_name='Preference Vector'
@@ -57,14 +56,13 @@ class Migration(migrations.Migration):
             },
         ),
 
-        # Add RecommendationInteraction model
+        # Add RecommendationInteraction model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='RecommendationInteraction',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('interaction_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Created')),
                 ('mdtz', models.DateTimeField(auto_now=True, db_index=True, verbose_name='Modified')),
-                ('interaction_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('event_type', models.CharField(
                     choices=[
                         ('viewed', 'Viewed'), ('clicked_detail', 'Clicked Detail'), ('approved', 'Approved'),
@@ -97,14 +95,13 @@ class Migration(migrations.Migration):
             },
         ),
 
-        # Add Experiment model
+        # Add Experiment model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='Experiment',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('experiment_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Created')),
                 ('mdtz', models.DateTimeField(auto_now=True, db_index=True, verbose_name='Modified')),
-                ('experiment_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('name', models.CharField(
                     help_text='Human-readable experiment name', max_length=200, verbose_name='Experiment Name'
                 )),
@@ -164,14 +161,13 @@ class Migration(migrations.Migration):
             },
         ),
 
-        # Add ExperimentAssignment model
+        # Add ExperimentAssignment model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='ExperimentAssignment',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('assignment_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Created')),
                 ('mdtz', models.DateTimeField(auto_now=True, db_index=True, verbose_name='Modified')),
-                ('assignment_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('arm', models.CharField(
                     help_text='Which arm/variant this user/client is assigned to', max_length=50,
                     verbose_name='Experiment Arm'

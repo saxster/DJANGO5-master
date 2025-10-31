@@ -7,6 +7,9 @@ import hashlib
 import json
 import re
 import logging
+from typing import Dict, Any, List, Optional
+from datetime import datetime
+from django.conf import settings
 
 logger = logging.getLogger('streamlab.pii')
 
@@ -42,6 +45,23 @@ class PIIRedactor:
         'mqtt_meta': [
             'topic', 'qos', 'retain', 'message_size',
             'timestamp', 'broker_timestamp'
+        ],
+        # LLM logs (Sprint 10.1 - Data Privacy Extension)
+        'llm_prompt': [
+            'prompt_length', 'model', 'provider', 'timestamp',
+            'operation', 'language', 'token_count'
+        ],
+        'llm_response': [
+            'response_length', 'model', 'provider', 'timestamp',
+            'confidence_score', 'token_count', 'latency_ms', 'cost_usd'
+        ],
+        'llm_usage_log': [
+            'provider', 'operation', 'input_tokens', 'output_tokens',
+            'cost_usd', 'latency_ms', 'created_at', 'model'
+        ],
+        'recommendation_trace': [
+            'recommendation_id', 'operation', 'timestamp',
+            'confidence_score', 'status', 'maker_model', 'checker_model'
         ]
     }
 
@@ -290,13 +310,17 @@ class PIIRedactor:
         return hashlib.sha256(schema_json.encode()).hexdigest()[:16]
 
     def get_retention_category(self, data_type: str) -> str:
-        """Determine retention category for data type"""
+        """Determine retention category for data type (Sprint 10 enhanced)."""
         if data_type in ['voice_data', 'behavioral_data']:
             return 'sanitized_metadata'  # 14 days
         elif data_type in ['websocket_meta', 'mqtt_meta']:
             return 'sanitized_metadata'  # 14 days
         elif data_type == 'metrics':
             return 'aggregated_metrics'  # 90 days
+        elif data_type in ['llm_prompt', 'llm_response', 'recommendation_trace']:
+            return 'llm_interaction_logs'  # 30 days (Sprint 10.1)
+        elif data_type == 'llm_usage_log':
+            return 'usage_analytics'  # 90 days (cost tracking)
         else:
             return 'sanitized_metadata'  # Default to 14 days
 

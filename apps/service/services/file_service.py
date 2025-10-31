@@ -37,7 +37,13 @@ import uuid as uuid_module
 
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.service.auth import Messages as AM
-from apps.service.rest_types import ServiceOutputType  # GraphQL types removed Oct 2025
+from apps.service.rest_types import ServiceOutputType  # Legacy query types removed Oct 2025
+from apps.core.services.secure_file_upload_service import (
+    SecureFileUploadService,
+)  # Backward-compat export for REST views
+from apps.core.services.advanced_file_validation_service import (
+    AdvancedFileValidationService,
+)  # Advanced validator re-export
 
 
 log = getLogger("message_q")
@@ -255,8 +261,6 @@ def perform_uploadattachment(file, record, biodata):
     )
 
     try:
-        from apps.core.services.secure_file_upload_service import SecureFileUploadService
-
         if not file or not biodata or not record:
             raise ValidationError("Missing required parameters for file upload")
 

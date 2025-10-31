@@ -1,6 +1,6 @@
 """
 API Versioning Package
-Provides versioning, deprecation, and lifecycle management for REST and GraphQL APIs.
+Provides versioning, deprecation, and lifecycle management for REST and legacy API APIs.
 """
 
 from .exception_handler import versioned_exception_handler

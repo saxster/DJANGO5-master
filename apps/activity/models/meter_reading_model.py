@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
 from django.db import models
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -225,7 +225,7 @@ class MeterReading(BaseModel, TenantAwareModel):
             models.Index(fields=['meter_type', '-reading_timestamp']),
             models.Index(fields=['status', 'is_anomaly']),
             models.Index(fields=['image_hash']),
-            models.Index(fields=['-created_at']),
+            models.Index(fields=['-cdtz']),
         ]
 
     def __str__(self):
@@ -434,11 +434,11 @@ class MeterReadingAlert(BaseModel, TenantAwareModel):
     class Meta(BaseModel.Meta):
         verbose_name = _("Meter Reading Alert")
         verbose_name_plural = _("Meter Reading Alerts")
-        ordering = ['-created_at']
+        ordering = ['-cdtz']
         indexes = [
-            models.Index(fields=['asset', '-created_at']),
+            models.Index(fields=['asset', '-cdtz']),
             models.Index(fields=['alert_type', 'severity']),
-            models.Index(fields=['is_acknowledged', '-created_at']),
+            models.Index(fields=['is_acknowledged', '-cdtz']),
         ]
 
     def __str__(self):

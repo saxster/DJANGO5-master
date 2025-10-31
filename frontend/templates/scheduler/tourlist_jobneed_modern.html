@@ -11,11 +11,11 @@
 		<i class="bi bi-list-ul"></i> List View
 	</a>
 	{% if tour_type == 'External Tour' %}
-	<a href="{{ url('schedhuler:schd_external_tour') }}?action=form" class="btn btn-sm btn-primary">
+	<a href="{{ url('scheduler:schd_external_tour') }}?action=form" class="btn btn-sm btn-primary">
 		<i class="bi bi-plus"></i> Add Route Plan
 	</a>
 	{% else %}
-	<a href="{{ url('schedhuler:schd_internal_tour') }}?action=form" class="btn btn-sm btn-primary">
+	<a href="{{ url('scheduler:schd_internal_tour') }}?action=form" class="btn btn-sm btn-primary">
 		<i class="bi bi-plus"></i> Add Tour
 	</a>
 	{% endif %}
@@ -574,11 +574,11 @@ $(document).ready(function() {
 						<h3>No {{ tour_type|default('Tours', true) }} Found</h3>
 						<p>There are no {{ tour_type|default('tours', true)|lower }} matching your current filters.</p>
 						{% if tour_type == 'External Tour' %}
-						<a href="{{ url('schedhuler:schd_external_tour') }}?action=form" class="btn btn-primary">
+						<a href="{{ url('scheduler:schd_external_tour') }}?action=form" class="btn btn-primary">
 							<i class="bi bi-plus"></i> Create New Route Plan
 						</a>
 						{% else %}
-						<a href="{{ url('schedhuler:schd_internal_tour') }}?action=form" class="btn btn-primary">
+						<a href="{{ url('scheduler:schd_internal_tour') }}?action=form" class="btn btn-primary">
 							<i class="bi bi-plus"></i> Create New Tour
 						</a>
 						{% endif %}

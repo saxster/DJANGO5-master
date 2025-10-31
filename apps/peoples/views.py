@@ -15,18 +15,12 @@ For new code, prefer importing from views/ submodules directly:
 """
 
 import warnings
-from .views import (
-    SignIn,
-    SignOut,
-    PeopleView,
-    Capability,
-    PeopleGroup,
-    SiteGroup,
-    ChangePeoplePassword,
-    EmailVerificationView,
-    NoSite
-)
-from .views.utility_views import EmailVerificationView
+from .views.auth_views import SignIn, SignOut
+from .views.people_views import PeopleView
+from .views.capability_views import Capability
+from .views.group_views import PeopleGroup
+from .views.site_group_views import SiteGroup
+from .views.utility_views import ChangePeoplePassword, EmailVerificationView, NoSite
 
 def verifyemail(request):
     """
@@ -43,15 +37,6 @@ def verifyemail(request):
     return view(request)
 
 
-def delete_master(request, params):
-    """
-    Placeholder function - not implemented in original code.
-
-    Raises NotImplementedError as per original implementation.
-    """
-    raise NotImplementedError()
-
-
 __all__ = [
     'SignIn',
     'SignOut',
@@ -60,7 +45,7 @@ __all__ = [
     'PeopleGroup',
     'SiteGroup',
     'ChangePeoplePassword',
+    'EmailVerificationView',
     'NoSite',
     'verifyemail',
-    'delete_master',
 ]

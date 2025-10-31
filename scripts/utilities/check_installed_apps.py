@@ -8,7 +8,7 @@ import sys
 
 # Setup Django environment
 sys.path.insert(0, '/home/jarvis/DJANGO5/YOUTILITY5')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.development')
 
 try:
     django.setup()

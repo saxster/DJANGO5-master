@@ -3,7 +3,10 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
 from django.contrib import messages
 from widget_tweaks.templatetags import widget_tweaks as wt
-from datetime import  datetime, timedelta
+from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 
 def linebreaks(val):
     val = val.replace('\n', '<br>')
@@ -13,7 +16,7 @@ def custom_zip(list1, list2):
     return zip(list1,list2)
 
 def debug(info):
-    print("Printing=============", info)
+    logger.debug(f"Template debug: {info}")
 
 def to_local(val):
     from django.utils.timezone import get_current_timezone

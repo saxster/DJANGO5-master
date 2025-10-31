@@ -75,11 +75,15 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from concurrency.fields import VersionField
+from apps.ontology import ontology
 
-from apps.activity.managers.job_manager import (
+# Updated import path after job_manager.py refactoring (2025-10-10)
+# Original: from apps.activity.managers.job_manager import ...
+# New: Use modular job managers structure (3 focused files)
+from apps.activity.managers.job import (
     JobManager,
-    JobneedDetailsManager,
     JobneedManager,
+    JobneedDetailsManager,
 )
 from apps.peoples.models import BaseModel
 from apps.tenants.models import TenantAwareModel
@@ -108,6 +112,127 @@ def geojson_jobnjobneed():
     return {"gpslocation": ""}
 
 
+@ontology(
+    domain="operations",
+    concept="Work Template & Execution State Machine",
+    purpose=(
+        "Core work template model representing recurring or scheduled facility operations "
+        "(tasks, tours, PPM). Generates Jobneed instances for execution. Implements hierarchical "
+        "parent-child relationships for tour checkpoints. State machine with SCHEDULED → INPROGRESS "
+        "→ COMPLETED → CLOSED transitions."
+    ),
+    criticality="critical",
+    state_machine=True,
+    inputs=[
+        {"name": "jobname", "type": "str", "description": "Human-readable job name", "required": True},
+        {"name": "identifier", "type": "TextChoices", "description": "Job type: TASK, TOUR, PPM, TICKET, etc.", "required": True},
+        {"name": "qset", "type": "QuestionSet", "description": "Associated question set for checklist", "foreign_key": True},
+        {"name": "asset", "type": "Asset", "description": "Asset this job operates on", "foreign_key": True},
+        {"name": "parent", "type": "Job", "description": "Parent job for hierarchical tours", "self_referential": True},
+        {"name": "cron_expression", "type": "str", "description": "Cron schedule for recurring jobs"},
+        {"name": "frequency", "type": "TextChoices", "description": "Schedule frequency: DAILY, WEEKLY, MONTHLY, etc."},
+    ],
+    outputs=[
+        {"name": "jobneeds", "type": "QuerySet[Jobneed]", "description": "Generated execution instances via reverse relation"},
+        {"name": "children", "type": "QuerySet[Job]", "description": "Child jobs for tours via reverse relation"},
+    ],
+    side_effects=[
+        "Generates Jobneed instances based on cron schedule via Celery beat tasks",
+        "Creates hierarchical Jobneed chains for parent-child job relationships",
+        "Triggers notifications on job state transitions",
+        "Updates related Asset maintenance schedules",
+        "Logs state transitions to JobWorkflowAuditLog",
+    ],
+    depends_on=[
+        "apps.activity.managers.job.JobManager",
+        "apps.activity.models.question_model.QuestionSet",
+        "apps.activity.models.asset_model.Asset",
+        "apps.activity.models.location_model.Location",
+        "apps.peoples.models.user_model.People",
+        "apps.tenants.models.TenantAwareModel",
+        "apps.core.tasks.celery_beat_integration",
+    ],
+    used_by=[
+        "Jobneed model for execution instances",
+        "Scheduler service for recurring task generation",
+        "Mobile apps for task assignment and execution",
+        "Reports module for completion analytics",
+        "PPM module for preventive maintenance",
+    ],
+    tags=["operations", "state-machine", "scheduling", "hierarchical", "work-template", "critical"],
+    security_notes=(
+        "Multi-tenant isolation:\n"
+        "1. All Job queries filtered by tenant via TenantAwareModel\n"
+        "2. Jobs cannot reference Assets/Locations from other tenants\n"
+        "3. Parent-child relationships must be within same tenant\n"
+        "4. API endpoints enforce tenant-based authorization\n"
+        "5. Celery tasks validate tenant context before job generation"
+    ),
+    performance_notes=(
+        "Optimizations:\n"
+        "- Composite unique constraint on (jobname, asset, qset, parent, identifier, client)\n"
+        "- Indexes on tenant, client, identifier, frequency for scheduler queries\n"
+        "- JobManager.with_full_details() uses select_related for asset/qset/location\n"
+        "- GIS indexes on job_route field for geospatial queries\n"
+        "\nBottlenecks:\n"
+        "- Hierarchical queries for tour parent-child relationships can be slow\n"
+        "- JSONField queries on other_info slower than indexed columns\n"
+        "- Celery beat scheduler overhead for high-frequency jobs (>1000/hour)"
+    ),
+    state_machine_notes=(
+        "State Transitions (via Jobneed model):\n"
+        "1. SCHEDULED: Initial state after generation from Job template\n"
+        "2. INPROGRESS: Worker starts execution (sets starttime)\n"
+        "3. COMPLETED: All JobneedDetails answered (sets endtime)\n"
+        "4. CLOSED: Reviewed and approved (sets closetime)\n"
+        "\nRace Condition Handling:\n"
+        "- Jobneed uses VersionField for optimistic locking\n"
+        "- State transitions validated via JobWorkflowAuditLog\n"
+        "- Concurrent updates trigger RecordModifiedError\n"
+        "- Idempotency keys prevent duplicate Jobneed generation\n"
+        "\nParent-Child Semantics:\n"
+        "- Job.parent=NULL: Root job (tour template)\n"
+        "- Job.parent=Job: Child checkpoint of parent tour\n"
+        "- Jobneed instances inherit parent hierarchy from Job\n"
+        "- Legacy sentinel: parent_id=1 ('NONE') for backward compatibility"
+    ),
+    architecture_notes=(
+        "Domain Model Hierarchy:\n"
+        "Job (Template) → Jobneed (Instance) → JobneedDetails (Checklist)\n"
+        "\nRelationships:\n"
+        "- Job 1:N Jobneed (via related_name='jobs')\n"
+        "- Jobneed 1:N JobneedDetails (via related_name='details')\n"
+        "- Job self-referential parent-child for tours\n"
+        "\nScheduling Flow:\n"
+        "1. Celery beat evaluates Job.cron_expression\n"
+        "2. Creates Jobneed instance with scheduled_time\n"
+        "3. For hierarchical jobs, creates child Jobneed instances\n"
+        "4. Mobile worker receives Jobneed via sync API\n"
+        "5. Worker completes JobneedDetails, updates Jobneed state\n"
+        "\nData Consistency:\n"
+        "- Unique constraint prevents duplicate jobs\n"
+        "- VersionField on Jobneed prevents race conditions\n"
+        "- JobneedDetails has unique (jobneed, question) and (jobneed, seqno)"
+    ),
+    examples=[
+        "# Create daily pump check task\njob = Job.objects.create(\n    jobname='Daily Pump Check',\n    identifier=Job.Identifier.TASK,\n    frequency=Job.Frequency.DAILY,\n    cron_expression='0 10 * * *',\n    qset=question_set,\n    asset=pump_asset\n)",
+        "# Create hierarchical tour\nparent_tour = Job.objects.create(\n    jobname='Building A Tour',\n    identifier=Job.Identifier.INTERNALTOUR,\n    parent=None\n)\nfloor1_checkpoint = Job.objects.create(\n    jobname='Floor 1 Checkpoint',\n    identifier=Job.Identifier.INTERNALTOUR,\n    parent=parent_tour\n)",
+        "# Query root jobs (non-sentinel approach)\nroot_jobs = Job.objects.filter(parent__isnull=True)",
+        "# Get job with full details (optimized)\njob = Job.objects.with_full_details().get(pk=job_id)",
+    ],
+    related_models=[
+        "apps.activity.models.job_model.Jobneed",
+        "apps.activity.models.job_model.JobneedDetails",
+        "apps.activity.models.question_model.QuestionSet",
+        "apps.activity.models.asset_model.Asset",
+    ],
+    api_endpoints=[
+        "GET /api/v1/jobs/ - List jobs (tenant-filtered)",
+        "POST /api/v1/jobs/ - Create job template",
+        "PATCH /api/v1/jobs/{id}/ - Update job",
+        "GET /api/v1/jobs/{id}/jobneeds/ - Get execution instances",
+    ],
+)
 class Job(BaseModel, TenantAwareModel):
     class Identifier(models.TextChoices):
         TASK = ("TASK", "Task")
@@ -277,8 +402,8 @@ class Job(BaseModel, TenantAwareModel):
         verbose_name_plural = "Jobs"
         constraints = [
             models.UniqueConstraint(
-                fields=["jobname", "asset", "qset", "parent", "identifier", "client"],
-                name="jobname_asset_qset_id_parent_identifier_client_uk",
+                fields=["tenant", "jobname", "asset", "qset", "parent", "identifier", "client"],
+                name="tenant_jobname_asset_qset_parent_identifier_client_uk",
             ),
             models.CheckConstraint(
                 condition=models.Q(gracetime__gte=0), name="gracetime_gte_0_ck"
@@ -289,6 +414,11 @@ class Job(BaseModel, TenantAwareModel):
             models.CheckConstraint(
                 condition=models.Q(expirytime__gte=0), name="expirytime_gte_0_ck"
             ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'cdtz'], name='job_tenant_cdtz_idx'),
+            models.Index(fields=['tenant', 'identifier'], name='job_tenant_identifier_idx'),
+            models.Index(fields=['tenant', 'enable'], name='job_tenant_enable_idx'),
         ]
 
     def __str__(self):
@@ -526,6 +656,11 @@ class Jobneed(BaseModel, TenantAwareModel):
                 condition=models.Q(gracetime__gte=0), name="jobneed_gracetime_gte_0_ck"
             ),
         ]
+        indexes = [
+            models.Index(fields=['tenant', 'cdtz'], name='jobneed_tenant_cdtz_idx'),
+            models.Index(fields=['tenant', 'jobstatus'], name='jobneed_tenant_jobstatus_idx'),
+            models.Index(fields=['tenant', 'people'], name='jobneed_tenant_people_idx'),
+        ]
 
     def save(self, *args, **kwargs):
         if self.ticket_id is None:
@@ -639,21 +774,25 @@ class JobneedDetails(BaseModel, TenantAwareModel):
         verbose_name_plural = "Jobneed Details"
         constraints = [
             models.UniqueConstraint(
-                fields=['jobneed', 'question'],
-                name='jobneeddetails_jobneed_question_uk',
+                fields=['tenant', 'jobneed', 'question'],
+                name='tenant_jobneeddetails_jobneed_question_uk',
                 violation_error_message=(
                     "Duplicate question not allowed for the same jobneed. "
                     "Each question can only appear once per jobneed."
                 )
             ),
             models.UniqueConstraint(
-                fields=['jobneed', 'seqno'],
-                name='jobneeddetails_jobneed_seqno_uk',
+                fields=['tenant', 'jobneed', 'seqno'],
+                name='tenant_jobneeddetails_jobneed_seqno_uk',
                 violation_error_message=(
                     "Duplicate sequence number not allowed for the same jobneed. "
                     "Each seqno must be unique within a jobneed."
                 )
             ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'jobneed'], name='jnd_tenant_jobneed_idx'),
+            models.Index(fields=['tenant', 'question'], name='jnd_tenant_question_idx'),
         ]
 
 # Backward compatibility aliases for naming standardization

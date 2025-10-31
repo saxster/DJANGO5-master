@@ -1,5 +1,7 @@
 # Generated migration for adding performance indexes to activity models
 
+from django.db import migrations
+
 
 
 class Migration(migrations.Migration):
@@ -28,8 +30,10 @@ class Migration(migrations.Migration):
             "CREATE INDEX IF NOT EXISTS idx_questionset_type_bu ON questionset (type, bu_id) WHERE enable = true;",
             reverse_sql="DROP INDEX IF EXISTS idx_questionset_type_bu;"
         ),
+        # Note: Removed WHERE clause with CURRENT_TIMESTAMP because it's not IMMUTABLE
+        # Full index on mdtz is acceptable - recently modified records will be at end of B-tree
         migrations.RunSQL(
-            "CREATE INDEX IF NOT EXISTS idx_questionset_modified_recent ON questionset (mdtz) WHERE mdtz >= (CURRENT_TIMESTAMP - INTERVAL '30 days');",
+            "CREATE INDEX IF NOT EXISTS idx_questionset_modified_recent ON questionset (mdtz DESC);",
             reverse_sql="DROP INDEX IF EXISTS idx_questionset_modified_recent;"
         ),
 
@@ -42,10 +46,7 @@ class Migration(migrations.Migration):
             "CREATE INDEX IF NOT EXISTS idx_qsetbelonging_mandatory ON questionsetbelonging (qset_id, ismandatory, seqno) WHERE ismandatory = true;",
             reverse_sql="DROP INDEX IF EXISTS idx_qsetbelonging_mandatory;"
         ),
-        migrations.RunSQL(
-            "CREATE INDEX IF NOT EXISTS idx_qsetbelonging_workflow ON questionsetbelonging (qset_id, isworkflow) WHERE isworkflow = true;",
-            reverse_sql="DROP INDEX IF EXISTS idx_qsetbelonging_workflow;"
-        ),
+        # Note: Removed idx_qsetbelonging_workflow - isworkflow column doesn't exist in QuestionSetBelonging model
 
         # Asset model indexes (for checkpoints)
         migrations.RunSQL(
@@ -75,11 +76,7 @@ class Migration(migrations.Migration):
             reverse_sql="DROP INDEX IF EXISTS idx_location_hierarchy;"
         ),
 
-        # GIN indexes for JSON fields (if using JSONB)
-        migrations.RunSQL(
-            "CREATE INDEX IF NOT EXISTS idx_question_extras_gin ON question USING GIN (question_extras) WHERE question_extras IS NOT NULL;",
-            reverse_sql="DROP INDEX IF EXISTS idx_question_extras_gin;"
-        ),
+        # Note: Removed idx_question_extras_gin - question_extras column doesn't exist in Question model
 
         # Composite indexes for common query patterns
         migrations.RunSQL(

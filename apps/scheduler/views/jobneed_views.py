@@ -17,7 +17,7 @@ from django.views import View
 
 from apps.core.exceptions import ValidationError, DatabaseException
 from apps.activity.models.job_model import Jobneed, JobneedDetails, Job
-from apps.schedhuler.services.jobneed_management_service import JobneedManagementService
+from apps.scheduler.services.jobneed_management_service import JobneedManagementService
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class JobneedTours(LoginRequiredMixin, View):
     """Manage jobneed for internal tours."""
 
-    template_path = "schedhuler/jobneed_tours_management.html"
+    template_path = "scheduler/tourlist_jobneed_modern.html"
     service = JobneedManagementService()
 
     def get(self, request, *args, **kwargs):
@@ -60,7 +60,7 @@ class JobneedTours(LoginRequiredMixin, View):
 class JobneedExternalTours(LoginRequiredMixin, View):
     """Manage jobneed for external tours."""
 
-    template_path = "schedhuler/jobneed_external_tours_management.html"
+    template_path = "scheduler/e_tourlist_jobneed.html"
     service = JobneedManagementService()
 
     def get(self, request, *args, **kwargs):
@@ -93,7 +93,7 @@ class JobneedExternalTours(LoginRequiredMixin, View):
 class JobneedTasks(LoginRequiredMixin, View):
     """Manage jobneed for tasks."""
 
-    template_path = "schedhuler/jobneed_tasks_management.html"
+    template_path = "scheduler/tasklist_jobneed_modern.html"
     service = JobneedManagementService()
 
     def get(self, request, *args, **kwargs):

@@ -29,6 +29,10 @@ class JobneedManagementService(BaseService):
         self.jobneed_model = Jobneed
         self.jnd_model = JobneedDetails
 
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "JobneedManagementService"
+
     def get_jobneed_with_details(self, jobneed_id: int) -> Dict[str, Any]:
         """Get jobneed with its details."""
         try:

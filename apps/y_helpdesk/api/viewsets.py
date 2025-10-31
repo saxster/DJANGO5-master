@@ -9,6 +9,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import viewsets, status
+from apps.ontology.decorators import ontology
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -30,6 +31,35 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="helpdesk",
+    purpose="REST API for help desk ticket management with SLA tracking, escalation, and workflow state transitions",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "TenantIsolationPermission"],
+    rate_limit="100/minute",
+    request_schema="TicketListSerializer|TicketDetailSerializer|TicketTransitionSerializer",
+    response_schema="TicketListSerializer|TicketDetailSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "helpdesk", "tickets", "sla", "escalation", "workflow", "mobile"],
+    security_notes="Tenant isolation via reporter.client_id filtering. Priority-based SLA calculation. Workflow history tracking",
+    endpoints={
+        "list": "GET /api/v1/help-desk/tickets/ - List tickets (tenant-filtered)",
+        "create": "POST /api/v1/help-desk/tickets/ - Create ticket with auto-SLA",
+        "retrieve": "GET /api/v1/help-desk/tickets/{id}/ - Get ticket details",
+        "update": "PATCH /api/v1/help-desk/tickets/{id}/ - Update ticket",
+        "delete": "DELETE /api/v1/help-desk/tickets/{id}/ - Delete ticket",
+        "transition": "POST /api/v1/help-desk/tickets/{id}/transition/ - Change status with workflow logging",
+        "escalate": "POST /api/v1/help-desk/tickets/{id}/escalate/ - Escalate priority",
+        "sla_breaches": "GET /api/v1/help-desk/tickets/sla-breaches/ - Get SLA breached tickets (admin)"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v1/help-desk/tickets/ -H 'Authorization: Bearer <token>' -d '{\"title\":\"Server Down\",\"priority\":\"P0\",\"category\":\"technical\"}'",
+        "curl -X POST https://api.example.com/api/v1/help-desk/tickets/123/transition/ -H 'Authorization: Bearer <token>' -d '{\"to_status\":\"in_progress\",\"comment\":\"Working on it\"}'"
+    ]
+)
 class TicketViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Help Desk Ticket management.
@@ -47,6 +77,7 @@ class TicketViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, TenantIsolationPermission]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Exclude until serializer alignment with new Ticket model
 
     filterset_fields = ['status', 'priority', 'category', 'assigned_to']
     search_fields = ['ticket_number', 'title', 'description']

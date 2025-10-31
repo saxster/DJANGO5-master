@@ -72,7 +72,7 @@ def create_dynamic_job(jobids=None):
 
 
 
-@shared_task(name="create_job()")
+@shared_task(name="create_job")
 def create_job(jobids = None):
     startdtz = enddtz = msg = resp = None
     result = {'story':[]}

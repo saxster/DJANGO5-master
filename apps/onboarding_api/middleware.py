@@ -29,8 +29,11 @@ class OnboardingAPIMiddleware(MiddlewareMixin):
     - Error tracking
     """
 
+    # Django 5.2+ requires explicit async_mode declaration
+    async_mode = False  # This middleware is synchronous only
+
     def __init__(self, get_response):
-        self.get_response = get_response
+        super().__init__(get_response)
         self.onboarding_api_paths = [
             '/api/v1/onboarding/',
         ]
@@ -216,7 +219,7 @@ class OnboardingAPIMiddleware(MiddlewareMixin):
             try:
                 resolved_url = resolve(request.path)
                 endpoint_name = f"{resolved_url.app_name}:{resolved_url.url_name}" if resolved_url.app_name else resolved_url.url_name
-            except:
+            except (ValueError, TypeError, AttributeError) as e:
                 endpoint_name = request.path
 
             metrics_data = {
@@ -368,8 +371,11 @@ class OnboardingAuditMiddleware(MiddlewareMixin):
     Tracks specific onboarding events for compliance and analysis
     """
 
+    # Django 5.2+ requires explicit async_mode declaration
+    async_mode = False  # This middleware is synchronous only
+
     def __init__(self, get_response):
-        self.get_response = get_response
+        super().__init__(get_response)
         self.audit_paths = {
             '/api/v1/onboarding/conversation/start/': 'conversation_started',
             '/api/v1/onboarding/recommendations/approve/': 'recommendations_approved',

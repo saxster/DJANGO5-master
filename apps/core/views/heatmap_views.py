@@ -1,14 +1,24 @@
 """
 Heatmap visualization views for advanced user behavior analytics
 """
+from collections import defaultdict
+from datetime import timedelta
+
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from collections import defaultdict
+from django.utils import timezone
+from django.core.cache import cache
+from django.db.models import Count, Avg, Max, Sum
 
-    HeatmapSession, ClickHeatmap, ScrollHeatmap, 
-    AttentionHeatmap, ElementInteraction, HeatmapAggregation
+from apps.core.models.heatmap import (
+    HeatmapSession,
+    ClickHeatmap,
+    ScrollHeatmap,
+    AttentionHeatmap,
+    ElementInteraction,
+    HeatmapAggregation,
 )
 
 

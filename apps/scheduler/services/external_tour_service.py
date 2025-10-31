@@ -28,7 +28,7 @@ from apps.core.exceptions import (
     EnhancedValidationException,
 )
 from apps.activity.models.job_model import Job, Jobneed
-import apps.schedhuler.utils as sutils
+import apps.scheduler.utils as sutils
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,10 @@ class ExternalTourService(BaseService):
     def __init__(self):
         super().__init__()
         self.model = Job
+
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "ExternalTourService"
 
     @with_transaction
     def create_external_tour(

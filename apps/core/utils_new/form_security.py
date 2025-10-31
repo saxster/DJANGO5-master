@@ -8,11 +8,21 @@ web vulnerabilities like XSS, HTML injection, and malicious uploads.
 import re
 import html
 import mimetypes
+import importlib.util
 from urllib.parse import urlparse
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-from apps.core.constants import ValidationConstants, MediaConstants
+# Import from constants.py file (not constants/ directory)
+# Both apps/core/constants.py and apps/core/constants/ exist - causing namespace conflict
+import sys
+import os
+constants_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'constants.py')
+spec = importlib.util.spec_from_file_location("constants_legacy", constants_file)
+constants_legacy = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(constants_legacy)
+ValidationConstants = constants_legacy.ValidationConstants
+MediaConstants = constants_legacy.MediaConstants
 
 
 __all__ = [

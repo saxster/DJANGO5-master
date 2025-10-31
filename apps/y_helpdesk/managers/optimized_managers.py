@@ -443,7 +443,7 @@ class OptimizedTicketManagerMixin:
 
 
 # Patch the existing TicketManager with optimized methods
-class OptimizedTicketManager(OptimizedTicketManagerMixin):
+class OptimizedTicketManager(models.Manager, OptimizedTicketManagerMixin):
     """Manager providing optimized query methods for Ticket model."""
 
     def __init__(self):

@@ -10,6 +10,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import viewsets, status
+from apps.ontology.decorators import ontology
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,6 +34,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="attendance",
+    purpose="REST API for attendance tracking with GPS geofencing validation and fraud detection",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "TenantIsolationPermission"],
+    rate_limit="200/minute",
+    request_schema="AttendanceSerializer",
+    response_schema="AttendanceSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "attendance", "gps", "geofencing", "fraud-detection", "mobile"],
+    security_notes="GPS accuracy validation (max 50m). PostGIS spatial queries for geofence validation. Tenant isolation via peopleid.client_id",
+    endpoints={
+        "list": "GET /api/v1/attendance/ - List attendance records",
+        "create": "POST /api/v1/attendance/ - Create attendance record",
+        "clock_in": "POST /api/v1/attendance/clock-in/ - Clock in with GPS validation",
+        "clock_out": "POST /api/v1/attendance/clock-out/ - Clock out with GPS",
+        "history": "GET /api/v1/attendance/history/ - Attendance history"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v1/attendance/clock-in/ -H 'Authorization: Bearer <token>' -d '{\"lat\":28.6139,\"lng\":77.2090,\"accuracy\":15,\"device_id\":\"device-123\"}'"
+    ]
+)
 class AttendanceViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Attendance tracking.
@@ -50,6 +76,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     serializer_class = AttendanceSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Temporarily exclude from OpenAPI until API is refactored
 
     filterset_fields = ['peopleid', 'event_type', 'event_time']
     ordering_fields = ['event_time', 'created_at']
@@ -171,6 +198,32 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             )
 
 
+@ontology(
+    domain="attendance",
+    purpose="REST API for geofence management with PostGIS spatial operations and location validation",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "TenantIsolationPermission"],
+    rate_limit="100/minute",
+    request_schema="GeofenceSerializer|LocationValidationSerializer",
+    response_schema="GeofenceSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "geofencing", "postgis", "spatial", "gps", "mobile"],
+    security_notes="Tenant isolation via client_id. PostGIS spatial queries for polygon containment checks",
+    endpoints={
+        "list": "GET /api/v1/assets/geofences/ - List geofences",
+        "create": "POST /api/v1/assets/geofences/ - Create geofence",
+        "retrieve": "GET /api/v1/assets/geofences/{id}/ - Get geofence details",
+        "update": "PATCH /api/v1/assets/geofences/{id}/ - Update geofence",
+        "delete": "DELETE /api/v1/assets/geofences/{id}/ - Delete geofence",
+        "validate": "POST /api/v1/assets/geofences/validate/ - Validate GPS location against geofences"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v1/assets/geofences/validate/ -H 'Authorization: Bearer <token>' -d '{\"lat\":28.6139,\"lng\":77.2090,\"person_id\":123}'"
+    ]
+)
 class GeofenceViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Geofence management.
@@ -187,6 +240,7 @@ class GeofenceViewSet(viewsets.ModelViewSet):
     serializer_class = GeofenceSerializer
     filter_backends = [DjangoFilterBackend]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Temporarily exclude from OpenAPI until API is refactored
 
     filterset_fields = ['geofence_type', 'bu_id', 'client_id', 'is_active']
 
@@ -238,6 +292,26 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         return Response(result)
 
 
+@ontology(
+    domain="attendance",
+    purpose="REST API for fraud detection alerts and suspicious attendance pattern detection",
+    api_endpoint=True,
+    http_methods=["GET"],
+    authentication_required=True,
+    permissions=["IsAdminUser"],
+    rate_limit="50/minute",
+    response_schema="FraudDetectionAlerts",
+    error_codes=[401, 403, 500],
+    criticality="high",
+    tags=["api", "rest", "fraud-detection", "security", "attendance", "analytics"],
+    security_notes="Admin-only access. ML-based pattern detection for suspicious attendance behavior",
+    endpoints={
+        "alerts": "GET /api/v1/attendance/fraud-alerts/ - Get recent fraud detection alerts"
+    },
+    examples=[
+        "curl -X GET https://api.example.com/api/v1/attendance/fraud-alerts/ -H 'Authorization: Bearer <admin-token>'"
+    ]
+)
 class FraudDetectionView(APIView):
     """
     API endpoint for fraud detection alerts.

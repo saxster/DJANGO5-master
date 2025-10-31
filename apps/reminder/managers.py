@@ -1,5 +1,6 @@
 from django.db import models
-from django.db.models import Q, F, ExpressionWrapper, Cast
+from django.db.models import Q, F, ExpressionWrapper
+from django.db.models.functions import Cast
 from django.utils import timezone
 from datetime import datetime, timezone as dt_timezone, timedelta
 

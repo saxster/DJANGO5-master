@@ -13,6 +13,36 @@ Follows .claude/rules.md:
 - Rule #7: Service methods < 50 lines
 - Rule #11: Specific exception handling
 - Rule #17: Transaction management
+
+@ontology(
+    domain="integration",
+    purpose="Multi-device sync coordination with priority-based conflict resolution",
+    integration_type="service",
+    coordination_strategy="device_priority",
+    device_priorities={
+        "desktop": 100,
+        "laptop": 80,
+        "tablet": 60,
+        "phone": 40
+    },
+    conflict_resolution_strategies=[
+        "priority_wins (higher priority device)",
+        "timestamp_wins (most recent modification)",
+        "explicit_user_resolution"
+    ],
+    device_registry_models=["UserDevice", "DeviceSyncState"],
+    sync_granularity="per-domain, per-entity",
+    notification_mechanism="WebSocket push via sync_push_service",
+    state_tracking=[
+        "last_sync_version per device",
+        "last_modified_at timestamp",
+        "is_dirty flag for pending changes"
+    ],
+    performance_impact="~10-30ms per sync operation (database + Redis)",
+    criticality="high",
+    database_transactions=True,
+    tags=["sync", "multi-device", "conflict-resolution", "device-coordination"]
+)
 """
 
 import logging
@@ -202,11 +232,12 @@ class CrossDeviceSyncService:
         return list(UserDevice.objects.filter(user=user, is_active=True))
 
     @classmethod
-    def get_device_by_id(cls, device_id: str) -> UserDevice:
+    def get_device_by_id(cls, user, device_id: str) -> UserDevice:
         """
         Get device by ID.
 
         Args:
+            user: User requesting device
             device_id: Device identifier
 
         Returns:
@@ -215,14 +246,15 @@ class CrossDeviceSyncService:
         Raises:
             ObjectDoesNotExist: If device not found
         """
-        return UserDevice.objects.get(device_id=device_id)
+        return UserDevice.objects.get(device_id=device_id, user=user)
 
     @classmethod
-    def get_device_sync_states(cls, device_id: str) -> list:
+    def get_device_sync_states(cls, user, device_id: str) -> list:
         """
         Get sync states for a device.
 
         Args:
+            user: User requesting sync states
             device_id: Device identifier
 
         Returns:
@@ -231,14 +263,14 @@ class CrossDeviceSyncService:
         Raises:
             ObjectDoesNotExist: If device not found
         """
-        device = UserDevice.objects.get(device_id=device_id)
+        device = UserDevice.objects.get(device_id=device_id, user=user)
         return list(DeviceSyncState.objects.filter(device=device))
 
     @classmethod
-    def deactivate_device(cls, device_id: str) -> bool:
+    def deactivate_device(cls, user, device_id: str) -> bool:
         """Deactivate device (lost/stolen)."""
         try:
-            device = UserDevice.objects.get(device_id=device_id)
+            device = UserDevice.objects.get(device_id=device_id, user=user)
             device.is_active = False
             device.save()
 

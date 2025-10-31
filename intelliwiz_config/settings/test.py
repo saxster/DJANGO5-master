@@ -5,7 +5,7 @@ Optimized for fast testing with minimal external dependencies.
 
 import tempfile
 from .base import *
-from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, GRAPHQL_VERSION_CONFIG, SPECTACULAR_SETTINGS
+from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, SPECTACULAR_SETTINGS
 
 # Test configuration
 DEBUG = False
@@ -100,4 +100,5 @@ for app in TEST_APPS_TO_REMOVE:
     if app in INSTALLED_APPS:
         INSTALLED_APPS.remove(app)
 
-print("[TEST SETTINGS] Loaded test settings with optimizations")
+import sys
+sys.stderr.write("[TEST SETTINGS] Loaded test settings with optimizations\n")

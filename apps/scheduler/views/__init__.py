@@ -12,7 +12,7 @@ Directory Structure:
 - jobneed_views.py: Jobneed management
 """
 
-from apps.schedhuler.views.internal_tour_views import (
+from apps.scheduler.views.internal_tour_views import (
     Schd_I_TourFormJob,
     Update_I_TourFormJob,
     Retrive_I_ToursJob,
@@ -22,7 +22,7 @@ from apps.schedhuler.views.internal_tour_views import (
     delete_checkpoint as deleteChekpointFromTour,
 )
 
-from apps.schedhuler.views.external_tour_views import (
+from apps.scheduler.views.external_tour_views import (
     Schd_E_TourFormJob,
     Update_E_TourFormJob,
     Retrive_E_ToursJob,
@@ -30,7 +30,7 @@ from apps.schedhuler.views.external_tour_views import (
     save_assigned_sites_for_externaltour,
 )
 
-from apps.schedhuler.views.task_views import (
+from apps.scheduler.views.task_views import (
     SchdTaskFormJob,
     UpdateSchdTaskJob,
     RetriveSchdTasksJob,
@@ -38,14 +38,14 @@ from apps.schedhuler.views.task_views import (
     GetTaskFormJobneed,
 )
 
-from apps.schedhuler.views.jobneed_views import (
+from apps.scheduler.views.jobneed_views import (
     JobneedTours,
     JobneedExternalTours,
     JobneedTasks,
     JobneednJNDEditor,
 )
 
-from apps.schedhuler.views_optimized import (
+from apps.scheduler.views_optimized import (
     get_cron_datetime_optimized as get_cron_datetime,
 )
 

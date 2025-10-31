@@ -24,9 +24,9 @@ class Migration(migrations.Migration):
         # ATTENDANCE: Common queries with spatial + business unit + date filters
         migrations.RunSQL(
             """
-            CREATE INDEX CONCURRENTLY peopleeventlog_bu_datefor_startloc_idx
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS peopleeventlog_bu_datefor_startloc_idx
             ON peopleeventlog USING btree(bu_id, datefor)
-            WHERE startlocation IS NOT NULL AND enable = true;
+            WHERE startlocation IS NOT NULL;
             """,
             reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS peopleeventlog_bu_datefor_startloc_idx;"
         ),
@@ -179,30 +179,8 @@ class Migration(migrations.Migration):
         # MONITORING: Index statistics collection
         # ================================================================
 
-        # Enable pg_stat_statements for query monitoring (if not already enabled)
-        migrations.RunSQL(
-            """
-            -- Ensure pg_stat_statements extension is available
-            CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-
-            -- Create helper view for spatial index statistics
-            CREATE OR REPLACE VIEW spatial_index_stats AS
-            SELECT
-                schemaname,
-                tablename,
-                indexname,
-                idx_scan as scans,
-                idx_tup_read as tuples_read,
-                idx_tup_fetch as tuples_fetched,
-                pg_size_pretty(pg_relation_size(indexrelid)) as size
-            FROM pg_stat_user_indexes
-            WHERE indexname LIKE '%gps%' OR indexname LIKE '%location%' OR indexname LIKE '%spatial%'
-            ORDER BY idx_scan DESC;
-            """,
-            reverse_sql="""
-            DROP VIEW IF EXISTS spatial_index_stats;
-            """
-        ),
+        # Note: Skipped pg_stat_statements and spatial_index_stats view (requires server config)
+        # These can be enabled manually after configuring PostgreSQL shared_preload_libraries
     ]
 
     atomic = False  # Required for CONCURRENTLY operations

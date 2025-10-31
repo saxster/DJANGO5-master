@@ -408,33 +408,6 @@ class TicketSystemIntegrationTestCase(TestCase):
         self.assertGreater(workflow.activity_count, 0)
         self.assertIn('escalation_attempts', workflow.workflow_data)
 
-    def test_api_consistency_across_endpoints(self):
-        """Test that all API endpoints return consistent data structures."""
-        # Test GraphQL endpoint format
-        from apps.service.queries.ticket_queries import TicketQueries
-
-        # Mock GraphQL info object
-        mock_info = Mock()
-        mock_info.context = Mock()
-        mock_info.context.user = self.user
-
-        graphql_result = TicketQueries.resolve_get_tickets(
-            None, mock_info,
-            peopleid=self.user.id,
-            buid=self.bu.id,
-            clientid=self.client_bt.id,
-            mdtz=timezone.now().isoformat(),
-            ctzoffset=0
-        )
-
-        # Test REST API endpoint format
-        rest_tickets = serialize_for_web_api([self.ticket], self.user)
-
-        # Verify consistent field availability
-        # Both should have core ticket information
-        self.assertIsNotNone(graphql_result.records)
-        self.assertGreater(len(rest_tickets), 0)
-
     @override_settings(DEBUG=True)
     def test_query_optimization_effectiveness(self):
         """Test that query optimizations are effective."""

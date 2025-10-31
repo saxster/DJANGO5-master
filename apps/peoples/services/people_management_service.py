@@ -9,6 +9,8 @@ Handles all business logic for People model operations including:
 - Image upload handling
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
@@ -18,7 +20,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 
 from apps.core.services.base_service import BaseService
-from apps.core.services import with_transaction
+from apps.core.services import with_transaction, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import (
     UserManagementException,
@@ -26,7 +28,6 @@ from apps.core.exceptions import (
     DatabaseException
 )
 from apps.core.services.secure_encryption_service import SecureEncryptionService
-from apps.peoples.models import People
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class PeopleManagementService(BaseService):
             "department__taname", "designation__taname"
         ]
 
-    @BaseService.monitor_performance("get_people_list")
+    @monitor_service_performance("get_people_list")
     def get_people_list(
         self,
         request_params: Dict[str, Any],
@@ -123,6 +124,7 @@ class PeopleManagementService(BaseService):
 
     def _build_people_queryset(self, session: Dict[str, Any]) -> QuerySet:
         """Build base queryset with proper select_related."""
+        from apps.peoples.models import People  # Late import to prevent circular dependency
         return People.objects.people_list_view(
             {'session': session},
             self.list_fields,
@@ -228,7 +230,7 @@ class PeopleManagementService(BaseService):
             )
             return "[ENCRYPTED]"
 
-    @BaseService.monitor_performance("create_people")
+    @monitor_service_performance("create_people")
     @with_transaction()
     def create_people(
         self,
@@ -251,6 +253,8 @@ class PeopleManagementService(BaseService):
         Returns:
             PeopleOperationResult with created person
         """
+        from apps.peoples.models import People  # Late import to prevent circular dependency
+
         try:
             people = People(**form_data)
 
@@ -300,7 +304,7 @@ class PeopleManagementService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("update_people")
+    @monitor_service_performance("update_people")
     @with_transaction()
     def update_people(
         self,
@@ -325,6 +329,8 @@ class PeopleManagementService(BaseService):
         Returns:
             PeopleOperationResult with updated person
         """
+        from apps.peoples.models import People  # Late import to prevent circular dependency
+
         try:
             people = People.objects.get(id=people_id)
 
@@ -391,7 +397,7 @@ class PeopleManagementService(BaseService):
                 f"Failed to save people extras for {people.peoplecode}"
             )
 
-    @BaseService.monitor_performance("get_people")
+    @monitor_service_performance("get_people")
     def get_people(
         self,
         people_id: int,
@@ -407,6 +413,8 @@ class PeopleManagementService(BaseService):
         Returns:
             People instance or None
         """
+        from apps.peoples.models import People  # Late import to prevent circular dependency
+
         try:
             return People.objects.select_related(
                 *self.related_fields
@@ -415,7 +423,7 @@ class PeopleManagementService(BaseService):
             self.logger.warning(f"People not found: {people_id}")
             return None
 
-    @BaseService.monitor_performance("delete_people")
+    @monitor_service_performance("delete_people")
     @with_transaction()
     def delete_people(
         self,
@@ -434,6 +442,8 @@ class PeopleManagementService(BaseService):
         Returns:
             PeopleOperationResult with deletion status
         """
+        from apps.peoples.models import People  # Late import to prevent circular dependency
+
         try:
             people = People.objects.get(id=people_id)
 

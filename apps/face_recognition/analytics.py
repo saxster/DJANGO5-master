@@ -263,61 +263,23 @@ class AttendanceAnalyticsEngine:
             return {'error': str(e)}
     
     def _analyze_behavioral_patterns(self, queryset) -> Dict[str, Any]:
-        """Analyze behavioral patterns and user profiles"""
-        try:
-            # Get unique users in the dataset
-            user_ids = list(queryset.values_list('people_id', flat=True).distinct())
-            
-            # Get behavioral profiles for these users
-            profiles = UserBehaviorProfile.objects.filter(user_id__in=user_ids)
-            
-            if not profiles.exists():
-                return {'no_behavioral_data': True}
-            
-            # Behavioral metrics aggregation
-            behavioral_stats = profiles.aggregate(
-                avg_regularity=Avg('attendance_regularity_score'),
-                avg_fraud_risk=Avg('fraud_risk_score'),
-                high_risk_users=Count(
-                    Case(When(fraud_risk_score__gt=0.7, then=1), output_field=IntegerField())
-                ),
-                low_regularity_users=Count(
-                    Case(When(attendance_regularity_score__lt=0.3, then=1), output_field=IntegerField())
-                )
-            )
-            
-            # Time pattern consistency analysis
-            time_consistency = self._analyze_time_pattern_consistency(queryset, profiles)
-            
-            # Location pattern analysis
-            location_consistency = self._analyze_location_pattern_consistency(queryset, profiles)
-            
-            # Risk distribution
-            risk_distribution = profiles.values(
-                'fraud_risk_score'
-            ).annotate(
-                risk_range=Case(
-                    When(fraud_risk_score__lt=0.3, then='Low'),
-                    When(fraud_risk_score__lt=0.7, then='Medium'),
-                    default='High'
-                )
-            ).values('risk_range').annotate(count=Count('id'))
-            
-            return {
-                'total_behavioral_profiles': profiles.count(),
-                'average_regularity_score': round(behavioral_stats['avg_regularity'] or 0, 2),
-                'average_fraud_risk_score': round(behavioral_stats['avg_fraud_risk'] or 0, 2),
-                'high_risk_users': behavioral_stats['high_risk_users'],
-                'irregular_attendance_users': behavioral_stats['low_regularity_users'],
-                'time_pattern_consistency': time_consistency,
-                'location_pattern_consistency': location_consistency,
-                'risk_distribution': list(risk_distribution),
-                'behavioral_insights': self._generate_behavioral_insights(profiles)
-            }
-            
-        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
-            logger.error(f"Error analyzing behavioral patterns: {str(e)}")
-            return {'error': str(e)}
+        """
+        Analyze behavioral patterns and user profiles.
+
+        TODO: Sprint 5 - Implement real behavioral analytics
+        Currently returns safe defaults as behavioral_analytics app was removed.
+        """
+        logger.debug("_analyze_behavioral_patterns: Stub implementation - behavioral_analytics app removed")
+        # Return safe defaults until real implementation in Sprint 5
+        return {
+            'no_behavioral_data': True,
+            'message': 'Behavioral analytics not yet implemented',
+            'total_behavioral_profiles': 0,
+            'average_regularity_score': 0.0,
+            'average_fraud_risk_score': 0.0,
+            'high_risk_users': 0,
+            'irregular_attendance_users': 0
+        }
     
     def _analyze_fraud_patterns(self, queryset) -> Dict[str, Any]:
         """Analyze fraud patterns and detection results"""

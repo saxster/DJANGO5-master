@@ -44,6 +44,13 @@ class TaskWebhookService(BaseService):
     SIGNATURE_HEADER = 'X-Webhook-Signature'
     WEBHOOK_TIMEOUT = 10  # seconds
 
+    def __init__(self):
+        super().__init__()
+
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "TaskWebhookService"
+
     def register_webhook(
         self,
         task_id: str,

@@ -107,7 +107,6 @@ class GlobalExceptionMiddleware(MiddlewareMixin):
         """Determine if request is for API endpoint."""
         return (
             request.path.startswith("/api/")
-            or request.path.startswith("/graphql/")
             or request.META.get("HTTP_ACCEPT", "").startswith("application/json")
             or request.META.get("CONTENT_TYPE", "").startswith("application/json")
         )

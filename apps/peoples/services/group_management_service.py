@@ -7,6 +7,8 @@ Handles all business logic for People Group (Pgroup) operations including:
 - Atomic transaction handling
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
@@ -16,10 +18,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 
 from apps.core.services.base_service import BaseService
-from apps.core.services import with_transaction
+from apps.core.services import with_transaction, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import UserManagementException, DatabaseException
-from apps.peoples.models import Pgroup, Pgbelonging
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class GroupManagementService(BaseService):
         self.related_fields = ["identifier", "bu"]
         self.list_fields = ["groupname", "enable", "id", "bu__buname", "bu__bucode"]
 
-    @BaseService.monitor_performance("get_group_list")
+    @monitor_service_performance("get_group_list")
     def get_group_list(
         self,
         session: Dict[str, Any]
@@ -61,6 +62,8 @@ class GroupManagementService(BaseService):
         Returns:
             List of group dictionaries
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             queryset = Pgroup.objects.select_related(
                 *self.related_fields
@@ -77,7 +80,7 @@ class GroupManagementService(BaseService):
             self.logger.error(f"Database error retrieving groups: {str(e)}")
             raise
 
-    @BaseService.monitor_performance("create_group")
+    @monitor_service_performance("create_group")
     @with_transaction()
     def create_group(
         self,
@@ -98,6 +101,8 @@ class GroupManagementService(BaseService):
         Returns:
             GroupOperationResult with created group
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             group = Pgroup(**form_data)
             putils.save_userinfo(group, user, session, create=True)
@@ -139,7 +144,7 @@ class GroupManagementService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("update_group")
+    @monitor_service_performance("update_group")
     @with_transaction()
     def update_group(
         self,
@@ -162,6 +167,8 @@ class GroupManagementService(BaseService):
         Returns:
             GroupOperationResult with updated group
         """
+        from apps.peoples.models import Pgroup, Pgbelonging  # Late import to prevent circular dependency
+
         try:
             group = Pgroup.objects.get(id=group_id)
 
@@ -225,6 +232,8 @@ class GroupManagementService(BaseService):
             user: Current user
             session: User session data
         """
+        from apps.peoples.models import Pgbelonging  # Late import to prevent circular dependency
+
         for people_id in people_ids:
             belonging = Pgbelonging(
                 pgroup=group,
@@ -235,7 +244,7 @@ class GroupManagementService(BaseService):
             )
             putils.save_userinfo(belonging, user, session)
 
-    @BaseService.monitor_performance("get_group")
+    @monitor_service_performance("get_group")
     def get_group(
         self,
         group_id: int
@@ -249,6 +258,8 @@ class GroupManagementService(BaseService):
         Returns:
             Pgroup instance or None
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             return Pgroup.objects.select_related(
                 *self.related_fields
@@ -257,7 +268,7 @@ class GroupManagementService(BaseService):
             self.logger.warning(f"Group not found: {group_id}")
             return None
 
-    @BaseService.monitor_performance("get_group_members")
+    @monitor_service_performance("get_group_members")
     def get_group_members(
         self,
         group_id: int
@@ -271,13 +282,15 @@ class GroupManagementService(BaseService):
         Returns:
             List of people IDs
         """
+        from apps.peoples.models import Pgbelonging  # Late import to prevent circular dependency
+
         return list(
             Pgbelonging.objects.filter(
                 pgroup_id=group_id
             ).values_list("people_id", flat=True)
         )
 
-    @BaseService.monitor_performance("delete_group")
+    @monitor_service_performance("delete_group")
     @with_transaction()
     def delete_group(
         self,
@@ -296,6 +309,8 @@ class GroupManagementService(BaseService):
         Returns:
             GroupOperationResult with deletion status
         """
+        from apps.peoples.models import Pgroup, Pgbelonging  # Late import to prevent circular dependency
+
         try:
             group = Pgroup.objects.get(id=group_id)
             groupname = group.groupname

@@ -144,7 +144,7 @@ class PydanticValidationMiddleware(MiddlewareMixin):
         Returns:
             True if this is an API request
         """
-        api_paths = ['/api/', '/graphql/']
+        api_paths = ['/api/']
         return any(request.path.startswith(path) for path in api_paths)
 
     def _validate_request_payload(self, request: HttpRequest) -> Optional[HttpResponse]:

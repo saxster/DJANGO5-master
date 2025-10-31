@@ -23,12 +23,14 @@ Usage:
     python manage.py validate_schedules --check-duplicates
     python manage.py validate_schedules --check-hotspots
     python manage.py validate_schedules --check-idempotency
+    python manage.py validate_schedules --check-orphaned-tasks
 
 Features:
     - Detects duplicate schedules
     - Identifies schedule hotspots (>70% worker capacity)
     - Validates idempotency configuration
     - Checks for overlapping time slots
+    - Validates Celery beat tasks are registered (prevents orphaned tasks)
     - Provides optimization recommendations
     - Auto-remediation for safe fixes
 
@@ -42,6 +44,7 @@ Exit Codes:
 import json
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 
@@ -53,12 +56,16 @@ from django.utils import timezone
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 from apps.core.tasks.idempotency_service import UniversalIdempotencyService
 from apps.core.utils_new.datetime_utilities import get_current_utc
-from apps.schedhuler.models import Job
-from apps.schedhuler.services.schedule_coordinator import ScheduleCoordinator
-from apps.schedhuler.services.schedule_uniqueness_service import (
+from apps.scheduler.models import Job
+from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
+from apps.scheduler.services.schedule_uniqueness_service import (
     ScheduleUniquenessService,
     SchedulingException,
 )
+
+# Import Celery task auditor for orphaned task detection
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent.parent))
+from scripts.audit_celery_tasks import CeleryTaskAuditor
 
 
 class Command(BaseCommand):
@@ -120,6 +127,12 @@ class Command(BaseCommand):
             '--check-idempotency',
             action='store_true',
             help='Check idempotency configuration only'
+        )
+
+        parser.add_argument(
+            '--check-orphaned-tasks',
+            action='store_true',
+            help='Check for orphaned Celery beat tasks only'
         )
 
         # Remediation options
@@ -184,12 +197,15 @@ class Command(BaseCommand):
                 self._check_hotspots(schedule_list)
             elif options['check_idempotency']:
                 self._check_idempotency_config()
+            elif options['check_orphaned_tasks']:
+                self._check_orphaned_beat_tasks()
             else:
                 # Run all checks
                 self._check_duplicates(schedule_list)
                 self._check_hotspots(schedule_list)
                 self._check_overlaps(schedule_list)
                 self._check_idempotency_config()
+                self._check_orphaned_beat_tasks()
                 self._check_schedule_health(schedule_list)
 
             # ================================================================
@@ -411,6 +427,53 @@ class Command(BaseCommand):
                 'score': score
             })
             self.stdout.write(self.style.SUCCESS(f'  ✅ Health score: {score}/100'))
+
+    def _check_orphaned_beat_tasks(self):
+        """Check for Celery beat tasks that reference non-existent task implementations"""
+        self.stdout.write('\n📅 Checking for orphaned Celery beat tasks...')
+
+        try:
+            # Initialize task auditor
+            project_root = Path(__file__).parent.parent.parent.parent.parent.parent
+            auditor = CeleryTaskAuditor(project_root)
+
+            # Scan tasks and load beat schedule
+            auditor.scan_tasks()
+            auditor.load_beat_schedule()
+
+            # Find orphaned tasks
+            orphaned_tasks = auditor.find_orphaned_beat_tasks()
+
+            if orphaned_tasks:
+                for task_name in sorted(orphaned_tasks):
+                    self.errors.append({
+                        'type': 'orphaned_beat_task',
+                        'severity': 'error',
+                        'message': f"Beat schedule references non-existent task: '{task_name}'",
+                        'task_name': task_name,
+                        'fix_available': False
+                    })
+
+                self.stdout.write(
+                    self.style.ERROR(f'  ❌ Found {len(orphaned_tasks)} orphaned beat tasks')
+                )
+
+                if self.verbose:
+                    for task in sorted(orphaned_tasks):
+                        self.stdout.write(f"    • {task} - NOT REGISTERED")
+            else:
+                self.stdout.write(self.style.SUCCESS('  ✅ All beat tasks are registered'))
+
+        except Exception as e:
+            self.errors.append({
+                'type': 'orphaned_task_check_error',
+                'severity': 'error',
+                'message': f'Failed to check orphaned tasks: {e}',
+                'fix_available': False
+            })
+            self.stdout.write(
+                self.style.ERROR(f'  ❌ Failed to check orphaned tasks: {e}')
+            )
 
     # ========================================================================
     # FIX METHODS

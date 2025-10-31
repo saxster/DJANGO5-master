@@ -865,7 +865,7 @@ class JournalPerformanceMonitoringMiddleware(MiddlewareMixin):
         try:
             from django.db import connection
             return len(connection.queries)
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return 0
 
     def _log_performance_metrics(self, request, response_time_ms, query_count):

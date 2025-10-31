@@ -191,7 +191,7 @@ class GeofenceMaster(BaseModel):
         null=True,
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
-        related_name="geofence_clients",
+        related_name="onboarding_geofence_clients",
     )
     bu = models.ForeignKey(
         "Bt",

@@ -14,13 +14,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # AIChangeSet model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='AIChangeSet',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('changeset_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, verbose_name='Created')),
                 ('mdtz', models.DateTimeField(auto_now=True, verbose_name='Modified')),
-                ('changeset_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('status', models.CharField(
                     choices=[
                         ('pending', 'Pending'),

@@ -17,7 +17,7 @@ from typing import Dict, Any, Optional
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 
 from apps.tenants.models import TenantAwareModel
 from apps.core.utils_new.cron_utilities import validate_cron_for_form

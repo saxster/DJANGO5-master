@@ -57,7 +57,7 @@ REST_FRAMEWORK = {
         'premium': '6000/hour',
     },
 
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'apps.api.docs.schema.LenientAutoSchema',
 
     # Exception handling: Standardized error responses with correlation IDs
     'EXCEPTION_HANDLER': 'apps.api.exceptions.standardized_exception_handler',

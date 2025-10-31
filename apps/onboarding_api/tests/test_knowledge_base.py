@@ -8,11 +8,18 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
-
-    AuthoritativeKnowledge, AuthoritativeKnowledgeChunk, KnowledgeReview
+from apps.onboarding.models import (
+    AuthoritativeKnowledge,
+    AuthoritativeKnowledgeChunk,
+    KnowledgeReview,
 )
-    PostgresArrayBackend, PgVectorBackend, ChromaBackend,
-    SecurityError, DocumentFetchError, DocumentParseError
+from apps.onboarding_api.services.knowledge.vector_stores.postgres_array import PostgresArrayBackend
+from apps.onboarding_api.services.knowledge.vector_stores.pgvector_base import PgVectorBackend
+from apps.onboarding_api.services.knowledge.vector_stores.chroma import ChromaBackend
+from apps.onboarding_api.services.knowledge.exceptions import (
+    SecurityError,
+    DocumentFetchError,
+    DocumentParseError,
 )
 from apps.onboarding_api.services.llm import CitationAwareMakerLLM, CitationAwareCheckerLLM
 from apps.onboarding_api.services.security import (

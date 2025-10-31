@@ -30,29 +30,6 @@ API_VERSION_CONFIG = {
     'ENABLE_BACKWARD_COMPATIBILITY_MODE': True,
 }
 
-GRAPHQL_VERSION_CONFIG = {
-    'SCHEMA_VERSION': '1.0',
-    'ENABLE_FIELD_DEPRECATION': True,
-    'ENABLE_DEPRECATION_TRACKING': True,
-    'DEPRECATION_REASON_REQUIRED': True,
-
-    'DEPRECATED_MUTATIONS': [
-        {
-            'name': 'upload_attachment',
-            'deprecated_in': '1.0',
-            'removed_in': '2.0',
-            'sunset_date': '2026-06-30',
-            'replacement': 'secure_file_upload',
-            'migration_url': '/docs/api-migrations/file-upload-v2/',
-        },
-    ],
-
-    'DEPRECATED_FIELDS': [],
-
-    'ENABLE_INTROSPECTION_DEPRECATION_INFO': True,
-}
-
 __all__ = [
     'API_VERSION_CONFIG',
-    'GRAPHQL_VERSION_CONFIG',
 ]

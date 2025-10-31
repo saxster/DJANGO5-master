@@ -4,7 +4,7 @@ Business logic services for the scheduler app.
 This module contains business logic extracted from views to improve
 code organization and maintainability.
 
-Note: This app is named 'schedhuler' due to legacy reasons.
+Note: This app is named 'scheduler' due to legacy reasons.
 The correct spelling would be 'scheduler' but changing it would
 require significant refactoring of URLs, imports, and potentially
 database references throughout the codebase.
@@ -79,7 +79,7 @@ class TourJobService:
             user: User creating checkpoints
             session: User session data
         """
-        import apps.schedhuler.utils as sutils
+        import apps.scheduler.utils as sutils
         from apps.peoples import utils as putils
 
         logger.info(f"Creating {len(checkpoints)} checkpoints for job {parent_job.jobname}")

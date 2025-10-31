@@ -1,12 +1,23 @@
+"""
+Business Logic Utilities Module - Circular Import Fix Applied
+
+IMPORTANT: Model imports converted to late imports (inside functions) to prevent
+circular import chains. This follows Django best practices for utils/helpers modules.
+
+Circular Import Chain (FIXED 2025-10-10):
+  apps.core.models → utils_new.__init__ → business_logic → peoples.models → core.services → db_utils ❌
+
+Solution: All model imports now occur inside the functions that use them (lazy loading).
+This breaks the circular dependency while maintaining 100% backward compatibility.
+"""
+
 import logging
 
 logger = logging.getLogger("django")
-import apps.peoples.utils as putils
-from apps.work_order_management.models import Approver
+# Late imports applied: apps.peoples.utils, apps.peoples.models, apps.onboarding.models, Approver
+# These are now imported inside functions to prevent circular dependencies
 from django.conf import settings
 import django.shortcuts as scts
-import apps.onboarding.models as ob
-from apps.peoples import models as pm
 from django.contrib import messages as msg
 from pprint import pformat
 from apps.core.utils_new.http_utils import handle_DoesNotExist
@@ -272,8 +283,12 @@ def get_appropriate_client_url(client_code):
 
 
 def save_capsinfo_inside_session(people, request, admin):
-    logger.info("save_capsinfo_inside_session... STARTED")
+    # Late imports to prevent circular dependency
+    import apps.peoples.utils as putils
+    from apps.peoples.models import Capability
     from apps.core.queries import get_query
+
+    logger.info("save_capsinfo_inside_session... STARTED")
 
     if admin:
         # extracting the capabilities from client
@@ -327,6 +342,10 @@ def save_capsinfo_inside_session(people, request, admin):
 
 def save_user_session(request, people, ctzoffset=None):
     """save user info in session"""
+    # Late imports to prevent circular dependency
+    import apps.peoples.utils as putils
+    from apps.peoples import models as pm
+    from apps.work_order_management.models import Approver
     from django.conf import settings
     from django.core.exceptions import ObjectDoesNotExist
 
@@ -394,6 +413,10 @@ def save_user_session(request, people, ctzoffset=None):
 
 
 def update_timeline_data(ids, request, update=False):
+    # Late imports to prevent circular dependency
+    import apps.onboarding.models as ob
+    from apps.peoples import models as pm
+
     # sourcery skip: hoist-statement-from-if, remove-pass-body
     steps = {
         "taids": ob.TypeAssist,

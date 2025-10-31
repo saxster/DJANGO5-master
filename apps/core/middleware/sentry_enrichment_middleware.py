@@ -25,7 +25,6 @@ import logging
 from typing import Callable, Any
 
 from django.http import HttpRequest, HttpResponse
-from django.contrib.auth.models import AnonymousUser
 
 logger = logging.getLogger(__name__)
 

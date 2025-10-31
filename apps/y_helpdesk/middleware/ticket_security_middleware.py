@@ -47,7 +47,6 @@ class TicketSecurityMiddleware(MiddlewareMixin):
     # Ticket-related URL patterns
     TICKET_URL_PATTERNS = [
         '/api/v1/tickets/',
-        '/api/graphql/',  # Legacy - GraphQL removed Oct 2025, kept for backward compat
         '/help-desk/',
         '/y_helpdesk/'
     ]

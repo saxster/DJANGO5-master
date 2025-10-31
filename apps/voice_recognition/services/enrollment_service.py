@@ -78,21 +78,22 @@ class VoiceEnrollmentService:
     # PHASE 1: IDENTITY PRE-VERIFICATION
     # ========================================
 
-    def validate_enrollment_eligibility(self, user) -> Dict[str, Any]:
+    def validate_enrollment_eligibility(self, user, policy=None) -> Dict[str, Any]:
         """
-        Validate user is eligible for voice enrollment.
+        Validate user is eligible for voice enrollment (POLICY-ENFORCED).
 
         SECURITY CRITICAL: Prevents attackers from enrolling fake voices.
 
-        Requirements:
-        - Face biometrics already enrolled and validated
+        Requirements (configurable via EnrollmentPolicy):
+        - Face biometrics already enrolled and validated (if policy.require_face_biometrics)
         - No existing voice enrollment (or re-enrollment approved)
         - User account is active and verified
-        - Device is registered and trusted
-        - User is on secure network/location
+        - Device trust score meets policy threshold
+        - Location meets policy requirements
 
         Args:
             user: User object requesting enrollment
+            policy: EnrollmentPolicy instance (fetches default if None)
 
         Returns:
             Eligibility result with pass/fail and reasons
@@ -101,17 +102,34 @@ class VoiceEnrollmentService:
             EnrollmentEligibilityError: If user not eligible
         """
         try:
+            # Load policy if not provided
+            if policy is None:
+                from apps.voice_recognition.models.enrollment_policy import EnrollmentPolicy
+                policy = EnrollmentPolicy.objects.filter(is_active=True).first()
+                if not policy:
+                    # Use default policy
+                    policy = EnrollmentPolicy(
+                        policy_name='Default',
+                        min_device_trust_score=70,
+                        require_face_biometrics=True,
+                        require_supervisor_approval=True
+                    )
+
             result = {
                 'eligible': False,
                 'checks': {},
                 'reasons': [],
+                'policy': policy.policy_name,
             }
 
-            # Check 1: Face biometrics enrolled
-            face_check = self._check_face_enrollment(user)
-            result['checks']['face_enrolled'] = face_check
-            if not face_check['passed']:
-                result['reasons'].append('Face biometrics not enrolled or validated')
+            # Check 1: Face biometrics enrolled (if required by policy)
+            if policy.require_face_biometrics:
+                face_check = self._check_face_enrollment(user)
+                result['checks']['face_enrolled'] = face_check
+                if not face_check['passed']:
+                    result['reasons'].append('Face biometrics not enrolled or validated')
+            else:
+                result['checks']['face_enrolled'] = {'passed': True, 'note': 'Not required by policy'}
 
             # Check 2: No existing voice enrollment (or re-enrollment period)
             voice_check = self._check_existing_voice_enrollment(user)
@@ -125,13 +143,66 @@ class VoiceEnrollmentService:
             if not account_check['passed']:
                 result['reasons'].append('User account not active or verified')
 
-            # Check 4: Device trust (if device_id available)
-            # This would integrate with device registry
-            result['checks']['device_trust'] = {'passed': True, 'note': 'Device check skipped (not implemented)'}
+            # Check 4: Device trust (POLICY-ENFORCED - Sprint 4)
+            if policy.require_device_registration:
+                try:
+                    from apps.peoples.services.device_trust_service import DeviceTrustService
+                    device_trust_service = DeviceTrustService()
 
-            # Check 5: Location security (if location available)
-            # This would check if user is on company network or approved location
-            result['checks']['location_security'] = {'passed': True, 'note': 'Location check skipped (not implemented)'}
+                    # Get device fingerprint from request context
+                    device_check = device_trust_service.validate_device(
+                        user=user,
+                        user_agent=getattr(user, '_enrollment_context', {}).get('user_agent', 'Unknown'),
+                        ip_address=getattr(user, '_enrollment_context', {}).get('ip_address', '0.0.0.0'),
+                        fingerprint_data=getattr(user, '_enrollment_context', {}).get('fingerprint_data')
+                    )
+                    result['checks']['device_trust'] = device_check
+
+                    # Apply policy threshold
+                    trust_score = device_check.get('trust_score', 0)
+                    if trust_score < policy.min_device_trust_score:
+                        result['reasons'].append(
+                            f"Device trust score {trust_score} below policy minimum "
+                            f"{policy.min_device_trust_score}: {device_check.get('recommendation', 'Device not trusted')}"
+                        )
+                except ImportError as e:
+                    logger.warning(f"Device trust service not available: {e}")
+                    result['checks']['device_trust'] = {'passed': True, 'note': 'Device check skipped (service unavailable)'}
+                except (DatabaseError, IntegrityError) as e:
+                    logger.error(f"Device trust check failed: {e}")
+                    result['checks']['device_trust'] = {'passed': False, 'note': 'Device check failed (database error)'}
+
+            # Check 5: Location security (POLICY-ENFORCED - Sprint 4)
+            try:
+                from apps.core.services.location_security_service import LocationSecurityService
+                location_service = LocationSecurityService()
+
+                # Get location context
+                enrollment_context = getattr(user, '_enrollment_context', {})
+                location_check = location_service.validate_location(
+                    user=user,
+                    ip_address=enrollment_context.get('ip_address', '0.0.0.0'),
+                    site_id=enrollment_context.get('site_id'),
+                    latitude=enrollment_context.get('latitude'),
+                    longitude=enrollment_context.get('longitude')
+                )
+                result['checks']['location_security'] = location_check
+
+                # Apply policy location requirements
+                if policy.location_requirement == 'on_site' and not location_check.get('is_on_site'):
+                    result['reasons'].append(
+                        f"Policy requires on-site enrollment. {location_check.get('recommendation', '')}"
+                    )
+                elif policy.location_requirement == 'approved_network' and not location_check.get('is_approved_network'):
+                    result['reasons'].append(
+                        f"Policy requires approved network. {location_check.get('recommendation', '')}"
+                    )
+            except ImportError as e:
+                logger.warning(f"Location security service not available: {e}")
+                result['checks']['location_security'] = {'passed': True, 'note': 'Location check skipped (service unavailable)'}
+            except (DatabaseError, IntegrityError) as e:
+                logger.error(f"Location security check failed: {e}")
+                result['checks']['location_security'] = {'passed': False, 'note': 'Location check failed (database error)'}
 
             # Overall eligibility
             result['eligible'] = all(

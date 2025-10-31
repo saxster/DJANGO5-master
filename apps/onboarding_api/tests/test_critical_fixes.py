@@ -499,8 +499,13 @@ class RegressionTests(TestCase):
     def test_all_model_imports_successful(self):
         """Test that all required models can be imported"""
         try:
-                Bt, Shift, TypeAssist, ConversationSession,
-                LLMRecommendation, AuthoritativeKnowledge
+            from apps.onboarding.models import (
+                Bt,
+                Shift,
+                TypeAssist,
+                ConversationSession,
+                LLMRecommendation,
+                AuthoritativeKnowledge,
             )
             # If we get here, all imports succeeded
             self.assertTrue(True)
@@ -517,7 +522,9 @@ class RegressionTests(TestCase):
     def test_services_can_be_imported(self):
         """Test that all services can be imported without errors"""
         try:
-                TranslationService, GoogleTranslateService
+            from apps.onboarding_api.services.translation import (
+                TranslationService,
+                GoogleTranslateService,
             )
             # If we get here, all imports succeeded
             self.assertTrue(True)

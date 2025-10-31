@@ -13,6 +13,7 @@ Features:
 
 Compliance: Rule #3 Alternative Protection - API key authentication for monitoring
 """
+from __future__ import annotations
 
 import hashlib
 import secrets
@@ -22,9 +23,8 @@ from typing import Optional, List
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from django.conf import settings
 
-User = get_user_model()
 
 
 class MonitoringPermission(models.TextChoices):
@@ -103,8 +103,7 @@ class MonitoringAPIKey(models.Model):
         help_text="Whether this API key is currently active"
     )
 
-    created_by = models.ForeignKey(
-        User,
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

@@ -9,9 +9,10 @@ import cv2
 import os
 import time
 import hashlib
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError, IntegrityError
+from django.utils import timezone
 
 from apps.face_recognition.models import (
     FaceRecognitionModel, FaceEmbedding, FaceVerificationLog,
@@ -1071,7 +1072,8 @@ class MockArcFaceModel:
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
-        except:
+        except (ValueError, TypeError, AttributeError, OSError) as e:
+            logger.warning(f"Failed to extract features (ArcFace): {e}")
             return None
 
     def _calculate_image_dependent_seed(self, image_path: str) -> int:
@@ -1085,7 +1087,9 @@ class MockArcFaceModel:
             else:
                 hash_obj = hashlib.sha256(image_path.encode())
             return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
-        except:
+        except (OSError, IOError, ValueError, TypeError) as e:
+            logger.warning(f"Failed to calculate image-dependent seed (ArcFace): {e}")
+            # Ultimate fallback: use path hash
             return hash(image_path) & 0xFFFFFFFF
 
 
@@ -1103,7 +1107,8 @@ class MockInsightFaceModel:
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
-        except:
+        except (ValueError, TypeError, AttributeError, OSError) as e:
+            logger.warning(f"Failed to extract features (InsightFace): {e}")
             return None
 
     def _calculate_image_dependent_seed(self, image_path: str) -> int:
@@ -1117,7 +1122,9 @@ class MockInsightFaceModel:
             else:
                 hash_obj = hashlib.sha256(image_path.encode())
             return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
-        except:
+        except (OSError, IOError, ValueError, TypeError) as e:
+            logger.warning(f"Failed to calculate image-dependent seed (InsightFace): {e}")
+            # Ultimate fallback: use path hash
             return hash(image_path) & 0xFFFFFFFF
 
 

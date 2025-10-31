@@ -6,7 +6,8 @@ from celery.schedules import crontab
 from django.conf import settings
 
 # Set the default Django settings module for the 'celery' program.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+# Fail-closed: default to production for Celery workers/beat.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.production')
 
 app = Celery('intelliwiz_config')
 
@@ -22,6 +23,26 @@ app.conf.timezone = 'UTC'
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 app.conf.CELERYD_HIJACK_ROOT_LOGGER = False
+
+# ============================================================================
+# IMPORT CENTRALIZED CELERY CONFIGURATION
+# ============================================================================
+# Import reusable configuration components from centralized module
+# This provides queue definitions, task routing, and enhanced config presets
+try:
+    from apps.core.tasks.celery_settings import (
+        CELERY_QUEUES,
+        CELERY_TASK_ROUTES,
+        get_queue_priorities
+    )
+
+    # Apply queue and routing configuration
+    app.conf.task_queues = CELERY_QUEUES
+    app.conf.task_routes = CELERY_TASK_ROUTES
+
+except ImportError:
+    # Gracefully handle if core app is not installed
+    pass
 
 # Initialize correlation ID propagation for request tracing
 try:
@@ -149,8 +170,8 @@ app.conf.beat_schedule = {
     # ============================================================================
     #
     # **Adding New Schedules:**
-    # 1. Check load distribution: python -c "from apps.schedhuler.services.schedule_coordinator import ScheduleCoordinator; print(ScheduleCoordinator().analyze_schedule_health())"
-    # 2. Validate DST safety: python -c "from apps.schedhuler.services.dst_validator import DSTValidator; print(DSTValidator().validate_schedule_dst_safety('0 2 * * *', 'UTC'))"
+    # 1. Check load distribution: python -c "from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator; print(ScheduleCoordinator().analyze_schedule_health())"
+    # 2. Validate DST safety: python -c "from apps.scheduler.services.dst_validator import DSTValidator; print(DSTValidator().validate_schedule_dst_safety('0 2 * * *', 'UTC'))"
     # 3. Use safe time slots: :05, :10, :20, :35, :50
     # 4. Avoid critical task minutes: :00, :15, :30, :45
     #
@@ -274,6 +295,53 @@ app.conf.beat_schedule = {
     },
 
     # ============================================================================
+    # AGENT INTELLIGENCE TASKS (Dashboard Agent Intelligence - Phase 6)
+    # ============================================================================
+
+    # Dashboard Agent Insights Processing
+    # Runs: Every 5 minutes at :02, :07, :12, :17, :22, :27, :32, :37, :42, :47, :52, :57
+    # Rationale: Offset by 2 minutes from report tasks to avoid collision
+    # Queue: reports (analytical processing)
+    "process_dashboard_agent_insights": {
+        'task': 'dashboard.process_agent_insights',
+        'schedule': crontab(minute='*/5'),  # Every 5 minutes
+        'options': {
+            'expires': 240,  # 4 minutes (buffer before next run)
+            'queue': 'reports',
+            'soft_time_limit': 120,  # 2 minutes
+            'time_limit': 180,  # 3 minutes hard limit
+        }
+    },
+
+    # Auto-Execute Critical Agent Actions
+    # Runs: Every 10 minutes at :03, :13, :23, :33, :43, :53
+    # Rationale: Offset from agent insights by 1 minute
+    # Queue: high_priority (automated actions need priority)
+    "auto_execute_critical_agent_actions": {
+        'task': 'dashboard.auto_execute_critical_actions',
+        'schedule': crontab(minute='3,13,23,33,43,53'),  # Every 10 min, offset +3
+        'options': {
+            'expires': 480,  # 8 minutes (buffer before next run)
+            'queue': 'high_priority',
+            'soft_time_limit': 300,  # 5 minutes
+            'time_limit': 420,  # 7 minutes hard limit
+        }
+    },
+
+    # Cleanup Expired Agent Recommendations
+    # Runs: Daily at 1:30 AM UTC
+    # Rationale: Off-peak hour, safe from DST transitions (after 3 AM in most zones)
+    # Queue: maintenance (low priority cleanup)
+    "cleanup_expired_agent_recommendations": {
+        'task': 'dashboard.cleanup_expired_recommendations',
+        'schedule': crontab(minute='30', hour='1'),  # Daily 1:30 AM UTC
+        'options': {
+            'expires': 3600,  # 1 hour
+            'queue': 'maintenance',
+        }
+    },
+
+    # ============================================================================
     # ✅ SCHEDULE HEALTH SUMMARY & VALIDATION
     # ============================================================================
     #
@@ -313,9 +381,9 @@ app.conf.beat_schedule = {
     #
     # 📚 RELATED DOCUMENTATION:
     # - Idempotency: apps/core/tasks/idempotency_service.py
-    # - DST Validator: apps/schedhuler/services/dst_validator.py
-    # - Schedule Coordinator: apps/schedhuler/services/schedule_coordinator.py
-    # - Uniqueness Service: apps/schedhuler/services/schedule_uniqueness_service.py
+    # - DST Validator: apps/scheduler/services/dst_validator.py
+    # - Schedule Coordinator: apps/scheduler/services/schedule_coordinator.py
+    # - Uniqueness Service: apps/scheduler/services/schedule_uniqueness_service.py
     #
     # ============================================================================
 

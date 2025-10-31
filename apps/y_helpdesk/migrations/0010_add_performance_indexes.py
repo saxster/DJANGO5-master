@@ -20,7 +20,7 @@ from django.contrib.postgres.indexes import GinIndex, BrinIndex
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('y_helpdesk', '0009_your_previous_migration'),
+        ('y_helpdesk', '0002_add_version_field_ticket'),
     ]
 
     operations = [

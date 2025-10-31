@@ -29,9 +29,16 @@ class BaseReportsExport(WeasyTemplateResponseMixin):
     irrespective of report design and type.
     """
 
-    pdf_stylesheets = [settings.STATIC_ROOT + "assets/css/local/reports.css"]
+    # Note: pdf_stylesheets moved to property to avoid None + str error during import
     no_data_error = "No Data"
     report_export_form = ReportForm
+
+    @property
+    def pdf_stylesheets(self):
+        """Get PDF stylesheets path safely."""
+        if settings.STATIC_ROOT:
+            return [os.path.join(settings.STATIC_ROOT, "assets/css/local/reports.css")]
+        return []
 
     def __init__(
         self,

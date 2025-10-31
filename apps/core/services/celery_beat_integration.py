@@ -45,6 +45,10 @@ class CeleryBeatIntegration(BaseService):
         super().__init__()
         self._registered_modules = set()
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "CeleryBeatIntegration"
+
     def register_enhanced_noc_schedules(self, app, tenant=None) -> Dict[str, Any]:
         """
         Register enhanced NOC schedules with both Celery Beat and unified system.

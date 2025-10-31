@@ -10,6 +10,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import viewsets, status
+from apps.ontology.decorators import ontology
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -30,6 +31,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="reports",
+    purpose="REST API for async report generation with WeasyPrint PDF rendering and Celery task queue",
+    api_endpoint=True,
+    http_methods=["GET", "POST"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "IsAdminUser (for scheduling)"],
+    rate_limit="20/minute",
+    request_schema="ReportGenerateSerializer|ReportScheduleSerializer",
+    response_schema="ReportStatusSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="medium",
+    tags=["api", "rest", "reports", "pdf", "weasyprint", "celery", "async", "scheduling"],
+    security_notes="Async generation via Celery background tasks. Report IDs for status tracking. Scheduled reports admin-only",
+    endpoints={
+        "generate": "POST /api/v1/reports/generate/ - Queue async report generation",
+        "status": "GET /api/v1/reports/{report_id}/status/ - Check generation status",
+        "download": "GET /api/v1/reports/{report_id}/download/ - Download generated PDF",
+        "schedule": "POST /api/v1/reports/schedules/ - Create scheduled report (admin)"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v1/reports/generate/ -H 'Authorization: Bearer <token>' -d '{\"report_type\":\"site_visit\",\"format\":\"pdf\",\"date_from\":\"2025-10-01\"}'"
+    ]
+)
 class ReportGenerateView(APIView):
     """
     API endpoint for report generation.

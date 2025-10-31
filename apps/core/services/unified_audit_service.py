@@ -31,12 +31,12 @@ from django.core.serializers.json import DjangoJSONEncoder
 
 from apps.core.models.audit import (
     AuditLog,
-    StateTransitionAudit,
     BulkOperationAudit,
     PermissionDenialAudit,
     AuditEventType,
     AuditLevel,
 )
+from apps.core.models.state_transition_audit import StateTransitionAudit
 
 logger = logging.getLogger(__name__)
 

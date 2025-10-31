@@ -19,7 +19,7 @@ Usage:
     from apps.core.observability.performance_spans import PerformanceSpanInstrumentor
     PerformanceSpanInstrumentor.instrument_all()
 
-MIGRATION NOTE (Oct 2025): GraphQL spans removed - use REST API tracing
+MIGRATION NOTE (Oct 2025): Legacy query spans removed - use REST API tracing
 """
 
 import logging
@@ -32,7 +32,6 @@ __all__ = [
     'PerformanceSpanInstrumentor',
     'trace_database_query',
     'trace_celery_task',
-    'trace_graphql_operation',
     'trace_external_api_call',
 ]
 
@@ -117,32 +116,6 @@ class PerformanceSpanInstrumentor:
             logger.info("Redis instrumented")
         except ImportError:
             logger.warning("Redis instrumentation not available")
-
-
-def trace_graphql_operation(operation_name: Optional[str] = None):
-    """
-    Decorator to trace API operations (legacy GraphQL support).
-
-    DEPRECATED: GraphQL removed Oct 2025. Use REST API tracing instead.
-    Maintained for backward compatibility - acts as pass-through.
-
-    Args:
-        operation_name: Custom operation name
-
-    Usage (deprecated):
-        @trace_graphql_operation('UserQuery')
-        def resolve_user(root, info, user_id):
-            return User.objects.get(id=user_id)
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # Pass-through - GraphQL removed Oct 2025
-            logger.warning(f"trace_graphql_operation deprecated - GraphQL removed Oct 2025")
-            return func(*args, **kwargs)
-
-        return wrapper
-    return decorator
 
 
 def trace_celery_task(task_name: Optional[str] = None):

@@ -35,7 +35,7 @@ log_error() {
 echo ""
 log_info "========================================"
 log_info "OpenAPI Schema Generation"
-log_info "REST API (Post-GraphQL Migration)"
+log_info "REST API (Post-legacy query migration)"
 log_info "========================================"
 echo ""
 
@@ -119,14 +119,14 @@ info:
   description: |
     Enterprise Facility Management Platform REST API
 
-    **Migration Note:** GraphQL removed October 2025. All endpoints now REST-based.
+    **Migration Note:** Legacy query layer retired October 2025. All endpoints now REST-based.
 
     **Features:**
     - JWT authentication
     - Multi-tenant isolation
     - WebSocket real-time sync
     - 45+ production endpoints
-    - 50-65% faster than GraphQL
+    - 50-65% faster than the previous query layer
 
   contact:
     email: dev-team@intelliwiz.com

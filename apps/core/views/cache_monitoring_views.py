@@ -176,7 +176,7 @@ class CacheMetricsAPI(LoginRequiredMixin, TemplateView):
                         memory_usage = redis_cache.memory_usage(key)
                         if memory_usage:
                             total_memory += memory_usage
-                    except:
+                    except (ValueError, TypeError, AttributeError) as e:
                         pass
 
                 # Extrapolate for all keys
@@ -274,7 +274,7 @@ class CacheManagementAPI(LoginRequiredMixin, TemplateView):
         """Warm dropdown caches for common forms"""
         try:
             from apps.core.caching.form_mixins import warm_form_dropdown_caches
-            from apps.schedhuler.forms import Schd_I_TourJobForm
+            from apps.scheduler.forms import Schd_I_TourJobForm
 
             # Warm caches for common forms
             warm_form_dropdown_caches(Schd_I_TourJobForm)

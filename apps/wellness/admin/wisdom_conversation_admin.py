@@ -560,7 +560,7 @@ class WisdomConversationAnalyticsView:
         return render(request, 'admin/wellness/conversation_analytics.html', context)
 
 
-# Register custom admin site configurations if needed
-admin.site.site_header = "Wellness Administration"
-admin.site.site_title = "Wellness Admin Portal"
-admin.site.index_title = "Welcome to Wellness Administration"
+# NOTE: Admin site branding set centrally in intelliwiz_config/urls_optimized.py to avoid conflicts
+# admin.site.site_header = "Wellness Administration"
+# admin.site.site_title = "Wellness Admin Portal"
+# admin.site.index_title = "Welcome to Wellness Administration"

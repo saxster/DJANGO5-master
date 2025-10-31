@@ -350,7 +350,7 @@ def check_redis_performance() -> Dict[str, Any]:
             # Check slow log
             slow_log = redis_client.slowlog_get(10)
             recent_slow_queries = len([entry for entry in slow_log if entry['start_time'] > (time.time() - 300)])  # Last 5 minutes
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             recent_slow_queries = 0
 
         # Performance thresholds
@@ -445,7 +445,7 @@ def check_celery_redis_health() -> Dict[str, Any]:
                 "active_workers": len(active_queues) if active_queues else 0,
                 "queues": list(active_queues.keys()) if active_queues else []
             }
-        except:
+        except (OSError, TypeError, AttributeError) as e:
             queue_info = {"active_workers": 0, "queues": []}
 
         # Determine overall status
@@ -512,31 +512,31 @@ def check_channels_redis_health() -> Dict[str, Any]:
         try:
             # Try to send and receive a message
             import asyncio
+
             async def test_channels():
+                """Test channel layer send/receive functionality."""
                 await channel_layer.send(test_channel, test_message)
                 received = await channel_layer.receive(test_channel)
                 return received == test_message
 
-            # Run the async test
-            loop = None
+            # Run the async test - Python 3.12+ modern pattern
             try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            if loop.is_running():
-                # Create a new task if loop is already running
+                # Check if we're already in an async context
+                asyncio.get_running_loop()
+                # If we reach here, loop is running - can't use asyncio.run()
+                # This shouldn't happen in health checks, but handle gracefully
                 test_passed = True  # Simplified for running loop scenario
-            else:
-                test_passed = loop.run_until_complete(test_channels())
+                message = "Channels layer check skipped (async context)"
+            except RuntimeError:
+                # Not in async context - use asyncio.run() (Python 3.12 best practice)
+                test_passed = asyncio.run(test_channels())
 
-            if test_passed:
-                status = "healthy"
-                message = "Channels Redis layer operational"
-            else:
-                status = "error"
-                message = "Channels message test failed"
+                if test_passed:
+                    status = "healthy"
+                    message = "Channels Redis layer operational"
+                else:
+                    status = "error"
+                    message = "Channels message test failed"
 
         except Exception as test_error:
             status = "error"

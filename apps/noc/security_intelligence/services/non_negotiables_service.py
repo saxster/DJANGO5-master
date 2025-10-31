@@ -25,7 +25,7 @@ from apps.noc.security_intelligence.models import (
     TourComplianceLog
 )
 from apps.noc.security_intelligence.services.task_compliance_monitor import TaskComplianceMonitor
-from apps.schedhuler.services.schedule_coordinator import ScheduleCoordinator
+from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
 
 logger = logging.getLogger('noc.non_negotiables')
 
@@ -57,6 +57,10 @@ class NonNegotiablesService(BaseService):
     def __init__(self):
         super().__init__()
         self.schedule_coordinator = ScheduleCoordinator()
+
+    def get_service_name(self) -> str:
+        """Return the service identifier for monitoring hooks."""
+        return "NonNegotiablesService"
 
     @transaction.atomic
     def generate_scorecard(self, tenant, client, check_date=None) -> NonNegotiablesScorecard:

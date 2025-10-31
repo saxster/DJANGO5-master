@@ -17,7 +17,7 @@ Complies with .claude/rules.md:
 
 from django.db import models
 from django.contrib.gis.db import models as gis_models
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from apps.core.constants.datetime_constants import SECONDS_IN_DAY

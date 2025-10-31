@@ -24,7 +24,6 @@ from ..models.wisdom_conversations import (
     ConversationThread, WisdomConversation, ConversationEngagement
 )
 from ..models.mental_health_interventions import InterventionDeliveryLog
-from ..services.intervention_personalization_service import InterventionPersonalizationService
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -39,7 +38,8 @@ class WisdomConversationGenerator:
     """
 
     def __init__(self):
-        self.personalization_service = InterventionPersonalizationService()
+        # Personalization logic is implemented inline in methods below
+        pass
 
         # Conversation tone templates for different intervention types
         self.tone_templates = {

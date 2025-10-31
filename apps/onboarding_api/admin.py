@@ -11,6 +11,14 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.html import format_html, mark_safe
 from django.utils.safestring import SafeString
 from django.db.models import Count, Q
+from django.shortcuts import render
+from django.urls import path
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
+
+# Import required models
+from apps.peoples.models import People
+from apps.onboarding.models import Bt
 
 
 # Proxy models for separate admin interfaces
@@ -67,13 +75,13 @@ class PeopleConversationalOnboardingAdmin(admin.ModelAdmin):
     specific controls for managing conversational onboarding capabilities.
     """
     list_display = [
-        'loginid', 'email', 'fname', 'lname', 'client',
+        'loginid', 'email', 'peoplename',
         'onboarding_enabled', 'approver_status', 'kb_manager_status',
         'capability_summary', 'last_active'
     ]
     list_filter = [
         ConversationalOnboardingCapabilityFilter,
-        'client', 'is_staff', 'is_active', 'is_verified'
+        'is_staff', 'enable'
     ]
     search_fields = ['loginid', 'email', 'fname', 'lname']
     readonly_fields = ['id', 'cdtz', 'mdtz', 'cuser', 'muser', 'capability_json_display']
@@ -294,7 +302,7 @@ class TenantConversationalOnboardingAdmin(admin.ModelAdmin):
         'buname', 'bucode', 'onboarding_status', 'user_count',
         'enabled_users_count', 'pilot_status', 'rollout_percentage'
     ]
-    list_filter = [TenantOnboardingStatusFilter, 'is_active']
+    list_filter = [TenantOnboardingStatusFilter, 'enable']
     search_fields = ['buname', 'bucode']
 
     actions = [

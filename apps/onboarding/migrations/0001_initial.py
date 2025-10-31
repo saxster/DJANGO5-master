@@ -23,8 +23,8 @@ class Migration(migrations.Migration):
             name='Bt',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(default=uuid.uuid4, null=True)),
                 ('bucode', models.CharField(max_length=30, verbose_name='Code')),
@@ -60,8 +60,8 @@ class Migration(migrations.Migration):
             name='Device',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('handsetname', models.CharField(max_length=100, verbose_name='Handset Name')),
                 ('modelname', models.CharField(max_length=50, verbose_name='Model')),
@@ -85,8 +85,8 @@ class Migration(migrations.Migration):
             name='DownTimeHistory',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('reason', models.TextField(verbose_name='Downtime Reason')),
                 ('starttime', models.DateTimeField(default=django.utils.timezone.now, verbose_name='Start')),
@@ -103,8 +103,8 @@ class Migration(migrations.Migration):
             name='GeofenceMaster',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('gfcode', models.CharField(max_length=100, verbose_name='Code')),
                 ('gfname', models.CharField(max_length=100, verbose_name='Name')),
@@ -123,8 +123,8 @@ class Migration(migrations.Migration):
             name='Shift',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('shiftname', models.CharField(max_length=50, verbose_name='Name')),
                 ('shiftduration', models.IntegerField(null=True, verbose_name='Shift Duration')),
@@ -147,8 +147,8 @@ class Migration(migrations.Migration):
             name='Subscription',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('startdate', models.DateField(verbose_name='Start Date')),
                 ('enddate', models.DateField(verbose_name='End Date')),
@@ -169,8 +169,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='TypeAssist',
             fields=[
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('id', models.BigAutoField(primary_key=True, serialize=False)),
                 ('tacode', models.CharField(max_length=50, verbose_name='tacode')),

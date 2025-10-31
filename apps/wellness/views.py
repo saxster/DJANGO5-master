@@ -1,9 +1,57 @@
 """
 Wellness App Views - Complete API Implementation
 
-Comprehensive API endpoints for wellness education system as specified:
+ARCHITECTURE OVERVIEW:
+======================
+This module provides REST API endpoints for the Wellness system, which **aggregates and
+analyzes journal entries from Kotlin mobile frontends** to deliver contextual, evidence-based
+wellness interventions.
+
+AGGREGATION & ANALYSIS FLOW:
+-----------------------------
+1. Mobile clients submit journal entries (mood/stress/energy) via /api/journal/entries/
+2. JournalAnalyticsService analyzes entries in real-time for urgency scoring
+3. Wellness content is selected based on urgency analysis and user context
+4. Content delivery is tracked for effectiveness metrics
+5. Site admins view aggregated wellbeing trends through Django Admin
+
+KEY ENDPOINTS:
+--------------
+- POST /api/wellness/contextual/     - Delivers wellness content based on journal analysis
+- GET  /api/wellness/daily-tip/      - Personalized daily wellness tip
+- GET  /api/wellness/progress/       - User gamification progress
+- POST /api/wellness/content/{id}/track_interaction/  - Tracks user engagement
+- GET  /api/wellness/analytics/      - Aggregated effectiveness metrics (admin)
+
+CONTENT SELECTION LOGIC:
+-------------------------
+The contextual content endpoint uses JournalAnalyticsService to:
+1. Score urgency (0-10) based on mood_rating, stress_level, crisis keywords
+2. Categorize intervention type (stress_management, mood_support, etc.)
+3. Filter WellnessContent by category, evidence_level, priority_score
+4. Return immediate support content + follow-up recommendations
+
+ADMIN AGGREGATION:
+------------------
+Site administrators access aggregated metrics through:
+- Django Admin: /admin/wellness/wellnesscontent/ (content performance)
+- Django Admin: /admin/wellness/wellnesscontentinteraction/ (engagement)
+- Analytics API: GET /api/wellness/analytics/ (effectiveness metrics)
+- Journal Dashboard: /journal/analytics/ (wellbeing trends)
+
+All aggregated data respects privacy scopes and consent settings.
+
+PRIVACY & SECURITY:
+-------------------
+- Only shows data where user has given consent
+- Wellbeing entries default to 'private' privacy scope
+- Crisis interventions require explicit opt-in
+- All admin views show anonymized aggregates unless consent given
+
+FEATURES:
+---------
 - Daily wellness tips with intelligent personalization
-- Contextual content delivery based on journal patterns
+- Contextual content delivery based on journal pattern analysis
 - ML-powered recommendation engine with effectiveness tracking
 - User progress tracking with gamification elements
 - Evidence-based content management with WHO/CDC compliance

@@ -32,8 +32,8 @@ from apps.core.exceptions import (
     EnhancedValidationException,
 )
 from apps.activity.models.job_model import Job
-import apps.schedhuler.forms as scd_forms
-from apps.schedhuler.services.internal_tour_service import (
+import apps.scheduler.forms as scd_forms
+from apps.scheduler.services.internal_tour_service import (
     InternalTourService,
     InternalTourJobneedService
 )
@@ -44,9 +44,9 @@ logger = logging.getLogger(__name__)
 class Schd_I_TourFormJob(LoginRequiredMixin, View):
     """Create new internal tour."""
 
-    template_path = "schedhuler/schd_i_tourform_job.html"
+    template_path = "scheduler/schd_i_tourform_job.html"
     form_class = scd_forms.Schd_I_TourJobForm
-    subform = scd_forms.SchdChild_I_TourJobForm
+    subform = scd_forms.InternalTourCheckpointForm  # Fixed: was SchdChild_I_TourJobForm
     service = InternalTourService()
 
     initial = {
@@ -141,9 +141,9 @@ class Schd_I_TourFormJob(LoginRequiredMixin, View):
 class Update_I_TourFormJob(LoginRequiredMixin, View):
     """Update existing internal tour."""
 
-    template_path = "schedhuler/schd_i_tourform_job.html"
+    template_path = "scheduler/schd_i_tourform_job.html"
     form_class = scd_forms.Schd_I_TourJobForm
-    subform = scd_forms.SchdChild_I_TourJobForm
+    subform = scd_forms.InternalTourCheckpointForm  # Fixed: was SchdChild_I_TourJobForm
     service = InternalTourService()
 
     initial = Schd_I_TourFormJob.initial
@@ -178,7 +178,7 @@ class Update_I_TourFormJob(LoginRequiredMixin, View):
 class Retrive_I_ToursJob(LoginRequiredMixin, View):
     """List internal tours."""
 
-    template_path = "schedhuler/schd_e_tourlist_job.html"
+    template_path = "scheduler/schd_i_tourlist_job.html"
     service = InternalTourService()
 
     def get(self, request, *args, **kwargs):
@@ -213,7 +213,7 @@ class Retrive_I_ToursJob(LoginRequiredMixin, View):
 class Retrive_I_ToursJobneed(LoginRequiredMixin, View):
     """List internal tour jobneeds."""
 
-    template_path = "schedhuler/jobneed_list.html"
+    template_path = "scheduler/i_tourlist_jobneed.html"
     service = InternalTourJobneedService()
 
     def get(self, request, *args, **kwargs):
@@ -248,7 +248,7 @@ class Retrive_I_ToursJobneed(LoginRequiredMixin, View):
 class Get_I_TourJobneed(LoginRequiredMixin, View):
     """View specific internal tour jobneed."""
 
-    template_path = "schedhuler/jobneed_detail.html"
+    template_path = "scheduler/i_tourform_jobneed.html"
     service = InternalTourJobneedService()
 
     def get(self, request, *args, **kwargs):

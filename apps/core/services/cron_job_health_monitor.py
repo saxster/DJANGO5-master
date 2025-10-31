@@ -84,6 +84,10 @@ class CronJobHealthMonitor(BaseService):
     def __init__(self):
         super().__init__()
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "CronJobHealthMonitor"
+
     def get_job_health_metrics(
         self,
         job_definition: CronJobDefinition,

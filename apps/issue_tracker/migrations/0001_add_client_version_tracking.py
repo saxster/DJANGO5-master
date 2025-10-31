@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('issue_tracker', '__latest__'),  # This will be updated to the actual latest migration
+        ('issue_tracker', '0001_initial'),
     ]
 
     operations = [
@@ -48,7 +48,9 @@ class Migration(migrations.Migration):
             reverse_sql="DROP INDEX idx_anomalyoccurrence_os_version_created;"
         ),
         migrations.RunSQL(
-            "CREATE INDEX CONCURRENTLY idx_anomalyoccurrence_signature_app_version ON issue_tracker_anomalyoccurrence (signature_id, client_app_version);",
-            reverse_sql="DROP INDEX idx_anomalyoccurrence_signature_app_version;"
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_anomalyoccurrence_signature_app_version ON issue_tracker_anomalyoccurrence (signature_id, client_app_version);",
+            reverse_sql="DROP INDEX IF EXISTS idx_anomalyoccurrence_signature_app_version;"
         ),
     ]
+
+    atomic = False  # Required for CONCURRENTLY operations

@@ -38,7 +38,6 @@ class ETagMiddleware(MiddlewareMixin):
     # Paths to skip ETag processing
     SKIP_PATHS = [
         '/admin/',
-        '/api/graphql/',  # GraphQL has custom caching
         '/healthz',
         '/readyz',
         '/startup',

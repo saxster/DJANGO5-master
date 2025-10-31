@@ -25,7 +25,7 @@ from apps.onboarding.serializers import (
     TypeAssistSerializers as BaseTypeAssistSerializer,
     ShiftSerializers as BaseShiftSerializer,
 )
-from apps.schedhuler.serializers import (
+from apps.scheduler.serializers import (
     JobSerializers as BaseJobSerializer,
     JobneedSerializers as BaseJobneedSerializer,
 )
@@ -120,7 +120,11 @@ class TypeAssistSerializer(BaseTypeAssistSerializer):
     muser_id = serializers.PrimaryKeyRelatedField(source="muser", read_only=True)
 
     class Meta(BaseTypeAssistSerializer.Meta):
-        exclude = ["tenant", "bu", "client", "cuser", "muser", "tatype"]
+        fields = [
+            field
+            for field in BaseTypeAssistSerializer.Meta.fields
+            if field not in {"tenant", "bu", "client", "cuser", "muser", "tatype"}
+        ] + ['tatype_id', 'bu_id', 'client_id', 'cuser_id', 'muser_id']
 
 
 class PgbelongingSerializer(ValidatedModelSerializer):
@@ -165,7 +169,7 @@ class PgbelongingSerializer(ValidatedModelSerializer):
 class JobSerializer(BaseJobSerializer):
     """
     Mobile API serializer for Job.
-    Inherits all validation from apps.schedhuler.serializers.JobSerializers
+    Inherits all validation from apps.scheduler.serializers.JobSerializers
     """
     pass
 
@@ -173,7 +177,7 @@ class JobSerializer(BaseJobSerializer):
 class JobneedSerializer(BaseJobneedSerializer):
     """
     Mobile API serializer for Jobneed.
-    Inherits all validation from apps.schedhuler.serializers.JobneedSerializers
+    Inherits all validation from apps.scheduler.serializers.JobneedSerializers
     """
     pass
 

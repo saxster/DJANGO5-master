@@ -7,9 +7,10 @@ for dependency injection and transaction management.
 """
 
 # Service Infrastructure
-from .base_service import BaseService, ServiceException
+from .base_service import BaseService, ServiceException, monitor_service_performance
 from .transaction_manager import TransactionManager, transaction_manager, with_transaction, with_saga
 from .service_registry import ServiceRegistry, service_registry, injectable, inject, get_service
+from .saga_manager import SagaContextManager, saga_manager
 
 # Legacy services (maintaining backward compatibility)
 try:
@@ -42,6 +43,8 @@ __all__ = [
     'injectable',
     'inject',
     'get_service',
+    'SagaContextManager',
+    'saga_manager',
     # Legacy services
     'SecureEncryptionService',
     'encrypt',
@@ -55,4 +58,6 @@ __all__ = [
     'AdvancedFileValidationService',
     'FileUploadAuditService',
     'FileUploadAuditLog',
+    # Performance monitoring
+    'monitor_service_performance',
 ]

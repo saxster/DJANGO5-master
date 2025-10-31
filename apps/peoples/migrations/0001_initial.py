@@ -5,9 +5,49 @@ import apps.peoples.models
 import django.contrib.auth.models
 import django.core.serializers.json
 import django.db.models.deletion
+import django.utils.timezone
 import uuid
 from django.conf import settings
 from django.db import migrations, models
+
+
+# Migration-safe helper functions (defined locally to avoid import issues)
+def upload_peopleimg_migration(instance, filename):
+    """Upload path for people images - migration-safe version"""
+    return f"master/people/{filename}"
+
+
+def peoplejson_migration():
+    """Default JSON for people_extras - migration-safe version"""
+    return {
+        "andriodversion": "",
+        "appversion": "",
+        "mobilecapability": [],
+        "portletcapability": [],
+        "reportcapability": [],
+        "webcapability": [],
+        "noccapability": [],
+        "loacationtracking": False,
+        "capturemlog": False,
+        "showalltemplates": False,
+        "debug": False,
+        "showtemplatebasedonfilter": False,
+        "blacklist": False,
+        "assignsitegroup": [],
+        "tempincludes": [],
+        "mlogsendsto": "",
+        "user_type": "",
+        "secondaryemails": [],
+        "secondarymobno": [],
+        "isemergencycontact": False,
+        "alertmails": False,
+        "currentaddress": "",
+        "permanentaddress": "",
+        "isworkpermit_approver": False,
+        "userfor": "",
+        'enable_gps': False,
+        'noc_user': False
+    }
 
 
 class Migration(migrations.Migration):
@@ -44,11 +84,11 @@ class Migration(migrations.Migration):
                 ('password', models.CharField(max_length=128, verbose_name='password')),
                 ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
                 ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, null=True, unique=True)),
-                ('peopleimg', models.ImageField(blank=True, default='master/people/blank.png', null=True, upload_to=apps.peoples.models.upload_peopleimg, verbose_name='peopleimg')),
+                ('peopleimg', models.ImageField(blank=True, default='master/people/blank.png', null=True, upload_to=upload_peopleimg_migration, verbose_name='peopleimg')),
                 ('peoplecode', models.CharField(max_length=50, verbose_name='Code')),
                 ('peoplename', models.CharField(max_length=120, verbose_name='Name')),
                 ('loginid', models.CharField(blank=True, max_length=50, null=True, unique=True, verbose_name='Login Id')),
@@ -57,13 +97,13 @@ class Migration(migrations.Migration):
                 ('isverified', models.BooleanField(default=False, verbose_name='Active')),
                 ('enable', models.BooleanField(default=True, verbose_name='Enable')),
                 ('deviceid', models.CharField(default='-1', max_length=50, verbose_name='Device Id')),
-                ('email', apps.peoples.models.SecureString(max_length=254, verbose_name='Email')),
-                ('mobno', apps.peoples.models.SecureString(max_length=254, null=True, verbose_name='Mob No')),
+                ('email', models.CharField(max_length=254, verbose_name='Email')),
+                ('mobno', models.CharField(max_length=254, null=True, verbose_name='Mob No')),
                 ('gender', models.CharField(choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Others')], max_length=15, null=True, verbose_name='Gender')),
                 ('dateofbirth', models.DateField(verbose_name='Date of Birth')),
                 ('dateofjoin', models.DateField(null=True, verbose_name='Date of Join')),
                 ('dateofreport', models.DateField(blank=True, null=True, verbose_name='Date of Report')),
-                ('people_extras', models.JSONField(blank=True, default=apps.peoples.models.peoplejson, encoder=django.core.serializers.json.DjangoJSONEncoder, verbose_name='people_extras')),
+                ('people_extras', models.JSONField(blank=True, default=peoplejson_migration, encoder=django.core.serializers.json.DjangoJSONEncoder, verbose_name='people_extras')),
                 ('bu', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='people_bus', to='onboarding.bt', verbose_name='Site')),
                 ('client', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='people_clients', to='onboarding.bt', verbose_name='Client')),
                 ('cuser', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='%(class)s_cusers', to=settings.AUTH_USER_MODEL)),
@@ -89,8 +129,8 @@ class Migration(migrations.Migration):
             name='Capability',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('capscode', models.CharField(max_length=50, verbose_name='Code')),
                 ('capsname', models.CharField(blank=True, default=None, max_length=1000, null=True, verbose_name='Capability')),
@@ -118,8 +158,8 @@ class Migration(migrations.Migration):
             name='Pgroup',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('groupname', models.CharField(max_length=250, verbose_name='Name')),
                 ('enable', models.BooleanField(default=True, verbose_name='Enable')),
@@ -145,8 +185,8 @@ class Migration(migrations.Migration):
             name='Pgbelonging',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('isgrouplead', models.BooleanField(default=False, verbose_name='Group Lead')),
                 ('assignsites', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='pgbelongs_assignsites', to='onboarding.bt')),

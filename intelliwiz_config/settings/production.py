@@ -9,7 +9,7 @@ from .base import *
 from .logging import setup_logging
 from .security import get_production_security_settings
 from .integrations import get_production_integrations
-from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, GRAPHQL_VERSION_CONFIG, SPECTACULAR_SETTINGS
+from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, SPECTACULAR_SETTINGS
 
 logger = logging.getLogger(__name__)
 
@@ -17,15 +17,24 @@ logger = logging.getLogger(__name__)
 import environ
 env = environ.Env()
 ENV_FILE = ".env.prod.secure"
-ENVPATH = os.path.join(BASE_DIR.parent, "intelliwiz_config/envs")
+# SECURITY FIX: Use BASE_DIR instead of BASE_DIR.parent (correct path to envs directory)
+ENVPATH = os.path.join(BASE_DIR, "intelliwiz_config/envs")
 environ.Env.read_env(os.path.join(ENVPATH, ENV_FILE), overwrite=True)
 
 # Security configuration
 DEBUG = False
-ALLOWED_HOSTS = ["django5.youtility.in", "127.0.0.1"]
 
 if DEBUG:
     raise ValueError("DEBUG must be False in production environments")
+
+# SECURITY FIX (2025-10-11): Import refactored security configs with DEBUG override
+# This ensures Django's DEBUG setting is the single source of truth for security decisions
+from .security.hosts import get_allowed_hosts
+from .security.cors import get_cors_allowed_origins
+
+# Override with Django DEBUG setting (NOT env var) - CRITICAL for production security
+ALLOWED_HOSTS = get_allowed_hosts(is_debug=DEBUG)
+CORS_ALLOWED_ORIGINS = get_cors_allowed_origins(is_debug=DEBUG)
 
 # Environment variables with comprehensive security validation
 # CRITICAL: Apply Rule 4 validation - Secure Secret Management
@@ -68,10 +77,11 @@ except SecretValidationError as e:
 
     # PRODUCTION: Minimal console output (NO sensitive details, NO remediation hints)
     # Logs contain full details for authorized personnel only
-    print(f"\n🚨 CRITICAL: Invalid secret configuration detected")
-    print(f"🔐 Correlation ID: {correlation_id}")
-    print(f"📋 Review secure logs: /var/log/youtility4/security.log")
-    print(f"🚨 Production startup aborted for security\n")
+    import sys
+    sys.stderr.write(f"\n🚨 CRITICAL: Invalid secret configuration detected\n")
+    sys.stderr.write(f"🔐 Correlation ID: {correlation_id}\n")
+    sys.stderr.write(f"📋 Review secure logs: /var/log/youtility4/security.log\n")
+    sys.stderr.write(f"🚨 Production startup aborted for security\n\n")
     sys.exit(1)
 except Exception as e:
     import sys
@@ -86,9 +96,10 @@ except Exception as e:
     )
 
     # PRODUCTION: Generic error message only
-    print(f"\n🚨 CRITICAL: Startup error")
-    print(f"🔐 Correlation ID: {correlation_id}")
-    print(f"📋 Contact system administrator\n")
+    import sys
+    sys.stderr.write(f"\n🚨 CRITICAL: Startup error\n")
+    sys.stderr.write(f"🔐 Correlation ID: {correlation_id}\n")
+    sys.stderr.write(f"📋 Contact system administrator\n\n")
     sys.exit(1)
 
 # Email configuration
@@ -112,33 +123,42 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,  # Enable connection health checks
         "OPTIONS": {
             "sslmode": "require",
-            "MAX_CONNS": 50,  # Higher limit for production
-            "MIN_CONNS": 5,   # Maintain minimum connections
             "application_name": "youtility_prod",  # For connection tracking
-            "connect_timeout": 10,  # Connection timeout
-            "tcp_keepalives_idle": 600,
-            "tcp_keepalives_interval": 30,
-            "tcp_keepalives_count": 3,
+            "connect_timeout": 10,  # Connection timeout in seconds
+            "tcp_keepalives_idle": 600,  # TCP keepalive idle time
+            "tcp_keepalives_interval": 30,  # TCP keepalive interval
+            "tcp_keepalives_count": 3,  # TCP keepalive count
         },
     }
 }
 
-# Channel layers for production
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": ["redis://127.0.0.1:6379/2"], "capacity": 50000, "expiry": 120, "group_expiry": 86400},
-    },
-}
+# OPTIMIZED Redis Configuration - Connection Pool & Performance Enhancements
+from .redis_optimized import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
 
-# CORS configuration (strict for production)
-CORS_ALLOWED_ORIGINS = ["https://django5.youtility.in"]
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://\w+\.youtility\.in$"]
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["accept", "accept-encoding", "authorization", "content-type", "dnt", "origin", "user-agent", "x-csrftoken", "x-requested-with"]
-CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
-CORS_PREFLIGHT_MAX_AGE = 86400
+# Cache configuration with optimized connection pooling
+CACHES = OPTIMIZED_CACHES
+
+# Redis performance monitoring settings (production-enabled)
+REDIS_MONITORING_ENABLED = True
+REDIS_PERFORMANCE_LOGGING = True
+
+# Production-specific Redis settings
+os.environ.setdefault('DJANGO_ENVIRONMENT', 'production')
+
+# Channel layers for production (optimized with connection pooling)
+CHANNEL_LAYERS = OPTIMIZED_CHANNEL_LAYERS
+
+# CORS configuration - import constants from single source of truth (2025-10-11 remediation)
+# Note: CORS_ALLOWED_ORIGINS is set above via get_cors_allowed_origins(is_debug=DEBUG)
+# Only import CORS constants here (not CORS_ALLOWED_ORIGINS which is dynamically generated)
+from .security.cors import (
+    CORS_ALLOWED_ORIGIN_REGEXES,
+    CORS_ALLOW_CREDENTIALS,
+    CORS_ALLOW_METHODS,
+    CORS_ALLOW_HEADERS,
+    CORS_EXPOSE_HEADERS,
+    CORS_PREFLIGHT_MAX_AGE,
+)
 
 # Static and media files
 STATIC_ROOT = env("STATIC_ROOT")
@@ -159,85 +179,6 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # Language cookie security (production override)
 LANGUAGE_COOKIE_SECURE = True  # Protect language preference cookie over HTTPS
-
-# ============================================================================
-# GRAPHQL PRODUCTION SECURITY HARDENING
-# ============================================================================
-# Production environment enforces strict GraphQL security settings to prevent
-# DoS attacks, unauthorized access, and data leakage.
-# ============================================================================
-
-# Strict rate limiting for production
-GRAPHQL_RATE_LIMIT_MAX = 50  # Lower limit than base (50 vs 100)
-GRAPHQL_RATE_LIMIT_WINDOW = 300  # 5 minute window
-
-# MANDATORY: Disable introspection in production (security best practice)
-GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION = True
-if not GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION:
-    raise ValueError("GraphQL introspection MUST be disabled in production for security")
-
-# MANDATORY: Strict origin validation
-GRAPHQL_STRICT_ORIGIN_VALIDATION = True
-GRAPHQL_ALLOWED_ORIGINS = [
-    'https://django5.youtility.in',
-    'https://app.youtility.in',
-]
-
-# Comprehensive origin validation configuration (overrides base settings)
-GRAPHQL_ORIGIN_VALIDATION = {
-    'allowed_origins': GRAPHQL_ALLOWED_ORIGINS,
-    'allowed_patterns': [
-        r'^https://.*\.youtility\.in$',  # Allow all youtility.in subdomains
-    ],
-    'allowed_subdomains': ['youtility.in'],  # Allow *.youtility.in
-    'blocked_origins': [],  # Blacklist specific origins if needed
-    'strict_mode': True,  # CRITICAL: Reject requests without valid origin
-    'validate_referer': True,  # Validate Referer header consistency
-    'validate_host': True,  # Validate Host header consistency
-    'allow_localhost_dev': False,  # PRODUCTION: Never allow localhost
-    'geographic_validation': False,  # Can enable with GeoIP if needed
-    'allowed_countries': [],  # Restrict by country if geo validation enabled
-    'dynamic_allowlist': True,  # Cache validated origins for performance
-    'suspicious_patterns': [
-        r'.*\.onion$',  # Block Tor
-        r'.*\.bit$',    # Block Namecoin
-        r'\d+\.\d+\.\d+\.\d+',  # Block raw IPs
-        r'.*localhost.*',  # Block localhost variants
-        r'.*127\.0\.0\..*',  # Block loopback
-    ]
-}
-
-# Conservative complexity limits for production
-GRAPHQL_MAX_QUERY_DEPTH = 8  # Stricter than base (8 vs 10)
-GRAPHQL_MAX_QUERY_COMPLEXITY = 800  # Stricter than base (800 vs 1000)
-GRAPHQL_MAX_MUTATIONS_PER_REQUEST = 3  # Stricter than base (3 vs 5)
-
-# Stricter JWT timeouts for production security
-GRAPHQL_JWT = {
-    "JWT_VERIFY_EXPIRATION": True,
-    "JWT_EXPIRATION_DELTA": timedelta(hours=2),  # Production: 2 hours (stricter than dev 8 hours)
-    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=2),
-    "JWT_LONG_RUNNING_REFRESH_TOKEN": True
-}
-
-# Enable all security logging in production
-GRAPHQL_SECURITY_LOGGING['LOG_FAILED_CSRF_ATTEMPTS'] = True
-GRAPHQL_SECURITY_LOGGING['ENABLE_MUTATION_LOGGING'] = True
-GRAPHQL_SECURITY_LOGGING['ENABLE_RATE_LIMIT_LOGGING'] = True
-
-# Validation: Ensure critical production security settings
-assert GRAPHQL_STRICT_ORIGIN_VALIDATION, "Production MUST enforce strict origin validation"
-assert GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION, "Production MUST disable GraphQL introspection"
-assert GRAPHQL_RATE_LIMIT_MAX <= 100, "Production rate limit suspiciously high"
-assert GRAPHQL_ORIGIN_VALIDATION['strict_mode'], "Production MUST have strict_mode enabled in GRAPHQL_ORIGIN_VALIDATION"
-assert not GRAPHQL_ORIGIN_VALIDATION['allow_localhost_dev'], "Production MUST NOT allow localhost in origin validation"
-assert GRAPHQL_ORIGIN_VALIDATION['validate_referer'], "Production MUST validate Referer header"
-assert GRAPHQL_ORIGIN_VALIDATION['validate_host'], "Production MUST validate Host header"
-
-logger.info(f"✅ Production GraphQL security hardening applied")
-logger.info(f"   - Rate limit: {GRAPHQL_RATE_LIMIT_MAX} requests per {GRAPHQL_RATE_LIMIT_WINDOW}s")
-logger.info(f"   - Introspection: {'Disabled' if GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION else 'ENABLED (SECURITY RISK!)'}")
-logger.info(f"   - Origin validation: {'Strict' if GRAPHQL_STRICT_ORIGIN_VALIDATION else 'Relaxed (SECURITY RISK!)'}")
 
 # Template performance optimization (disable auto-reload in production)
 from copy import deepcopy
@@ -267,7 +208,7 @@ ENABLE_ONBOARDING_SSE = env.bool('ENABLE_ONBOARDING_SSE', default=False)
 
 # Production API settings
 ENABLE_API_AUTH = True
-API_AUTH_PATHS = ["/api/", "/graphql/"]
+API_AUTH_PATHS = ["/api/"]
 API_REQUIRE_SIGNING = env.bool("API_REQUIRE_SIGNING", default=True)
 
 # SECURITY: Disable legacy upload mutation (CVSS 8.1 vulnerability)
@@ -281,7 +222,7 @@ RATE_LIMIT_WINDOW_MINUTES = 15
 RATE_LIMIT_MAX_ATTEMPTS = 5
 RATE_LIMIT_PATHS = [
     "/login/", "/accounts/login/", "/auth/login/",
-    "/api/", "/api/v1/", "/graphql/", "/api/graphql/",
+    "/api/", "/api/v1/",
     "/reset-password/", "/password-reset/",
     "/admin/", "/admin/django/",
     "/api/upload/"

@@ -24,7 +24,15 @@ from datetime import datetime, timezone as dt_timezone
 from typing import Dict, Any, Optional, List, Tuple
 from PIL import Image, ExifTags
 from PIL.ExifTags import TAGS, GPSTAGS
-import exifread
+
+# Optional EXIF reading dependency
+try:
+    import exifread
+    EXIF_AVAILABLE = True
+except ImportError:
+    EXIF_AVAILABLE = False
+    exifread = None
+
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError
 from django.conf import settings
@@ -217,15 +225,18 @@ class EXIFAnalysisService:
         except (OSError, AttributeError, ValueError) as e:
             logger.debug(f"PIL EXIF extraction failed: {e}")
 
-        # Method 2: ExifRead extraction (more comprehensive)
-        try:
-            with open(image_path, 'rb') as f:
-                tags = exifread.process_file(f, details=True)
-                for tag_key, tag_value in tags.items():
-                    if tag_key not in ['JPEGThumbnail', 'TIFFThumbnail']:
-                        exif_data[f"EXIF_{tag_key}"] = str(tag_value)
-        except (OSError, IOError, ValueError) as e:
-            logger.debug(f"ExifRead extraction failed: {e}")
+        # Method 2: ExifRead extraction (more comprehensive - optional dependency)
+        if EXIF_AVAILABLE and exifread is not None:
+            try:
+                with open(image_path, 'rb') as f:
+                    tags = exifread.process_file(f, details=True)
+                    for tag_key, tag_value in tags.items():
+                        if tag_key not in ['JPEGThumbnail', 'TIFFThumbnail']:
+                            exif_data[f"EXIF_{tag_key}"] = str(tag_value)
+            except (OSError, IOError, ValueError) as e:
+                logger.debug(f"ExifRead extraction failed: {e}")
+        else:
+            logger.debug("ExifRead not available - using PIL only for EXIF extraction")
 
         return exif_data
 

@@ -1,6 +1,9 @@
 """
 Health checks module - comprehensive system health monitoring.
 Follows Rule 16: Explicit __all__ control for wildcard imports.
+
+NOTE: View functions (health_check, readiness_check, etc.) are defined in
+      apps/core/health_checks.py (file) and re-exported here for convenience.
 """
 
 from .manager import HealthCheckManager, global_health_manager

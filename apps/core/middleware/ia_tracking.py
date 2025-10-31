@@ -258,7 +258,7 @@ class IATrackingMiddleware(MiddlewareMixin):
         try:
             resolved = resolve(request.path)
             return resolved.view_name.replace('_', ' ').title()
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return request.path
     
     def _get_client_ip(self, request):

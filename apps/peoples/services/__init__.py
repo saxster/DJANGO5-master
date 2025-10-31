@@ -66,3 +66,9 @@ __all__ = [
     'EmailVerificationService',
     'EmailVerificationResult',
 ]
+# Import UserCapabilityService for backward compatibility
+from .user_capability_service import UserCapabilityService
+from .user_defaults_service import UserDefaultsService
+
+__all__.append('UserCapabilityService')
+__all__.append('UserDefaultsService')

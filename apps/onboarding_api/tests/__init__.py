@@ -32,15 +32,7 @@ pytest_markers = {
     'slow': 'Slow tests - may take longer to run'
 }
 
-# Import key test classes for easier access
-    EscalationTestCase,
-)
-
-    FailoverTestCase,
-)
-
-    ResourceUtilizationTestCase,
-)
+# Note: keep this package init lean to avoid import-time failures
 
 __all__ = [
     # Configuration

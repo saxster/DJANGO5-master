@@ -37,7 +37,6 @@ class WellnessPIIRedactionMiddleware(MiddlewareMixin):
         '/wellness/',
         '/api/wellness/',
         '/api/v1/wellness/',
-        '/graphql/',  # May include wellness queries
     ]
 
     # Fields that are ALWAYS redacted for non-owners

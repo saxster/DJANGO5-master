@@ -253,7 +253,6 @@ class SQLInjectionPenetrationTests(TestCase):
         # Test various endpoints that might be vulnerable
         endpoints_to_test = [
             '/api/v1/users/',
-            '/api/graphql/',
             '/people/search/',
             '/activity/jobs/',
         ]

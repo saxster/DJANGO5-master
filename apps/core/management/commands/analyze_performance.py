@@ -297,7 +297,7 @@ class Command(BaseCommand):
         # Check for complex calculations
         heavy_ops.append({
             'type': 'complex_calculations',
-            'location': 'apps/schedhuler/views.py',
+            'location': 'apps/scheduler/views.py',
             'severity': 'high',
             'description': 'Unbounded while loop in cron calculations',
             'recommendation': 'Use CronCalculationService with bounded iterations',

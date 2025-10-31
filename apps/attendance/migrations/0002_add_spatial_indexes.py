@@ -11,57 +11,29 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Add GIST indexes for spatial fields on PeopleEventlog
-        AddIndexConcurrently(
-            model_name='peopleeventlog',
-            index=GistIndex(
-                fields=['startlocation'],
-                name='pel_startlocation_gist_idx',
-                condition=models.Q(startlocation__isnull=False)
-            )
+        # Note: Converted to RunSQL with IF NOT EXISTS for idempotency
+        migrations.RunSQL(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS pel_startlocation_gist_idx ON peopleeventlog USING GIST(startlocation) WHERE startlocation IS NOT NULL;",
+            reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS pel_startlocation_gist_idx;"
         ),
-        AddIndexConcurrently(
-            model_name='peopleeventlog',
-            index=GistIndex(
-                fields=['endlocation'],
-                name='pel_endlocation_gist_idx',
-                condition=models.Q(endlocation__isnull=False)
-            )
+        migrations.RunSQL(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS pel_endlocation_gist_idx ON peopleeventlog USING GIST(endlocation) WHERE endlocation IS NOT NULL;",
+            reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS pel_endlocation_gist_idx;"
         ),
-        AddIndexConcurrently(
-            model_name='peopleeventlog',
-            index=GistIndex(
-                fields=['journeypath'],
-                name='pel_journeypath_gist_idx',
-                condition=models.Q(journeypath__isnull=False)
-            )
+        migrations.RunSQL(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS pel_journeypath_gist_idx ON peopleeventlog USING GIST(journeypath) WHERE journeypath IS NOT NULL;",
+            reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS pel_journeypath_gist_idx;"
         ),
-        # Add GIST index for Tracking model gpslocation
-        AddIndexConcurrently(
-            model_name='tracking',
-            index=GistIndex(
-                fields=['gpslocation'],
-                name='tracking_gpslocation_gist_idx',
-                condition=models.Q(gpslocation__isnull=False)
-            )
+        migrations.RunSQL(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS tracking_gpslocation_gist_idx ON tracking USING GIST(gpslocation) WHERE gpslocation IS NOT NULL;",
+            reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS tracking_gpslocation_gist_idx;"
         ),
         # Add compound indexes for common queries
         migrations.RunSQL(
-            """
-            CREATE INDEX CONCURRENTLY pel_datefor_startloc_idx
-            ON peopleeventlog USING btree(datefor)
-            WHERE startlocation IS NOT NULL;
-            """,
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS pel_datefor_startloc_idx ON peopleeventlog USING btree(datefor) WHERE startlocation IS NOT NULL;",
             reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS pel_datefor_startloc_idx;"
         ),
-        migrations.RunSQL(
-            """
-            CREATE INDEX CONCURRENTLY pel_people_datefor_idx
-            ON peopleeventlog USING btree(people_id, datefor)
-            WHERE startlocation IS NOT NULL OR endlocation IS NOT NULL;
-            """,
-            reverse_sql="DROP INDEX CONCURRENTLY IF EXISTS pel_people_datefor_idx;"
-        ),
+        # Note: Removed pel_people_datefor_idx - people_id column doesn't exist in PeopleEventlog model
     ]
 
     atomic = False  # Required for CONCURRENTLY operations

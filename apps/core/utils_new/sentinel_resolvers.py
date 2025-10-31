@@ -31,6 +31,8 @@ __all__ = [
     'get_none_jobneed',
     'resolve_parent_job',
     'resolve_asset',
+    'is_none_record',
+    'is_root_record',
 ]
 
 
@@ -300,3 +302,12 @@ def resolve_parent_job(parent_id):
 def resolve_asset(asset_id):
     """Convenience function to resolve asset reference."""
     return SentinelResolver.resolve_asset_reference(asset_id)
+
+def is_none_record(record_id):
+    """Convenience function to check if ID is a NONE record."""
+    return SentinelResolver.is_none_record(record_id)
+
+
+def is_root_record(record_id):
+    """Convenience function to check if ID is a ROOT record."""
+    return SentinelResolver.is_root_record(record_id)

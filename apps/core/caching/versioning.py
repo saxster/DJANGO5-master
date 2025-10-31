@@ -41,15 +41,33 @@ class CacheVersionManager:
     def _load_current_version(self) -> str:
         """Load current cache version from settings or cache"""
         try:
-            cached_version = cache.get(self.VERSION_KEY)
-            if cached_version:
-                return cached_version
+            # Check if cache backend is available before attempting operations
+            if not hasattr(cache, '_cache') and not hasattr(cache, 'get'):
+                logger.debug("Cache backend not fully initialized, using default version")
+                return '1.0'
+
+            try:
+                cached_version = cache.get(self.VERSION_KEY)
+                if cached_version and isinstance(cached_version, str):
+                    return cached_version
+            except (AttributeError, TypeError, ConnectionError) as inner_e:
+                # Cache.get() failed - likely Redis unavailable or MaterializedView backend
+                logger.debug(f"Cache retrieval failed: {inner_e}, using default version")
+                return '1.0'
+
+            # No cached version found, use settings default
             settings_version = getattr(settings, 'CACHE_VERSION', '1.0')
-            cache.set(self.VERSION_KEY, settings_version, timeout=None)
-            logger.info(f"Initialized cache version: {settings_version}")
+
+            try:
+                cache.set(self.VERSION_KEY, settings_version, timeout=None)
+                logger.info(f"Initialized cache version: {settings_version}")
+            except (AttributeError, TypeError, ConnectionError):
+                # Cache.set() failed - not critical, just continue with default
+                logger.debug("Could not cache version in backend, using in-memory default")
+
             return settings_version
-        except (AttributeError, ValueError) as e:
-            logger.error(f"Error loading cache version: {e}")
+        except (AttributeError, ValueError, TypeError, ConnectionError) as e:
+            logger.debug(f"Error loading cache version: {e}, using default")
             return '1.0'
 
     def get_version(self) -> str:

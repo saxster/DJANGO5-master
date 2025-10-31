@@ -22,7 +22,7 @@ from typing import Dict, List, Any, Optional
 
 # Django setup
 sys.path.append('/Users/amar/Desktop/MyCode/DJANGO5-master')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.development')
 
 import django
 django.setup()

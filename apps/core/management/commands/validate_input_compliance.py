@@ -53,7 +53,6 @@ class Command(BaseCommand):
         violations = {
             'forms': [],
             'serializers': [],
-            'graphql_inputs': [],  # Legacy - GraphQL removed Oct 2025
         }
 
         app_filter = options.get('app')
@@ -66,7 +65,6 @@ class Command(BaseCommand):
 
             violations['forms'].extend(self._audit_forms(app_config))
             violations['serializers'].extend(self._audit_serializers(app_config))
-            violations['graphql_inputs'].extend(self._audit_graphql_inputs(app_config))
 
         self._print_summary(violations)
 
@@ -213,15 +211,6 @@ class Command(BaseCommand):
                                     return True
         return False
 
-    def _audit_graphql_inputs(self, app_config):
-        """
-        Audit legacy API InputObjectTypes for validation.
-
-        NOTE: GraphQL removed in Oct 2025. This method maintained for backward
-        compatibility with validation reports. Always returns empty list.
-        """
-        return []  # GraphQL removed - no inputs to audit
-
     def _print_summary(self, violations):
         """Print violation summary."""
         self.stdout.write("\n" + "=" * 80)
@@ -230,7 +219,6 @@ class Command(BaseCommand):
 
         form_count = len(violations['forms'])
         serializer_count = len(violations['serializers'])
-        graphql_count = len(violations['graphql_inputs'])
 
         if form_count > 0:
             self.stdout.write(self.style.ERROR(f"❌ Django Forms: {form_count} violations"))
@@ -242,13 +230,7 @@ class Command(BaseCommand):
             for v in violations['serializers'][:5]:
                 self.stdout.write(f"   - {v['app']}.{v['name']}: {v['violation']}")
 
-        if graphql_count > 0:
-            self.stdout.write(self.style.ERROR(f"❌ Legacy API Inputs: {graphql_count} violations"))
-            for v in violations['graphql_inputs'][:5]:
-                self.stdout.write(f"   - {v['app']}/{v['name']}: {v['violation']}")
-            self.stdout.write(self.style.WARNING("   NOTE: GraphQL removed Oct 2025 - migrate to REST API"))
-
-        total = form_count + serializer_count + graphql_count
+        total = form_count + serializer_count
         if total == 0:
             self.stdout.write(self.style.SUCCESS("\n✅ No violations found - 100% compliant!"))
 
@@ -305,7 +287,6 @@ class Command(BaseCommand):
         <ul>
             <li>Django Forms: {len(violations['forms'])}</li>
             <li>DRF Serializers: {len(violations['serializers'])}</li>
-            <li>legacy API Inputs: {len(violations['graphql_inputs'])}</li>
         </ul>
         {"<p class='compliant'>✅ 100% COMPLIANT</p>" if total == 0 else ""}
     </div>

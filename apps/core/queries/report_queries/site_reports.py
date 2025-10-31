@@ -1,6 +1,7 @@
 """Site report queries - detailed site visit reports with attachments."""
 from typing import List, Dict
-from django.db.models import F, Cast
+from django.db.models import F
+from django.db.models.functions import Cast
 from django.db import models
 from datetime import datetime
 import logging

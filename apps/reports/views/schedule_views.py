@@ -45,26 +45,52 @@ class DesignReport(LoginRequiredMixin, View):
         return response
 
     def render_using_pandoc(self, html_string):
-        with open("temp.html", "w") as file:
-            file.write(html_string)
+        """
+        SECURITY HARDENING: Use temporary directory to prevent file conflicts and race conditions
+        """
+        import tempfile
+        import shutil
 
-        # Specify the path to your local CSS file
-        command = [
-            "pandoc",
-            "temp.html",
-            "-o",
-            "output.pdf",
-            "--css=frontend/static/assets/css/local/reports.css",
-            "--pdf-engine=xelatex",  # Replace with your preferred PDF engine
-        ]
-        subprocess.run(command)
+        # SECURITY CHECK: Verify pandoc is installed before attempting to use it
+        if not shutil.which("pandoc"):
+            raise RuntimeError(
+                "pandoc not found in system PATH. "
+                "Install with: brew install pandoc (macOS) or apt-get install pandoc (Linux)"
+            )
 
-        with open("output.pdf", "rb") as file:
-            pdf = file.read()
+        # Use temporary directory with automatic cleanup
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create safe temporary file paths within the temp directory
+            temp_html = os.path.join(tmpdir, "temp.html")
+            output_pdf = os.path.join(tmpdir, "output.pdf")
 
-        # Delete the temporary files
-        os.remove("temp.html")
-        os.remove("output.pdf")
+            # Write HTML to temporary file
+            with open(temp_html, "w", encoding='utf-8') as file:
+                file.write(html_string)
+
+            # Specify the path to your local CSS file
+            command = [
+                "pandoc",
+                temp_html,
+                "-o",
+                output_pdf,
+                "--css=frontend/static/assets/css/local/reports.css",
+                "--pdf-engine=xelatex",  # Replace with your preferred PDF engine
+            ]
+
+            # Run pandoc with timeout to prevent hanging
+            try:
+                subprocess.run(command, timeout=30, check=True)
+            except subprocess.TimeoutExpired:
+                raise RuntimeError("PDF generation timed out after 30 seconds")
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"pandoc failed with exit code {e.returncode}")
+
+            # Read generated PDF
+            with open(output_pdf, "rb") as file:
+                pdf = file.read()
+
+            # Temporary files are automatically cleaned up when context exits
 
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = 'filename="report.pdf"'

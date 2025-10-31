@@ -200,3 +200,5 @@ class Migration(migrations.Migration):
             ),
         ),
     ]
+
+    atomic = False  # Required for CONCURRENTLY operations

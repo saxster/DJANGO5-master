@@ -4,7 +4,7 @@ Comprehensive unit tests for Phase 1 Exception Handling Remediation.
 Tests specific exception handling in:
 1. apps/peoples/forms.py (authentication/decryption)
 2. apps/activity/managers/job_manager.py (job workflows)
-3. apps/schedhuler/services/scheduling_service.py (tour scheduling)
+3. apps/scheduler/services/scheduling_service.py (tour scheduling)
 4. apps/core/services/secure_encryption_service.py
 5. apps/core/services/secure_file_upload_service.py
 6. apps/core/services/secure_file_download_service.py
@@ -28,7 +28,7 @@ from apps.core.services.secure_encryption_service import SecureEncryptionService
 from apps.core.services.secure_file_upload_service import SecureFileUploadService
 from apps.core.services.secure_file_download_service import SecureFileDownloadService
 from apps.core.exceptions import SecurityException, DatabaseException, SchedulingException
-from apps.schedhuler.services.scheduling_service import SchedulingService, TourConfiguration
+from apps.scheduler.services.scheduling_service import SchedulingService, TourConfiguration
 
 
 class TestPeoplesFormsExceptionHandling:
@@ -190,7 +190,7 @@ class TestJobManagerExceptionHandling:
 
             with patch('apps.activity.managers.job_manager.distributed_lock'):
                 with patch('apps.activity.managers.job_manager.transaction.atomic'):
-                    with patch('apps.schedhuler.utils.job_fields', side_effect=ValueError("Invalid expiry time")):
+                    with patch('apps.scheduler.utils.job_fields', side_effect=ValueError("Invalid expiry time")):
                         result = manager.handle_save_checkpoint_guardtour(mock_request)
 
                         # Should return validation error (not generic Exception)
@@ -199,7 +199,7 @@ class TestJobManagerExceptionHandling:
 
 
 class TestSchedulingServiceExceptionHandling:
-    """Test specific exception handling in schedhuler/services/scheduling_service.py"""
+    """Test specific exception handling in scheduler/services/scheduling_service.py"""
 
     def test_create_tour_validation_error_caught(self):
         """Verify ValidationError is caught specifically in tour creation"""
@@ -251,7 +251,7 @@ class TestSchedulingServiceExceptionHandling:
         mock_session = {'client_id': 1, 'bu_id': 1}
 
         with patch.object(service, '_create_tour_job', side_effect=DatabaseError("Connection failed")):
-            with patch('apps.schedhuler.services.scheduling_service.transaction_manager'):
+            with patch('apps.scheduler.services.scheduling_service.transaction_manager'):
                 result = service.create_guard_tour(tour_config, mock_user, mock_session)
 
                 # Should catch DatabaseError and return specific error

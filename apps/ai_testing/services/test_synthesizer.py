@@ -234,7 +234,7 @@ class TestSynthesizer:
     def _extract_component_name(self, endpoint: str) -> str:
         """Extract meaningful component name from endpoint"""
         # Remove common prefixes and clean up
-        endpoint = endpoint.replace('/api/', '').replace('/graphql/', '')
+        endpoint = endpoint.replace('/api/', '')
 
         # Split by / and take meaningful parts
         parts = [part for part in endpoint.split('/') if part and not part.isdigit()]
@@ -679,7 +679,7 @@ class {component_name}Test {{
         if coverage_gap.affected_endpoints:
             endpoint = coverage_gap.affected_endpoints[0]
             # Extract meaningful component name from endpoint
-            endpoint = endpoint.replace('/api/', '').replace('/graphql/', '')
+            endpoint = endpoint.replace('/api/', '')
             parts = [part for part in endpoint.split('/') if part and not part.isdigit()]
             if parts:
                 component = parts[0]
@@ -872,7 +872,7 @@ class {component_name}Tests: XCTestCase {{
         """Extract component name from coverage gap for Swift test generation"""
         if coverage_gap.affected_endpoints:
             endpoint = coverage_gap.affected_endpoints[0]
-            endpoint = endpoint.replace('/api/', '').replace('/graphql/', '')
+            endpoint = endpoint.replace('/api/', '')
             parts = [part for part in endpoint.split('/') if part and not part.isdigit()]
             if parts:
                 component = parts[0]

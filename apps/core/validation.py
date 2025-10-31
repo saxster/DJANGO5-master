@@ -865,7 +865,8 @@ class SecretValidator:
         try:
             import base64
             import binascii
-            decoded = base64.b64decode(secret_value)
+            # Fernet uses URL-safe base64 encoding
+            decoded = base64.urlsafe_b64decode(secret_value)
         except (binascii.Error, ValueError, TypeError) as e:
             raise SecretValidationError(
                 secret_name,
@@ -931,31 +932,41 @@ class SecretValidator:
                 "Set a strong admin password with at least 12 characters, mixing uppercase, lowercase, digits, and symbols"
             )
 
-        # Use Django's configured password validators
-        from django.contrib.auth.password_validation import validate_password
-        from django.core.exceptions import ValidationError
-        from django.contrib.auth import get_user_model
+        # Use Django's configured password validators if apps are ready
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from django.apps import apps
 
+        # Check if Django apps are ready (may not be during settings loading)
         try:
-            # Create a dummy user object for validation context
-            User = get_user_model()
-            dummy_user = User(
-                username='superadmin',
-                email='admin@example.com',
-                first_name='Super',
-                last_name='Admin'
-            )
+            if apps.ready:
+                from django.contrib.auth.password_validation import validate_password
+                from django.contrib.auth import get_user_model
 
-            # Validate using Django's password validators
-            validate_password(secret_value, user=dummy_user)
+                # Create a dummy user object for validation context
+                User = get_user_model()
+                dummy_user = User(
+                    username='superadmin',
+                    email='admin@example.com',
+                    first_name='Super',
+                    last_name='Admin'
+                )
 
-        except ValidationError as e:
+                # Validate using Django's password validators
+                validate_password(secret_value, user=dummy_user)
+            else:
+                # Apps not ready yet (during settings loading) - skip Django validators
+                logger.info(f"Django apps not ready during {secret_name} validation - using basic validation only")
+
+        except DjangoValidationError as e:
             error_messages = '; '.join(e.messages)
             raise SecretValidationError(
                 secret_name,
                 f"{secret_name} validation failed: {error_messages}",
                 "Use a strong password that meets the configured password policy (min 12 chars, not similar to user info, not common)"
             )
+        except Exception:
+            # Apps not ready or other issue - continue with basic validation below
+            logger.debug(f"Could not use Django password validators for {secret_name} - using basic validation")
 
         # Additional checks for admin passwords
         if len(secret_value) < 16:

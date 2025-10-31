@@ -5,3 +5,4 @@ class AttendanceConfig(AppConfig):
     name = "apps.attendance"
 
     def ready(self):
+        pass

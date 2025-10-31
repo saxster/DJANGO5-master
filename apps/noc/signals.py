@@ -19,7 +19,7 @@ logger = logging.getLogger('noc.signals')
 __all__ = [
     'handle_ticket_sla_breach',
     'handle_work_order_overdue',
-    'handle_device_status',
+    # 'handle_device_status',  # Disabled - model doesn't exist
     'handle_attendance_exceptions',
     'invalidate_noc_cache_on_alert',
 ]
@@ -73,7 +73,7 @@ def handle_ticket_sla_breach(sender, instance, created, **kwargs):
         _create_and_broadcast_alert(alert_data)
 
 
-@receiver(post_save, sender='work_order_management.WorkOrder')
+@receiver(post_save, sender='work_order_management.Wom')
 def handle_work_order_overdue(sender, instance, created, **kwargs):
     """
     Create MEDIUM alert for overdue work orders.
@@ -104,10 +104,14 @@ def handle_work_order_overdue(sender, instance, created, **kwargs):
         _create_and_broadcast_alert(alert_data)
 
 
-@receiver(post_save, sender='core.DeviceRegistry')
-def handle_device_status(sender, instance, created, **kwargs):
+# Disabled: core.DeviceRegistry model doesn't exist (replaced by core.UserDevice)
+# @receiver(post_save, sender='core.UserDevice')
+def handle_device_status_DISABLED(sender, instance, created, **kwargs):
     """
-    Create HIGH alert for offline devices or CRITICAL for spoofing.
+    [DISABLED] Create HIGH alert for offline devices or CRITICAL for spoofing.
+
+    NOTE: This handler is currently disabled because the DeviceRegistry model
+    was refactored. Re-enable if device monitoring is reimplemented.
 
     Signal handlers participate in the parent transaction automatically.
     Do NOT add transaction.atomic here (Rule #17 guidance).

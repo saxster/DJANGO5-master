@@ -542,7 +542,7 @@ class TicketSecurityService:
                 people=user,
                 pgroup=group
             ).exists()
-        except:
+        except (DatabaseError, IOError, IntegrityError, OSError, PermissionError) as e:
             return False
 
     @classmethod

@@ -1,3 +1,0 @@
-"""
-WebSocket Integration Tests Package
-"""

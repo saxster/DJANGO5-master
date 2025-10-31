@@ -19,12 +19,14 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase, RequestFactory, Client
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.auth.middleware import AuthenticationMiddleware
 from django.contrib.messages.middleware import MessageMiddleware
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError, DatabaseError
 from django.http import JsonResponse
+from django.core.cache import cache
 
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import (
@@ -185,6 +187,39 @@ class TestAPIMiddlewareExceptionHandling(TestCase):
                 args, kwargs = mock_handler.call_args
                 self.assertIsInstance(args[0], json.JSONDecodeError)
                 self.assertEqual(kwargs['level'], 'warning')
+
+    def test_combined_api_middleware_executes_all_layers(self):
+        """Ensure combined API middleware executes all mixin layers in order."""
+        from apps.api.middleware import APIMiddleware
+
+        cache.clear()
+
+        request = self.factory.get('/api/v1/people/?page=1')
+        request.user = AnonymousUser()
+        request.META['REMOTE_ADDR'] = '127.0.0.1'
+
+        middleware = APIMiddleware(lambda req: JsonResponse({'ok': True}))
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['X-Cache'], 'MISS')
+        self.assertIn('X-Content-Type-Options', response)
+        self.assertIn('X-RateLimit-Limit', response)
+        self.assertIn('X-Response-Time', response)
+        self.assertIn('X-API-Version', response)
+
+        # Second request should hit cache but still include security headers
+        request2 = self.factory.get('/api/v1/people/?page=1')
+        request2.user = AnonymousUser()
+        request2.META['REMOTE_ADDR'] = '127.0.0.1'
+
+        response2 = middleware(request2)
+
+        self.assertEqual(response2['X-Cache'], 'HIT')
+        self.assertIn('X-Content-Type-Options', response2)
+        self.assertIn('X-Response-Time', response2)
+        self.assertIn('X-API-Version', response2)
 
 
 class TestSecurityMonitoringExceptionHandling(TestCase):

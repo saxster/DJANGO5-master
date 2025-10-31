@@ -11,6 +11,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
 
 from django.conf import settings
 from django.core.cache import cache

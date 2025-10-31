@@ -8,6 +8,7 @@ Follows .claude/rules.md Rule #8 (view methods <30 lines), Rule #17 (transaction
 import logging
 from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveDestroyAPIView
+from apps.ontology.decorators import ontology
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,6 +34,33 @@ __all__ = [
 logger = logging.getLogger('noc.views.api_key')
 
 
+@ontology(
+    domain="noc",
+    purpose="REST API for NOC API key management with creation, rotation, revocation, and usage analytics",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "require_noc_capability('noc:configure')"],
+    rate_limit="50/minute",
+    request_schema="NOCAPIKeyCreateSerializer",
+    response_schema="NOCAPIKeySerializer|APIKeyUsageSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "noc", "api-keys", "security", "monitoring", "authentication"],
+    security_notes="API keys hashed with SHA256. Raw key shown only once at creation. Grace period for key rotation. Atomic DB transactions for key operations",
+    endpoints={
+        "list": "GET /api/v1/noc/api-keys/ - List user's API keys",
+        "create": "POST /api/v1/noc/api-keys/ - Create new API key (shows raw key once)",
+        "retrieve": "GET /api/v1/noc/api-keys/{id}/ - Get API key details",
+        "revoke": "DELETE /api/v1/noc/api-keys/{id}/ - Revoke API key",
+        "rotate": "POST /api/v1/noc/api-keys/{id}/rotate/ - Rotate API key",
+        "usage_stats": "GET /api/v1/noc/api-keys/{id}/usage-stats/ - Get usage statistics"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v1/noc/api-keys/ -H 'Authorization: Bearer <token>' -d '{\"name\":\"Production API Key\",\"monitoring_system\":\"prometheus\"}'",
+        "curl -X POST https://api.example.com/api/v1/noc/api-keys/123/rotate/ -H 'Authorization: Bearer <token>'"
+    ]
+)
 class NOCAPIKeyListCreateView(ListCreateAPIView):
     """List user's NOC API keys or create new key."""
 
@@ -46,6 +74,10 @@ class NOCAPIKeyListCreateView(ListCreateAPIView):
     @require_noc_capability('noc:configure')
     def get_queryset(self):
         """Get user's NOC API keys."""
+        if getattr(self, 'swagger_fake_view', False):
+            return MonitoringAPIKey.objects.none()
+        if getattr(self.request, 'swagger_fake_view', False):
+            return MonitoringAPIKey.objects.none()
         return MonitoringAPIKey.objects.filter(
             created_by=self.request.user,
             monitoring_system__in=['custom', 'prometheus', 'grafana']
@@ -105,6 +137,10 @@ class NOCAPIKeyDetailView(RetrieveDestroyAPIView):
     @require_noc_capability('noc:configure')
     def get_queryset(self):
         """Get user's NOC API keys."""
+        if getattr(self, 'swagger_fake_view', False):
+            return MonitoringAPIKey.objects.none()
+        if getattr(self.request, 'swagger_fake_view', False):
+            return MonitoringAPIKey.objects.none()
         return MonitoringAPIKey.objects.filter(
             created_by=self.request.user
         )

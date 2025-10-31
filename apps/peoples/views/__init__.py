@@ -29,6 +29,22 @@ from .utility_views import (
     NoSite
 )
 
+def verifyemail(request):
+    """
+    Backward compatibility wrapper for email verification.
+
+    Delegates to EmailVerificationView for consistency.
+    """
+    import warnings
+    warnings.warn(
+        "verifyemail() function is deprecated. Use EmailVerificationView instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    view = EmailVerificationView.as_view()
+    return view(request)
+
+
 __all__ = [
     'SignIn',
     'SignOut',
@@ -39,4 +55,5 @@ __all__ = [
     'ChangePeoplePassword',
     'EmailVerificationView',
     'NoSite',
+    'verifyemail',
 ]

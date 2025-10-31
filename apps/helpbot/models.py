@@ -300,9 +300,9 @@ class HelpBotKnowledge(BaseModel, TenantAwareModel):
         verbose_name_plural = "HelpBot Knowledge"
         get_latest_by = ["last_updated", "mdtz"]
         indexes = [
-            models.Index(fields=['category', 'knowledge_type'], name='helpbot_knowledge_cat_type_idx'),
-            models.Index(fields=['is_active', 'effectiveness_score'], name='helpbot_knowledge_active_score_idx'),
-            models.Index(fields=['usage_count'], name='helpbot_knowledge_usage_idx'),
+            models.Index(fields=['category', 'knowledge_type'], name='hb_knowledge_cat_type_idx'),
+            models.Index(fields=['is_active', 'effectiveness_score'], name='hb_knowledge_active_idx'),
+            models.Index(fields=['usage_count'], name='hb_knowledge_usage_idx'),
         ]
 
     def __str__(self):
@@ -384,8 +384,8 @@ class HelpBotFeedback(BaseModel, TenantAwareModel):
         verbose_name_plural = "HelpBot Feedback"
         get_latest_by = ["cdtz"]
         indexes = [
-            models.Index(fields=['session', 'feedback_type'], name='helpbot_feedback_session_type_idx'),
-            models.Index(fields=['is_processed', 'cdtz'], name='helpbot_feedback_processed_idx'),
+            models.Index(fields=['session', 'feedback_type'], name='hb_feedback_sess_type_idx'),
+            models.Index(fields=['is_processed', 'cdtz'], name='hb_feedback_processed_idx'),
         ]
 
     def __str__(self):
@@ -533,8 +533,8 @@ class HelpBotAnalytics(BaseModel, TenantAwareModel):
         verbose_name_plural = "HelpBot Analytics"
         get_latest_by = ["date", "cdtz"]
         indexes = [
-            models.Index(fields=['metric_type', 'date'], name='helpbot_analytics_metric_date_idx'),
-            models.Index(fields=['date', 'hour'], name='helpbot_analytics_date_hour_idx'),
+            models.Index(fields=['metric_type', 'date'], name='hb_analytics_metric_dt_idx'),
+            models.Index(fields=['date', 'hour'], name='hb_analytics_date_hr_idx'),
         ]
         unique_together = [
             ('metric_type', 'date', 'hour')

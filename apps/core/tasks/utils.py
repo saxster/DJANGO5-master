@@ -3,6 +3,45 @@ Task Utilities and Helper Functions
 
 Provides utility functions for task configuration, argument sanitization,
 retry policies, and common task patterns.
+
+@ontology(
+    domain="infrastructure",
+    purpose="Utility functions for Celery task configuration, retry policies, and common patterns",
+    utility_categories=[
+        "Retry policy definitions (8 named policies)",
+        "Task argument sanitization",
+        "Email validation",
+        "Scheduled task config generation",
+        "Performance decorators",
+        "Batch processing helpers",
+        "Task signature creation",
+        "Queue statistics"
+    ],
+    retry_policies={
+        "default": "3 retries, 60s delay, exponential backoff",
+        "email": "5 retries, 120s delay, 30min max",
+        "external_api": "2 retries, 300s delay, 15min max",
+        "database_heavy": "2 retries, 180s delay, no jitter",
+        "maintenance": "1 retry, 3600s delay",
+        "critical": "3 retries, 30s delay (fast retry)",
+        "high_priority": "4 retries, 60s delay",
+        "reports": "2 retries, 180s delay, 15min max"
+    },
+    sanitization_features=[
+        "Non-serializable object conversion",
+        "Long string truncation (>10k chars)",
+        "Nested structure sanitization"
+    ],
+    batch_processing={
+        "default_batch_size": 100,
+        "progress_logging": "every 10 batches",
+        "inter_batch_delay": "0.1s default"
+    },
+    task_statistics_source="django_celery_results.TaskResult",
+    performance_impact="minimal (~1ms overhead)",
+    criticality="medium",
+    tags=["celery", "utilities", "retry-policies", "batch-processing", "sanitization"]
+)
 """
 
 import re
@@ -18,6 +57,21 @@ from django.utils import timezone
 from celery.schedules import crontab
 
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE, SECONDS_IN_HOUR
+
+# Import exceptions that might be needed for retry policies
+try:
+    from smtplib import SMTPException
+    from django.db import DatabaseError, IntegrityError
+except ImportError:
+    # Define dummy exceptions if not available
+    class SMTPException(Exception):
+        pass
+
+    class DatabaseError(Exception):
+        pass
+
+    class IntegrityError(Exception):
+        pass
 
 
 logger = logging.getLogger('celery.tasks.utils')
@@ -67,6 +121,33 @@ RETRY_POLICIES = {
         'retry_backoff': False,
         'retry_jitter': False,
         'autoretry_for': ()
+    },
+
+    'critical': {
+        'max_retries': 3,
+        'default_retry_delay': 30,  # Fast retry for critical tasks
+        'retry_backoff': True,
+        'retry_backoff_max': 300,
+        'retry_jitter': True,
+        'autoretry_for': (ConnectionError, TimeoutError, DatabaseError)
+    },
+
+    'high_priority': {
+        'max_retries': 4,
+        'default_retry_delay': 60,
+        'retry_backoff': True,
+        'retry_backoff_max': 600,
+        'retry_jitter': True,
+        'autoretry_for': (ConnectionError, TimeoutError, DatabaseError)
+    },
+
+    'reports': {
+        'max_retries': 2,
+        'default_retry_delay': 180,
+        'retry_backoff': True,
+        'retry_backoff_max': 900,
+        'retry_jitter': True,
+        'autoretry_for': (ConnectionError, TimeoutError, IOError, OSError)
     }
 }
 
@@ -397,19 +478,3 @@ def get_task_queue_stats() -> Dict[str, Any]:
     except Exception as exc:
         logger.error(f"Failed to get task queue stats: {exc}")
         return {'error': str(exc)}
-
-
-# Import exceptions that might be needed
-try:
-    from smtplib import SMTPException
-    from django.db import DatabaseError, IntegrityError
-except ImportError:
-    # Define dummy exceptions if not available
-    class SMTPException(Exception):
-        pass
-
-    class DatabaseError(Exception):
-        pass
-
-    class IntegrityError(Exception):
-        pass

@@ -21,11 +21,10 @@ import uuid
 import logging
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from django.conf import settings
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
 
 
 class UploadSession(models.Model):
@@ -52,8 +51,7 @@ class UploadSession(models.Model):
         help_text="Unique identifier for this upload session"
     )
 
-    user = models.ForeignKey(
-        User,
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='upload_sessions',
         help_text="User who initiated this upload"

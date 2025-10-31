@@ -468,7 +468,7 @@ Internal Tour
     function deleteCheckpointRequest(checpointid, checklistid, parentid) {
         var deleted = false
         const params = {
-            'url': `{{ url('schedhuler:delete_checkpointTour') }}`,
+            'url': `{{ url('scheduler:delete_checkpointTour') }}`,
             'data': {
                 'checkpointid': checpointid,
                 'checklistid': checklistid,

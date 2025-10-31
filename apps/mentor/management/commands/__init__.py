@@ -1,1 +1,0 @@
-# AI Mentor management commands

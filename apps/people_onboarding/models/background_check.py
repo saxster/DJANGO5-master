@@ -149,7 +149,7 @@ class BackgroundCheck(EnhancedTenantModel):
         verbose_name_plural = _('Background Checks')
         indexes = [
             models.Index(fields=['onboarding_request', 'verification_type']),
-            models.Index(fields=['status', 'cdtz']),
+            models.Index(fields=['status', 'created_at']),
             models.Index(fields=['expiry_date']),
         ]
 

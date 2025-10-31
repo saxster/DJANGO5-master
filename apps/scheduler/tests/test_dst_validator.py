@@ -4,7 +4,7 @@ DST Validator Service Tests
 Focused tests for DSTValidator service functionality.
 
 Usage:
-    python -m pytest apps/schedhuler/tests/test_dst_validator.py -v
+    python -m pytest apps/scheduler/tests/test_dst_validator.py -v
 
 Coverage Target: 95%+
 """
@@ -17,7 +17,7 @@ from django.test import TestCase
 from django.core.cache import cache
 import pytz
 
-from apps.schedhuler.services.dst_validator import DSTValidator
+from apps.scheduler.services.dst_validator import DSTValidator
 
 
 class DSTValidatorBasicTests(TestCase):

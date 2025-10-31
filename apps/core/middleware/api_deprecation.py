@@ -34,7 +34,7 @@ class APIDeprecationMiddleware(MiddlewareMixin):
     def __init__(self, get_response=None):
         super().__init__(get_response)
         self.cache_timeout = 3600
-        self.api_paths = ['/api/', '/graphql/']
+        self.api_paths = ['/api/']
 
     def process_response(self, request, response):
         """Add deprecation headers if endpoint is deprecated."""

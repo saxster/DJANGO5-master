@@ -11,6 +11,7 @@ This module provides comprehensive admin interfaces including:
 
 import logging
 import json
+from typing import Dict, Any, List
 from django.contrib import admin
 from django.contrib.admin import ModelAdmin
 from django.utils import timezone
@@ -21,12 +22,19 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.generic import TemplateView
-    PreferenceProfile,
-    RecommendationInteraction,
+from django.http import JsonResponse
+from datetime import timedelta
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
+
+from apps.onboarding_api.services.learning import PreferenceProfile
+from apps.onboarding_api.services.experiments import (
     Experiment,
-    ExperimentAssignment
+    ExperimentAssignment,
+    RecommendationInteraction,
+    get_experiment_manager
 )
-from apps.onboarding_api.services.experiments import get_experiment_manager
+from apps.onboarding_api.services.monitoring import (
     get_metrics_collector,
     get_performance_monitor,
     get_alert_manager,

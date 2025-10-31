@@ -60,8 +60,8 @@ python scripts/audit_celery_tasks.py --duplicates-only
     Yes → @shared_task(base=IdempotentTask, bind=True)
     No → @shared_task
 
-[Legacy GraphQL mutation?]
-    Not applicable (GraphQL removed Oct 2025)
+[Legacy mutation handler?]
+    Not applicable (legacy query layer retired Oct 2025)
 ```
 
 ---
@@ -111,7 +111,7 @@ def send_reminder_email(user_id):
 ```
 
 **Exception:** Only use `@app.task` in:
-- `apps/service/services/*` (legacy GraphQL mutation tasks)
+- `apps/service/services/*` (legacy mutation tasks)
 - Must have explicit justification and team approval
 
 ### Task Naming Conventions

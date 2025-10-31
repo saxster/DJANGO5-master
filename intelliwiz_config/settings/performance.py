@@ -8,14 +8,6 @@ from datetime import timedelta
 
 # Performance budgets (milliseconds)
 ENDPOINT_PERFORMANCE_BUDGETS = {
-    # GraphQL endpoints
-    '/api/graphql/': {
-        'p50': 200,
-        'p95': 500,
-        'p99': 1000,
-        'timeout': 5000,
-    },
-
     # REST API endpoints
     '/api/v1/sync/': {
         'p50': 100,

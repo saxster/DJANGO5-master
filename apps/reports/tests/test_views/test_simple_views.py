@@ -9,7 +9,7 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import JsonResponse, HttpResponse
 # Updated imports to use new view structure (name collision fix)
 from apps.reports.views.template_views import RetriveSiteReports, RetriveIncidentReports
-from apps.reports.views.generation_views import DesignReport
+from apps.reports.views.schedule_views import DesignReport
 from apps.activity.models.job_model import Jobneed
 
 
@@ -136,7 +136,7 @@ class TestDesignReportSimple:
         self.view = DesignReport()
         self.view.design_file = "reports/pdf_reports/testdesign.html"
 
-    @patch("apps.reports.views.generation_views.render")
+    @patch("apps.reports.views.schedule_views.render")
     def test_get_html_request_basic(self, mock_render):
         """Test basic GET request for HTML output"""
         mock_render.return_value = HttpResponse("<html>Test</html>")
@@ -148,10 +148,10 @@ class TestDesignReportSimple:
         assert response.status_code == 200
         mock_render.assert_called_once_with(request, self.view.design_file)
 
-    @patch("apps.reports.views.generation_views.render_to_string")
-    @patch("apps.reports.views.generation_views.HTML")
-    @patch("apps.reports.views.generation_views.CSS")
-    @patch("apps.reports.views.generation_views.FontConfiguration")
+    @patch("apps.reports.views.schedule_views.render_to_string")
+    @patch("apps.reports.views.schedule_views.HTML")
+    @patch("apps.reports.views.schedule_views.CSS")
+    @patch("apps.reports.views.schedule_views.FontConfiguration")
     def test_get_pdf_request_basic(
         self, mock_font_config, mock_css, mock_html, mock_render
     ):
@@ -282,13 +282,13 @@ class TestViewRequestTypes:
 
             # Should not raise an exception for any text parameter
             try:
-                with patch("apps.reports.views.generation_views.render") as mock_render:
+                with patch("apps.reports.views.schedule_views.render") as mock_render:
                     mock_render.return_value = HttpResponse("<html>Test</html>")
                     with patch(
-                        "apps.reports.views.generation_views.render_to_string"
+                        "apps.reports.views.schedule_views.render_to_string"
                     ) as mock_render_string:
                         mock_render_string.return_value = "<html>Test</html>"
-                        with patch("apps.reports.views.generation_views.HTML") as mock_html:
+                        with patch("apps.reports.views.schedule_views.HTML") as mock_html:
                             mock_html_instance = Mock()
                             mock_html_instance.write_pdf.return_value = b"PDF content"
                             mock_html.return_value = mock_html_instance

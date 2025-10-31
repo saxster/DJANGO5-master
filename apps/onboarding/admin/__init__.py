@@ -72,6 +72,11 @@ from .knowledge_admin import (
     AuthoritativeKnowledgeChunkAdmin,
 )
 
+# Knowledge Management admin (Sprint 3 - Phase 2 models)
+from .knowledge_source_admin import KnowledgeSourceAdmin
+from .knowledge_ingestion_job_admin import KnowledgeIngestionJobAdmin
+from .knowledge_review_admin import KnowledgeReviewAdmin
+
 # Explicit __all__ for clarity and documentation
 __all__ = [
     # Base
@@ -104,4 +109,8 @@ __all__ = [
     "AuthoritativeKnowledgeChunkInline",
     "AuthoritativeKnowledgeAdmin",
     "AuthoritativeKnowledgeChunkAdmin",
+    # Knowledge Management (Sprint 3 - Phase 2)
+    "KnowledgeSourceAdmin",
+    "KnowledgeIngestionJobAdmin",
+    "KnowledgeReviewAdmin",
 ]

@@ -29,7 +29,6 @@ from typing import Dict, Any, Optional
 
 from channels.middleware import BaseMiddleware
 from django.core.cache import cache
-from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
 
 logger = logging.getLogger('websocket.throttling')

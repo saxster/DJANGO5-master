@@ -6,14 +6,14 @@ All view classes and helper functions are re-exported from their new locations.
 
 Migration Date: 2025-09-30
 Original File: apps/reports/views.py (1,911 lines)
-New Structure: 4 domain-focused modules (base, template, configuration, generation)
+New Structure: domain-focused modules (template, configuration, export, schedule, pdf, frappe)
 
 Usage:
     # Old import (still works):
     from apps.reports.views import DownloadReports
 
     # New import (recommended):
-    from apps.reports.views.generation_views import DownloadReports
+    from apps.reports.views.export_views import DownloadReports
 """
 
 # Base classes and exceptions
@@ -42,27 +42,37 @@ from .configuration_views import (
     ConfigWorkPermitReportTemplate,
 )
 
-# Generation views and helper functions
-from .generation_views import (
-    # View classes
+# Export views
+from .export_views import (
     DownloadReports,
+    return_status_of_report,
+    upload_pdf,
+)
+
+# Scheduling views
+from .schedule_views import (
     DesignReport,
     ScheduleEmailReport,
+)
+
+# PDF generation helpers
+from .pdf_views import (
     GeneratePdf,
     GenerateLetter,
-    GenerateAttendance,
     GenerateDecalartionForm,
-    # Helper functions
-    return_status_of_report,
+    highlight_text_in_pdf,
+)
+
+# Frappe integration views and helpers
+from .frappe_integration_views import (
+    GenerateAttendance,
     get_data,
     getClient,
     getCustomer,
     getPeriod,
     getCustomersSites,
     getAllUAN,
-    highlight_text_in_pdf,
     get_frappe_data,
-    upload_pdf,
 )
 
 # Explicit __all__ for clarity and documentation

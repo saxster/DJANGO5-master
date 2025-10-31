@@ -2,7 +2,7 @@
 Refresh Token Blacklist Model
 
 Tracks invalidated JWT refresh tokens to prevent token replay attacks.
-Implements token rotation security pattern for GraphQL authentication.
+Implements token rotation security pattern for legacy API authentication.
 
 Security Features:
 - Blacklist revoked/rotated tokens
@@ -13,12 +13,18 @@ Security Features:
 Compliance: Addresses Medium-severity token security vulnerability
 """
 
+from __future__ import annotations  # Enable string annotations for type hints
+from typing import TYPE_CHECKING
+
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
-from apps.peoples.models import People
-from apps.core.models import BaseModel
+from apps.core.models.enhanced_base_model import BaseModelCompat as BaseModel
 from apps.core.constants.datetime_constants import SECONDS_IN_DAY
 import logging
+
+if TYPE_CHECKING:
+    from apps.peoples.models import People
 
 logger = logging.getLogger('security')
 
@@ -52,7 +58,7 @@ class RefreshTokenBlacklist(BaseModel):
 
     # User who owned the token
     user = models.ForeignKey(
-        People,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='blacklisted_tokens',
         help_text="User associated with this token"

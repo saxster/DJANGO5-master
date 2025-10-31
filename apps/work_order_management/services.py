@@ -3,6 +3,9 @@ Work Order Management Services
 Optimized query patterns and caching strategies for work order operations
 """
 
+from django.core.cache import cache
+from django.db.models import Q
+
 class WorkOrderQueryOptimizer:
     """Centralized query optimization for work order operations"""
 

@@ -41,7 +41,7 @@ from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisit
 from apps.core.error_handling import ErrorHandler
 from apps.service import serializers as sz
 from apps.service.validators import clean_record
-from apps.service.rest_types import ServiceOutputType  # GraphQL types removed Oct 2025
+from apps.service.rest_types import ServiceOutputType  # Legacy query types removed Oct 2025
 from celery import shared_task
 # Lazy import to avoid circular dependency - imported where used
 # from background_tasks.tasks import alert_sendmail

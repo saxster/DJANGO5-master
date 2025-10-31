@@ -1,7 +1,7 @@
 """
 Distributed Tracing Service
 
-OpenTelemetry-based distributed tracing for requests, Celery tasks, GraphQL.
+OpenTelemetry-based distributed tracing for requests, Celery tasks, legacy API.
 Follows .claude/rules.md Rule #7 (< 150 lines), Rule #11 (specific exceptions).
 """
 

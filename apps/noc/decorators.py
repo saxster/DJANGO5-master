@@ -32,6 +32,9 @@ def require_noc_capability(capability):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            if getattr(request, 'swagger_fake_view', False):
+                return view_func(request, *args, **kwargs)
+
             if not hasattr(request, 'user') or not request.user.is_authenticated:
                 return _unauthorized_response('Authentication required')
 
@@ -64,6 +67,9 @@ def audit_noc_access(entity_type):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            if getattr(request, 'swagger_fake_view', False):
+                return view_func(request, *args, **kwargs)
+
             response = view_func(request, *args, **kwargs)
 
             if _is_success_response(response):
@@ -91,6 +97,9 @@ def inject_noc_scope(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        if getattr(request, 'swagger_fake_view', False):
+            return view_func(request, *args, **kwargs)
+
         _inject_scope_to_request(request)
         return view_func(request, *args, **kwargs)
 

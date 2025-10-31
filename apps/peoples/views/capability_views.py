@@ -15,7 +15,7 @@ from django.http.request import QueryDict
 from apps.peoples.services import CapabilityManagementService
 from apps.peoples.forms import CapabilityForm
 from apps.peoples.filters import CapabilityFilter
-from apps.core.utils_new.http_utils import get_model_obj
+from apps.core.utils_new.business_logic import get_model_obj
 
 logger = logging.getLogger(__name__)
 

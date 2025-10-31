@@ -19,7 +19,7 @@ from enum import Enum
 
 from django.conf import settings
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 from apps.core.middleware.logging_sanitization import LogSanitizationService
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,10 @@ class PIIDetectionService(BaseService):
         self.detection_patterns = self._initialize_patterns()
         self.enable_auto_sanitization = True
 
+
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "PIIDetectionService"
     def _initialize_patterns(self) -> Dict[str, re.Pattern]:
         """Initialize PII detection patterns."""
         return {
@@ -82,7 +86,7 @@ class PIIDetectionService(BaseService):
             ),
         }
 
-    @BaseService.monitor_performance("detect_pii")
+    @monitor_service_performance("detect_pii")
     def detect_pii(
         self,
         content: str,
@@ -153,7 +157,7 @@ class PIIDetectionService(BaseService):
 
         return round(confidence, 2)
 
-    @BaseService.monitor_performance("safe_log_user_content")
+    @monitor_service_performance("safe_log_user_content")
     def safe_log_user_content(
         self,
         content: str,
@@ -191,7 +195,7 @@ class PIIDetectionService(BaseService):
 
         return truncated
 
-    @BaseService.monitor_performance("analyze_content_for_logging")
+    @monitor_service_performance("analyze_content_for_logging")
     def analyze_content_for_logging(
         self,
         content_dict: Dict[str, any]

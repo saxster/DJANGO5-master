@@ -5,14 +5,16 @@ API authentication, session settings, and environment-specific security policies
 
 import environ
 from .csp import CSP_DIRECTIVES, CSP_MONITORING
-from .cors import CORS_ALLOWED_ORIGINS
 
 env = environ.Env()
+
+# Note: CORS_ALLOWED_ORIGINS is no longer imported at module level
+# It's set dynamically in development.py and production.py via get_cors_allowed_origins()
 
 # API AUTHENTICATION SETTINGS
 
 ENABLE_API_AUTH = True
-API_AUTH_PATHS = ["/api/", "/graphql/"]
+API_AUTH_PATHS = ["/api/"]
 API_REQUIRE_SIGNING = False
 
 # SESSION SECURITY
@@ -43,10 +45,9 @@ def get_development_security_settings():
             "style-src": CSP_DIRECTIVES["style-src"] + ["'unsafe-inline'"],
             "connect-src": ["'self'", "https:", "ws:", "wss:"]
         },
-        'CORS_ALLOWED_ORIGINS': [
-            "http://localhost:3000", "http://127.0.0.1:3000",
-            "http://localhost:8000", "http://127.0.0.1:8000"
-        ] + CORS_ALLOWED_ORIGINS,
+        # Note: CORS_ALLOWED_ORIGINS is already set in development.py
+        # No need to override it here as get_cors_allowed_origins(is_debug=True)
+        # already returns the correct localhost origins
         'RATE_LIMIT_MAX_ATTEMPTS': 100
     }
 

@@ -316,30 +316,6 @@ class TestGrafanaDashboards(TestCase):
         except json.JSONDecodeError as e:
             self.fail(f"Middleware dashboard is not valid JSON: {e}")
 
-    def test_graphql_dashboard_is_valid_json(self):
-        """Test that GraphQL operations dashboard is valid JSON."""
-        import os
-
-        dashboard_path = os.path.join(
-            'config',
-            'grafana',
-            'dashboards',
-            'graphql_operations.json'
-        )
-
-        # Try to load JSON
-        try:
-            with open(dashboard_path, 'r') as f:
-                dashboard_data = json.load(f)
-
-            self.assertIsInstance(dashboard_data, dict)
-            self.assertIn('dashboard', dashboard_data)
-
-        except FileNotFoundError:
-            pass
-        except json.JSONDecodeError as e:
-            self.fail(f"GraphQL dashboard is not valid JSON: {e}")
-
     def test_celery_dashboard_is_valid_json(self):
         """Test that Celery tasks dashboard is valid JSON."""
         import os

@@ -58,14 +58,41 @@ from .health_analytics_views import (
     FeatureStatusView,
     cache_health_check,
     logging_health_check,
+    logging_documentation,
     preflight_validation,
+    preflight_quick_check,
     system_health_monitoring,
+    reset_degradations,
+    degradation_status,
 )
 
 # Voice Input Views
 from .voice_views import (
     ConversationVoiceInputView,
     VoiceCapabilityView,
+)
+
+# Site Audit Views (Refactored 2025-10-12: 1,506 lines → 5 modules)
+from .site_audit import (
+    # Session Management
+    SiteAuditStartView,
+    SiteAuditStatusView,
+    # Observation Capture
+    ObservationCaptureView,
+    ObservationListView,
+    # Coverage & Guidance
+    NextQuestionsView,
+    CoverageMapView,
+    speak_text,
+    # Asset & Zone Management
+    ZoneManagementView,
+    AssetManagementView,
+    MeterPointManagementView,
+    # Analysis & Reporting
+    AuditAnalysisView,
+    CoveragePlanView,
+    SOPListView,
+    AuditReportView,
 )
 
 # Export all views for backward compatibility
@@ -99,12 +126,32 @@ __all__ = [
     'FeatureStatusView',
     'cache_health_check',
     'logging_health_check',
+    'logging_documentation',
     'preflight_validation',
+    'preflight_quick_check',
     'system_health_monitoring',
+    'reset_degradations',
+    'degradation_status',
 
     # Voice Input
     'ConversationVoiceInputView',
     'VoiceCapabilityView',
+
+    # Site Audit (refactored 2025-10-12)
+    'SiteAuditStartView',
+    'SiteAuditStatusView',
+    'ObservationCaptureView',
+    'ObservationListView',
+    'NextQuestionsView',
+    'CoverageMapView',
+    'speak_text',
+    'ZoneManagementView',
+    'AssetManagementView',
+    'MeterPointManagementView',
+    'AuditAnalysisView',
+    'CoveragePlanView',
+    'SOPListView',
+    'AuditReportView',
 ]
 
 # Module-level documentation

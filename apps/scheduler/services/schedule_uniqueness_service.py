@@ -14,7 +14,7 @@ Prevents common scheduling issues:
 - Concurrent schedule modifications
 
 Usage:
-    from apps.schedhuler.services.schedule_uniqueness_service import ScheduleUniquenessService
+    from apps.scheduler.services.schedule_uniqueness_service import ScheduleUniquenessService
 
     service = ScheduleUniquenessService()
 
@@ -48,7 +48,7 @@ from apps.core.services import BaseService
 from apps.core.exceptions import SchedulingException, BusinessLogicException
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 from apps.core.tasks.idempotency_service import UniversalIdempotencyService
-from apps.schedhuler.services.dst_validator import DSTValidator
+from apps.scheduler.services.dst_validator import DSTValidator
 
 
 logger = logging.getLogger(__name__)

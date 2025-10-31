@@ -237,7 +237,7 @@ class RedisBackupService:
             # Attempt to restart Redis even if restore failed
             try:
                 self._start_redis_safely()
-            except:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.critical("Failed to restart Redis after failed restore")
 
             return RestoreResult(
@@ -503,7 +503,7 @@ class RedisBackupService:
             redis_client = cache._cache.get_master_client()
             redis_client.ping()
             return True
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return False
 
     def _parse_backup_file(self, backup_file: Path) -> Optional[BackupInfo]:

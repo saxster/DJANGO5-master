@@ -10,6 +10,21 @@ Compliance with .claude/rules.md:
 - Rule #13: Required validation patterns
 
 For Kotlin Apollo codegen compatibility.
+
+Ontology: data_contract=True, validation_rules=True, type_safe=True, codegen_source=True
+Category: pydantic_models, api_contracts, mobile_sync
+Domain: voice_sync, batch_sync, device_management, ml_prediction
+Responsibility: Type-safe API contracts; runtime validation; Kotlin/Swift codegen source
+Dependencies: pydantic, core.validation_pydantic.pydantic_base
+Security: Device ID format validation, timestamp validation, idempotency key enforcement
+Validation: Field-level constraints (min/max, regex), cross-field validation, business rules
+API: REST v2 /api/v2/*, mobile sync endpoints
+Codegen: Single source of truth for Kotlin data classes, Swift structs
+Validation Patterns:
+  - device_id: Alphanumeric + hyphens/underscores only
+  - timestamps: Cannot be in future
+  - batch sizes: Max 100 voice items, max 1000 batch items
+  - entity types: Whitelist validation
 """
 
 from pydantic import BaseModel, Field, validator, field_validator
@@ -17,7 +32,7 @@ from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from uuid import UUID
 
-from apps.core.validation.pydantic_base import (
+from apps.core.validation_pydantic.pydantic_base import (
     BaseDjangoModel,
     BusinessLogicModel,
     TenantAwareModel,
@@ -33,6 +48,12 @@ class VoiceDataItem(BaseModel):
     Individual voice verification record.
 
     Maps to VoiceVerificationLog model.
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Single voice biometric verification result
+    Validation: verification_id (1-255 chars), scores (0.0-1.0), timestamp not future
+    Use Case: Mobile voice authentication, attendance verification
+    Codegen: Generates Kotlin VoiceDataItem data class
     """
     verification_id: str = Field(..., min_length=1, max_length=255, description="Unique verification identifier")
     timestamp: datetime = Field(..., description="When verification occurred (ISO 8601)")
@@ -57,6 +78,13 @@ class VoiceSyncDataModel(TenantAwareModel):
     Request model for voice sync operations.
 
     Validates voice verification data from mobile clients.
+
+    Ontology: data_contract=True, validation_rules=True, tenant_aware=True
+    Purpose: Batch voice verification sync from mobile
+    Inherits: TenantAwareModel (tenant_id, bu_id validation)
+    Validation: device_id format (alphanumeric+hyphens), max 100 items per batch
+    Idempotency: Optional key (16-255 chars) for duplicate request detection
+    Use Case: Mobile offline-to-online voice verification sync
     """
     device_id: str = Field(..., min_length=5, max_length=255, description="Unique device identifier")
     voice_data: List[VoiceDataItem] = Field(..., min_items=1, max_items=100, description="Voice verification records (max 100)")
@@ -115,6 +143,14 @@ class SyncBatchItem(BaseModel):
     Individual item in batch sync.
 
     Flexible schema for different entity types.
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Single entity change in multi-entity batch sync
+    Validation: entity_type whitelist, mobile_id UUID, version >= 1
+    Entity Types: task, attendance, journal, ticket, work_order, asset, location
+    Operations: create, update, delete
+    Conflict Detection: version field for optimistic locking
+    Use Case: Mobile offline-first batch sync
     """
     mobile_id: UUID = Field(..., description="Client-generated unique identifier")
     entity_type: str = Field(..., min_length=1, max_length=50, description="Type of entity (task, attendance, etc.)")
@@ -138,6 +174,14 @@ class BatchSyncDataModel(TenantAwareModel):
     Request model for batch sync operations.
 
     Handles multiple entity types in a single sync batch.
+
+    Ontology: data_contract=True, validation_rules=True, tenant_aware=True
+    Purpose: Multi-entity batch sync with idempotency
+    Inherits: TenantAwareModel (tenant_id, bu_id validation)
+    Validation: device_id format, max 1000 items, idempotency_key required
+    Full Sync: If true, replaces all client data; if false, applies delta changes
+    Idempotency: Required key prevents duplicate processing on retry
+    Use Case: Mobile bulk sync, offline queue flush
     """
     device_id: str = Field(..., min_length=5, max_length=255, description="Unique device identifier")
     items: List[SyncBatchItem] = Field(..., min_items=1, max_items=1000, description="Batch items (max 1000)")
@@ -233,6 +277,13 @@ class DeviceRegisterRequestModel(BaseModel):
     Request model for device registration.
 
     Validates device registration payload from mobile clients.
+
+    Ontology: data_contract=True, validation_rules=True
+    Purpose: Register new device for conflict resolution priority
+    Validation: device_id format, device_type literal, lengths
+    Device Types: phone, tablet, laptop, desktop
+    Priority: Assigned by server based on device type and registration order
+    Use Case: Multi-device sync conflict resolution
     """
     device_id: str = Field(..., min_length=5, max_length=255, description="Unique device identifier")
     device_type: Literal['phone', 'tablet', 'laptop', 'desktop'] = Field(..., description="Device type")

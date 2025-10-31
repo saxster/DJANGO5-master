@@ -14,7 +14,9 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('core', '0001_add_audit_models'),
         ('core', '0002_add_rate_limiting_models'),
+        ('core', '0003_delete_ratelimitattempt_remove_apikey_rate_limit'),
         ('peoples', '0003_add_performance_indexes'),
     ]
 

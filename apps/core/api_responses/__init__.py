@@ -1,7 +1,7 @@
 """
 Standard API Response Envelopes
 
-Provides consistent response structures across REST, GraphQL, and WebSocket APIs.
+Provides consistent response structures across REST, legacy API, and WebSocket APIs.
 
 Following .claude/rules.md:
 - Type-safe response models

@@ -43,8 +43,9 @@ from apps.core.constants.datetime_constants import (
 )
 from apps.core.models.sync_idempotency import SyncIdempotencyRecord
 from apps.core.tasks.idempotency_service import UniversalIdempotencyService
-from apps.schedhuler.models import Job
-from apps.schedhuler.services.schedule_coordinator import ScheduleCoordinator
+# Job model is in activity app, not scheduler app
+from apps.activity.models.job_model import Job
+from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
 from apps.core.utils_new.datetime_utilities import (
     get_current_utc,
     format_time_delta,

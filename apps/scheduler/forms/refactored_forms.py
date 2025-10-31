@@ -18,7 +18,7 @@ from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.job_model import Job
 import apps.onboarding.models as ob
 import apps.peoples.models as pm
-from apps.schedhuler.forms.base_forms import BaseTourForm, BaseTaskForm, BaseJobneedForm
+from apps.scheduler.forms.base_forms import BaseTourForm, BaseTaskForm, BaseJobneedForm
 from apps.core.utils_new.business_logic import initailize_form_fields
 
 logger = logging.getLogger(__name__)
@@ -332,7 +332,8 @@ class InternalTourCheckpointForm(BaseJobneedForm):
     """
 
     class Meta(BaseJobneedForm.Meta):
-        fields = ["qset", "people", "asset", "expirytime", "seqno"]
+        # Note: Jobneed uses expirydatetime (not expirytime like Job model)
+        fields = ["qset", "people", "asset", "expirydatetime", "seqno"]
 
     def __init__(self, *args, **kwargs):
         """Initialize checkpoint form."""

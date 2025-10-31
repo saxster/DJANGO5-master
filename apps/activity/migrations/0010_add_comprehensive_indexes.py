@@ -120,14 +120,14 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name='jobneed',
             index=models.Index(
-                fields=['job', 'jnstatus'],
+                fields=['job', 'jobstatus'],
                 name='jobneed_job_status_idx'
             ),
         ),
         migrations.AddIndex(
             model_name='jobneed',
             index=models.Index(
-                fields=['people', 'jnstatus'],
+                fields=['people', 'jobstatus'],
                 name='jobneed_people_status_idx'
             ),
         ),
@@ -145,13 +145,8 @@ class Migration(migrations.Migration):
                 name='jobneed_expirydate_brin_idx'
             ),
         ),
-        migrations.AddIndex(
-            model_name='jobneed',
-            index=GinIndex(
-                fields=['jobneed_info'],
-                name='jobneed_info_gin_idx'
-            ),
-        ),
+        # Note: Removed jobneed_info GIN index - field doesn't exist in Jobneed model
+        # Alternative: other_info field exists and is JSONB - consider adding if needed
         migrations.AddIndex(
             model_name='asset',
             index=models.Index(
@@ -173,20 +168,8 @@ class Migration(migrations.Migration):
                 name='location_bu_enable_idx'
             ),
         ),
-        migrations.AddIndex(
-            model_name='attachment',
-            index=models.Index(
-                fields=['job', 'isarchived'],
-                name='attachment_job_archived_idx'
-            ),
-        ),
-        migrations.AddIndex(
-            model_name='attachment',
-            index=models.Index(
-                fields=['jobneed', 'isarchived'],
-                name='attachment_jobneed_archived_idx'
-            ),
-        ),
+        # Note: Removed Attachment indexes - job/jobneed fields don't exist
+        # Attachment uses GenericForeignKey (ownername/ownerid pattern), not direct FK
         migrations.AddIndex(
             model_name='questionset',
             index=models.Index(

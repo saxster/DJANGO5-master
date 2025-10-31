@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "spectaql": "^3.0.4"
-  },
-  "scripts": {
-    "generate-docs": "spectaql"
-  }
-}

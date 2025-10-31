@@ -10,28 +10,62 @@ Provides REST API endpoints for:
 """
 
 import logging
+from typing import Dict, Any, List
+from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
-
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.throttling import UserRateThrottle
 
-    ExperimentAssignment,
-    RecommendationInteraction,
+from apps.onboarding.models import (
+    # ExperimentAssignment,  # TBD - Model not yet implemented
+    # RecommendationInteraction,  # TBD - Model not yet implemented
+    # Experiment,  # TBD - Model not yet implemented
+    # PreferenceProfile,  # TBD - Model not yet implemented
     ConversationSession,
     LLMRecommendation,
     Bt
 )
 from apps.peoples.models import People
+from apps.core.exceptions import LLMServiceException
 from apps.onboarding_api.services.learning import get_learning_service
 from apps.onboarding_api.services.experiments import get_experiment_manager
 from apps.onboarding_api.services.personalization import get_assignment_service
 from apps.onboarding_api.serializers import *  # Assuming serializers exist
+
+# Temporary stubs for unimplemented models (TBD)
+class PreferenceProfile:
+    """Stub for PreferenceProfile model (TBD)"""
+    objects = None
+    def calculate_acceptance_rate(self):
+        return 0.0
+
+class RecommendationInteraction:
+    """Stub for RecommendationInteraction model (TBD)"""
+    objects = None
+
+class Experiment:
+    """Stub for Experiment model (TBD)"""
+    objects = None
+    class DoesNotExist(Exception):
+        pass
+    def get_arm_count(self):
+        return 0
+    def is_active(self):
+        return False
+
+class ExperimentAssignment:
+    """Stub for ExperimentAssignment model (TBD)"""
+    objects = None
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
-from apps.schedhuler.serializers import (
+from apps.scheduler.serializers import (
     JobSerializers,
     JobneedSerializers,
     JobneedDetailsSerializers,

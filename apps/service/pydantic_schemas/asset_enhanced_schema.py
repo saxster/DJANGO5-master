@@ -18,7 +18,7 @@ from datetime import datetime
 from uuid import UUID
 from decimal import Decimal
 
-from apps.core.validation.pydantic_base import BusinessLogicModel, TenantAwareModel
+from apps.core.validation_pydantic.pydantic_base import BusinessLogicModel, TenantAwareModel
 
 
 # ============================================================================

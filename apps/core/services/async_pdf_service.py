@@ -48,6 +48,10 @@ class AsyncPDFGenerationService(BaseService):
         self.temp_dir = Path(settings.MEDIA_ROOT) / 'temp_pdfs'
         self.temp_dir.mkdir(exist_ok=True)
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "AsyncPDFGenerationService"
+
     def initiate_pdf_generation(
         self,
         template_name: str,

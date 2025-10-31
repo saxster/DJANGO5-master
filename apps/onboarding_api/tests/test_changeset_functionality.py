@@ -5,8 +5,7 @@ Comprehensive tests for changeset tracking and rollback functionality
 import pytest
 from django.test import TestCase
 from django.db import transaction
-
-)
+from apps.onboarding.models import Bt, ConversationSession
 from apps.onboarding_api.integration.mapper import IntegrationAdapter
 from apps.peoples.models import People
 

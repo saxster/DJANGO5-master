@@ -18,13 +18,11 @@ Compliance:
 """
 
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 from datetime import timedelta
 import hashlib
 import re
-
-User = get_user_model()
 
 
 class QueryPerformanceSnapshot(models.Model):
@@ -219,7 +217,7 @@ class SlowQueryAlert(models.Model):
 
     # Alert management
     acknowledged_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

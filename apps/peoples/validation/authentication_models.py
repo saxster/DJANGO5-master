@@ -23,7 +23,7 @@ from pydantic import Field, validator, root_validator
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
-from apps.core.validation.pydantic_base import (
+from apps.core.validation_pydantic.pydantic_base import (
     BusinessLogicModel,
     TenantAwareModel,
     SecureModel,

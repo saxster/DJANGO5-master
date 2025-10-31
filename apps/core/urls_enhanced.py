@@ -84,14 +84,14 @@ enhanced_urlpatterns = [
          EnhancedRedirectView.as_view(url='/operations/tasks/'),
          name='activity_task_redirect'),
 
-    path('schedhuler/',
+    path('scheduler/',
          EnhancedRedirectView.as_view(url='/operations/tasks/'),
-         name='schedhuler_redirect'),
+         name='scheduler_redirect'),
 
     # Common typo redirects
     path('schedhule/',
          EnhancedRedirectView.as_view(url='/operations/tasks/'),
-         name='schedhuler_typo_redirect'),
+         name='scheduler_typo_redirect'),
 
     # Help desk redirects
     path('y_helpdesk/',

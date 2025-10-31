@@ -20,7 +20,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from apps.schedhuler.services.cron_calculation_service import (
+from apps.scheduler.services.cron_calculation_service import (
     CronCalculationService,
     SchedulerOptimizationService
 )
@@ -43,7 +43,7 @@ def get_cron_datetime_optimized(request):
     4. Returns limited results with pagination support
     5. Includes metadata about calculation performance
 
-    Original location: apps/schedhuler/views.py with while True: loop
+    Original location: apps/scheduler/views.py with while True: loop
     """
     try:
         logger.info("Optimized cron datetime calculation [START]")

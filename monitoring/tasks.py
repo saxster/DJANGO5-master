@@ -61,7 +61,6 @@ def detect_anomalies_task(self, metric_names: Optional[List[str]] = None, window
         if not metric_names:
             metric_names = [
                 'request_duration',
-                'graphql_query_validation',
                 'websocket_connection_attempt',
                 'database_query_time',
                 'cache_hit_rate'
@@ -158,7 +157,6 @@ def analyze_performance_task(self, metric_names: Optional[List[str]] = None, win
         if not metric_names:
             metric_names = [
                 'request_duration',
-                'graphql_query_validation',
                 'database_query_time'
             ]
 
@@ -312,7 +310,6 @@ def update_performance_baselines_task(self, metric_names: Optional[List[str]] = 
         if not metric_names:
             metric_names = [
                 'request_duration',
-                'graphql_query_validation',
                 'database_query_time'
             ]
 

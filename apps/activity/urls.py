@@ -6,14 +6,17 @@ from apps.activity.views.question_views import (
     Checkpoint,
     deleteQSB,
 )
-from apps.activity.views.asset_views import (
+# Import concrete asset views from refactored package
+from apps.activity.views.asset import (
     AssetView,
-    AssetMaintainceList,
     AssetComparisionView,
     ParameterComparisionView,
     PeopleNearAsset,
     AssetLogView,
+    AssetMaintenanceList,
 )
+# Backward compatibility: preserve typo for existing code that may reference it
+AssetMaintainceList = AssetMaintenanceList
 from apps.activity.views.location_views import LocationView
 from apps.activity.views.job_views import (
     PPMView,

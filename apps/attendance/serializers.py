@@ -41,8 +41,6 @@ class PeopleEventlogSerializer(ValidatedModelSerializer):
             'shift',
             'verifiedby',
             'remarks',
-            'remarkstype',
-            'gpslocation',
             'startlocation',
             'endlocation',
             'journeypath',

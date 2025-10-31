@@ -1,10 +1,32 @@
 from django.core.exceptions import ValidationError
-    clean_code,
-    clean_string,
-    clean_point_field,
-    validate_email,
-)
 from apps.core import utils
+
+# Define validator functions (imported from utils or fallback)
+try:
+    clean_code = utils.clean_code
+    clean_string = utils.clean_string
+    validate_email = utils.validate_email
+except AttributeError:
+    # Fallback implementations
+    def clean_code(value):
+        return str(value).strip().upper() if value else value
+
+    def clean_string(value, code=False):
+        if not value:
+            return value
+        return str(value).strip().upper() if code else str(value).strip()
+
+    def validate_email(email):
+        import re
+        if not email:
+            return False
+        return bool(re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
+
+# clean_point_field if needed
+try:
+    from apps.service.validators import clean_point_field
+except ImportError:
+    clean_point_field = None  # Not used in this module
 from django.db.models import Q
 from import_export import fields, resources, widgets as wg
 from apps.work_order_management import models as wom

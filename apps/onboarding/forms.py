@@ -122,7 +122,9 @@ class BtForm(forms.ModelForm):
         "invalid_name": "[Invalid text] Only these special characters [-, _, @, #, . , &] are allowed in name field",
     }
     parent = forms.ModelChoiceField(
-        label="Belongs to", required=False, queryset=obm.Bt.objects.all()
+        label="Belongs to",
+        required=False,
+        queryset=obm.Bt.objects.none()  # Set in __init__ for tenant filtering
     )
     controlroom = forms.MultipleChoiceField(required=False, label="Control Room")
     permissibledistance = forms.IntegerField(
@@ -135,9 +137,7 @@ class BtForm(forms.ModelForm):
     designation = forms.ModelChoiceField(
         label="Desigantion",
         required=False,
-        queryset=obm.TypeAssist.objects.filter(
-            tatype__tacode="DESIGNATION", enable=True
-        ),
+        queryset=obm.TypeAssist.objects.none()  # Set in __init__ for tenant filtering
     )
     designation_count = forms.IntegerField(
         required=False, min_value=0, label="Designation Count"
@@ -634,7 +634,7 @@ class ClentForm(BuPrefForm):
     clienttimezone = forms.ChoiceField(
         label="Time Zone",
         widget=s2forms.Select2Widget(attrs={"data-theme": "bootstrap5"}),
-        choices=utils.generate_timezone_choices,
+        choices=[],  # Will be populated in __init__
         required=False,
     )
     billingtype = forms.ChoiceField(

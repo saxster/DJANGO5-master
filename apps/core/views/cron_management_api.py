@@ -42,7 +42,7 @@ from apps.core.utils_new.cron_utilities import validate_cron_expression
 logger = logging.getLogger(__name__)
 
 
-@method_decorator([csrf_exempt, login_required, rate_limit('60/h')], name='dispatch')
+@method_decorator([login_required, require_permissions('is_staff'), rate_limit('60/h')], name='dispatch')
 class CronJobListAPI(View):
     """API for listing and creating cron jobs."""
 
@@ -181,7 +181,7 @@ class CronJobListAPI(View):
             }, status=400)
 
 
-@method_decorator([csrf_exempt, login_required, rate_limit('120/h')], name='dispatch')
+@method_decorator([login_required, require_permissions('is_staff'), rate_limit('120/h')], name='dispatch')
 class CronJobDetailAPI(View):
     """API for individual cron job operations."""
 
@@ -272,6 +272,7 @@ class CronJobDetailAPI(View):
 
 @csrf_protect_ajax
 @login_required
+@require_permissions('is_staff')
 @rate_limit('30/h')
 @require_http_methods(["POST"])
 def execute_cron_job(request, job_id):
@@ -360,6 +361,7 @@ def cron_system_health(request):
 
 @csrf_protect_ajax
 @login_required
+@require_permissions('is_staff')
 @rate_limit('10/h')
 @require_http_methods(["POST"])
 def discover_management_commands(request):

@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
 from django.db import models
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -280,7 +280,7 @@ class VehicleEntry(BaseModel, TenantAwareModel):
             models.Index(fields=['status', 'is_blacklisted']),
             models.Index(fields=['gate_location', '-entry_timestamp']),
             models.Index(fields=['image_hash']),
-            models.Index(fields=['-created_at']),
+            models.Index(fields=['-cdtz']),
         ]
 
     def __str__(self):
@@ -479,11 +479,11 @@ class VehicleSecurityAlert(BaseModel, TenantAwareModel):
     class Meta(BaseModel.Meta):
         verbose_name = _("Vehicle Security Alert")
         verbose_name_plural = _("Vehicle Security Alerts")
-        ordering = ['-created_at']
+        ordering = ['-cdtz']
         indexes = [
-            models.Index(fields=['license_plate', '-created_at']),
+            models.Index(fields=['license_plate', '-cdtz']),
             models.Index(fields=['alert_type', 'severity']),
-            models.Index(fields=['is_acknowledged', '-created_at']),
+            models.Index(fields=['is_acknowledged', '-cdtz']),
         ]
 
     def __str__(self):

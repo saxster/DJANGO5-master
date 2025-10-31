@@ -330,7 +330,7 @@ class CSRFComplianceValidationTest(TestCase):
             'apps/attendance',
             'apps/peoples',
             'apps/reports',
-            'apps/schedhuler',
+            'apps/scheduler',
             'apps/work_order_management',
             'apps/y_helpdesk',
             'apps/streamlab',

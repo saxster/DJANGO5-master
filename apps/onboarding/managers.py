@@ -315,8 +315,19 @@ class BtManager(models.Manager):
 
         if qset:
             user = pm.People.objects.get(id=qset[0]["id"])
-            user.set_password(f'{qset[0]["loginid"]}@123')
+            # SECURITY FIX (2025-10-11): Replaced predictable password pattern (CVSS 7.5)
+            # Old code: user.set_password(f'{qset[0]["loginid"]}@123')  # ❌ FORBIDDEN
+            # New code: Require password reset flow instead of predictable default
+            user.set_unusable_password()
             user.save()
+
+            # TODO (2025-10-11): Integrate password setup email
+            # from apps.peoples.services.password_reset_service import send_password_setup_email
+            # email_sent = send_password_setup_email(user)
+            # if not email_sent:
+            #     log.warning(f"Failed to send password setup email to {user.loginid}",
+            #                 extra={'user_id': user.id})
+
         return {"data": list(qset)}
 
     def get_listbus(self, request):

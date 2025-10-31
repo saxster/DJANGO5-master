@@ -51,8 +51,7 @@ from apps.scheduler.utils import (
         get_readable_dates,
         create_ppm_reminder,
     )
-# from apps.service.utils import execute_graphql_mutations  # GraphQL removed Oct 2025
-from apps.service.utils import get_model_or_form
+from apps.service.services.database_service import get_model_or_form
 from apps.service.validators import clean_record
 from apps.work_order_management.models import Vendor
 from apps.work_order_management.models import Wom, WomDetails
@@ -365,4 +364,3 @@ def process_audio_transcript(self, jobneed_detail_id):
             result["status"] = "FAILED_PERMANENTLY"
 
     return result
-

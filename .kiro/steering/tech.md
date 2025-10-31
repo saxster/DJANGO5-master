@@ -7,7 +7,7 @@
 - **PostgreSQL 12+ with PostGIS** - Primary database with spatial extensions
 - **Redis 6+** - Caching, sessions, and message broker
 - **Celery** - Background task processing and scheduling
-- **GraphQL (Graphene-Django)** - Modern API layer for mobile applications
+- **Django REST Framework** - Primary API surface for mobile and web clients
 
 ### AI & Machine Learning
 - **TensorFlow/PyTorch** - AI model training and inference
@@ -149,7 +149,6 @@ python manage.py cleanup_old_data
 - `django-cors-headers` - CORS handling for API access
 
 ### Security & Authentication
-- `django-graphql-jwt` - JWT authentication for GraphQL
 - `djangorestframework` - REST API framework
 - `django-redis` - Redis integration for caching
 - `django-cleanup` - Automatic file cleanup

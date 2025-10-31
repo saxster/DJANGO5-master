@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 from celery import shared_task
+from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.db import transaction, DatabaseError, OperationalError, IntegrityError
 from django.core.exceptions import ValidationError

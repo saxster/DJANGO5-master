@@ -34,7 +34,6 @@ from functools import lru_cache
 
 from django.core.cache import cache
 from django.utils import timezone
-import pytz
 
 
 logger = logging.getLogger(__name__)
@@ -118,7 +117,7 @@ def _convert_single_to_utc(dt: datetime) -> datetime:
     if not isinstance(dt, datetime):
         raise TypeError(f"Expected datetime, got {type(dt)}")
 
-    return dt.astimezone(pytz.utc).replace(microsecond=0, tzinfo=pytz.utc)
+    return dt.astimezone(dt_timezone.utc).replace(microsecond=0, tzinfo=dt_timezone.utc)
 
 
 def make_timezone_aware(
@@ -171,6 +170,9 @@ def get_timezone_from_offset(offset_minutes: int) -> Optional[str]:
         Timezone name or None if no match
     """
     try:
+        import zoneinfo
+        from zoneinfo import ZoneInfo
+
         sign = "+" if offset_minutes >= 0 else "-"
         abs_minutes = abs(offset_minutes)
         delta = timedelta(minutes=abs_minutes)
@@ -178,8 +180,8 @@ def get_timezone_from_offset(offset_minutes: int) -> Optional[str]:
         if sign == "-":
             delta = -delta
 
-        for zone in pytz.all_timezones:
-            tz = pytz.timezone(zone)
+        for zone in zoneinfo.available_timezones():
+            tz = ZoneInfo(zone)
             utc_offset = tz.utcoffset(datetime.now(dt_timezone.utc))
 
             if utc_offset == delta:

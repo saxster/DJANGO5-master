@@ -388,7 +388,7 @@ class LegacyURLRedirector:
         r'^peoples/people/$': '/people/directory/',
         r'^activity/$': '/operations/tasks/',
         r'^activity/task/$': '/operations/tasks/',
-        r'^schedhuler/$': '/operations/tasks/',
+        r'^scheduler/$': '/operations/tasks/',
         r'^y_helpdesk/$': '/help-desk/tickets/',
         r'^work_order_management/$': '/operations/work-orders/',
 

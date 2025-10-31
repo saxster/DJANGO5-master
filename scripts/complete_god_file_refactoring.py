@@ -69,12 +69,10 @@ REFACTORING_CONFIG = {
                     'publish_mqtt',
                     'validate_mqtt_topic',
                     'validate_mqtt_payload',
-                    'process_graphql_mutation_async',
-                    'process_graphql_download_async',
                     'external_api_call_async',
                     'insert_json_records_async',
                 ],
-                'description': 'Integration tasks for MQTT, GraphQL, and external APIs'
+                'description': 'Integration tasks for MQTT and external APIs'
             },
             'media_tasks.py': {
                 'functions': [
@@ -114,9 +112,21 @@ REFACTORING_CONFIG = {
                 'classes': ['ConfigSiteReportTemplate', 'ConfigIncidentReportTemplate', 'ConfigWorkPermitReportTemplate'],
                 'description': 'Report configuration views'
             },
-            'generation_views.py': {
-                'classes': ['DownloadReports', 'DesignReport', 'GeneratePdf'],
-                'description': 'Report generation and export views'
+            'export_views.py': {
+                'classes': ['DownloadReports', 'return_status_of_report', 'upload_pdf'],
+                'description': 'Report download and export endpoints'
+            },
+            'schedule_views.py': {
+                'classes': ['DesignReport', 'ScheduleEmailReport'],
+                'description': 'Report scheduling + design preview'
+            },
+            'pdf_views.py': {
+                'classes': ['GeneratePdf', 'GenerateLetter', 'GenerateDecalartionForm'],
+                'description': 'PDF helpers (WeasyPrint, Pandoc)'
+            },
+            'frappe_integration_views.py': {
+                'classes': ['GenerateAttendance', 'get_data'],
+                'description': 'ERP integration helpers'
             },
         }
     },

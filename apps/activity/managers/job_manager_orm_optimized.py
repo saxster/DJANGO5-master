@@ -68,14 +68,15 @@ class JobneedManagerORMOptimized:
         group_ids = JobneedManagerORMOptimized._get_person_groups_cached(peopleid)
         
         # Optimized query with selective field loading
-        queryset = manager.filter(
-            jobstatus__exclude='COMPLETED',
+        # Note: Avoid mixing F() expressions inside timedelta; filter time window directly
+        queryset = manager.exclude(jobstatus='COMPLETED').filter(
             asset_id=assetid,
             bu_id=buid,
             qset_id=qsetid,
-            # Combined time and assignment filters for better index usage
-            plandatetime__lte=pdt + timedelta(minutes=F('gracetime')),
             expirydatetime__gte=pdt
+        ).filter(
+            # Plan time before or at the probe time (pdt)
+            Q(plandatetime__lte=pdt) | Q(plandatetime__isnull=True)
         ).filter(
             # Assigned to person or their groups
             Q(people_id=peopleid) | Q(pgroup_id__in=group_ids)
@@ -116,8 +117,7 @@ class JobneedManagerORMOptimized:
             # User tracking fields
             'people_id', 'pgroup_id', 'bu_id', 'cuser_id', 'muser_id'
         ).annotate(
-            # Compute only what we need
-            cplandatetime=F('plandatetime') + timedelta(minutes=F('ctzoffset')),
+            # Compute only what we need (compute timezone-adjusted time in Python)
             buname=Case(
                 When(
                     Q(othersite='') | Q(othersite__iexact='NONE') | Q(othersite__isnull=True),
@@ -143,13 +143,21 @@ class JobneedManagerORMOptimized:
             'bu_id',
             'cuser_id',
             'muser_id',
-            'cplandatetime'
+            # timezone-adjusted 'cplandatetime' computed below
         ).first()
         
         if job:
-            # Format datetime efficiently
-            if job['cplandatetime']:
-                job['cplandatetime'] = job['cplandatetime'].strftime('%d-%b-%Y %H:%M:%S')
+            # Format datetime efficiently (compute client-adjusted time in Python)
+            cplandatetime = None
+            try:
+                if job.get('plandatetime') is not None and job.get('ctzoffset') is not None:
+                    cplandatetime = job['plandatetime'] + timedelta(minutes=job['ctzoffset'])
+            except Exception:
+                cplandatetime = None
+            if cplandatetime:
+                job['cplandatetime'] = cplandatetime.strftime('%d-%b-%Y %H:%M:%S')
+            else:
+                job['cplandatetime'] = None
             return [job]
         
         return []
@@ -167,33 +175,33 @@ class JobneedManagerORMOptimized:
         from apps.activity.models.job_model import JobneedDetails
         from apps.activity.models.question_model import Question, QuestionSetBelonging
         from apps.peoples.models import People
-        
-            # Build tree with selective loading
-            all_jobs = list(
-                manager.filter(
-                    identifier='SITEREPORT'
-                ).exclude(id=-1).only(
-                    'id', 'parent_id', 'jobdesc', 'seqno',
-                    'people_id', 'qset_id', 'plandatetime',
-                    'cdtz', 'bu_id'
-                ).values(
-                    'id', 'parent_id', 'jobdesc', 'seqno',
-                    'people_id', 'qset_id', 'plandatetime',
-                    'cdtz', 'bu_id'
-                )
+
+        # Build tree with selective loading
+        all_jobs = list(
+            manager.filter(
+                identifier='SITEREPORT'
+            ).exclude(id=-1).only(
+                'id', 'parent_id', 'jobdesc', 'seqno',
+                'people_id', 'qset_id', 'plandatetime',
+                'cdtz', 'bu_id'
+            ).values(
+                'id', 'parent_id', 'jobdesc', 'seqno',
+                'people_id', 'qset_id', 'plandatetime',
+                'cdtz', 'bu_id'
             )
-            
-            if not all_jobs:
-                return []
-            
-            # Build and cache tree
-            tree_data = TreeTraversal.build_tree(
-                all_jobs,
-                root_id=pk,
-                id_field='id',
-                code_field='id',
-                parent_field='parent_id'
-            )
+        )
+
+        if not all_jobs:
+            return []
+
+        # Build and cache tree
+        tree_data = TreeTraversal.build_tree(
+            all_jobs,
+            root_id=pk,
+            id_field='id',
+            code_field='id',
+            parent_field='parent_id'
+        )
         
         # Get job IDs from tree
         job_ids = [item['id'] for item in tree_data if item['parent_id'] != -1]

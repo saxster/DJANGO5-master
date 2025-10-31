@@ -12,6 +12,7 @@ import requests
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Dict, Any, Optional
 
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -361,7 +362,7 @@ class EmailNotificationProvider(NotificationProvider):
                     f"{self.template_dir}{event.event_type}.html",
                     {'event': event, 'metadata': event.metadata}
                 )
-            except:
+            except (ValueError, TypeError, AttributeError) as e:
                 html_content = None
 
             # Render plain text template
@@ -370,7 +371,7 @@ class EmailNotificationProvider(NotificationProvider):
                     f"{self.template_dir}{event.event_type}.txt",
                     {'event': event, 'metadata': event.metadata}
                 )
-            except:
+            except (ValueError, TypeError, AttributeError) as e:
                 # Fallback to simple text formatting
                 text_content = self._format_plain_text(event)
 

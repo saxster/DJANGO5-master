@@ -321,3 +321,27 @@ class ServiceException(Exception):
         if self.correlation_id:
             return f"{base_message} (Correlation ID: {self.correlation_id})"
         return base_message
+
+# Standalone decorator function for class-level use (backward compatibility)
+def monitor_service_performance(method_name: str):
+    """
+    Standalone decorator for monitoring service method performance.
+    
+    Use this when decorating methods at class definition time.
+    For instance methods, use self.monitor_performance() instead.
+    
+    Usage:
+        @monitor_service_performance("create_order")
+        def create_order(self, data):
+            pass
+    """
+    def decorator(func: Callable):
+        def wrapper(self, *args, **kwargs):
+            # Delegate to instance method if available
+            if hasattr(self, 'monitor_performance'):
+                return self.monitor_performance(method_name)(func)(self, *args, **kwargs)
+            else:
+                # Fallback: just execute the function
+                return func(self, *args, **kwargs)
+        return wrapper
+    return decorator

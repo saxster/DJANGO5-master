@@ -11,6 +11,8 @@ class Migration(migrations.Migration):
 
     initial = True
 
+    atomic = False  # Required for CREATE INDEX CONCURRENTLY
+
     dependencies = [
         ('tenants', '0001_initial'),
         ('journal', '0001_initial'),

@@ -24,14 +24,12 @@ except ImportError:
 try:
     from .performance_spans import (
         PerformanceSpanInstrumentor,
-        trace_graphql_operation,
         trace_celery_task,
         trace_external_api_call,
         trace_database_query,
     )
 except ImportError:
     PerformanceSpanInstrumentor = None
-    trace_graphql_operation = None
     trace_celery_task = None
     trace_external_api_call = None
     trace_database_query = None
@@ -62,7 +60,6 @@ __all__ = [
 
     # Performance Spans (new)
     'PerformanceSpanInstrumentor',
-    'trace_graphql_operation',
     'trace_celery_task',
     'trace_external_api_call',
     'trace_database_query',

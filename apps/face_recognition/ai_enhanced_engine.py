@@ -13,9 +13,11 @@ import numpy as np
 import cv2
 import time
 import hashlib
+from typing import Optional, Dict, List
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError, IntegrityError
+from django.utils import timezone
 import asyncio
 import concurrent.futures
 from dataclasses import dataclass
@@ -24,6 +26,7 @@ from apps.face_recognition.models import (
     AntiSpoofingModel, FaceQualityMetrics
 )
 from apps.core.exceptions import SecurityException, IntegrationException
+from apps.ontology.decorators import ontology
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,157 @@ class BiometricResult:
     recommendations: List[str]
     detailed_scores: Dict[str, float]
 
+@ontology(
+    domain="security",
+    purpose="Biometric face matching with AI enhancement and anti-spoofing",
+    criticality="critical",
+    inputs={
+        "user_id": "User ID for biometric verification",
+        "image_path": "Path to face image for verification",
+        "additional_data": "Optional dict with voice_sample, behavioral_data, video_sequence",
+        "attendance_record_id": "Optional attendance record ID for audit logging"
+    },
+    outputs={
+        "BiometricResult": "Verification result with confidence, fraud_risk_score, liveness_score, recommendations",
+        "verified": "Boolean - True if all modalities and security checks pass",
+        "confidence": "Float 0-1 - Weighted confidence from multiple AI models",
+        "modalities_used": "List of verified modalities: face_recognition, voice_recognition, behavioral_biometrics",
+        "fraud_risk_score": "Float 0-1 - Combined fraud risk from deepfake/liveness/security analysis"
+    },
+    side_effects=[
+        "Creates FaceVerificationLog entry with comprehensive metadata",
+        "Caches quality metrics and face templates (TTL: 2-24 hours)",
+        "Logs CRITICAL level for fraud detection (spoof_detected=True)",
+        "Executes async tasks in thread pools (face_pool, liveness_pool, deepfake_pool)"
+    ],
+    depends_on=[
+        "apps.face_recognition.models.FaceRecognitionModel",
+        "apps.face_recognition.models.FaceEmbedding",
+        "apps.face_recognition.models.FaceVerificationLog",
+        "OpenCV (cv2) for image processing",
+        "NumPy for vector operations",
+        "Django cache backend (Redis) for template caching"
+    ],
+    used_by=[
+        "apps.attendance.views - Biometric clock-in/clock-out",
+        "apps.noc.security_intelligence - Real-time fraud monitoring",
+        "apps.peoples.views - User enrollment and re-verification"
+    ],
+    tags=["biometrics", "face-recognition", "deepfake-detection", "liveness", "anti-spoofing", "multi-modal", "ai"],
+    security_notes=[
+        "3D liveness detection: rejects 2D images (photos, videos)",
+        "Deepfake detection: ensemble of 5 models (DeeperForensics, FaceForensics++, Celeb-DF, DFDC, FaceSwapper)",
+        "Liveness models: micro-expression, heart rate, challenge-response, passive texture analysis",
+        "Threshold calibration: face recognition (0.7), deepfake (0.7), liveness (0.6)",
+        "Security penalties: deepfake (+0.5), no 3D liveness (+0.3), low liveness (+0.2)",
+        "Fraud risk calculation: min(1.0, sum of security penalties)",
+        "Quality threshold: 0.4 - rejects poor image quality before processing",
+        "Confidence threshold: 0.75 - minimum for positive verification",
+        "All verification attempts logged to FaceVerificationLog with fraud indicators"
+    ],
+    performance_notes=[
+        "Target processing time: 500ms (edge_model_size_limit_mb: 100)",
+        "Max processing time: 3000ms before timeout",
+        "Parallel execution: security checks and recognition tasks via asyncio.gather()",
+        "Thread pools: 4 workers (face), 2 workers (liveness), 2 workers (deepfake)",
+        "Cache TTL: face templates (24h), quality metrics (12h), user patterns (6h), fraud scores (2h)",
+        "Feature extraction: ensemble of 5 models (FaceX_Zoo, ArcFace_v2, RetinaFace, AdaFace, MagFace)",
+        "Cosine similarity: normalized vectors for 0-1 range comparison",
+        "Memory efficient: processes images sequentially, no large buffers"
+    ],
+    architecture_notes=[
+        "Multi-phase verification pipeline: Quality → Security → Recognition → Fusion → Predictive",
+        "Phase 1 (Quality): AI assessment - sharpness, brightness, contrast, face detection, resolution, noise, pose",
+        "Phase 2 (Security): Deepfake detection + 3D liveness + advanced liveness (micro-expressions, heart rate)",
+        "Phase 3 (Recognition): Face (60% weight) + Voice (25% weight) + Behavioral (15% weight)",
+        "Phase 4 (Fusion): Multi-modal decision with security penalties and quality adjustments",
+        "Phase 5 (Predictive): Behavioral analytics for fraud risk prediction (stub - Sprint 5)",
+        "Quality metrics: weighted average of 7 factors (sharpness 25%, face detection 25%, brightness 15%, contrast 15%, resolution 10%, noise 5%, pose 5%)",
+        "Deepfake ensemble: conservative approach - if ANY model detects deepfake above threshold, reject",
+        "Liveness aggregation: mean of all liveness component scores (micro-expression, heart rate, challenge-response, passive)",
+        "Verification decision: verified_modalities >= 1 AND confidence >= 0.75 AND fraud_risk < 0.6 AND quality >= 0.3",
+        "False positive/negative tracking: logged in FaceVerificationLog for threshold calibration"
+    ],
+    examples=[
+        {
+            "use_case": "Biometric attendance clock-in with face verification",
+            "code": """
+# Initialize engine and verify user
+engine = AIEnhancedFaceRecognitionEngine()
+result = await engine.verify_biometric(
+    user_id=user.id,
+    image_path='/tmp/attendance_photo.jpg',
+    attendance_record_id=attendance.id
+)
+
+# Example successful verification
+BiometricResult(
+    verified=True,
+    confidence=0.89,
+    modalities_used=['face_recognition'],
+    processing_time_ms=487.3,
+    fraud_risk_score=0.12,
+    quality_score=0.78,
+    liveness_score=0.85,
+    recommendations=[],
+    detailed_scores={'similarity_score': 0.91, 'max_similarity': 0.93, 'model_consistency': 0.88}
+)
+            """
+        },
+        {
+            "use_case": "Fraud detection - deepfake attempt rejected",
+            "code": """
+# Verification fails due to deepfake detection
+result = await engine.verify_biometric(user_id=user.id, image_path='/tmp/deepfake.jpg')
+
+# Example fraud detection
+BiometricResult(
+    verified=False,
+    confidence=0.0,
+    modalities_used=[],
+    processing_time_ms=892.1,
+    fraud_risk_score=0.9,
+    quality_score=0.65,
+    liveness_score=0.2,
+    recommendations=['Security threats detected: DEEPFAKE_DEEPERFORENSICS, ENSEMBLE_DEEPFAKE_DETECTED'],
+    detailed_scores={'failure_reason': 'SECURITY_FAILURE'}
+)
+            """
+        },
+        {
+            "use_case": "Multi-modal verification with voice + face",
+            "code": """
+# Verify with both face and voice biometrics
+result = await engine.verify_biometric(
+    user_id=user.id,
+    image_path='/tmp/face.jpg',
+    additional_data={
+        'voice_sample': '/tmp/voice.wav',
+        'behavioral_data': {'keystroke_data': {...}, 'device_data': {...}}
+    }
+)
+
+# Example multi-modal result
+BiometricResult(
+    verified=True,
+    confidence=0.93,
+    modalities_used=['face_recognition', 'voice_recognition', 'behavioral_biometrics'],
+    processing_time_ms=1247.5,
+    fraud_risk_score=0.08,
+    quality_score=0.82,
+    liveness_score=0.91,
+    recommendations=[],
+    detailed_scores={
+        'weighted_confidence': 0.95,
+        'face_confidence': 0.91,
+        'voice_confidence': 0.88,
+        'behavioral_confidence': 0.79
+    }
+)
+            """
+        }
+    ]
+)
 class AIEnhancedFaceRecognitionEngine:
     """Next-generation face recognition with 2025 AI technologies"""
     
@@ -1114,84 +1268,24 @@ class AIEnhancedFaceRecognitionEngineExtensions:
             }
     
     async def _predictive_analysis(self, user_id: int, result_data: Dict) -> Dict[str, Any]:
-        """Predictive analytics for attendance and fraud detection"""
+        """
+        Predictive analytics for attendance and fraud detection.
+
+        TODO: Sprint 5 - Implement real behavioral analytics
+        Currently returns safe defaults as behavioral_analytics app was removed.
+        """
         try:
             # Removed: behavioral_analytics import - app removed
-            
-            # Get user behavior profile
-            try:
-                behavior_profile = UserBehaviorProfile.objects.get(user_id=user_id)
-            except UserBehaviorProfile.DoesNotExist:
-                return {
-                    'high_fraud_risk': False,
-                    'attendance_prediction': 'unknown',
-                    'behavioral_anomaly': False,
-                    'message': 'No behavior profile found'
-                }
-            
-            current_time = datetime.now().time()
-            current_hour = current_time.hour
-            current_weekday = datetime.now().weekday()
-            
-            # Analyze temporal patterns
-            typical_hours = behavior_profile.typical_login_hours or []
-            is_typical_time = current_hour in typical_hours
-            
-            # Check attendance regularity
-            regularity_score = behavior_profile.attendance_regularity_score
-            
-            # Fraud risk assessment
-            historical_fraud_risk = behavior_profile.fraud_risk_score
-            current_verification_confidence = result_data.get('modality_results', {}).get(
-                'face_recognition', {}
-            ).get('confidence', 0.0)
-            
-            # Predictive indicators
-            time_anomaly = not is_typical_time and len(typical_hours) > 0
-            confidence_anomaly = current_verification_confidence < regularity_score - 0.2
-            
-            # Calculate risk factors
-            risk_factors = []
-            risk_score = historical_fraud_risk
-            
-            if time_anomaly:
-                risk_factors.append('UNUSUAL_LOGIN_TIME')
-                risk_score += 0.2
-            
-            if confidence_anomaly:
-                risk_factors.append('LOW_CONFIDENCE_ANOMALY')
-                risk_score += 0.3
-            
-            if regularity_score < 0.3:
-                risk_factors.append('LOW_ATTENDANCE_REGULARITY')
-                risk_score += 0.2
-            
-            # Attendance prediction based on patterns
-            if regularity_score > 0.8 and is_typical_time:
-                attendance_prediction = 'likely_genuine'
-            elif regularity_score > 0.5:
-                attendance_prediction = 'probably_genuine'
-            else:
-                attendance_prediction = 'uncertain'
-            
-            high_fraud_risk = risk_score > 0.6 or len(risk_factors) >= 2
-            
+            # Return safe defaults until real implementation in Sprint 5
+            logger.debug(f"_predictive_analysis: Stub implementation for user {user_id}")
             return {
-                'high_fraud_risk': high_fraud_risk,
-                'fraud_risk_score': min(1.0, risk_score),
-                'attendance_prediction': attendance_prediction,
-                'behavioral_anomaly': time_anomaly or confidence_anomaly,
-                'risk_factors': risk_factors,
-                'temporal_analysis': {
-                    'is_typical_time': is_typical_time,
-                    'current_hour': current_hour,
-                    'typical_hours': typical_hours
-                },
-                'user_regularity_score': regularity_score,
-                'confidence_deviation': current_verification_confidence - regularity_score
+                'high_fraud_risk': False,
+                'attendance_prediction': 'unknown',
+                'behavioral_anomaly': False,
+                'message': 'Behavioral analytics not yet implemented'
             }
-            
-        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
+
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Error in predictive analysis: {str(e)}")
             return {
                 'high_fraud_risk': False,

@@ -55,7 +55,7 @@ def get_secure_sse_cors_headers(request: HttpRequest) -> Optional[Dict[str, str]
     Related:
         - CORS_ALLOWED_ORIGINS setting
         - CORS_ALLOWED_ORIGIN_REGEXES setting
-        - apps/core/middleware/graphql_origin_validation.py
+        - CORS enforcement middleware
     """
     # Extract origin from request
     origin = request.META.get('HTTP_ORIGIN', '').strip()

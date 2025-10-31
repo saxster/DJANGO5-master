@@ -4,11 +4,13 @@ Helper functions to provide AI insights for Stream Testbench dashboard
 """
 
 from django.utils import timezone
+from django.db.models import Count, Avg
+from datetime import timedelta
 
-from .models.test_coverage_gaps import CoverageGap, CoverageGapStatus
+from .models.test_coverage_gaps import TestCoverageGap
 from .models.regression_predictions import RegressionPrediction
 from .models.adaptive_thresholds import AdaptiveThreshold
-from ..streamlab.models import TestRun
+from apps.streamlab.models import TestRun
 
 
 def get_ai_insights_summary():
@@ -47,24 +49,24 @@ def get_ai_insights_summary():
 
 def _get_coverage_gaps_summary():
     """Get coverage gaps summary with priority breakdown"""
-    total_gaps = CoverageGap.objects.filter(status=CoverageGapStatus.IDENTIFIED).count()
+    total_gaps = TestCoverageGap.objects.filter(status='identified').count()
 
     # Priority breakdown
-    priority_counts = CoverageGap.objects.filter(
-        status=CoverageGapStatus.IDENTIFIED
+    priority_counts = TestCoverageGap.objects.filter(
+        status='identified'
     ).values('priority').annotate(count=Count('id'))
 
     priority_breakdown = {item['priority']: item['count'] for item in priority_counts}
 
     # Recent gaps (last 7 days)
-    recent_gaps = CoverageGap.objects.filter(
-        status=CoverageGapStatus.IDENTIFIED,
+    recent_gaps = TestCoverageGap.objects.filter(
+        status='identified',
         created_at__gte=timezone.now() - timedelta(days=7)
     ).count()
 
     # High priority gaps needing immediate attention
-    critical_gaps = CoverageGap.objects.filter(
-        status=CoverageGapStatus.IDENTIFIED,
+    critical_gaps = TestCoverageGap.objects.filter(
+        status='identified',
         priority__in=['critical', 'high']
     ).count()
 

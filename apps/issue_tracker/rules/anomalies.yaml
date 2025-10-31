@@ -28,7 +28,7 @@ rules:
       latency_ms:
         gt: 50
       endpoint:
-        contains: ["mqtt", "graphql/mutation"]
+        contains: ["mqtt", "api/mutation"]
     severity: warning
     anomaly_type: message_delay
     tags: ["mqtt", "messaging", "latency"]
@@ -435,7 +435,7 @@ rules:
       latency_ms:
         gt: 200
       endpoint:
-        contains: ["api", "graphql"]
+        contains: ["api/"]
     severity: warning
     anomaly_type: slow_query
     tags: ["database", "query", "performance"]

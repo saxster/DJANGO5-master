@@ -22,7 +22,7 @@ import io
 import json
 import tempfile
 import pytest
-from django.test import TestCase, Client, override_settings
+from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import ValidationError
@@ -644,51 +644,6 @@ class QuarantineWorkflowTests(TestCase):
 
         if result['risk_assessment']['threat_level'] == 'MEDIUM':
             self.assertEqual(result['quarantine_decision']['action'], 'REVIEW')
-
-
-@pytest.mark.security
-class LegacyEndpointSecurityTests(TestCase):
-    """Test that legacy endpoints have been secured."""
-
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(
-            loginid='pentest_user',
-            email='pentest@test.com',
-            peoplename='Pentest User',
-            peoplecode='PT001'
-        )
-        self.client.force_login(self.user)
-
-    def test_deprecated_graphql_mutation_logs_warning(self):
-        """Test: Deprecated UploadAttMutaion logs security warning"""
-        from apps.service.mutations import UploadAttMutaion
-        import base64
-
-        test_file = b'\xFF\xD8\xFF\xE0'
-        biodata = json.dumps({
-            'filename': 'test.jpg',
-            'people_id': str(self.user.id),
-            'owner': 'test',
-            'ownername': 'test',
-            'path': 'test/'
-        })
-        record = json.dumps({'test': 'data'})
-
-        with self.assertLogs('message_q', level='WARNING') as logs:
-            try:
-                UploadAttMutaion.mutate(
-                    None,
-                    type('Info', (), {'context': type('Context', (), {'user': self.user})()}),
-                    base64.b64encode(test_file).decode(),
-                    record,
-                    biodata
-                )
-            except Exception:
-                pass
-
-        self.assertTrue(any('DEPRECATED' in log for log in logs.output))
-
 
 @pytest.mark.security
 class ComplianceValidationTests(TestCase):

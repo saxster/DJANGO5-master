@@ -1,8 +1,9 @@
 """
 Service Layer - Backward Compatibility
 
-This module maintains 100% backward compatibility with apps/service/utils.py
-while providing a domain-driven service architecture for improved maintainability.
+This package now serves as the canonical replacement for the legacy
+`apps.service.utils` module (shim removed Oct 2025) while providing a
+domain-driven service architecture for improved maintainability.
 
 Migration Date: 2025-09-30
 Original File: apps/service/utils.py (1,683 lines, 31 functions)
@@ -12,20 +13,16 @@ REFACTORING STATUS: COMPLETE ✅
 - Phase 2: Extract to domain-specific services (COMPLETE)
 
 NEW ARCHITECTURE:
-The 31 functions have been extracted to 6 domain-specific service modules:
+The 31 functions have been extracted to domain-specific service modules:
 - database_service.py: 10 database operation functions
 - file_service.py: 4 file handling functions (secure upload compliant)
 - geospatial_service.py: 3 geospatial/geocoding functions
 - job_service.py: 6 job/tour management functions
 - crisis_service.py: 3 crisis detection and ticket generation functions
-- graphql_service.py: 4 GraphQL mutation handlers
 
 Usage:
-    # Old import (still works via backward compatibility):
-    from apps.service.utils import insertrecord_json
-
-    # New import (recommended for new code):
-    from apps.service.services.database_service import insertrecord_json
+    # Primary import (maintains backward compatibility for callers):
+    from apps.service.services import insertrecord_json
 
     # Domain-specific import (best practice):
     from apps.service.services import database_service
@@ -82,12 +79,23 @@ from .crisis_service import (
     create_escalation_matrix_for_sitecrisis,
 )
 
-# GraphQL operations (4 functions from graphql_service.py)
-from .graphql_service import (
-    call_service_based_on_filename,
-    perform_reportmutation,
-    perform_adhocmutation,
-    execute_graphql_mutations,
+# Mobile sync services (shared read layer)
+from .mobile_sync import (  # noqa: F401
+    SyncResult,
+    build_select_output,
+    fetch_modified_tickets,
+    fetch_questions_modified_after,
+    fetch_question_sets_modified_after,
+    fetch_question_set_belongings_modified_after,
+    fetch_question_set_with_logic,
+    fetch_jobneeds_modified_after,
+    fetch_jobneed_details_modified_after,
+    fetch_external_tour_jobneeds,
+    fetch_people_modified_after,
+    fetch_people_event_log_punch_ins,
+    fetch_pgbelongings_modified_after,
+    fetch_people_eventlog_history,
+    fetch_attachments,
 )
 
 __all__ = [
@@ -131,11 +139,22 @@ __all__ = [
     "raise_ticket",
     "create_escalation_matrix_for_sitecrisis",
 
-    # GraphQL operations (4)
-    "call_service_based_on_filename",
-    "perform_reportmutation",
-    "perform_adhocmutation",
-    "execute_graphql_mutations",
+    # Mobile sync services
+    "SyncResult",
+    "build_select_output",
+    "fetch_modified_tickets",
+    "fetch_questions_modified_after",
+    "fetch_question_sets_modified_after",
+    "fetch_question_set_belongings_modified_after",
+    "fetch_question_set_with_logic",
+    "fetch_jobneeds_modified_after",
+    "fetch_jobneed_details_modified_after",
+    "fetch_external_tour_jobneeds",
+    "fetch_people_modified_after",
+    "fetch_people_event_log_punch_ins",
+    "fetch_pgbelongings_modified_after",
+    "fetch_people_eventlog_history",
+    "fetch_attachments",
 ]
 
 # Module-level documentation for discovery
@@ -145,5 +164,5 @@ __doc_modules__ = {
     'geospatial_service': 'PostGIS linestrings and Google Maps geocoding',
     'job_service': 'Job/tour lifecycle with ADHOC task reconciliation',
     'crisis_service': 'Site crisis detection and automatic ticket escalation',
-    'graphql_service': 'GraphQL mutation handlers for mobile sync',
+    'mobile_sync': 'Mobile sync read services used by REST API endpoints',
 }

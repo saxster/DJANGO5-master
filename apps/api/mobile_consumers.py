@@ -1,6 +1,43 @@
 """
 Mobile WebSocket Consumers
 Real-time communication for mobile SDK synchronization and monitoring
+
+@ontology(
+    domain="integration",
+    purpose="WebSocket consumers for real-time mobile SDK sync with voice biometrics and behavioral data",
+    integration_type="websocket",
+    protocol="Django Channels AsyncWebsocketConsumer",
+    supported_data_types=["voice_data", "behavioral_data", "sessions", "metrics"],
+    authentication="JWT (via JWTAuthMiddleware)",
+    rate_limiting={
+        "max_messages": 100,
+        "window_seconds": 60,
+        "circuit_breaker_threshold": 3,
+        "enforcement": "strikes-based disconnection"
+    },
+    sync_features=[
+        "Real-time bidirectional sync",
+        "Conflict resolution (device priority-based)",
+        "Batch data processing",
+        "Heartbeat monitoring (30s intervals, 5min timeout)",
+        "Session state management"
+    ],
+    observability=[
+        "Stream Testbench event capture",
+        "Anomaly detection integration",
+        "Correlation ID tracking",
+        "Pydantic message validation"
+    ],
+    message_types=[
+        "start_sync", "sync_data", "sync_complete", "request_server_data",
+        "resolve_conflict", "subscribe_events", "heartbeat", "device_status"
+    ],
+    channel_groups=["mobile_user_{user_id}", "mobile_events_{event_type}_{user_id}"],
+    performance_impact="~5-15ms per message (depending on data size)",
+    criticality="high",
+    error_handling="Pydantic validation + specific exception types",
+    tags=["websocket", "mobile-sdk", "real-time-sync", "voice-biometrics", "channels"]
+)
 """
 
 import asyncio
@@ -9,7 +46,6 @@ import logging
 import uuid
 import time
 from typing import Dict, Any, Optional, List
-from datetime import datetime
 from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
@@ -18,6 +54,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from apps.core.exceptions import (
     IntegrationException,
@@ -813,10 +850,16 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
         """Get voice data from server for bidirectional sync"""
         try:
             if since_timestamp:
-                since_dt = datetime.fromisoformat(since_timestamp)
+                parsed_timestamp = parse_datetime(since_timestamp)
+                if not parsed_timestamp:
+                    raise ValueError("Timestamp could not be parsed")
+
+                if timezone.is_naive(parsed_timestamp):
+                    parsed_timestamp = timezone.make_aware(parsed_timestamp, timezone.get_current_timezone())
+
                 logs = VoiceVerificationLog.objects.filter(
                     user=self.user,
-                    created_at__gt=since_dt
+                    created_at__gt=parsed_timestamp
                 ).order_by('-created_at')[:50]
             else:
                 logs = VoiceVerificationLog.objects.filter(

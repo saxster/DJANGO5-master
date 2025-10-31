@@ -10,6 +10,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework.views import APIView
+from apps.ontology.decorators import ontology
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +33,31 @@ from apps.core.api_responses import (
 logger = logging.getLogger('api.v2.devices')
 
 
+@ontology(
+    domain="mobile",
+    purpose="REST API for device registration and management with cross-device sync coordination",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated"],
+    rate_limit="100/minute",
+    request_schema="DeviceRegisterRequestSerializer (Pydantic)",
+    response_schema="DeviceListResponseSerializer|DeviceRegisterResponseSerializer (Pydantic)",
+    error_codes=[400, 401, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "v2", "devices", "mobile", "sync", "pydantic", "type-safe"],
+    security_notes="Type-safe validation with Pydantic. Device priority assignment for conflict resolution. User-scoped device isolation",
+    endpoints={
+        "list": "GET /api/v2/devices/ - List user's devices",
+        "register": "POST /api/v2/devices/register/ - Register new device",
+        "detail": "GET /api/v2/devices/{device_id}/ - Get device details",
+        "deactivate": "DELETE /api/v2/devices/{device_id}/ - Deactivate device",
+        "sync_state": "GET /api/v2/devices/{device_id}/sync-state/ - Get sync state for all domains"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v2/devices/register/ -H 'Authorization: Bearer <token>' -d '{\"device_id\":\"uuid-123\",\"device_type\":\"mobile\",\"os_type\":\"android\"}'"
+    ]
+)
 class DeviceListView(APIView):
     """
     List user's devices with type-safe response.
@@ -154,7 +180,7 @@ class DeviceDetailView(APIView):
     def get(self, request, device_id):
         """Get device details."""
         try:
-            device = cross_device_sync_service.get_device_by_id(device_id)
+            device = cross_device_sync_service.get_device_by_id(request.user, device_id)
 
             response_data = {
                 'device_id': device.device_id,
@@ -183,13 +209,22 @@ class DeviceDetailView(APIView):
     def delete(self, request, device_id):
         """Deactivate device."""
         try:
-            success = cross_device_sync_service.deactivate_device(device_id)
+            success = cross_device_sync_service.deactivate_device(request.user, device_id)
 
             return Response(create_success_response({
                 'device_id': device_id,
                 'deactivated': success
             }))
 
+        except ObjectDoesNotExist:
+            return Response(
+                create_error_response([APIError(
+                    field='device_id',
+                    message='Device not found',
+                    code='NOT_FOUND'
+                )]),
+                status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
             logger.error(f"Device deactivation failed: {e}", exc_info=True)
             return Response(
@@ -217,7 +252,7 @@ class DeviceSyncStateView(APIView):
         """Get sync state for device."""
         try:
             # Get sync states from service
-            sync_states = cross_device_sync_service.get_device_sync_states(device_id)
+            sync_states = cross_device_sync_service.get_device_sync_states(request.user, device_id)
 
             # Map to response contract
             response_data = {

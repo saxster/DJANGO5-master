@@ -7,3 +7,4 @@ class FaceRecognitionConfig(AppConfig):
     verbose_name = 'Enhanced Face Recognition'
 
     def ready(self):
+        pass

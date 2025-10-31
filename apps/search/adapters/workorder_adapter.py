@@ -10,7 +10,7 @@ Complies with Rule #12: Query optimization
 from typing import Dict, List, Any
 from django.db.models import QuerySet, Q
 from django.utils import timezone
-from apps.work_order_management.models import WOM
+from apps.work_order_management.models import Wom  # Correct model name (capital W, lowercase om)
 from .base_adapter import BaseSearchAdapter
 
 
@@ -21,20 +21,26 @@ class WorkOrderAdapter(BaseSearchAdapter):
 
     def get_queryset(self) -> QuerySet:
         """
-        Return optimized WOM queryset with related data
+        Return optimized Wom queryset with related data.
+
+        Optimizations (Sprint 5):
+        - select_related: 6 foreign keys (eager loading)
+        - prefetch_related: 2 reverse relations (N+1 prevention)
+        - filter: Work orders only (excludes WP/SLA)
         """
-        return WOM.objects.select_related(
-            'bt',
-            'client',
-            'location',
-            'asset',
-            'assigned_to',
-            'vendor'
+        return Wom.objects.select_related(
+            'bu',        # Business unit (site)
+            'client',    # Client organization
+            'location',  # Location
+            'asset',     # Asset
+            'vendor',    # Vendor
+            'qset'       # QuestionSet
         ).prefetch_related(
-            'womdetails_set',
-            'approver_set'
+            'womdetails_set',            # Work order details (Q&A)
+            'womdetails_set__question'   # Question details
         ).filter(
-            tenant=self.tenant
+            tenant=self.tenant,
+            identifier='WO'  # Work orders only (NOT work permits 'WP' or SLAs)
         )
 
     def apply_filters(self, queryset: QuerySet, filters: Dict) -> QuerySet:
@@ -44,7 +50,7 @@ class WorkOrderAdapter(BaseSearchAdapter):
             statuses = filters['status']
             if not isinstance(statuses, list):
                 statuses = [statuses]
-            queryset = queryset.filter(status__in=statuses)
+            queryset = queryset.filter(workstatus__in=statuses)  # Correct field name: workstatus
 
         if 'priority' in filters:
             priorities = filters['priority']
@@ -63,22 +69,21 @@ class WorkOrderAdapter(BaseSearchAdapter):
 
         if 'is_overdue' in filters and filters['is_overdue']:
             queryset = queryset.filter(
-                due_date__lt=timezone.now(),
-                status__in=['PENDING', 'IN_PROGRESS']
+                expirydatetime__lt=timezone.now(),  # Correct field name
+                workstatus__in=['ASSIGNED', 'INPROGRESS']  # Correct status values
             )
 
-        if 'wo_type' in filters:
-            queryset = queryset.filter(wo_type=filters['wo_type'])
+        # Removed wo_type filter - use 'identifier' instead ('WO', 'WP', 'SLA')
 
         return queryset
 
-    def format_result(self, instance: WOM) -> Dict:
-        """Format WOM instance to search result"""
+    def format_result(self, instance: Wom) -> Dict:
+        """Format Wom instance to search result"""
 
         is_overdue = (
-            instance.due_date and
-            instance.due_date < timezone.now() and
-            instance.status in ['PENDING', 'IN_PROGRESS']
+            instance.expirydatetime and
+            instance.expirydatetime < timezone.now() and
+            instance.workstatus in ['ASSIGNED', 'INPROGRESS']
         )
 
         subtitle_parts = []
@@ -91,21 +96,23 @@ class WorkOrderAdapter(BaseSearchAdapter):
 
         return {
             'id': str(instance.id),
-            'title': f"WO-{instance.wo_number} - {instance.title or 'Work Order'}",
+            'title': f"WO-{instance.id} - {instance.description or 'Work Order'}",
             'subtitle': ' | '.join(subtitle_parts),
             'snippet': snippet,
             'metadata': {
-                'wo_number': instance.wo_number,
-                'status': instance.status,
+                'work_order_id': instance.id,
+                'status': instance.workstatus,
                 'priority': instance.priority,
                 'is_overdue': is_overdue,
-                'wo_type': instance.wo_type,
-                'assigned_to': instance.assigned_to.peoplename if instance.assigned_to else None,
-                'due_date': instance.due_date.isoformat() if instance.due_date else None,
+                'identifier': instance.identifier,  # 'WO', 'WP', or 'SLA'
+                'performed_by': instance.performedby,
+                'planned_datetime': instance.plandatetime.isoformat() if instance.plandatetime else None,
+                'expiry_datetime': instance.expirydatetime.isoformat() if instance.expirydatetime else None,
+                'vendor': instance.vendor.name if instance.vendor else None,
             }
         }
 
-    def get_actions(self, instance: WOM) -> List[Dict]:
+    def get_actions(self, instance: Wom) -> List[Dict]:
         """Get available actions for Work Order"""
 
         actions = [
@@ -130,7 +137,7 @@ class WorkOrderAdapter(BaseSearchAdapter):
                 }
             ])
 
-        if instance.status not in ['COMPLETED', 'CANCELLED'] and self.user.has_perm('work_order_management.escalate_wom'):
+        if instance.workstatus not in ['COMPLETED', 'CANCELLED', 'CLOSED'] and self.user.has_perm('work_order_management.escalate_wom'):
             actions.append({
                 'label': 'Escalate',
                 'href': f'/api/v1/work-orders/{instance.id}/escalate',
@@ -149,10 +156,12 @@ class WorkOrderAdapter(BaseSearchAdapter):
     def get_search_fields(self) -> List[str]:
         """Return searchable fields for Work Order"""
         return [
-            'wo_number',
-            'title',
-            'description',
-            'location__sitename',
-            'asset__assetname',
-            'vendor__name'
+            'description',           # Main description field
+            'performedby',          # Who is performing the work
+            'location__sitename',   # Site name
+            'location__sitecode',   # Site code
+            'asset__assetname',     # Asset name
+            'asset__assetcode',     # Asset code
+            'vendor__name',         # Vendor name
+            'vendor__code'          # Vendor code
         ]

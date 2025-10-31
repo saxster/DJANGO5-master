@@ -227,7 +227,7 @@ class ExplainRequestSerializer(serializers.Serializer):
         help_text="What to explain (symbol reference, file path, URL pattern, etc.)"
     )
     type = serializers.ChoiceField(
-        choices=['symbol', 'file', 'url', 'model', 'graphql', 'query'],  # graphql=legacy (removed Oct 2025)
+        choices=['symbol', 'file', 'url', 'model', 'query'],
         required=False,
         help_text="Type of target to explain (auto-detected if not specified)"
     )

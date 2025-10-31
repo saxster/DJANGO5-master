@@ -1,0 +1,333 @@
+{% comment %}
+Global Scope Bar Component
+==========================
+Multi-select tenant/client/site selector with time/shift context and integrated tools.
+
+Usage:
+  {% include "components/scope_bar.html" %}
+
+Context variables required:
+  - user: Current authenticated user
+  - available_tenants: QuerySet of tenants user has access to
+  - available_clients: QuerySet of clients (filtered by tenant)
+  - available_sites: QuerySet of sites/business units (filtered by client)
+  - available_shifts: QuerySet of shifts
+  - current_scope: Dict with current selections
+
+Design: Follows design-tokens.json and new web app tokens
+{% endcomment %}
+
+<div class="scope-bar" id="scopeBar" data-component="scope-bar">
+  <div class="scope-bar__container">
+
+    {# Left Section: Scope Selectors #}
+    <div class="scope-bar__section scope-bar__section--scope">
+
+      {# Tenant Selector (Single select for most users, multi-select for superadmin) #}
+      <div class="scope-bar__item">
+        <label class="scope-bar__label" for="scopeTenant">
+          <span class="material-icons scope-bar__icon">business</span>
+          Tenant
+        </label>
+        <select
+          id="scopeTenant"
+          name="tenant_id"
+          class="scope-bar__select"
+          {% if not user.is_superuser %}disabled{% endif %}
+          data-scope-field="tenant"
+        >
+          {% for tenant in available_tenants %}
+            <option
+              value="{{ tenant.id }}"
+              {% if current_scope.tenant_id == tenant.id %}selected{% endif %}
+            >
+              {{ tenant.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Client Multi-Select #}
+      <div class="scope-bar__item">
+        <label class="scope-bar__label" for="scopeClients">
+          <span class="material-icons scope-bar__icon">apartment</span>
+          Clients
+        </label>
+        <select
+          id="scopeClients"
+          name="client_ids"
+          class="scope-bar__select scope-bar__select--multi"
+          multiple
+          data-scope-field="clients"
+          data-placeholder="Select clients..."
+        >
+          {% for client in available_clients %}
+            <option
+              value="{{ client.id }}"
+              {% if client.id in current_scope.client_ids %}selected{% endif %}
+            >
+              {{ client.buname }}
+            </option>
+          {% endfor %}
+        </select>
+        <span class="scope-bar__count" id="scopeClientsCount">
+          {% if current_scope.client_ids|length > 0 %}
+            {{ current_scope.client_ids|length }}
+          {% endif %}
+        </span>
+      </div>
+
+      {# Site Multi-Select #}
+      <div class="scope-bar__item">
+        <label class="scope-bar__label" for="scopeSites">
+          <span class="material-icons scope-bar__icon">location_city</span>
+          Sites
+        </label>
+        <select
+          id="scopeSites"
+          name="bu_ids"
+          class="scope-bar__select scope-bar__select--multi"
+          multiple
+          data-scope-field="sites"
+          data-placeholder="Select sites..."
+        >
+          {% for site in available_sites %}
+            <option
+              value="{{ site.id }}"
+              data-client-id="{{ site.client_id }}"
+              {% if site.id in current_scope.bu_ids %}selected{% endif %}
+            >
+              {{ site.buname }}
+            </option>
+          {% endfor %}
+        </select>
+        <span class="scope-bar__count" id="scopeSitesCount">
+          {% if current_scope.bu_ids|length > 0 %}
+            {{ current_scope.bu_ids|length }}
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="scope-bar__divider"></div>
+
+      {# Time Range Selector #}
+      <div class="scope-bar__item">
+        <label class="scope-bar__label" for="scopeTimeRange">
+          <span class="material-icons scope-bar__icon">calendar_today</span>
+          Time
+        </label>
+        <select
+          id="scopeTimeRange"
+          name="time_range"
+          class="scope-bar__select"
+          data-scope-field="time"
+        >
+          <option value="today" {% if current_scope.time_range == 'today' %}selected{% endif %}>Today</option>
+          <option value="24h" {% if current_scope.time_range == '24h' %}selected{% endif %}>Last 24 Hours</option>
+          <option value="7d" {% if current_scope.time_range == '7d' %}selected{% endif %}>Last 7 Days</option>
+          <option value="30d" {% if current_scope.time_range == '30d' %}selected{% endif %}>Last 30 Days</option>
+          <option value="custom" {% if current_scope.time_range == 'custom' %}selected{% endif %}>Custom Range...</option>
+        </select>
+      </div>
+
+      {# Shift Selector #}
+      <div class="scope-bar__item">
+        <label class="scope-bar__label" for="scopeShift">
+          <span class="material-icons scope-bar__icon">schedule</span>
+          Shift
+        </label>
+        <select
+          id="scopeShift"
+          name="shift_id"
+          class="scope-bar__select"
+          data-scope-field="shift"
+        >
+          <option value="">All Shifts</option>
+          {% for shift in available_shifts %}
+            <option
+              value="{{ shift.id }}"
+              {% if current_scope.shift_id == shift.id %}selected{% endif %}
+            >
+              {{ shift.shiftname }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    {# Right Section: Tools & Actions #}
+    <div class="scope-bar__section scope-bar__section--tools">
+
+      {# Global Search (Integrated from apps/search) #}
+      <div class="scope-bar__item scope-bar__item--search">
+        <div class="scope-bar__search">
+          <span class="material-icons scope-bar__search-icon">search</span>
+          <input
+            type="search"
+            id="scopeSearch"
+            class="scope-bar__search-input"
+            placeholder="Search people, tasks, tickets, assets..."
+            autocomplete="off"
+            data-search-url="{% url 'search:global_search' %}"
+          >
+        </div>
+        {# Search results dropdown (populated via JavaScript) #}
+        <div class="scope-bar__search-results" id="scopeSearchResults" style="display: none;">
+          <div class="scope-bar__search-loading">
+            <span class="spinner-border spinner-border-sm"></span> Searching...
+          </div>
+        </div>
+      </div>
+
+      {# Saved Views Dropdown #}
+      <div class="scope-bar__item">
+        <button
+          type="button"
+          class="scope-bar__button scope-bar__button--dropdown"
+          id="scopeSavedViewsBtn"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
+          <span class="material-icons">bookmark</span>
+          <span class="scope-bar__button-text">Saved View</span>
+          <span class="material-icons scope-bar__dropdown-icon">expand_more</span>
+        </button>
+        <ul class="dropdown-menu scope-bar__dropdown" aria-labelledby="scopeSavedViewsBtn">
+          <li class="scope-bar__dropdown-header">My Saved Views</li>
+          {# Populated via JavaScript from API #}
+          <li id="scopeSavedViewsList">
+            <a class="dropdown-item scope-bar__dropdown-item" href="#" data-view-id="default">
+              <span class="material-icons">home</span> Default View
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item scope-bar__dropdown-item scope-bar__dropdown-item--action" href="#" id="scopeSaveViewBtn">
+              <span class="material-icons">add</span> Save Current View
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      {# Alert Center (Unified inbox) #}
+      <div class="scope-bar__item">
+        <button
+          type="button"
+          class="scope-bar__button scope-bar__button--alert"
+          id="scopeAlertBtn"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#alertInboxOffcanvas"
+          aria-controls="alertInboxOffcanvas"
+        >
+          <span class="material-icons">notifications</span>
+          <span class="scope-bar__badge scope-bar__badge--alert" id="scopeAlertBadge" style="display: none;">0</span>
+        </button>
+      </div>
+
+      {# User Menu #}
+      <div class="scope-bar__item">
+        <button
+          type="button"
+          class="scope-bar__button scope-bar__button--dropdown"
+          id="scopeUserBtn"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
+          <span class="material-icons">account_circle</span>
+          <span class="scope-bar__button-text">{{ user.peoplename|default:user.username }}</span>
+          <span class="material-icons scope-bar__dropdown-icon">expand_more</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end scope-bar__dropdown" aria-labelledby="scopeUserBtn">
+          <li class="scope-bar__dropdown-header">{{ user.email }}</li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item scope-bar__dropdown-item" href="{% url 'peoples:people' %}?template=true">
+              <span class="material-icons">person</span> Profile
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item scope-bar__dropdown-item" href="#">
+              <span class="material-icons">settings</span> Preferences
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item scope-bar__dropdown-item scope-bar__dropdown-item--danger" href="{% url 'peoples:logout' %}">
+              <span class="material-icons">logout</span> Sign Out
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {# Breadcrumb Trail (shows current navigation path) #}
+  <div class="scope-bar__breadcrumb" id="scopeBreadcrumb">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'onboarding:rp_dashboard' %}">
+            <span class="material-icons">home</span>
+          </a>
+        </li>
+        {# Dynamically populated based on current page #}
+        <li class="breadcrumb-item active" aria-current="page">Command Center</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+{# Alert Inbox Offcanvas (Side panel) #}
+<div class="offcanvas offcanvas-end alert-inbox" tabindex="-1" id="alertInboxOffcanvas" aria-labelledby="alertInboxLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="alertInboxLabel">
+      <span class="material-icons">notifications</span>
+      Alert Center
+    </h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div class="alert-inbox__filters">
+      <button class="btn btn-sm btn-outline-secondary active" data-filter="all">All</button>
+      <button class="btn btn-sm btn-outline-danger" data-filter="critical">Critical</button>
+      <button class="btn btn-sm btn-outline-warning" data-filter="high">High</button>
+      <button class="btn btn-sm btn-outline-secondary" data-filter="unread">Unread</button>
+    </div>
+    <div class="alert-inbox__actions mt-3 mb-3">
+      <button class="btn btn-sm btn-link" id="alertMarkAllRead">
+        <span class="material-icons">done_all</span> Mark all as read
+      </button>
+    </div>
+    <div class="alert-inbox__list" id="alertInboxList">
+      <div class="alert-inbox__loading text-center py-5">
+        <span class="spinner-border spinner-border-sm"></span> Loading alerts...
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Custom Date Range Modal #}
+<div class="modal fade" id="customDateRangeModal" tabindex="-1" aria-labelledby="customDateRangeLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="customDateRangeLabel">Custom Date Range</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="customDateFrom" class="form-label">From</label>
+          <input type="date" class="form-control" id="customDateFrom" name="date_from" required>
+        </div>
+        <div class="mb-3">
+          <label for="customDateTo" class="form-label">To</label>
+          <input type="date" class="form-control" id="customDateTo" name="date_to" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="applyCustomDateRange">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>

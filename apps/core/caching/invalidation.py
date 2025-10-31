@@ -8,14 +8,57 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
-from django.db import models
+from django.db import models, DatabaseError, IntegrityError
+from django.core.exceptions import ValidationError
 from django.apps import apps
 
 from .utils import clear_cache_pattern, get_tenant_cache_key
+from apps.ontology.decorators import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="infrastructure",
+    purpose="Distributed cache invalidation with dependency tracking and multi-tenant coordination",
+    responsibility="Manages intelligent cache invalidation across Redis cluster with model dependency mapping, pub/sub patterns, and tenant-aware cache warming",
+    patterns={
+        "invalidation_strategy": "Signal-based automatic invalidation with dependency graphs",
+        "cache_warming": "Preemptive cache population for dropdowns and dashboards",
+        "tenant_isolation": "Tenant-scoped cache keys with wildcard invalidation"
+    },
+    key_methods={
+        "invalidate_for_model": "Signal-triggered cache clearing based on model dependencies",
+        "invalidate_related_caches": "Cascade invalidation for related model changes",
+        "register_dependency": "Runtime registration of model-to-cache-pattern mappings",
+        "warm_dropdown_caches": "Preload frequently accessed dropdown data"
+    },
+    data_flow="Signal (post_save/delete) → Dependency lookup → Pattern expansion → Redis SCAN/DEL → Metrics logging → Optional cache warming",
+    dependencies={
+        "redis": "Multi-layer cache with pub/sub support for distributed invalidation",
+        "django_signals": "post_save, post_delete, m2m_changed for automatic invalidation",
+        "cache_utils": "Pattern-based cache clearing with wildcard support"
+    },
+    related_systems={
+        "caching.ttl_monitor": "Monitors cache expiration and hit rates",
+        "caching.versioning": "Cache versioning for zero-downtime deployments",
+        "middleware.cache_security_middleware": "Enforces cache key encryption and access control"
+    },
+    performance_notes="Redis SCAN operation in batches of 1000 keys; wildcard patterns use cursor-based iteration to avoid blocking; cache warming runs async in Celery",
+    compliance_notes="Tenant isolation prevents cross-tenant cache leaks; audit logs track invalidation patterns for security analysis",
+    edge_cases=[
+        "BusinessUnit changes invalidate ALL tenant caches (wildcard pattern)",
+        "Redis unavailable: Logs warning but continues (graceful degradation)",
+        "M2M changes trigger secondary invalidations for both sides of relationship",
+        "Race condition: Duplicate invalidations are idempotent (no data loss)"
+    ],
+    future_enhancements=[
+        "Add cache invalidation replay for disaster recovery",
+        "Implement predictive cache warming based on access patterns",
+        "Add circuit breaker for Redis connection failures",
+        "Support for cache invalidation webhooks (cross-service coordination)"
+    ]
+)
 class CacheInvalidationManager:
     """
     Central manager for cache invalidation with dependency mapping
@@ -56,7 +99,7 @@ class CacheInvalidationManager:
             },
             'Job': {
                 'dashboard:metrics',
-                'schedhuler:jobs',
+                'scheduler:jobs',
                 'form:choices'
             },
             'TypeAssist': {
@@ -67,7 +110,7 @@ class CacheInvalidationManager:
             'Pgroup': {
                 'dropdown:pgroup',
                 'form:choices',
-                'schedhuler:groups'
+                'scheduler:groups'
             },
             'BusinessUnit': {
                 'dropdown:*',  # Affects all dropdowns
@@ -84,7 +127,7 @@ class CacheInvalidationManager:
             'attendance': ['tenant:*:attendance:*'],
             'asset': ['tenant:*:asset:*'],
             'form': ['tenant:*:form:*'],
-            'schedhuler': ['tenant:*:schedhuler:*'],
+            'scheduler': ['tenant:*:scheduler:*'],
             'trends': ['tenant:*:trends:*'],
             'ticket': ['tenant:*:ticket:*']
         }

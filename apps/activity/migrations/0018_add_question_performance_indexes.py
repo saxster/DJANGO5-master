@@ -10,7 +10,7 @@ Addresses critical query patterns identified in code review:
 Expected Performance Improvements:
 - 40-60% reduction in query time for question sets with 50+ questions
 - Elimination of sequential scans on filtered queries
-- Faster GraphQL resolvers for mobile sync operations
+- Faster legacy API resolvers for mobile sync operations
 
 Created: 2025-10-03
 Following .claude/rules.md Rule #12: Database query optimization

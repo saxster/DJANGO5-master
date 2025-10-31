@@ -5,6 +5,7 @@ Integrates materialized views for ultra-fast dropdown access
 
 import json
 import logging
+from typing import Optional, Any, Dict, List
 
 from django.core.cache.backends.base import BaseCache
 from django.db import connection, transaction
@@ -509,7 +510,7 @@ class MaterializedViewSelect2Cache(BaseCache):
                         cursor.execute(f"SELECT COUNT(*) FROM {mv_name};")
                         count = cursor.fetchone()[0]
                         mv_stats[mv_name] = count
-                    except:
+                    except (ValueError, TypeError, AttributeError) as e:
                         mv_stats[mv_name] = "unavailable"
 
                 stats["materialized_views"] = mv_stats

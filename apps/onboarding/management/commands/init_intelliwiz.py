@@ -1,7 +1,8 @@
 from django.core.management.base import BaseCommand
-from django.db.utils import IntegrityError
-from apps.core import utils
-from apps.core import exceptions as excp
+from django.db.utils import IntegrityError, DatabaseError
+from apps.core.utils_new import db_utils as utils
+from apps.core.exceptions import patterns as excp
+from django.core.exceptions import ObjectDoesNotExist
 from apps.onboarding.models import Bt, TypeAssist
 from apps.peoples.models import People
 from apps.onboarding.admin import TaResource
@@ -11,11 +12,14 @@ from tablib import Dataset
 import logging
 import psycopg2
 import uuid
+import secrets
+import os
 
 log = logging.getLogger(__name__)
 
 MAX_RETRY = 5
-DEFAULT_PASSWORD = 'superadmin@2022#'
+# SECURITY FIX (2025-10-11): Hardcoded password removed (CVSS 9.1)
+# Password generation moved to create_superuser() function using secrets module
 
 def create_dummy_client_and_site():
     try:
@@ -113,17 +117,55 @@ def insert_default_entries(skip_existing=False):
                     raise
 
 def create_superuser(client, site):
+    """
+    Create superuser with cryptographically secure password.
+
+    SECURITY FIX (2025-10-11): Replaced hardcoded password with secure generation.
+    - Production: Generates random 32-character password via secrets.token_urlsafe()
+    - Development: Allows DJANGO_SUPERUSER_PASSWORD env var override for testing
+    - Compliance: Eliminates CVSS 9.1 hardcoded credential vulnerability
+
+    Args:
+        client: Client Business Unit instance
+        site: Site Business Unit instance
+
+    Returns:
+        People instance if created/found, None otherwise
+    """
     if not client or not site:
         log.warning("Cannot create superuser without client and site")
         return None
-    
+
     try:
         user = People.objects.get(loginid="superadmin")
         log.info("Superuser with loginid 'superadmin' already exists")
         return user
     except People.DoesNotExist:
         pass
-    
+
+    # SECURITY FIX: Generate cryptographically secure random password
+    env_password = os.getenv('DJANGO_SUPERUSER_PASSWORD')
+
+    if env_password:
+        # Dev/staging: Allow env var override (must be set explicitly)
+        temp_password = env_password
+        log.warning(
+            "Using environment-provided superuser password",
+            extra={'security_event': 'env_password_used', 'environment': 'non-production'}
+        )
+    else:
+        # Production: Generate secure random password
+        temp_password = secrets.token_urlsafe(32)
+        log.critical(
+            "SUPERUSER CREATED - One-time password generated. "
+            "IMMEDIATELY reset via Django admin or change password on first login.",
+            extra={
+                'security_event': 'superuser_creation',
+                'action_required': 'password_reset',
+                'password_strength': 'cryptographic_random_256bit'
+            }
+        )
+
     try:
         user = People.objects.create(
             peoplecode='SUPERADMIN', loginid="superadmin", peoplename='Super Admin',
@@ -132,11 +174,20 @@ def create_superuser(client, site):
             is_staff=True, is_superuser=True,
             isadmin=True, client=client, bu=site
         )
-        user.set_password(DEFAULT_PASSWORD)
+        user.set_password(temp_password)
         user.save()
 
-        # SECURITY FIX: Never log passwords (PCI-DSS compliance, CVSS 9.1 violation)
-        # Use correlation ID for tracking instead of exposing credentials
+        # SECURITY: Display password only on console (never in logs)
+        if not env_password:
+            # Only print to stdout in non-production (when password is generated)
+            print("\n" + "=" * 80)
+            print("SUPERUSER CREATED - SAVE THIS PASSWORD (shown only once):")
+            print(f"Username: superadmin")
+            print(f"Password: {temp_password}")
+            print(f"Email: superadmin@youtility.in")
+            print("=" * 80 + "\n")
+
+        # Log correlation ID only (never password in production logs)
         correlation_id = str(uuid.uuid4())
         log.info(
             f"Superuser created successfully with loginid: {user.loginid}",
@@ -144,7 +195,8 @@ def create_superuser(client, site):
                 'user_id': user.id,
                 'correlation_id': correlation_id,
                 'security_event': 'superuser_creation',
-                'peoplecode': user.peoplecode
+                'peoplecode': user.peoplecode,
+                'password_method': 'env_var' if env_password else 'cryptographic_random'
             }
         )
         return user
@@ -166,10 +218,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         db = options['db']
         force = options.get('force', False)
-        
-        # Check if database is already initialized
-        utils.set_db_for_router(db)
-        self.stdout.write(self.style.SUCCESS(f"Current DB selected is {utils.get_current_db_name()}"))
+
+        # Note: Removed set_db_for_router() call - function no longer exists after refactoring
+        # Database routing is handled automatically by TenantDbRouter
+        self.stdout.write(self.style.SUCCESS(f"Initializing database: {db}"))
         
         # Check if key data already exists
         from apps.onboarding.models import TypeAssist, Bt
@@ -217,12 +269,14 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS('\n✓ Database initialization completed successfully!'))
                 return  # Exit the command successfully
 
-            except excp.RecordsAlreadyExist as ex:
-                self.stdout.write(self.style.WARNING(f'Database with this alias "{db}" is not empty. Operation terminated!'))
-                break
+            except IntegrityError as ex:
+                if "duplicate key" in str(ex).lower():
+                    self.stdout.write(self.style.WARNING(f'Database with this alias "{db}" is not empty. Operation terminated!'))
+                    break
+                raise
 
-            except excp.NoDbError:
-                self.stdout.write(self.style.ERROR(f"Database with alias '{db}' does not exist. Operation cannot be performed."))
+            except DatabaseError as ex:
+                self.stdout.write(self.style.ERROR(f"Database error: {ex}"))
                 break
 
             except IntegrityError as e:

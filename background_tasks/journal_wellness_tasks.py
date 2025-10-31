@@ -13,6 +13,7 @@ Integration with existing Celery/PostgreSQL task queue system for:
 """
 
 from celery import shared_task
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model

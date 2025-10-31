@@ -2,8 +2,86 @@
 Enhanced permission classes for AI Mentor API.
 """
 
+import logging
+from enum import Enum
+
 from rest_framework import permissions
-from apps.mentor.security.access_control import MentorPermission, get_access_control
+
+
+logger = logging.getLogger(__name__)
+
+
+class MentorPermission(str, Enum):
+    """Enumerated mentor permissions for access control checks."""
+
+    VIEW_MENTOR = "view_mentor"
+    USE_PLAN_GENERATOR = "use_plan_generator"
+    USE_PATCH_GENERATOR = "use_patch_generator"
+    APPLY_PATCHES = "apply_patches"
+    USE_TEST_RUNNER = "use_test_runner"
+    VIEW_SENSITIVE_CODE = "view_sensitive_code"
+    ADMIN_MENTOR = "admin_mentor"
+
+
+class MentorAccessControl:
+    """Lightweight access control layer for mentor APIs."""
+
+    def __init__(self):
+        self._permission_checks = {
+            MentorPermission.ADMIN_MENTOR: self._is_superuser,
+            MentorPermission.VIEW_SENSITIVE_CODE: self._is_staff_or_superuser,
+            MentorPermission.APPLY_PATCHES: self._is_staff_or_superuser,
+            MentorPermission.USE_PATCH_GENERATOR: self._is_staff_or_superuser,
+            MentorPermission.USE_TEST_RUNNER: self._is_staff_or_superuser,
+        }
+
+    def check_access(self, user, permission, request_ip=None, endpoint=None):
+        """
+        Evaluate access for a given permission.
+
+        Falls back to authenticated user requirement when no specific rule exists.
+        """
+        if not user or not user.is_authenticated:
+            return False
+
+        if user.is_superuser:
+            return True
+
+        check = self._permission_checks.get(permission, self._is_authenticated)
+        try:
+            return check(user)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error(
+                "Mentor access control check failed",
+                extra={
+                    "permission": permission,
+                    "user_id": getattr(user, "id", None),
+                    "endpoint": endpoint,
+                    "request_ip": request_ip,
+                    "error": str(exc),
+                },
+            )
+            return False
+
+    @staticmethod
+    def _is_superuser(user):
+        return bool(user.is_superuser)
+
+    @staticmethod
+    def _is_staff_or_superuser(user):
+        return bool(user.is_staff or user.is_superuser)
+
+    @staticmethod
+    def _is_authenticated(user):
+        return bool(user.is_authenticated)
+
+
+_access_control_singleton = MentorAccessControl()
+
+
+def get_access_control():
+    """Return shared access control instance."""
+    return _access_control_singleton
 
 
 class MentorBasePermission(permissions.BasePermission):

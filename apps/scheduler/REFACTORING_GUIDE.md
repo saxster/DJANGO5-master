@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This guide documents the comprehensive refactoring of `apps/schedhuler/views.py` from a 2,699-line monolithic file into a modular, maintainable architecture following `.claude/rules.md` compliance.
+This guide documents the comprehensive refactoring of `apps/scheduler/views.py` from a 2,699-line monolithic file into a modular, maintainable architecture following `.claude/rules.md` compliance.
 
 ## ⚠️ Critical Violations Fixed
 
@@ -23,7 +23,7 @@ This guide documents the comprehensive refactoring of `apps/schedhuler/views.py`
 ### Directory Structure
 
 ```
-apps/schedhuler/
+apps/scheduler/
 ├── services/
 │   ├── __init__.py                          # Service exports
 │   ├── internal_tour_service.py             # Internal tour business logic
@@ -55,14 +55,14 @@ apps/schedhuler/
 
 **Before:**
 ```python
-from apps.schedhuler import views
+from apps.scheduler import views
 
 path("schedhule_tour/", views.Schd_I_TourFormJob.as_view(), name="create_tour")
 ```
 
 **After:**
 ```python
-from apps.schedhuler.views import Schd_I_TourFormJob
+from apps.scheduler.views import Schd_I_TourFormJob
 
 path("schedhule_tour/", Schd_I_TourFormJob.as_view(), name="create_tour")
 ```
@@ -70,7 +70,7 @@ path("schedhule_tour/", Schd_I_TourFormJob.as_view(), name="create_tour")
 **Backward Compatible:**
 ```python
 # Still works! views/__init__.py exports all views
-from apps.schedhuler import views
+from apps.scheduler import views
 path("schedhule_tour/", views.Schd_I_TourFormJob.as_view(), name="create_tour")
 ```
 
@@ -79,7 +79,7 @@ path("schedhule_tour/", views.Schd_I_TourFormJob.as_view(), name="create_tour")
 **Example: Creating an internal tour programmatically**
 
 ```python
-from apps.schedhuler.services import InternalTourService
+from apps.scheduler.services import InternalTourService
 
 service = InternalTourService()
 
@@ -107,7 +107,7 @@ if success:
 **Follow the thin view pattern:**
 
 ```python
-from apps.schedhuler.services import InternalTourService
+from apps.scheduler.services import InternalTourService
 
 class MyCustomTourView(LoginRequiredMixin, View):
     """Custom tour view - follows Rule 8 (<30 lines)."""
@@ -148,7 +148,7 @@ class MyCustomTourView(LoginRequiredMixin, View):
 ### InternalTourService
 
 ```python
-from apps.schedhuler.services import InternalTourService
+from apps.scheduler.services import InternalTourService
 
 service = InternalTourService()
 
@@ -175,7 +175,7 @@ success = service.delete_checkpoint(checkpoint_id=int, user=User)
 ### ExternalTourService
 
 ```python
-from apps.schedhuler.services import ExternalTourService
+from apps.scheduler.services import ExternalTourService
 
 service = ExternalTourService()
 
@@ -199,7 +199,7 @@ data = service.get_site_checkpoints(jobneed_id=int)
 ### TaskService
 
 ```python
-from apps.schedhuler.services import TaskService
+from apps.scheduler.services import TaskService
 
 service = TaskService()
 
@@ -226,16 +226,16 @@ task = service.get_task_by_id(task_id=int)
 
 ```bash
 # Run all scheduler tests
-python -m pytest apps/schedhuler/tests/ -v
+python -m pytest apps/scheduler/tests/ -v
 
 # Run service tests only
-python -m pytest apps/schedhuler/tests/test_services/ -v
+python -m pytest apps/scheduler/tests/test_services/ -v
 
 # Run specific service test
-python -m pytest apps/schedhuler/tests/test_services/test_internal_tour_service.py -v
+python -m pytest apps/scheduler/tests/test_services/test_internal_tour_service.py -v
 
 # Run with coverage
-python -m pytest apps/schedhuler/tests/ --cov=apps.schedhuler --cov-report=html
+python -m pytest apps/scheduler/tests/ --cov=apps.scheduler --cov-report=html
 ```
 
 ### Writing Tests
@@ -244,7 +244,7 @@ python -m pytest apps/schedhuler/tests/ --cov=apps.schedhuler --cov-report=html
 ```python
 import pytest
 from unittest.mock import Mock, patch
-from apps.schedhuler.services import InternalTourService
+from apps.scheduler.services import InternalTourService
 
 class TestInternalTourService:
     @pytest.fixture
@@ -273,7 +273,7 @@ from django.urls import reverse
 class TestInternalTourViews:
     def test_create_tour_view(self, client, authenticated_user):
         """Test tour creation view."""
-        url = reverse('schedhuler:create_tour')
+        url = reverse('scheduler:create_tour')
         data = {'jobname': 'Test Tour', ...}
 
         response = client.post(url, data=data)
@@ -291,7 +291,7 @@ All URLs remain unchanged. Backward compatibility is maintained through `views/_
 Existing code continues to work:
 ```python
 # This still works
-from apps.schedhuler import views
+from apps.scheduler import views
 views.Schd_I_TourFormJob.as_view()
 ```
 
@@ -376,8 +376,8 @@ For questions or issues:
 
 - `.claude/rules.md` - Architecture compliance rules
 - `CLAUDE.md` - Project development guidelines
-- `apps/schedhuler/services/` - Service layer implementations
-- `apps/schedhuler/views/` - View layer implementations
+- `apps/scheduler/services/` - Service layer implementations
+- `apps/scheduler/views/` - View layer implementations
 
 ---
 

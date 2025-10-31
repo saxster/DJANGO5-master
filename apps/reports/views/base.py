@@ -38,7 +38,8 @@ from apps.reports import forms as rp_forms
 import subprocess, os
 from django.conf import settings
 from apps.reports import utils as rutils
-from background_tasks.tasks import create_save_report_async
+# Import directly from report_tasks to avoid circular dependency
+from background_tasks.report_tasks import create_save_report_async
 from background_tasks.report_tasks import remove_reportfile
 from celery.result import AsyncResult
 from apps.activity.models.asset_model import Asset

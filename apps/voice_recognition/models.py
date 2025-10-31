@@ -187,6 +187,10 @@ class VoiceAntiSpoofingModel(BaseModel, TenantAwareModel):
         db_table = 'voice_anti_spoofing_model'
         verbose_name = 'Voice Anti-Spoofing Model'
         verbose_name_plural = 'Voice Anti-Spoofing Models'
+        indexes = [
+            models.Index(fields=['cdtz'], name='v_antispoof_cdtz_idx'),
+            models.Index(fields=['mdtz'], name='v_antispoof_mdtz_idx'),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.model_type})"

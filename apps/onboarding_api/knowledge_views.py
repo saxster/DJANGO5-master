@@ -1,6 +1,13 @@
 """
 Knowledge Management API endpoints for production-grade knowledge base
 Staff-only endpoints for curating, versioning, and managing authoritative knowledge
+
+SECURITY NOTE (.claude/rules.md Rule #3):
+- CSRF protection enabled via Django's default CSRF middleware
+- All mutation endpoints (POST/PUT/DELETE) require valid CSRF tokens
+- csrf_exempt REMOVED from all endpoints (was security violation)
+- Staff-only access enforced via StaffRequiredMixin
+- For non-browser API clients, use Session authentication with CSRF or migrate to JWT
 """
 import json
 import logging
@@ -8,7 +15,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import transaction, models
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -20,11 +27,15 @@ from apps.onboarding.models import (
     KnowledgeSource,
     KnowledgeIngestionJob,
     AuthoritativeKnowledge,
-    KnowledgeReview
+    KnowledgeReview,
 )
+from apps.onboarding_api.services.knowledge.exceptions import (
     DocumentParseError,
     SecurityError
 )
+
+# Sprint 3: All knowledge models now implemented ✅
+# Stub classes removed - using real models from apps.onboarding.models
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +62,13 @@ class StaffRequiredMixin(UserPassesTestMixin):
 # =============================================================================
 
 
-@method_decorator([csrf_exempt, login_required], name='dispatch')
+@method_decorator([login_required], name='dispatch')
 class KnowledgeSourceAPIView(StaffRequiredMixin, View):
-    """CRUD operations for knowledge sources (allowlisted only)"""
+    """
+    CRUD operations for knowledge sources (allowlisted only)
+
+    Security: CSRF protection enabled for all mutations
+    """
 
     def get(self, request, source_id=None):
         """List knowledge sources or get specific source"""
@@ -248,9 +263,13 @@ class KnowledgeSourceAPIView(StaffRequiredMixin, View):
 # =============================================================================
 
 
-@method_decorator([csrf_exempt, login_required], name='dispatch')
+@method_decorator([login_required], name='dispatch')
 class IngestionJobAPIView(StaffRequiredMixin, View):
-    """Manage document ingestion jobs"""
+    """
+    Manage document ingestion jobs
+
+    Security: CSRF protection enabled for all mutations
+    """
 
     def get(self, request, job_id=None):
         """Get ingestion job status or list jobs"""
@@ -374,9 +393,13 @@ class IngestionJobAPIView(StaffRequiredMixin, View):
 # =============================================================================
 
 
-@method_decorator([csrf_exempt, login_required], name='dispatch')
+@method_decorator([login_required], name='dispatch')
 class DocumentManagementAPIView(StaffRequiredMixin, View):
-    """Document management operations (re-embed, publish)"""
+    """
+    Document management operations (re-embed, publish)
+
+    Security: CSRF protection enabled for all mutations
+    """
 
     def post(self, request, doc_id, action):
         """Handle document actions (embed, publish)"""
@@ -418,22 +441,44 @@ class DocumentManagementAPIView(StaffRequiredMixin, View):
             return JsonResponse({'error': 'Failed to start re-embedding'}, status=500)
 
     def _handle_publish(self, request, document: AuthoritativeKnowledge):
-        """Publish document after review approval"""
+        """Publish document after two-person approval (SECURITY CRITICAL)"""
         try:
-            # Check for approved review
+            # ENFORCED: Two-person approval gate
             approved_review = KnowledgeReview.objects.filter(
                 document=document,
-                status=KnowledgeReview.StatusChoices.APPROVED,
-                approved_for_publication=True
+                status='approved',
+                approved_for_publication=True,
+                first_reviewer__isnull=False,
+                second_reviewer__isnull=False,
+                first_reviewed_at__isnull=False,
+                second_reviewed_at__isnull=False
             ).first()
 
             if not approved_review:
+                # Find incomplete reviews for helpful error message
+                incomplete_review = KnowledgeReview.objects.filter(document=document).first()
+                if incomplete_review:
+                    status = incomplete_review.status
+                    error_details = {
+                        'draft': 'Review not started - awaiting first reviewer',
+                        'first_review': 'First review in progress',
+                        'second_review': 'Second review in progress - awaiting approval',
+                        'rejected': 'Document was rejected - revision required'
+                    }.get(status, 'Unknown status')
+
+                    return JsonResponse({
+                        'error': 'Two-person approval required for publication',
+                        'message': f'Current status: {error_details}',
+                        'current_status': status,
+                        'requires': 'Both first and second reviewer approval'
+                    }, status=400)
+
                 return JsonResponse({
                     'error': 'Document not approved for publication',
-                    'message': 'Document requires approved review before publication'
+                    'message': 'Document requires two-person approval before publication'
                 }, status=400)
 
-            # Mark document as published/current
+            # Publish gate passed - mark document as published/current
             with transaction.atomic():
                 document.is_current = True
                 document.last_verified = datetime.now()
@@ -442,17 +487,25 @@ class DocumentManagementAPIView(StaffRequiredMixin, View):
                 # Update all chunks as current
                 document.chunks.update(is_current=True, last_verified=datetime.now())
 
-            logger.info(f"Published document {document.knowledge_id} by {request.user.email}")
+            logger.info(
+                f"Published document {document.knowledge_id} by {request.user.email} "
+                f"(approved by {approved_review.first_reviewer.email} and {approved_review.second_reviewer.email})"
+            )
 
             return JsonResponse({
                 'document_id': str(document.knowledge_id),
                 'status': 'published',
-                'approved_by': approved_review.reviewer.email,
-                'approved_at': approved_review.reviewed_at.isoformat(),
-                'message': 'Document published successfully'
+                'approved_by': {
+                    'first_reviewer': approved_review.first_reviewer.email,
+                    'first_reviewed_at': approved_review.first_reviewed_at.isoformat(),
+                    'second_reviewer': approved_review.second_reviewer.email,
+                    'second_reviewed_at': approved_review.second_reviewed_at.isoformat()
+                },
+                'provenance': approved_review.provenance_data,
+                'message': 'Document published successfully after two-person approval'
             })
 
-        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Error publishing document: {str(e)}")
             return JsonResponse({'error': 'Failed to publish document'}, status=500)
 
@@ -462,9 +515,13 @@ class DocumentManagementAPIView(StaffRequiredMixin, View):
 # =============================================================================
 
 
-@method_decorator([csrf_exempt, login_required], name='dispatch')
+@method_decorator([login_required], name='dispatch')
 class KnowledgeSearchAPIView(StaffRequiredMixin, View):
-    """Advanced knowledge search with filtering"""
+    """
+    Advanced knowledge search with filtering
+
+    Security: CSRF protection enabled (read-only but follows consistent policy)
+    """
 
     def get(self, request):
         """Search knowledge with advanced filtering"""
@@ -603,7 +660,7 @@ class KnowledgeSearchAPIView(StaffRequiredMixin, View):
             pub_date = datetime.fromisoformat(pub_date_str.replace('Z', '+00:00'))
             age_days = (datetime.now() - pub_date.replace(tzinfo=None)).days
             return age_days < 730  # 2 years
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return False
 
 
@@ -612,9 +669,17 @@ class KnowledgeSearchAPIView(StaffRequiredMixin, View):
 # =============================================================================
 
 
-@method_decorator([csrf_exempt, login_required], name='dispatch')
+@method_decorator([login_required], name='dispatch')
 class DocumentReviewAPIView(StaffRequiredMixin, View):
-    """Document review and approval workflow"""
+    """
+    Document review and approval workflow with two-person approval
+
+    Two-Person Workflow:
+    - First review: Subject Matter Expert evaluates accuracy/completeness
+    - Second review: Quality Assurance validates and approves for publication
+
+    Security: CSRF protection enabled for all mutations
+    """
 
     def get(self, request):
         """Get pending reviews or review history"""
@@ -623,15 +688,21 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
             page = int(request.GET.get('page', 1))
             page_size = min(int(request.GET.get('page_size', 20)), 100)
 
-            reviews = KnowledgeReview.objects.select_related('document', 'reviewer')
+            # Updated query for two-person approval
+            reviews = KnowledgeReview.objects.select_related(
+                'document', 'first_reviewer', 'second_reviewer'
+            )
 
             if review_type == 'pending':
-                reviews = reviews.filter(status=KnowledgeReview.StatusChoices.PENDING)
+                reviews = reviews.filter(status__in=['draft', 'first_review', 'second_review'])
             elif review_type == 'completed':
-                reviews = reviews.filter(status__in=[
-                    KnowledgeReview.StatusChoices.APPROVED,
-                    KnowledgeReview.StatusChoices.REJECTED
-                ])
+                reviews = reviews.filter(status__in=['approved', 'rejected'])
+            elif review_type == 'my_pending':
+                # Reviews assigned to current user
+                reviews = reviews.filter(
+                    models.Q(first_reviewer=request.user, status='first_review') |
+                    models.Q(second_reviewer=request.user, status='second_review')
+                )
 
             reviews = reviews.order_by('-cdtz')
 
@@ -653,12 +724,15 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
             return JsonResponse({'error': 'Internal server error'}, status=500)
 
     def post(self, request):
-        """Submit document review"""
+        """Submit document review (first or second review)"""
         try:
+            from apps.onboarding.services import KnowledgeReviewService
+            from django.core.exceptions import ValidationError, PermissionDenied
+
             data = json.loads(request.body)
 
             # Validate required fields
-            required_fields = ['document_id', 'decision', 'notes']
+            required_fields = ['document_id', 'decision', 'notes', 'review_type']
             for field in required_fields:
                 if field not in data:
                     return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
@@ -672,51 +746,71 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
             # Get or create review
             review, created = KnowledgeReview.objects.get_or_create(
                 document=document,
-                reviewer=request.user,
                 defaults={
-                    'status': KnowledgeReview.StatusChoices.PENDING,
+                    'status': 'draft',
                     'notes': data['notes']
                 }
             )
 
-            # Update review with decision
+            review_service = KnowledgeReviewService()
+            review_type = data['review_type']  # 'first' or 'second'
             decision = data['decision'].lower()
-            if decision == 'approve':
-                review.approve(
+
+            # Build quality scores
+            quality_scores = {
+                'accuracy_score': data.get('accuracy_score'),
+                'completeness_score': data.get('completeness_score'),
+                'relevance_score': data.get('relevance_score')
+            }
+
+            # Handle review based on type
+            if review_type == 'first':
+                result = review_service.submit_first_review(
+                    review=review,
+                    reviewer=request.user,
+                    decision=decision,
+                    notes=data['notes'],
+                    quality_scores=quality_scores,
+                    conditions=data.get('approval_conditions', '')
+                )
+            elif review_type == 'second':
+                result = review_service.submit_second_review(
+                    review=review,
+                    reviewer=request.user,
+                    decision=decision,
                     notes=data['notes'],
                     conditions=data.get('approval_conditions', '')
                 )
-            elif decision == 'reject':
-                review.reject(notes=data['notes'])
             else:
-                return JsonResponse({'error': f'Invalid decision: {decision}'}, status=400)
+                return JsonResponse({'error': f'Invalid review_type: {review_type}'}, status=400)
 
-            # Update scoring if provided
-            if 'accuracy_score' in data:
-                review.accuracy_score = data['accuracy_score']
-            if 'completeness_score' in data:
-                review.completeness_score = data['completeness_score']
-            if 'relevance_score' in data:
-                review.relevance_score = data['relevance_score']
-
+            # Update feedback data
             review.feedback_data = data.get('feedback_data', {})
             review.save()
 
-            logger.info(f"Review submitted for document {document.knowledge_id} by {request.user.email}: {decision}")
+            logger.info(
+                f"{review_type.title()} review {decision} for document {document.knowledge_id} "
+                f"by {request.user.email}"
+            )
 
             return JsonResponse({
                 'review': self._serialize_review(review),
+                'result': result,
                 'status': 'submitted'
             })
 
+        except ValidationError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        except PermissionDenied as e:
+            return JsonResponse({'error': str(e)}, status=403)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
-        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
+        except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"Error submitting review: {str(e)}")
             return JsonResponse({'error': 'Failed to submit review'}, status=500)
 
     def _serialize_review(self, review: KnowledgeReview) -> Dict[str, Any]:
-        """Serialize review for API response"""
+        """Serialize review for API response (two-person approval)"""
         return {
             'review_id': str(review.review_id),
             'document': {
@@ -725,17 +819,29 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
                 'source_organization': review.document.source_organization,
                 'authority_level': review.document.authority_level
             },
-            'reviewer': review.reviewer.email,
             'status': review.status,
             'notes': review.notes,
+            # Two-person approval fields
+            'first_reviewer': review.first_reviewer.email if review.first_reviewer else None,
+            'first_reviewed_at': review.first_reviewed_at.isoformat() if review.first_reviewed_at else None,
+            'second_reviewer': review.second_reviewer.email if review.second_reviewer else None,
+            'second_reviewed_at': review.second_reviewed_at.isoformat() if review.second_reviewed_at else None,
+            # Legacy field for backward compatibility
+            'reviewer': review.reviewer.email if review.reviewer else None,
             'reviewed_at': review.reviewed_at.isoformat() if review.reviewed_at else None,
-            'accuracy_score': review.accuracy_score,
-            'completeness_score': review.completeness_score,
-            'relevance_score': review.relevance_score,
+            # Quality scores
+            'accuracy_score': float(review.accuracy_score) if review.accuracy_score else None,
+            'completeness_score': float(review.completeness_score) if review.completeness_score else None,
+            'relevance_score': float(review.relevance_score) if review.relevance_score else None,
+            'overall_quality_score': review.get_overall_quality_score(),
+            # Approval
             'approved_for_publication': review.approved_for_publication,
             'approval_conditions': review.approval_conditions,
             'feedback_data': review.feedback_data,
-            'created_at': review.cdtz.isoformat()
+            'provenance_data': review.provenance_data,
+            # Timestamps
+            'created_at': review.cdtz.isoformat(),
+            'updated_at': review.mdtz.isoformat()
         }
 
 
@@ -744,9 +850,13 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
 # =============================================================================
 
 
-@method_decorator([csrf_exempt, login_required], name='dispatch')
+@method_decorator([login_required], name='dispatch')
 class KnowledgeStatsAPIView(StaffRequiredMixin, View):
-    """Knowledge base statistics and health monitoring"""
+    """
+    Knowledge base statistics and health monitoring
+
+    Security: CSRF protection enabled (read-only but follows consistent policy)
+    """
 
     def get(self, request):
         """Get comprehensive knowledge base statistics"""
@@ -817,15 +927,19 @@ class KnowledgeStatsAPIView(StaffRequiredMixin, View):
         return stats
 
     def _get_review_stats(self) -> Dict[str, Any]:
-        """Get document review statistics"""
+        """Get document review statistics (two-person approval)"""
         reviews = KnowledgeReview.objects.all()
 
         return {
             'total_reviews': reviews.count(),
-            'pending_reviews': reviews.filter(status=KnowledgeReview.StatusChoices.PENDING).count(),
-            'approved_reviews': reviews.filter(status=KnowledgeReview.StatusChoices.APPROVED).count(),
-            'rejected_reviews': reviews.filter(status=KnowledgeReview.StatusChoices.REJECTED).count(),
-            'avg_review_time_hours': self._calculate_avg_review_time(reviews),
+            'draft_reviews': reviews.filter(status='draft').count(),
+            'first_review_in_progress': reviews.filter(status='first_review').count(),
+            'second_review_in_progress': reviews.filter(status='second_review').count(),
+            'approved_reviews': reviews.filter(status='approved').count(),
+            'rejected_reviews': reviews.filter(status='rejected').count(),
+            'avg_first_review_time_hours': self._calculate_avg_first_review_time(reviews),
+            'avg_second_review_time_hours': self._calculate_avg_second_review_time(reviews),
+            'avg_total_review_time_hours': self._calculate_avg_total_review_time(reviews),
             'approval_rate': self._calculate_approval_rate(reviews)
         }
 
@@ -848,31 +962,54 @@ class KnowledgeStatsAPIView(StaffRequiredMixin, View):
 
         return freshness
 
-    def _calculate_avg_review_time(self, reviews) -> float:
-        """Calculate average review time in hours"""
-        completed_reviews = reviews.filter(reviewed_at__isnull=False)
+    def _calculate_avg_first_review_time(self, reviews) -> float:
+        """Calculate average first review time in hours"""
+        completed_first_reviews = reviews.filter(first_reviewed_at__isnull=False)
+        if not completed_first_reviews.exists():
+            return 0.0
+
+        total_hours = sum(
+            (review.first_reviewed_at - review.cdtz).total_seconds() / 3600
+            for review in completed_first_reviews
+            if review.first_reviewed_at and review.cdtz
+        )
+        count = completed_first_reviews.count()
+        return total_hours / count if count > 0 else 0.0
+
+    def _calculate_avg_second_review_time(self, reviews) -> float:
+        """Calculate average second review time in hours"""
+        completed_second_reviews = reviews.filter(second_reviewed_at__isnull=False, first_reviewed_at__isnull=False)
+        if not completed_second_reviews.exists():
+            return 0.0
+
+        total_hours = sum(
+            (review.second_reviewed_at - review.first_reviewed_at).total_seconds() / 3600
+            for review in completed_second_reviews
+            if review.second_reviewed_at and review.first_reviewed_at
+        )
+        count = completed_second_reviews.count()
+        return total_hours / count if count > 0 else 0.0
+
+    def _calculate_avg_total_review_time(self, reviews) -> float:
+        """Calculate average total review time (draft to approved) in hours"""
+        completed_reviews = reviews.filter(status='approved', second_reviewed_at__isnull=False)
         if not completed_reviews.exists():
             return 0.0
 
-        total_hours = 0
-        count = 0
-
-        for review in completed_reviews:
-            if review.reviewed_at and review.cdtz:
-                time_diff = review.reviewed_at - review.cdtz
-                total_hours += time_diff.total_seconds() / 3600
-                count += 1
-
+        total_hours = sum(
+            (review.second_reviewed_at - review.cdtz).total_seconds() / 3600
+            for review in completed_reviews
+            if review.second_reviewed_at and review.cdtz
+        )
+        count = completed_reviews.count()
         return total_hours / count if count > 0 else 0.0
 
     def _calculate_approval_rate(self, reviews) -> float:
-        """Calculate overall approval rate"""
-        completed_reviews = reviews.filter(
-            status__in=[KnowledgeReview.StatusChoices.APPROVED, KnowledgeReview.StatusChoices.REJECTED]
-        )
+        """Calculate overall approval rate (two-person workflow)"""
+        completed_reviews = reviews.filter(status__in=['approved', 'rejected'])
 
         if not completed_reviews.exists():
             return 0.0
 
-        approved_count = completed_reviews.filter(status=KnowledgeReview.StatusChoices.APPROVED).count()
+        approved_count = completed_reviews.filter(status='approved').count()
         return (approved_count / completed_reviews.count()) * 100

@@ -443,6 +443,8 @@ class Asset(BaseModel, TenantAwareModel):
     Security and operational assets within zones.
 
     Tracks cameras, sensors, access control, alarms, and other equipment.
+
+    NOTE: Override inherited ForeignKeys to avoid clashes with activity.Asset
     """
 
     class AssetTypeChoices(models.TextChoices):
@@ -468,6 +470,31 @@ class Asset(BaseModel, TenantAwareModel):
         NOT_INSTALLED = "not_installed", _("Not Installed")
         PLANNED = "planned", _("Planned")
         DECOMMISSIONED = "decommissioned", _("Decommissioned")
+
+    # Override inherited ForeignKeys with custom related_name to avoid clashes
+    cuser = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Created By"),
+        on_delete=models.RESTRICT,
+        related_name="onboarding_asset_cusers",
+        null=True,
+        blank=True
+    )
+    muser = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Modified By"),
+        on_delete=models.RESTRICT,
+        related_name="onboarding_asset_musers",
+        null=True,
+        blank=True
+    )
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="onboarding_asset_set",
+        null=True,
+        blank=True
+    )
 
     asset_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     zone = models.ForeignKey(

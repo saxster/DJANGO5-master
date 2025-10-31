@@ -1,22 +1,23 @@
 """
 Recommendation engine models for intelligent navigation suggestions
 """
+from __future__ import annotations
+
 from django.db import models
-from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import timedelta
 
-User = get_user_model()
 
 
 class UserBehaviorProfile(models.Model):
     """User behavior profile for personalized recommendations"""
     
     user = models.OneToOneField(
-        User, 
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE, 
         related_name='behavior_profile'
     )
@@ -181,7 +182,7 @@ class NavigationRecommendation(models.Model):
     )
     
     # Metadata
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     valid_until = models.DateTimeField(null=True, blank=True)
@@ -231,7 +232,7 @@ class ContentRecommendation(models.Model):
         ('dashboard', 'Dashboard'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='content_recommendations')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='content_recommendations')
     content_type = models.CharField(max_length=20, choices=CONTENT_TYPES)
     content_title = models.CharField(max_length=200)
     content_url = models.URLField()
@@ -332,7 +333,7 @@ class RecommendationImplementation(models.Model):
         on_delete=models.CASCADE,
         related_name='implementations'
     )
-    implemented_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    implemented_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     
     implementation_date = models.DateTimeField(auto_now_add=True)
     implementation_notes = models.TextField(blank=True)
@@ -394,8 +395,8 @@ class RecommendationImplementation(models.Model):
 class UserSimilarity(models.Model):
     """Store user similarity scores for collaborative filtering"""
     
-    user1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='similarities_as_user1')
-    user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='similarities_as_user2')
+    user1 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='similarities_as_user1')
+    user2 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='similarities_as_user2')
     
     similarity_score = models.FloatField(
         validators=[MinValueValidator(-1.0), MaxValueValidator(1.0)],
@@ -435,7 +436,7 @@ class RecommendationFeedback(models.Model):
     object_id = models.PositiveIntegerField()
     recommendation = GenericForeignKey('content_type', 'object_id')
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES)
     rating = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)],

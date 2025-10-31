@@ -312,7 +312,7 @@ Schedule Tour
 <script>
     var table = null;
     var editor = null;
-    const createUrl = "{{ url('schedhuler:create_tour') }}"
+    const createUrl = "{{ url('scheduler:create_tour') }}"
     // add classes to label tags.
     $('label').removeClass("col-form-label col-md-2 col-sm-2 text-sm-right")
 
@@ -348,7 +348,7 @@ Schedule Tour
     function deleteCheckpointRequest(checpointid, checklistid, job) {
         var deleted = false
         const params = {
-            'url': `{{ url('schedhuler:delete_checkpointTour') }}`,
+            'url': `{{ url('scheduler:delete_checkpointTour') }}`,
             'data': {
                 'checkpointid': checpointid,
                 'checklistid': checklistid,
@@ -384,7 +384,7 @@ Schedule Tour
         show_alert_before_delete('Guard Tour')
 		.then((result) => {
 			if(result.isConfirmed){ //delete requested by user
-				let urlname = "{% url 'schedhuler:retrieve_tours' %}"
+				let urlname = "{% url 'scheduler:retrieve_tours' %}"
                 const params = {
                     url: urlname,
                     data: {
@@ -398,7 +398,7 @@ Schedule Tour
                 .done((data, status, xhr) => {
                     show_successful_delete_alert() //defined in customjs
                     window.setTimeout(function() {
-                        window.location.href = "{% url 'schedhuler:retrieve_tours' %}?action=form";
+                        window.location.href = "{% url 'scheduler:retrieve_tours' %}?action=form";
                     }, 2000);
                 })
                 .fail((xhr, status, error) => {
@@ -749,7 +749,7 @@ Schedule Tour
                 confirmButtonText: "Schedule it!"
             }).then((result) => {
                 if(result.isConfirmed){
-                    const params = {url: "{{ url('schedhuler:runJob') }}"}
+                    const params = {url: "{{ url('scheduler:runJob') }}"}
                     var payLoad = {job_id: '{{ schdtourform.instance.id }}', csrfmiddlewaretoken: '{{ csrf_token }}'}
                     fire_ajax_form_post(params, payLoad)
                     .done((data, status, xhr) => {

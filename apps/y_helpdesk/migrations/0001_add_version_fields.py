@@ -15,7 +15,7 @@ import concurrency.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('y_helpdesk', '__latest__'),  # Replace with actual latest migration
+        ('y_helpdesk', '0013_performance_indexes'),
     ]
 
     operations = [

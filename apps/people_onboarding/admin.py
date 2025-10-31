@@ -18,10 +18,10 @@ from .models import (
 @admin.register(OnboardingRequest)
 class OnboardingRequestAdmin(admin.ModelAdmin):
     """Admin interface for OnboardingRequest"""
-    list_display = ['request_number', 'person_type', 'current_state', 'start_date', 'cdtz']
+    list_display = ['request_number', 'person_type', 'current_state', 'start_date', 'created_at']
     list_filter = ['person_type', 'current_state', 'start_date']
     search_fields = ['request_number']
-    readonly_fields = ['uuid', 'request_number', 'cdtz', 'mdtz']
+    readonly_fields = ['uuid', 'request_number', 'created_at', 'updated_at']
 
     fieldsets = (
         ('Basic Information', {
@@ -40,7 +40,7 @@ class OnboardingRequestAdmin(admin.ModelAdmin):
             'fields': ('client', 'bu')
         }),
         ('Timestamps', {
-            'fields': ('cdtz', 'mdtz'),
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
@@ -57,7 +57,7 @@ class CandidateProfileAdmin(admin.ModelAdmin):
 @admin.register(DocumentSubmission)
 class DocumentSubmissionAdmin(admin.ModelAdmin):
     """Admin interface for DocumentSubmission"""
-    list_display = ['onboarding_request', 'document_type', 'verification_status', 'cdtz']
+    list_display = ['onboarding_request', 'document_type', 'verification_status', 'created_at']
     list_filter = ['document_type', 'verification_status']
     readonly_fields = ['uuid', 'file_size', 'file_hash']
 

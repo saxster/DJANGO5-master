@@ -58,10 +58,12 @@ class NOCAuditLog(models.Model):
 
     entity_type = models.CharField(
         max_length=50,
+        default='unknown',
         verbose_name=_("Entity Type"),
         help_text=_("Type of entity acted upon (alert, incident, maintenance_window)")
     )
     entity_id = models.IntegerField(
+        default=0,
         verbose_name=_("Entity ID"),
         help_text=_("ID of the entity acted upon")
     )

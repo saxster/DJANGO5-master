@@ -16,7 +16,7 @@ var donutChartOptions = {
 
                 switch(config.dataPointIndex){
                   case 0:
-                  window.open('{{ url("schedhuler:jobneedtasks") }}?template=true', '_blank');
+                  window.open('{{ url("scheduler:jobneedtasks") }}?template=true', '_blank');
                   filters['alerts']='TASK'
                   break;
                   case 1:
@@ -24,11 +24,11 @@ var donutChartOptions = {
                   filters['alerts'] = 'PPM'
                   break;
                   case 2:
-                  window.open('{{ url("schedhuler:jobneedtours") }}?template=true', '_blank');
+                  window.open('{{ url("scheduler:jobneedtours") }}?template=true', '_blank');
                   filters['alerts'] = 'TOUR'
                   break;
                   case 3:
-                  window.open('{{ url("schedhuler:jobneedexternaltours") }}?template=true', '_blank');
+                  window.open('{{ url("scheduler:jobneedexternaltours") }}?template=true', '_blank');
                   filters['alerts'] = 'ROUTEPLAN'
                   break;
 

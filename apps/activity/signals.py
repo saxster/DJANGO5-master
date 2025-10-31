@@ -20,7 +20,8 @@ from .serializers import (
 from django.utils import timezone
 import json
 import datetime
-from background_tasks.tasks import publish_mqtt
+# Import directly from integration_tasks to avoid circular import via tasks.py
+from background_tasks.integration_tasks import publish_mqtt
 
 TOPIC = "redmine_to_noc"
 

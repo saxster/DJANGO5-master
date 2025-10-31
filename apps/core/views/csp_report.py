@@ -4,11 +4,15 @@ CSP Report Endpoint for Content Security Policy Violations
 
 import json
 import logging
+from datetime import datetime
+
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
-from datetime import datetime
+from django.http import HttpResponse
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 
 logger = logging.getLogger("security.csp")
 

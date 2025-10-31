@@ -9,11 +9,21 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError, IntegrityError
 from django.db.models import Sum, Count, Avg
-from apps.onboarding_api.models import (
+from apps.onboarding.models import (
     LLMRecommendation, ConversationSession,
-    AuthoritativeKnowledge, AuthoritativeKnowledgeChunk, KnowledgeIngestionJob
+    AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+    # KnowledgeIngestionJob  # TBD - Model not yet implemented
 )
 from apps.core.exceptions import LLMServiceException, IntegrationException
+
+# Temporary stub for KnowledgeIngestionJob (until model is implemented)
+class KnowledgeIngestionJob:
+    """Stub for KnowledgeIngestionJob model (TBD)"""
+    objects = None
+    class StatusChoices:
+        QUEUED = 'queued'
+        READY = 'ready'
+        FAILED = 'failed'
 
 logger = logging.getLogger(__name__)
 metrics_logger = logging.getLogger("metrics")

@@ -143,8 +143,9 @@ def get_cache_stats() -> Dict[str, Any]:
         Dictionary with cache performance metrics
     """
     try:
-        # Get Redis cache info
-        redis_cache = cache._cache.get_master_client()
+        # Get Redis cache info (django-redis 5.x compatible)
+        from django_redis import get_redis_connection
+        redis_cache = get_redis_connection("default")
         info = redis_cache.info()
 
         stats = {
@@ -236,7 +237,9 @@ def clear_cache_pattern(pattern: str) -> Dict[str, Any]:
         Clearing operation results
     """
     try:
-        redis_cache = cache._cache.get_master_client()
+        # Get Redis client (django-redis 5.x compatible)
+        from django_redis import get_redis_connection
+        redis_cache = get_redis_connection("default")
 
         # Find all keys matching pattern
         keys = redis_cache.keys(pattern)

@@ -33,7 +33,8 @@ from apps.core.models.cron_job_definition import CronJobDefinition
 from apps.core.models.cron_job_execution import CronJobExecution
 from apps.core.services.cron_job_health_monitor import cron_health_monitor
 from apps.core.services.cron_job_registry import cron_registry
-from apps.core.decorators import require_permissions
+# require_permissions decorator not yet implemented - using login_required for now
+# from apps.core.decorators import require_permissions
 
 logger = logging.getLogger(__name__)
 

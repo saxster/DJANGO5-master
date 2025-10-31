@@ -60,12 +60,6 @@ TASK_CATEGORIES = {
         'base_class': 'IdempotentTask',
         'queue': 'email'
     },
-    'mutations': {
-        'tasks': ['process_graphql_mutation_async', 'process_graphql_download_async'],
-        'ttl': 21600,  # 6 hours
-        'base_class': None,  # Use decorator for existing structure
-        'decorator': True
-    },
     'maintenance': {
         'tasks': ['move_media_to_cloud_storage', 'cleanup_reports_which_are_12hrs_old'],
         'ttl': 43200,  # 12 hours

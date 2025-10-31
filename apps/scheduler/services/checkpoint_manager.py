@@ -21,7 +21,7 @@ from apps.core.services.transaction_manager import with_transaction
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import DatabaseException
 from apps.activity.models.job_model import Job
-import apps.schedhuler.utils as sutils
+import apps.scheduler.utils as sutils
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,10 @@ class CheckpointManagerService(BaseService):
         """Initialize checkpoint manager service."""
         super().__init__()
         self.model = Job
+
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "CheckpointManagerService"
 
     @with_transaction
     def save_checkpoints_for_tour(

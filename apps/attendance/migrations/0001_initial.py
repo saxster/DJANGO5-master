@@ -7,6 +7,7 @@ import django.contrib.gis.db.models.fields
 import django.contrib.postgres.fields
 import django.core.serializers.json
 import uuid
+import django.utils.timezone
 from django.db import migrations, models
 
 
@@ -22,8 +23,8 @@ class Migration(migrations.Migration):
             name='PeopleEventlog',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('transportmodes', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(blank=True, choices=[('BIKE', 'Bike'), ('RICKSHAW', 'Rickshaw'), ('BUS', 'Bus'), ('TRAIN', 'Train'), ('TRAM', 'Tram'), ('PLANE', 'Plane'), ('FERRY', 'Ferry'), ('NONE', 'NONE'), ('CAR', 'Car'), ('TAXI', 'Taxi'), ('OLA_UBER', 'Ola/Uber')], default='NONE', max_length=50), default=list, size=None)),

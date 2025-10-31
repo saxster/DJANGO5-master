@@ -4,37 +4,40 @@ IVR Webhook Views.
 Handles callbacks from IVR providers (Twilio, Google Voice).
 Processes call status updates and DTMF responses.
 
+Security:
+- Twilio webhooks use @validate_twilio_request for signature validation
+- Replaces @csrf_exempt with cryptographic authentication (Rule #3)
+
 Follows .claude/rules.md:
+- Rule #3: Alternative authentication mechanism for webhooks
 - Rule #8: View methods < 30 lines
 - Rule #11: Specific exception handling
 """
 
 import logging
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.utils.decorators import method_decorator
+from .decorators import validate_twilio_request
 
 logger = logging.getLogger('noc.security_intelligence.ivr')
 
 
-@csrf_exempt  # TODO: Replace with Twilio signature verification (Rule #3)
+@validate_twilio_request  # ✅ SECURE: Validates X-Twilio-Signature header
 @require_POST
 def twilio_status_callback(request):
     """
     Handle Twilio call status callbacks.
 
-    Twilio sends status updates as POST requests.
+    Twilio sends status updates as POST requests with cryptographic signatures.
 
-    SECURITY TODO: Implement Twilio request signature validation
+    Security (Rule #3 Compliant):
+    - @validate_twilio_request validates X-Twilio-Signature header
+    - Uses HMAC-SHA1 with Twilio Auth Token as shared secret
+    - Returns 403 Forbidden for invalid/missing signatures
+    - See: apps/noc/security_intelligence/ivr/decorators.py
+
+    Reference:
     https://www.twilio.com/docs/usage/security#validating-requests
-    Required implementation:
-    1. Get X-Twilio-Signature header
-    2. Validate using AccountSid and AuthToken
-    3. Return 403 if validation fails
-
-    Current: @csrf_exempt (acceptable only with signature validation)
-    Rule #3 Compliance: Webhook requires alternative authentication mechanism
     """
     from apps.noc.security_intelligence.ivr.services import AIIVRService
 
@@ -51,7 +54,7 @@ def twilio_status_callback(request):
         return HttpResponse(status=500)
 
 
-@csrf_exempt  # TODO: Replace with Twilio signature verification (Rule #3)
+@validate_twilio_request  # ✅ SECURE: Validates X-Twilio-Signature header
 @require_POST
 def twilio_gather_callback(request):
     """
@@ -59,11 +62,11 @@ def twilio_gather_callback(request):
 
     Processes user keypresses and validates responses.
 
-    SECURITY TODO: Implement Twilio request signature validation
-    See twilio_status_callback() for implementation requirements.
-
-    Current: @csrf_exempt (acceptable only with signature validation)
-    Rule #3 Compliance: Webhook requires alternative authentication mechanism
+    Security (Rule #3 Compliant):
+    - @validate_twilio_request validates X-Twilio-Signature header
+    - Uses HMAC-SHA1 with Twilio Auth Token as shared secret
+    - Returns 403 Forbidden for invalid/missing signatures
+    - See: apps/noc/security_intelligence/ivr/decorators.py
     """
     from apps.noc.security_intelligence.ivr.services import ResponseValidator
     from apps.noc.security_intelligence.ivr.models import IVRCallLog

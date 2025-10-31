@@ -250,7 +250,68 @@ def update_ticket_data(tickets, result):
                         isescalated=True,
                     )
 
-                    result['story'] += (\n                        f\"Ticket {tkt['id']} escalated: \"\n                        f\"level {old_level} → {old_level + 1}, \"\n                        f\"assigned_person={assignedperson_id}, \"\n                        f\"assigned_group={assignedtogroup_id}\\n\"\n                    )\n\n                    ticketlog = tkt.get('ticketlog', {'ticket_history': []})\n                    if isinstance(ticketlog, str):\n                        ticketlog = json.loads(ticketlog) if ticketlog else {'ticket_history': []}\n\n                    history_item = {\n                        "people_id": tkt['cuser_id'],\n                        "when": str(now),\n                        "who": tkt.get('who', 'System'),\n                        "action": "escalated",\n                        "details": [f"Ticket escalated from level {old_level} to {old_level + 1}"],\n                        "previous_state": ticketlog['ticket_history'][-1].get('previous_state', {}) if ticketlog.get('ticket_history') else {},\n                    }\n\n                    result = update_ticket_log(tkt['id'], history_item, result)\n                    result = send_escalation_ticket_email(tkt, result)\n                    result['id'].append(tkt['id'])\n\n        except LockAcquisitionError as e:\n            log.warning(\n                f\"Failed to acquire lock for ticket escalation: {tkt['id']}\",\n                exc_info=True\n            )\n            result['story'] += f\"Ticket {tkt['id']} escalation skipped (system busy)\\n\"\n            continue\n\n        except ObjectDoesNotExist as e:\n            log.error(f\"Ticket {tkt['id']} not found during escalation\", exc_info=True)\n            result['story'] += f\"Ticket {tkt['id']} not found\\n\"\n            continue\n\n        except (DatabaseError, OperationalError) as e:\n            correlation_id = ErrorHandler.handle_exception(\n                e,\n                context={'operation': 'ticket_escalation', 'ticket_id': tkt['id']},\n                level='error'\n            )\n            log.critical(\n                f\"Database error in ticket escalation: {tkt['id']}\",\n                extra={'correlation_id': correlation_id},\n                exc_info=True\n            )\n            result['story'] += f\"Ticket {tkt['id']} failed (database error)\\n\"\n            continue\n\n        except (ValidationError, ValueError, KeyError) as e:\n            log.error(\n                f\"Validation error in ticket escalation: {tkt['id']}\",\n                extra={'error': str(e)},\n                exc_info=True\n            )\n            result['story'] += f\"Ticket {tkt['id']} failed (validation error)\\n\"\n            continue\n\n    return result
+                    result['story'] += (
+                        f"Ticket {tkt['id']} escalated: "
+                        f"level {old_level} → {old_level + 1}, "
+                        f"assigned_person={assignedperson_id}, "
+                        f"assigned_group={assignedtogroup_id}\n"
+                    )
+
+                    ticketlog = tkt.get('ticketlog', {'ticket_history': []})
+                    if isinstance(ticketlog, str):
+                        ticketlog = json.loads(ticketlog) if ticketlog else {'ticket_history': []}
+
+                    history_item = {
+                        "people_id": tkt['cuser_id'],
+                        "when": str(now),
+                        "who": tkt.get('who', 'System'),
+                        "action": "escalated",
+                        "details": [f"Ticket escalated from level {old_level} to {old_level + 1}"],
+                        "previous_state": ticketlog['ticket_history'][-1].get('previous_state', {}) if ticketlog.get('ticket_history') else {},
+                    }
+
+                    result = update_ticket_log(tkt['id'], history_item, result)
+                    result = send_escalation_ticket_email(tkt, result)
+                    result['id'].append(tkt['id'])
+
+        except LockAcquisitionError as e:
+            log.warning(
+                f"Failed to acquire lock for ticket escalation: {tkt['id']}",
+                exc_info=True
+            )
+            result['story'] += f"Ticket {tkt['id']} escalation skipped (system busy)\n"
+            continue
+
+        except ObjectDoesNotExist as e:
+            log.error(f"Ticket {tkt['id']} not found during escalation", exc_info=True)
+            result['story'] += f"Ticket {tkt['id']} not found\n"
+            continue
+
+        except (DatabaseError, OperationalError) as e:
+            correlation_id = ErrorHandler.handle_exception(
+                e,
+                context={'operation': 'ticket_escalation', 'ticket_id': tkt['id']},
+                level='error'
+            )
+            log.critical(
+                f"Database error in ticket escalation: {tkt['id']}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            result['story'] += f"Ticket {tkt['id']} failed (database error)\n"
+            continue
+
+        except (ValidationError, ValueError, KeyError) as e:
+            log.error(
+                f"Validation error in ticket escalation: {tkt['id']}",
+                extra={'error': str(e)},
+                exc_info=True
+            )
+            result['story'] += f"Ticket {tkt['id']} failed (validation error)\n"
+            continue
+
+    return result
+
 
 
 

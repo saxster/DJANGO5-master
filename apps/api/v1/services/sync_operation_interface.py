@@ -7,7 +7,7 @@ Following .claude/rules.md:
 - Rule #7: Service <150 lines
 - Rule #11: Specific exception handling
 
-MIGRATION NOTE (Oct 2025): GraphQL support removed. REST API only.
+MIGRATION NOTE (Oct 2025): Legacy query support removed. REST API only.
 """
 
 import logging
@@ -113,25 +113,13 @@ class SyncResponseFormatter:
             'warnings': response.warnings,
         }
 
-    @staticmethod
-    def format_for_graphql(response: SyncResponse) -> Dict[str, Any]:
-        """
-        Format response for legacy API compatibility.
-
-        NOTE: GraphQL removed Oct 2025. This method maintained for backward
-        compatibility. Returns same format as REST.
-        """
-        # Return REST format (GraphQL removed)
-        return SyncResponseFormatter.format_for_rest(response)
-
-
 class SyncOperationInterface:
     """
     Unified interface for all sync operations.
 
     Provides single entry point for REST APIs.
 
-    MIGRATION NOTE (Oct 2025): GraphQL removed - now REST-only interface.
+    MIGRATION NOTE (Oct 2025): Legacy query layer removed - now REST-only interface.
     """
 
     def __init__(self):
@@ -149,13 +137,17 @@ class SyncOperationInterface:
 
         Args:
             request: Standardized sync request
-            api_type: API type for response formatting (default: 'rest')
-                     'graphql' legacy support (Oct 2025: returns REST format)
+            api_type: API type for response formatting (default: 'rest').
+                Non-'rest' values are treated as 'rest' for backward compatibility.
 
         Returns:
             Formatted sync response
         """
         start_time = time.time()
+
+        if api_type != 'rest':
+            logger.warning("Deprecated api_type '%s' supplied to execute_sync_operation; using REST format.", api_type)
+            api_type = 'rest'
 
         try:
             # Step 1: Validate request
@@ -329,18 +321,10 @@ class SyncOperationInterface:
 
     def _format_response(self, response: SyncResponse, api_type: str) -> Dict[str, Any]:
         """Format response based on API type."""
-        if api_type == 'graphql':
-            return self.formatter.format_for_graphql(response)
-        else:
-            return self.formatter.format_for_rest(response)
+        return self.formatter.format_for_rest(response)
 
     def _format_cached_response(self, cached_data: Dict, api_type: str) -> Dict[str, Any]:
         """Format cached response for API type."""
-        if api_type == 'graphql':
-            # Convert REST format to legacy API format if needed
-            return self.formatter.format_for_graphql(
-                SyncResponse(**cached_data) if isinstance(cached_data, dict) else cached_data
-            )
         return cached_data
 
     def _cache_response(self, request: SyncRequest, response: Dict[str, Any]) -> None:

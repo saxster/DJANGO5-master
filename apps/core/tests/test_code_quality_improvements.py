@@ -219,6 +219,9 @@ class CodeQualityIntegrationTest(TestCase):
         """Test that import restructuring doesn't break functionality."""
         # Test that we can still import required modules
         try:
+            # Minimal sanity import to ensure modules resolve
+            from apps.core import utils  # noqa: F401
+            from background_tasks import tasks as _tasks  # noqa: F401
         except ImportError as e:
             self.fail(f"Import error after restructuring: {e}")
 

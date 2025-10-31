@@ -160,11 +160,11 @@ msgstr "भाषा बदलें"
 msgid "Contract saved successfully"
 msgstr "अनुबंध सफलतापूर्वक सहेजा गया"
 
-#: apps/schedhuler/views/internal_tour_views.py:293
+#: apps/scheduler/views/internal_tour_views.py:293
 msgid "Checkpoint added"
 msgstr "चेकपॉइंट जोड़ा गया"
 
-#: apps/schedhuler/views/internal_tour_views.py:313
+#: apps/scheduler/views/internal_tour_views.py:313
 msgid "Checkpoint deleted"
 msgstr "चेकपॉइंट हटाया गया"
 
@@ -190,30 +190,30 @@ msgid "Overall confidence score (0.0 to 1.0)"
 msgstr "समग्र विश्वास स्कोर (0.0 से 1.0)"
 
 # Form validation messages
-#: apps/schedhuler/forms.py:216
-#: apps/schedhuler/forms.py:482
-#: apps/schedhuler/forms.py:632
+#: apps/scheduler/forms.py:216
+#: apps/scheduler/forms.py:482
+#: apps/scheduler/forms.py:632
 msgid "Invalid Cron"
 msgstr "अमान्य क्रॉन"
 
 # Checkpoint service validation messages
-#: apps/schedhuler/services/checkpoint_manager.py:XX
+#: apps/scheduler/services/checkpoint_manager.py:XX
 msgid "Invalid checkpoint data format"
 msgstr "अमान्य चेकपॉइंट डेटा प्रारूप"
 
-#: apps/schedhuler/services/checkpoint_manager.py:XX
+#: apps/scheduler/services/checkpoint_manager.py:XX
 msgid "Checkpoint not found"
 msgstr "चेकपॉइंट नहीं मिला"
 
-#: apps/schedhuler/services/checkpoint_manager.py:XX
+#: apps/scheduler/services/checkpoint_manager.py:XX
 msgid "At least one checkpoint is required"
 msgstr "कम से कम एक चेकपॉइंट आवश्यक है"
 
-#: apps/schedhuler/services/checkpoint_manager.py:XX
+#: apps/scheduler/services/checkpoint_manager.py:XX
 msgid "Invalid checkpoint IDs provided"
 msgstr "अमान्य चेकपॉइंट आईडी प्रदान किए गए"
 
-#: apps/schedhuler/services/checkpoint_manager.py:XX
+#: apps/scheduler/services/checkpoint_manager.py:XX
 msgid "Invalid checkpoint order"
 msgstr "अमान्य चेकपॉइंट क्रम"
 

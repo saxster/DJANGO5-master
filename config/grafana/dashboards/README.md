@@ -1,6 +1,6 @@
 # Grafana Dashboards for REST API Monitoring
 
-This directory contains production-ready Grafana dashboards for monitoring the REST API infrastructure (post-GraphQL migration, Oct 2025).
+This directory contains production-ready Grafana dashboards for monitoring the REST API infrastructure (post-legacy query migration, Oct 2025).
 
 ## Available Dashboards
 
@@ -320,20 +320,6 @@ groups:
 - **Update frequency:** Review quarterly or after major changes
 - **Owner:** DevOps Team
 - **Feedback:** Create issue in project repository
-
----
-
-## Migration Note
-
-These dashboards replace the deprecated GraphQL monitoring dashboards (removed Oct 2025).
-
-**Deprecated dashboards:**
-- ~~graphql_operations.json~~ → `rest_api_operations.json`
-- ~~graphql_security.json~~ → `rest_api_security.json`
-
-See `REST_API_MIGRATION_COMPLETE.md` for full migration details.
-
----
 
 **Created:** October 29, 2025
 **Version:** 1.0

@@ -5,9 +5,23 @@ Automatically loads the appropriate settings based on DJANGO_SETTINGS_MODULE.
 
 import os
 
-# Get the environment from DJANGO_SETTINGS_MODULE
+# ⚡ CRITICAL: Set DJANGO_ENVIRONMENT before imports to prevent production defaults
+# This must happen BEFORE any settings imports to ensure redis_optimized.py
+# and integrations.py detect the correct environment during module initialization
 settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
 
+# Detect and set environment based on DJANGO_SETTINGS_MODULE
+if 'production' in settings_module:
+    os.environ.setdefault('DJANGO_ENVIRONMENT', 'production')
+elif 'development' in settings_module:
+    os.environ.setdefault('DJANGO_ENVIRONMENT', 'development')
+elif 'test' in settings_module:
+    os.environ.setdefault('DJANGO_ENVIRONMENT', 'testing')
+else:
+    # Default to development if not specified
+    os.environ.setdefault('DJANGO_ENVIRONMENT', 'development')
+
+# Now import settings (environment is set)
 if 'production' in settings_module:
     from .production import *
 elif 'development' in settings_module:

@@ -3,10 +3,10 @@ Maintenance and cleanup tasks
 
 Migrated from god file refactoring
 Date: 2025-09-30
+Updated: 2025-10-31 - Removed unused GCS imports (optimization)
 """
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
-from .move_files_to_GCS import move_files_to_GCS, del_empty_dir, get_files
 from .report_tasks import (
     get_scheduled_reports_fromdb,
     generate_scheduled_report,
@@ -51,8 +51,7 @@ from apps.scheduler.utils import (
         get_readable_dates,
         create_ppm_reminder,
     )
-# from apps.service.utils import execute_graphql_mutations  # GraphQL removed Oct 2025
-from apps.service.utils import get_model_or_form
+from apps.service.services.database_service import get_model_or_form
 from apps.service.validators import clean_record
 from apps.work_order_management.models import Vendor
 from apps.work_order_management.models import Wom, WomDetails
@@ -159,4 +158,3 @@ def cleanup_expired_pdf_tasks(self) -> Dict[str, Any]:
             'error': error_msg,
             'timestamp': timezone.now().isoformat()
         }
-

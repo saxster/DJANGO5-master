@@ -13,6 +13,49 @@ Observability Enhancement (2025-10-01):
 - Tracks retry reasons and task names
 - Enables retry pattern analysis
 
+@ontology(
+    domain="infrastructure",
+    purpose="Base classes for Celery background tasks with retry, monitoring, and error handling patterns",
+    task_base_classes=[
+        "BaseTask (generic with exponential backoff)",
+        "IdempotentTask (duplicate prevention via Redis)",
+        "EmailTask (SMTP retry patterns)",
+        "ExternalServiceTask (circuit breaker pattern)",
+        "ReportTask (long-running with cleanup)",
+        "MaintenanceTask (batch processing)"
+    ],
+    retry_strategy={
+        "algorithm": "exponential_backoff_with_jitter",
+        "formula": "min(base_delay * 2^retry_count * random(0.5-1.0), max_delay)",
+        "default_max_retries": 3,
+        "default_retry_delay": "60s",
+        "max_backoff": "600s (10min)"
+    },
+    monitoring_features=[
+        "Task start/success/failure counters",
+        "Execution duration histograms",
+        "Retry tracking with Prometheus",
+        "Circuit breaker state per service"
+    ],
+    idempotency_implementation={
+        "backend": "UniversalIdempotencyService (Redis + DB fallback)",
+        "key_generation": "task_name + args/kwargs hash",
+        "ttl": "3600s (1hr) default",
+        "scope": "global, user, or tenant",
+        "caching": "success results and errors (shorter TTL)"
+    },
+    circuit_breaker={
+        "failure_threshold": 5,
+        "recovery_timeout": "300s (5min)",
+        "tracking": "per-service Redis cache"
+    },
+    task_lifecycle_hooks=["on_success", "on_failure", "on_retry"],
+    performance_impact="~2-5ms overhead per task",
+    criticality="critical",
+    integration_points=["Prometheus", "Sentry", "Redis", "PostgreSQL"],
+    tags=["celery", "background-tasks", "retry-logic", "circuit-breaker", "idempotency"]
+)
+
 Usage:
     from apps.core.tasks.base import BaseTask, EmailTask, ExternalServiceTask
 
@@ -643,3 +686,8 @@ class IdempotentTask(BaseTask):
         result._cache = cached_data
 
         return result
+# Re-export utility functions for backward compatibility
+from .utils import log_task_context
+
+__all__ = ['BaseTask', 'IdempotentTask', 'EmailTask', 'ExternalServiceTask', 
+           'MaintenanceTask', 'CriticalTask', 'TaskMetrics', 'log_task_context']

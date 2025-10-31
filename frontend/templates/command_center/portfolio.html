@@ -1,0 +1,1165 @@
+{% extends "globals/layout.html" %}
+
+{% comment %}
+Portfolio Command Center Template
+==================================
+Multi-site management dashboard with live site map, priority alerts,
+KPI cards, trend analysis, and top sites table.
+
+Features:
+- Live interactive Leaflet map with RAG-coded site markers
+- Immediate attention panel (top 5 critical alerts)
+- 6 KPI cards: Attendance, Tours, Tasks, Tickets, Work Orders, Sites Health
+- 7-day trend sparklines (ApexCharts)
+- Top sites sortable table with RAG status
+- Auto-refresh every 30s
+- Integrated with scope bar for multi-tenant filtering
+
+Dependencies:
+- Leaflet (maps)
+- ApexCharts (sparklines/trends)
+- Bootstrap 5 (grid)
+- Design system CSS (tokens, scope-bar, kpi-card)
+{% endcomment %}
+
+{%- block base_head -%}
+  <title>Portfolio Command Center</title>
+{% endblock base_head %}
+
+{% block extra_css %}
+<!-- Design System -->
+<link href="{{ static('css/design-system/tokens.css') }}" rel="stylesheet" type="text/css" />
+<link href="{{ static('css/components/scope-bar.css') }}" rel="stylesheet" type="text/css" />
+<link href="{{ static('css/components/kpi-card.css') }}" rel="stylesheet" type="text/css" />
+
+<!-- Leaflet (Maps) -->
+{{ load_leaflet_tags() }}
+
+<!-- DataTables (for Top Sites table) -->
+<link href="{{ static('assets/plugins/custom/DataTables/datatables.min.css') }}" rel="stylesheet" type="text/css" />
+
+<!-- Custom Portfolio Styles -->
+<style>
+/* Portfolio-specific layout */
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  padding: var(--space-6);
+}
+
+/* Live Site Map Section */
+.site-map-section {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.site-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.site-map-header h2 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.site-map-filters {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-toggle:hover {
+  background: var(--status-gray-bg);
+}
+
+.filter-toggle.active {
+  border-color: var(--status-blue);
+  background: var(--status-blue-bg);
+  color: var(--status-blue);
+}
+
+.filter-toggle input[type="checkbox"] {
+  margin: 0;
+}
+
+#portfolioMap {
+  height: 450px;
+  width: 100%;
+  z-index: 1;
+}
+
+/* Immediate Attention Panel */
+.alerts-panel {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+}
+
+.alerts-panel h2 {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.alerts-panel h2 .material-icons {
+  color: var(--status-red);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.alert-item {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  transition: all var(--transition-fast);
+  margin-bottom: var(--space-3);
+}
+
+.alert-item:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.alert-item.severity-critical {
+  border-left-color: var(--status-red);
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.alert-item.severity-high {
+  border-left-color: var(--status-amber);
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.alert-item.severity-medium {
+  border-left-color: var(--status-blue);
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+}
+
+.alert-icon.severity-critical {
+  background: var(--status-red-bg);
+  color: var(--status-red);
+}
+
+.alert-icon.severity-high {
+  background: var(--status-amber-bg);
+  color: var(--status-amber);
+}
+
+.alert-icon.severity-medium {
+  background: var(--status-blue-bg);
+  color: var(--status-blue);
+}
+
+.alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-message {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.alert-meta {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.alert-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.alert-actions .btn {
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Trend Charts Section */
+.trends-section {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+}
+
+.trends-section h2 {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.trends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-4);
+}
+
+.trend-chart-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.trend-chart-card h3 {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trend-chart {
+  height: 100px;
+}
+
+/* Top Sites Table */
+.top-sites-section {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+}
+
+.top-sites-section h2 {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+#topSitesTable {
+  font-size: var(--text-sm);
+}
+
+#topSitesTable tbody tr {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+#topSitesTable tbody tr:hover {
+  background: var(--status-blue-bg);
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.empty-state .material-icons {
+  font-size: 64px;
+  margin-bottom: var(--space-4);
+  opacity: 0.3;
+}
+
+.empty-state p {
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+/* Loading State */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: var(--radius-lg);
+}
+
+.loading-overlay .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .portfolio-grid {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .site-map-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .site-map-filters {
+    width: 100%;
+  }
+
+  #portfolioMap {
+    height: 300px;
+  }
+
+  .trends-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-actions {
+    flex-direction: column;
+  }
+
+  .alert-actions .btn {
+    width: 100%;
+  }
+}
+</style>
+{% endblock extra_css %}
+
+{% block pagebreadcumb %}
+  {{ super() }}
+  <li class="breadcrumb-item active">Portfolio Command Center</li>
+{% endblock pagebreadcumb %}
+
+{% block pagebody_container %}
+<!-- Scope Bar Component -->
+{% include "components/scope_bar.html" %}
+
+<div class="portfolio-grid">
+
+  <!-- Live Site Map Section -->
+  <section class="site-map-section" id="siteMapSection">
+    <div class="site-map-header">
+      <h2>
+        <span class="material-icons">map</span>
+        Live Site Map
+      </h2>
+      <div class="site-map-filters">
+        <label class="filter-toggle" id="filterRed">
+          <input type="checkbox" checked> RED Sites Only
+        </label>
+        <label class="filter-toggle" id="filterAmber">
+          <input type="checkbox" checked> AMBER Sites Only
+        </label>
+        <button class="btn btn-sm btn-outline-secondary" id="refreshMap">
+          <span class="material-icons" style="font-size: 18px;">refresh</span>
+          Refresh
+        </button>
+      </div>
+    </div>
+    <div id="portfolioMap" data-api-url="/api/v1/overview/sites-map/"></div>
+  </section>
+
+  <!-- Immediate Attention Panel -->
+  <section class="alerts-panel" id="alertsPanel">
+    <h2>
+      <span class="material-icons">warning</span>
+      Immediate Attention Required
+      <span class="badge bg-danger" id="alertCount">0</span>
+    </h2>
+    <div id="portfolioAlerts" data-api-url="/api/v1/overview/critical-alerts/">
+      <div class="loading-overlay">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading alerts...</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Portfolio KPIs Section -->
+  <section id="portfolioKPIs" data-api-url="/api/v1/overview/summary/">
+    <h2 style="margin-bottom: var(--space-4); font-size: var(--text-xl); font-weight: var(--font-semibold);">Portfolio Overview</h2>
+    <div class="kpi-cards-grid kpi-cards-grid--6">
+      <!-- KPI Cards will be rendered by JavaScript -->
+      <div class="kpi-card" data-status="blue" data-metric="attendance">
+        <div class="kpi-card__content">
+          <div class="kpi-card__header">
+            <h3 class="kpi-card__title">Attendance</h3>
+          </div>
+          <div class="kpi-card__body">
+            <div class="kpi-card__value" id="kpi-attendance-value">--</div>
+            <div class="kpi-card__label">Compliance Rate</div>
+          </div>
+          <div class="kpi-card__footer">
+            <div class="kpi-card__trend" id="kpi-attendance-trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-status="blue" data-metric="tours">
+        <div class="kpi-card__content">
+          <div class="kpi-card__header">
+            <h3 class="kpi-card__title">Tours</h3>
+          </div>
+          <div class="kpi-card__body">
+            <div class="kpi-card__value" id="kpi-tours-value">--</div>
+            <div class="kpi-card__label">Adherence Rate</div>
+          </div>
+          <div class="kpi-card__footer">
+            <div class="kpi-card__trend" id="kpi-tours-trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-status="blue" data-metric="tasks">
+        <div class="kpi-card__content">
+          <div class="kpi-card__header">
+            <h3 class="kpi-card__title">Tasks</h3>
+          </div>
+          <div class="kpi-card__body">
+            <div class="kpi-card__value" id="kpi-tasks-value">--</div>
+            <div class="kpi-card__label">Completion Rate</div>
+          </div>
+          <div class="kpi-card__footer">
+            <div class="kpi-card__trend" id="kpi-tasks-trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-status="blue" data-metric="tickets">
+        <div class="kpi-card__content">
+          <div class="kpi-card__header">
+            <h3 class="kpi-card__title">Tickets</h3>
+          </div>
+          <div class="kpi-card__body">
+            <div class="kpi-card__value" id="kpi-tickets-value">--</div>
+            <div class="kpi-card__label">Open Tickets</div>
+          </div>
+          <div class="kpi-card__footer">
+            <div class="kpi-card__trend" id="kpi-tickets-trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-status="blue" data-metric="workorders">
+        <div class="kpi-card__content">
+          <div class="kpi-card__header">
+            <h3 class="kpi-card__title">Work Orders</h3>
+          </div>
+          <div class="kpi-card__body">
+            <div class="kpi-card__value" id="kpi-workorders-value">--</div>
+            <div class="kpi-card__label">Overdue WOs</div>
+          </div>
+          <div class="kpi-card__footer">
+            <div class="kpi-card__trend" id="kpi-workorders-trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-status="blue" data-metric="sites">
+        <div class="kpi-card__content">
+          <div class="kpi-card__header">
+            <h3 class="kpi-card__title">Sites Health</h3>
+          </div>
+          <div class="kpi-card__body">
+            <div class="kpi-card__value" id="kpi-sites-value">--</div>
+            <div class="kpi-card__label">Overall Score</div>
+          </div>
+          <div class="kpi-card__footer">
+            <div class="kpi-card__trend" id="kpi-sites-trend"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trend Charts Section -->
+  <section class="trends-section" id="portfolioTrends">
+    <h2>7-Day Trends</h2>
+    <div class="trends-grid">
+      <div class="trend-chart-card">
+        <h3>Attendance</h3>
+        <div class="trend-chart" id="trendAttendance"></div>
+      </div>
+      <div class="trend-chart-card">
+        <h3>Tours Adherence</h3>
+        <div class="trend-chart" id="trendTours"></div>
+      </div>
+      <div class="trend-chart-card">
+        <h3>Tickets by Status</h3>
+        <div class="trend-chart" id="trendTickets"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Top Sites Table -->
+  <section class="top-sites-section" id="topSitesSection">
+    <h2>Top Sites</h2>
+    <table id="topSitesTable" class="display cell-border hover" style="width:100%">
+      <thead>
+        <tr>
+          <th>Site Name</th>
+          <th>Attendance %</th>
+          <th>Tours %</th>
+          <th>Open Tickets</th>
+          <th>Overdue WOs</th>
+          <th>RAG Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Populated by JavaScript -->
+      </tbody>
+    </table>
+  </section>
+
+</div>
+{% endblock pagebody_container %}
+
+{% block extra_scripts %}
+<!-- DataTables -->
+<script src="{{ static('assets/plugins/custom/DataTables/datatables.min.js') }}" type="text/javascript"></script>
+
+<!-- ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+<!-- Scope Bar Component -->
+<script src="{{ static('js/components/scope_bar.js') }}" type="text/javascript"></script>
+
+<!-- Portfolio Command Center Logic -->
+<script>
+(function() {
+  'use strict';
+
+  // Global variables
+  let portfolioMap;
+  let siteMarkers = [];
+  let trendCharts = {};
+  let topSitesTable;
+  let refreshInterval;
+
+  // Configuration
+  const CONFIG = {
+    REFRESH_INTERVAL: 30000, // 30 seconds
+    MAP_CENTER: [20.5937, 78.9629], // India center
+    MAP_ZOOM: 5,
+  };
+
+  /**
+   * Initialize the portfolio dashboard
+   */
+  function initPortfolio() {
+    console.log('[Portfolio] Initializing command center...');
+
+    // Initialize map
+    initMap();
+
+    // Load initial data
+    loadPortfolioData();
+
+    // Initialize auto-refresh
+    startAutoRefresh();
+
+    // Attach event listeners
+    attachEventListeners();
+
+    console.log('[Portfolio] Initialization complete');
+  }
+
+  /**
+   * Initialize Leaflet map
+   */
+  function initMap() {
+    portfolioMap = L.map('portfolioMap').setView(CONFIG.MAP_CENTER, CONFIG.MAP_ZOOM);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 18,
+    }).addTo(portfolioMap);
+
+    // Add fullscreen control
+    portfolioMap.addControl(new L.Control.Fullscreen());
+
+    console.log('[Portfolio] Map initialized');
+  }
+
+  /**
+   * Load all portfolio data
+   */
+  function loadPortfolioData() {
+    const scope = ScopeBar.getCurrentScope();
+
+    // Load site markers for map
+    loadSiteMarkers(scope);
+
+    // Load critical alerts
+    loadCriticalAlerts(scope);
+
+    // Load KPI summary
+    loadKPISummary(scope);
+
+    // Load trend data
+    loadTrendData(scope);
+
+    // Load top sites table
+    loadTopSites(scope);
+  }
+
+  /**
+   * Load site markers on map
+   */
+  function loadSiteMarkers(scope) {
+    const url = $('#portfolioMap').data('api-url');
+
+    $.ajax({
+      url: url,
+      method: 'GET',
+      data: { scope: JSON.stringify(scope) },
+      success: function(data) {
+        renderSiteMarkers(data.sites);
+      },
+      error: function(xhr, status, error) {
+        console.error('[Portfolio] Error loading site markers:', error);
+      }
+    });
+  }
+
+  /**
+   * Render site markers on map
+   */
+  function renderSiteMarkers(sites) {
+    // Clear existing markers
+    siteMarkers.forEach(marker => portfolioMap.removeLayer(marker));
+    siteMarkers = [];
+
+    if (!sites || sites.length === 0) {
+      console.warn('[Portfolio] No sites to display on map');
+      return;
+    }
+
+    sites.forEach(function(site) {
+      if (!site.latitude || !site.longitude) return;
+
+      // Determine marker color based on health status
+      const markerColor = getMarkerColor(site.rag_status);
+
+      const marker = L.circleMarker([site.latitude, site.longitude], {
+        radius: 8,
+        fillColor: markerColor,
+        color: '#ffffff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8
+      }).addTo(portfolioMap);
+
+      // Popup content
+      const popupContent = `
+        <div style="min-width: 200px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">${site.name}</h4>
+          <div style="font-size: 12px; color: #666;">
+            <div><strong>Attendance:</strong> ${site.attendance_rate}%</div>
+            <div><strong>Tours:</strong> ${site.tours_rate}%</div>
+            <div><strong>Open Tickets:</strong> ${site.open_tickets}</div>
+            <div style="margin-top: 8px;">
+              <span class="status-pill status-pill--${site.rag_status}" style="display: inline-flex; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                ${site.rag_status.toUpperCase()}
+              </span>
+            </div>
+            <div style="margin-top: 8px;">
+              <a href="/operations/site/${site.id}/" class="btn btn-sm btn-primary" style="font-size: 11px; padding: 4px 8px;">
+                View Dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent);
+      siteMarkers.push(marker);
+    });
+
+    // Apply filters
+    applyMapFilters();
+  }
+
+  /**
+   * Get marker color based on RAG status
+   */
+  function getMarkerColor(ragStatus) {
+    const colors = {
+      'green': '#10B981',
+      'amber': '#F59E0B',
+      'red': '#EF4444',
+      'blue': '#3B82F6',
+      'gray': '#9CA3AF'
+    };
+    return colors[ragStatus] || colors['gray'];
+  }
+
+  /**
+   * Apply map filters (show/hide markers based on status)
+   */
+  function applyMapFilters() {
+    const showRed = $('#filterRed input').prop('checked');
+    const showAmber = $('#filterAmber input').prop('checked');
+
+    // This is a simplified filter - in production, you'd track marker metadata
+    console.log('[Portfolio] Filters applied:', { showRed, showAmber });
+  }
+
+  /**
+   * Load critical alerts
+   */
+  function loadCriticalAlerts(scope) {
+    const url = $('#portfolioAlerts').data('api-url');
+
+    $.ajax({
+      url: url,
+      method: 'GET',
+      data: { scope: JSON.stringify(scope), limit: 5 },
+      success: function(data) {
+        renderCriticalAlerts(data.alerts);
+      },
+      error: function(xhr, status, error) {
+        console.error('[Portfolio] Error loading alerts:', error);
+        $('#portfolioAlerts').html('<div class="empty-state"><p>Error loading alerts</p></div>');
+      }
+    });
+  }
+
+  /**
+   * Render critical alerts
+   */
+  function renderCriticalAlerts(alerts) {
+    const $container = $('#portfolioAlerts');
+
+    if (!alerts || alerts.length === 0) {
+      $container.html('<div class="empty-state"><span class="material-icons">check_circle</span><p>No critical alerts</p></div>');
+      $('#alertCount').text('0');
+      return;
+    }
+
+    $('#alertCount').text(alerts.length);
+
+    let html = '';
+    alerts.forEach(function(alert) {
+      const severityClass = alert.severity.toLowerCase();
+      const severityIcon = {
+        'critical': 'error',
+        'high': 'warning',
+        'medium': 'info'
+      }[severityClass] || 'info';
+
+      const timeAgo = getTimeAgo(alert.created_at);
+
+      html += `
+        <div class="alert-item severity-${severityClass}">
+          <div class="alert-icon severity-${severityClass}">
+            <span class="material-icons">${severityIcon}</span>
+          </div>
+          <div class="alert-content">
+            <div class="alert-message">${alert.message}</div>
+            <div class="alert-meta">
+              <span><strong>${alert.site_name}</strong></span>
+              <span>${timeAgo}</span>
+            </div>
+            <div class="alert-actions">
+              <button class="btn btn-sm btn-primary" onclick="acknowledgeAlert(${alert.id})">Acknowledge</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="escalateAlert(${alert.id})">Escalate</button>
+              <a href="/help-desk/ticket/${alert.ticket_id}/" class="btn btn-sm btn-outline-secondary">View Details</a>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    $container.html(html);
+  }
+
+  /**
+   * Load KPI summary
+   */
+  function loadKPISummary(scope) {
+    const url = $('#portfolioKPIs').data('api-url');
+
+    $.ajax({
+      url: url,
+      method: 'GET',
+      data: { scope: JSON.stringify(scope) },
+      success: function(data) {
+        renderKPIs(data.kpis);
+      },
+      error: function(xhr, status, error) {
+        console.error('[Portfolio] Error loading KPIs:', error);
+      }
+    });
+  }
+
+  /**
+   * Render KPIs
+   */
+  function renderKPIs(kpis) {
+    // Update each KPI card
+    updateKPI('attendance', kpis.attendance);
+    updateKPI('tours', kpis.tours);
+    updateKPI('tasks', kpis.tasks);
+    updateKPI('tickets', kpis.tickets);
+    updateKPI('workorders', kpis.workorders);
+    updateKPI('sites', kpis.sites);
+  }
+
+  /**
+   * Update individual KPI card
+   */
+  function updateKPI(metric, data) {
+    const $card = $(`.kpi-card[data-metric="${metric}"]`);
+    const $value = $(`#kpi-${metric}-value`);
+    const $trend = $(`#kpi-${metric}-trend`);
+
+    // Update value with animation
+    $value.addClass('updating');
+    setTimeout(() => {
+      $value.text(data.value).removeClass('updating');
+    }, 100);
+
+    // Update RAG status
+    $card.attr('data-status', data.status);
+
+    // Update trend
+    if (data.trend) {
+      const trendIcon = data.trend.direction === 'up' ? 'trending_up' :
+                       data.trend.direction === 'down' ? 'trending_down' :
+                       'trending_flat';
+      $trend.html(`
+        <span class="material-icons">${trendIcon}</span>
+        <span>${data.trend.text}</span>
+      `);
+      $trend.removeClass('kpi-card__trend--up kpi-card__trend--down kpi-card__trend--neutral')
+            .addClass(`kpi-card__trend--${data.trend.direction}`);
+    }
+  }
+
+  /**
+   * Load trend data (7-day sparklines)
+   */
+  function loadTrendData(scope) {
+    const url = '/api/v1/overview/trends/';
+
+    $.ajax({
+      url: url,
+      method: 'GET',
+      data: { scope: JSON.stringify(scope), days: 7 },
+      success: function(data) {
+        renderTrendCharts(data.trends);
+      },
+      error: function(xhr, status, error) {
+        console.error('[Portfolio] Error loading trends:', error);
+      }
+    });
+  }
+
+  /**
+   * Render trend charts using ApexCharts
+   */
+  function renderTrendCharts(trends) {
+    // Attendance trend
+    renderLineChart('trendAttendance', trends.attendance);
+
+    // Tours trend
+    renderLineChart('trendTours', trends.tours);
+
+    // Tickets trend (stacked bar)
+    renderStackedBarChart('trendTickets', trends.tickets);
+  }
+
+  /**
+   * Render line chart
+   */
+  function renderLineChart(elementId, data) {
+    if (trendCharts[elementId]) {
+      trendCharts[elementId].destroy();
+    }
+
+    const options = {
+      series: [{
+        name: data.name,
+        data: data.values
+      }],
+      chart: {
+        type: 'area',
+        height: 100,
+        sparkline: { enabled: true },
+        toolbar: { show: false }
+      },
+      stroke: {
+        curve: 'smooth',
+        width: 2
+      },
+      fill: {
+        opacity: 0.3
+      },
+      colors: ['#3B82F6'],
+      tooltip: {
+        enabled: true,
+        x: { show: false },
+        y: {
+          formatter: function(val) {
+            return val + '%';
+          }
+        }
+      }
+    };
+
+    trendCharts[elementId] = new ApexCharts(document.querySelector(`#${elementId}`), options);
+    trendCharts[elementId].render();
+  }
+
+  /**
+   * Render stacked bar chart
+   */
+  function renderStackedBarChart(elementId, data) {
+    if (trendCharts[elementId]) {
+      trendCharts[elementId].destroy();
+    }
+
+    const options = {
+      series: data.series,
+      chart: {
+        type: 'bar',
+        height: 100,
+        stacked: true,
+        sparkline: { enabled: true },
+        toolbar: { show: false }
+      },
+      plotOptions: {
+        bar: {
+          horizontal: false,
+          columnWidth: '80%'
+        }
+      },
+      colors: ['#10B981', '#F59E0B', '#EF4444'],
+      tooltip: {
+        enabled: true,
+        x: { show: false }
+      }
+    };
+
+    trendCharts[elementId] = new ApexCharts(document.querySelector(`#${elementId}`), options);
+    trendCharts[elementId].render();
+  }
+
+  /**
+   * Load top sites table
+   */
+  function loadTopSites(scope) {
+    if (topSitesTable) {
+      topSitesTable.destroy();
+    }
+
+    topSitesTable = $('#topSitesTable').DataTable({
+      ajax: {
+        url: '/api/v1/overview/top-sites/',
+        type: 'GET',
+        data: function(d) {
+          d.scope = JSON.stringify(scope);
+        },
+        dataSrc: 'sites'
+      },
+      columns: [
+        { data: 'name' },
+        {
+          data: 'attendance_rate',
+          render: function(data) {
+            return data + '%';
+          }
+        },
+        {
+          data: 'tours_rate',
+          render: function(data) {
+            return data + '%';
+          }
+        },
+        { data: 'open_tickets' },
+        { data: 'overdue_wos' },
+        {
+          data: 'rag_status',
+          render: function(data) {
+            return `<span class="status-pill status-pill--${data}">${data.toUpperCase()}</span>`;
+          }
+        }
+      ],
+      order: [[4, 'desc']], // Sort by overdue WOs
+      pageLength: 25,
+      responsive: true,
+      dom: 'frtip'
+    });
+
+    // Row click to navigate to site dashboard
+    $('#topSitesTable tbody').on('click', 'tr', function() {
+      const data = topSitesTable.row(this).data();
+      if (data) {
+        window.location.href = `/operations/site/${data.id}/`;
+      }
+    });
+  }
+
+  /**
+   * Start auto-refresh
+   */
+  function startAutoRefresh() {
+    refreshInterval = setInterval(function() {
+      console.log('[Portfolio] Auto-refreshing data...');
+      loadPortfolioData();
+    }, CONFIG.REFRESH_INTERVAL);
+  }
+
+  /**
+   * Attach event listeners
+   */
+  function attachEventListeners() {
+    // Refresh map button
+    $('#refreshMap').on('click', function() {
+      loadSiteMarkers(ScopeBar.getCurrentScope());
+    });
+
+    // Map filters
+    $('#filterRed, #filterAmber').on('change', function() {
+      applyMapFilters();
+    });
+
+    // Listen for scope changes
+    $(document).on('scope:changed', function(event, scope) {
+      console.log('[Portfolio] Scope changed, reloading data...');
+      loadPortfolioData();
+    });
+
+    // KPI card clicks - filter table
+    $('.kpi-card[data-clickable="true"]').on('click', function() {
+      const metric = $(this).data('metric');
+      console.log('[Portfolio] KPI card clicked:', metric);
+      // Filter top sites table by metric (future enhancement)
+    });
+  }
+
+  /**
+   * Utility: Get time ago string
+   */
+  function getTimeAgo(timestamp) {
+    const now = new Date();
+    const then = new Date(timestamp);
+    const diffMs = now - then;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  }
+
+  /**
+   * Global functions for alert actions
+   */
+  window.acknowledgeAlert = function(alertId) {
+    $.ajax({
+      url: `/api/v1/alerts/${alertId}/acknowledge/`,
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      success: function() {
+        console.log('[Portfolio] Alert acknowledged:', alertId);
+        loadCriticalAlerts(ScopeBar.getCurrentScope());
+      },
+      error: function(xhr, status, error) {
+        console.error('[Portfolio] Error acknowledging alert:', error);
+        alert('Error acknowledging alert');
+      }
+    });
+  };
+
+  window.escalateAlert = function(alertId) {
+    $.ajax({
+      url: `/api/v1/alerts/${alertId}/escalate/`,
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      success: function() {
+        console.log('[Portfolio] Alert escalated:', alertId);
+        loadCriticalAlerts(ScopeBar.getCurrentScope());
+      },
+      error: function(xhr, status, error) {
+        console.error('[Portfolio] Error escalating alert:', error);
+        alert('Error escalating alert');
+      }
+    });
+  };
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Initialize on page load
+  $(document).ready(function() {
+    initPortfolio();
+  });
+
+})();
+</script>
+{% endblock extra_scripts %}

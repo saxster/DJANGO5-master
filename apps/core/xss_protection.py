@@ -379,7 +379,7 @@ class XSSProtectionMiddleware(MiddlewareMixin):
             decoded = urllib.parse.unquote(original_value)
             if decoded != original_value and self._is_xss_attempt(decoded):
                 return True
-        except:
+        except (requests.RequestException, TimeoutError, ConnectionError) as e:
             pass
 
         # HTML entity encoding

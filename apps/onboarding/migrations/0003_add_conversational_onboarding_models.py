@@ -27,16 +27,15 @@ class Migration(migrations.Migration):
             field=models.FloatField(blank=True, help_text='AI confidence score for the setup recommendations', null=True, verbose_name='Setup Confidence Score'),
         ),
 
-        # Create ConversationSession model
+        # Create ConversationSession model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='ConversationSession',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('session_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, verbose_name='Created Date')),
                 ('mdtz', models.DateTimeField(auto_now=True, verbose_name='Modified Date')),
                 ('cdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Created By')),
                 ('mdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Modified By')),
-                ('session_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('language', models.CharField(default='en', help_text='ISO language code for the conversation', max_length=10, verbose_name='Language')),
                 ('conversation_type', models.CharField(choices=[('initial_setup', 'Initial Setup'), ('config_update', 'Configuration Update'), ('troubleshooting', 'Troubleshooting'), ('feature_request', 'Feature Request')], default='initial_setup', max_length=50, verbose_name='Conversation Type')),
                 ('context_data', models.JSONField(blank=True, default=dict, help_text='Initial context and environment data', verbose_name='Context Data')),
@@ -55,16 +54,15 @@ class Migration(migrations.Migration):
             },
         ),
 
-        # Create LLMRecommendation model
+        # Create LLMRecommendation model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='LLMRecommendation',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('recommendation_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, verbose_name='Created Date')),
                 ('mdtz', models.DateTimeField(auto_now=True, verbose_name='Modified Date')),
                 ('cdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Created By')),
                 ('mdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Modified By')),
-                ('recommendation_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('maker_output', models.JSONField(help_text='Raw output from the maker LLM', verbose_name='Maker Output')),
                 ('checker_output', models.JSONField(blank=True, help_text='Validation output from checker LLM', null=True, verbose_name='Checker Output')),
                 ('consensus', models.JSONField(blank=True, default=dict, help_text='Final consensus between maker and checker', verbose_name='Consensus')),
@@ -84,16 +82,15 @@ class Migration(migrations.Migration):
             },
         ),
 
-        # Create AuthoritativeKnowledge model
+        # Create AuthoritativeKnowledge model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='AuthoritativeKnowledge',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('knowledge_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, verbose_name='Created Date')),
                 ('mdtz', models.DateTimeField(auto_now=True, verbose_name='Modified Date')),
                 ('cdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Created By')),
                 ('mdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Modified By')),
-                ('knowledge_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('source_organization', models.CharField(help_text='Organization that published this knowledge', max_length=200, verbose_name='Source Organization')),
                 ('document_title', models.CharField(help_text='Title of the source document', max_length=500, verbose_name='Document Title')),
                 ('document_version', models.CharField(blank=True, help_text='Version of the document', max_length=50, verbose_name='Document Version')),
@@ -113,16 +110,15 @@ class Migration(migrations.Migration):
             },
         ),
 
-        # Create UserFeedbackLearning model
+        # Create UserFeedbackLearning model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='UserFeedbackLearning',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('feedback_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, verbose_name='Created Date')),
                 ('mdtz', models.DateTimeField(auto_now=True, verbose_name='Modified Date')),
                 ('cdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Created By')),
                 ('mdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Modified By')),
-                ('feedback_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('feedback_type', models.CharField(choices=[('rec_quality', 'Recommendation Quality'), ('conv_flow', 'Conversation Flow'), ('accuracy', 'Accuracy'), ('completeness', 'Completeness'), ('usability', 'Usability'), ('other', 'Other')], max_length=50, verbose_name='Feedback Type')),
                 ('feedback_data', models.JSONField(help_text='Structured feedback data', verbose_name='Feedback Data')),
                 ('learning_extracted', models.JSONField(blank=True, default=dict, help_text='Learning patterns extracted from this feedback', verbose_name='Learning Extracted')),

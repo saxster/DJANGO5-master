@@ -33,7 +33,7 @@ import debug_toolbar
 #     path('peoples/', include('apps.peoples.urls')),
 #     path('', include('apps.attendance.urls')),
 #     path('activity/', include('apps.activity.urls')),
-#     path('schedhule/', include('apps.schedhuler.urls')),
+#     path('schedhule/', include('apps.scheduler.urls')),
 #     path('reports/', include('apps.reports.urls')),
 #     path('helpdesk/', include('apps.y_helpdesk.urls')),
 #     path('clientbilling/', include('apps.clientbilling.urls')),
@@ -41,7 +41,7 @@ import debug_toolbar
 #     path('email/', include(email_urls)), 
 #     path('__debug__/', include(debug_toolbar.urls)), # shoul use when debug = True
 #     path('select2/', include('django_select2.urls')),
-#     path("graphql", csrf_exempt(FileUploadGraphQLView.as_view(graphiql = True))),
+#     path("legacy-endpoint", FileUploadLegacyView.as_view()),
 #     path("upload/att_file", UploadFile.as_view()),
 #     path("api/", include('apps.service.rest_service.urls'), name='api'),
 # ]

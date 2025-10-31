@@ -69,8 +69,6 @@ from background_tasks.ticket_tasks import (
 from background_tasks.integration_tasks import (
     external_api_call_async,
     insert_json_records_async,
-    process_graphql_download_async,
-    process_graphql_mutation_async,
 )
 
 # Report generation tasks
@@ -94,8 +92,6 @@ from background_tasks.critical_tasks_migrated import (
 # Other specialized tasks
 # my_task removed - doesn't exist in onboarding_base_task (only base classes exported)
 # from background_tasks.onboarding_base_task import my_task
-from apps.service.services.graphql_service import perform_adhocmutation
-from apps.service.services.graphql_service import perform_reportmutation
 
 
 # ============================================================================
@@ -113,12 +109,8 @@ __all__ = [
     "insert_json_records_async",
     "move_media_to_cloud_storage",
     # "my_task",  # Removed - doesn't exist
-    "perform_adhocmutation",
     "perform_facerecognition_bgt",
-    "perform_reportmutation",
     "process_audio_transcript",
-    "process_graphql_download_async",
-    "process_graphql_mutation_async",
     "send_email_notification_for_sla_report",
     "send_email_notification_for_sla_vendor",
     "send_email_notification_for_vendor_and_security_after_approval",

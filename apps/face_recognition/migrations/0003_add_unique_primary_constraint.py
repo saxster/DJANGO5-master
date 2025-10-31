@@ -7,7 +7,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('face_recognition', '0002_auto_20250101_0000'),
+        ('face_recognition', '0002_initial'),
     ]
 
     operations = [
@@ -26,3 +26,6 @@ class Migration(migrations.Migration):
             ]
         ),
     ]
+
+    # Required for CONCURRENTLY operations
+    atomic = False

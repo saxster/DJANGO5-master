@@ -1,22 +1,36 @@
-import apps.onboarding.models as ob
-from apps.activity.models.location_model import Location
-from apps.peoples import models as pm
-from apps.tenants.models import Tenant
-from apps.activity.models.job_model import Job, Jobneed
-from apps.work_order_management.models import Wom
-from apps.activity.models.asset_model import Asset
-from apps.activity.models.question_model import (
-    Question,
-    QuestionSet,
-    QuestionSetBelonging,
-)
+"""
+Database Utilities Module - Circular Import Fix Applied
+
+IMPORTANT: Model imports converted to late imports (inside functions) to prevent
+circular import chains. This follows Django best practices for utils/helpers modules.
+
+Circular Import Chain (FIXED 2025-10-10):
+  apps.core.models → utils_new → db_utils → activity.models → peoples.models → core.services → db_utils ❌
+
+Solution: All model imports now occur inside the functions that use them (lazy loading).
+This breaks the circular dependency while maintaining 100% backward compatibility.
+
+Reference:
+- Django docs: https://docs.djangoproject.com/en/5.0/ref/applications/#apps.get_model
+- Best practices: https://stackoverflow.com/questions/7336802/how-to-avoid-circular-imports
+"""
+
+# Safe imports (no circular dependencies)
 from apps.core import exceptions as excp
 from django.utils import timezone
+from django.db.utils import IntegrityError, DatabaseError
+from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime, timezone as dt_timezone
 import threading
 import logging
 import ast
 import json
+
+# Note: ALL model imports (including Tenant) moved inside functions to prevent circular imports
+# Models imported as needed: Tenant (tenants), People, Pgroup, Capability (peoples)
+# Location, Job, Jobneed, Asset, Question, QuestionSet (activity)
+# Bt, TypeAssist, GeofenceMaster (onboarding)
+# Wom (work_order_management)
 
 logger = logging.getLogger("django")
 error_logger = logging.getLogger("error_logger")
@@ -88,6 +102,8 @@ def save_common_stuff(request, instance, is_superuser=False, ctzoffset=-1):
 
 
 def create_tenant_with_alias(db):
+    # Late import to prevent circular dependency
+    from apps.tenants.models import Tenant
     Tenant.objects.create(tenantname=db.upper(), subdomain_prefix=db)
 
 
@@ -291,12 +307,15 @@ def store_ticket_history(instance, request=None, user=None):
 
 
 def get_or_create_none_people(using=None):
+    # Late import to prevent circular dependency
+    from apps.peoples import models as pm
+
     # First check if NONE already exists
     try:
         return pm.People.objects.get(peoplecode="NONE")
     except pm.People.DoesNotExist:
         pass
-    
+
     # Create NONE people without triggering dependencies
     obj = pm.People(
         peoplecode="NONE",
@@ -318,6 +337,9 @@ def get_or_create_none_people(using=None):
 
 
 def get_none_typeassist():
+    # Late import to prevent circular dependency
+    import apps.onboarding.models as ob
+
     try:
         return ob.TypeAssist.objects.get(id=1)
     except ob.TypeAssist.DoesNotExist:
@@ -326,6 +348,9 @@ def get_none_typeassist():
 
 
 def get_or_create_none_pgroup():
+    # Late import to prevent circular dependency
+    from apps.peoples import models as pm
+
     obj, _ = pm.Pgroup.objects.get_or_create(
         groupname="NONE",
         defaults={},
@@ -334,6 +359,9 @@ def get_or_create_none_pgroup():
 
 
 def get_or_create_none_location():
+    # Late import to prevent circular dependency
+    from apps.activity.models.location_model import Location
+
     try:
         # Try to get existing NONE location first
         obj = Location.objects.get(loccode="NONE", locname="NONE")
@@ -343,12 +371,12 @@ def get_or_create_none_location():
         from django.db import transaction
         with transaction.atomic():
             obj, created = Location.objects.get_or_create(
-                loccode="NONE", 
+                loccode="NONE",
                 locname="NONE",
                 defaults={
                     "locstatus": "SCRAPPED",
                     "bu_id": 1,
-                    "client_id": 1, 
+                    "client_id": 1,
                     "tenant_id": 1,
                     "cuser_id": 1,
                     "muser_id": 1,
@@ -397,6 +425,9 @@ def tenant_db_from_request(request):
 
 
 def get_or_create_none_cap():
+    # Late import to prevent circular dependency
+    from apps.peoples import models as pm
+
     obj, _ = pm.Capability.objects.get_or_create(
         capscode="NONE", capsname="NONE", defaults={}
     )
@@ -404,12 +435,15 @@ def get_or_create_none_cap():
 
 
 def get_or_create_none_bv():
+    # Late import to prevent circular dependency
+    import apps.onboarding.models as ob
+
     # First check if NONE already exists
     try:
         return ob.Bt.objects.get(bucode="NONE")
     except ob.Bt.DoesNotExist:
         pass
-    
+
     # Create without triggering the save override that requires People
     obj = ob.Bt(
         bucode="NONE",
@@ -428,6 +462,9 @@ def get_or_create_none_bv():
 
 
 def get_or_create_none_typeassist():
+    # Late import to prevent circular dependency
+    import apps.onboarding.models as ob
+
     obj, iscreated = ob.TypeAssist.objects.get_or_create(
         tacode="NONE", taname="NONE", defaults={}
     )
@@ -435,12 +472,16 @@ def get_or_create_none_typeassist():
 
 
 def get_or_create_none_tenant():
+    # Late import to prevent circular dependency
+    from apps.tenants.models import Tenant
     return Tenant.objects.get_or_create(
         tenantname="Intelliwiz", subdomain_prefix="intelliwiz", defaults={}
     )[0]
 
 
 def get_or_create_none_jobneed():
+    # Late import to prevent circular dependency
+    from apps.activity.models.job_model import Jobneed
     from datetime import datetime, timezone
 
     date = datetime(1970, 1, 1, 00, 00, 00).replace(tzinfo=timezone.utc)
@@ -459,6 +500,8 @@ def get_or_create_none_jobneed():
 
 
 def get_or_create_none_wom():
+    # Late import to prevent circular dependency
+    from apps.work_order_management.models import Wom
     from datetime import datetime, timezone
 
     date = datetime(1970, 1, 1, 00, 00, 00).replace(tzinfo=timezone.utc)
@@ -476,16 +519,25 @@ def get_or_create_none_wom():
 
 
 def get_or_create_none_qset():
+    # Late import to prevent circular dependency
+    from apps.activity.models.question_model import QuestionSet
+
     obj, _ = QuestionSet.objects.get_or_create(qsetname="NONE", defaults={})
     return obj
 
 
 def get_or_create_none_question():
+    # Late import to prevent circular dependency
+    from apps.activity.models.question_model import Question
+
     obj, _ = Question.objects.get_or_create(quesname="NONE", defaults={})
     return obj
 
 
 def get_or_create_none_qsetblng():
+    # Late import to prevent circular dependency
+    from apps.activity.models.question_model import QuestionSetBelonging
+
     "A None qsetblng with seqno -1"
     obj, _ = QuestionSetBelonging.objects.get_or_create(
         answertype="NONE",
@@ -500,6 +552,9 @@ def get_or_create_none_qsetblng():
 
 
 def get_or_create_none_asset():
+    # Late import to prevent circular dependency
+    from apps.activity.models.asset_model import Asset
+
     obj, _ = Asset.objects.get_or_create(
         assetcode="NONE",
         assetname="NONE",
@@ -517,6 +572,8 @@ def get_or_create_none_ticket():
 
 
 def get_or_create_none_job():
+    # Late import to prevent circular dependency
+    from apps.activity.models.job_model import Job
     from datetime import datetime, timezone
 
     date = datetime(1970, 1, 1, 00, 00, 00).replace(tzinfo=timezone.utc)
@@ -540,6 +597,9 @@ def get_or_create_none_job():
 
 
 def get_or_create_none_gf():
+    # Late import to prevent circular dependency
+    import apps.onboarding.models as ob
+
     obj, _ = ob.GeofenceMaster.objects.get_or_create(
         gfcode="NONE", gfname="NONE", defaults={"alerttext": "NONE", "enable": False}
     )

@@ -24,7 +24,7 @@ from rest_framework.fields import empty
 from pydantic import BaseModel, ValidationError as PydanticValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-from apps.core.validation.pydantic_base import BaseDjangoModel, BusinessLogicModel
+from apps.core.validation_pydantic.pydantic_base import BaseDjangoModel, BusinessLogicModel
 from apps.core.serializers.base_serializers import ValidatedModelSerializer, SecureSerializerMixin
 from apps.core.error_handling import ErrorHandler
 import logging

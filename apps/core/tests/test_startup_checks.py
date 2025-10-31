@@ -546,56 +546,6 @@ class TestValidationPerformance(TestCase):
 
 
 @pytest.mark.django_db
-class TestGraphQLOriginValidation(TestCase):
-    """Test GraphQL origin validation check"""
-
-    @override_settings(GRAPHQL_STRICT_ORIGIN_VALIDATION=True)
-    def test_graphql_origin_validation_enabled_production(self):
-        """Test validation passes when origin validation is enabled in production"""
-        validator = SecurityStartupValidator(environment='production')
-        result = validator._validate_graphql_origin_validation()
-
-        assert result.passed is True
-        assert result.severity == "MEDIUM"
-        assert "ENABLED" in result.message
-
-    @override_settings(GRAPHQL_STRICT_ORIGIN_VALIDATION=False)
-    def test_graphql_origin_validation_disabled_production(self):
-        """Test validation fails when origin validation is disabled in production"""
-        validator = SecurityStartupValidator(environment='production')
-        result = validator._validate_graphql_origin_validation()
-
-        assert result.passed is False
-        assert result.severity == "MEDIUM"
-        assert "disabled" in result.message.lower()
-        assert "production.py" in result.remediation
-
-    @override_settings(GRAPHQL_STRICT_ORIGIN_VALIDATION=False)
-    def test_graphql_origin_validation_development(self):
-        """Test validation passes in development regardless of setting"""
-        validator = SecurityStartupValidator(environment='development')
-        result = validator._validate_graphql_origin_validation()
-
-        assert result.passed is True
-        assert "Development environment" in result.message
-
-    def test_graphql_origin_validation_not_set(self):
-        """Test validation when GRAPHQL_STRICT_ORIGIN_VALIDATION is not set"""
-        # Remove the setting if it exists
-        from django.test.utils import override_settings
-
-        with override_settings():
-            if hasattr(override_settings, 'GRAPHQL_STRICT_ORIGIN_VALIDATION'):
-                delattr(override_settings, 'GRAPHQL_STRICT_ORIGIN_VALIDATION')
-
-            validator = SecurityStartupValidator(environment='production')
-            result = validator._validate_graphql_origin_validation()
-
-            # Should fail because default is False
-            assert result.passed is False
-
-
-@pytest.mark.django_db
 class TestJinja2AutoReloadValidation(TestCase):
     """Test Jinja2 auto-reload validation check"""
 
@@ -686,7 +636,6 @@ class TestNewValidationIntegration(TestCase):
         ALLOWED_HOSTS=['example.com'],
         CSRF_COOKIE_SECURE=True,
         SESSION_COOKIE_SECURE=True,
-        GRAPHQL_STRICT_ORIGIN_VALIDATION=True,
         TEMPLATES=[
             {"BACKEND": "django.template.backends.django.DjangoTemplates"},
             {
@@ -700,12 +649,11 @@ class TestNewValidationIntegration(TestCase):
         validator = SecurityStartupValidator(environment='production')
         all_passed, results = validator.validate_all(fail_fast=False)
 
-        # Check that we have the expected number of checks (7 original + 2 new = 9)
-        assert len(results) == 9
+        # Check that we have the expected number of checks (7 original + 1 new = 8)
+        assert len(results) == 8
 
-        # Check that GraphQL origin validation is in results
+        # Check that Jinja validation is in results
         check_names = [r.check_name for r in results]
-        assert "GraphQL Origin Validation" in check_names
         assert "Jinja2 Auto-Reload" in check_names
 
     @override_settings(
@@ -714,7 +662,6 @@ class TestNewValidationIntegration(TestCase):
         ALLOWED_HOSTS=['example.com'],
         CSRF_COOKIE_SECURE=True,
         SESSION_COOKIE_SECURE=True,
-        GRAPHQL_STRICT_ORIGIN_VALIDATION=False,  # This should fail
         TEMPLATES=[
             {"BACKEND": "django.template.backends.django.DjangoTemplates"},
             {
@@ -728,10 +675,8 @@ class TestNewValidationIntegration(TestCase):
         validator = SecurityStartupValidator(environment='production')
         all_passed, results = validator.validate_all(fail_fast=False)
 
-        # Find the new check results
-        graphql_result = next(r for r in results if r.check_name == "GraphQL Origin Validation")
+        # Find the new check result
         jinja_reload_result = next(r for r in results if r.check_name == "Jinja2 Auto-Reload")
 
-        # Both should fail in production with these settings
-        assert graphql_result.passed is False
+        # Should fail in production with these settings
         assert jinja_reload_result.passed is False

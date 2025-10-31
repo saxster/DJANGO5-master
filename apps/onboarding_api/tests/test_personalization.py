@@ -10,32 +10,34 @@ Tests include:
 """
 
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 
 from apps.onboarding.models import (
-    PreferenceProfile,
-    RecommendationInteraction,
-    Experiment,
-    ExperimentAssignment,
     ConversationSession,
-    LLMRecommendation,
-    Bt
+   LLMRecommendation,
+    Bt,
 )
 from apps.onboarding_api.services.learning import (
     FeatureExtractor,
     PreferenceUpdater,
-    LearningSignalsCollector
+    LearningSignalsCollector,
+    PreferenceProfile,
 )
 from apps.onboarding_api.services.personalization import (
     RecommendationReranker,
-    RecommendationContext
+    RecommendationContext,
+    RecommendationInteraction,
 )
 from apps.onboarding_api.services.experiments import (
     ExperimentAnalyzer,
-    ExperimentManager
+    ExperimentManager,
+    Experiment,
+    ExperimentAssignment,
 )
+from apps.onboarding_api.services.optimization import (
     TokenBudgetManager,
     ResponseCache,
-    OptimizationService
+    OptimizationService,
 )
 import numpy as np
 

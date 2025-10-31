@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# Pre-commit Hook: Celery Beat Task Validation
+#
+# Purpose: Prevents commits that introduce orphaned Celery beat tasks
+#          (tasks referenced in beat schedule but not registered)
+#
+# Usage: Automatically runs on git commit
+#        Install with: ./scripts/setup-git-hooks.sh
+#
+# Exit codes:
+#   0: All beat tasks are registered
+#   1: Orphaned tasks detected (BLOCKS COMMIT)
+#
+# Created: 2025-10-10
+# Part of: Code Quality Remediation (Nice-To-Haves Implementation)
+#
+
+set -e
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo ""
+echo "🔍 Validating Celery beat task registration..."
+echo ""
+
+# Run the orphaned task check
+if python scripts/audit_celery_tasks.py --duplicates-only 2>&1 | grep -q "orphaned"; then
+    echo -e "${RED}❌ COMMIT BLOCKED${NC}"
+    echo ""
+    echo "Orphaned Celery beat tasks detected!"
+    echo ""
+    echo "Beat schedule references tasks that are NOT registered."
+    echo "This will cause runtime failures in Celery beat scheduler."
+    echo ""
+    echo "To see details, run:"
+    echo "  python scripts/audit_celery_tasks.py --generate-report"
+    echo ""
+    echo "To fix:"
+    echo "  1. Remove orphaned task from beat schedule (intelliwiz_config/celery.py)"
+    echo "  2. OR implement the missing task in background_tasks/ or apps/*/services/"
+    echo ""
+    exit 1
+else
+    # Also check with validate_schedules command for comprehensive check
+    if python manage.py validate_schedules --check-orphaned-tasks --format json 2>&1 | grep -q '"orphaned_beat_task"'; then
+        echo -e "${RED}❌ COMMIT BLOCKED${NC}"
+        echo ""
+        echo "Orphaned Celery beat tasks detected!"
+        echo ""
+        echo "Run for details:"
+        echo "  python manage.py validate_schedules --check-orphaned-tasks --verbose"
+        echo ""
+        exit 1
+    fi
+fi
+
+echo -e "${GREEN}✅ All Celery beat tasks are registered${NC}"
+echo ""
+exit 0

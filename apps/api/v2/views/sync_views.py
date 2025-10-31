@@ -14,18 +14,17 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework.views import APIView
+from apps.ontology.decorators import ontology
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from django.core.exceptions import ValidationError
-from pydantic import ValidationError as PydanticValidationError
 import logging
+import uuid
 
 from apps.api.v1.services.sync_engine_service import sync_engine
 from apps.ml.services.conflict_predictor import conflict_predictor
 from apps.core.services.cross_device_sync_service import cross_device_sync_service
-from apps.core.services.sync_push_service import sync_push_service
 
 # Import type-safe serializers
 from apps.api.v2.serializers import (
@@ -43,6 +42,30 @@ from apps.core.api_responses import (
 logger = logging.getLogger('api.v2.sync')
 
 
+@ontology(
+    domain="mobile",
+    purpose="REST API for enhanced mobile sync with ML conflict prediction, type-safe validation, and cross-device coordination",
+    api_endpoint=True,
+    http_methods=["GET", "POST"],
+    authentication_required=True,
+    permissions=["IsAuthenticated"],
+    rate_limit="200/minute",
+    request_schema="VoiceSyncRequestSerializer|BatchSyncRequestSerializer (Pydantic)",
+    response_schema="VoiceSyncResponseSerializer|BatchSyncResponseSerializer (Pydantic)",
+    error_codes=[400, 401, 409, 500],
+    criticality="high",
+    tags=["api", "rest", "v2", "sync", "mobile", "ml", "pydantic", "conflict-resolution", "cross-device"],
+    security_notes="Type-safe Pydantic validation. ML-based conflict prediction with risk assessment. Idempotency keys for duplicate prevention",
+    endpoints={
+        "sync_voice": "POST /api/v2/sync/voice/ - Sync voice biometric data with ML prediction",
+        "sync_batch": "POST /api/v2/sync/batch/ - Batch sync multiple entity types",
+        "version_info": "GET /api/v2/sync/version/ - API version and features"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/v2/sync/voice/ -H 'Authorization: Bearer <token>' -d '{\"device_id\":\"uuid-123\",\"voice_data\":[...],\"idempotency_key\":\"key-456\"}'",
+        "curl -X POST https://api.example.com/api/v2/sync/batch/ -H 'Authorization: Bearer <token>' -d '{\"device_id\":\"uuid-123\",\"items\":[...],\"idempotency_key\":\"key-789\"}'"
+    ]
+)
 class SyncVoiceView(APIView):
     """
     Enhanced voice sync with type-safe validation and ML prediction.
@@ -126,12 +149,21 @@ class SyncVoiceView(APIView):
 
         # Cross-device coordination
         try:
+            sync_metadata = dict(validated_data)
+            timestamp = sync_metadata.get('timestamp')
+            sync_metadata['version'] = int(timestamp.timestamp()) if timestamp else 0
+
+            entity_id = uuid.uuid5(
+                uuid.NAMESPACE_DNS,
+                f"voice-sync:{request.user.id}:{validated_data['device_id']}"
+            )
+
             cross_device_sync_service.sync_across_devices(
                 user=request.user,
                 device_id=validated_data['device_id'],
                 domain='voice',
-                entity_id='batch',
-                data=validated_data
+                entity_id=entity_id,
+                data=sync_metadata
             )
         except Exception as e:
             logger.error(f"Cross-device sync failed: {e}", exc_info=True)
@@ -229,7 +261,7 @@ class VersionInfoView(APIView):
         return Response({
             'version': 'v2',
             'features': [
-                'GraphQL mutations',
+                'Type-safe REST mutations',
                 'Real-time push notifications',
                 'ML conflict prediction',
                 'Cross-device sync',

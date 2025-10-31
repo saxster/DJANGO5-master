@@ -21,7 +21,6 @@ from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 from django.middleware.csrf import CsrfViewMiddleware
 from django.utils.deprecation import MiddlewareMixin
-from django.contrib.auth.models import AnonymousUser
 from apps.core.exceptions import SecurityException, CSRFException
 
 logger = logging.getLogger(__name__)
@@ -134,10 +133,6 @@ class FileUploadSecurityMiddleware(MiddlewareMixin):
         if 'multipart/form-data' in content_type:
             return True
 
-        # Check for GraphQL file upload
-        if 'graphql' in request_path.lower() and request.FILES:
-            return True
-
         return False
 
     def _get_user_identifier(self, request):
@@ -238,10 +233,6 @@ class FileUploadSecurityMiddleware(MiddlewareMixin):
         """Validate CSRF protection for file uploads."""
         # Skip CSRF check if not required
         if not self.require_csrf_token:
-            return None
-
-        # Skip for GraphQL as it has its own CSRF handling
-        if 'graphql' in request.path.lower():
             return None
 
         # Create CSRF middleware instance to validate

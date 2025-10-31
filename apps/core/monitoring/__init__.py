@@ -9,7 +9,7 @@ NOTE: This package coexists with apps/core/monitoring.py module.
 - monitoring.py: Production monitoring, logging config, performance timers
 - monitoring/: Specialized security monitoring modules
 
-MIGRATION NOTE (Oct 2025): GraphQL removed - use REST API monitoring
+MIGRATION NOTE (Oct 2025): Legacy query layer removed - use REST API monitoring
 """
 
 __all__ = []

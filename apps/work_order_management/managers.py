@@ -4,12 +4,12 @@ from django.db.models import CharField, Value as V
 from django.db.models import Q, F, Count, Case, When, IntegerField
 from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.conf import settings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from apps.peoples.models import People
+from apps.tenants.managers import TenantAwareManager
 from django.apps import apps
 from django.utils.timezone import make_aware
 import logging
-import pytz
 
 logger = logging.getLogger("django")
 
@@ -19,7 +19,14 @@ debug_logger = logging.getLogger("debug_logger")
 error_logger = logging.getLogger("error_logger")
 
 
-class VendorManager(models.Manager):
+class VendorManager(TenantAwareManager):
+    """
+    Custom manager for Vendor model with tenant-aware filtering.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    """
     use_in_migrations = True
 
     def get_vendor_list(self, request, fields, related):
@@ -52,7 +59,7 @@ class VendorManager(models.Manager):
     def get_vendors_for_mobile(self, request, clientid, mdtz, buid, ctzoffset):
         if not isinstance(mdtz, datetime):
             mdtz = datetime.strptime(mdtz, "%Y-%m-%d %H:%M:%S")
-        mdtz = make_aware(mdtz, timezone=pytz.UTC)
+        mdtz = make_aware(mdtz, timezone=dt_timezone.utc)
 
         mdtz = mdtz - timedelta(minutes=ctzoffset)
 
@@ -65,7 +72,14 @@ class VendorManager(models.Manager):
         return qset or self.none()
 
 
-class ApproverManager(models.Manager):
+class ApproverManager(TenantAwareManager):
+    """
+    Custom manager for Approver model with tenant-aware filtering.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    """
     use_in_migrations = True
 
     def get_approver_list(self, request, fields, related):
@@ -198,7 +212,14 @@ class ApproverManager(models.Manager):
         return qset or self.none()
 
 
-class WorkOrderManager(models.Manager):
+class WorkOrderManager(TenantAwareManager):
+    """
+    Custom manager for Wom (Work Order Management) model with tenant-aware filtering.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    """
     use_in_migrations = True
 
     def get_workorder_list(self, request, fields, related):
@@ -950,7 +971,14 @@ class WorkOrderManager(models.Manager):
         return qobjs
 
 
-class WOMDetailsManager(models.Manager):
+class WOMDetailsManager(TenantAwareManager):
+    """
+    Custom manager for WOMDetails model with tenant-aware filtering.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    """
     use_in_migrations = True
 
     def get_wo_details(self, womid):

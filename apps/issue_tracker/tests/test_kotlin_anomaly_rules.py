@@ -336,8 +336,7 @@ class KotlinAnomalyRulesTests(TestCase):
         # Test non-mobile endpoints that should not match
         non_mobile_endpoints = [
             'api/backend/processing',
-            'ws/admin/dashboard',
-            'graphql/query'  # Legacy - GraphQL removed Oct 2025
+            'ws/admin/dashboard'
         ]
 
         for endpoint in non_mobile_endpoints:

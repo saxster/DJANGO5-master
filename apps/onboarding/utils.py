@@ -6,10 +6,14 @@ import requests
 import pandas as pd
 from tablib import Dataset
 import logging
-    BULK_IMPORT_GOOGLE_DRIVE_API_KEY as api_key,
-    MEDIA_ROOT,
-    GOOGLE_MAP_SECRET_KEY as google_map_key,
-)
+from django.conf import settings
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
+
+# Use settings values directly (importing specific values from settings causes issues)
+api_key = getattr(settings, 'BULK_IMPORT_GOOGLE_DRIVE_API_KEY', '')
+google_map_key = getattr(settings, 'GOOGLE_MAP_SECRET_KEY', '')
+
 from apps.onboarding.models import Bt, TypeAssist
 from apps.peoples.models import People
 from apps.core import utils

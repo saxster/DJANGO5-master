@@ -10,20 +10,12 @@ from .views import (
     CachePerformanceView,
     AlertsView,
     DashboardDataView,
-    GraphQLMonitoringView,
-    GraphQLComplexityView,
-    GraphQLRejectionsView,
     WebSocketMonitoringView,
     WebSocketConnectionsView,
     WebSocketRejectionsView,
 )
 
 # Import new dashboard views
-from .views.graphql_mutation_views import (
-    GraphQLMutationView,
-    GraphQLMutationBreakdownView,
-    GraphQLMutationPerformanceView,
-)
 from .views.celery_idempotency_views import (
     CeleryIdempotencyView,
     CeleryIdempotencyBreakdownView,
@@ -32,7 +24,6 @@ from .views.celery_idempotency_views import (
 from .views.security_dashboard_views import (
     SecurityDashboardView,
     SQLInjectionDashboardView,
-    GraphQLSecurityDashboardView,
     ThreatAnalysisView,
 )
 from .views.prometheus_exporter import PrometheusExporterView
@@ -49,11 +40,6 @@ urlpatterns = [
     path('metrics/prometheus/', MetricsEndpoint.as_view(), {'format': 'prometheus'}, name='metrics_prometheus'),
     path('metrics/export/', PrometheusExporterView.as_view(), name='prometheus_exporter'),  # Prometheus text format export
 
-    # GraphQL monitoring endpoints
-    path('graphql/', GraphQLMonitoringView.as_view(), name='graphql_monitoring'),
-    path('graphql/complexity/', GraphQLComplexityView.as_view(), name='graphql_complexity'),
-    path('graphql/rejections/', GraphQLRejectionsView.as_view(), name='graphql_rejections'),
-
     # WebSocket monitoring endpoints
     path('websocket/', WebSocketMonitoringView.as_view(), name='websocket_monitoring'),
     path('websocket/connections/', WebSocketConnectionsView.as_view(), name='websocket_connections'),
@@ -67,11 +53,6 @@ urlpatterns = [
     path('alerts/', AlertsView.as_view(), name='alerts'),
     path('dashboard/', DashboardDataView.as_view(), name='dashboard'),
 
-    # GraphQL Mutation monitoring endpoints (NEW)
-    path('graphql/mutations/', GraphQLMutationView.as_view(), name='graphql_mutations'),
-    path('graphql/mutations/breakdown/', GraphQLMutationBreakdownView.as_view(), name='graphql_mutations_breakdown'),
-    path('graphql/mutations/performance/', GraphQLMutationPerformanceView.as_view(), name='graphql_mutations_performance'),
-
     # Celery Idempotency monitoring endpoints (NEW)
     path('celery/idempotency/', CeleryIdempotencyView.as_view(), name='celery_idempotency'),
     path('celery/idempotency/breakdown/', CeleryIdempotencyBreakdownView.as_view(), name='celery_idempotency_breakdown'),
@@ -80,6 +61,5 @@ urlpatterns = [
     # Security Dashboard endpoints (NEW)
     path('security/', SecurityDashboardView.as_view(), name='security_dashboard'),
     path('security/sqli/', SQLInjectionDashboardView.as_view(), name='security_sqli'),
-    path('security/graphql/', GraphQLSecurityDashboardView.as_view(), name='security_graphql'),
     path('security/threats/', ThreatAnalysisView.as_view(), name='security_threats'),
 ]

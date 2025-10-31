@@ -22,11 +22,9 @@ import hashlib
 import re
 from decimal import Decimal
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-
-User = get_user_model()
 
 
 class QueryExecutionPlan(models.Model):
@@ -115,7 +113,7 @@ class QueryExecutionPlan(models.Model):
     )
 
     captured_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -358,7 +356,7 @@ class PlanRegressionAlert(models.Model):
     )
 
     acknowledged_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

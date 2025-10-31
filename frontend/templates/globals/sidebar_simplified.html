@@ -1,0 +1,478 @@
+{% comment %}
+Simplified Sidebar Navigation
+==============================
+Reduces navigation from 15 top-level menus to 10 primary sections.
+
+Design principles:
+- Domain-driven organization
+- Maximum 2 levels of nesting
+- Capability-based visibility (RBAC)
+- Material icons for visual clarity
+
+Usage:
+  {% include "globals/sidebar_simplified.html" %}
+{% endcomment %}
+
+<div
+  class="menu menu-column menu-title-gray-800 menu-state-title-primary menu-state-icon-primary menu-state-bullet-primary menu-arrow-gray-500"
+  id="kt_aside_menu"
+  data-kt-menu="true"
+>
+
+  {# ============================================
+     COMMAND CENTER (Default landing)
+     ============================================ #}
+  <div class="menu-item" id="menu-command-center">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">dashboard</span>
+      </span>
+      <span class="menu-title">Command Center</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'core:portfolio_command_center' %}">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Portfolio Overview</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'onboarding:rp_dashboard' %}">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Site Operations</span>
+        </a>
+      </div>
+      <div class="menu-item" id="menu-noc-live">
+        <a class="menu-link" href="{% url 'noc:noc_dashboard' %}">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">NOC Live Feed</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     SITES
+     ============================================ #}
+  <div class="menu-item" id="menu-sites" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">location_city</span>
+      </span>
+      <span class="menu-title">Sites</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'onboarding:bu_list' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Business Units</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'peoples:sitegroup' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Site Groups</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'onboarding:geofence' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Geofences</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     ATTENDANCE
+     ============================================ #}
+  <div class="menu-item" id="menu-attendance" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">how_to_reg</span>
+      </span>
+      <span class="menu-title">Attendance</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'attendance:attendance_view' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Compliance</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'attendance:attendance_view' %}?template=exceptions">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Exceptions</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'attendance:geofencetracking' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Geofence Tracking</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'attendance:conveyance' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Transport/Conveyance</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     TASKS & TOURS
+     ============================================ #}
+  <div class="menu-item" id="menu-tasks-tours" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">task</span>
+      </span>
+      <span class="menu-title">Tasks & Tours</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'scheduler:jobneedtasks' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Tasks</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'scheduler:jobneedtours' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Internal Tours</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'scheduler:jobneedexternaltours' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">External Tours</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:ppmjobneed' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">PPM Schedule</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     TICKETS
+     ============================================ #}
+  <div class="menu-item" id="menu-tickets" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">confirmation_number</span>
+      </span>
+      <span class="menu-title">Tickets</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'scheduler:retrieve_tickets' %}">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">All Tickets</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'scheduler:retrieve_tickets' %}?filter=sla_risk">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">SLA At Risk</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:esc_list' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Escalations</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     WORK ORDERS
+     ============================================ #}
+  <div class="menu-item" id="menu-work-orders" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">engineering</span>
+      </span>
+      <span class="menu-title">Work Orders</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'work_order_management:work_order' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">All Work Orders</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'work_order_management:work_permit' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Work Permits</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:assetmaintainance' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Asset Maintenance</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     REPORTS
+     ============================================ #}
+  <div class="menu-item" id="menu-reports" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">assessment</span>
+      </span>
+      <span class="menu-title">Reports</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'reports:incidentreport_list' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Incident Reports</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'reports:sitereport_list' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Site Reports</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="#">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Scheduled Reports</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     NOC (Network Operations Center)
+     ============================================ #}
+  <div class="menu-item" id="menu-noc" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">security</span>
+      </span>
+      <span class="menu-title">NOC</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="/helpbot/security_scorecard/">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Security Scorecard</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="#">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Alert Correlation</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="#">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Incident Lanes</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     PEOPLE
+     ============================================ #}
+  <div class="menu-item" id="menu-people" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">people</span>
+      </span>
+      <span class="menu-title">People</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'peoples:people' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Directory</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'peoples:peoplegroup' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Groups</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'peoples:capability' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Capabilities</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     ASSETS
+     ============================================ #}
+  <div class="menu-item" id="menu-assets" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">build</span>
+      </span>
+      <span class="menu-title">Assets</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:asset' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Asset Registry</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:smartplace' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Smartplaces</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:checkpoint' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Checkpoints</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:location' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Locations</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ============================================
+     SETTINGS (Admin/Configuration)
+     ============================================ #}
+  <div class="menu-item" id="menu-settings" style="display:none;">
+    <span class="menu-link" data-kt-menu-trigger="click">
+      <span class="menu-icon">
+        <span class="material-icons">settings</span>
+      </span>
+      <span class="menu-title">Settings</span>
+      <span class="menu-arrow"></span>
+    </span>
+    <div class="menu-sub menu-sub-accordion">
+      <div class="menu-item" id="submenu-company-setup">
+        <span class="menu-link" data-kt-menu-trigger="click">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Company Setup</span>
+          <span class="menu-arrow"></span>
+        </span>
+        <div class="menu-sub menu-sub-accordion">
+          <div class="menu-item">
+            <a class="menu-link" href="{% url 'onboarding:client' %}?template=true">
+              <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+              <span class="menu-title">Clients</span>
+            </a>
+          </div>
+          <div class="menu-item">
+            <a class="menu-link" href="{% url 'onboarding:shift' %}?template=true">
+              <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+              <span class="menu-title">Shifts</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:question' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Questions</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'activity:questionset' %}?template=true&type=QUESTIONSET">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Question Sets</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'onboarding:typeassist' %}?template=true">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Type Assist</span>
+        </a>
+      </div>
+      <div class="menu-item">
+        <a class="menu-link" href="{% url 'onboarding:import' %}?action=form">
+          <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+          <span class="menu-title">Import/Export</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% comment %}
+Navigation Visibility Control
+==============================
+Menu items are shown/hidden based on user capabilities.
+This JavaScript should be loaded in the layout.html file.
+{% endcomment %}
+
+<script>
+(function() {
+  'use strict';
+
+  // Show only assigned menu items based on user capabilities
+  if (typeof session !== 'undefined' && session.user_capabilities) {
+    const capabilities = session.user_capabilities;
+
+    // Map capabilities to menu IDs
+    const menuCapabilityMap = {
+      'menu-command-center': ['VIEW_DASHBOARD'],
+      'menu-sites': ['VIEW_SITES', 'MANAGE_SITES'],
+      'menu-attendance': ['VIEW_ATTENDANCE'],
+      'menu-tasks-tours': ['VIEW_TASKS', 'VIEW_TOURS'],
+      'menu-tickets': ['VIEW_TICKETS'],
+      'menu-work-orders': ['VIEW_WORK_ORDERS'],
+      'menu-reports': ['VIEW_REPORTS'],
+      'menu-noc': ['VIEW_NOC'],
+      'menu-people': ['VIEW_PEOPLE'],
+      'menu-assets': ['VIEW_ASSETS'],
+      'menu-settings': ['ADMIN'],
+    };
+
+    // Show menus user has capability for
+    Object.keys(menuCapabilityMap).forEach(function(menuId) {
+      const requiredCaps = menuCapabilityMap[menuId];
+      const hasCapability = requiredCaps.some(cap => capabilities.includes(cap));
+
+      if (hasCapability || session.user.is_superuser) {
+        document.getElementById(menuId)?.style.removeProperty('display');
+      }
+    });
+  } else if (typeof session !== 'undefined' && session.user && session.user.is_superuser) {
+    // Superuser sees all
+    document.querySelectorAll('.menu-item[id^="menu-"]').forEach(function(item) {
+      item.style.removeProperty('display');
+    });
+  }
+})();
+</script>

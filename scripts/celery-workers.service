@@ -12,7 +12,8 @@ Type=forking
 User=www-data
 Group=www-data
 WorkingDirectory=/path/to/your/project/DJANGO5-master
-Environment="DJANGO_SETTINGS_MODULE=intelliwiz_config.settings"
+Environment="DJANGO_ENV=production"
+Environment="DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production"
 Environment="PYTHONPATH=/path/to/your/project/DJANGO5-master"
 
 # Comprehensive worker startup

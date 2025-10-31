@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch, MagicMock
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from apps.schedhuler.services.internal_tour_service import (
+from apps.scheduler.services.internal_tour_service import (
     InternalTourService,
     InternalTourJobneedService
 )

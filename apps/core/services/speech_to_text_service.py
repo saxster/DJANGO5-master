@@ -13,8 +13,18 @@ import os
 import tempfile
 import subprocess
 import logging
-from google.cloud import speech
-from google.cloud.speech import RecognitionConfig, RecognitionAudio
+from typing import Optional, Dict, List
+
+# Optional Google Cloud Speech dependency - graceful fallback if not installed
+try:
+    from google.cloud import speech
+    from google.cloud.speech import RecognitionConfig, RecognitionAudio
+    GOOGLE_SPEECH_AVAILABLE = True
+except ImportError:
+    GOOGLE_SPEECH_AVAILABLE = False
+    speech = None
+    RecognitionConfig = None
+    RecognitionAudio = None
 
 logger = logging.getLogger(__name__)
 error_logger = logging.getLogger("error_logger")
@@ -50,15 +60,24 @@ class SpeechToTextService:
     def _initialize_client(self):
         """Initialize Google Cloud Speech client with proper error handling"""
         try:
+            # Check if Google Cloud Speech library is available
+            if not GOOGLE_SPEECH_AVAILABLE:
+                logger.warning("Google Cloud Speech library not installed - speech transcription unavailable")
+                self.client = None
+                return
+
+            # Import settings here to avoid circular import during module load
+            from django.conf import settings
+
             # Check if credentials path is configured
             credentials_path = getattr(settings, 'GOOGLE_APPLICATION_CREDENTIALS', None)
 
             if not credentials_path:
-                error_logger.error("GOOGLE_APPLICATION_CREDENTIALS not configured in settings")
+                error_logger.warning("GOOGLE_APPLICATION_CREDENTIALS not configured in settings")
                 return
 
             if not os.path.exists(credentials_path):
-                error_logger.error(f"Google Cloud credentials file not found at: {credentials_path}")
+                error_logger.warning(f"Google Cloud credentials file not found at: {credentials_path}")
                 return
 
             # Initialize client with service account file
@@ -66,7 +85,7 @@ class SpeechToTextService:
             logger.info("Google Cloud Speech client initialized successfully")
 
         except (ValueError, TypeError) as e:
-            error_logger.error(f"Failed to initialize Google Cloud Speech client: {str(e)}")
+            error_logger.warning(f"Failed to initialize Google Cloud Speech client: {str(e)}")
             self.client = None
 
     def transcribe_audio(self, jobneed_detail) -> Optional[str]:

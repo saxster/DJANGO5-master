@@ -3,7 +3,6 @@ from unittest.mock import Mock, MagicMock, patch
 
 from apps.onboarding_api.services.knowledge import (
     VectorStore,
-    PostgresVectorStore,
     PostgresArrayBackend,
     KnowledgeService,
     EnhancedKnowledgeService,
@@ -25,11 +24,9 @@ class TestBackwardCompatibility:
     """Test that refactored module maintains backward compatibility"""
 
     def test_all_classes_importable(self):
-        """Verify all original classes can still be imported"""
+        """Verify all refactored classes can be imported"""
         from apps.onboarding_api.services.knowledge import (
             VectorStore,
-            PostgresVectorStore,
-            ChunkedVectorStore,
             PostgresArrayBackend,
             PgVectorBackend,
             EnhancedPgVectorBackend,
@@ -44,7 +41,7 @@ class TestBackwardCompatibility:
         )
 
         assert VectorStore is not None
-        assert PostgresVectorStore is not None
+        assert PostgresArrayBackend is not None
         assert KnowledgeService is not None
 
     def test_factory_functions_available(self):

@@ -6,16 +6,41 @@ OTEL-integrated tracing for Django requests with comprehensive span attributes.
 Observability Enhancement (2025-10-01):
 - Proper OTEL context propagation
 - Middleware timing with span events
-- GraphQL operation name extraction
 - Correlation ID integration
 - View name and endpoint classification
 
 Follows .claude/rules.md Rule #7 (< 150 lines), Rule #11 (specific exceptions).
+
+@ontology(
+    domain="observability",
+    purpose="OpenTelemetry distributed tracing for Django HTTP requests with Jaeger integration",
+    middleware_type="both",
+    execution_order="early (to capture full request lifecycle)",
+    tracing_backend="OpenTelemetry",
+    export_destinations=["Jaeger", "OTLP-compatible backends"],
+    span_attributes=[
+        "http.method", "http.url", "http.status_code", "http.user_agent",
+        "http.client_ip", "http.response.duration_ms", "correlation_id",
+        "user.id", "user.is_staff"
+    ],
+    span_events=["request.start", "request.end", "exception"],
+    context_propagation="W3C Trace Context",
+    affects_all_requests=True,
+    performance_impact="~0.5ms per request",
+    criticality="medium",
+    observability_features=[
+        "Distributed trace correlation",
+        "Request duration tracking",
+        "Exception capture with stack traces",
+        "User context injection"
+    ],
+    integration_points=["CorrelationIDMiddleware", "Sentry", "Prometheus"],
+    tags=["middleware", "observability", "tracing", "opentelemetry", "jaeger"]
+)
 """
 
 import logging
 import time
-import json
 from typing import Optional
 
 from django.http import HttpRequest, HttpResponse
@@ -40,9 +65,7 @@ class TracingMiddleware(MiddlewareMixin):
     Rule #7 compliant: < 150 lines
     """
 
-    # GraphQL endpoint patterns
-    GRAPHQL_PATHS = ['/api/graphql/', '/graphql/', '/graphql']
-
+    
     def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
         """
         Create OTEL span at request start with comprehensive attributes.
@@ -50,7 +73,6 @@ class TracingMiddleware(MiddlewareMixin):
         Extracts:
         - HTTP method, URL, headers
         - Correlation ID (from CorrelationIDMiddleware)
-        - GraphQL operation name (if applicable)
         - User agent, IP address
         """
         # Get tracer
@@ -193,32 +215,26 @@ class TracingMiddleware(MiddlewareMixin):
 
     def _build_span_name(self, request: HttpRequest) -> str:
         """Build semantic span name based on request type."""
-        # For GraphQL, extract operation name
-        if request.path in self.GRAPHQL_PATHS and request.method == 'POST':
-            operation_name = self._extract_graphql_operation(request)
-            if operation_name:
-                return f"GraphQL {operation_name}"
-
         # Default: HTTP method + path
         return f"{request.method} {request.path}"
 
-    def _extract_graphql_operation(self, request: HttpRequest) -> Optional[str]:
-        """Extract GraphQL operation name from request body."""
-        try:
-            if request.content_type == 'application/json':
-                body = json.loads(request.body)
-                return body.get('operationName', 'Unknown')
-        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
-            pass
-        return None
-
     def _add_request_attributes(self, span, request: HttpRequest):
         """Add comprehensive request attributes to span."""
+        from django.core.exceptions import DisallowedHost
+
         # HTTP attributes
         span.set_attribute('http.method', request.method)
-        span.set_attribute('http.url', request.build_absolute_uri())
+
+        # Safely build absolute URI (may fail if HTTP_HOST not in ALLOWED_HOSTS)
+        try:
+            span.set_attribute('http.url', request.build_absolute_uri())
+            span.set_attribute('http.host', request.get_host())
+        except DisallowedHost:
+            # Fallback to relative URL if host validation fails
+            span.set_attribute('http.url', request.path)
+            span.set_attribute('http.host', 'unknown')
+
         span.set_attribute('http.scheme', request.scheme)
-        span.set_attribute('http.host', request.get_host())
         span.set_attribute('http.target', request.path)
 
         # Correlation ID (from CorrelationIDMiddleware)
@@ -233,10 +249,6 @@ class TracingMiddleware(MiddlewareMixin):
         # Client IP (respects X-Forwarded-For)
         client_ip = self._get_client_ip(request)
         span.set_attribute('http.client_ip', client_ip)
-
-        # GraphQL specific
-        if request.path in self.GRAPHQL_PATHS:
-            span.set_attribute('graphql.endpoint', request.path)
 
     def _get_client_ip(self, request: HttpRequest) -> str:
         """Extract client IP from request (handles proxies)."""

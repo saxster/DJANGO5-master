@@ -3,7 +3,8 @@
 import apps.activity.managers.asset_manager
 import apps.activity.managers.attachment_manager
 import apps.activity.managers.deviceeventlog_manager
-import apps.activity.managers.job_manager
+import apps.activity.managers.job.jobneed_manager
+import apps.activity.managers.job.jobneed_details_manager
 import apps.activity.managers.location_manager
 import apps.activity.managers.question_manager
 import apps.activity.models.asset_model
@@ -31,8 +32,8 @@ class Migration(migrations.Migration):
             name='Asset',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('assetcode', models.CharField(max_length=50, verbose_name='Asset Code')),
@@ -78,8 +79,8 @@ class Migration(migrations.Migration):
             name='Attachment',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('filepath', models.CharField(default='youtility4_media', max_length=100)),
@@ -104,8 +105,8 @@ class Migration(migrations.Migration):
             name='DeviceEventlog',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('deviceid', models.CharField(max_length=55, verbose_name='Device Id')),
@@ -143,8 +144,8 @@ class Migration(migrations.Migration):
             name='Job',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('jobname', models.CharField(max_length=200, verbose_name='Name')),
                 ('jobdesc', models.CharField(max_length=500, verbose_name='Description')),
@@ -178,8 +179,8 @@ class Migration(migrations.Migration):
             name='Jobneed',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('jobdesc', models.CharField(max_length=200, verbose_name='Job Description')),
@@ -217,15 +218,15 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             managers=[
-                ('objects', apps.activity.managers.job_manager.JobneedManager()),
+                ('objects', apps.activity.managers.job.jobneed_manager.JobneedManager()),
             ],
         ),
         migrations.CreateModel(
             name='JobneedDetails',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('seqno', models.SmallIntegerField(verbose_name='SL No.')),
@@ -248,15 +249,15 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             managers=[
-                ('objects', apps.activity.managers.job_manager.JobneedDetailsManager()),
+                ('objects', apps.activity.managers.job.jobneed_details_manager.JobneedDetailsManager()),
             ],
         ),
         migrations.CreateModel(
             name='Location',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('loccode', models.CharField(max_length=50, verbose_name='Asset Code')),
@@ -281,8 +282,8 @@ class Migration(migrations.Migration):
             name='Question',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('quesname', models.CharField(max_length=500, verbose_name='Name')),
                 ('options', models.TextField(max_length=2000, null=True, verbose_name='Options')),
@@ -310,8 +311,8 @@ class Migration(migrations.Migration):
             name='QuestionSet',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('qsetname', models.CharField(max_length=200, verbose_name='QuestionSet Name')),
                 ('enable', models.BooleanField(default=True, verbose_name='Enable')),
@@ -339,8 +340,8 @@ class Migration(migrations.Migration):
             name='QuestionSetBelonging',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('ismandatory', models.BooleanField(default=True, verbose_name='Mandatory')),
                 ('isavpt', models.BooleanField(default=False, verbose_name='Attachment Required')),

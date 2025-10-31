@@ -1,34 +1,53 @@
 # AI Integration Requirements for YOUTILITY5
+# NOTE: This file has optional AI dependencies. Base requirements are in base.txt
+# Some packages may have compatibility issues on macOS - see documentation
+
 # txtai - All-in-one AI framework for semantic search and LLM orchestration
 txtai[all]>=7.0.0
 txtai[embeddings]>=7.0.0
 txtai[pipeline]>=7.0.0
 
 # MindsDB - AI database automation platform
-mindsdb>=23.12.4.0
-mindsdb_datasources>=1.0.0
+# Updated to latest version for scikit-learn 1.5.x compatibility
+# TEMPORARILY DISABLED: Conflicts with Pillow>=11.3.0 security requirement (CVE-2025-48379)
+# Reason: mindsdb pulls in langchain-nvidia-ai-endpoints which requires pillow<11.0.0
+# Since NVIDIA endpoints are not used in the codebase, prioritizing security over optional AI feature
+# To install MindsDB manually if needed: pip install mindsdb>=25.9.0 (downgrades Pillow to 10.x)
+# mindsdb>=25.9.0  # Previous versions (23.12.4.0) had scikit-learn conflicts
+# mindsdb_datasources>=1.0.0
 
 # Vector databases and similarity search
-faiss-cpu>=1.7.4  # For CPU-based vector search
+# faiss-cpu>=1.7.4  # Removed - already in base.txt
 # faiss-gpu>=1.7.4  # Uncomment for GPU support
 # chromadb>=0.4.15  # Removed - using pgvector instead
 hnswlib>=0.7.0    # Hierarchical Navigable Small World graphs
 
 # Machine Learning and Data Science
-scikit-learn>=1.5.0  # Security update: CVE-2024-5206 (already satisfied with 1.5.0)
-numpy>=1.24.0
-pandas>=2.0.0
-scipy>=1.11.0
+# NOTE: These are already in base.txt - duplicates removed to avoid conflicts
+# scikit-learn>=1.5.0  # Already in base.txt line 207
+# numpy>=1.24.0  # Already in base.txt line 139
+# pandas>=2.0.0  # Already in base.txt line 159
+# scipy>=1.11.0  # Already in base.txt line 208
 
 # Deep Learning and Transformers
-torch>=2.7.2  # Security update: CVE-2025-32434, CVE-2025-3730, CVE-2025-2953
-transformers>=4.53.0  # Security update: Multiple CVEs - deserialization & ReDoS
+# NOTE: These are already in base.txt - duplicates removed to avoid conflicts
+# torch>=2.7.2  # Already in base.txt line 234 (pinned to 2.8.0)
+# transformers>=4.53.0  # Already in base.txt line 237 (pinned to 4.53.0)
 sentence-transformers>=2.2.2
 accelerate>=0.24.0
 
+# Voice Recognition and Audio Processing
+# CRITICAL: Required for voice biometric authentication
+resemblyzer>=0.1.1.dev0  # Speaker recognition and voice verification
+librosa>=0.10.0          # Audio analysis and feature extraction
+pydub>=0.25.1            # Audio manipulation and format conversion
+soundfile>=0.12.1        # Audio I/O (read/write audio files)
+webrtcvad>=2.0.10        # Voice activity detection
+silero-vad>=4.0.0        # Modern VAD using neural networks (optional enhancement)
+
 # Natural Language Processing
-nltk>=3.9  # Security update: CVE-2024-39705 (already satisfied with 3.9.1)
-spacy>=3.7.0
+# nltk>=3.9  # Already in base.txt line 138 (pinned to 3.9.1)
+# spacy>=3.8.6  # Already in base.txt line 204 (updated to 3.8.6+ for Python 3.13)
 textblob>=0.17.1
 
 # Time Series Forecasting (for MindsDB integration)
@@ -38,15 +57,16 @@ hierarchicalforecast>=0.3.0
 
 # OpenAI and LLM integrations
 openai>=1.3.0
-anthropic>=0.7.0  # For Claude integration
-langchain>=0.1.0
-langchain-community>=0.0.10
-parlant>=3.0.0  # Conversational AI framework with ensured rule compliance
+anthropic>=0.7.0  # For Claude integration (backup/fallback)
+google-generativeai>=0.8.3  # Google Gemini (primary LLM for agent intelligence)
+# langchain>=0.1.0  # REMOVED: Not used in codebase (Parlant is used instead)
+# langchain-community>=0.0.10  # REMOVED: Not used in codebase
+parlant>=3.0.0  # Conversational AI framework with ensured rule compliance (LangChain alternative)
 
 # Database and Caching
 redis>=5.0.0      # For caching and real-time features
 celery>=5.3.0     # For background task processing
-psycopg2-binary>=2.9.7  # PostgreSQL adapter
+# psycopg2-binary removed - use psycopg[binary,pool]==3.2.7 from base.txt instead
 pgvector>=0.2.4   # PostgreSQL vector extension
 
 # API and Web Framework enhancements

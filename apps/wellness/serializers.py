@@ -9,9 +9,20 @@ Comprehensive serializers for wellness education system with:
 - Effectiveness analytics and engagement metrics
 """
 
+from typing import Any, Dict
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import WellnessContent, WellnessUserProgress, WellnessContentInteraction
+from django.db import models
+from .models import (
+    WellnessContent,
+    WellnessUserProgress,
+    WellnessContentInteraction,
+    WellnessContentCategory,
+    WellnessContentLevel,
+    WellnessDeliveryContext,
+    EvidenceLevel,
+)
 from apps.journal.serializers.pii_redaction_mixin import PIIRedactionMixin
 from apps.wellness.logging import get_wellness_logger
 
@@ -44,7 +55,7 @@ class WellnessContentListSerializer(serializers.ModelSerializer):
             'interaction_count', 'created_at', 'updated_at'
         ]
 
-    def get_interaction_count(self, obj):
+    def get_interaction_count(self, obj) -> int:
         """Get total interaction count for this content"""
         return obj.interactions.count()
 
@@ -98,7 +109,7 @@ class WellnessContentDetailSerializer(serializers.ModelSerializer):
             'is_high_evidence', 'needs_verification', 'effectiveness_metrics'
         ]
 
-    def get_effectiveness_metrics(self, obj):
+    def get_effectiveness_metrics(self, obj) -> Dict[str, Any]:
         """Calculate content effectiveness metrics"""
         interactions = obj.interactions.all()
         if not interactions:
@@ -271,7 +282,7 @@ class WellnessUserProgressSerializer(PIIRedactionMixin, serializers.ModelSeriali
 
     def validate_enabled_categories(self, value):
         """Validate enabled categories"""
-        valid_categories = [choice[0] for choice in WellnessContent.WellnessContentCategory.choices]
+        valid_categories = [choice[0] for choice in WellnessContentCategory.choices]
         for category in value:
             if category not in valid_categories:
                 raise serializers.ValidationError(f"Invalid category: {category}")
@@ -357,12 +368,12 @@ class DailyWellnessTipRequestSerializer(serializers.Serializer):
     """Serializer for daily wellness tip requests"""
 
     preferred_category = serializers.ChoiceField(
-        choices=WellnessContent.WellnessContentCategory.choices,
+        choices=WellnessContentCategory.choices,
         required=False,
         help_text="Preferred wellness category for the tip"
     )
     content_level = serializers.ChoiceField(
-        choices=WellnessContent.WellnessContentLevel.choices,
+        choices=WellnessContentLevel.choices,
         required=False,
         help_text="Preferred content complexity level"
     )
@@ -421,7 +432,7 @@ class PersonalizedContentRequestSerializer(serializers.Serializer):
         help_text="Number of personalized content items to return"
     )
     categories = serializers.ListField(
-        child=serializers.ChoiceField(choices=WellnessContent.WellnessContentCategory.choices),
+        child=serializers.ChoiceField(choices=WellnessContentCategory.choices),
         required=False,
         help_text="Filter by specific wellness categories"
     )

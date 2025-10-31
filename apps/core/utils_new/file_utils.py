@@ -42,7 +42,8 @@ from apps.core.data.excel_examples import (
 from apps.core.utils_new.upload_utils import (
     get_home_dir,
     upload,
-    upload_vendor_file
+    upload_vendor_file,
+    secure_file_path
 )
 
 from apps.core.utils_new.excel_utils import (
@@ -62,6 +63,7 @@ __all__ = [
     'get_home_dir',
     'upload',
     'upload_vendor_file',
+    'secure_file_path',
     'download_qrcode',
     'excel_file_creation',
     'excel_file_creation_update',

@@ -14,12 +14,12 @@ from typing import Dict, Any, List, Tuple
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 
-from apps.schedhuler.services.base_services import (
+from apps.scheduler.services.base_services import (
     BaseSchedulingService,
     BaseTourService,
     BaseJobneedService
 )
-from apps.schedhuler.services.checkpoint_manager import CheckpointManagerService
+from apps.scheduler.services.checkpoint_manager import CheckpointManagerService
 from apps.activity.models.job_model import Job
 from apps.core.error_handling import ErrorHandler
 
@@ -348,7 +348,7 @@ class ExternalTourService(BaseTourService):
 
     def _get_site_job_fields(self, job: Job, site: Dict) -> Dict[str, Any]:
         """Get job fields for site assignment."""
-        import apps.schedhuler.utils as sutils
+        import apps.scheduler.utils as sutils
         return sutils.job_fields(job.__dict__, site, external=True)
 
 

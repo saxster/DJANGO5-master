@@ -12,7 +12,7 @@ import apps.activity.utils as av_utils
 import apps.onboarding.models as obm
 from apps.core import utils
 from apps.onboarding.utils import is_point_in_geofence, polygon_to_address
-from apps.service.utils import get_model_or_form
+from apps.service.services.database_service import get_model_or_form
 import time
 from requests.exceptions import RequestException
 

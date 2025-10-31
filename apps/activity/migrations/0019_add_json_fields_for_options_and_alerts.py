@@ -13,7 +13,7 @@ Benefits of JSON fields:
 - Structured validation (Pydantic schemas)
 - Easier parsing in mobile apps (no CSV splitting)
 - Type-safe alert configuration (no string parsing like "<10, >90")
-- Better GraphQL schema representation
+- Better legacy API schema representation
 
 Android Impact: BACKWARD COMPATIBLE
 - Old fields (options, alerton) remain unchanged

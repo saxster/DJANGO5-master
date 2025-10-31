@@ -1,10 +1,11 @@
 """
 Consolidated URL configuration for People domain
-Combines: peoples, attendance, and people-related activity functionality
+Combines: people, attendance, and people-related activity functionality
 """
 from django.urls import path
 from django.views.generic import RedirectView
 from apps.peoples import views as people_views
+# Import from attendance.views package (refactored structure)
 from apps.attendance import views as attendance_views
 
 # Import mobile views if available
@@ -67,6 +68,6 @@ urlpatterns = [
     # ========== EMPLOYEES ==========
     path('employees/', people_views.PeopleView.as_view(), name='employees_list'),
     
-    # ========== EMAIL VERIFICATION (redirect to peoples app location) ==========
+    # ========== EMAIL VERIFICATION (redirect to people app location) ==========
     path('verify-email/', RedirectView.as_view(url='/peoples/verifyemail', permanent=False, query_string=True), name='verify_email_redirect'),
 ]

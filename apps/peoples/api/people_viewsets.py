@@ -14,6 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from apps.peoples.models import People
+from apps.ontology.decorators import ontology
 from apps.peoples.api.serializers import (
     PeopleListSerializer,
     PeopleDetailSerializer,
@@ -30,6 +31,39 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="people",
+    purpose="REST API for People (user) CRUD operations with tenant isolation and multi-tenant security",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["IsAuthenticated", "TenantIsolationPermission"],
+    rate_limit="100/minute",
+    request_schema="PeopleCreateSerializer|PeopleUpdateSerializer",
+    response_schema="PeopleListSerializer|PeopleDetailSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    pagination="MobileSyncCursorPagination",
+    filtering=["bu_id", "client_id", "department", "is_active"],
+    search_fields=["username", "email", "first_name", "last_name"],
+    ordering_fields=["date_joined", "last_login", "first_name"],
+    criticality="high",
+    tags=["api", "rest", "people", "users", "multi-tenant", "mobile"],
+    security_notes="Automatic tenant isolation via client_id/bu_id filtering. Owner/admin permissions for profile access. Soft delete preserves audit trail",
+    endpoints={
+        "list": "GET /api/v1/people/ - List all users (paginated, tenant-filtered)",
+        "create": "POST /api/v1/people/ - Create new user",
+        "retrieve": "GET /api/v1/people/{id}/ - Get user details",
+        "update": "PATCH /api/v1/people/{id}/ - Update user (partial)",
+        "delete": "DELETE /api/v1/people/{id}/ - Soft delete user",
+        "profile": "GET /api/v1/people/{id}/profile/ - Get detailed profile",
+        "capabilities": "PATCH /api/v1/people/{id}/capabilities/ - Update capabilities (admin only)"
+    },
+    examples=[
+        "curl -X GET https://api.example.com/api/v1/people/ -H 'Authorization: Bearer <token>'",
+        "curl -X POST https://api.example.com/api/v1/people/ -H 'Authorization: Bearer <token>' -d '{\"username\":\"john.doe\",\"email\":\"john@example.com\"}'",
+        "curl -X PATCH https://api.example.com/api/v1/people/123/capabilities/ -H 'Authorization: Bearer <token>' -d '{\"capabilities\":{\"view_reports\":true}}'"
+    ]
+)
 class PeopleViewSet(viewsets.ModelViewSet):
     """
     API endpoint for People (user) management.
@@ -53,6 +87,7 @@ class PeopleViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, TenantIsolationPermission]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     pagination_class = MobileSyncCursorPagination
+    schema = None  # Exclude outdated people API until serializers align with refactored models
 
     # Filtering
     filterset_fields = ['bu_id', 'client_id', 'department', 'is_active']

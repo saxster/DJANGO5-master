@@ -18,7 +18,7 @@ from apps.activity.forms.job_form import JobForm, JobNeedForm
 from apps.core import utils
 from apps.core.utils_new.business_logic import initailize_form_fields
 from apps.core.caching.form_mixins import CachedDropdownMixin
-from apps.schedhuler.mixins.form_mixins import (
+from apps.scheduler.mixins.form_mixins import (
     ValidationMixin,
     TimeMixin,
     DropdownMixin

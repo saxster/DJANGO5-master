@@ -699,7 +699,7 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
                     if isinstance(extras, str):
                         try:
                             extras = json.loads(extras)
-                        except:
+                        except (json.JSONDecodeError, ValueError, TypeError) as e:
                             extras = {}
                     
                     obj_dict.update({

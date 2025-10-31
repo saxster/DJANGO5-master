@@ -7,23 +7,38 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from django.contrib.messages import constants as message_constants
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# ============================================================================
+# CRITICAL: Set SECRET_KEY BEFORE INSTALLED_APPS
+# ============================================================================
+# Some apps (like django_email_verification) access settings.SECRET_KEY during
+# import, so we need to set a placeholder here that will be overridden by
+# development.py or production.py with validated values.
+# ============================================================================
+SECRET_KEY = os.environ.get('SECRET_KEY', get_random_secret_key())
+
 # Application definition
 INSTALLED_APPS = [
-    "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
+    # WebSocket support (must be before staticfiles)
+    "daphne", "channels",
+    # Modern admin interface (must precede the admin app config)
+    "unfold", "unfold.contrib.filters", "unfold.contrib.forms", "unfold.contrib.inlines",
+    # Django core apps
+    "apps.core.admin.apps.IntelliWizAdminConfig", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "django.contrib.gis",
     # Third-party apps
-    "graphene_django", "graphene_gis", "django_email_verification", "import_export",
+    "django_email_verification", "import_export",
     "django_extensions", "django_select2", "django_filters", "rest_framework", "rest_framework_simplejwt",
     "drf_spectacular", "drf_spectacular_sidecar",
-    "graphql_jwt.refresh_token.apps.RefreshTokenConfig", "django_celery_beat",
-    "django_celery_results", "corsheaders", "channels", "daphne", "django_cleanup.apps.CleanupConfig",
+    "django_celery_beat",
+    "django_celery_results", "corsheaders", "django_cleanup.apps.CleanupConfig",
     # Local apps
     'apps.core', 'apps.peoples', 'apps.onboarding', 'apps.onboarding_api', 'apps.people_onboarding', 'apps.tenants',
-    'apps.attendance', 'apps.activity', 'apps.schedhuler', 'apps.reminder', 'apps.reports',
+    'apps.attendance', 'apps.activity', 'apps.scheduler', 'apps.reminder', 'apps.reports',
     'apps.service', 'apps.y_helpdesk', 'apps.work_order_management', 'apps.mqtt', 'apps.face_recognition',
     'apps.voice_recognition', 'apps.journal', 'apps.wellness', 'apps.streamlab', 'apps.issue_tracker',
     'apps.ai_testing', 'apps.search', 'apps.api', 'apps.noc', 'apps.helpbot', 'monitoring',
@@ -51,11 +66,13 @@ CONTEXT_PROCESSORS = [
 ]
 
 TEMPLATES = [
-    {"BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [], "APP_DIRS": True,
+    {"BACKEND": "django.template.backends.django.DjangoTemplates",
+     "DIRS": [os.path.join(BASE_DIR, "templates")],
+     "APP_DIRS": True,
      "OPTIONS": {"context_processors": CONTEXT_PROCESSORS}},
     {"BACKEND": "django.template.backends.jinja2.Jinja2", "DIRS": [JINJA_TEMPLATES], "APP_DIRS": True,
      "OPTIONS": {"extensions": ["jinja2.ext.loopcontrols"], "autoescape": True, "auto_reload": True,
-                 "undefined": "jinja2.StrictUndefined", "environment": "intelliwiz_config.jinja.env.JinjaEnvironment",
+                 "environment": "intelliwiz_config.jinja.env.JinjaEnvironment",
                  "context_processors": CONTEXT_PROCESSORS}},
 ]
 
@@ -74,7 +91,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Core Django configuration
 LANGUAGE_CODE = "en-us"
 USE_I18N = True
-USE_L10N = True  # Enable localization formatting
+# DJANGO 5.x: USE_L10N removed (deprecated) - localization is always enabled
 USE_TZ = True
 TIME_ZONE = "UTC"
 
@@ -96,7 +113,7 @@ LOCALE_PATHS = [
     BASE_DIR / 'apps' / 'peoples' / 'locale',
     BASE_DIR / 'apps' / 'attendance' / 'locale',
     BASE_DIR / 'apps' / 'activity' / 'locale',
-    BASE_DIR / 'apps' / 'schedhuler' / 'locale',
+    BASE_DIR / 'apps' / 'scheduler' / 'locale',
     BASE_DIR / 'apps' / 'onboarding' / 'locale',
     BASE_DIR / 'apps' / 'reports' / 'locale',
     BASE_DIR / 'apps' / 'y_helpdesk' / 'locale',
@@ -132,6 +149,23 @@ from .security.headers import (
     LANGUAGE_COOKIE_SAMESITE,
     LANGUAGE_SESSION_KEY,
 )
+
+# ============================================================================
+# GEODJANGO CONFIGURATION (PostGIS Support)
+# ============================================================================
+# Import GDAL and GEOS library paths for GeoDjango spatial operations.
+# Required for django.contrib.gis (enabled in INSTALLED_APPS line 17).
+# Libraries must be installed via: brew install gdal geos postgis
+# ============================================================================
+
+from .geodjango import (
+    GDAL_LIBRARY_PATH,
+    GEOS_LIBRARY_PATH,
+)
+
+# REST migration feature flags
+from .api_migration_flags import API_MIGRATION_FEATURE_FLAGS
+
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "frontend/static")]
 STATICFILES_FINDERS = ["django.contrib.staticfiles.finders.FileSystemFinder", "django.contrib.staticfiles.finders.AppDirectoriesFinder"]
@@ -140,7 +174,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Authentication configuration
 AUTH_USER_MODEL = "peoples.People"
-AUTHENTICATION_BACKENDS = ["graphql_jwt.backends.JSONWebTokenBackend", "django.contrib.auth.backends.ModelBackend"]
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 # Custom message tags for Bootstrap
 MESSAGE_TAGS = {message_constants.DEBUG: "alert-info", message_constants.INFO: "alert-info",
@@ -149,70 +183,46 @@ MESSAGE_TAGS = {message_constants.DEBUG: "alert-info", message_constants.INFO: "
 # Database and routing
 DATABASE_ROUTERS = ["apps.tenants.middlewares.TenantDbRouter"]
 
-# GraphQL configuration
-GRAPHENE = {
-    "ATOMIC_MUTATIONS": True,
-    "SCHEMA": "apps.service.schema.schema",
-    "MIDDLEWARE": [
-        "graphql_jwt.middleware.JSONWebTokenMiddleware",
-        "apps.service.middleware.token_validation.RefreshTokenValidationMiddleware",  # Token blacklist validation
-        "apps.service.middleware.graphql_auth.GraphQLAuthenticationMiddleware",
-        "apps.service.middleware.graphql_auth.GraphQLTenantValidationMiddleware",
-        # PERFORMANCE: DataLoader middleware for N+1 query prevention (50%+ query reduction)
-        # CRITICAL: Must come after authentication but before business logic
-        "apps.api.graphql.dataloaders.DataLoaderMiddleware",
-        "apps.service.middleware.graphql_auth.GraphQLMutationChainingProtectionMiddleware",
-        "apps.service.middleware.graphql_auth.GraphQLIntrospectionControlMiddleware",
-    ]
-}
-
 # ============================================================================
-# GRAPHQL SECURITY CONFIGURATION (CVSS 8.1 vulnerability fix)
+# KNOWLEDGE BASE SECURITY CONFIGURATION (Sprint 1-2)
 # ============================================================================
-# All GraphQL settings are centralized in security/graphql.py for single source of truth.
-# This prevents configuration drift and maintains compliance with Rule #6 (settings < 200 lines).
-#
-# IMPORTANT: Do NOT define GraphQL settings here - import from security module only.
-# Any GraphQL setting changes must be made in security/graphql.py.
+# All knowledge base settings centralized in security/knowledge.py
+# Includes: allowlisted sources, content sanitization, two-person approval
 # ============================================================================
 
-from .security.graphql import (
-    # Endpoint configuration
-    GRAPHQL_PATHS,
+from .security.knowledge import (
+    # Allowlisted sources
+    KB_ALLOWED_SOURCES,
 
-    # Rate limiting
-    ENABLE_GRAPHQL_RATE_LIMITING,
-    GRAPHQL_RATE_LIMIT_WINDOW,
-    GRAPHQL_RATE_LIMIT_MAX,
+    # Document ingestion limits
+    KB_MAX_DOCUMENT_SIZE_BYTES,
+    KB_ALLOWED_MIME_TYPES,
+    KB_MAX_CHUNKS_PER_DOCUMENT,
+    KB_DEFAULT_CHUNK_SIZE,
+    KB_DEFAULT_CHUNK_OVERLAP,
 
-    # Query complexity limits (DoS prevention)
-    GRAPHQL_MAX_QUERY_DEPTH,
-    GRAPHQL_MAX_QUERY_COMPLEXITY,
-    GRAPHQL_MAX_MUTATIONS_PER_REQUEST,
-    GRAPHQL_ENABLE_COMPLEXITY_VALIDATION,
-    GRAPHQL_ENABLE_VALIDATION_CACHE,
-    GRAPHQL_VALIDATION_CACHE_TTL,
+    # Content sanitization
+    KB_ALLOWED_HTML_TAGS,
+    KB_FORBIDDEN_PATTERNS,
 
-    # Introspection control
-    GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION,
+    # Review workflow
+    KB_REQUIRE_TWO_PERSON_APPROVAL,
+    KB_MIN_ACCURACY_SCORE,
+    KB_MIN_COMPLETENESS_SCORE,
+    KB_MIN_RELEVANCE_SCORE,
+    KB_AUTO_REJECT_THRESHOLD,
 
-    # CSRF protection
-    GRAPHQL_CSRF_HEADER_NAMES,
+    # Search configuration
+    KB_MAX_SEARCH_RESULTS,
+    KB_DEFAULT_SEARCH_MODE,
+    KB_AUTHORITY_WEIGHTS,
+    KB_FRESHNESS_DECAY_DAYS,
 
-    # Origin validation
-    GRAPHQL_ALLOWED_ORIGINS,
-    GRAPHQL_STRICT_ORIGIN_VALIDATION,
-    GRAPHQL_ORIGIN_VALIDATION,
-
-    # Security logging
-    GRAPHQL_SECURITY_LOGGING,
-
-    # JWT authentication
-    GRAPHQL_JWT,
+    # Data retention
+    KB_INGESTION_JOB_RETENTION_DAYS,
+    KB_OLD_VERSION_RETENTION_DAYS,
+    KB_REJECTED_DOCUMENT_RETENTION_DAYS,
 )
-
-# Validation: Ensure GraphQL settings loaded correctly
-assert GRAPHQL_PATHS, "GraphQL settings not loaded - check security/graphql.py import"
 
 # ============================================================================
 # WEBSOCKET CONFIGURATION
@@ -328,3 +338,12 @@ HELPBOT_WIDGET_POSITION = 'bottom-right'  # Widget position on page
 HELPBOT_WIDGET_THEME = 'modern'  # UI theme (modern, classic, minimal)
 HELPBOT_SHOW_TYPING_INDICATOR = True  # Show typing indicator during AI response
 HELPBOT_ENABLE_QUICK_SUGGESTIONS = True  # Show quick suggestion buttons
+
+# ============================================================================
+# UNFOLD ADMIN THEME CONFIGURATION
+# ============================================================================
+# Modern admin interface with organized model grouping and enhanced UX
+# Configuration centralized in settings/unfold.py
+# ============================================================================
+
+from .unfold import UNFOLD

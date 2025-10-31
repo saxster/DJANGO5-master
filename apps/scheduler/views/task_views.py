@@ -20,8 +20,8 @@ from django.views import View
 from apps.core import utils
 from apps.core.exceptions import ValidationError, DatabaseException
 from apps.activity.models.job_model import Job
-import apps.schedhuler.forms as scd_forms
-from apps.schedhuler.services.task_service import TaskService, TaskJobneedService
+import apps.scheduler.forms as scd_forms
+from apps.scheduler.services.task_service import TaskService, TaskJobneedService
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 class SchdTaskFormJob(LoginRequiredMixin, View):
     """Create new task."""
 
-    template_path = "schedhuler/schd_task_form.html"
-    form_class = scd_forms.SchdTaskJobForm
+    template_path = "scheduler/schd_taskform_job.html"
+    form_class = scd_forms.SchdTaskFormJob  # Fixed: was SchdTaskJobForm
     service = TaskService()
 
     initial = {
@@ -84,8 +84,8 @@ class SchdTaskFormJob(LoginRequiredMixin, View):
 class UpdateSchdTaskJob(LoginRequiredMixin, View):
     """Update existing task."""
 
-    template_path = "schedhuler/schd_task_form.html"
-    form_class = scd_forms.SchdTaskJobForm
+    template_path = "scheduler/schd_taskform_job.html"
+    form_class = scd_forms.SchdTaskFormJob  # Fixed: was SchdTaskJobForm
     service = TaskService()
     initial = SchdTaskFormJob.initial
 
@@ -114,7 +114,7 @@ class UpdateSchdTaskJob(LoginRequiredMixin, View):
 class RetriveSchdTasksJob(LoginRequiredMixin, View):
     """List tasks."""
 
-    template_path = "schedhuler/task_list.html"
+    template_path = "scheduler/schd_tasklist_job.html"
     service = TaskService()
 
     def get(self, request, *args, **kwargs):
@@ -148,7 +148,7 @@ class RetriveSchdTasksJob(LoginRequiredMixin, View):
 class RetrieveTasksJobneed(LoginRequiredMixin, View):
     """List task jobneeds."""
 
-    template_path = "schedhuler/task_jobneed_list.html"
+    template_path = "scheduler/tasklist_jobneed.html"
     service = TaskJobneedService()
 
     def get(self, request, *args, **kwargs):
@@ -182,7 +182,7 @@ class RetrieveTasksJobneed(LoginRequiredMixin, View):
 class GetTaskFormJobneed(LoginRequiredMixin, View):
     """View specific task jobneed."""
 
-    template_path = "schedhuler/task_jobneed_detail.html"
+    template_path = "scheduler/taskform_jobneed.html"
     service = TaskJobneedService()
 
     def get(self, request, *args, **kwargs):

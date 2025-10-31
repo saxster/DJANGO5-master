@@ -84,6 +84,14 @@ from .site_onboarding import (
     CoveragePlan,
 )
 
+# Security & Enrollment Models (Sprint 1 - Oct 2025)
+from .approved_location import ApprovedLocation
+
+# Knowledge Management Models (Sprint 3 - Oct 2025)
+from .knowledge_source import KnowledgeSource
+from .knowledge_ingestion_job import KnowledgeIngestionJob
+from .knowledge_review import KnowledgeReview
+
 # Define what gets imported with "from apps.onboarding.models import *"
 __all__ = [
     # Core Business Models
@@ -120,12 +128,15 @@ __all__ = [
     'SOP',
     'CoveragePlan',
 
+    # Security & Enrollment Models (Sprint 1)
+    'ApprovedLocation',
+
+    # Knowledge Management Models (Sprint 3)
+    'KnowledgeSource',
+    'KnowledgeIngestionJob',
+    'KnowledgeReview',
+
     # Placeholder for future models (TBD)
-    # Knowledge Base Models:
-    # 'KnowledgeSource',
-    # 'KnowledgeIngestionJob',
-    # 'KnowledgeReview',
-    # 'AuthoritativeKnowledgeChunkEnhanced',
 
     # Personalization Models:
     # 'PreferenceProfile',

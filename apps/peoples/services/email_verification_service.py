@@ -7,16 +7,17 @@ Handles email verification workflow including:
 - Verification status management
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import EmailServiceException
-from apps.peoples.models import People
 from django_email_verification import send_email
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class EmailVerificationResult:
 class EmailVerificationService(BaseService):
     """Service for managing email verification operations."""
 
-    @BaseService.monitor_performance("send_verification_email")
+    @monitor_service_performance("send_verification_email")
     def send_verification_email(
         self,
         user_id: int
@@ -47,6 +48,8 @@ class EmailVerificationService(BaseService):
         Returns:
             EmailVerificationResult with status
         """
+        from apps.peoples.models import People  # Late import to prevent circular dependency
+
         try:
             user = People.objects.get(id=user_id)
             send_email(user)

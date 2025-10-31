@@ -17,7 +17,7 @@ from apps.onboarding.models import (
 from apps.onboarding.admin import (
     ConversationSessionAdmin, LLMRecommendationAdmin, AuthoritativeKnowledgeAdmin
 )
-)
+
 from background_tasks.onboarding_tasks import (
     cleanup_old_sessions, cleanup_failed_tasks, archive_completed_sessions
 )

@@ -4,6 +4,7 @@ import apps.peoples.models
 import apps.reminder.managers
 import django.db.models.deletion
 from django.conf import settings
+import django.utils.timezone
 from django.db import migrations, models
 
 
@@ -23,8 +24,8 @@ class Migration(migrations.Migration):
             name='Reminder',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('description', models.TextField(max_length=500, verbose_name='Description')),
                 ('priority', models.CharField(choices=[('HIGH', 'High'), ('LOW', 'Low'), ('MEDIU', 'Medium')], max_length=50, verbose_name='Priority')),

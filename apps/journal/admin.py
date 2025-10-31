@@ -254,7 +254,7 @@ class JournalPrivacySettingsAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('user')
 
 
-# Register admin customizations
-admin.site.site_header = 'IntelliWiz Journal & Wellness Administration'
-admin.site.site_title = 'Journal Admin'
-admin.site.index_title = 'Journal & Wellness Management'
+# NOTE: Admin site branding set centrally in intelliwiz_config/urls_optimized.py to avoid conflicts
+# admin.site.site_header = 'IntelliWiz Journal & Wellness Administration'
+# admin.site.site_title = 'Journal Admin'
+# admin.site.index_title = 'Journal & Wellness Management'

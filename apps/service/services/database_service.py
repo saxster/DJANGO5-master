@@ -53,7 +53,7 @@ from apps.work_order_management.utils import (
 )
 from apps.scheduler.utils import create_dynamic_job
 from apps.service.validators import clean_record
-from apps.service.rest_types import ServiceOutputType  # GraphQL types removed Oct 2025
+from apps.service.rest_types import ServiceOutputType  # Legacy query types removed Oct 2025
 
 # Import Messages class for consistency
 from apps.service.auth import Messages as AM

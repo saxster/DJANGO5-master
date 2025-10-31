@@ -275,7 +275,7 @@ class JobneedDetailsSerializers(ValidatedModelSerializer):
 
 class QuestionSerializers(ValidatedModelSerializer):
     """
-    Secure Question serializer (schedhuler-specific).
+    Secure Question serializer (scheduler-specific).
     """
 
     xss_protect_fields = ['quesname']
@@ -317,7 +317,7 @@ class QuestionSerializers(ValidatedModelSerializer):
 
 class QuestionSetSerializers(ValidatedModelSerializer):
     """
-    Secure QuestionSet serializer (schedhuler-specific).
+    Secure QuestionSet serializer (scheduler-specific).
     """
 
     xss_protect_fields = ['qsetname']
@@ -357,7 +357,7 @@ class QuestionSetSerializers(ValidatedModelSerializer):
 
 class QuestionSetBelongingSerializers(ValidatedModelSerializer):
     """
-    Secure QuestionSetBelonging serializer (schedhuler-specific).
+    Secure QuestionSetBelonging serializer (scheduler-specific).
     """
 
     class Meta:

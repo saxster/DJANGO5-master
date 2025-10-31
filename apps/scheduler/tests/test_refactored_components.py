@@ -16,18 +16,18 @@ from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
 from django.forms import ValidationError
 
-from apps.schedhuler.forms.refactored_forms import (
+from apps.scheduler.forms.refactored_forms import (
     InternalTourForm,
     ExternalTourForm,
     TaskForm,
 )
-from apps.schedhuler.services.refactored_services import (
+from apps.scheduler.services.refactored_services import (
     TaskService,
     InternalTourService,
     ExternalTourService,
 )
-from apps.schedhuler.services.checkpoint_manager import CheckpointManagerService
-from apps.schedhuler.mixins.form_mixins import ValidationMixin, TimeMixin
+from apps.scheduler.services.checkpoint_manager import CheckpointManagerService
+from apps.scheduler.mixins.form_mixins import ValidationMixin, TimeMixin
 from apps.activity.models.job_model import Job
 
 User = get_user_model()
@@ -192,7 +192,7 @@ class CheckpointManagerServiceTestCase(TestCase):
         with self.assertRaises(ValidationError):
             self.service.validate_checkpoint_data(invalid_checkpoints)
 
-    @patch('apps.schedhuler.services.checkpoint_manager.sutils.job_fields')
+    @patch('apps.scheduler.services.checkpoint_manager.sutils.job_fields')
     @patch.object(CheckpointManagerService, 'model')
     def test_save_checkpoints_for_tour(self, mock_model, mock_job_fields):
         """Test saving checkpoints for tour."""

@@ -19,6 +19,7 @@ File Structure:
 - group_model.py: Group management models (164 lines)
 - membership_model.py: Group membership relationships (120 lines)
 - capability_model.py: Hierarchical capabilities (113 lines)
+- device_registry.py: Device trust & biometric security (145 lines) [Sprint 1]
 
 Security Improvements:
 - Enhanced field encryption with Fernet
@@ -39,6 +40,7 @@ from .organizational_model import PeopleOrganizational
 from .group_model import PermissionGroup, Pgroup
 from .membership_model import Pgbelonging
 from .capability_model import Capability
+from .device_registry import DeviceRegistration, DeviceRiskEvent
 
 __all__ = [
     # Base classes
@@ -56,4 +58,8 @@ __all__ = [
 
     # Capabilities
     'Capability',
+
+    # Device Trust & Security (Sprint 1)
+    'DeviceRegistration',
+    'DeviceRiskEvent',
 ]

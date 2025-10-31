@@ -15,7 +15,7 @@ Following .claude/rules.md:
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING
 from enum import Enum
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
@@ -26,8 +26,13 @@ from django.contrib.auth.models import AbstractUser
 from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
 
-from apps.y_helpdesk.models import Ticket
-from apps.core.utils_new.data_extractors import extract_sensitive_fields
+# TYPE_CHECKING import to break circular dependency
+# (y_helpdesk.models → .managers → optimized_managers → services → ticket_state_machine → ticket_audit_service → y_helpdesk.models)
+if TYPE_CHECKING:
+    from apps.y_helpdesk.models import Ticket
+
+# Note: extract_sensitive_fields removed - function not used in this service
+# Sensitive field handling is done via SENSITIVE_FIELDS class attribute
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +132,7 @@ class TicketAuditService:
     @classmethod
     def log_ticket_creation(
         cls,
-        ticket: Ticket,
+        ticket,  # Type hint removed due to circular import (use TYPE_CHECKING for IDE support)
         context: AuditContext,
         additional_details: Optional[Dict] = None
     ) -> None:
@@ -161,7 +166,7 @@ class TicketAuditService:
     @classmethod
     def log_ticket_update(
         cls,
-        ticket: Ticket,
+        ticket,  # Type hint removed due to circular import (use TYPE_CHECKING for IDE support)
         changes: Dict[str, Any],
         context: AuditContext
     ) -> None:

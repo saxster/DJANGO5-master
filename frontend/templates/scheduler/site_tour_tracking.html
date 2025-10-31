@@ -193,7 +193,7 @@
     fire_ajax_get(
         {
             data:{'jobneed_id':"{{ jobneed_id }}", "action":'get_checkpoints'},
-            url:"{{ url('schedhuler:site_tour_tracking') }}"
+            url:"{{ url('scheduler:site_tour_tracking') }}"
         }
     )
     .done((data, status, xhr) => {

@@ -9,6 +9,7 @@ import logging
 import json
 import html
 import urllib.parse
+from typing import List, Dict, Any
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.views import View

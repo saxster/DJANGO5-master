@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any
 
 from django.db import models
 from django.utils import timezone
-from django.contrib.postgres.fields import JSONField
+from django.db.models import JSONField
 
 from apps.tenants.models import TenantAwareModel
 
@@ -173,6 +173,17 @@ class CronJobExecution(TenantAwareModel):
         null=True,
         blank=True,
         help_text="Average CPU usage percentage"
+    )
+
+    # Timestamp fields for tracking
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this execution record was created"
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="When this execution record was last updated"
     )
 
     class Meta:

@@ -22,7 +22,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 from apps.core.exceptions import SecurityException, PermissionDeniedError
 from apps.core.middleware.logging_sanitization import sanitized_warning, sanitized_info
 
@@ -79,7 +79,11 @@ class LogAccessAuditingService(BaseService):
         self.audit_cache_key_prefix = 'log_access_audit'
         self.audit_retention_days = 365
 
-    @BaseService.monitor_performance("validate_log_access")
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "LogAccessAuditingService"
+
+    @monitor_service_performance("validate_log_access")
     def validate_log_access(
         self,
         user,
@@ -219,7 +223,7 @@ class LogAccessAuditingService(BaseService):
             }
         )
 
-    @BaseService.monitor_performance("get_access_audit_trail")
+    @monitor_service_performance("get_access_audit_trail")
     def get_access_audit_trail(
         self,
         user_id: Optional[int] = None,

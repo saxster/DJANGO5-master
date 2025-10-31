@@ -262,7 +262,7 @@ class MLBaseline(models.Model):
                     is_active=True,
                     approval_status__in=['auto_approved', 'community_approved']
                 ).order_by('-created_at').first()
-            except:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 return None
 
     @classmethod

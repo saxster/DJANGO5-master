@@ -19,9 +19,23 @@ Date: 2025-10-01
 # Application definition
 INSTALLED_APPS = [
     # ========================================================================
+    # WebSocket Support (must be before staticfiles for Daphne)
+    # ========================================================================
+    "daphne",
+    "channels",
+
+    # ========================================================================
+    # Modern Admin Interface (must appear before the admin app config)
+    # ========================================================================
+    "unfold",  # Modern admin theme
+    "unfold.contrib.filters",  # Advanced filters
+    "unfold.contrib.forms",  # Enhanced forms
+    "unfold.contrib.inlines",  # Better inlines
+
+    # ========================================================================
     # Django Core Apps
     # ========================================================================
-    "django.contrib.admin",
+    "apps.core.admin.apps.IntelliWizAdminConfig",  # Custom admin site (replaces django.contrib.admin)
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -32,11 +46,6 @@ INSTALLED_APPS = [
     # ========================================================================
     # Third-Party Apps
     # ========================================================================
-    # GraphQL
-    "graphene_django",
-    "graphene_gis",
-    "graphql_jwt.refresh_token.apps.RefreshTokenConfig",
-
     # Admin and Forms
     "import_export",
     "django_extensions",
@@ -53,10 +62,6 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
 
-    # WebSockets and Real-time
-    "channels",
-    "daphne",
-
     # Utilities
     "django_email_verification",
     "corsheaders",
@@ -66,6 +71,7 @@ INSTALLED_APPS = [
     # Project Core Apps (Infrastructure)
     # ========================================================================
     'apps.core',           # Core utilities, middleware, security
+    'apps.ontology',       # Code-native ontology system for LLM-assisted development
     'apps.peoples',        # Authentication and user management
     'apps.tenants',        # Multi-tenancy support
     'apps.onboarding',     # Onboarding workflows
@@ -78,7 +84,7 @@ INSTALLED_APPS = [
     # Operations
     'apps.attendance',     # Employee attendance tracking
     'apps.activity',       # Task and activity management
-    'apps.schedhuler',     # Scheduling and calendar
+    'apps.scheduler',      # Scheduling and calendar (renamed from scheduler)
     'apps.reminder',       # Reminder system
 
     # Work Management
@@ -91,7 +97,7 @@ INSTALLED_APPS = [
     # ========================================================================
     # Integration Apps
     # ========================================================================
-    'apps.service',        # GraphQL service layer
+    'apps.service',        # Shared service layer
     'apps.api',            # REST API layer
     'apps.mqtt',           # IoT device communication
     'apps.face_recognition',   # Biometric authentication

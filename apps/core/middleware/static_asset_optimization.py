@@ -18,6 +18,14 @@ Performance improvements expected:
 import os
 import hashlib
 import gzip
+import logging
+from typing import Optional, List
+
+from django.conf import settings
+from django.core.cache import cache
+from django.http import HttpRequest, HttpResponse
+from django.utils.deprecation import MiddlewareMixin
+
 logger = logging.getLogger('static_optimization')
 
 try:

@@ -111,7 +111,7 @@ run_database_tests() {
     cd "$TEST_DIR"
 
     # Set Django settings module
-    export DJANGO_SETTINGS_MODULE=intelliwiz_config.settings
+    export DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.development
 
     if python3 database_performance_test.py 2>&1 | tee -a "$LOG_FILE"; then
         log "${GREEN}✅ Database tests completed successfully${NC}"

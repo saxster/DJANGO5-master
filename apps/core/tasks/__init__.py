@@ -51,12 +51,11 @@ from .monitoring import (
     monitor_task_execution
 )
 
-from .celery_config import (
+from .celery_settings import (
     get_celery_config,
     setup_task_monitoring,
     get_queue_priorities,
-    ENHANCED_CELERY_CONFIG,
-    ENHANCED_BEAT_SCHEDULE
+    ENHANCED_CELERY_CONFIG
 )
 
 __all__ = [
@@ -83,6 +82,5 @@ __all__ = [
     'get_celery_config',
     'setup_task_monitoring',
     'get_queue_priorities',
-    'ENHANCED_CELERY_CONFIG',
-    'ENHANCED_BEAT_SCHEDULE'
+    'ENHANCED_CELERY_CONFIG'
 ]

@@ -14,6 +14,7 @@ from enum import Enum
 from django.conf import settings
 from django.apps import apps
 
+from .models import (
     FaceRecognitionModel,
     FaceEmbedding,
     FaceVerificationLog,

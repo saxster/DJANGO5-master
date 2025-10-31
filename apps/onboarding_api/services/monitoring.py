@@ -13,12 +13,21 @@ This module provides comprehensive monitoring including:
 import logging
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
+from typing import Dict, Any, List, Optional
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
-    ConversationSession,
-    PreferenceProfile
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
+
+from apps.onboarding.models import LLMRecommendation, ConversationSession
+from apps.onboarding_api.services.experiments import (
+    Experiment,
+    ExperimentAssignment,
+    RecommendationInteraction
 )
+from apps.onboarding_api.services.learning import PreferenceProfile
+from apps.core.exceptions import LLMServiceException
 import numpy as np
 
 logger = logging.getLogger(__name__)

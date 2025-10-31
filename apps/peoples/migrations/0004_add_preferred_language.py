@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('peoples', '0003_add_query_performance_indexes'),
+        ('peoples', '0003_add_performance_indexes'),
     ]
 
     operations = [

@@ -21,14 +21,14 @@ Fields being encrypted:
 - challenges (JSON - challenges faced)
 """
 
-from django.db import migrations
+from django.db import migrations, models
 from apps.core.fields.encrypted_fields import EncryptedTextField, EncryptedJSONField
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('journal', '0013_previous_migration'),  # Update with actual previous migration
+        ('journal', '0003_refactor_journal_entry_models'),
     ]
 
     operations = [
@@ -104,7 +104,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='journalentry',
             name='is_encrypted',
-            field=migrations.BooleanField(
+            field=models.BooleanField(
                 default=False,
                 help_text="Flag indicating if this entry has been migrated to encrypted fields"
             ),

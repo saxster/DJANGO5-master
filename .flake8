@@ -41,22 +41,34 @@ per-file-ignores =
     # __init__.py files can have unused imports
     __init__.py:F401
     # Test files can have longer lines and complexity
-    test_*.py:E501,C901
-    *_test.py:E501,C901
-    tests.py:E501,C901
+    test_*.py:E501,C901,T001
+    *_test.py:E501,C901,T001
+    tests.py:E501,C901,T001
     # Allow long lines in documentation
     */docs/*:E501
     # Django admin can have complex registration
     admin.py:C901
     # Django management commands can be complex
-    */management/commands/*.py:C901
+    */management/commands/*.py:C901,T001
+    # Scripts directory can use print() for CLI output
+    scripts/*.py:T001
+    # Setup files can use print()
+    setup.py:T001
+    # Manage.py can use print()
+    manage.py:T001
 
 # Custom error codes for rule enforcement
-select = E,W,F,C
+select = E,W,F,C,T
 
 # Security-related checks (complement bandit)
 # B001-B999: bandit security issues
-# E722: bare except (Rule #11 - no generic exceptions)
+# E722: bare except (Rule #11 - no generic exceptions) - STRICTLY ENFORCED
+# T001-T003: flake8-print plugin - no print() in production code
 enable-extensions =
-    # Check for bare except statements (Rule #11)
-    E722
+    # Check for bare except statements (Rule #11) - ZERO TOLERANCE
+    E722,
+    # Check for print statements in production code (use logger instead)
+    T001
+
+# NOTE: E722 is automatically selected via 'E' in select list
+# It is listed here for documentation and emphasis only

@@ -1,7 +1,8 @@
 from django.apps import AppConfig
 
 
-class SchedhulerConfig(AppConfig):
-    name = "apps.schedhuler"
+class SchedulerConfig(AppConfig):
+    name = "apps.scheduler"
 
     def ready(self):
+        pass

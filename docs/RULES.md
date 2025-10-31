@@ -29,11 +29,11 @@
 
 ## Zero-Tolerance Violations
 
-### Rule #1: SQL Injection (GraphQL Bypass) ⚠️ DEPRECATED
+### Rule #1: SQL Injection (Legacy API Bypass) ⚠️ DEPRECATED
 
-**Status:** GraphQL removed October 29, 2025 (REST migration complete)
+**Status:** Legacy query layer retired October 29, 2025 (REST migration complete)
 
-**Historical Issue:** SQL injection middleware bypassed GraphQL endpoints
+**Historical Issue:** SQL injection middleware bypassed non-REST endpoints
 
 **Lesson Learned:** Never bypass security checks for any endpoint type
 

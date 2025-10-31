@@ -89,6 +89,16 @@ MODEL_EXCEPTIONS = (
     IntegrityError,      # Database integrity constraint
 )
 
+# Validation Operations (alias for backward compatibility)
+VALIDATION_EXCEPTIONS = (
+    ValidationError,     # Django validation errors
+    ValueError,          # Invalid value conversions
+    TypeError,           # Type mismatches
+)
+
+# Backward compatibility alias
+VALIDATION_ERRORS = VALIDATION_EXCEPTIONS
+
 # External API Operations
 API_EXCEPTIONS = NETWORK_EXCEPTIONS + (
     ValueError,          # Invalid response format
@@ -480,6 +490,8 @@ __all__ = [
     'JSON_EXCEPTIONS',
     'MODEL_EXCEPTIONS',
     'API_EXCEPTIONS',
+    'VALIDATION_EXCEPTIONS',
+    'VALIDATION_ERRORS',  # Backward compatibility alias
 
     # Handler functions
     'handle_database_operations',

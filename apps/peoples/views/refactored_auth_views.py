@@ -297,7 +297,7 @@ MAINTENANCE BENEFITS:
 
 3. Reusability:
    - Authentication logic can be reused in:
-     * GraphQL resolvers
+     * legacy API resolvers
      * API endpoints
      * Background tasks
      * Other views

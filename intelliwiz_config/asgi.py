@@ -18,7 +18,8 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+# Fail-closed: default to production for ASGI deployments.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.production')
 
 # Initialize Django ASGI application early to ensure the AppRegistry
 # is populated before importing code that may import ORM models.

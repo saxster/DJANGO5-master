@@ -48,7 +48,7 @@ class NOCIncident(TenantAwareModel, BaseModel):
         verbose_name=_("Linked Ticket")
     )
     work_order = models.ForeignKey(
-        'work_order_management.WorkOrder',
+        'work_order_management.Wom',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

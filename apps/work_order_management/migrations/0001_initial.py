@@ -9,6 +9,7 @@ import django.core.serializers.json
 import django.db.models.deletion
 import uuid
 from django.conf import settings
+import django.utils.timezone
 from django.db import migrations, models
 
 
@@ -28,8 +29,8 @@ class Migration(migrations.Migration):
             name='Vendor',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('code', models.CharField(max_length=50, null=True, verbose_name='Code')),
@@ -62,8 +63,8 @@ class Migration(migrations.Migration):
             name='Wom',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, unique=True)),
                 ('description', models.CharField(max_length=200, verbose_name='Job Description')),
@@ -116,8 +117,8 @@ class Migration(migrations.Migration):
             name='WomDetails',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('uuid', models.UUIDField(blank=True, default=uuid.uuid4, editable=False, unique=True)),
                 ('seqno', models.SmallIntegerField(verbose_name='SL #')),
@@ -153,8 +154,8 @@ class Migration(migrations.Migration):
             name='Approver',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('approverfor', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(blank=True, max_length=50, verbose_name='Approver/Verifier For'), blank=True, null=True, size=None)),
                 ('sites', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(blank=True, max_length=50), blank=True, null=True, size=None, verbose_name='Sites')),

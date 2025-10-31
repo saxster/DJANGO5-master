@@ -14,7 +14,8 @@ from django.http.request import QueryDict
 
 from apps.peoples.services import GroupManagementService
 from apps.peoples.forms import PeopleGroupForm
-from apps.core.utils_new.http_utils import get_clean_form_data, get_model_obj
+from apps.core.utils_new.http_utils import get_clean_form_data
+from apps.core.utils_new.business_logic import get_model_obj
 
 logger = logging.getLogger(__name__)
 

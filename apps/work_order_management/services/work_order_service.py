@@ -21,7 +21,7 @@ from django.db import IntegrityError
 from django.utils import timezone
 from django.http import HttpRequest
 
-from apps.core.services import BaseService, with_transaction, transaction_manager
+from apps.core.services import BaseService, with_transaction, transaction_manager, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import (
     BusinessLogicException,
@@ -126,7 +126,7 @@ class WorkOrderService(BaseService):
     def __init__(self):
         super().__init__()
 
-    @BaseService.monitor_performance("create_work_order")
+    @monitor_service_performance("create_work_order")
     @with_transaction()
     def create_work_order(
         self,
@@ -195,7 +195,7 @@ class WorkOrderService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("update_work_order")
+    @monitor_service_performance("update_work_order")
     @with_transaction()
     def update_work_order(
         self,
@@ -262,7 +262,7 @@ class WorkOrderService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("change_work_order_status")
+    @monitor_service_performance("change_work_order_status")
     @with_transaction()
     def change_work_order_status(
         self,
@@ -348,7 +348,7 @@ class WorkOrderService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("vendor_response_handling")
+    @monitor_service_performance("vendor_response_handling")
     @with_transaction()
     def handle_vendor_response(
         self,
@@ -434,7 +434,7 @@ class WorkOrderService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("process_approval_workflow")
+    @monitor_service_performance("process_approval_workflow")
     def process_approval_workflow(
         self,
         work_order_id: int,
@@ -488,7 +488,7 @@ class WorkOrderService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("get_work_order_metrics")
+    @monitor_service_performance("get_work_order_metrics")
     def get_work_order_metrics(
         self,
         date_range: Optional[Tuple[datetime, datetime]] = None,

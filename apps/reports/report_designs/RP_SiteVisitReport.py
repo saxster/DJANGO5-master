@@ -1,4 +1,4 @@
-from apps.reports.utils import BaseReportsExport
+from apps.reports.report_utils import BaseReportsExport
 from apps.core.utils import get_timezone
 from apps.core.queries import ReportQueryRepository
 from django.conf import settings

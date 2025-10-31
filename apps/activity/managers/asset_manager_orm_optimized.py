@@ -15,6 +15,25 @@ Performance improvements expected:
 """
 
 from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
+
+from django.utils import timezone
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db.models import (
+    Q,
+    F,
+    Count,
+    Case,
+    When,
+    Value,
+    Subquery,
+    OuterRef,
+    IntegerField,
+)
+from django.contrib.postgres.aggregates import StringAgg
+
+from apps.core.cache_manager import CacheManager
 
 
 __all__ = ['AssetManagerORMOptimized']

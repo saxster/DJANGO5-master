@@ -31,7 +31,7 @@ from django.db.models import Q
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0017_previous_migration'),  # Update with actual previous migration
+        ('core', '0016_add_state_transition_audit'),
     ]
 
     operations = [
@@ -39,12 +39,12 @@ class Migration(migrations.Migration):
         # STEP 1: Add primary composite index for duplicate detection
         # ====================================================================
 
+        # Note: Removed NOW() condition - not IMMUTABLE. Full index acceptable for idempotency checks.
         migrations.AddIndex(
             model_name='syncidempotencyrecord',
             index=models.Index(
                 fields=['idempotency_key', 'expires_at'],
-                name='sync_idem_key_expires_idx',
-                condition=Q(expires_at__gt=models.functions.Now())
+                name='sync_idem_key_expires_idx'
             ),
         ),
 
@@ -121,12 +121,12 @@ class Migration(migrations.Migration):
 
         # This index includes all columns needed for the most common query
         # to avoid table lookups (index-only scan)
+        # Note: Removed NOW() condition - not IMMUTABLE. Covering index still provides benefits.
         migrations.AddIndex(
             model_name='syncidempotencyrecord',
             index=models.Index(
                 fields=['idempotency_key', 'expires_at', 'hit_count', 'last_hit_at'],
-                name='sync_idem_covering_idx',
-                condition=Q(expires_at__gt=models.functions.Now())
+                name='sync_idem_covering_idx'
             ),
         ),
 
@@ -205,57 +205,35 @@ def cleanup_expired_records(apps, schema_editor):
 
 
 # SQL optimization hints for PostgreSQL
-class Migration(migrations.Migration):
-    """
-    Additional PostgreSQL-specific optimizations.
+# NOTE: These operations are commented out as they would be better applied
+# as separate database operations or post-migration scripts.
+# The duplicate Migration class was removed to fix migration conflicts.
+"""
+Additional PostgreSQL-specific optimizations that can be applied separately:
 
-    These are applied via RunSQL for PostgreSQL-specific features.
-    """
+-- Set maintenance_work_mem for faster index creation
+SET maintenance_work_mem = '256MB';
 
-    # ... (operations as above, plus:)
+-- Analyze table after index creation for query planner
+ANALYZE core_syncidempotencyrecord;
 
-    additional_operations = [
-        # Enable parallel index creation (PostgreSQL 11+)
-        migrations.RunSQL(
-            sql="""
-                -- Set maintenance_work_mem for faster index creation
-                SET maintenance_work_mem = '256MB';
+-- Set statistics target for better query plans
+ALTER TABLE core_syncidempotencyrecord
+ALTER COLUMN idempotency_key SET STATISTICS 1000;
 
-                -- Analyze table after index creation for query planner
-                ANALYZE core_syncidempotencyrecord;
+ALTER TABLE core_syncidempotencyrecord
+ALTER COLUMN expires_at SET STATISTICS 1000;
 
-                -- Set statistics target for better query plans
-                ALTER TABLE core_syncidempotencyrecord
-                ALTER COLUMN idempotency_key SET STATISTICS 1000;
+-- Add table-level comments for documentation
+COMMENT ON TABLE core_syncidempotencyrecord IS
+'Stores idempotency keys for task deduplication. Heavily indexed for performance.';
 
-                ALTER TABLE core_syncidempotencyrecord
-                ALTER COLUMN expires_at SET STATISTICS 1000;
-            """,
-            reverse_sql="""
-                -- Reset statistics target
-                ALTER TABLE core_syncidempotencyrecord
-                ALTER COLUMN idempotency_key SET STATISTICS 100;
+COMMENT ON INDEX sync_idem_key_expires_idx IS
+'Primary index for duplicate detection - used by UniversalIdempotencyService';
 
-                ALTER TABLE core_syncidempotencyrecord
-                ALTER COLUMN expires_at SET STATISTICS 100;
-            """
-        ),
-
-        # Add table-level comment for documentation
-        migrations.RunSQL(
-            sql="""
-                COMMENT ON TABLE core_syncidempotencyrecord IS
-                'Stores idempotency keys for task deduplication. Heavily indexed for performance.';
-
-                COMMENT ON INDEX sync_idem_key_expires_idx IS
-                'Primary index for duplicate detection - used by UniversalIdempotencyService';
-
-                COMMENT ON INDEX sync_idem_covering_idx IS
-                'Covering index for index-only scans - includes all hot path columns';
-            """,
-            reverse_sql="-- No reverse needed for comments"
-        ),
-    ]
+COMMENT ON INDEX sync_idem_covering_idx IS
+'Covering index for index-only scans - includes all hot path columns';
+"""
 
 
 # Performance validation query

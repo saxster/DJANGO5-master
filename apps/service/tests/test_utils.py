@@ -1,5 +1,5 @@
 import pytest
-from apps.service.utils import get_or_create_dir
+from apps.service.services.file_service import get_or_create_dir
 from apps.service.validators import (
     clean_string,
     validate_email,

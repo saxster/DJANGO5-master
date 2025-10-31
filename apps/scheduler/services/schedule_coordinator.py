@@ -20,7 +20,7 @@ Benefits:
 - Optimizes resource utilization
 
 Usage:
-    from apps.schedhuler.services.schedule_coordinator import ScheduleCoordinator
+    from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
 
     coordinator = ScheduleCoordinator()
 
@@ -49,8 +49,8 @@ from django.db.models import Count, Avg, Max
 
 from apps.core.services import BaseService
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE, SECONDS_IN_HOUR
-from apps.schedhuler.services.schedule_uniqueness_service import ScheduleUniquenessService
-from apps.schedhuler.services.dst_validator import DSTValidator
+from apps.scheduler.services.schedule_uniqueness_service import ScheduleUniquenessService
+from apps.scheduler.services.dst_validator import DSTValidator
 
 
 logger = logging.getLogger(__name__)

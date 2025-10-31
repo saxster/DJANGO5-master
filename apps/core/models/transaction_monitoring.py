@@ -95,7 +95,7 @@ class TransactionMetrics(TenantAwareModel):
 
     class Meta:
         db_table = 'transaction_metrics'
-        unique_together = [['operation_name', 'metric_date', 'hour_of_day', 'tenant', 'client']]
+        unique_together = [['operation_name', 'metric_date', 'hour_of_day', 'tenant']]
         ordering = ['-metric_date', '-hour_of_day']
         indexes = [
             models.Index(fields=['operation_name', 'metric_date']),

@@ -5,8 +5,10 @@ This module provides functions to validate that all required loggers are properl
 configured for production use, with appropriate handlers, formatters, and retention policies.
 """
 import logging
+from typing import Dict, Any
 from pathlib import Path
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 
 def validate_logger_configuration() -> Dict[str, Any]:

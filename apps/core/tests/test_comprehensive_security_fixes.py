@@ -22,10 +22,13 @@ from apps.peoples.models import People
 from apps.peoples.services import UserDefaultsService, UserCapabilityService
 from apps.peoples.fields.secure_fields import EnhancedSecureString
 from apps.core.services.secure_encryption_service import SecureEncryptionService
+from apps.core.middleware.logging_sanitization import (
     LogSanitizationMiddleware,
     LogSanitizationService,
-    get_sanitized_logger
+    get_sanitized_logger,
 )
+from unittest.mock import patch, Mock
+from django.test import TestCase, RequestFactory
 from apps.core.middleware.query_optimization_middleware import QueryOptimizationMiddleware
 from apps.core.services.query_optimization_service import QueryOptimizer
 from apps.core.xss_protection import XSSProtectionMiddleware

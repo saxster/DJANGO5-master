@@ -113,7 +113,7 @@ Site Diversion List
             columnDefs:[
                 {targets:0, data: 'id', visible:false, searchable:false},
                 {targets:2, data: 'jobdesc', render:function(data, type, row, meta){
-                    let redirectUrl = "{{ url('schedhuler:jobneedexternaltours') }}"
+                    let redirectUrl = "{{ url('scheduler:jobneedexternaltours') }}"
                     return `<a href="${redirectUrl}?id=${row['jobneed_id']}">${data}</a>`
                 }
                 },

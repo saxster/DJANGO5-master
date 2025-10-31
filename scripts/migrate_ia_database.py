@@ -13,7 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 
 # Setup Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.development')
 django.setup()
 
 from apps.core.url_router_optimized import OptimizedURLRouter
@@ -225,8 +225,8 @@ class IADatabaseMigrator:
         # If menu configurations are stored in database
         try:
             # Example: Update menu items table
-            # MenuItem.objects.filter(url__startswith='/schedhuler/').update(
-            #     url=F('url').replace('/schedhuler/', '/operations/')
+            # MenuItem.objects.filter(url__startswith='/scheduler/').update(
+            #     url=F('url').replace('/scheduler/', '/operations/')
             # )
             
             # Generate new menu configuration from router
@@ -307,7 +307,7 @@ class IADatabaseMigrator:
         try:
             # Update notification links to new URLs
             # Notification.objects.filter(
-            #     link__startswith='/schedhuler/'
+            #     link__startswith='/scheduler/'
             # ).update(link=...)
             
             self.log("Notifications migrated")

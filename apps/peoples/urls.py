@@ -4,7 +4,7 @@ from django.conf.urls.static import static
 from apps.peoples import views
 
 
-app_name = "peoples"
+app_name = "people"
 urlpatterns = [
     path(
         "peole_form/change_paswd/",

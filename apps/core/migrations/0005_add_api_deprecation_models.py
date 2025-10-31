@@ -12,6 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0004_add_cache_analytics_models'),
+        ('core', '0005_add_health_monitoring_models'),
         ('tenants', '0001_initial'),
     ]
 
@@ -23,15 +24,15 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('endpoint_pattern', models.CharField(
-                    help_text='URL pattern or GraphQL field path (e.g., /api/v1/people/ or Mutation.upload_attachment)',
+                    help_text='URL pattern or legacy field path (e.g., /api/v1/people/ or Mutation.upload_attachment)',
                     max_length=255
                 )),
                 ('api_type', models.CharField(
                     choices=[
                         ('rest', 'REST API'),
-                        ('graphql_query', 'GraphQL Query'),
-                        ('graphql_mutation', 'GraphQL Mutation'),
-                        ('graphql_field', 'GraphQL Field')
+                        ('legacy_query', 'Legacy Query'),
+                        ('legacy_mutation', 'Legacy Mutation'),
+                        ('legacy_field', 'Legacy Field')
                     ],
                     default='rest',
                     max_length=20

@@ -120,16 +120,6 @@ CACHE_LEAK_DETECTION_ENABLED = os.getenv('CACHE_LEAK_DETECTION_ENABLED', 'true')
 CACHE_LEAK_SCAN_INTERVAL = int(os.getenv('CACHE_LEAK_SCAN_INTERVAL', 3600))  # 1 hour
 
 # ============================================================================
-# GRAPHQL DEPRECATION TRACKING
-# ============================================================================
-
-# Enable GraphQL deprecation tracking
-GRAPHQL_DEPRECATION_TRACKING_ENABLED = os.getenv('GRAPHQL_DEPRECATION_TRACKING_ENABLED', 'true').lower() == 'true'
-
-# Include deprecation warnings in GraphQL response extensions
-GRAPHQL_DEPRECATION_WARNINGS_IN_RESPONSE = os.getenv('GRAPHQL_DEPRECATION_WARNINGS_IN_RESPONSE', 'true').lower() == 'true'
-
-# ============================================================================
 # UNIFIED OBSERVABILITY DASHBOARD
 # ============================================================================
 
@@ -186,10 +176,6 @@ __all__ = [
     'TENANT_CACHE_METRICS_ENABLED',
     'CACHE_LEAK_DETECTION_ENABLED',
     'CACHE_LEAK_SCAN_INTERVAL',
-
-    # GraphQL
-    'GRAPHQL_DEPRECATION_TRACKING_ENABLED',
-    'GRAPHQL_DEPRECATION_WARNINGS_IN_RESPONSE',
 
     # Dashboard
     'UNIFIED_OBSERVABILITY_DASHBOARD_ENABLED',

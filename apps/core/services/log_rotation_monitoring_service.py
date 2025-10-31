@@ -21,7 +21,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 
-from apps.core.services.base_service import BaseService
+from apps.core.services.base_service import BaseService, monitor_service_performance
 from apps.core.exceptions import SystemException
 from apps.core.middleware.logging_sanitization import sanitized_error, sanitized_warning
 
@@ -72,6 +72,10 @@ class LogRotationMonitoringService(BaseService):
             'alert_email_recipients', ['ops@youtility.in']
         )
 
+    def get_service_name(self) -> str:
+        """Return service name for logging and monitoring."""
+        return "LogRotationMonitoringService"
+
     def _get_log_directories(self) -> List[str]:
         """Get configured log directories."""
         dirs = []
@@ -84,7 +88,7 @@ class LogRotationMonitoringService(BaseService):
 
         return [d for d in dirs if os.path.exists(d)]
 
-    @BaseService.monitor_performance("check_log_rotation_status")
+    @monitor_service_performance("check_log_rotation_status")
     def check_log_rotation_status(self) -> Dict[str, any]:
         """
         Check status of all log files and detect issues.
@@ -245,7 +249,7 @@ class LogRotationMonitoringService(BaseService):
                 extra={'error': str(e)}
             )
 
-    @BaseService.monitor_performance("cleanup_old_logs")
+    @monitor_service_performance("cleanup_old_logs")
     def cleanup_old_logs(self, dry_run: bool = False) -> Dict[str, any]:
         """
         Clean up log files older than retention policy.

@@ -231,7 +231,7 @@ class Command(BaseCommand):
 
         if by_risk.get('HIGH', 0) > 10:
             recommendations.append('⚠️  High priority: Schedule remediation of high-risk modules')
-            recommendations.append('Focus on authentication, database, and GraphQL modules')
+            recommendations.append('Focus on authentication, database, and legacy API modules')
 
         if not self._check_hooks_installed():
             recommendations.append('📋 Install pre-commit hooks to prevent new violations')

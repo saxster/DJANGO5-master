@@ -18,6 +18,7 @@ __all__ = [
     'ALLOWED_TABLES',
     'ALLOWED_ORDER_COLUMNS',
     'SecureSQL',
+    'QueryValidator',  # Backward compatibility alias
     'secure_raw_sql',
 ]
 
@@ -310,3 +311,6 @@ cursor.execute(sql, in_params)
 # from apps.activity.managers.job_manager_orm import JobneedManagerORM
 # results = JobneedManagerORM.get_job_needs(Jobneed.objects, people_id, bu_id, client_id)
 """
+
+# Backward compatibility alias
+QueryValidator = SecureSQL

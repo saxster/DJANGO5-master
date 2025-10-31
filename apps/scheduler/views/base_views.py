@@ -18,7 +18,7 @@ from django.http import JsonResponse, QueryDict
 from django.shortcuts import render, redirect
 from django.views import View
 
-from apps.schedhuler.mixins.view_mixins import (
+from apps.scheduler.mixins.view_mixins import (
     FilterMixin,
     ErrorHandlingMixin,
     PaginationMixin

@@ -103,18 +103,5 @@ class Migration(migrations.Migration):
                 name='pel_geofence_datefor_idx'
             ),
         ),
-        migrations.AddIndex(
-            model_name='tracking',
-            index=models.Index(
-                fields=['people', 'shift'],
-                name='tracking_people_shift_idx'
-            ),
-        ),
-        migrations.AddIndex(
-            model_name='tracking',
-            index=BrinIndex(
-                fields=['cdtz'],
-                name='tracking_cdtz_brin_idx'
-            ),
-        ),
+        # Note: Removed all Tracking indexes - model doesn't have shift or cdtz fields (no BaseModel inheritance)
     ]

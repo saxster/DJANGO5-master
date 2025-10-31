@@ -2,7 +2,8 @@ import logging
 from datetime import datetime
 
 from django.contrib.gis.db.models.functions import AsGeoJSON
-from django.db import models
+from django.db import models, DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, F, Q
 from django.db.models import Value as V
 from django.db.models.functions import Cast, Concat

@@ -37,3 +37,26 @@ __all__ = [
     'get_client_ip',
     'mask_sensitive_data'
 ]
+
+# Import legacy utility functions from sibling utils.py module for backward compatibility
+try:
+    import importlib.util
+    import os
+    
+    # Get path to sibling utils.py file
+    utils_file_path = os.path.join(os.path.dirname(__file__), '..', 'utils.py')
+    utils_file_path = os.path.abspath(utils_file_path)
+    
+    # Load the module
+    spec = importlib.util.spec_from_file_location("core_utils_legacy", utils_file_path)
+    utils_legacy = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(utils_legacy)
+    
+    # Import the functions
+    get_email_addresses = utils_legacy.get_email_addresses
+    send_email = utils_legacy.send_email
+    
+    __all__.extend(['get_email_addresses', 'send_email'])
+except (ImportError, AttributeError, OSError) as e:
+    # Functions may have been refactored elsewhere
+    pass

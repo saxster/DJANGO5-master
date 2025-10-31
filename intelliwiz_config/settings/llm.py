@@ -176,13 +176,16 @@ CACHE_VERSION = env('CACHE_VERSION', default='1.0')
 DEFAULT_LLM_PROVIDER = env('DEFAULT_LLM_PROVIDER', default='gpt-3.5-turbo')
 
 # ============================================================================
-# Parlant Conversational AI Agent Configuration (Phase 3 - October 2025)
+# Parlant Conversational AI Agent Configuration (Sprint 3 - October 2025)
 # ============================================================================
 # Parlant provides ensured rule compliance for Security & Facility Mentor
 # conversations. See: https://github.com/emcie-co/parlant
+#
+# ACTIVATED: Sprint 3 (October 2025)
+# Status: Production-ready with multi-lingual support (English/Hindi/Telugu)
 
 # Enable/Disable Parlant Agent
-ENABLE_PARLANT_AGENT = env.bool('ENABLE_PARLANT_AGENT', default=False)
+ENABLE_PARLANT_AGENT = env.bool('ENABLE_PARLANT_AGENT', default=True)  # ENABLED in Sprint 3
 
 # Parlant LLM Provider Configuration
 PARLANT_LLM_PROVIDER = env('PARLANT_LLM_PROVIDER', default='openai')  # openai, anthropic, huggingface

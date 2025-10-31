@@ -41,54 +41,56 @@ def audit_security_flags() -> Tuple[bool, List[str]]:
     if not getattr(settings, 'LANGUAGE_COOKIE_SECURE', False):
         issues.append("LANGUAGE_COOKIE_SECURE is False (cookies can be intercepted over HTTP)")
 
-    # Check 2: JWT expiration verification
-    jwt_config = getattr(settings, 'GRAPHQL_JWT', {})
-    if not jwt_config.get('JWT_VERIFY_EXPIRATION', False):
-        issues.append("JWT_VERIFY_EXPIRATION is disabled (tokens never expire)")
-
-    # Check 3: JWT expiration time (should be <= 4 hours for production)
-    jwt_expiry_hours = jwt_config.get('JWT_EXPIRATION_DELTA', None)
-    if jwt_expiry_hours:
-        hours = jwt_expiry_hours.total_seconds() / 3600
+    # Check 2: JWT expiration verification (REST SimpleJWT)
+    jwt_config = getattr(settings, 'SIMPLE_JWT', {})
+    access_lifetime = jwt_config.get('ACCESS_TOKEN_LIFETIME')
+    if access_lifetime:
+        hours = access_lifetime.total_seconds() / 3600
         if hours > 4:
-            issues.append(f"JWT tokens expire after {hours} hours (too long for production, should be <= 2 hours)")
+            issues.append(
+                f"ACCESS_TOKEN_LIFETIME is {hours} hours (too long for production, should be <= 4 hours)"
+            )
     else:
-        issues.append("JWT_EXPIRATION_DELTA is not set")
+        issues.append("ACCESS_TOKEN_LIFETIME is not set in SIMPLE_JWT")
 
-    # Check 4: GraphQL origin validation
-    if not getattr(settings, 'GRAPHQL_STRICT_ORIGIN_VALIDATION', False):
-        issues.append("GRAPHQL_STRICT_ORIGIN_VALIDATION is disabled (any origin can query API)")
+    refresh_lifetime = jwt_config.get('REFRESH_TOKEN_LIFETIME')
+    if refresh_lifetime:
+        days = refresh_lifetime.total_seconds() / 86400
+        if days > 7:
+            issues.append(
+                f"REFRESH_TOKEN_LIFETIME is {days} days (consider lowering for security)"
+            )
 
-    # Check 5: Jinja2 auto-reload (performance impact)
+    # Check 4: Jinja2 auto-reload (performance impact)
     templates = getattr(settings, 'TEMPLATES', [])
     for template in templates:
         if 'jinja2' in template.get('BACKEND', '').lower():
             if template.get('OPTIONS', {}).get('auto_reload', False):
                 issues.append("Jinja2 auto_reload is enabled (performance impact in production)")
 
-    # Check 6: DEBUG setting (critical)
+    # Check 5: DEBUG setting (critical)
     if getattr(settings, 'DEBUG', False):
         issues.append("DEBUG is True (CRITICAL: exposes stack traces and internal details)")
 
-    # Check 7: SECRET_KEY strength
+    # Check 6: SECRET_KEY strength
     secret_key = getattr(settings, 'SECRET_KEY', '')
     if len(secret_key) < 50:
         issues.append(f"SECRET_KEY is too short ({len(secret_key)} characters, minimum 50)")
 
-    # Check 8: ALLOWED_HOSTS configuration
+    # Check 7: ALLOWED_HOSTS configuration
     allowed_hosts = getattr(settings, 'ALLOWED_HOSTS', [])
     if not allowed_hosts or '*' in allowed_hosts:
         issues.append("ALLOWED_HOSTS not properly configured (contains wildcard or is empty)")
 
-    # Check 9: CSRF cookie security
+    # Check 8: CSRF cookie security
     if not getattr(settings, 'CSRF_COOKIE_SECURE', False):
         issues.append("CSRF_COOKIE_SECURE is False (CSRF tokens can be intercepted)")
 
-    # Check 10: Session cookie security
+    # Check 9: Session cookie security
     if not getattr(settings, 'SESSION_COOKIE_SECURE', False):
         issues.append("SESSION_COOKIE_SECURE is False (session IDs can be intercepted)")
 
-    # Check 11: SSL redirect
+    # Check 10: SSL redirect
     if not getattr(settings, 'SECURE_SSL_REDIRECT', False):
         issues.append("SECURE_SSL_REDIRECT is False (HTTP traffic not redirected to HTTPS)")
 

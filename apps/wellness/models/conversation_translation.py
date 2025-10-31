@@ -9,7 +9,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from apps.core.models import BaseModel
+from apps.peoples.models import BaseModel  # BaseModel is in peoples, not core
 from apps.tenants.models import TenantAwareModel
 from .wisdom_conversations import WisdomConversation
 
@@ -227,13 +227,13 @@ class WisdomConversationTranslation(TenantAwareModel, BaseModel):
             ),
             # Performance monitoring
             models.Index(
-                fields=['translation_backend', 'created_at'],
+                fields=['translation_backend', 'cdtz'],
                 name='wellness_conv_trans_perf_idx'
             ),
         ]
 
         # Default ordering by quality and recency
-        ordering = ['-quality_level', '-created_at']
+        ordering = ['-quality_level', '-cdtz']
 
     def __str__(self):
         """String representation showing conversation and target language."""
@@ -382,8 +382,8 @@ class TranslationQualityFeedback(TenantAwareModel, BaseModel):
         unique_together = [('translation', 'user')]
 
         indexes = [
-            models.Index(fields=['quality_rating', 'created_at'], name='wellness_trans_feedback_rating_idx'),
-            models.Index(fields=['feedback_type', 'is_helpful'], name='wellness_trans_feedback_type_idx'),
+            models.Index(fields=['quality_rating', 'cdtz'], name='w_trans_fb_rating_idx'),
+            models.Index(fields=['feedback_type', 'is_helpful'], name='w_trans_fb_type_idx'),
         ]
 
     def __str__(self):

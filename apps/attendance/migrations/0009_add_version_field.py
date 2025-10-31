@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('attendance', '0008_add_performance_indexes'),
+        ('attendance', '0003_initial'),
     ]
 
     operations = [

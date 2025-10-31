@@ -33,6 +33,10 @@ class TaskService(BaseService):
         super().__init__()
         self.model = Job
 
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "TaskService"
+
     @with_transaction
     def create_task(
         self,
@@ -141,6 +145,10 @@ class TaskJobneedService(BaseService):
     def __init__(self):
         super().__init__()
         self.model = Jobneed
+
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "TaskJobneedService"
 
     def get_task_jobneeds(
         self,

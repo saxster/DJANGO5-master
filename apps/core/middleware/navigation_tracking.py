@@ -5,6 +5,7 @@ Tracks user navigation patterns for information architecture optimization
 from django.utils.deprecation import MiddlewareMixin
 from django.core.cache import cache
 from django.utils import timezone
+from typing import Dict
 import logging
 from datetime import datetime, timedelta
 

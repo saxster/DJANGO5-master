@@ -12,15 +12,40 @@ Learning Signals Captured:
 """
 
 import logging
+from typing import Dict, Any, List, Optional
+from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
-    PreferenceProfile,
-    RecommendationInteraction,
+from django.core.cache import cache
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from django.db.models import Avg
+from apps.onboarding.models import (
+    # PreferenceProfile,  # TBD - Model not yet implemented
+    # RecommendationInteraction,  # TBD - Model not yet implemented
     ConversationSession,
     LLMRecommendation
 )
 from apps.peoples.models import People
+from apps.core.exceptions import LLMServiceException, IntegrationException
 import numpy as np
+
+# Temporary stubs for unimplemented models (TBD)
+class PreferenceProfile:
+    """Stub for PreferenceProfile model (TBD)"""
+    objects = None
+    weights = {}
+    stats = {}
+    preference_vector = None
+    last_updated = None
+    def calculate_acceptance_rate(self):
+        return 0.0
+
+class RecommendationInteraction:
+    """Stub for RecommendationInteraction model (TBD)"""
+    objects = None
+    def get_time_to_decision(self):
+        return 0
 
 logger = logging.getLogger(__name__)
 
@@ -469,7 +494,7 @@ class FeatureExtractor:
                 # Extract numeric offset
                 offset_str = timezone_str.split('UTC')[1] if 'UTC' in timezone_str else '0'
                 return float(offset_str)
-            except:
+            except (ValueError, TypeError, AttributeError) as e:
                 return 0.0
 
         return 0.0

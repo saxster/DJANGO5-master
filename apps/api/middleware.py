@@ -2,7 +2,48 @@
 API Middleware for Monitoring and Optimization
 
 Provides request/response processing for API endpoints.
-"""
+
+@ontology(
+    domain="api",
+    purpose="Combined API middleware stack: monitoring, rate limiting, caching, and security headers",
+    middleware_type="both",
+    execution_order="after authentication, before views",
+    middleware_stack=[
+        "APISecurityMiddleware (security headers)",
+        "APIRateLimitMiddleware (per-tier rate limits)",
+        "APICacheMiddleware (GET request caching)",
+        "APIMonitoringMiddleware (metrics and analytics)"
+    ],
+    rate_limit_tiers={
+        "anonymous": "60 req/hour",
+        "authenticated": "600 req/hour",
+        "premium": "6000 req/hour"
+    },
+    cache_config={
+        "timeout": "300s (5min)",
+        "cacheable_paths": ["/api/v1/people/", "/api/v1/groups/", "/api/v1/assets/", "/api/v1/config/"],
+        "bypass": "?nocache or Cache-Control: no-cache"
+    },
+    security_headers=[
+        "X-Content-Type-Options: nosniff",
+        "X-Frame-Options: DENY",
+        "X-XSS-Protection: 1; mode=block",
+        "Strict-Transport-Security",
+        "removes Server and X-Powered-By"
+    ],
+    applies_to_paths=["/api/"],
+    affects_all_requests=False,
+    performance_impact="~2-5ms per request (depending on cache hit)",
+    criticality="high",
+    metrics_collected=[
+        "request count per endpoint",
+        "response time distribution",
+        "error rates by status code",
+        "cache hit/miss ratios"
+    ],
+    response_headers=["X-Response-Time", "X-API-Version", "X-RateLimit-*", "X-Cache"],
+    tags=["middleware", "api", "monitoring", "rate-limiting", "caching", "security"]
+)
 
 import time
 import json
@@ -54,22 +95,22 @@ class APIMonitoringMiddleware(MiddlewareMixin):
         """
         # Skip non-API requests
         if not request.path.startswith('/api/'):
-            return None
-        
+            return super().process_request(request)
+
         # Skip excluded paths
         if any(request.path.startswith(path) for path in self.excluded_paths):
-            return None
-        
+            return super().process_request(request)
+
         # Start timing
         request._api_start_time = time.time()
-        
+
         # Log request
         logger.debug(
             f"API Request: {request.method} {request.path} "
             f"(User: {request.user.id if request.user.is_authenticated else 'Anonymous'})"
         )
-        
-        return None
+
+        return super().process_request(request)
     
     def process_response(self, request, response):
         """
@@ -77,16 +118,18 @@ class APIMonitoringMiddleware(MiddlewareMixin):
         """
         # Skip non-API requests
         if not request.path.startswith('/api/'):
-            return response
-        
+            return super().process_response(request, response)
+
         # Skip excluded paths
         if any(request.path.startswith(path) for path in self.excluded_paths):
-            return response
-        
+            return super().process_response(request, response)
+
+        response = super().process_response(request, response)
+
         # Calculate execution time
         if hasattr(request, '_api_start_time'):
             execution_time = time.time() - request._api_start_time
-            
+
             # Record analytics
             try:
                 api_analytics.record_request(request, response, execution_time)
@@ -118,18 +161,21 @@ class APIMonitoringMiddleware(MiddlewareMixin):
                     level='critical'
                 )
                 logger.critical(f"Analytics system error", extra={'correlation_id': correlation_id})
-            
+
             # Add performance headers
             response['X-Response-Time'] = f"{execution_time:.3f}s"
             response['X-API-Version'] = self._get_api_version(request.path)
-            
+
             # Log slow requests
             if execution_time > 1.0:
                 logger.warning(
                     f"Slow API request: {request.method} {request.path} "
                     f"took {execution_time:.3f}s"
                 )
-        
+        else:
+            response.setdefault('X-API-Version', self._get_api_version(request.path))
+            response.setdefault('X-Response-Time', 'N/A')
+
         return response
     
     def process_exception(self, request, exception):
@@ -179,7 +225,7 @@ class APIMonitoringMiddleware(MiddlewareMixin):
                 )
                 logger.warning(f"Failed to record error analytics - data issue", extra={'correlation_id': correlation_id})
         
-        return None
+        return super().process_exception(request, exception)
     
     def _get_api_version(self, path):
         """
@@ -212,7 +258,7 @@ class APIRateLimitMiddleware(MiddlewareMixin):
         """
         # Skip non-API requests
         if not request.path.startswith('/api/'):
-            return None
+            return super().process_request(request)
         
         # Determine user tier
         user_tier = self._get_user_tier(request)
@@ -251,17 +297,18 @@ class APIRateLimitMiddleware(MiddlewareMixin):
         request._rate_limit_remaining = limit - current_count - 1
         request._rate_limit_reset = int(time.time()) + window
         
-        return None
+        return super().process_request(request)
     
     def process_response(self, request, response):
         """
         Add rate limit headers to response.
         """
+        response = super().process_response(request, response)
+
         if hasattr(request, '_rate_limit_limit'):
             response['X-RateLimit-Limit'] = request._rate_limit_limit
             response['X-RateLimit-Remaining'] = max(0, request._rate_limit_remaining)
             response['X-RateLimit-Reset'] = request._rate_limit_reset
-        
         return response
     
     def _get_user_tier(self, request):
@@ -310,15 +357,15 @@ class APICacheMiddleware(MiddlewareMixin):
         """
         # Only cache GET requests
         if request.method != 'GET':
-            return None
-        
+            return super().process_request(request)
+
         # Check if path is cacheable
         if not any(request.path.startswith(path) for path in self.cacheable_paths):
-            return None
-        
+            return super().process_request(request)
+
         # Skip if no-cache header is present
         if request.GET.get('nocache') or request.META.get('HTTP_CACHE_CONTROL') == 'no-cache':
-            return None
+            return super().process_request(request)
         
         # Generate cache key
         cache_key = self._generate_cache_key(request)
@@ -334,12 +381,14 @@ class APICacheMiddleware(MiddlewareMixin):
         # Store cache key for response processing
         request._cache_key = cache_key
         
-        return None
+        return super().process_request(request)
     
     def process_response(self, request, response):
         """
         Cache successful GET responses.
         """
+        response = super().process_response(request, response)
+
         # Check if we should cache this response
         if hasattr(request, '_cache_key') and response.status_code == 200:
             try:
@@ -377,7 +426,7 @@ class APICacheMiddleware(MiddlewareMixin):
                     level='warning'
                 )
                 logger.warning(f"Cache connection failed", extra={'correlation_id': correlation_id})
-        
+
         return response
     
     def _generate_cache_key(self, request):
@@ -410,6 +459,8 @@ class APISecurityMiddleware(MiddlewareMixin):
         DO NOT set Access-Control-Allow-Origin here as it conflicts with
         CORS_ALLOW_CREDENTIALS = True and can bypass domain restrictions.
         """
+        response = super().process_response(request, response)
+
         if request.path.startswith('/api/'):
             # Security headers
             response['X-Content-Type-Options'] = 'nosniff'

@@ -44,7 +44,7 @@ Scheduled Tasks
     var peopleList = null;
     var ajaxData = {}
 	//const table_id   = "#schd_task_table"
-    const formUrl    = "{{ url('schedhuler:jobschdtasks') }}"
+    const formUrl    = "{{ url('scheduler:jobschdtasks') }}"
     function showListOfPeoples(id, from){
         $('#id_people_list').modal('show')
         ajaxData.id=id
@@ -56,7 +56,7 @@ Scheduled Tasks
         //datatable initialization
         table = $("#schd_task_table").DataTable({
             ajax:{
-                url: "{{ url('schedhuler:jobschdtasks') }}?action=list"
+                url: "{{ url('scheduler:jobschdtasks') }}?action=list"
             },
 			scrollY: 300,
             scrollCollapse: true,
@@ -124,7 +124,7 @@ Scheduled Tasks
 					className: "btn btn-sm border border-primary btn-light-primary add_new_task",
 					//action for add_new_button
 					action: function(e, dt, node, config){
-        				window.location.href = "{{ url('schedhuler:jobschdtasks') }}?action=form";
+        				window.location.href = "{{ url('scheduler:jobschdtasks') }}?action=form";
 					}
 				}
 			]

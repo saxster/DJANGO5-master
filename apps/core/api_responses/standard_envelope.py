@@ -18,7 +18,7 @@ For Kotlin codegen:
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Generic, TypeVar, Optional, List, Dict, Any
+from typing import Generic, TypeVar, Optional, List, Dict, Any, Literal
 from datetime import datetime
 from uuid import UUID, uuid4
 from django.utils import timezone
@@ -99,7 +99,7 @@ class APIMeta(BaseModel):
 
 class APIResponse(BaseModel, Generic[T]):
     """
-    Standard envelope for ALL API responses (REST, GraphQL, WebSocket).
+    Standard envelope for ALL API responses (REST, legacy API, WebSocket).
 
     Provides consistent structure for success and error responses.
 
@@ -165,8 +165,8 @@ class ErrorResponse(APIResponse[None]):
 
     Maps to Kotlin: typealias ErrorResponse = APIResponse<Nothing?>
     """
-    success: bool = Field(default=False, const=True)
-    data: None = Field(default=None, const=True)
+    success: Literal[False] = Field(default=False)
+    data: Literal[None] = Field(default=None)
     errors: List[APIError] = Field(..., min_items=1)
 
 
@@ -176,9 +176,9 @@ class SuccessResponse(BaseModel, Generic[T]):
 
     Maps to Kotlin: typealias SuccessResponse<T> = APIResponse<T>
     """
-    success: bool = Field(default=True, const=True)
+    success: Literal[True] = Field(default=True)
     data: T
-    errors: None = Field(default=None, const=True)
+    errors: Literal[None] = Field(default=None)
     meta: APIMeta = Field(default_factory=APIMeta)
 
 

@@ -1,5 +1,5 @@
 from django.urls import path
-from apps.schedhuler.views import (
+from apps.scheduler.views import (
     Schd_I_TourFormJob,
     Update_I_TourFormJob,
     Retrive_I_ToursJob,
@@ -24,7 +24,7 @@ from apps.schedhuler.views import (
     get_cron_datetime,
 )
 
-app_name = "schedhuler"
+app_name = "scheduler"
 urlpatterns = [
     path(
         "schedhule_tour/", Schd_I_TourFormJob.as_view(), name="create_tour"

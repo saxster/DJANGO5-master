@@ -1,7 +1,7 @@
 """
 Standardized Error Code Taxonomy
 
-Machine-readable error codes for all APIs (REST & GraphQL).
+Machine-readable error codes for all APIs.
 Follows .claude/rules.md Rule #7 (< 150 lines).
 """
 

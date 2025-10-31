@@ -16,7 +16,7 @@ from django.http.request import QueryDict
 from apps.peoples.services import PeopleManagementService
 from apps.peoples.forms import PeopleForm, PeopleExtrasForm
 from apps.onboarding.forms import TypeAssistForm
-from apps.core.utils_new.http_utils import get_model_obj
+from apps.core.utils_new.business_logic import get_model_obj
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)

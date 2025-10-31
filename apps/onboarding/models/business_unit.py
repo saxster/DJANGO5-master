@@ -189,6 +189,27 @@ class Bt(BaseModel, TenantAwareModel):
         help_text="AI confidence score for the setup recommendations"
     )
 
+    @property
+    def address(self) -> str:
+        """Expose primary address stored inside bupreferences."""
+        preferences = self.bupreferences or {}
+        return preferences.get("address", "") or ""
+
+    @address.setter
+    def address(self, value: str) -> None:
+        preferences = dict(self.bupreferences or {})
+        preferences["address"] = value or ""
+        self.bupreferences = preferences
+
+    @property
+    def permissibledistance(self) -> float:
+        """Backward-compatible accessor for permissible distance."""
+        return self.pdist if self.pdist is not None else 0.0
+
+    @permissibledistance.setter
+    def permissibledistance(self, value) -> None:
+        self.pdist = value
+
     objects = BtManager()
 
     class Meta(BaseModel.Meta):

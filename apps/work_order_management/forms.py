@@ -8,7 +8,7 @@ from apps.onboarding import models as om
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.location_model import Location
-from apps.work_order_management.models import Approver
+from apps.work_order_management.models import Approver, Vendor, Wom
 from apps.peoples.models import Pgbelonging, People
 from apps.core.utils_new.business_logic import initailize_form_fields
 import logging

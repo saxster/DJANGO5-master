@@ -7,8 +7,7 @@ import apps.peoples.utils as putils
 import json
 import re
 import logging
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone as dt_timezone
 
 logger = logging.getLogger("django")
 
@@ -55,11 +54,6 @@ def get_assetsmartplace_choices(request, idfs):
         .annotate(checkpoint=Concat("assetname", Value(" ("), "assetcode", Value(")")))
     )
     return qset.values_list("id", "checkpoint")
-
-
-def initialize_alerton_field(val, choices=False):
-    """Placeholder for initializing alerton field choices."""
-    raise NotImplementedError()
 
 
 def validate_alertbelow(forms, data):
@@ -248,10 +242,10 @@ def column_filter(
             mystr = "".join(map(str, val1[1].strip())) + " 23:59"
             date_time_obj_start = datetime.strptime(val1[0].strip(), "%m/%d/%Y")
             date_time_obj_end = datetime.strptime(mystr, "%m/%d/%Y %H:%M")
-            startdateobj = date_time_obj_start.astimezone(pytz.UTC).replace(
+            startdateobj = date_time_obj_start.astimezone(dt_timezone.utc).replace(
                 microsecond=0
             )
-            enddateobj = date_time_obj_end.astimezone(pytz.UTC).replace(microsecond=0)
+            enddateobj = date_time_obj_end.astimezone(dt_timezone.utc).replace(microsecond=0)
             kwargs[col1] = [startdateobj, enddateobj]
         else:
             kwargs[col1] = val1

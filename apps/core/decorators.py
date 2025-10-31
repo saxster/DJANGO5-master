@@ -914,3 +914,136 @@ def _check_monitoring_rate_limit(api_key_obj: dict) -> bool:
 
     cache.set(cache_key, current_count + 1, period_seconds)
     return True
+
+
+def require_permissions(*permissions):
+    """
+    Decorator to require specific Django permissions for view access.
+
+    This decorator checks that the authenticated user has ALL specified permissions
+    (AND logic). For OR logic, use multiple decorators or check permissions manually.
+
+    Security Features:
+    - Validates user authentication
+    - Checks Django permission strings (format: "app_label.permission_codename")
+    - Logs permission denial attempts
+    - Returns appropriate error responses for AJAX, HTMX, and standard requests
+
+    Usage:
+        @require_permissions('activity.add_job', 'activity.change_job')
+        def create_job_view(request):
+            return JsonResponse({'status': 'success'})
+
+        # With other decorators
+        @csrf_protect_ajax
+        @require_permissions('core.manage_cron')
+        @rate_limit('60/h')
+        def cron_management_view(request):
+            return JsonResponse({'status': 'ok'})
+
+    Permission Format:
+    - "app_label.permission_codename"
+    - Example: "activity.add_job", "peoples.view_people"
+    - Special: "is_staff" checks request.user.is_staff
+    - Special: "is_superuser" checks request.user.is_superuser
+
+    Args:
+        *permissions: Variable number of permission strings
+
+    Returns:
+        Decorator function
+
+    Raises:
+        PermissionDenied: If user doesn't have required permissions (for non-AJAX/HTMX)
+
+    Rule Compliance:
+    - Rule #3 Compatible: Works with CSRF-protected views
+    - Proper error handling (Rule #11)
+    - No PII in logs (Rule #15)
+    """
+    def decorator(view_func: Callable) -> Callable:
+        @functools.wraps(view_func)
+        def wrapper(request: HttpRequest, *args, **kwargs) -> HttpResponse:
+            # Check authentication first
+            if not hasattr(request, 'user') or not request.user.is_authenticated:
+                security_logger.warning(
+                    f"Unauthenticated access attempt to permission-protected endpoint {request.path}",
+                    extra={
+                        'correlation_id': getattr(request, 'correlation_id', 'unknown'),
+                        'ip': _get_client_ip(request),
+                        'path': request.path,
+                        'required_permissions': permissions
+                    }
+                )
+
+                # Check request type for appropriate response
+                is_htmx = request.META.get('HTTP_HX_REQUEST') == 'true'
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+
+                if is_htmx:
+                    return HttpResponse(
+                        '<div class="alert alert-danger">Authentication required. Please log in.</div>',
+                        status=401
+                    )
+                elif is_ajax or request.content_type == 'application/json':
+                    return JsonResponse({
+                        'error': 'Authentication required',
+                        'code': 'AUTHENTICATION_REQUIRED'
+                    }, status=401)
+                else:
+                    raise PermissionDenied("Authentication required")
+
+            # Check each permission
+            missing_permissions = []
+            for permission in permissions:
+                # Handle special permission checks
+                if permission == 'is_staff':
+                    if not request.user.is_staff:
+                        missing_permissions.append('is_staff')
+                elif permission == 'is_superuser':
+                    if not request.user.is_superuser:
+                        missing_permissions.append('is_superuser')
+                else:
+                    # Standard Django permission check
+                    if not request.user.has_perm(permission):
+                        missing_permissions.append(permission)
+
+            if missing_permissions:
+                security_logger.warning(
+                    f"Permission denied for user accessing {request.path}",
+                    extra={
+                        'correlation_id': getattr(request, 'correlation_id', 'unknown'),
+                        'user': getattr(request.user, 'loginid', 'unknown'),
+                        'ip': _get_client_ip(request),
+                        'path': request.path,
+                        'required_permissions': list(permissions),
+                        'missing_permissions': missing_permissions
+                    }
+                )
+
+                # Check request type for appropriate response
+                is_htmx = request.META.get('HTTP_HX_REQUEST') == 'true'
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+
+                if is_htmx:
+                    return HttpResponse(
+                        '<div class="alert alert-danger">Permission denied. You do not have the required permissions.</div>',
+                        status=403
+                    )
+                elif is_ajax or request.content_type == 'application/json':
+                    return JsonResponse({
+                        'error': 'Permission denied',
+                        'code': 'PERMISSION_DENIED',
+                        'required_permissions': list(permissions),
+                        'help': 'Contact your administrator to request access'
+                    }, status=403)
+                else:
+                    raise PermissionDenied(
+                        f"Missing permissions: {', '.join(missing_permissions)}"
+                    )
+
+            # User has all required permissions
+            return view_func(request, *args, **kwargs)
+
+        return wrapper
+    return decorator

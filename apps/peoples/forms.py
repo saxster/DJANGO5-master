@@ -31,6 +31,9 @@ from apps.core.utils_new.code_validators import (
     validate_name,
 )
 
+# Security form utilities
+from apps.core.validation import SecureFormMixin, SecureCharField
+
 # ============= BEGIN LOGIN FORM ====================#
 
 
@@ -93,7 +96,7 @@ class LoginForm(SecureFormMixin, forms.Form):
         if not user.isverified:
             message = format_html(
                 'User is not verified, Please verify your email address by clicking <a href="{}?userid={}">verify me</a>',
-                reverse("peoples:verify_email"),
+                reverse("people:verify_email"),
                 user.id,
             )
             raise forms.ValidationError(message)
@@ -180,29 +183,33 @@ class PeopleForm(forms.ModelForm):
 
     class Meta:
         model = pm.People
+        # Note: After Sept 2025 refactoring, some fields moved to related models:
+        # - PeopleProfile: peopleimg, gender, dateofbirth, dateofjoin, dateofreport
+        # - PeopleOrganizational: location, department, designation, peopletype, worktype, bu, reportto
+        # These fields are accessible via person.profile.* and person.organizational.* relations
         fields = [
             "peoplename",
             "peoplecode",
-            "peopleimg",
+            # "peopleimg",  # Moved to PeopleProfile
             "mobno",
             "email",
             "loginid",
-            "dateofbirth",
+            # "dateofbirth",  # Moved to PeopleProfile
             "enable",
             "deviceid",
-            "gender",
+            # "gender",  # Moved to PeopleProfile
             "preferred_language",
-            "peopletype",
-            "dateofjoin",
-            "department",
-            "dateofreport",
-            "worktype",
-            "designation",
-            "reportto",
-            "bu",
+            # "peopletype",  # Moved to PeopleOrganizational
+            # "dateofjoin",  # Moved to PeopleProfile
+            # "department",  # Moved to PeopleOrganizational
+            # "dateofreport",  # Moved to PeopleProfile
+            # "worktype",  # Moved to PeopleOrganizational
+            # "designation",  # Moved to PeopleOrganizational
+            # "reportto",  # Moved to PeopleOrganizational
+            # "bu",  # Moved to PeopleOrganizational
             "isadmin",
             "ctzoffset",
-            "location",
+            # "location",  # Moved to PeopleOrganizational
         ]
         labels = {
             "peoplename": "Name",
@@ -249,11 +256,8 @@ class PeopleForm(forms.ModelForm):
         self.request = kwargs.pop("request", None)
         S = self.request.session
         super().__init__(*args, **kwargs)
-        self.fields["dateofbirth"].input_formats = settings.DATE_INPUT_FORMATS
-        self.fields["dateofreport"].input_formats = settings.DATE_INPUT_FORMATS
-        self.fields["dateofjoin"].input_formats = settings.DATE_INPUT_FORMATS
-        self.fields["dateofjoin"].required = False
 
+        # NOTE: Date fields moved to PeopleProfile model after Sept 2025 refactoring
         if self.instance and self.instance.pk:
             if self.instance.email:
                 self.initial['email'] = self.instance.email
@@ -261,28 +265,8 @@ class PeopleForm(forms.ModelForm):
             if self.instance.mobno:
                 self.initial['mobno'] = self.instance.mobno
 
-        # filters for dropdown fields
-        self.fields["peopletype"].queryset = om.TypeAssist.objects.filter(
-            tatype__tacode="PEOPLETYPE", client_id=S["client_id"], enable=True
-        )
-        self.fields[
-            "worktype"
-        ].queryset = om.TypeAssist.objects.get_choices_for_worktype(self.request)
-        self.fields["department"].queryset = om.TypeAssist.objects.filter(
-            tatype__tacode="DEPARTMENT", client_id=S["client_id"], enable=True
-        )
-        self.fields["designation"].queryset = om.TypeAssist.objects.filter(
-            tatype__tacode="DESIGNATION", client_id=S["client_id"], enable=True
-        )
-        buids = pm.Pgbelonging.objects.get_assigned_sites_to_people(
-            self.request.user.id
-        )
-        self.fields["bu"].queryset = om.Bt.objects.filter(
-            id__in=buids
-        )  # add query for isadmin
-        self.fields["location"].queryset = Location.objects.filter(
-            client_id=S["client_id"], enable=True
-        )
+        # NOTE: Organizational fields moved to PeopleOrganizational model after Sept 2025 refactoring
+        # If you need to edit these fields, use inline formsets or separate forms for PeopleProfile/PeopleOrganizational
         initailize_form_fields(self)
 
     def is_valid(self) -> bool:
@@ -293,16 +277,9 @@ class PeopleForm(forms.ModelForm):
 
     def clean(self):
         super(PeopleForm, self).clean()
-        dob = self.cleaned_data.get("dateofbirth")
-        doj = self.cleaned_data.get("dateofjoin")
-        dor = self.cleaned_data.get("dateofreport")
-        if dob and dor and doj:
-            if dob == doj:
-                raise forms.ValidationError(self.error_msg["invalid_dates"])
-            if dob >= doj:
-                raise forms.ValidationError(self.error_msg["dob_should_less_doj"])
-            if dob >= dor:
-                raise forms.ValidationError(self.error_msg["dob_should_less_dor"])
+        # NOTE: Date validation moved to PeopleProfile model after Sept 2025 refactoring
+        # Date fields (dateofbirth, dateofjoin, dateofreport) are now in PeopleProfile
+        # Validation is performed in PeopleProfile.clean() method
 
     # For field level validation define functions like clean_<func name>.
 

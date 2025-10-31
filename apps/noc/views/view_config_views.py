@@ -48,6 +48,10 @@ class NOCSavedViewListCreateView(ListCreateAPIView):
     @require_noc_capability('noc:view')
     def get_queryset(self):
         """Get user's accessible views (owned + shared)."""
+        if getattr(self, 'swagger_fake_view', False):
+            return NOCSavedView.objects.none()
+        if getattr(self.request, 'swagger_fake_view', False):
+            return NOCSavedView.objects.none()
         return NOCViewService.get_user_views(self.request.user)
 
     @require_noc_capability('noc:configure')
@@ -100,6 +104,10 @@ class NOCSavedViewDetailView(RetrieveUpdateDestroyAPIView):
     @require_noc_capability('noc:view')
     def get_queryset(self):
         """Get user's accessible views."""
+        if getattr(self, 'swagger_fake_view', False):
+            return NOCSavedView.objects.none()
+        if getattr(self.request, 'swagger_fake_view', False):
+            return NOCSavedView.objects.none()
         return NOCViewService.get_user_views(self.request.user)
 
     @require_noc_capability('noc:configure')

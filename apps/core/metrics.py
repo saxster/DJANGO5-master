@@ -5,7 +5,7 @@ Following .claude/rules.md:
 - Rule #7: Service <150 lines
 - Rule #11: Specific exception handling
 
-Created: October 29, 2025 (GraphQL-to-REST migration finalization)
+Created: October 29, 2025 (REST migration finalization)
 """
 
 from prometheus_client import Counter, Histogram, Gauge

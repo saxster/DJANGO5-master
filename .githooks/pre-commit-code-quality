@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+#
+# Pre-commit Hook: Code Quality Validation
+#
+# Prevents commits that introduce code smells:
+# 1. Bare except blocks
+# 2. Backup/stub files (_refactored.py, _backup.py, etc.)
+# 3. Files exceeding architectural size limits
+#
+# Installation:
+#   chmod +x .githooks/pre-commit-code-quality
+#   git config core.hooksPath .githooks
+#
+# To bypass (use sparingly):
+#   git commit --no-verify
+#
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}Running code quality checks...${NC}"
+
+# Get list of Python files being committed
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+
+if [ -z "$FILES" ]; then
+    echo -e "${GREEN}✓ No Python files to check${NC}"
+    exit 0
+fi
+
+VIOLATION_FOUND=0
+
+# Check 1: Bare except blocks
+echo "Checking for bare except blocks..."
+BARE_EXCEPT_COUNT=0
+for FILE in $FILES; do
+    if [ -f "$FILE" ]; then
+        # Skip test files
+        if [[ "$FILE" =~ /tests/ ]] || [[ "$FILE" =~ _test\.py$ ]]; then
+            continue
+        fi
+
+        # Check for bare except
+        BARE_EXCEPT=$(grep -n "^\s*except\s*:\s*$" "$FILE" || true)
+        if [ -n "$BARE_EXCEPT" ]; then
+            echo -e "${RED}✗ Bare except block found in $FILE:${NC}"
+            echo "$BARE_EXCEPT"
+            echo ""
+            echo "  Fix: Use specific exception types:"
+            echo "    except (ValueError, TypeError) as e:"
+            echo ""
+            BARE_EXCEPT_COUNT=$((BARE_EXCEPT_COUNT + 1))
+            VIOLATION_FOUND=1
+        fi
+    fi
+done
+
+if [ $BARE_EXCEPT_COUNT -eq 0 ]; then
+    echo -e "${GREEN}✓ No bare except blocks${NC}"
+fi
+
+# Check 2: Backup/stub files
+echo "Checking for backup/stub files..."
+BACKUP_FILE_COUNT=0
+for FILE in $FILES; do
+    # Check for backup file patterns
+    if [[ "$FILE" =~ _refactored\.py$ ]] || \
+       [[ "$FILE" =~ _backup\.py$ ]] || \
+       [[ "$FILE" =~ _old\.py$ ]] || \
+       [[ "$FILE" =~ _temp\.py$ ]] || \
+       [[ "$FILE" =~ _stub\.py$ ]] || \
+       [[ "$FILE" =~ _legacy\.py$ ]] || \
+       [[ "$FILE" =~ \.bak ]]; then
+        echo -e "${RED}✗ Backup/stub file detected: $FILE${NC}"
+        echo ""
+        echo "  Fix: These files create import ambiguity."
+        echo "  Archive: mv $FILE .archive/removed_backup_files_$(date +%Y%m%d)/"
+        echo ""
+        BACKUP_FILE_COUNT=$((BACKUP_FILE_COUNT + 1))
+        VIOLATION_FOUND=1
+    fi
+done
+
+if [ $BACKUP_FILE_COUNT -eq 0 ]; then
+    echo -e "${GREEN}✓ No backup/stub files${NC}"
+fi
+
+# Check 3: Oversized files (simplified check)
+echo "Checking for oversized files..."
+OVERSIZED_COUNT=0
+for FILE in $FILES; do
+    if [ -f "$FILE" ]; then
+        LINE_COUNT=$(wc -l < "$FILE" | tr -d ' ')
+
+        # Determine appropriate limit based on file type
+        LIMIT=500  # Default limit
+
+        if [[ "$FILE" =~ /models/ ]] || [[ "$FILE" =~ models\.py$ ]]; then
+            LIMIT=150
+        elif [[ "$FILE" =~ /services/ ]]; then
+            LIMIT=150
+        elif [[ "$FILE" =~ /forms/ ]] || [[ "$FILE" =~ forms\.py$ ]]; then
+            LIMIT=100
+        elif [[ "$FILE" =~ /settings/ ]] || [[ "$FILE" =~ settings.*\.py$ ]]; then
+            LIMIT=200
+        fi
+
+        # Allow some tolerance (1.5x limit) for warnings vs errors
+        ERROR_LIMIT=$((LIMIT * 2))  # 2x limit = error
+        WARN_LIMIT=$((LIMIT * 3 / 2))  # 1.5x limit = warning
+
+        if [ "$LINE_COUNT" -gt "$ERROR_LIMIT" ]; then
+            echo -e "${RED}✗ File too large: $FILE (${LINE_COUNT} lines, limit: ${LIMIT})${NC}"
+            echo "  Violation: $(echo "scale=1; $LINE_COUNT / $LIMIT" | bc)x over limit"
+            echo ""
+            echo "  Fix: Split into multiple focused modules"
+            echo "  CLAUDE.md: Architectural limits must be respected"
+            echo ""
+            OVERSIZED_COUNT=$((OVERSIZED_COUNT + 1))
+            VIOLATION_FOUND=1
+        elif [ "$LINE_COUNT" -gt "$WARN_LIMIT" ]; then
+            echo -e "${YELLOW}⚠ File approaching limit: $FILE (${LINE_COUNT} lines, limit: ${LIMIT})${NC}"
+            echo "  Consider refactoring soon"
+            echo ""
+        fi
+    fi
+done
+
+if [ $OVERSIZED_COUNT -eq 0 ]; then
+    echo -e "${GREEN}✓ No severely oversized files${NC}"
+fi
+
+# Summary
+echo ""
+echo "================================================"
+if [ $VIOLATION_FOUND -eq 1 ]; then
+    echo -e "${RED}✗ Code quality violations found!${NC}"
+    echo ""
+    echo "Fix violations and try again, or use:"
+    echo "  git commit --no-verify  # (use sparingly)"
+    echo ""
+    echo "For detailed analysis:"
+    echo "  python3 scripts/detect_code_smells.py --report CODE_SMELL_REPORT.md"
+    echo "================================================"
+    exit 1
+else
+    echo -e "${GREEN}✓ All code quality checks passed!${NC}"
+    echo "================================================"
+    exit 0
+fi

@@ -20,6 +20,26 @@ Compliance with .claude/rules.md:
 - Rule #10: Comprehensive validation
 - Rule #11: Specific exception handling
 - Rule #13: Required validation patterns
+
+Ontology: validation_rules=True, ai_guardrails=True, security_critical=True, type_safe=True
+Category: pydantic_models, llm_validation, ai_safety
+Domain: conversational_ai, llm_integration, content_safety, knowledge_query
+Responsibility: Validate LLM inputs/outputs; sanitize user input; enforce guardrails; safety scoring
+Dependencies: pydantic, core.validation_pydantic.pydantic_base, core.services.validation_service
+Security: XSS/SQL injection detection, PII filtering, prompt injection prevention, content moderation
+Validation Patterns:
+  - Input sanitization: XSS, SQL injection, sensitive key detection
+  - Token limits: 100-4000 tokens, conversation type-specific minimums
+  - Content safety: Safety score (0.0-1.0), moderation flags, harmful content blocking
+  - Response validation: Token usage structure, follow-up questions length, confidence scores
+  - Conversation state: Started, in_progress, generating, awaiting_approval, completed, error
+AI Guardrails:
+  - User input: Max 10k chars, sanitized, injection-checked
+  - Previous interactions: Max 50, role validation (user/assistant/system)
+  - Recommendations: Critical priority requires implementation steps, confidence-consensus checks
+  - Question generation: 1-10 questions, 10-500 chars each, must end with '?'
+Language Support: EN, ES, FR, DE, ZH, JA, KO
+Use Case: IntelliWiz conversational onboarding, site audit, troubleshooting, knowledge queries
 """
 
 from typing import Dict, List, Optional, Any, Union, Literal
@@ -28,7 +48,7 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import Field, validator, root_validator, constr, conint
 
-from apps.core.validation.pydantic_base import (
+from apps.core.validation_pydantic.pydantic_base import (
     BusinessLogicModel,
     TenantAwareModel,
     SecureModel,
@@ -85,6 +105,21 @@ class LLMContextData(SecureModel):
     Enhanced context data for LLM interactions.
 
     Validates and sanitizes context data passed to LLM services.
+
+    Ontology: validation_rules=True, ai_guardrails=True, security_critical=True
+    Purpose: Request payload for LLM service calls (IntelliWiz conversational onboarding)
+    Inherits: SecureModel (PII detection, encryption awareness)
+    Validation: User input sanitization, previous interactions structure, token limits
+    Security Checks:
+      - XSS detection: ValidationService.contains_xss()
+      - SQL injection: ValidationService.contains_sql_injection()
+      - Sensitive keys: Blocks password/token/secret in client_context
+      - Input sanitization: ValidationService.sanitize_input()
+    Guardrails:
+      - Initial setup: Requires >= 500 tokens
+      - Multilingual: Requires user_preferences.multilingual_enabled=true
+      - Previous interactions: Max 50, role must be user/assistant/system
+    Use Case: IntelliWiz site onboarding, configuration, troubleshooting conversations
     """
 
     user_input: str = Field(
@@ -199,6 +234,21 @@ class LLMContextData(SecureModel):
 class LLMResponse(SecureModel):
     """
     Enhanced LLM response model with comprehensive validation.
+
+    Ontology: validation_rules=True, ai_guardrails=True
+    Purpose: LLM service response with safety scoring and moderation
+    Inherits: SecureModel (PII detection)
+    Validation: Token usage structure, follow-up questions length, safety consistency
+    Safety Guardrails:
+      - safety_score < 0.3: Flagged as NEEDS_REVIEW
+      - safety_score < 0.1: Flagged as POTENTIALLY_HARMFUL
+      - is_safe_for_display(): Requires score >= 0.3 and no moderation flags
+    Content Validation:
+      - XSS detection: ValidationService.contains_xss()
+      - Response sanitization if harmful content detected
+    Token Usage: Must include prompt_tokens, completion_tokens, total_tokens
+    Follow-up Questions: Max 5, each 1-200 chars
+    Use Case: IntelliWiz response validation, content moderation, safety filtering
     """
 
     response_id: str = Field(..., description="Unique response identifier")
@@ -374,6 +424,21 @@ class QuestionGeneration(SecureModel):
 class RecommendationData(TenantAwareModel):
     """
     Enhanced model for AI-generated recommendations.
+
+    Ontology: validation_rules=True, ai_guardrails=True, tenant_aware=True
+    Purpose: AI-generated recommendations with maker-checker validation
+    Inherits: TenantAwareModel (tenant_id, bu_id validation)
+    Validation: Implementation steps, confidence score consistency, priority-based requirements
+    Guardrails:
+      - Critical priority: MUST have implementation_steps
+      - High confidence (>= 0.9): Warning if no consensus
+      - Maker/checker confidence: Average should roughly match overall confidence
+    Business Rules:
+      - Implementation steps: Min 5 chars each
+      - Consensus: Maker and checker LLMs agree
+      - Confidence mismatch: Warn if |overall - avg| > 0.3
+    Use Case: IntelliWiz site audit recommendations, configuration suggestions
+    Maker-Checker: Dual LLM validation for high-stakes recommendations
     """
 
     recommendation_id: str = Field(..., description="Unique recommendation identifier")

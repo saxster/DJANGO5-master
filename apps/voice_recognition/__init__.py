@@ -8,8 +8,6 @@ Provides comprehensive voice biometric authentication with:
 - Fraud detection and risk scoring
 """
 
-default_app_config = 'apps.voice_recognition.apps.VoiceRecognitionConfig'
-
 __all__ = [
     'VoiceEmbedding',
     'VoiceAntiSpoofingModel',

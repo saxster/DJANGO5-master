@@ -14,17 +14,29 @@ Key Features:
 
 import logging
 import random
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
-    Experiment,
-    ExperimentAssignment,
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError, transaction
+from apps.onboarding.models import (
+    # Experiment,  # TBD - Model not yet implemented
+    # ExperimentAssignment,  # TBD - Model not yet implemented
+    # PreferenceProfile,  # TBD - Model not yet implemented
+    # RecommendationInteraction,  # TBD - Model not yet implemented
     LLMRecommendation,
     ConversationSession
 )
 from apps.peoples.models import People
+from apps.core.exceptions import LLMServiceException
 import numpy as np
 from dataclasses import dataclass
+
+# Import stubs from the module where they're defined
+from apps.onboarding_api.services.experiments import Experiment, ExperimentAssignment, RecommendationInteraction
+from apps.onboarding_api.services.learning import PreferenceProfile
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +292,7 @@ class RecommendationReranker:
                     age_days = (datetime.now() - pub_date).days
                     recency_score = max(0.2, 1.0 - age_days / 1095)  # 3 years = 0.2 score
                     source_score *= recency_score
-                except:
+                except (ValueError, TypeError, AttributeError) as e:
                     pass  # Use base score if date parsing fails
 
             total_score += source_score

@@ -25,11 +25,11 @@ urlpatterns = [
     # Primary endpoint for schema (defaults to JSON)
     path('', PublicSchemaView.as_view(), name='openapi-schema'),
 
-    # Explicit format endpoints for codegen tools
-    path('swagger.json', PublicSchemaView.as_view(format='json'), name='openapi-json'),
-    path('swagger.yaml', PublicSchemaView.as_view(format='yaml'), name='openapi-yaml'),
-    path('openapi.json', PublicSchemaView.as_view(format='json'), name='openapi-json-alt'),
-    path('openapi.yaml', PublicSchemaView.as_view(format='yaml'), name='openapi-yaml-alt'),
+    # Explicit format endpoints for codegen tools (use query param ?format=json/yaml)
+    path('swagger.json', PublicSchemaView.as_view(), name='openapi-json'),
+    path('swagger.yaml', PublicSchemaView.as_view(), name='openapi-yaml'),
+    path('openapi.json', PublicSchemaView.as_view(), name='openapi-json-alt'),
+    path('openapi.yaml', PublicSchemaView.as_view(), name='openapi-yaml-alt'),
 
     # Metadata endpoint for client discovery
     path('metadata/', SchemaMetadataView.as_view(), name='schema-metadata'),

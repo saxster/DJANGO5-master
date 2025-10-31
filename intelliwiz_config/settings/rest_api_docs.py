@@ -16,7 +16,6 @@ SPECTACULAR_SETTINGS = {
 
     ### Features
     - **RESTful Design**: Clean REST API (v1/v2) with versioning
-    - **GraphQL Support**: Flexible queries at /api/graphql/ (being phased out)
     - **WebSocket Support**: Real-time sync at ws://*/ws/mobile/sync
     - **Type Safety**: Pydantic validation across all endpoints
     - **Mobile Ready**: Dedicated sync endpoints for Android/iOS
@@ -43,7 +42,6 @@ SPECTACULAR_SETTINGS = {
 
     ### Codegen for Kotlin
     - REST: OpenAPI Generator with kotlinx.serialization
-    - GraphQL: Apollo Kotlin
     - WebSocket: JSON Schema → sealed classes
     - Guide: /docs/mobile/kotlin-codegen-guide.md
     """,

@@ -5,6 +5,7 @@ Anomaly detection, fix suggestions, and recurrence tracking
 
 import uuid
 from django.db import models
+from django.db.models import Count
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator

@@ -15,7 +15,7 @@ Schedule Task Setup
 {% block pagebreadcumb %}
 <!--will call parent contents -->
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('schedhuler:jobschdtasks') }}?template=true" class="pe-3">Scheduled Tasks</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('scheduler:jobschdtasks') }}?template=true" class="pe-3">Scheduled Tasks</a></li>
 <li class="breadcrumb-item pe-3"><a href="javascript:void(0)" class="pe-3">Schedule Task Setup</a></li>
 {% endblock pagebreadcumb %}
 <!-------------------------- END PAGE BREADCUMB ------------------------->
@@ -27,7 +27,7 @@ Schedule Task
 <!------ END FORM TITLE -------->
 
 {% block form %}
-<form action="{{ url('schedhuler:create_task') }}" method="post" id="schdtaskform">
+<form action="{{ url('scheduler:create_task') }}" method="post" id="schdtaskform">
 <input type="hidden" name="{{ schdtaskform.ctzoffset.name }}" id = "{{ schdtaskform.ctzoffset.auto_id }}" value="-1">
         {{ schdtaskform.identifier }}
         {{ schdtaskform.starttime }}
@@ -497,7 +497,7 @@ handleChange('#id_expirytime', 'error_expirytime');
                     console.log("form is ", status)
                     if(status === 'Valid'){
                         var form = $(this);
-                        const params   = { url: "{{ url('schedhuler:jobschdtasks') }}", modal: false }
+                        const params   = { url: "{{ url('scheduler:jobschdtasks') }}", modal: false }
                         const formtype = '{{schdtaskform.instance.id}}' == 'None' ? "create" : "update"
                         const id       = '{{schdtaskform.instance.id}}'
                         var   payLoad  = { formData: $("#schdtaskform").serialize(),csrfmiddlewaretoken: '{{ csrf_token }}' }
@@ -553,7 +553,7 @@ handleChange('#id_expirytime', 'error_expirytime');
                     confirmButtonText: "Schedule it!"
                 }).then((result) => {
                     if(result.isConfirmed){
-                        const params = {url: "{{ url('schedhuler:runJob') }}"}
+                        const params = {url: "{{ url('scheduler:runJob') }}"}
                         var payLoad = {job_id: '{{ schdtaskform.instance.id }}',
                         csrfmiddlewaretoken: '{{ csrf_token }}'}
                         fire_ajax_form_post(params, payLoad)
@@ -580,7 +580,7 @@ handleChange('#id_expirytime', 'error_expirytime');
         })
 
         $("#btn_clear").click(() => {
-            location.href = "{{ url('schedhuler:jobschdtasks') }}?action=form"
+            location.href = "{{ url('scheduler:jobschdtasks') }}?action=form"
         })
     })
 </script>

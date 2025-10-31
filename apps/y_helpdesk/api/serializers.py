@@ -9,7 +9,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import serializers
-from apps.y_helpdesk.models import Ticket, TicketHistory
+from apps.y_helpdesk.models import Ticket
 from datetime import datetime, timezone as dt_timezone
 import logging
 

@@ -42,10 +42,10 @@ YOUTILITY5/
 - **Key Models**: Attendance, Geofence, SosAlert
 - **Features**: Real-time location tracking, AI-enhanced fraud detection
 
-#### `apps/schedhuler/` - Task Scheduling
+#### `apps/scheduler/` - Task Scheduling
 - **Purpose**: Tour scheduling, PPM (Preventive Maintenance), task automation
 - **Key Models**: Schedule, Tour, Task, JobNeed
-- **Note**: Intentional spelling "schedhuler" (legacy naming convention)
+- **Note**: Intentional spelling "scheduler" (legacy naming convention)
 
 #### `apps/reports/` - Document Generation
 - **Purpose**: PDF generation, scheduled reporting, custom templates

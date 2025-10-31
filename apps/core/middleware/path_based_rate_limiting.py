@@ -8,6 +8,34 @@ CRITICAL SECURITY:
 This middleware addresses CVSS 7.2 vulnerability by implementing Rule #9
 from .claude/rules.md - Comprehensive Rate Limiting.
 
+@ontology(
+    domain="security",
+    purpose="Path-based rate limiting with exponential backoff and automatic IP blocking",
+    middleware_type="both",
+    execution_order="early (after authentication, before views)",
+    rate_limiting_strategy="dual_tracking",
+    tracking_dimensions=["ip_address", "user_id"],
+    enforcement_levels=[
+        "per-endpoint limits (admin: 5/15min, auth: 5/15min, api: 1000/hour)",
+        "exponential backoff (2^violations minutes)",
+        "automatic IP blocking (after 10 violations)",
+        "circuit breaker (24hr max block)"
+    ],
+    protected_paths=["/admin/", "/login/", "/api/", "/password-reset/"],
+    affects_all_requests=False,
+    performance_impact="~1ms per request (Redis cache)",
+    criticality="critical",
+    security_cvss="7.2",
+    compliance_rule="Rule #9 - Comprehensive Rate Limiting",
+    redis_dependency=True,
+    database_logging=True,
+    error_responses={
+        "429": "Rate limit exceeded with Retry-After header",
+        "403": "IP blocked due to excessive violations"
+    },
+    tags=["middleware", "rate-limiting", "security", "brute-force-protection", "dos-prevention"]
+)
+
 Features:
 - IP + User dual tracking
 - Exponential backoff for repeated violations
@@ -29,7 +57,6 @@ from django.db import DatabaseError, IntegrityError
 from django.template import TemplateDoesNotExist, TemplateSyntaxError
 from django.utils.deprecation import MiddlewareMixin
 from django.utils import timezone as django_tz
-from django.contrib.auth.models import AnonymousUser
 from django.shortcuts import render
 
 logger = logging.getLogger('rate_limiting')
@@ -44,7 +71,6 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
     - /admin/ - Admin panel brute force protection
     - /login/ - Authentication endpoint protection
     - /api/ - API abuse prevention
-    - /graphql/ - GraphQL query flooding prevention
     - Password reset endpoints
 
     Rate Limiting Strategy:
@@ -140,7 +166,8 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
         """Load trusted IPs from cache or database."""
         cached_trusted = cache.get('trusted_ips_set')
         if cached_trusted:
-            return cached_trusted
+            # Convert cached list back to set for fast lookups
+            return set(cached_trusted)
 
         trusted_ips = set(getattr(settings, 'RATE_LIMIT_TRUSTED_IPS', [
             '127.0.0.1',
@@ -148,7 +175,8 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
             'localhost'
         ]))
 
-        cache.set('trusted_ips_set', trusted_ips, 3600)
+        # Cache as list (JSON serializable), but return as set
+        cache.set('trusted_ips_set', list(trusted_ips), 3600)
         return trusted_ips
 
     def _is_trusted_ip(self, client_ip: str) -> bool:
@@ -175,8 +203,6 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
             return 'admin'
         elif path.startswith('/login') or path.startswith('/accounts/login'):
             return 'auth'
-        elif path.startswith('/graphql'):
-            return 'graphql'
         elif path.startswith('/api/'):
             return 'api'
         elif 'reset-password' in path or 'password-reset' in path:
@@ -444,7 +470,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
         correlation_id: str
     ) -> HttpResponse:
         """Create appropriate rate limit response based on request type."""
-        is_api = request.path.startswith('/api/') or request.path.startswith('/graphql')
+        is_api = request.path.startswith('/api/')
         is_htmx = request.META.get('HTTP_HX_REQUEST') == 'true'
 
         retry_after = violation_data['backoff_seconds']
@@ -517,7 +543,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
             }
         )
 
-        is_api = request.path.startswith('/api/') or request.path.startswith('/graphql')
+        is_api = request.path.startswith('/api/')
 
         if is_api:
             return JsonResponse({
@@ -547,7 +573,6 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
             'admin': f'Too many admin login attempts. Limit: {limit} per {window_minutes} minutes.',
             'auth': f'Too many authentication attempts. Limit: {limit} per {window_minutes} minutes.',
             'api': f'API rate limit exceeded. Limit: {limit} per {window_minutes} minutes.',
-            'graphql': f'GraphQL rate limit exceeded. Limit: {limit} per {window_minutes} minutes.',
             'default': f'Rate limit exceeded. Limit: {limit} per {window_minutes} minutes.'
         }
 

@@ -17,7 +17,7 @@ Migration Strategy:
 - Can be rolled back
 
 Run with:
-    python manage.py migrate schedhuler 0016
+    python manage.py migrate scheduler 0016
 """
 
 from django.db import migrations, models
@@ -27,7 +27,7 @@ from django.db.models import Q
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('schedhuler', '0015_previous_migration'),  # Update with actual previous migration
+        ('activity', '0020_migrate_to_json_fields'),
     ]
 
     operations = [
@@ -194,7 +194,7 @@ def populate_schedule_hashes(apps, schema_editor):
     import hashlib
     import json
 
-    Job = apps.get_model('schedhuler', 'Job')
+    Job = apps.get_model('scheduler', 'Job')
 
     recurring_jobs = Job.objects.filter(
         is_recurring=True,
@@ -223,7 +223,7 @@ class Migration(migrations.Migration):
     Provides safe rollback capability.
 
     To rollback:
-        python manage.py migrate schedhuler 0015
+        python manage.py migrate scheduler 0015
     """
 
     # ... (operations as above)

@@ -20,7 +20,7 @@ project_root = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 sys.path.insert(0, project_root)
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings.development")
 django.setup()
 
 from django.db import connection, connections

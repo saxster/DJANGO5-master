@@ -54,7 +54,7 @@ Scheduled Tours
 	const formFilter      = "#schdtour_filter"
 	const table_id        = "#schdtour_table"
 	const formid          = "#id_schdtourform"
-    const urlname = "{{ url('schedhuler:schd_internal_tour') }}"
+    const urlname = "{{ url('scheduler:schd_internal_tour') }}"
 
     function showListOfPeoples(id, from){
         $('#id_people_list').modal('show')
@@ -67,7 +67,7 @@ Scheduled Tours
         //datatable initialization
         table = $(table_id).DataTable({
 			ajax:{
-                url: "{{ url('schedhuler:schd_internal_tour') }}?action=list"
+                url: "{{ url('scheduler:schd_internal_tour') }}?action=list"
             },
 			deferRender: true,
 			scrollY: 300,

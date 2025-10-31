@@ -6,6 +6,7 @@ import logging
 import hashlib
 import time
 import random
+from typing import Dict, Any, List
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -1055,7 +1056,7 @@ class IntegrationAdapter:
                 elif hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):  # Many-to-many
                     try:
                         data[key] = [item.pk for item in value]
-                    except:
+                    except (ValueError, TypeError, AttributeError) as e:
                         data[key] = list(value)
 
             return data

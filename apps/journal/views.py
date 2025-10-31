@@ -10,6 +10,7 @@ Comprehensive API endpoints for journal and wellness system as specified:
 """
 
 from rest_framework import viewsets, status, permissions
+from apps.ontology.decorators import ontology
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -48,6 +49,35 @@ class JournalPermission(permissions.BasePermission):
         return False
 
 
+@ontology(
+    domain="wellness",
+    purpose="REST API for journal/wellness entries with privacy controls, pattern analysis, mobile sync, and ML-powered insights",
+    api_endpoint=True,
+    http_methods=["GET", "POST", "PATCH", "DELETE"],
+    authentication_required=True,
+    permissions=["JournalPermission (privacy-aware)"],
+    rate_limit="200/minute",
+    request_schema="JournalEntryCreateSerializer|JournalEntryUpdateSerializer",
+    response_schema="JournalEntryListSerializer|JournalEntryDetailSerializer",
+    error_codes=[400, 401, 403, 404, 500],
+    criticality="high",
+    tags=["api", "rest", "journal", "wellness", "privacy", "mobile", "ml", "analytics"],
+    security_notes="Privacy scope filtering (private/shared/team). Tenant isolation. PII redaction in logs. Privacy consent tracking",
+    endpoints={
+        "list": "GET /api/journal/ - List journal entries (privacy-filtered)",
+        "create": "POST /api/journal/ - Create entry with pattern analysis",
+        "retrieve": "GET /api/journal/{id}/ - Get entry details",
+        "update": "PATCH /api/journal/{id}/ - Update entry with reanalysis",
+        "delete": "DELETE /api/journal/{id}/ - Soft delete entry",
+        "bulk_create": "POST /api/journal/bulk-create/ - Bulk create for mobile sync",
+        "analytics_summary": "GET /api/journal/analytics-summary/ - User wellbeing analytics",
+        "bookmark": "POST /api/journal/{id}/bookmark/ - Toggle bookmark",
+        "related_wellness_content": "GET /api/journal/{id}/related-wellness-content/ - Get wellness content"
+    },
+    examples=[
+        "curl -X POST https://api.example.com/api/journal/ -H 'Authorization: Bearer <token>' -d '{\"title\":\"Daily Reflection\",\"mood_rating\":8,\"stress_level\":3}'"
+    ]
+)
 class JournalEntryViewSet(viewsets.ModelViewSet):
     """
     Complete ViewSet for journal entries with privacy controls
@@ -74,6 +104,11 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Optimized privacy-filtered queryset with tenant isolation"""
+        if getattr(self, 'swagger_fake_view', False):
+            return JournalEntry.objects.none()
+        if getattr(self.request, 'swagger_fake_view', False):
+            return JournalEntry.objects.none()
+
         user = self.request.user
 
         # Optimized base queryset with comprehensive related data fetching

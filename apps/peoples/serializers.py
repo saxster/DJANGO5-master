@@ -1,3 +1,5 @@
+from typing import Optional
+
 from rest_framework import serializers
 from django.utils import timezone
 from .models import People
@@ -9,10 +11,135 @@ from apps.core.serializers import (
     validate_phone_field,
 )
 import logging
+from apps.ontology.decorators import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="people",
+    purpose="User data validation and transformation with PII masking for API contracts",
+    criticality="critical",
+    inputs={
+        "PeopleSerializer": "People model data -> validated JSON (create/update/list operations)",
+        "field_validation": "peoplecode, loginid, email, mobno, dateofbirth, dateofjoin -> validated_values",
+        "cross_field_validation": "dateofbirth, dateofjoin -> validation errors or attrs"
+    },
+    outputs={
+        "validated_data": "Sanitized People model data with XSS protection on peoplename",
+        "masked_display_fields": "email_display (us****@***.com), mobno_display (+91****12)",
+        "api_response": "JSON with explicit field list (no __all__ for security)",
+        "validation_errors": "Field-level and cross-field validation errors (DRF format)"
+    },
+    side_effects=[
+        "Logs warnings for disabled user account creation",
+        "Validates uniqueness (peoplecode, loginid, email) with database queries",
+        "Applies XSS sanitization to peoplename field (bleach library)",
+        "MaskedSecureValue triggers audit logging on raw field access"
+    ],
+    depends_on=[
+        "apps.peoples.models.People (custom user model)",
+        "apps.core.serializers.ValidatedModelSerializer (base class with XSS protection)",
+        "apps.core.serializers validation functions (validate_code_field, validate_email_field, validate_phone_field)",
+        "rest_framework.serializers (DRF serialization framework)"
+    ],
+    used_by=[
+        "apps.peoples.api.people_viewsets.PeopleViewSet (REST API endpoints)",
+        "apps.api.v1.people_urls (legacy API)",
+        "apps.api.v2.views.UserSyncViews (mobile sync)",
+        "Django Admin (secure display with masking)",
+        "Reports generators (exports with PII masking)"
+    ],
+    tags=["serialization", "validation", "pii-masking", "gdpr", "api-contract", "xss-protection"],
+    security_notes=[
+        "PII masking: email_display shows only first 2 chars + domain TLD (GDPR compliant)",
+        "PII masking: mobno_display shows first 3 and last 2 digits only",
+        "XSS protection: peoplename sanitized via bleach (removes <script>, <iframe>, etc.)",
+        "Password field: write-only, never serialized in API responses",
+        "Uniqueness validation: peoplecode, loginid, email (prevents duplicate accounts)",
+        "Explicit field list: No __all__ to prevent accidental PII exposure",
+        "MaskedSecureValue: Raw field access triggers audit log (who accessed what, when)",
+        "Tenant isolation: Uniqueness checks scoped to current tenant"
+    ],
+    performance_notes=[
+        "Uniqueness queries: Indexed fields (peoplecode, loginid, email) for O(log n) lookups",
+        "Validation caching: validate_code_field, validate_email_field reuse regex patterns",
+        "Batch serialization: Use PeopleSerializer(many=True) for bulk operations",
+        "Read-only fields: cdtz, mdtz, uuid excluded from validation pipeline",
+        "SerializerMethodField: email_display, mobno_display computed lazily (not stored)"
+    ],
+    architecture_notes=[
+        "Base class: ValidatedModelSerializer (XSS protection, code/email/phone validators)",
+        "Field categories: xss_protect_fields, code_fields, name_fields, email_fields, phone_fields",
+        "Validation hierarchy: Field-level -> Cross-field -> Business rules",
+        "MaskedSecureValue integration: Serializer respects model-level field masking",
+        "API versioning: Used in both v1 (legacy) and v2 (current) REST APIs",
+        "Backward compatibility: people_extras (temp field during profile split migration)",
+        "Multi-model user: People + PeopleProfile + PeopleOrganizational (serializer handles People only)"
+    ],
+    examples={
+        "create_user": """
+# Create new user with validation
+from apps.peoples.serializers import PeopleSerializer
+
+data = {
+    'peoplecode': 'EMP001',
+    'peoplename': 'John Doe',
+    'loginid': 'john.doe',
+    'email': 'john.doe@example.com',
+    'mobno': '+919876543210',
+    'dateofbirth': '1990-01-15',
+    'dateofjoin': '2025-01-01',
+    'enable': True
+}
+
+serializer = PeopleSerializer(data=data)
+if serializer.is_valid():
+    user = serializer.save()
+    print(f"Created user: {user.loginid}")
+else:
+    print(f"Validation errors: {serializer.errors}")
+""",
+        "masked_display": """
+# Serialize user with PII masking for API response
+from apps.peoples.serializers import PeopleSerializer
+
+user = People.objects.get(loginid='john.doe')
+serializer = PeopleSerializer(user)
+data = serializer.data
+
+print(data['email'])         # Raw: john.doe@example.com (internal use only)
+print(data['email_display']) # Masked: jo****@***.com (safe for API)
+print(data['mobno_display']) # Masked: +91****10 (safe for logs)
+""",
+        "bulk_serialization": """
+# Bulk serialize users for list API endpoint
+from apps.peoples.serializers import PeopleSerializer
+
+users = People.objects.filter(enable=True).select_related('profile', 'organizational')
+serializer = PeopleSerializer(users, many=True)
+
+# API response with masked PII
+return Response({
+    'count': len(serializer.data),
+    'results': serializer.data  # All PII fields automatically masked
+})
+""",
+        "update_validation": """
+# Update user with cross-field validation
+from apps.peoples.serializers import PeopleSerializer
+
+user = People.objects.get(id=123)
+serializer = PeopleSerializer(user, data={'dateofjoin': '2024-12-01'}, partial=True)
+
+if serializer.is_valid():
+    serializer.save()
+else:
+    # Cross-field validation: DOB must be before DOJ
+    print(serializer.errors)  # {'non_field_errors': ['Date of birth must be before date of joining']}
+"""
+    }
+)
 class PeopleSerializer(ValidatedModelSerializer):
     """
     Secure People serializer with comprehensive validation and privacy protection.
@@ -57,33 +184,25 @@ class PeopleSerializer(ValidatedModelSerializer):
             'email_display',    # Privacy-safe display
             'mobno',
             'mobno_display',    # Privacy-safe display
-            'peopleimg',
-            'gender',
-            'dateofbirth',
-            'dateofjoin',
-            'dateofreport',
+            'dateofbirth',      # Temporarily in People model
+            'dateofjoin',       # Temporarily in People model
             'enable',
             'isverified',
             'isadmin',
-            'peopletype',
-            'department',
-            'designation',
-            'worktype',
-            'reportto',
-            'location',
-            'bu',
-            'client',
+            'is_staff',
             'deviceid',
             'ctzoffset',
-            'people_extras',
-            'created_at',
-            'updated_at',
+            'people_extras',    # Temporarily in People model
+            'capabilities',
+            'preferred_language',
+            'cdtz',             # Actual field name (not created_at)
+            'mdtz',             # Actual field name (not updated_at)
         ]
         read_only_fields = [
             'id',
             'uuid',
-            'created_at',
-            'updated_at',
+            'cdtz',
+            'mdtz',
             'last_login',
             'email_display',
             'mobno_display',
@@ -171,7 +290,6 @@ class PeopleSerializer(ValidatedModelSerializer):
 
         dob = attrs.get('dateofbirth') or (self.instance.dateofbirth if self.instance else None)
         doj = attrs.get('dateofjoin') or (self.instance.dateofjoin if self.instance else None)
-        dor = attrs.get('dateofreport') or (self.instance.dateofreport if self.instance else None)
 
         if dob and doj:
             if dob == doj:
@@ -183,18 +301,12 @@ class PeopleSerializer(ValidatedModelSerializer):
                     "Date of birth must be before date of joining"
                 )
 
-        if dob and dor:
-            if dob >= dor:
-                raise serializers.ValidationError(
-                    "Date of birth must be before date of release"
-                )
-
         if not self.instance and not attrs.get('enable', True):
             logger.warning("Creating disabled user account")
 
         return attrs
 
-    def get_email_display(self, obj):
+    def get_email_display(self, obj) -> Optional[str]:
         """
         Return masked email for safe display in API responses.
 
@@ -228,7 +340,7 @@ class PeopleSerializer(ValidatedModelSerializer):
 
         return "****@***"
 
-    def get_mobno_display(self, obj):
+    def get_mobno_display(self, obj) -> Optional[str]:
         """
         Return masked mobile number for safe display in API responses.
 

@@ -1,11 +1,14 @@
 # Generated migration for adding performance indexes
 
+from django.db import migrations
+
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
         ('peoples', '0002_add_capabilities_field'),
+        ('peoples', '0002_encrypt_existing_data'),
     ]
 
     operations = [
@@ -30,8 +33,10 @@ class Migration(migrations.Migration):
             "CREATE INDEX IF NOT EXISTS idx_people_capabilities_gin ON people USING GIN (capabilities) WHERE capabilities IS NOT NULL;",
             reverse_sql="DROP INDEX IF EXISTS idx_people_capabilities_gin;"
         ),
+        # Note: Removed WHERE clause with CURRENT_TIMESTAMP because it's not IMMUTABLE
+        # Full index on mdtz is acceptable - recently modified records will be at end of B-tree
         migrations.RunSQL(
-            "CREATE INDEX IF NOT EXISTS idx_people_modified_recent ON people (mdtz) WHERE mdtz >= (CURRENT_TIMESTAMP - INTERVAL '30 days');",
+            "CREATE INDEX IF NOT EXISTS idx_people_modified_recent ON people (mdtz DESC);",
             reverse_sql="DROP INDEX IF EXISTS idx_people_modified_recent;"
         ),
 

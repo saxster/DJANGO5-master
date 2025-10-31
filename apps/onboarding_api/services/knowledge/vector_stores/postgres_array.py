@@ -174,6 +174,37 @@ class PostgresArrayBackend(VectorStore):
             'last_updated': datetime.now().isoformat()
         }
 
+    def store_document_chunks(self, knowledge_id: str, chunk_embeddings: List[Dict]) -> bool:
+        """
+        Backward compatibility wrapper for store_chunk_embeddings()
+        Used by EnhancedKnowledgeService for chunked document storage
+        """
+        return self.store_chunk_embeddings(knowledge_id, chunk_embeddings)
+
+    def search_similar_chunks(
+        self,
+        query_vector: List[float],
+        top_k: int = 10,
+        threshold: float = 0.6,
+        authority_filter: Optional[List[str]] = None,
+        source_filter: Optional[List[str]] = None,
+        **kwargs
+    ) -> List[Dict]:
+        """
+        Backward compatibility wrapper for _search_similar_chunks()
+        Used by EnhancedKnowledgeService for RAG context retrieval
+        """
+        # Map source_filter to jurisdiction_filter if provided
+        jurisdiction_filter = source_filter
+
+        return self._search_similar_chunks(
+            query_vector=query_vector,
+            top_k=top_k,
+            threshold=threshold,
+            authority_filter=authority_filter,
+            jurisdiction_filter=jurisdiction_filter
+        )
+
     def _cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors"""
         try:

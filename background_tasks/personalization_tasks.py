@@ -13,6 +13,8 @@ import logging
 import json
 from datetime import timedelta
 from typing import Dict, List, Any, Optional
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 
 from apps.core.constants.datetime_constants import SECONDS_IN_DAY
 from django.conf import settings

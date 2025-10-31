@@ -443,7 +443,7 @@ class AdminTaskDashboardView(UserPassesTestMixin, View):
             minutes = int((uptime_seconds % 3600) // 60)
 
             return f"{days}d {hours}h {minutes}m"
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return "Unknown"
 
     def _calculate_percentile(self, requests: List[Dict], percentile: int) -> float:

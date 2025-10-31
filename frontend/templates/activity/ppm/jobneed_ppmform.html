@@ -324,7 +324,7 @@ Task Form
                 attachmentDetails = $("#tabAttachmentDetails").DataTable(
                 {
                     ajax:{
-                        url:`{{ url("schedhuler:jobneedtasks") }}`,
+                        url:`{{ url("scheduler:jobneedtasks") }}`,
                         data:function(d){
                         return  $.extend(d, ajaxData);
                         }

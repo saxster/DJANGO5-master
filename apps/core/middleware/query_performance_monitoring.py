@@ -198,7 +198,7 @@ class QueryPerformanceMonitoringMiddleware(MiddlewareMixin):
                 "Consider using select_related() or prefetch_related() to eliminate N+1 queries"
             )
             suggestions.append(
-                "Review GraphQL resolvers and ensure DataLoaders are being used"
+                "Review legacy resolvers and ensure DataLoaders are being used"
             )
 
         # Slow query suggestions

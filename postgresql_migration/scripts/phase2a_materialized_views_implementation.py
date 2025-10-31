@@ -21,7 +21,7 @@ sys.path.append(
 )
 
 # Set Django settings
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings.development")
 django.setup()
 
 from django.db import connection, transaction

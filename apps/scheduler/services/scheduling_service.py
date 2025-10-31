@@ -22,7 +22,7 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import IntegrityError, DatabaseError, OperationalError
 from django.http import QueryDict
 
-from apps.core.services import BaseService, with_transaction, transaction_manager
+from apps.core.services import BaseService, with_transaction, transaction_manager, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import (
     SchedulingException,
@@ -35,7 +35,7 @@ from apps.core.utils_new.db_utils import get_current_db_name
 from apps.activity.models.job_model import Job, Jobneed, JobneedDetails
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
-import apps.schedhuler.utils as sutils
+import apps.scheduler.utils as sutils
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class SchedulingService(BaseService):
     """
     Service for handling scheduling business logic.
 
-    Extracted from schedhuler/views.py to separate concerns and improve testability.
+    Extracted from apps/scheduler/views.py to separate concerns and improve testability.
     """
 
     def __init__(self):
@@ -103,7 +103,7 @@ class SchedulingService(BaseService):
             "upto_date": datetime.combine(date.today(), time(23, 0, 0)) + timedelta(days=2)
         }
 
-    @BaseService.monitor_performance("create_guard_tour")
+    @monitor_service_performance("create_guard_tour")
     def create_guard_tour(
         self,
         tour_config: TourConfiguration,
@@ -492,21 +492,66 @@ class SchedulingService(BaseService):
 
     def _get_job_from_saga_context(self, saga_id: str) -> Job:
         """
-        Get job from saga context (simplified implementation).
+        Get job from saga context using persisted state.
+
+        Retrieves the job ID from saga context and loads the Job instance.
 
         Args:
             saga_id: Saga identifier
 
         Returns:
             Job instance
-        """
-        # This is a simplified implementation
-        # In practice, this would retrieve the job from the saga context
-        # For now, we'll need to pass the job explicitly or use a different approach
 
-        # Placeholder implementation - in real scenario, we'd get this from saga results
-        # or pass it as a parameter
-        raise NotImplementedError("Job retrieval from saga context needs implementation")
+        Raises:
+            SchedulingException: If job not found in saga context
+        """
+        try:
+            from apps.core.services import saga_manager
+
+            # Get saga context
+            context = saga_manager.get_saga_context(saga_id)
+
+            # Extract job ID from context
+            # Check both create_job and update_job steps
+            job_data = context.get('create_job', {}).get('result') or context.get('update_job', {}).get('result')
+
+            if not job_data:
+                raise SchedulingException(
+                    f"No job found in saga context for {saga_id}. "
+                    f"Available steps: {list(context.keys())}"
+                )
+
+            # Extract job ID (handle both Job instance and ID)
+            if isinstance(job_data, Job):
+                job_id = job_data.id
+            elif isinstance(job_data, dict) and 'id' in job_data:
+                job_id = job_data['id']
+            elif isinstance(job_data, int):
+                job_id = job_data
+            else:
+                raise SchedulingException(
+                    f"Invalid job data in saga context: {type(job_data)}"
+                )
+
+            # Load and return job
+            job = Job.objects.get(id=job_id)
+            self.logger.info(f"Retrieved job {job.id} from saga {saga_id}")
+            return job
+
+        except (KeyError, TypeError, AttributeError) as e:
+            self.logger.error(f"Error extracting job from saga {saga_id}: {e}")
+            raise SchedulingException(
+                f"Failed to get job from saga context: {str(e)}"
+            ) from e
+        except Job.DoesNotExist:
+            raise SchedulingException(
+                f"Job from saga {saga_id} no longer exists"
+            )
+        except (DatabaseError, SystemException) as e:
+            self.logger.error(f"Database error retrieving saga context {saga_id}: {e}")
+            raise SchedulingException(
+                f"Failed to retrieve saga context: {str(e)}"
+            ) from e
 
     def _log_validation_rollback(self, result: Dict[str, Any]) -> None:
         """Log validation rollback."""
@@ -538,7 +583,7 @@ class SchedulingService(BaseService):
         except (TypeError, AttributeError, KeyError) as e:
             self.logger.error(f"Checkpoint rollback data error: {str(e)}")
 
-    @BaseService.monitor_performance("validate_schedule_conflicts")
+    @monitor_service_performance("validate_schedule_conflicts")
     def validate_schedule_conflicts(
         self,
         job: Job,
@@ -582,7 +627,7 @@ class SchedulingService(BaseService):
             self.logger.warning(f"Data error validating conflicts: {str(e)}")
             return []
 
-    @BaseService.monitor_performance("get_tour_analytics")
+    @monitor_service_performance("get_tour_analytics")
     def get_tour_analytics(self, tour_id: int) -> Dict[str, Any]:
         """
         Get analytics for a specific tour.

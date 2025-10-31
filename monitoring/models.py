@@ -13,7 +13,7 @@ Compliance: .claude/rules.md Rule #7 (Model < 150 lines)
 
 from django.db import models
 from django.utils import timezone
-from apps.core.models import BaseModel
+from apps.peoples.models import BaseModel  # BaseModel is in peoples, not core
 
 __all__ = ['MonitoringEvent', 'PerformanceBaseline', 'SecurityEvent']
 
@@ -33,7 +33,6 @@ class MonitoringEvent(BaseModel):
         ('cache', 'Cache Operation'),
         ('error', 'Error/Exception'),
         ('alert', 'Alert Triggered'),
-        ('graphql', 'GraphQL Query'),
         ('websocket', 'WebSocket Event'),
         ('security', 'Security Event'),
     ]
@@ -147,10 +146,10 @@ class PerformanceBaseline(BaseModel):
 
     class Meta:
         db_table = 'monitoring_performance_baselines'
-        ordering = ['-created_at']
+        ordering = ['-cdtz']  # BaseModel provides cdtz (created datetime), not created_at
         indexes = [
             models.Index(fields=['metric_name', 'endpoint']),
-            models.Index(fields=['is_active', '-created_at']),
+            models.Index(fields=['is_active', '-cdtz']),  # Use cdtz from BaseModel
         ]
         verbose_name = 'Performance Baseline'
         verbose_name_plural = 'Performance Baselines'
@@ -169,7 +168,6 @@ class SecurityEvent(BaseModel):
 
     # Security event types
     SECURITY_EVENT_TYPES = [
-        ('graphql_complexity', 'GraphQL Complexity Exceeded'),
         ('websocket_flood', 'WebSocket Connection Flood'),
         ('rate_limit', 'Rate Limit Exceeded'),
         ('auth_failure', 'Authentication Failure'),

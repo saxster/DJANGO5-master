@@ -45,11 +45,24 @@
 
 <!------------------------------ START PAGE BODY CONTAINER -------------------------->
 {% block pagebody_container %}
+
+{# NEW: Agent Intelligence Panel #}
+<div class="row mb-4">
+    <div class="col-12">
+        {% include "dashboard/RP_d/partials/agent_intelligence/agent_panel.html" %}
+    </div>
+</div>
+
+{# Inline recommendation template #}
+{% include "dashboard/RP_d/partials/agent_intelligence/inline_recommendation.html" with module="tasks" %}
+
 <div class="row gy-3">
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4">
         <div class="col">
             <div class="db_portlet card card-flush h-100 d-none" data-portlet-id="1" id="TASKSCARD">
                 {% include "dashboard/RP_d/partials/dashboard_cards/partial_taskstats_card.html" %}
+                {# NEW: Agent recommendations for Tasks module #}
+                <div class="agent-recommendations-container" data-module="tasks"></div>
             </div>
         </div>
         <div class="col">
@@ -67,6 +80,8 @@
         <div class="col">
             <div class="db_portlet card card-flush h-100 d-none" data-portlet-id="3" id="TOURCARD">
                 {% include "dashboard/RP_d/partials/dashboard_cards/partial_guardtour_card.html" %}
+                {# NEW: Agent recommendations for Tours module #}
+                <div class="agent-recommendations-container" data-module="tours"></div>
             </div>
         </div>
         <div class="col">
@@ -477,7 +492,7 @@
                 case 'DYNAMICTOURS':
                 filterData['dynamic']=true
                 localStorage.setItem('dynamic_tours_filter', JSON.stringify(filterData))
-                window.open('{{ url("schedhuler:jobneedtours") }}?template=true', '_blank');
+                window.open('{{ url("scheduler:jobneedtours") }}?template=true', '_blank');
                 break;
                 case 'INCREPORTS':
                 localStorage.setItem('incident_reports_filter', JSON.stringify(filterData))
@@ -485,7 +500,7 @@
                 break;
                 case 'ROUTES':
                 localStorage.setItem('routes_filter', JSON.stringify(filterData))
-                window.open('{{ url("schedhuler:jobneedexternaltours") }}?template=true', '_blank');
+                window.open('{{ url("scheduler:jobneedexternaltours") }}?template=true', '_blank');
                 break;
                 case 'SITEDIVERSION':
                 localStorage.setItem('site_diversion_stats_filters', JSON.stringify(filterData))
@@ -501,7 +516,7 @@
                 break;
                 case 'TASKSTATS':
                 localStorage.setItem('taskstats_filter', JSON.stringify(filterData))
-                window.open('{{ url("schedhuler:jobneedtasks") }}?template=true', '_blank');
+                window.open('{{ url("scheduler:jobneedtasks") }}?template=true', '_blank');
                 break;
                 case 'PPMTASKSTATS':
                 localStorage.setItem('ppmstats_filter', JSON.stringify(filterData))
@@ -509,7 +524,7 @@
                 break;
                 case 'TOURSTATS':
                 localStorage.setItem('tourstats_filter', JSON.stringify(filterData))
-                window.open('{{ url("schedhuler:jobneedtours") }}?template=true', '_blank');
+                window.open('{{ url("scheduler:jobneedtours") }}?template=true', '_blank');
                 break;
                 case 'WORKPERMIT':
                 filterData['dynamic']=true
@@ -521,6 +536,13 @@
             }
         })
     })
+</script>
+
+{# NEW: Agent Intelligence JavaScript #}
+<script src="{% static 'dashboard/RP_d/partials/agent_intelligence/agent_dashboard.js' %}"></script>
+<script>
+    // Alternative: Include inline if file serving is an issue
+    {% include "dashboard/RP_d/partials/agent_intelligence/agent_dashboard.js" %}
 </script>
 
 {% endblock extra_scripts %}

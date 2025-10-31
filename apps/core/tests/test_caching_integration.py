@@ -95,7 +95,7 @@ class CachingIntegrationTestCase(TestCase):
         2. Model update invalidates dropdown cache
         3. Next form load regenerates dropdown data
         """
-        from apps.schedhuler.forms import Schd_I_TourJobForm
+        from apps.scheduler.forms import Schd_I_TourJobForm
 
         # Create request with tenant context
         request = self.factory.get('/')

@@ -4,7 +4,7 @@ Security Intelligence Service
 Detects and analyzes security threats and attack patterns.
 
 Features:
-- Attack pattern detection (GraphQL bombs, WebSocket floods)
+- Attack pattern detection (WebSocket floods, brute force attempts)
 - IP reputation tracking
 - Threat actor identification
 - Security event correlation
@@ -39,7 +39,7 @@ class ThreatEvent:
         metadata: Optional[Dict[str, Any]] = None,
         confidence: float = 1.0
     ):
-        self.threat_type = threat_type  # 'graphql_bomb', 'ws_flood', 'bruteforce', 'dos'
+        self.threat_type = threat_type  # 'ws_flood', 'bruteforce', 'dos'
         self.severity = severity  # 'low', 'medium', 'high', 'critical'
         self.source_ip = source_ip
         self.description = description
@@ -80,65 +80,9 @@ class SecurityIntelligence:
     """
 
     def __init__(self):
-        self.graphql_bomb_threshold = 5  # 5 rejections in 1 minute
         self.ws_flood_threshold = 20  # 20 connections in 1 minute
         self.threat_score_threshold = 100
         self.ip_block_duration = SECONDS_IN_MINUTE * 15  # 15 minutes
-
-    def analyze_graphql_pattern(
-        self,
-        ip_address: str,
-        rejection_reason: str,
-        correlation_id: Optional[str] = None
-    ) -> Optional[ThreatEvent]:
-        """
-        Analyze GraphQL query pattern for attacks.
-
-        Args:
-            ip_address: Source IP address
-            rejection_reason: Why query was rejected
-            correlation_id: Request correlation ID
-
-        Returns:
-            ThreatEvent if attack detected, None otherwise
-        """
-        # Track rejections per IP
-        cache_key = f"graphql_rejects:{ip_address}"
-        rejects = cache.get(cache_key, 0)
-        rejects += 1
-        cache.set(cache_key, rejects, SECONDS_IN_MINUTE)
-
-        # Detect GraphQL bomb attack
-        if rejects >= self.graphql_bomb_threshold:
-            threat = ThreatEvent(
-                threat_type='graphql_bomb',
-                severity='high',
-                source_ip=ip_address,
-                description=f"GraphQL bomb attack detected: {rejects} complex queries rejected",
-                metadata={
-                    'rejection_reason': rejection_reason,
-                    'rejection_count': rejects,
-                    'correlation_id': correlation_id
-                },
-                confidence=0.9
-            )
-
-            # Update IP reputation
-            self._update_ip_reputation(ip_address, threat_score=20)
-
-            # Log the threat
-            logger.warning(
-                f"GraphQL bomb attack detected from {ip_address}",
-                extra={
-                    'ip_address': ip_address,
-                    'rejection_count': rejects,
-                    'correlation_id': correlation_id
-                }
-            )
-
-            return threat
-
-        return None
 
     def analyze_websocket_pattern(
         self,
@@ -280,15 +224,12 @@ class SecurityIntelligence:
         """
         # This would typically query SecurityEvent model
         # For now, return basic stats from metrics
-        graphql_stats = metrics_collector.get_stats('graphql_query_validation', window_minutes)
         ws_stats = metrics_collector.get_stats('websocket_connection_attempt', window_minutes)
 
         return {
             'window_minutes': window_minutes,
-            'graphql_threats': graphql_stats.get('count', 0) if graphql_stats else 0,
             'websocket_threats': ws_stats.get('count', 0) if ws_stats else 0,
-            'total_threats': (graphql_stats.get('count', 0) if graphql_stats else 0) +
-                           (ws_stats.get('count', 0) if ws_stats else 0)
+            'total_threats': ws_stats.get('count', 0) if ws_stats else 0
         }
 
 

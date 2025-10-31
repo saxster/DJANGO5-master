@@ -7,7 +7,8 @@ import sys
 import django
 import json
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings')
+# Default to development; override with DJANGO_ENV/ DJANGO_SETTINGS_MODULE as needed.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.development')
 sys.path.insert(0, '/home/redmine/DJANGO5/YOUTILITY5')
 django.setup()
 

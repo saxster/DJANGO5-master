@@ -77,7 +77,6 @@ class SecurityStartupValidator:
             self._validate_jinja_autoescape(),
             self._validate_jwt_expiration(),
             self._validate_language_cookie_security(),
-            self._validate_graphql_origin_validation(),
             self._validate_jinja_autoreload(),
             self._validate_csrf_protection(),
             self._validate_secret_key(),
@@ -163,50 +162,35 @@ class SecurityStartupValidator:
         Addresses: Critical Security Fix #2 (January 2025)
         """
         try:
-            graphql_jwt = getattr(settings, 'GRAPHQL_JWT', {})
-            verify_expiration = graphql_jwt.get('JWT_VERIFY_EXPIRATION', False)
-            expiration_delta = graphql_jwt.get('JWT_EXPIRATION_DELTA', None)
+            jwt_config = getattr(settings, 'SIMPLE_JWT', {})
+            access_lifetime = jwt_config.get('ACCESS_TOKEN_LIFETIME')
 
-            if verify_expiration and expiration_delta:
-                # Check expiration time is reasonable
-                hours = expiration_delta.total_seconds() / 3600
-
-                if self.environment == 'production' and hours > 4:
-                    return ValidationResult(
-                        passed=False,
-                        check_name="JWT Token Expiration",
-                        severity="HIGH",
-                        message=f"⚠️ JWT expiration too long for production: {hours} hours",
-                        remediation="Set JWT_EXPIRATION_DELTA to <= 2 hours in production"
-                    )
-
+            if not access_lifetime:
                 return ValidationResult(
-                    passed=True,
+                    passed=False,
                     check_name="JWT Token Expiration",
                     severity="CRITICAL",
-                    message=f"✅ JWT expiration enabled: {hours} hours"
+                    message="❌ ACCESS_TOKEN_LIFETIME not configured",
+                    remediation="Set ACCESS_TOKEN_LIFETIME in SIMPLE_JWT settings (recommend <= 2 hours)"
                 )
 
-            elif verify_expiration:
+            hours = access_lifetime.total_seconds() / 3600
+
+            if self.environment == 'production' and hours > 4:
                 return ValidationResult(
                     passed=False,
                     check_name="JWT Token Expiration",
                     severity="HIGH",
-                    message="⚠️ JWT_VERIFY_EXPIRATION enabled but JWT_EXPIRATION_DELTA not set",
-                    remediation="Add JWT_EXPIRATION_DELTA to GRAPHQL_JWT settings"
+                    message=f"⚠️ ACCESS_TOKEN_LIFETIME too long for production: {hours} hours",
+                    remediation="Set ACCESS_TOKEN_LIFETIME to <= 4 hours in production"
                 )
 
-            else:
-                return ValidationResult(
-                    passed=False,
-                    check_name="JWT Token Expiration",
-                    severity="CRITICAL",
-                    message="❌ JWT expiration verification is DISABLED (permanent tokens)",
-                    remediation=(
-                        "Set JWT_VERIFY_EXPIRATION: True and JWT_EXPIRATION_DELTA: timedelta(hours=2) "
-                        "in intelliwiz_config/settings/base.py GRAPHQL_JWT configuration"
-                    )
-                )
+            return ValidationResult(
+                passed=True,
+                check_name="JWT Token Expiration",
+                severity="CRITICAL",
+                message=f"✅ ACCESS_TOKEN_LIFETIME configured: {hours} hours"
+            )
 
         except Exception as e:
             logger.error(f"Error validating JWT expiration: {e}", exc_info=True)
@@ -258,51 +242,6 @@ class SecurityStartupValidator:
             return ValidationResult(
                 passed=False,
                 check_name="Language Cookie Security",
-                severity="MEDIUM",
-                message=f"⚠️ Validation error: {str(e)}"
-            )
-
-    def _validate_graphql_origin_validation(self) -> ValidationResult:
-        """
-        Validate that GraphQL origin validation is enabled in production.
-
-        Addresses: Security Enhancement (January 2025)
-        """
-        try:
-            if self.environment != 'production':
-                return ValidationResult(
-                    passed=True,
-                    check_name="GraphQL Origin Validation",
-                    severity="MEDIUM",
-                    message="ℹ️ Development environment - origin validation not enforced"
-                )
-
-            strict_validation = getattr(settings, 'GRAPHQL_STRICT_ORIGIN_VALIDATION', False)
-
-            if strict_validation:
-                return ValidationResult(
-                    passed=True,
-                    check_name="GraphQL Origin Validation",
-                    severity="MEDIUM",
-                    message="✅ GraphQL strict origin validation ENABLED"
-                )
-            else:
-                return ValidationResult(
-                    passed=False,
-                    check_name="GraphQL Origin Validation",
-                    severity="MEDIUM",
-                    message="⚠️ GraphQL strict origin validation disabled in production",
-                    remediation=(
-                        "Add GRAPHQL_STRICT_ORIGIN_VALIDATION = True in "
-                        "intelliwiz_config/settings/production.py"
-                    )
-                )
-
-        except Exception as e:
-            logger.error(f"Error validating GraphQL origin validation: {e}", exc_info=True)
-            return ValidationResult(
-                passed=False,
-                check_name="GraphQL Origin Validation",
                 severity="MEDIUM",
                 message=f"⚠️ Validation error: {str(e)}"
             )

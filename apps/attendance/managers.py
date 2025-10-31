@@ -10,9 +10,11 @@ from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
 from apps.onboarding.models import Shift
 from apps.onboarding.models import GeofenceMaster
+from apps.tenants.managers import TenantAwareManager
 from itertools import chain
 import json
 import logging
+from apps.ontology.decorators import ontology
 
 logger = logging.getLogger("django")
 Q = models.Q
@@ -21,7 +23,153 @@ Q = models.Q
 from apps.core.json_utils import safe_json_parse_params
 
 
-class PELManager(models.Manager):
+@ontology(
+    domain="attendance",
+    purpose="Optimized geospatial queries for attendance records with PostGIS integration",
+    criticality="high",
+    inputs={
+        "get_spatial_attendance_summary": "client_id, date_from, date_to, bu_ids -> spatial_summary_dict",
+        "get_attendance_within_radius": "center_lat, center_lon, radius_km, date_from, date_to, client_id -> QuerySet",
+        "get_geofence_compliance_analytics": "client_id, date_from, date_to, bu_ids -> compliance_analytics_dict",
+        "get_spatial_journey_analytics": "client_id, date_from, date_to, people_ids -> journey_analytics_dict",
+        "get_attendance_heatmap_data": "client_id, date_from, date_to, bu_ids, grid_size -> List[heatmap_points]",
+        "find_attendance_outliers": "client_id, date_from, date_to, std_deviation_threshold -> outliers_dict",
+        "update_fr_results": "result, uuid, peopleid, db -> bool (face recognition update)",
+        "get_peopleevents_listview": "related, fields, request -> QuerySet",
+        "get_geofencetracking": "request -> (total, fcount, QuerySet)"
+    },
+    outputs={
+        "spatial_summary": "Dictionary with spatial extent, center point, distance stats, BU distribution",
+        "attendance_records": "QuerySet with distance annotations, GeoJSON coordinates",
+        "compliance_analytics": "BU-level, people-level, daily compliance rates with geofence violations",
+        "journey_analytics": "Journey stats (distance, duration, efficiency), transport mode analysis",
+        "heatmap_data": "Grid-based attendance density with unique people counts per cell",
+        "outliers": "Distance outliers, time outliers with statistical baselines"
+    },
+    side_effects=[
+        "Updates PeopleEventLog.facerecognitionin/out and peventlogextras (update_fr_results)",
+        "Auto-detects shift_id based on punchintime (update_fr_results)",
+        "Creates SessionActivityLog entries for FR updates",
+        "Uses distributed locks for race condition protection"
+    ],
+    depends_on=[
+        "django.contrib.gis.db.models.functions (AsGeoJSON, Distance, Extent, Union, Centroid)",
+        "apps.attendance.services.geospatial_service.GeospatialService",
+        "apps.tenants.managers.TenantAwareManager (automatic tenant filtering)",
+        "apps.activity.models.attachment_model.Attachment",
+        "apps.onboarding.models.GeofenceMaster"
+    ],
+    used_by=[
+        "apps.attendance.views.AttendanceReportViews (spatial analytics)",
+        "apps.attendance.views.GeofenceComplianceViews (compliance dashboards)",
+        "apps.noc.services.AttendanceMonitoringService (real-time alerts)",
+        "apps.reports.generators.AttendanceReportGenerator (PDF reports)",
+        "apps.attendance.api.AttendanceAPIViews (mobile sync)"
+    ],
+    tags=["attendance", "geospatial", "postgis", "analytics", "heatmap", "compliance", "fraud-detection"],
+    security_notes=[
+        "Tenant isolation: All queries automatically filtered by current tenant (TenantAwareManager)",
+        "Distributed lock for update_fr_results: Prevents race conditions on FR verification",
+        "Row-level locking: select_for_update() in update_fr_results transaction",
+        "Attachment filtering: Excludes video/csv/txt for performance (valid images only)",
+        "SQL injection prevention: All spatial queries use Django ORM (no raw SQL)"
+    ],
+    performance_notes=[
+        "PostGIS indexes: GIST indexes on startlocation, endlocation (migration 0002)",
+        "ST_DWithin for radius queries: Uses spatial index (100x faster than distance calc)",
+        "Prepared geometries: 3x faster for repeated geofence validation (LRU cached)",
+        "select_related optimization: Reduces N+1 queries (people, bu, peventtype)",
+        "Bulk operations: validate_points_in_prepared_geofence uses parallel processing",
+        "Spatial extent queries: Use Extent() aggregate for bounding box (single query)",
+        "Heatmap grid aggregation: In-memory grid grouping (trade-off: memory vs query count)",
+        "Query optimization order: select_related -> filter -> annotate -> values"
+    ],
+    architecture_notes=[
+        "Spatial functions: AsGeoJSON (client-side mapping), AsWKT (server-side processing)",
+        "Distance annotations: Distance() uses PostGIS ST_Distance for accuracy",
+        "Geofence compliance: Parses peventlogextras JSON for isStartLocationInGeofence",
+        "Journey analytics: Analyzes journeypath (PostGIS LineString), distance, duration",
+        "Outlier detection: Statistical (mean ± 2σ) and time-based (unusual punch hours)",
+        "Heatmap resolution: grid_size=0.01° (~1.1 km) for city-level, 0.001° (~110m) for site-level",
+        "Tenant awareness: Inherited from TenantAwareManager (automatic tenant_id filtering)",
+        "Legacy support: get_lat_long, is_point_in_geofence (deprecated, use GeospatialService)"
+    ],
+    examples={
+        "spatial_summary": """
+# Get spatial overview of attendance for date range
+from apps.attendance.models import PeopleEventLog
+
+summary = PeopleEventLog.objects.get_spatial_attendance_summary(
+    client_id=1,
+    date_from=date(2025, 10, 1),
+    date_to=date(2025, 10, 31),
+    bu_ids=[10, 20, 30]
+)
+
+print(f"Total records: {summary['total_records']}")
+print(f"Spatial extent: {summary['spatial_extent']}")
+print(f"Avg distance: {summary['distance_stats']['avg']:.2f} km")
+for bu in summary['bu_distance_distribution']:
+    print(f"{bu['bu__buname']}: {bu['avg_distance']:.2f} km avg")
+""",
+        "radius_query": """
+# Find all attendance records within 5km of office
+from apps.attendance.models import PeopleEventLog
+
+office_lat, office_lon = 12.9716, 77.5946
+records = PeopleEventLog.objects.get_attendance_within_radius(
+    center_lat=office_lat,
+    center_lon=office_lon,
+    radius_km=5.0,
+    date_from=date.today(),
+    date_to=date.today(),
+    client_id=request.user.client_id
+)
+
+for record in records:
+    print(f"{record['people__peoplename']}: {record['distance_from_center']/1000:.2f} km away")
+""",
+        "geofence_compliance": """
+# Analyze geofence compliance rates
+from apps.attendance.models import PeopleEventLog
+
+analytics = PeopleEventLog.objects.get_geofence_compliance_analytics(
+    client_id=1,
+    date_from=date(2025, 10, 1),
+    date_to=date(2025, 10, 31)
+)
+
+print(f"Overall compliance: {analytics['overall_compliance_rate']:.1f}%")
+for bu_id, data in analytics['bu_compliance'].items():
+    print(f"{data['name']}: {data['start_compliance_rate']:.1f}% compliance")
+""",
+        "heatmap": """
+# Generate attendance density heatmap
+from apps.attendance.models import PeopleEventLog
+
+heatmap = PeopleEventLog.objects.get_attendance_heatmap_data(
+    client_id=1,
+    date_from=date(2025, 10, 1),
+    date_to=date(2025, 10, 31),
+    grid_size=0.01  # ~1.1 km grid cells
+)
+
+# Top 10 hotspots
+for point in heatmap[:10]:
+    print(f"({point['lat']:.4f}, {point['lon']:.4f}): {point['count']} records, "
+          f"{point['unique_people_count']} people")
+"""
+    }
+)
+class PELManager(TenantAwareManager):
+    """
+    Custom manager for PeopleEventlog (Attendance) model with tenant-aware filtering.
+
+    Tenant Isolation:
+    - All queries automatically filtered by current tenant
+    - Cross-tenant queries require explicit cross_tenant_query() call
+    - Inherited from TenantAwareManager (apps/tenants/managers.py)
+    """
     use_in_migrations = True
 
     def get_current_month_sitevisitorlog(self, peopleid):

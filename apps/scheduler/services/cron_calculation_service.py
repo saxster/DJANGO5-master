@@ -45,6 +45,10 @@ class CronCalculationService(BaseService):
     CACHE_TIMEOUT = 3600   # 1 hour cache
     MAX_DAYS_AHEAD = 365   # Maximum 1 year ahead
 
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "CronCalculationService"
+
     def calculate_next_occurrences(
         self,
         cron_expression: str,
@@ -530,6 +534,10 @@ class SchedulerOptimizationService(BaseService):
     def __init__(self):
         super().__init__()
         self.cron_service = CronCalculationService()
+
+    def get_service_name(self) -> str:
+        """Return the service name for logging and monitoring."""
+        return "SchedulerOptimizationService"
 
     def create_scheduled_jobs_batch(
         self,

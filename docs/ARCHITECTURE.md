@@ -33,7 +33,7 @@
 | **Database** | PostgreSQL + PostGIS | 14.2+ | Relational + spatial data |
 | **Task Queue** | Celery | Latest | Background processing |
 | **Cache** | Redis | Latest | Caching + sessions |
-| **APIs** | REST (DRF) | Latest | REST endpoints (GraphQL removed Oct 2025) |
+| **APIs** | REST (DRF) | Latest | REST endpoints (legacy query layer retired Oct 2025) |
 
 ### Deployment Model
 
@@ -202,7 +202,7 @@ users = People.objects.tenant_filtered(request.tenant)
 
 ### REST Design (Oct 2025)
 
-**GraphQL removed October 29, 2025.** All APIs now REST-based.
+**Legacy query layer retired October 29, 2025.** All APIs now REST-based.
 
 **Endpoints:**
 - **v1:** `/api/v1/` - Legacy DRF APIs
@@ -525,7 +525,10 @@ urlpatterns = [
 base.py                   # Shared base classes, forms (50 lines)
 template_views.py         # Template management (200 lines)
 configuration_views.py    # Report configuration (180 lines)
-generation_views.py       # PDF/Excel generation (1,102 lines)
+export_views.py           # PDF/CSV exports (260 lines)
+schedule_views.py         # Scheduling + design preview (220 lines)
+pdf_views.py              # WeasyPrint + Pandoc helpers (280 lines)
+frappe_integration_views.py  # ERP integrations (210 lines)
 __init__.py              # Backward compatibility (20 lines)
 ```
 
@@ -535,7 +538,7 @@ __init__.py              # Backward compatibility (20 lines)
 from apps.reports.views import DownloadReports
 
 # Recommended
-from apps.reports.views.generation_views import DownloadReports
+from apps.reports.views.export_views import DownloadReports
 ```
 
 #### Onboarding Admin: 1,796 lines → 9 modules
@@ -561,7 +564,6 @@ file_service.py          # 4 file operations (SECURE - Rule #14 compliant)
 geospatial_service.py    # 3 geospatial operations
 job_service.py           # 6 job/tour operations (RACE-PROTECTED)
 crisis_service.py        # 3 crisis management
-graphql_service.py       # 4 GraphQL mutations (legacy, to remove)
 ```
 
 **Security-critical functions:**
@@ -589,9 +591,9 @@ from apps.service.services.job_service import update_adhoc_record
 
 ## Design Decisions
 
-### Why REST over GraphQL (Oct 29, 2025)
+### Why REST over the Legacy Query Layer (Oct 29, 2025)
 
-**Decision:** Migrate from GraphQL to REST APIs
+**Decision:** Migrate from the legacy query layer to REST APIs
 
 **Rationale:**
 - **Simpler security model:** Standard DRF throttling, permissions

@@ -38,23 +38,13 @@ MIDDLEWARE = [
     # Layer 3: Rate Limiting and DoS Protection
     # ========================================================================
     "apps.core.middleware.path_based_rate_limiting.PathBasedRateLimitMiddleware",
-    "apps.core.middleware.graphql_rate_limiting.GraphQLRateLimitingMiddleware",
-    "apps.core.middleware.graphql_complexity_validation.GraphQLComplexityValidationMiddleware",  # CRITICAL: DoS prevention
-    "apps.core.middleware.graphql_otel_tracing.GraphQLOTELTracingMiddleware",  # GraphQL OTEL tracing
     "apps.core.middleware.path_based_rate_limiting.RateLimitMonitoringMiddleware",
-
-    # ========================================================================
-    # Layer 3.5: Origin Validation (Cross-Origin Attack Prevention)
-    # ========================================================================
-    "apps.core.middleware.graphql_origin_validation.GraphQLOriginValidationMiddleware",  # CRITICAL: Origin validation
 
     # ========================================================================
     # Layer 4: Input Validation and Attack Prevention
     # ========================================================================
     "apps.core.sql_security.SQLInjectionProtectionMiddleware",
     "apps.core.xss_protection.XSSProtectionMiddleware",
-    "apps.core.middleware.graphql_csrf_protection.GraphQLCSRFProtectionMiddleware",
-    "apps.core.middleware.graphql_csrf_protection.GraphQLSecurityHeadersMiddleware",
 
     # ========================================================================
     # Layer 5: Session and Multi-Tenancy
@@ -123,18 +113,13 @@ CRITICAL MIDDLEWARE ORDERING RULES:
 8. CsrfViewMiddleware MUST come before AuthenticationMiddleware
 9. GlobalExceptionMiddleware MUST be last (catch-all error handler)
 
-SECURITY FIX (2025-10-01): Added GraphQLOriginValidationMiddleware to prevent
-cross-origin attacks on GraphQL endpoints. This middleware validates the Origin,
-Referer, and Host headers before processing GraphQL requests.
-
 PII PROTECTION (2025-10-01): Added Journal and Wellness PII redaction middleware
 to automatically sanitize API responses and protect sensitive user data. These
 middleware components intercept responses and redact PII based on user permissions.
 
 OBSERVABILITY ENHANCEMENT (2025-10-01): Added OTEL distributed tracing middleware:
 - TracingMiddleware: Creates spans for all HTTP requests with timing and attributes
-- GraphQLOTELTracingMiddleware: GraphQL-specific tracing with operation name extraction
-These middleware integrate with Jaeger for distributed tracing and correlation ID propagation.
+- These middleware integrate with Jaeger for distributed tracing and correlation ID propagation.
 
 DO NOT change middleware order without security team approval!
 """

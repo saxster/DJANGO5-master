@@ -6,11 +6,149 @@ import django.db.models.deletion
 import uuid
 
 
+def migrate_journal_data_to_new_models(apps, schema_editor):
+    """
+    Migrate existing journal entry data to the new refactored models
+
+    This function safely moves data from the original JournalEntry fields
+    to the new separate models while maintaining data integrity.
+    """
+    JournalEntry = apps.get_model('journal', 'JournalEntry')
+    JournalWellbeingMetrics = apps.get_model('journal', 'JournalWellbeingMetrics')
+    JournalWorkContext = apps.get_model('journal', 'JournalWorkContext')
+    JournalSyncData = apps.get_model('journal', 'JournalSyncData')
+
+    print("Starting journal data migration to refactored models...")
+
+    for entry in JournalEntry.objects.all():
+        # Migrate wellbeing metrics
+        wellbeing_data = {
+            'mood_rating': getattr(entry, 'mood_rating', None),
+            'mood_description': getattr(entry, 'mood_description', ''),
+            'stress_level': getattr(entry, 'stress_level', None),
+            'energy_level': getattr(entry, 'energy_level', None),
+            'stress_triggers': getattr(entry, 'stress_triggers', []),
+            'coping_strategies': getattr(entry, 'coping_strategies', []),
+            'gratitude_items': getattr(entry, 'gratitude_items', []),
+            'daily_goals': getattr(entry, 'daily_goals', []),
+            'affirmations': getattr(entry, 'affirmations', []),
+            'achievements': getattr(entry, 'achievements', []),
+            'learnings': getattr(entry, 'learnings', []),
+            'challenges': getattr(entry, 'challenges', []),
+        }
+
+        # Only create wellbeing metrics if there's actual data
+        if any(wellbeing_data.values()):
+            wellbeing_metrics = JournalWellbeingMetrics.objects.create(**wellbeing_data)
+            entry.wellbeing_metrics = wellbeing_metrics
+
+        # Migrate work context
+        work_data = {
+            'location_site_name': getattr(entry, 'location_site_name', ''),
+            'location_address': getattr(entry, 'location_address', ''),
+            'location_coordinates': getattr(entry, 'location_coordinates', None),
+            'location_area_type': getattr(entry, 'location_area_type', ''),
+            'team_members': getattr(entry, 'team_members', []),
+            'completion_rate': getattr(entry, 'completion_rate', None),
+            'efficiency_score': getattr(entry, 'efficiency_score', None),
+            'quality_score': getattr(entry, 'quality_score', None),
+            'items_processed': getattr(entry, 'items_processed', None),
+            'tags': getattr(entry, 'tags', []),
+            'priority': getattr(entry, 'priority', ''),
+            'severity': getattr(entry, 'severity', ''),
+            'duration_minutes': getattr(entry, 'duration_minutes', None),
+        }
+
+        # Only create work context if there's actual data
+        if any(work_data.values()):
+            work_context = JournalWorkContext.objects.create(**work_data)
+            entry.work_context = work_context
+
+        # Migrate sync data
+        sync_data_obj = JournalSyncData.objects.create(
+            sync_status=getattr(entry, 'sync_status', 'synced'),
+            mobile_id=getattr(entry, 'mobile_id', None),
+            version=getattr(entry, 'version', 1),
+            last_sync_timestamp=getattr(entry, 'last_sync_timestamp', None),
+            is_draft=getattr(entry, 'is_draft', False),
+            is_deleted=getattr(entry, 'is_deleted', False),
+            is_bookmarked=getattr(entry, 'is_bookmarked', False),
+        )
+        entry.sync_data = sync_data_obj
+
+        entry.save()
+
+    print(f"Successfully migrated {JournalEntry.objects.count()} journal entries")
+
+
+def migrate_data_back_to_original_model(apps, schema_editor):
+    """
+    Reverse migration: Move data back from new models to original JournalEntry fields
+
+    This function safely restores data from the separate models back to the original
+    JournalEntry model in case the migration needs to be reversed.
+    """
+    JournalEntry = apps.get_model('journal', 'JournalEntry')
+
+    print("Reversing journal data migration...")
+
+    for entry in JournalEntry.objects.all():
+        # Restore wellbeing metrics
+        if entry.wellbeing_metrics:
+            metrics = entry.wellbeing_metrics
+            entry.mood_rating = metrics.mood_rating
+            entry.mood_description = metrics.mood_description
+            entry.stress_level = metrics.stress_level
+            entry.energy_level = metrics.energy_level
+            entry.stress_triggers = metrics.stress_triggers
+            entry.coping_strategies = metrics.coping_strategies
+            entry.gratitude_items = metrics.gratitude_items
+            entry.daily_goals = metrics.daily_goals
+            entry.affirmations = metrics.affirmations
+            entry.achievements = metrics.achievements
+            entry.learnings = metrics.learnings
+            entry.challenges = metrics.challenges
+
+        # Restore work context
+        if entry.work_context:
+            context = entry.work_context
+            entry.location_site_name = context.location_site_name
+            entry.location_address = context.location_address
+            entry.location_coordinates = context.location_coordinates
+            entry.location_area_type = context.location_area_type
+            entry.team_members = context.team_members
+            entry.completion_rate = context.completion_rate
+            entry.efficiency_score = context.efficiency_score
+            entry.quality_score = context.quality_score
+            entry.items_processed = context.items_processed
+            entry.tags = context.tags
+            entry.priority = context.priority
+            entry.severity = context.severity
+            entry.duration_minutes = context.duration_minutes
+
+        # Restore sync data
+        if entry.sync_data:
+            sync_data = entry.sync_data
+            entry.sync_status = sync_data.sync_status
+            entry.mobile_id = sync_data.mobile_id
+            entry.version = sync_data.version
+            entry.last_sync_timestamp = sync_data.last_sync_timestamp
+            entry.is_draft = sync_data.is_draft
+            entry.is_deleted = sync_data.is_deleted
+            entry.is_bookmarked = sync_data.is_bookmarked
+
+        entry.save()
+
+    print(f"Successfully restored {JournalEntry.objects.count()} journal entries")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
         ('journal', '0002_add_mobile_sync_fields'),
     ]
+
+    atomic = False  # Required for CREATE INDEX CONCURRENTLY
 
     operations = [
         # Create JournalWellbeingMetrics model
@@ -206,139 +344,3 @@ class Migration(migrations.Migration):
         # migrations.RemoveField(model_name='journalentry', name='stress_level'),
         # ... (other fields to be removed in a follow-up migration)
     ]
-
-
-def migrate_journal_data_to_new_models(apps, schema_editor):
-    """
-    Migrate existing journal entry data to the new refactored models
-
-    This function safely moves data from the original JournalEntry fields
-    to the new separate models while maintaining data integrity.
-    """
-    JournalEntry = apps.get_model('journal', 'JournalEntry')
-    JournalWellbeingMetrics = apps.get_model('journal', 'JournalWellbeingMetrics')
-    JournalWorkContext = apps.get_model('journal', 'JournalWorkContext')
-    JournalSyncData = apps.get_model('journal', 'JournalSyncData')
-
-    print("Starting journal data migration to refactored models...")
-
-    for entry in JournalEntry.objects.all():
-        # Migrate wellbeing metrics
-        wellbeing_data = {
-            'mood_rating': getattr(entry, 'mood_rating', None),
-            'mood_description': getattr(entry, 'mood_description', ''),
-            'stress_level': getattr(entry, 'stress_level', None),
-            'energy_level': getattr(entry, 'energy_level', None),
-            'stress_triggers': getattr(entry, 'stress_triggers', []),
-            'coping_strategies': getattr(entry, 'coping_strategies', []),
-            'gratitude_items': getattr(entry, 'gratitude_items', []),
-            'daily_goals': getattr(entry, 'daily_goals', []),
-            'affirmations': getattr(entry, 'affirmations', []),
-            'achievements': getattr(entry, 'achievements', []),
-            'learnings': getattr(entry, 'learnings', []),
-            'challenges': getattr(entry, 'challenges', []),
-        }
-
-        # Only create wellbeing metrics if there's actual data
-        if any(wellbeing_data.values()):
-            wellbeing_metrics = JournalWellbeingMetrics.objects.create(**wellbeing_data)
-            entry.wellbeing_metrics = wellbeing_metrics
-
-        # Migrate work context
-        work_data = {
-            'location_site_name': getattr(entry, 'location_site_name', ''),
-            'location_address': getattr(entry, 'location_address', ''),
-            'location_coordinates': getattr(entry, 'location_coordinates', None),
-            'location_area_type': getattr(entry, 'location_area_type', ''),
-            'team_members': getattr(entry, 'team_members', []),
-            'completion_rate': getattr(entry, 'completion_rate', None),
-            'efficiency_score': getattr(entry, 'efficiency_score', None),
-            'quality_score': getattr(entry, 'quality_score', None),
-            'items_processed': getattr(entry, 'items_processed', None),
-            'tags': getattr(entry, 'tags', []),
-            'priority': getattr(entry, 'priority', ''),
-            'severity': getattr(entry, 'severity', ''),
-            'duration_minutes': getattr(entry, 'duration_minutes', None),
-        }
-
-        # Only create work context if there's actual data
-        if any(work_data.values()):
-            work_context = JournalWorkContext.objects.create(**work_data)
-            entry.work_context = work_context
-
-        # Migrate sync data
-        sync_data_obj = JournalSyncData.objects.create(
-            sync_status=getattr(entry, 'sync_status', 'synced'),
-            mobile_id=getattr(entry, 'mobile_id', None),
-            version=getattr(entry, 'version', 1),
-            last_sync_timestamp=getattr(entry, 'last_sync_timestamp', None),
-            is_draft=getattr(entry, 'is_draft', False),
-            is_deleted=getattr(entry, 'is_deleted', False),
-            is_bookmarked=getattr(entry, 'is_bookmarked', False),
-        )
-        entry.sync_data = sync_data_obj
-
-        entry.save()
-
-    print(f"Successfully migrated {JournalEntry.objects.count()} journal entries")
-
-
-def migrate_data_back_to_original_model(apps, schema_editor):
-    """
-    Reverse migration: Move data back from new models to original JournalEntry fields
-
-    This function safely restores data from the separate models back to the original
-    JournalEntry model in case the migration needs to be reversed.
-    """
-    JournalEntry = apps.get_model('journal', 'JournalEntry')
-
-    print("Reversing journal data migration...")
-
-    for entry in JournalEntry.objects.all():
-        # Restore wellbeing metrics
-        if entry.wellbeing_metrics:
-            metrics = entry.wellbeing_metrics
-            entry.mood_rating = metrics.mood_rating
-            entry.mood_description = metrics.mood_description
-            entry.stress_level = metrics.stress_level
-            entry.energy_level = metrics.energy_level
-            entry.stress_triggers = metrics.stress_triggers
-            entry.coping_strategies = metrics.coping_strategies
-            entry.gratitude_items = metrics.gratitude_items
-            entry.daily_goals = metrics.daily_goals
-            entry.affirmations = metrics.affirmations
-            entry.achievements = metrics.achievements
-            entry.learnings = metrics.learnings
-            entry.challenges = metrics.challenges
-
-        # Restore work context
-        if entry.work_context:
-            context = entry.work_context
-            entry.location_site_name = context.location_site_name
-            entry.location_address = context.location_address
-            entry.location_coordinates = context.location_coordinates
-            entry.location_area_type = context.location_area_type
-            entry.team_members = context.team_members
-            entry.completion_rate = context.completion_rate
-            entry.efficiency_score = context.efficiency_score
-            entry.quality_score = context.quality_score
-            entry.items_processed = context.items_processed
-            entry.tags = context.tags
-            entry.priority = context.priority
-            entry.severity = context.severity
-            entry.duration_minutes = context.duration_minutes
-
-        # Restore sync data
-        if entry.sync_data:
-            sync_data = entry.sync_data
-            entry.sync_status = sync_data.sync_status
-            entry.mobile_id = sync_data.mobile_id
-            entry.version = sync_data.version
-            entry.last_sync_timestamp = sync_data.last_sync_timestamp
-            entry.is_draft = sync_data.is_draft
-            entry.is_deleted = sync_data.is_deleted
-            entry.is_bookmarked = sync_data.is_bookmarked
-
-        entry.save()
-
-    print(f"Successfully restored {JournalEntry.objects.count()} journal entries")

@@ -23,7 +23,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
 from apps.peoples.models import upload_peopleimg
-from apps.service.utils import write_file_to_dir
+from apps.service.services.file_service import write_file_to_dir
 from apps.core.services.secure_file_download_service import SecureFileDownloadService
 
 User = get_user_model()

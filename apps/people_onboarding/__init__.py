@@ -31,5 +31,3 @@ Compliance:
 - Comprehensive audit trails
 - Multi-tenant data isolation
 """
-
-default_app_config = 'apps.people_onboarding.apps.PeopleOnboardingConfig'

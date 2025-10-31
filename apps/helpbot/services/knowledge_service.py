@@ -246,8 +246,8 @@ class HelpBotKnowledgeService:
         tags = []
         content_lower = content.lower()
 
-        # Technology tags (graphql=legacy, removed Oct 2025)
-        tech_tags = ['django', 'postgresql', 'redis', 'api', 'rest', 'graphql', 'websocket']
+        # Technology tags
+        tech_tags = ['django', 'postgresql', 'redis', 'api', 'rest', 'websocket']
         for tag in tech_tags:
             if tag in content_lower:
                 tags.append(tag)

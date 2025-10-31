@@ -23,7 +23,7 @@ from django.views import View
 from apps.core.services import service_registry, get_service
 from apps.core.services.base_service import BaseService
 from apps.peoples.services import AuthenticationService
-from apps.schedhuler.services import SchedulingService
+from apps.scheduler.services import SchedulingService
 from apps.work_order_management.services import WorkOrderService
 
 

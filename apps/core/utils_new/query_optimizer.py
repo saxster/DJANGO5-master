@@ -320,7 +320,7 @@ class QueryOptimizer:
                         if select_related_fields:
                             prefetch_obj = f"Prefetch('{rel['field']}', queryset={related_model.__name__}.objects.select_related({', '.join(repr(f) for f in select_related_fields)}))"
                             prefetch_suggestions.append(prefetch_obj)
-                    except:
+                    except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                         pass  # Skip if we can't analyze the related model
         
         return prefetch_suggestions

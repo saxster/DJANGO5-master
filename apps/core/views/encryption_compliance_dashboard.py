@@ -15,7 +15,7 @@ URL: /admin/security/encryption-compliance/
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, List
 from django.contrib.auth.decorators import user_passes_test
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -24,7 +24,7 @@ from django.db import connection
 from django.views.decorators.http import require_http_methods
 from apps.core.services.secure_encryption_service import SecureEncryptionService
 from apps.core.services.encryption_key_manager import EncryptionKeyManager
-from apps.core.models.rate_limiting import RateLimitViolation
+from apps.core.models.rate_limiting import RateLimitViolationLog
 
 logger = logging.getLogger("encryption_dashboard")
 
@@ -176,7 +176,7 @@ def _get_key_rotation_status() -> Dict[str, Any]:
 def _get_recent_violations(limit: int = 5) -> List[Dict[str, Any]]:
     """Get recent security violations related to encryption."""
     try:
-        violations = RateLimitViolation.objects.filter(
+        violations = RateLimitViolationLog.objects.filter(
             violation_type__icontains='encryption'
         ).order_by('-timestamp')[:limit]
 

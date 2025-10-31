@@ -19,11 +19,11 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from django.conf import settings
 from apps.core.error_handling import ErrorHandler
+from apps.ontology.decorators import ontology
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
 
 
 class FileUploadAuditLog(models.Model):
@@ -54,7 +54,7 @@ class FileUploadAuditLog(models.Model):
     event_type = models.CharField(max_length=50, choices=EVENT_TYPES, db_index=True)
     severity = models.CharField(max_length=20, choices=SEVERITY_LEVELS, db_index=True)
 
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     ip_address = models.GenericIPAddressField(null=True)
     user_agent = models.TextField(blank=True)
 
@@ -88,6 +88,52 @@ class FileUploadAuditLog(models.Model):
         return f"{self.event_type} - {self.filename} at {self.timestamp}"
 
 
+@ontology(
+    domain="infrastructure",
+    purpose="Comprehensive file upload audit logging with security validation, malware scanning, and compliance reporting",
+    responsibility="Tracks all file upload lifecycle events with forensic details, exports to SIEM systems (Splunk/ELK), generates compliance reports (SOC2/ISO 27001/GDPR), and monitors security threats in real-time",
+    patterns={
+        "audit_strategy": "Correlation ID-based event tracking with severity classification",
+        "security_validation": "Multi-layer validation: file type, size, path traversal, malware scanning",
+        "compliance_reporting": "Time-range queries with aggregation for SOC2/ISO 27001 audits",
+        "siem_integration": "Export to JSON, CEF (Common Event Format), and Syslog formats"
+    },
+    key_methods={
+        "log_upload_attempt": "Initial event logging with correlation ID generation",
+        "log_path_traversal_attempt": "CRITICAL severity logging for path traversal attacks",
+        "log_malware_detection": "CRITICAL severity logging with threat classification",
+        "get_security_incidents": "Real-time security incident retrieval (24-hour window)",
+        "generate_compliance_report": "SOC2/ISO 27001 compliance report generation with metrics",
+        "export_to_siem": "Multi-format export (JSON/CEF/Syslog) for SIEM ingestion"
+    },
+    data_flow="File upload → Correlation ID generation → Validation checks → Security scanning (path/malware) → Event logging (PostgreSQL) → SIEM export (optional) → Compliance aggregation",
+    dependencies={
+        "postgresql": "FileUploadAuditLog model with indexed fields (timestamp, correlation_id, severity)",
+        "s3_integration": "File storage with metadata tracking",
+        "malware_scanner": "ClamAV or equivalent for virus scanning",
+        "http_utils": "Client IP extraction for forensic analysis"
+    },
+    related_systems={
+        "middleware.file_upload_security_middleware": "Pre-validation before upload processing",
+        "services.exif_analysis_service": "Image metadata extraction and PII detection",
+        "models.upload_session": "Multi-part upload tracking and session management",
+        "noc.security_intelligence": "Security incident escalation and alerting"
+    },
+    performance_notes="Async event logging to avoid blocking uploads; batch aggregation for compliance reports (5000+ events/sec); retention cleanup runs daily via Celery",
+    compliance_notes="Supports SOC2 Type II, ISO 27001, GDPR Article 30 (record of processing activities); 90-day retention for INFO events, permanent retention for CRITICAL events",
+    edge_cases=[
+        "Anonymous uploads: user=None, tracked by IP and correlation ID",
+        "Malware scan timeout: Quarantine file, log as ERROR severity",
+        "Path traversal blocked: CRITICAL log with malicious path details",
+        "Concurrent uploads: Correlation ID ensures event grouping across race conditions"
+    ],
+    future_enhancements=[
+        "Add ML-based anomaly detection for upload patterns",
+        "Implement real-time alerting for security events (webhooks)",
+        "Add distributed tracing integration (OpenTelemetry spans)",
+        "Support for object storage audit logs (S3 CloudTrail correlation)"
+    ]
+)
 class FileUploadAuditService:
     """Service for managing file upload audit logs and security monitoring."""
 

@@ -6,12 +6,10 @@ Refactored for maintainability and compliance with .claude/rules.md Rule 7
 from .base import VectorStore
 
 from .vector_stores import (
-    PostgresVectorStore,
     PostgresArrayBackend,
     PgVectorBackend,
     EnhancedPgVectorBackend,
     ChromaBackend,
-    ChunkedVectorStore,
 )
 
 from .knowledge import (
@@ -40,6 +38,8 @@ from .exceptions import (
     UnsupportedFormatError,
 )
 
+from .content_sanitizer import ContentSanitizationService
+
 from .factories import (
     get_vector_store,
     get_knowledge_service,
@@ -51,12 +51,10 @@ from .factories import (
 
 __all__ = [
     'VectorStore',
-    'PostgresVectorStore',
     'PostgresArrayBackend',
     'PgVectorBackend',
     'EnhancedPgVectorBackend',
     'ChromaBackend',
-    'ChunkedVectorStore',
     'KnowledgeService',
     'EnhancedKnowledgeService',
     'DummyEmbeddingGenerator',
@@ -77,4 +75,5 @@ __all__ = [
     'get_document_chunker',
     'get_document_fetcher',
     'get_document_parser',
+    'ContentSanitizationService',
 ]

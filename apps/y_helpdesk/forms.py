@@ -36,7 +36,7 @@ class TicketForm(forms.ModelForm):
             "comments",
             "location",
             "cdtz",
-            "isescalated",
+            # "isescalated",  # Removed - this is a @property, not a database field
             "ticketsource",
             "asset",
         ]
@@ -46,12 +46,12 @@ class TicketForm(forms.ModelForm):
             "ticketdesc": "Subject",
             "cdtz": "Created On",
             "ticketcategory": "Category",
-            "isescalated": "Escalated",
+            # "isescalated": "Escalated",  # Removed - computed from workflow
             "asset": "Asset/Checkpoint",
         }
         widgets = {
             "comments": forms.Textarea(attrs={"rows": 2, "cols": 40}),
-            "isescalated": forms.TextInput(attrs={"readonly": True}),
+            # "isescalated": forms.TextInput(attrs={"readonly": True}),  # Removed
             "ticketsource": forms.TextInput(attrs={"style": "display:none"}),
             "ticketdesc": forms.Textarea(attrs={"rows": 3}),
         }

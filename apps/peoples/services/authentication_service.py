@@ -9,6 +9,8 @@ Extracts authentication business logic from views including:
 - Security validation
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -22,7 +24,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 
-from apps.core.services import BaseService, with_transaction
+from apps.ontology import ontology
+from apps.core.services import BaseService, with_transaction, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import (
     AuthenticationError,
@@ -32,7 +35,6 @@ from apps.core.exceptions import (
     EnhancedValidationException,
     UserManagementException
 )
-from apps.peoples.models import People
 from apps.core import utils
 import apps.peoples.utils as putils
 from apps.peoples.services.login_throttling_service import login_throttle_service
@@ -78,6 +80,159 @@ class UserContext:
     access_type: Optional[str] = None
 
 
+@ontology(
+    domain="people",
+    concept="Authentication & Session Management",
+    purpose=(
+        "Core authentication service handling user login, credential validation, session creation, "
+        "rate limiting, multi-tenant routing, and role-based access control. Provides defense-in-depth "
+        "security with throttling, exponential backoff, and comprehensive audit logging."
+    ),
+    criticality="critical",
+    security_boundary=True,
+    inputs=[
+        {"name": "loginid", "type": "str", "description": "User login identifier (email or username)", "required": True, "sensitive": True},
+        {"name": "password", "type": "str", "description": "User password (never logged)", "required": True, "sensitive": True},
+        {"name": "access_type", "type": "UserAccessType", "description": "Access type: Web, Mobile, or Both", "default": "Web"},
+        {"name": "ip_address", "type": "str", "description": "Client IP address for rate limiting"},
+    ],
+    outputs=[
+        {
+            "name": "AuthenticationResult",
+            "type": "dataclass",
+            "description": "Authentication outcome with user context",
+            "fields": {
+                "success": "bool - Authentication success flag",
+                "user": "People - Authenticated user object (if success)",
+                "redirect_url": "str - Target URL after authentication",
+                "error_message": "str - Human-readable error (if failed)",
+                "correlation_id": "str - Unique request ID for audit trail",
+                "session_data": "dict - Session metadata (bu_id, client, etc.)"
+            }
+        }
+    ],
+    side_effects=[
+        "Creates Django session for authenticated user",
+        "Updates People.last_login timestamp",
+        "Logs authentication attempts to UnifiedAuditService",
+        "Increments login_throttle_service counters for IP and username",
+        "Triggers account lockout after failed attempt threshold",
+        "Records failed login attempts in security logs",
+        "Sets session cookies with secure flags (httponly, samesite)",
+    ],
+    depends_on=[
+        "apps.peoples.models.user_model.People",
+        "apps.peoples.services.login_throttling_service.login_throttle_service",
+        "apps.peoples.services.session_management_service.SessionManagementService",
+        "apps.core.services.unified_audit_service.UnifiedAuditService",
+        "apps.core.middleware.path_based_rate_limiting (API endpoint protection)",
+        "django.contrib.auth.authenticate",
+    ],
+    used_by=[
+        "Login views at /people/login/ and /api/v2/auth/login/",
+        "JWT token generation endpoints",
+        "SSO integration handlers",
+        "Mobile authentication API",
+        "Password reset workflows",
+    ],
+    tags=["authentication", "security", "rate-limiting", "session-management", "critical", "audit"],
+    security_notes=(
+        "CRITICAL SECURITY FEATURES:\n"
+        "1. Rate Limiting: IP-based and username-based throttling via login_throttle_service\n"
+        "   - Default: 5 attempts per 15 minutes per IP\n"
+        "   - Default: 3 attempts per 15 minutes per username\n"
+        "   - Exponential backoff: delays increase with failed attempts\n"
+        "2. Account Lockout: Automatic after failed attempt threshold\n"
+        "3. Credential Validation: NEVER log passwords, use Django's secure authentication\n"
+        "4. Session Security: Secure, HttpOnly, SameSite cookies\n"
+        "5. Audit Logging: ALL authentication attempts logged with correlation IDs\n"
+        "6. Multi-tenant Isolation: User routing based on bu/client context\n"
+        "7. CSRF Protection: Django CSRF middleware enforced on login POST\n"
+        "8. Timing Attack Prevention: Constant-time password comparison via Django\n"
+        "\nBRUTE FORCE PREVENTION:\n"
+        "- check_ip_throttle() runs BEFORE authenticate() to prevent DB load\n"
+        "- Failed attempts increment counters in Redis (fast, non-blocking)\n"
+        "- Lockout enforced at middleware level (no route to view)\n"
+        "\nSECURITY EXCEPTIONS:\n"
+        "- WrongCredsError: Invalid credentials (user-facing message is generic)\n"
+        "- PermissionDeniedError: User lacks required access type\n"
+        "- AuthenticationError: System-level auth failure\n"
+        "- SecurityException: Throttling or lockout triggered"
+    ),
+    performance_notes=(
+        "Optimizations:\n"
+        "- Redis-backed throttling for sub-millisecond checks\n"
+        "- Database query optimization via select_related for user context\n"
+        "- Session data cached in Redis (not DB) for fast access\n"
+        "- Early return on throttling (no DB query if throttled)\n"
+        "\nBottlenecks:\n"
+        "- Django's authenticate() performs password hash comparison (intentionally slow)\n"
+        "- Session creation involves DB write (unavoidable for security)\n"
+        "- Audit logging adds ~10ms per authentication attempt\n"
+        "- UserContext construction queries related models (bu, client)"
+    ),
+    rate_limiting_notes=(
+        "Throttling Strategy:\n"
+        "1. IP-based throttling (prevents distributed attacks)\n"
+        "   - Sliding window: last 15 minutes\n"
+        "   - Threshold: 5 attempts\n"
+        "   - Storage: Redis sorted set with timestamps\n"
+        "2. Username-based throttling (prevents credential stuffing)\n"
+        "   - Sliding window: last 15 minutes\n"
+        "   - Threshold: 3 attempts\n"
+        "   - Storage: Redis sorted set per username\n"
+        "3. Exponential backoff on failures\n"
+        "   - 1st fail: no delay\n"
+        "   - 2nd fail: 2s delay\n"
+        "   - 3rd fail: 4s delay\n"
+        "   - 4th+ fail: 8s delay + account lock\n"
+        "\nBypass Conditions:\n"
+        "- Successful login resets throttle counters\n"
+        "- Admin can manually reset via Django Admin\n"
+        "- IP whitelist for internal services (configured in settings)"
+    ),
+    architecture_notes=(
+        "Authentication Flow:\n"
+        "1. Client: POST /people/login/ with loginid + password\n"
+        "2. Middleware: CSRF validation\n"
+        "3. Middleware: Path-based rate limiting (global API limits)\n"
+        "4. Service: check_ip_throttle(ip_address) - early exit if throttled\n"
+        "5. Service: check_username_throttle(loginid) - early exit if throttled\n"
+        "6. Service: Django authenticate(username=loginid, password=password)\n"
+        "7. Service: Validate user.enable, user.isverified flags\n"
+        "8. Service: Validate access_type matches user permissions\n"
+        "9. Service: Create session via Django login(request, user)\n"
+        "10. Service: Build UserContext (bu, client, sitecode)\n"
+        "11. Service: Determine redirect_url based on role and sitecode\n"
+        "12. Service: Log success to UnifiedAuditService\n"
+        "13. Service: Return AuthenticationResult with redirect_url\n"
+        "\nMulti-Tenant Routing:\n"
+        "- SiteCode determines dashboard: SPSOPS → Operations, SPSHR → HR, etc.\n"
+        "- BU/Client context stored in session for query filtering\n"
+        "- Users can only access data for their assigned bu/client\n"
+        "\nSession Management:\n"
+        "- Django sessions stored in Redis for performance\n"
+        "- Session timeout: 30 minutes idle, 12 hours absolute\n"
+        "- Concurrent session detection and handling\n"
+        "- Session invalidation on logout or password change"
+    ),
+    examples=[
+        "# Authenticate user (web login)\nservice = AuthenticationService()\nresult = service.authenticate_user(\n    loginid='john@example.com',\n    password='secure_password',\n    access_type='Web',\n    ip_address='192.168.1.100'\n)\nif result.success:\n    # Redirect to result.redirect_url\nelse:\n    # Display result.error_message",
+        "# Check authentication result\nif result.success:\n    user = result.user\n    session_data = result.session_data\n    logger.info(f'User {user.loginid} authenticated, redirect to {result.redirect_url}')",
+        "# Handle throttling error\ntry:\n    result = service.authenticate_user(...)\nexcept SecurityException as e:\n    # User is rate limited\n    logger.warning(f'Authentication throttled: {e}')",
+    ],
+    related_services=[
+        "apps.peoples.services.login_throttling_service.login_throttle_service",
+        "apps.peoples.services.session_management_service.SessionManagementService",
+        "apps.peoples.services.password_management_service.PasswordManagementService",
+        "apps.core.services.unified_audit_service.UnifiedAuditService",
+    ],
+    api_endpoints=[
+        "POST /people/login/ - Web login form submission",
+        "POST /api/v2/auth/login/ - REST API authentication",
+        "POST /api/v2/auth/logout/ - Session termination",
+    ],
+)
 class AuthenticationService(BaseService):
     """
     Service for handling authentication business logic.
@@ -95,7 +250,7 @@ class AuthenticationService(BaseService):
             "no-site-access": "User does not have site access permissions"
         }
 
-    @BaseService.monitor_performance("authenticate_user")
+    @monitor_service_performance("authenticate_user")
     @with_transaction()
     def authenticate_user(
         self,
@@ -260,6 +415,8 @@ class AuthenticationService(BaseService):
         Returns:
             AuthenticationResult with validation status
         """
+        from apps.peoples.models import People  # Late import to prevent circular dependency
+
         try:
             user_query = People.objects.filter(loginid=loginid).values(
                 "people_extras__userfor"
@@ -420,7 +577,7 @@ class AuthenticationService(BaseService):
             'login_timestamp': utils.get_current_timestamp() if hasattr(utils, 'get_current_timestamp') else None
         }
 
-    @BaseService.monitor_performance("logout_user")
+    @monitor_service_performance("logout_user")
     def logout_user(self, request: HttpRequest) -> AuthenticationResult:
         """
         Handle user logout with session cleanup.
@@ -455,7 +612,7 @@ class AuthenticationService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("validate_session")
+    @monitor_service_performance("validate_session")
     def validate_session(self, request: HttpRequest) -> bool:
         """
         Validate user session is still valid.
@@ -479,7 +636,7 @@ class AuthenticationService(BaseService):
             self.logger.warning(f"Session validation failed: {str(e)}")
             return False
 
-    @BaseService.monitor_performance("get_user_permissions")
+    @monitor_service_performance("get_user_permissions")
     def get_user_permissions(self, user: People) -> Dict[str, Any]:
         """
         Get comprehensive user permissions and capabilities.
@@ -508,7 +665,7 @@ class AuthenticationService(BaseService):
             self.logger.error(f"Failed to get user permissions: {str(e)}")
             return {}
 
-    @BaseService.monitor_performance("rotate_session")
+    @monitor_service_performance("rotate_session")
     def rotate_session(
         self,
         request: HttpRequest,
@@ -555,7 +712,7 @@ class AuthenticationService(BaseService):
             self.logger.error(f"Session rotation failed: {str(e)}")
             return False
 
-    @BaseService.monitor_performance("rotate_session_on_privilege_change")
+    @monitor_service_performance("rotate_session_on_privilege_change")
     def rotate_session_on_privilege_change(
         self,
         request: HttpRequest,

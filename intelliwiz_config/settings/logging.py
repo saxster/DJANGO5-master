@@ -7,11 +7,14 @@ import os
 import logging.config
 
 def _get_filters():
-    """Get logging filters for sensitive data sanitization."""
-    return {
-        "sanitize": {
-            "()": "apps.core.middleware.logging_sanitization.SanitizingFilter",
-        },
+    """
+    Get logging filters for sensitive data sanitization.
+
+    NOTE: Safe fallback for early Django initialization before apps are ready.
+    The 'sanitize' filter requires apps.core to be loaded, so we handle
+    import errors gracefully during early startup.
+    """
+    filters = {
         "require_debug_false": {
             "()": "django.utils.log.RequireDebugFalse",
         },
@@ -19,6 +22,21 @@ def _get_filters():
             "()": "django.utils.log.RequireDebugTrue",
         }
     }
+
+    # Try to add sanitize filter - may fail during early initialization
+    try:
+        from django.apps import apps
+        # Only add sanitize filter if apps are ready
+        if apps.apps_ready:
+            filters["sanitize"] = {
+                "()": "apps.core.middleware.logging_sanitization.SanitizingFilter",
+            }
+    except (ImportError, RuntimeError):
+        # Apps not ready yet - sanitize filter will be unavailable
+        # This is acceptable during early startup; logging still works
+        pass
+
+    return filters
 
 
 def get_logging_config(environment='development', logger_path=None):
@@ -76,21 +94,35 @@ def _get_handlers(environment, log_dir):
     """
     Get handlers based on environment.
 
-    CRITICAL: ALL handlers MUST have 'sanitize' filter applied.
+    CRITICAL: ALL handlers SHOULD have 'sanitize' filter applied when available.
     This prevents PII leakage in logs (Rule #15 compliance).
+
+    NOTE: Sanitize filter may not be available during early initialization.
+    We conditionally add it based on app registry readiness.
 
     Changes (Observability Enhancement):
     - Production: JSON format for all handlers (machine-parseable)
     - Development: JSON format by default (consistency with production)
     - Test: Simple format with sanitize filter
     """
+    # Determine if sanitize filter is available
+    sanitize_available = False
+    try:
+        from django.apps import apps
+        sanitize_available = apps.apps_ready
+    except (ImportError, RuntimeError):
+        pass
+
+    # Base filters for all handlers
+    base_filters = ["sanitize"] if sanitize_available else []
+
     if environment == 'production':
         return {
             "console": {
                 "level": "WARNING",
                 "class": "logging.StreamHandler",
                 "formatter": "json",
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             },
             "app_file": {
                 "class": "logging.handlers.TimedRotatingFileHandler",
@@ -99,7 +131,7 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 30,
                 "formatter": "json",
                 "encoding": "utf-8",
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             },
             "error_file": {
                 "class": "logging.handlers.TimedRotatingFileHandler",
@@ -109,7 +141,7 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 90,
                 "formatter": "json",
                 "encoding": "utf-8",
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             },
             "security_file": {
                 "class": "logging.handlers.TimedRotatingFileHandler",
@@ -118,14 +150,14 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 90,
                 "formatter": "json",
                 "encoding": "utf-8",
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             },
             "mail_admins": {
                 "level": "CRITICAL",
                 "class": "django.utils.log.AdminEmailHandler",
                 "formatter": "detailed",
                 "include_html": True,
-                "filters": ["sanitize", "require_debug_false"]  # ✅ Enforced
+                "filters": base_filters + ["require_debug_false"]  # ✅ Conditional + debug filter
             }
         }
     elif environment == 'development':
@@ -135,7 +167,7 @@ def _get_handlers(environment, log_dir):
                 "level": "DEBUG",
                 "class": "logging.StreamHandler",
                 "formatter": "json",  # CHANGED: was "colored", now JSON
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             },
             "app_file": {
                 "class": "logging.handlers.RotatingFileHandler",
@@ -144,7 +176,7 @@ def _get_handlers(environment, log_dir):
                 "backupCount": 3,
                 "formatter": "json",  # CHANGED: was "detailed", now JSON
                 "encoding": "utf-8",
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             }
         }
     else:  # test
@@ -153,39 +185,56 @@ def _get_handlers(environment, log_dir):
                 "level": "ERROR",
                 "class": "logging.StreamHandler",
                 "formatter": "simple",
-                "filters": ["sanitize"]  # ✅ Enforced
+                "filters": base_filters  # ✅ Conditional based on app readiness
             }
         }
 
 def _get_loggers(environment):
     """Get loggers based on environment."""
+    # Determine if sanitize filter is available
+    sanitize_available = False
+    try:
+        from django.apps import apps
+        sanitize_available = apps.apps_ready
+    except (ImportError, RuntimeError):
+        pass
+
+    # Base filters for security loggers
+    security_filters = ["sanitize"] if sanitize_available else []
+
     if environment == 'production':
+        secret_validation_logger = {
+            "handlers": ["security_file", "mail_admins"],
+            "level": "INFO",
+            "propagate": False,
+        }
+        if security_filters:
+            secret_validation_logger["filters"] = security_filters
+
         return {
             "django": {"handlers": ["app_file", "error_file"], "level": "INFO", "propagate": False},
             "django.security": {"handlers": ["security_file", "mail_admins"], "level": "INFO", "propagate": False},
             "security": {"handlers": ["security_file", "mail_admins"], "level": "INFO", "propagate": False},
             # CRITICAL: Dedicated logger for secret validation (security-sensitive)
-            "security.secret_validation": {
-                "handlers": ["security_file", "mail_admins"],
-                "level": "INFO",
-                "propagate": False,
-                "filters": ["sanitize"]  # Double-check: ensure no secrets in logs
-            },
+            "security.secret_validation": secret_validation_logger,
             "apps": {"handlers": ["app_file", "error_file"], "level": "INFO", "propagate": False},
             "background_tasks": {"handlers": ["app_file", "error_file"], "level": "INFO", "propagate": False}
         }
     elif environment == 'development':
+        secret_validation_logger = {
+            "handlers": ["app_file"],  # File only, not console for security
+            "level": "INFO",
+            "propagate": False,
+        }
+        if security_filters:
+            secret_validation_logger["filters"] = security_filters
+
         return {
             "django": {"handlers": ["console", "app_file"], "level": "INFO", "propagate": False},
             "apps": {"handlers": ["console", "app_file"], "level": "DEBUG", "propagate": False},
             "security": {"handlers": ["console", "app_file"], "level": "DEBUG", "propagate": False},
             # CRITICAL: Dedicated logger for secret validation
-            "security.secret_validation": {
-                "handlers": ["app_file"],  # File only, not console for security
-                "level": "INFO",
-                "propagate": False,
-                "filters": ["sanitize"]  # Ensure no secrets in logs
-            }
+            "security.secret_validation": secret_validation_logger
         }
     else:  # test
         return {

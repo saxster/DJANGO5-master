@@ -47,6 +47,7 @@ from django.conf import settings
 
 from apps.core.models.sync_idempotency import SyncIdempotencyRecord
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+from apps.ontology.decorators import ontology
 
 # Prometheus metrics integration
 try:
@@ -58,6 +59,52 @@ except ImportError:
 logger = logging.getLogger('celery.idempotency')
 
 
+@ontology(
+    domain="infrastructure",
+    purpose="Universal idempotency service for Celery tasks with Redis-based duplicate prevention and PostgreSQL fallback",
+    responsibility="Prevents duplicate task execution via SHA256-hashed idempotency keys, distributed Redis locks, configurable TTL per task category, and Prometheus metrics for dedupe effectiveness tracking",
+    patterns={
+        "idempotency_key_generation": "SHA256 hash of task signature (name + args + kwargs + scope)",
+        "storage_strategy": "Redis-first for speed (10-50x faster), PostgreSQL fallback for durability",
+        "distributed_locking": "Redis native locks with automatic expiration, PostgreSQL advisory locks as fallback",
+        "observability": "Prometheus counters for dedupe hits/misses, cache effectiveness tracking"
+    },
+    key_methods={
+        "generate_task_key": "Deterministic SHA256 key from task signature with scope support",
+        "check_duplicate": "Two-layer check (Redis → PostgreSQL) with metrics tracking",
+        "store_result": "Dual storage (Redis + PostgreSQL) with configurable TTL",
+        "acquire_distributed_lock": "Context manager for race condition prevention",
+        "with_idempotency": "Decorator for automatic task deduplication"
+    },
+    data_flow="Task invocation → Key generation (SHA256) → Redis check → PostgreSQL check (if Redis miss) → Lock acquisition → Task execution → Result storage (Redis + DB) → Metrics emission (Prometheus)",
+    dependencies={
+        "redis": "Primary storage for idempotency keys and distributed locks (timeout: 5min)",
+        "postgresql": "Fallback storage with SyncIdempotencyRecord model (90-day retention)",
+        "prometheus": "Metrics tracking for dedupe effectiveness (hit rate, cache efficiency)",
+        "celery": "Background task framework with @shared_task decorator support"
+    },
+    related_systems={
+        "models.sync_idempotency": "PostgreSQL model for durable idempotency records",
+        "services.redis_backup_service": "Redis persistence for disaster recovery",
+        "tasks.base": "Base Celery task class with automatic idempotency support",
+        "middleware.pydantic_validation_middleware": "Pre-validation of idempotency keys in REST APIs"
+    },
+    performance_notes="Redis operations ~1-2ms, PostgreSQL ~10-20ms; TTL categories optimize memory (1h default, 24h reports, 4h critical tasks); distributed locks prevent thundering herd on cache misses",
+    compliance_notes="Idempotency records retain PII for 90 days (GDPR Article 17 compliance); audit trail for duplicate detection patterns; supports forensic analysis of retry storms",
+    edge_cases=[
+        "Redis unavailable: Graceful fallback to PostgreSQL advisory locks (slower but durable)",
+        "Race condition: First task acquires lock, subsequent tasks return cached result",
+        "TTL expiration: Expired keys allow task re-execution after cooling period",
+        "Lock timeout: 5-minute automatic expiration prevents deadlocks from worker crashes",
+        "Hash collision: SHA256 provides 2^256 keyspace (practically impossible)"
+    ],
+    future_enhancements=[
+        "Add idempotency key prefixes for multi-region deployments",
+        "Implement adaptive TTL based on task success/failure rates",
+        "Add circuit breaker for Redis to prevent cascading failures",
+        "Support for idempotency group operations (batch task deduplication)"
+    ]
+)
 class UniversalIdempotencyService:
     """
     Universal idempotency service for all background tasks.
@@ -76,7 +123,7 @@ class UniversalIdempotencyService:
         'critical': SECONDS_IN_HOUR * 4,      # 4 hours (autoclose, escalation)
         'report': SECONDS_IN_DAY,             # 24 hours (reports)
         'email': SECONDS_IN_HOUR * 2,         # 2 hours (emails)
-        'mutation': SECONDS_IN_HOUR * 6,      # 6 hours (GraphQL mutations)
+        'mutation': SECONDS_IN_HOUR * 6,      # 6 hours (legacy API mutations)
         'maintenance': SECONDS_IN_HOUR * 12,  # 12 hours (cleanup tasks)
     }
 

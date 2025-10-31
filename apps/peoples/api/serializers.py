@@ -9,7 +9,7 @@ Compliance with .claude/rules.md:
 """
 
 from rest_framework import serializers
-from apps.peoples.models import People
+from apps.peoples.models import People, Pgbelonging
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 
@@ -179,10 +179,36 @@ class PeopleCapabilitiesSerializer(serializers.ModelSerializer):
         return value
 
 
+class PgbelongingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for people group belongings (memberships).
+
+    Used for mobile sync of group memberships.
+    """
+    people_name = serializers.CharField(
+        source='people.get_full_name',
+        read_only=True
+    )
+    group_name = serializers.CharField(
+        source='pgroup.pgroupname',
+        read_only=True
+    )
+
+    class Meta:
+        model = Pgbelonging
+        fields = [
+            'id', 'people', 'people_name',
+            'pgroup', 'group_name',
+            'is_active', 'created_at', 'modified_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'modified_at']
+
+
 __all__ = [
     'PeopleListSerializer',
     'PeopleDetailSerializer',
     'PeopleCreateSerializer',
     'PeopleUpdateSerializer',
     'PeopleCapabilitiesSerializer',
+    'PgbelongingSerializer',
 ]

@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('tenants', '0001_initial'),
         ('journal', '0003_refactor_journal_entry_models'),
+        ('wellness', '0002_add_conversation_translation_models'),
         ('wellness', '0002_add_mental_health_interventions'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

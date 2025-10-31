@@ -5,11 +5,15 @@ Provides comprehensive insights, predictions, and fraud detection
 
 import logging
 import numpy as np
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
 from django.utils import timezone
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 # Removed: anomaly_detection imports - app removed
 from apps.face_recognition.models import FaceVerificationLog, FaceEmbedding
 from apps.peoples.models import People

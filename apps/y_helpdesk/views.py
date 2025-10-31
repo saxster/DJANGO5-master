@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.db.utils import IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from apps.onboarding.models import TypeAssist
 from .models import EscalationMatrix, Ticket
 from .forms import TicketForm, EscalationForm
@@ -7,10 +8,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.http import response as rp
 from apps.core import utils
-from django.db import transaction
+from django.db import transaction, DatabaseError
 from apps.peoples import utils as putils
 from apps.peoples import models as pm
 from apps.core.utils_new.db_utils import get_current_db_name
+from apps.activity.models.job_model import Job
 
 # Import unified serializer for consistent API responses
 from .serializers.unified_ticket_serializer import (
@@ -245,7 +247,7 @@ class PostingOrderView(LoginRequiredMixin, View):
 
     params = {
         "template_list": "y_helpdesk/posting_order_list.html",
-        "model": Jobneed,
+        "model": Job,  # Fixed: Was Jobneed (legacy name)
     }
 
     def get(self, request, *args, **kwargs):

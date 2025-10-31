@@ -1,16 +1,16 @@
 """
-REST API Type Definitions (Replacement for GraphQL types)
+REST API Type Definitions (replacement for legacy query types)
 
 Created: October 29, 2025
-Purpose: Replace deleted GraphQL types with REST-compatible dataclasses
+Purpose: Replace deleted legacy query types with REST-compatible dataclasses
 
 Following .claude/rules.md:
 - Rule #7: File <150 lines
 - Rule #11: Specific exception handling
 
-Migration Note: This replaces apps/service/types.py which contained GraphQL types.
-GraphQL removed October 2025 - this provides backward compatibility for services
-that used ServiceOutputType.
+Migration Note: This replaces apps/service/types.py from the retired query layer.
+The legacy implementation was removed in October 2025; this module preserves the
+response contracts used by service helpers such as ServiceOutputType.
 """
 
 from dataclasses import dataclass, field
@@ -22,7 +22,7 @@ class ServiceOutputType:
     """
     Standard service output format for database operations.
 
-    Replacement for GraphQL ServiceOutputType (removed Oct 2025).
+    Replacement for the legacy ServiceOutputType (removed Oct 2025).
     Used by database_service.py and other service layer functions.
 
     Attributes:

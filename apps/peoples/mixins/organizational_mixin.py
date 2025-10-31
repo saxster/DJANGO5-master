@@ -35,9 +35,7 @@ class OrganizationalQueryMixin:
             for member in team:
                 print(f"{member.peoplename} reports to {manager.peoplename}")
         """
-        if not hasattr(self, 'organizat
-
-ional'):
+        if not hasattr(self, 'organizational'):
             return self.__class__.objects.none()
 
         from ..models.user_model import People

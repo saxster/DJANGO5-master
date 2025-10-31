@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.auth.middleware import AuthenticationMiddleware
 import json
+from apps.scheduler.views import (
     Schd_I_TourFormJob,
     Update_I_TourFormJob,
     Retrive_I_ToursJob,
@@ -74,8 +75,8 @@ class SchdITourFormJobTestCase(TestCase):
         auth_middleware.process_request(request)
         request.user = self.user
 
-    @patch("apps.schedhuler.views.utils.get_current_db_name")
-    @patch("apps.schedhuler.views.putils.save_userinfo")
+    @patch("apps.scheduler.views.utils.get_current_db_name")
+    @patch("apps.scheduler.views.putils.save_userinfo")
     def test_post_request_create_tour(self, mock_save_userinfo, mock_get_db):
         mock_get_db.return_value = "default"
         mock_save_userinfo.return_value = Mock(id=1, jobname="Test Tour")
@@ -100,7 +101,7 @@ class SchdITourFormJobTestCase(TestCase):
             ),
         }
 
-        request = self.factory.post("/schedhuler/create-tour/", post_data)
+        request = self.factory.post("/scheduler/create-tour/", post_data)
         self.add_session_to_request(request)
 
         # Create a mock form instance
@@ -127,7 +128,7 @@ class SchdITourFormJobTestCase(TestCase):
         self.assertIsInstance(response, JsonResponse)
         self.assertEqual(response.status_code, 404)
 
-    @patch("apps.schedhuler.views.putils.save_userinfo")
+    @patch("apps.scheduler.views.putils.save_userinfo")
     def test_save_checkpoints_for_tour(self, mock_save_userinfo):
         checkpoints = [
             [1, self.asset.id, "Test Asset", self.questionset.id, "Test QSet", 10]
@@ -209,7 +210,7 @@ class UpdateITourFormJobTestCase(TestCase):
         request.user = self.user
 
     def test_get_nonexistent_job(self):
-        request = self.factory.get("/schedhuler/update-tour/999/")
+        request = self.factory.get("/scheduler/update-tour/999/")
         self.add_session_to_request(request)
 
         self.view.request = request
@@ -291,11 +292,11 @@ class RetriveIToursJobTestCase(TestCase):
         auth_middleware.process_request(request)
         request.user = self.user
 
-    @patch("apps.schedhuler.views.Retrive_I_ToursJob.paginate_results")
+    @patch("apps.scheduler.views.Retrive_I_ToursJob.paginate_results")
     def test_get_tours_list(self, mock_paginate):
         mock_paginate.return_value = {"schdtour_list": [], "schdtour_filter": Mock()}
 
-        request = self.factory.get("/schedhuler/tours/")
+        request = self.factory.get("/scheduler/tours/")
         self.add_session_to_request(request)
 
         with patch.object(self.view.model.objects, "select_related") as mock_select:
@@ -311,10 +312,10 @@ class RetriveIToursJobTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_paginate_results(self):
-        request = self.factory.get("/schedhuler/tours/?page=1")
+        request = self.factory.get("/scheduler/tours/?page=1")
         objects = []
 
-        with patch("apps.schedhuler.filters.SchdTourFilter") as mock_filter:
+        with patch("apps.scheduler.filters.SchdTourFilter") as mock_filter:
             mock_filter_instance = Mock()
             mock_filter_instance.form = Mock()
             mock_filter_instance.qs = objects  # Return the same empty list
@@ -387,8 +388,8 @@ class SchdTaskFormJobTestCase(TestCase):
         auth_middleware.process_request(request)
         request.user = self.user
 
-    @patch("apps.schedhuler.views.utils.get_current_db_name")
-    @patch("apps.schedhuler.views.putils.save_userinfo")
+    @patch("apps.scheduler.views.utils.get_current_db_name")
+    @patch("apps.scheduler.views.putils.save_userinfo")
     def test_post_create_task(self, mock_save_userinfo, mock_get_db):
         mock_get_db.return_value = "default"
         mock_save_userinfo.return_value = Mock(id=1, jobname="Test Task")
@@ -409,7 +410,7 @@ class SchdTaskFormJobTestCase(TestCase):
 
         post_data = {"formData": "&".join([f"{k}={v}" for k, v in form_data.items()])}
 
-        request = self.factory.post("/schedhuler/create-task/", post_data)
+        request = self.factory.post("/scheduler/create-task/", post_data)
         self.add_session_to_request(request)
 
         # Create a mock form instance
@@ -438,7 +439,7 @@ class SchdTaskFormJobTestCase(TestCase):
         self.add_session_to_request(request)
 
         self.view.request = request
-        with patch("apps.schedhuler.views.putils.save_userinfo", return_value=job):
+        with patch("apps.scheduler.views.putils.save_userinfo", return_value=job):
             response = self.view.process_valid_schd_taskform(request, form)
 
         self.assertIsInstance(response, JsonResponse)
@@ -496,7 +497,7 @@ class RetriveSchdTasksJobTestCase(TestCase):
         request.user = self.user
 
     def test_get_template(self):
-        request = self.factory.get("/schedhuler/tasks/?template=true")
+        request = self.factory.get("/scheduler/tasks/?template=true")
         self.add_session_to_request(request)
 
         response = self.view.get(request)
@@ -504,7 +505,7 @@ class RetriveSchdTasksJobTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_get_tasks_list(self):
-        request = self.factory.get("/schedhuler/tasks/?action=list")
+        request = self.factory.get("/scheduler/tasks/?action=list")
         request.user = self.user  # Add authenticated user
         self.add_session_to_request(request)
 
@@ -521,10 +522,10 @@ class RetriveSchdTasksJobTestCase(TestCase):
         self.assertIsInstance(response, JsonResponse)
 
     def test_paginate_results(self):
-        request = self.factory.get("/schedhuler/tasks/?page=1")
+        request = self.factory.get("/scheduler/tasks/?page=1")
         objects = []
 
-        with patch("apps.schedhuler.filters.SchdTaskFilter") as mock_filter:
+        with patch("apps.scheduler.filters.SchdTaskFilter") as mock_filter:
             mock_filter_instance = Mock()
             mock_filter_instance.form = Mock()
             mock_filter_instance.qs = objects  # Return the same empty list
@@ -559,26 +560,26 @@ class DeleteCheckpointFromTourTestCase(TestCase):
             bu=self.bt,
         )
 
-    @patch("apps.schedhuler.views.sutils.delete_from_job")
+    @patch("apps.scheduler.views.sutils.delete_from_job")
     def test_delete_checkpoint_from_job(self, mock_delete_job):
         request = self.factory.get(
-            "/schedhuler/delete-checkpoint/?datasource=job&checkpointid=1&checklistid=1&job=1"
+            "/scheduler/delete-checkpoint/?datasource=job&checkpointid=1&checklistid=1&job=1"
         )
 
-        from apps.schedhuler.views import deleteChekpointFromTour
+        from apps.scheduler.views import deleteChekpointFromTour
 
         response = deleteChekpointFromTour(request)
 
         self.assertIsInstance(response, JsonResponse)
         mock_delete_job.assert_called_once_with("1", "1", "1")
 
-    @patch("apps.schedhuler.views.sutils.delete_from_jobneed")
+    @patch("apps.scheduler.views.sutils.delete_from_jobneed")
     def test_delete_checkpoint_from_jobneed(self, mock_delete_jobneed):
         request = self.factory.get(
-            "/schedhuler/delete-checkpoint/?datasource=jobneed&checkpointid=1&checklistid=1&job=1"
+            "/scheduler/delete-checkpoint/?datasource=jobneed&checkpointid=1&checklistid=1&job=1"
         )
 
-        from apps.schedhuler.views import deleteChekpointFromTour
+        from apps.scheduler.views import deleteChekpointFromTour
 
         response = deleteChekpointFromTour(request)
 
@@ -586,9 +587,9 @@ class DeleteCheckpointFromTourTestCase(TestCase):
         mock_delete_jobneed.assert_called_once_with("1", "1", "1")
 
     def test_delete_checkpoint_invalid_method(self):
-        request = self.factory.post("/schedhuler/delete-checkpoint/")
+        request = self.factory.post("/scheduler/delete-checkpoint/")
 
-        from apps.schedhuler.views import deleteChekpointFromTour
+        from apps.scheduler.views import deleteChekpointFromTour
         from django.http import Http404
 
         response = deleteChekpointFromTour(request)
@@ -634,8 +635,8 @@ class RunInternalTourSchedulerTestCase(TestCase):
         auth_middleware.process_request(request)
         request.user = self.user
 
-    @patch("apps.schedhuler.views._get_job")
-    @patch("apps.schedhuler.views.sutils.create_job")
+    @patch("apps.scheduler.views._get_job")
+    @patch("apps.scheduler.views.sutils.create_job")
     def test_run_scheduler_success(self, mock_create_job, mock_get_job):
         mock_get_job.return_value = {
             "id": 1,
@@ -645,10 +646,10 @@ class RunInternalTourSchedulerTestCase(TestCase):
 
         post_data = {"job_id": "1", "action": "schedule", "checkpoints": "[]"}
 
-        request = self.factory.post("/schedhuler/run-scheduler/", post_data)
+        request = self.factory.post("/scheduler/run-scheduler/", post_data)
         self.add_session_to_request(request)
 
-        from apps.schedhuler.views import run_internal_tour_scheduler
+        from apps.scheduler.views import run_internal_tour_scheduler
 
         response = run_internal_tour_scheduler(request)
 
@@ -657,25 +658,25 @@ class RunInternalTourSchedulerTestCase(TestCase):
     def test_run_scheduler_no_job_id(self):
         post_data = {"action": "schedule", "checkpoints": "[]"}
 
-        request = self.factory.post("/schedhuler/run-scheduler/", post_data)
+        request = self.factory.post("/scheduler/run-scheduler/", post_data)
         self.add_session_to_request(request)
 
-        from apps.schedhuler.views import run_internal_tour_scheduler
+        from apps.scheduler.views import run_internal_tour_scheduler
 
         response = run_internal_tour_scheduler(request)
 
         self.assertEqual(response.status_code, 404)
 
-    @patch("apps.schedhuler.views._get_job")
+    @patch("apps.scheduler.views._get_job")
     def test_run_scheduler_job_not_found(self, mock_get_job):
         mock_get_job.return_value = None
 
         post_data = {"job_id": "999", "action": "schedule", "checkpoints": "[]"}
 
-        request = self.factory.post("/schedhuler/run-scheduler/", post_data)
+        request = self.factory.post("/scheduler/run-scheduler/", post_data)
         self.add_session_to_request(request)
 
-        from apps.schedhuler.views import run_internal_tour_scheduler
+        from apps.scheduler.views import run_internal_tour_scheduler
 
         response = run_internal_tour_scheduler(request)
 
@@ -687,12 +688,12 @@ class GetCronDatetimeTestCase(TestCase):
         self.factory = RequestFactory()
 
     def test_get_cron_datetime_valid_cron(self):
-        request = self.factory.get("/schedhuler/cron-datetime/?cron=0 * * * *")
+        request = self.factory.get("/scheduler/cron-datetime/?cron=0 * * * *")
 
-        from apps.schedhuler.views import get_cron_datetime
+        from apps.scheduler.views import get_cron_datetime
 
         # Mock datetime.now() to return a fixed datetime
-        with patch("apps.schedhuler.views.datetime") as mock_datetime:
+        with patch("apps.scheduler.views.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 1, 9, 0)
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -711,9 +712,9 @@ class GetCronDatetimeTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_get_cron_datetime_invalid_cron(self):
-        request = self.factory.get("/schedhuler/cron-datetime/?cron=invalid_cron")
+        request = self.factory.get("/scheduler/cron-datetime/?cron=invalid_cron")
 
-        from apps.schedhuler.views import get_cron_datetime
+        from apps.scheduler.views import get_cron_datetime
 
         with patch("croniter.croniter", side_effect=Exception("Bad cron")):
             response = get_cron_datetime(request)
@@ -721,9 +722,9 @@ class GetCronDatetimeTestCase(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_get_cron_datetime_invalid_method(self):
-        request = self.factory.post("/schedhuler/cron-datetime/")
+        request = self.factory.post("/scheduler/cron-datetime/")
 
-        from apps.schedhuler.views import get_cron_datetime
+        from apps.scheduler.views import get_cron_datetime
         from django.http import Http404
 
         # The view returns Http404 class, not an instance

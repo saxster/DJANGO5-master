@@ -5,6 +5,8 @@ Serializers for saved dashboard view configurations.
 Follows .claude/rules.md Rule #7 (serializers <150 lines).
 """
 
+from typing import Any, Dict, List
+
 from rest_framework import serializers
 from apps.noc.models import NOCSavedView
 from apps.noc.services import NOCViewService
@@ -40,7 +42,7 @@ class NOCSavedViewSerializer(serializers.ModelSerializer):
             'last_used_at', 'cdtz', 'mdtz', 'shared_with_users'
         ]
 
-    def get_shared_with_users(self, obj):
+    def get_shared_with_users(self, obj) -> List[Dict[str, Any]]:
         """Get list of users this view is shared with."""
         if obj.is_shared:
             return [
@@ -100,7 +102,7 @@ class NOCSavedViewListSerializer(serializers.ModelSerializer):
             'user_name', 'is_owned', 'usage_count', 'last_used_at'
         ]
 
-    def get_is_owned(self, obj):
+    def get_is_owned(self, obj) -> bool:
         """Check if current user owns this view."""
         request = self.context.get('request')
         if request and request.user:

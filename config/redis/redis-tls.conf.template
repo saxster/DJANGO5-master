@@ -1,0 +1,196 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Redis TLS/SSL Configuration Template
+# PCI DSS Level 1 Compliance
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# This configuration template enables TLS/SSL encryption for Redis connections.
+#
+# PCI DSS 4.0.1 Requirement 4.2.1:
+# - Use TLS 1.2 or higher for cardholder data transmission
+# - Strong cryptography and security protocols required
+# - Certificate management mandatory from April 1, 2025
+#
+# Usage:
+#   1. Generate certificates using: sudo ./scripts/setup_redis_tls.sh
+#   2. Copy this template: sudo cp config/redis/redis-tls.conf.template /etc/redis/redis.conf
+#   3. Update certificate paths below
+#   4. Restart Redis: sudo systemctl restart redis
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────
+# TLS/SSL Configuration (PCI DSS Compliant)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Enable TLS port (6379 by default)
+# Note: Use 'tls-port' for encrypted connections
+tls-port 6379
+
+# Disable plaintext port in production (REQUIRED for PCI DSS)
+# Set to 0 to disable non-encrypted connections
+# Development: Can keep port 6379 for both
+port 0  # PRODUCTION: Disable plaintext port
+
+# ───────────────────────────────────────────────────────────────────────────
+# TLS Certificate Configuration
+# ───────────────────────────────────────────────────────────────────────────
+
+# Server certificate (public key)
+tls-cert-file /etc/redis/tls/redis-cert.pem
+
+# Server private key
+# CRITICAL: Protect with 600 permissions (owner read/write only)
+tls-key-file /etc/redis/tls/redis-key.pem
+
+# Certificate Authority (CA) certificate
+# Used to verify client certificates
+tls-ca-cert-file /etc/redis/tls/ca-cert.pem
+
+# DH params file (optional, for stronger Perfect Forward Secrecy)
+# Generate with: openssl dhparam -out /etc/redis/tls/redis-dh2048.pem 2048
+# tls-dh-params-file /etc/redis/tls/redis-dh2048.pem
+
+# ───────────────────────────────────────────────────────────────────────────
+# Client Authentication (PCI DSS Recommended)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Require client certificates (mutual TLS)
+# Options: yes | no | optional
+# Production: 'yes' for maximum security
+# Development: 'optional' for flexibility
+tls-auth-clients yes
+
+# ───────────────────────────────────────────────────────────────────────────
+# TLS Protocol Version (PCI DSS Compliant)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Allow only TLS 1.2 and TLS 1.3 (PCI DSS 4.0.1 requirement)
+# NEVER use TLS 1.0 or TLS 1.1 (deprecated and insecure)
+tls-protocols "TLSv1.2 TLSv1.3"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Cipher Suite Configuration (Strong Cryptography Only)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Use strong cipher suites only (PCI DSS compliant)
+# Excludes: NULL ciphers, EXPORT ciphers, DES, RC4, MD5, PSK
+tls-ciphers DEFAULT:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
+
+# TLS 1.3 cipher suites (recommended)
+tls-ciphersuites TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256
+
+# Prefer server cipher suite order (security best practice)
+tls-prefer-server-ciphers yes
+
+# ───────────────────────────────────────────────────────────────────────────
+# Session Configuration
+# ───────────────────────────────────────────────────────────────────────────
+
+# Enable session caching for performance
+tls-session-caching yes
+tls-session-cache-size 20480  # 20MB cache
+tls-session-cache-timeout 300  # 5 minutes
+
+# ───────────────────────────────────────────────────────────────────────────
+# TLS Replication (for Redis Sentinel/Cluster)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Enable TLS for replication connections
+tls-replication yes
+
+# Use TLS for cluster bus
+# tls-cluster yes  # Uncomment if using Redis Cluster
+
+# ───────────────────────────────────────────────────────────────────────────
+# Standard Redis Configuration
+# ───────────────────────────────────────────────────────────────────────────
+
+# Bind to all interfaces (use firewall for access control)
+bind 0.0.0.0
+
+# Protected mode (require password)
+protected-mode yes
+
+# Redis password (set via requirepass or ACL)
+# Note: Set REDIS_PASSWORD environment variable in Django
+requirepass CHANGE_ME_SET_STRONG_PASSWORD
+
+# Persistence configuration
+save 900 1
+save 300 10
+save 60 10000
+
+# RDB file
+dbfilename dump.rdb
+dir /var/lib/redis
+
+# AOF persistence
+appendonly yes
+appendfilename "appendonly.aof"
+appendfsync everysec
+
+# Memory management
+maxmemory 2gb
+maxmemory-policy allkeys-lru
+
+# Logging
+loglevel notice
+logfile /var/log/redis/redis-server.log
+
+# Slow log
+slowlog-log-slower-than 10000  # 10ms
+slowlog-max-len 128
+
+# ───────────────────────────────────────────────────────────────────────────
+# Security Hardening
+# ───────────────────────────────────────────────────────────────────────────
+
+# Disable dangerous commands
+rename-command FLUSHDB ""
+rename-command FLUSHALL ""
+rename-command CONFIG "CONFIG_b5f8a9d2c4e1"
+rename-command SHUTDOWN "SHUTDOWN_b5f8a9d2c4e1"
+
+# Connection limits
+timeout 300  # Close idle clients after 5 minutes
+tcp-keepalive 300
+
+# Max clients
+maxclients 10000
+
+# ───────────────────────────────────────────────────────────────────────────
+# Monitoring & Diagnostics
+# ───────────────────────────────────────────────────────────────────────────
+
+# Latency monitoring
+latency-monitor-threshold 100  # 100ms
+
+# Enable keyspace notifications for monitoring
+notify-keyspace-events "Ex"  # Expiration events
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PRODUCTION CHECKLIST
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Before deploying to production, verify:
+#
+# [x] TLS enabled (tls-port configured)
+# [x] Plaintext port disabled (port 0)
+# [x] Certificates installed with proper permissions
+# [x] Strong cipher suites configured
+# [x] TLS 1.2+ only (no TLS 1.0/1.1)
+# [x] Client authentication enabled
+# [x] Strong password set (requirepass)
+# [x] Dangerous commands disabled
+# [x] Logging configured
+# [x] Memory limits set
+# [x] Persistence enabled
+#
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Configuration Version: 1.0
+# Last Updated: October 2025
+# PCI DSS Version: 4.0.1
+# Compliance Deadline: April 1, 2025
+#
+# ═══════════════════════════════════════════════════════════════════════════

@@ -11,9 +11,9 @@ Test Categories:
 5. Validation Tests
 
 Usage:
-    python -m pytest apps/schedhuler/tests/test_dst_transitions.py -v
-    python -m pytest apps/schedhuler/tests/test_dst_transitions.py -k "spring_forward" -v
-    python -m pytest apps/schedhuler/tests/test_dst_transitions.py -k "fall_back" -v
+    python -m pytest apps/scheduler/tests/test_dst_transitions.py -v
+    python -m pytest apps/scheduler/tests/test_dst_transitions.py -k "spring_forward" -v
+    python -m pytest apps/scheduler/tests/test_dst_transitions.py -k "fall_back" -v
 
 Coverage Target: 95%+
 
@@ -31,8 +31,8 @@ from django.test import TestCase, override_settings
 from django.utils import timezone as django_timezone
 import pytz
 
-from apps.schedhuler.services.cron_calculation_service import CronCalculationService
-from apps.schedhuler.services.dst_validator import DSTValidator
+from apps.scheduler.services.cron_calculation_service import CronCalculationService
+from apps.scheduler.services.dst_validator import DSTValidator
 
 
 class DSTSpringForwardTests(TestCase):
@@ -422,7 +422,7 @@ class ValidationTests(TestCase):
         transitions1 = self.dst_validator.get_dst_transitions(2025, 'US/Eastern')
 
         # Second call - should hit cache
-        with patch('apps.schedhuler.services.dst_validator.cache.get') as mock_get:
+        with patch('apps.scheduler.services.dst_validator.cache.get') as mock_get:
             mock_get.return_value = transitions1
             transitions2 = self.dst_validator.get_dst_transitions(2025, 'US/Eastern')
 

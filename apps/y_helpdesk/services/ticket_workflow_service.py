@@ -16,7 +16,7 @@ Following .claude/rules.md:
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from enum import Enum
 
 from django.db import transaction, DatabaseError, OperationalError, IntegrityError
@@ -26,7 +26,11 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 
 from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
 from apps.core.error_handling import ErrorHandler
-from apps.y_helpdesk.models import Ticket, EscalationMatrix
+
+# TYPE_CHECKING import to break circular dependency
+# (y_helpdesk.models → .managers → optimized_managers → services → ticket_workflow_service → y_helpdesk.models)
+if TYPE_CHECKING:
+    from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from .ticket_state_machine import (
     TicketStateMachine,
     TransitionContext,
@@ -76,7 +80,7 @@ class TicketWorkflowService:
         user,
         validate_transition: bool = True,
         comments: Optional[str] = None
-    ) -> Ticket:
+    ):  # Return type removed due to circular import
         """
         Atomically transition ticket to new status with validation.
 
@@ -95,6 +99,9 @@ class TicketWorkflowService:
             LockAcquisitionError: If cannot acquire lock
             ObjectDoesNotExist: If ticket not found
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         lock_key = f"ticket_status:{ticket_id}"
 
         with distributed_lock(lock_key, timeout=10, blocking_timeout=5):
@@ -161,7 +168,7 @@ class TicketWorkflowService:
         assigned_person_id: Optional[int] = None,
         assigned_group_id: Optional[int] = None,
         user = None
-    ) -> Ticket:
+    ):  # Return type removed due to circular import
         """
         Atomically escalate ticket to next level.
 
@@ -182,6 +189,9 @@ class TicketWorkflowService:
             LockAcquisitionError: If cannot acquire lock
             ObjectDoesNotExist: If ticket not found
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         lock_key = f"ticket_escalate:{ticket_id}"
 
         with distributed_lock(lock_key, timeout=15, blocking_timeout=10):
@@ -236,7 +246,7 @@ class TicketWorkflowService:
         cls,
         ticket_id: int,
         history_item: Dict[str, Any]
-    ) -> Ticket:
+    ):  # Return type removed due to circular import
         """
         Atomically append entry to ticket history log.
 
@@ -249,6 +259,9 @@ class TicketWorkflowService:
         Returns:
             Updated ticket instance
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         lock_key = f"ticket_history:{ticket_id}"
 
         with distributed_lock(lock_key, timeout=10, blocking_timeout=5):
@@ -289,7 +302,7 @@ class TicketWorkflowService:
         person_id: Optional[int] = None,
         group_id: Optional[int] = None,
         user = None
-    ) -> Ticket:
+    ):  # Return type removed due to circular import
         """
         Assign ticket to person or group using centralized TicketAssignmentService.
 
@@ -306,6 +319,9 @@ class TicketWorkflowService:
             Ticket.DoesNotExist: If ticket not found
             ValidationError: If assignment fails
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         # Create assignment context
         context = AssignmentContext(
             user=user,
@@ -356,6 +372,9 @@ class TicketWorkflowService:
         Returns:
             Number of tickets updated
         """
+        # Lazy import to break circular dependency
+        from apps.y_helpdesk.models import Ticket
+
         lock_key = f"ticket_bulk_update:{'_'.join(map(str, sorted(ticket_ids[:5])))}"
 
         with distributed_lock(lock_key, timeout=20, blocking_timeout=15):

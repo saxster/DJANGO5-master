@@ -91,14 +91,28 @@ class NOCAggregationService:
 
     @staticmethod
     def _aggregate_tickets(sites, window_start) -> Dict[str, Any]:
-        """Aggregate ticket metrics across sites."""
+        """
+        Aggregate ticket metrics across sites with SLA calculation.
+
+        IMPLEMENTED (Sprint 2): SLA-based overdue detection
+        """
         from apps.y_helpdesk.models import Ticket
+        from apps.y_helpdesk.services.sla_calculator import SLACalculator
 
         site_ids = [s.id for s in sites]
         tickets = Ticket.objects.filter(bu_id__in=site_ids, mdtz__gte=window_start)
 
         open_tickets = tickets.filter(status__in=['NEW', 'OPEN', 'ONHOLD']).count()
-        overdue_tickets = tickets.filter(status='OPEN').count()  # TODO: Add SLA logic
+
+        # IMPLEMENTED: SLA-based overdue calculation (Sprint 2)
+        try:
+            sla_calculator = SLACalculator()
+            overdue_ticket_qs = sla_calculator.get_overdue_tickets(site_ids=site_ids)
+            overdue_tickets = overdue_ticket_qs.count()
+        except Exception as e:
+            logger.warning(f"SLA calculation failed, using fallback: {e}")
+            # Fallback to simple status-based count
+            overdue_tickets = tickets.filter(status='OPEN').count()
 
         priority_dist = dict(tickets.values('priority').annotate(count=Count('id')).values_list('priority', 'count'))
 
@@ -110,22 +124,47 @@ class NOCAggregationService:
 
     @staticmethod
     def _aggregate_attendance(sites, window_end) -> Dict[str, Any]:
-        """Aggregate attendance metrics for current day."""
-        from apps.attendance.models import PeopleEventlog
+        """
+        Aggregate attendance metrics for current day.
+
+        IMPLEMENTED (Sprint 2): Expected vs actual calculation
+        """
+        from apps.attendance.services.attendance_expectation_service import AttendanceExpectationService
 
         site_ids = [s.id for s in sites]
-        today_start = window_end.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        attendance = PeopleEventlog.objects.filter(bu_id__in=site_ids, cdtz__gte=today_start)
+        # IMPLEMENTED: Use AttendanceExpectationService (Sprint 2)
+        try:
+            attendance_service = AttendanceExpectationService()
+            metrics = attendance_service.calculate_attendance_metrics(
+                sites=sites,
+                target_date=window_end.date()
+            )
 
-        present_count = attendance.filter(Q(checkin__isnull=False) | Q(checkout__isnull=False)).distinct('people').count()
+            return {
+                'attendance_expected': metrics.get('attendance_expected', 0),
+                'attendance_present': metrics.get('attendance_present', 0),
+                'attendance_missing': metrics.get('attendance_missing', 0),
+                'attendance_late': metrics.get('attendance_late', 0),
+                'compliance_percentage': metrics.get('compliance_percentage', 100.0),
+            }
 
-        return {
-            'attendance_present': present_count,
-            'attendance_missing': 0,  # TODO: Calculate expected vs actual
-            'attendance_late': 0,
-            'attendance_expected': 0,
-        }
+        except Exception as e:
+            logger.warning(f"Attendance expectation service failed, using fallback: {e}")
+            # Fallback to basic count
+            from apps.attendance.models import PeopleEventlog
+            today_start = window_end.replace(hour=0, minute=0, second=0, microsecond=0)
+            attendance = PeopleEventlog.objects.filter(bu_id__in=site_ids, cdtz__gte=today_start)
+            present_count = attendance.filter(
+                Q(checkin__isnull=False) | Q(checkout__isnull=False)
+            ).distinct('people').count()
+
+            return {
+                'attendance_expected': 0,
+                'attendance_present': present_count,
+                'attendance_missing': 0,
+                'attendance_late': 0,
+            }
 
     @staticmethod
     def _aggregate_work_orders(sites, window_start) -> Dict[str, Any]:
@@ -146,9 +185,42 @@ class NOCAggregationService:
 
     @staticmethod
     def _aggregate_devices(sites) -> Dict[str, Any]:
-        """Aggregate device health metrics."""
+        """
+        Aggregate device health metrics using onboarding.Device model.
+
+        IMPLEMENTED (Sprint 6): Real-time device status tracking
+        - Devices offline >30min
+        - Critical alerts (offline >2hr)
+        - Total registered devices
+        """
+        from apps.onboarding.models import Device
+        from django.utils import timezone
+        from datetime import timedelta
+
+        site_ids = [s.id for s in sites]
+
+        # Query enabled devices for these sites
+        devices = Device.objects.filter(
+            bu_id__in=site_ids,
+            isdeviceon=True  # Only count administratively enabled devices
+        )
+
+        total_devices = devices.count()
+
+        # Calculate offline devices (no communication in 30+ minutes)
+        offline_threshold = timezone.now() - timedelta(minutes=30)
+        offline_devices = devices.filter(
+            lastcommunication__lt=offline_threshold
+        ).count()
+
+        # Calculate critical alerts (offline >2 hours)
+        alert_threshold = timezone.now() - timedelta(hours=2)
+        alert_devices = devices.filter(
+            lastcommunication__lt=alert_threshold
+        ).count()
+
         return {
-            'device_health_offline': 0,  # TODO: Query Device model
-            'device_health_alerts': 0,
-            'device_health_total': 0,
+            'device_health_offline': offline_devices,
+            'device_health_alerts': alert_devices,
+            'device_health_total': total_devices,
         }

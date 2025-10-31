@@ -73,16 +73,15 @@ class Migration(migrations.Migration):
             ),
         ),
 
-        # Create AuthoritativeKnowledgeChunk model
+        # Create AuthoritativeKnowledgeChunk model (UUID primary key - no auto id field)
         migrations.CreateModel(
             name='AuthoritativeKnowledgeChunk',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('chunk_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('cdtz', models.DateTimeField(auto_now_add=True, verbose_name='Created Date')),
                 ('mdtz', models.DateTimeField(auto_now=True, verbose_name='Modified Date')),
                 ('cdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Created By')),
                 ('mdby', models.CharField(blank=True, max_length=100, null=True, verbose_name='Modified By')),
-                ('chunk_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('chunk_index', models.IntegerField(help_text='Sequential chunk number within the document', verbose_name='Chunk Index')),
                 ('content_text', models.TextField(help_text='Text content of this chunk', verbose_name='Content Text')),
                 ('content_vector', django.contrib.postgres.fields.ArrayField(

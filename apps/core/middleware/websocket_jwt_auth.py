@@ -10,6 +10,36 @@ Compliance with .claude/rules.md:
 - Rule #15: Logging data sanitization
 - Rule #8: Middleware < 150 lines
 
+@ontology(
+    domain="security",
+    purpose="JWT authentication for Django Channels WebSocket connections with multi-source token extraction",
+    middleware_type="websocket",
+    execution_order="first in WebSocket middleware stack",
+    authentication_methods=[
+        "query_param (?token=xxx)",
+        "authorization_header (Authorization: Bearer xxx)",
+        "cookie (ws_token=xxx)"
+    ],
+    token_validation="rest_framework_simplejwt.AccessToken",
+    cache_strategy="5min cache for validated tokens (Redis)",
+    security_features=[
+        "Token expiry validation",
+        "User enable status check",
+        "Sanitized logging (no tokens in logs)",
+        "Connection audit trail"
+    ],
+    affects_all_requests=True,
+    applies_to="WebSocket connections only",
+    performance_impact="~3ms per connection (with cache hit)",
+    fallback_authentication="session_auth",
+    criticality="high",
+    error_codes={
+        "4401": "Unauthorized (invalid/missing token)",
+        "4400": "Bad request (malformed token)"
+    },
+    tags=["middleware", "websocket", "jwt", "authentication", "channels"]
+)
+
 Usage:
     from apps.core.middleware.websocket_jwt_auth import JWTAuthMiddleware
 
@@ -24,7 +54,6 @@ from typing import Optional, Dict, Any
 
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
-from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken

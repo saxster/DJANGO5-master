@@ -86,7 +86,7 @@ class UICompatConversationProcessView(APIView):
                 session_id=session_id,
                 user=request.user
             )
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return Response(
                 {"error": "Invalid session_id"},
                 status=status.HTTP_404_NOT_FOUND

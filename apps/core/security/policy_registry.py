@@ -11,13 +11,12 @@ Features:
 - Integration with Django system checks framework
 
 Policies Validated:
-1. GraphQL complexity limits
-2. Rate limiting configurations
-3. CSRF protection status
-4. SQL security patterns
-5. Session security
-6. Middleware ordering
-7. Secret validation
+1. Rate limiting configurations
+2. CSRF protection status
+3. SQL security patterns
+4. Session security
+5. Middleware ordering
+6. Secret validation
 
 Author: Claude Code
 Date: 2025-10-01
@@ -85,37 +84,6 @@ class SecurityPolicyRegistry:
     def _register_default_policies(self):
         """Register all default security policies"""
 
-        # GraphQL Security Policies
-        self.register(SecurityPolicy(
-            name="graphql_introspection_disabled_production",
-            category="GraphQL Security",
-            severity=PolicySeverity.CRITICAL,
-            description="GraphQL introspection must be disabled in production",
-            check_function=self._check_graphql_introspection,
-            remediation="Set GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION = True in production settings",
-            tags=["graphql", "production", "information-disclosure"]
-        ))
-
-        self.register(SecurityPolicy(
-            name="graphql_complexity_limits_enforced",
-            category="GraphQL Security",
-            severity=PolicySeverity.HIGH,
-            description="GraphQL complexity and depth limits must be enforced",
-            check_function=self._check_graphql_complexity,
-            remediation="Ensure GraphQLComplexityValidationMiddleware is in MIDDLEWARE stack",
-            tags=["graphql", "dos-prevention"]
-        ))
-
-        self.register(SecurityPolicy(
-            name="graphql_rate_limiting_enabled",
-            category="GraphQL Security",
-            severity=PolicySeverity.HIGH,
-            description="GraphQL rate limiting must be enabled",
-            check_function=self._check_graphql_rate_limiting,
-            remediation="Add GraphQLRateLimitingMiddleware to MIDDLEWARE and configure limits",
-            tags=["graphql", "rate-limiting", "dos-prevention"]
-        ))
-
         # Rate Limiting Policies
         self.register(SecurityPolicy(
             name="comprehensive_rate_limiting",
@@ -123,7 +91,7 @@ class SecurityPolicyRegistry:
             severity=PolicySeverity.HIGH,
             description="All public endpoints must have rate limiting",
             check_function=self._check_comprehensive_rate_limiting,
-            remediation="Ensure RATE_LIMIT_PATHS includes /api/, /graphql/, /admin/, /login/",
+            remediation="Ensure RATE_LIMIT_PATHS includes /api/, /admin/, /login/",
             tags=["rate-limiting", "brute-force-prevention"]
         ))
 
@@ -136,16 +104,6 @@ class SecurityPolicyRegistry:
             check_function=self._check_csrf_middleware,
             remediation="Add 'django.middleware.csrf.CsrfViewMiddleware' to MIDDLEWARE",
             tags=["csrf", "session-security"]
-        ))
-
-        self.register(SecurityPolicy(
-            name="graphql_csrf_protection",
-            category="CSRF Protection",
-            severity=PolicySeverity.HIGH,
-            description="GraphQL mutations must require CSRF protection",
-            check_function=self._check_graphql_csrf,
-            remediation="Add GraphQLCSRFProtectionMiddleware before CsrfViewMiddleware",
-            tags=["csrf", "graphql"]
         ))
 
         # SQL Security Policies
@@ -265,83 +223,11 @@ class SecurityPolicyRegistry:
     # Policy Check Functions
     # ========================================================================
 
-    def _check_graphql_introspection(self) -> Tuple[bool, str, Any, Any]:
-        """Check if GraphQL introspection is disabled in production"""
-        is_production = not settings.DEBUG
-        introspection_disabled = getattr(
-            settings,
-            'GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION',
-            False
-        )
-
-        if is_production and not introspection_disabled:
-            return (
-                False,
-                "GraphQL introspection enabled in production - information disclosure risk",
-                introspection_disabled,
-                True
-            )
-
-        return (True, "GraphQL introspection properly configured", introspection_disabled, True)
-
-    def _check_graphql_complexity(self) -> Tuple[bool, str, Any, Any]:
-        """Check if GraphQL complexity limits are enforced"""
-        middleware_classes = settings.MIDDLEWARE
-
-        complexity_middleware = 'apps.core.middleware.graphql_complexity_validation.GraphQLComplexityValidationMiddleware'
-
-        if complexity_middleware not in middleware_classes:
-            return (
-                False,
-                "GraphQL complexity validation middleware not enabled - DoS risk",
-                False,
-                True
-            )
-
-        # Check limits are set
-        max_depth = getattr(settings, 'GRAPHQL_MAX_QUERY_DEPTH', None)
-        max_complexity = getattr(settings, 'GRAPHQL_MAX_QUERY_COMPLEXITY', None)
-
-        if not max_depth or not max_complexity:
-            return (
-                False,
-                "GraphQL complexity limits not configured",
-                {'depth': max_depth, 'complexity': max_complexity},
-                {'depth': 10, 'complexity': 1000}
-            )
-
-        return (True, "GraphQL complexity limits properly enforced", True, True)
-
-    def _check_graphql_rate_limiting(self) -> Tuple[bool, str, Any, Any]:
-        """Check if GraphQL rate limiting is enabled"""
-        middleware_classes = settings.MIDDLEWARE
-
-        rate_limit_middleware = 'apps.core.middleware.graphql_rate_limiting.GraphQLRateLimitingMiddleware'
-
-        if rate_limit_middleware not in middleware_classes:
-            return (
-                False,
-                "GraphQL rate limiting middleware not enabled",
-                False,
-                True
-            )
-
-        rate_limit_max = getattr(settings, 'GRAPHQL_RATE_LIMIT_MAX', None)
-        if not rate_limit_max or rate_limit_max > 200:
-            return (
-                False,
-                f"GraphQL rate limit too high or not set: {rate_limit_max}",
-                rate_limit_max,
-                100
-            )
-
-        return (True, "GraphQL rate limiting properly configured", True, True)
-
     def _check_comprehensive_rate_limiting(self) -> Tuple[bool, str, Any, Any]:
         """Check if rate limiting covers all critical paths"""
         rate_limit_paths = getattr(settings, 'RATE_LIMIT_PATHS', [])
 
-        required_paths = ['/api/', '/graphql/', '/admin/', '/login/']
+        required_paths = ['/api/', '/admin/', '/login/']
         missing_paths = [path for path in required_paths if not any(
             path.startswith(rl_path) or rl_path.startswith(path)
             for rl_path in rate_limit_paths
@@ -370,37 +256,6 @@ class SecurityPolicyRegistry:
             )
 
         return (True, "CSRF middleware enabled", True, True)
-
-    def _check_graphql_csrf(self) -> Tuple[bool, str, Any, Any]:
-        """Check if GraphQL CSRF protection is enabled"""
-        middleware_classes = settings.MIDDLEWARE
-
-        graphql_csrf_middleware = 'apps.core.middleware.graphql_csrf_protection.GraphQLCSRFProtectionMiddleware'
-
-        if graphql_csrf_middleware not in middleware_classes:
-            return (
-                False,
-                "GraphQL CSRF protection middleware not enabled",
-                False,
-                True
-            )
-
-        # Check ordering (must be before CsrfViewMiddleware)
-        try:
-            graphql_csrf_idx = middleware_classes.index(graphql_csrf_middleware)
-            csrf_idx = middleware_classes.index('django.middleware.csrf.CsrfViewMiddleware')
-
-            if graphql_csrf_idx > csrf_idx:
-                return (
-                    False,
-                    "GraphQL CSRF middleware must come before CsrfViewMiddleware",
-                    graphql_csrf_idx,
-                    csrf_idx
-                )
-        except ValueError:
-            pass
-
-        return (True, "GraphQL CSRF protection properly configured", True, True)
 
     def _check_sql_injection_middleware(self) -> Tuple[bool, str, Any, Any]:
         """Check if SQL injection protection is enabled"""

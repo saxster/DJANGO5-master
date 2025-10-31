@@ -12,7 +12,6 @@ Modules:
 - cors.py: Cross-Origin Resource Sharing settings
 - authentication.py: API auth, sessions, environment overrides
 - rate_limiting.py: Rate limiting configuration
-- graphql.py: GraphQL security (CVSS 8.1 fixes)
 - file_upload.py: File upload security (CVSS 8.1 fixes)
 - validation.py: Security validation utilities
 """
@@ -23,7 +22,6 @@ from .security.csp import *
 from .security.cors import *
 from .security.authentication import *
 from .security.rate_limiting import *
-from .security.graphql import *
 from .security.file_upload import *
 from .security.validation import *
 
@@ -50,9 +48,8 @@ __MODULE_INFO__ = {
         'cors.py': 18,
         'authentication.py': 72,
         'rate_limiting.py': 16,
-        'graphql.py': 34,
         'file_upload.py': 57,
         'validation.py': 21
     },
-    'total_security_lines': 297  # Sum of all submodules (vs 282 original)
+    'total_security_lines': 263  # Sum of all submodules (vs 282 original)
 }

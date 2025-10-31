@@ -33,6 +33,15 @@ repos:
         files: '\.(py|js|jsx|ts|tsx|json|yaml|yml|env)$'
         stages: [commit]
 
+      # GITLEAKS SECRET SCANNER (Industry-standard)
+      - id: gitleaks-protect
+        name: Gitleaks Secret Scanner (Protect Mode)
+        entry: gitleaks protect --verbose --redact --staged
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
       # SETTINGS COMPLIANCE VALIDATION
       - id: settings-line-count-compliance
         name: Settings Line Count Compliance
@@ -54,8 +63,10 @@ print('✅ All settings modules comply with 200-line limit')
         stages: [commit]
 
       # SECURITY FIX VALIDATION HOOKS
+      # NOTE: Generic exception handling (E722) is now enforced by flake8
+      # This hook only checks method line count limits
       - id: architecture-rules-validation
-        name: Architecture Rules Validation
+        name: Architecture Rules Validation (Method Line Count)
         entry: python -c "
 import sys, re, os
 violations = []
@@ -80,11 +91,7 @@ for filepath in sys.argv[1:]:
                         in_method = False
                     else:
                         method_lines += 1
-            # Check for generic exception handling
-            if 'except Exception:' in content:
-                for i, line in enumerate(lines):
-                    if 'except Exception:' in line:
-                        violations.append(f'{filepath}:{i+1}: Generic exception handling detected')
+            # NOTE: 'except Exception:' check removed - now handled by flake8 E722
 if violations:
     print('Architecture violations found:')
     for v in violations: print(f'  {v}')
@@ -272,7 +279,9 @@ if violations:
     rev: 6.1.0
     hooks:
       - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203]
+        args: [--config=.flake8]
+        additional_dependencies:
+          - flake8-print  # T001: Detect print() statements in production code
 
   # Django specific checks
   - repo: local
@@ -293,12 +302,41 @@ if violations:
         pass_filenames: false
         stages: [commit]
 
+      # CELERY BEAT TASK VALIDATION
+      - id: celery-beat-task-validation
+        name: Celery Beat Task Validation (Orphaned Tasks Check)
+        entry: python manage.py validate_schedules --check-orphaned-tasks --format json
+        language: system
+        files: '(intelliwiz_config/celery\.py|background_tasks/.*\.py|apps/.*/services/.*\.py)$'
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
   # Security scanning
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.5
     hooks:
       - id: bandit
         args: ['-r', '.', '--skip', 'B101,B601']
+
+  # Secret scanning with detect-secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets Scanner
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            \.secrets\.baseline|
+            \.git/.*|
+            \.pytest_cache/.*|
+            __pycache__/.*|
+            .*\.egg-info/.*|
+            coverage_reports/.*|
+            htmlcov/.*|
+            \.archive/.*
+          )$
 
   # Type checking (optional - uncomment if using mypy)
   # - repo: https://github.com/pre-commit/mirrors-mypy

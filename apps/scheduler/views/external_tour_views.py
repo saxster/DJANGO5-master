@@ -27,8 +27,8 @@ from apps.core.exceptions import (
     SystemException,
 )
 from apps.activity.models.job_model import Job
-import apps.schedhuler.forms as scd_forms
-from apps.schedhuler.services.external_tour_service import ExternalTourService
+import apps.scheduler.forms as scd_forms
+from apps.scheduler.services.external_tour_service import ExternalTourService
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class Schd_E_TourFormJob(LoginRequiredMixin, View):
     """Create new external tour."""
 
-    template_path = "schedhuler/schd_e_tourform_job.html"
+    template_path = "scheduler/schd_e_tourform_job.html"
     form_class = scd_forms.Schd_E_TourJobForm
     service = ExternalTourService()
 
@@ -95,7 +95,7 @@ class Schd_E_TourFormJob(LoginRequiredMixin, View):
 class Update_E_TourFormJob(LoginRequiredMixin, View):
     """Update existing external tour."""
 
-    template_path = "schedhuler/schd_e_tourform_job.html"
+    template_path = "scheduler/schd_e_tourform_job.html"
     form_class = scd_forms.Schd_E_TourJobForm
     service = ExternalTourService()
     initial = Schd_E_TourFormJob.initial
@@ -126,7 +126,7 @@ class Update_E_TourFormJob(LoginRequiredMixin, View):
 class Retrive_E_ToursJob(LoginRequiredMixin, View):
     """List external tours."""
 
-    template_path = "schedhuler/schd_e_tourlist_job.html"
+    template_path = "scheduler/schd_e_tourlist_job.html"
     service = ExternalTourService()
 
     def get(self, request, *args, **kwargs):
@@ -158,7 +158,7 @@ class Retrive_E_ToursJob(LoginRequiredMixin, View):
 class ExternalTourTracking(LoginRequiredMixin, View):
     """Track external tour execution in real-time."""
 
-    template_path = "schedhuler/site_tour_tracking.html"
+    template_path = "scheduler/site_tour_tracking.html"
     service = ExternalTourService()
 
     def get(self, request, *args, **kwargs):

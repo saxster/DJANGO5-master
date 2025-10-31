@@ -22,7 +22,7 @@ from apps.reports.services.frappe_service import (
 from .frappe_integration_views import getAllUAN
 
 # Import PDF utilities (and re-export for backward compatibility)
-from apps.reports.utils.pdf_utils import highlight_text_in_pdf
+from apps.reports.report_utils.pdf_utils import highlight_text_in_pdf
 
 # Re-export for backward compatibility
 __all__ = ['GeneratePdf', 'GenerateLetter', 'GenerateDecalartionForm', 'highlight_text_in_pdf']

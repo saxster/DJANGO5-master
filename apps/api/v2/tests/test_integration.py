@@ -8,12 +8,14 @@ Compliance with .claude/rules.md:
 - Rule #13: Validation pattern testing
 """
 
-import pytest
-from django.test import TestCase, Client
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from uuid import uuid4
 import json
+from unittest.mock import patch
+from uuid import UUID, uuid4
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.utils import timezone
 
 from apps.onboarding.models import Bt
 from apps.peoples.models import People
@@ -187,6 +189,36 @@ class TestVoiceSyncViewIntegration(TestCase):
 
         # Should reject with 401/403
         self.assertIn(response.status_code, [401, 403])
+
+    @patch('apps.api.v2.views.sync_views.sync_engine.sync_voice_data', return_value={'synced_items': 1, 'failed_items': 0})
+    @patch('apps.api.v2.views.sync_views.cross_device_sync_service.sync_across_devices')
+    def test_voice_sync_uses_uuid_entity_id(self, mock_cross_device, _mock_sync_voice):
+        """Ensure cross-device coordination receives a UUID entity identifier."""
+        payload = {
+            'device_id': 'android-test-uuid',
+            'voice_data': [
+                {
+                    'verification_id': 'ver-uuid-001',
+                    'timestamp': timezone.now().isoformat(),
+                    'verified': True,
+                }
+            ],
+            'timestamp': timezone.now().isoformat(),
+        }
+
+        response = self.client.post(
+            '/api/v2/sync/voice/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_cross_device.assert_called_once()
+
+        _, kwargs = mock_cross_device.call_args
+        self.assertIsInstance(kwargs['entity_id'], UUID)
+        self.assertIn('data', kwargs)
+        self.assertGreaterEqual(kwargs['data']['version'], 0)
 
 
 @pytest.mark.integration

@@ -18,14 +18,15 @@ Compliance with .claude/rules.md:
 """
 
 from django.db import models
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
 
-from apps.peoples.models import BaseModel, TenantAwareModel, People
-from apps.tenants.models import Tenant
+from apps.core.models.enhanced_base_model import BaseModelCompat as BaseModel
+from apps.tenants.models import TenantAwareModel, Tenant
 import uuid
 
 
@@ -96,8 +97,7 @@ class AuditLog(BaseModel, TenantAwareModel):
     content_object = GenericForeignKey('content_type', 'object_id')
 
     # User and session context
-    user = models.ForeignKey(
-        People,
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -108,8 +108,8 @@ class AuditLog(BaseModel, TenantAwareModel):
     user_agent = models.TextField(blank=True)
 
     # Event details
-    action = models.CharField(max_length=100, help_text='Action performed')
-    message = models.TextField(help_text='Human-readable description')
+    action = models.CharField(max_length=100, default='', blank=True, help_text='Action performed')
+    message = models.TextField(default='', blank=True, help_text='Human-readable description')
 
     # Change tracking (before/after state)
     changes = models.JSONField(
@@ -173,54 +173,6 @@ class AuditLog(BaseModel, TenantAwareModel):
         super().save(*args, **kwargs)
 
 
-class StateTransitionAudit(BaseModel):
-    """
-    Specialized audit log for state machine transitions.
-
-    Tracks all state changes with rich context for:
-    - Workflow analysis
-    - SLA tracking
-    - Compliance verification
-    """
-
-    audit_log = models.OneToOneField(
-        AuditLog,
-        on_delete=models.CASCADE,
-        related_name='state_transition'
-    )
-
-    # State transition details
-    from_state = models.CharField(max_length=50)
-    to_state = models.CharField(max_length=50)
-    transition_successful = models.BooleanField(default=True)
-    failure_reason = models.TextField(blank=True)
-
-    # Approval/rejection tracking
-    approved_by = models.ForeignKey(
-        People,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='approved_transitions'
-    )
-    rejection_reason = models.TextField(blank=True)
-
-    # Timing metrics
-    time_in_previous_state = models.DurationField(
-        null=True,
-        blank=True,
-        help_text='How long entity was in previous state'
-    )
-
-    class Meta:
-        db_table = 'state_transition_audit'
-        verbose_name = 'State Transition Audit'
-        verbose_name_plural = 'State Transition Audits'
-
-    def __str__(self):
-        return f"{self.from_state} → {self.to_state}"
-
-
 class BulkOperationAudit(BaseModel):
     """
     Audit log for bulk operations.
@@ -237,14 +189,27 @@ class BulkOperationAudit(BaseModel):
     # Operation details
     operation_type = models.CharField(
         max_length=50,
+        default='unknown',
         help_text='Type of bulk operation (approve, reject, assign, etc.)'
     )
-    entity_type = models.CharField(max_length=50)
+    entity_type = models.CharField(
+        max_length=50,
+        default='unknown'
+    )
 
     # Metrics
-    total_items = models.IntegerField(help_text='Total items in operation')
-    successful_items = models.IntegerField(help_text='Successfully processed')
-    failed_items = models.IntegerField(help_text='Failed to process')
+    total_items = models.IntegerField(
+        default=0,
+        help_text='Total items in operation'
+    )
+    successful_items = models.IntegerField(
+        default=0,
+        help_text='Successfully processed'
+    )
+    failed_items = models.IntegerField(
+        default=0,
+        help_text='Failed to process'
+    )
 
     # Item tracking
     successful_ids = ArrayField(
@@ -296,6 +261,7 @@ class PermissionDenialAudit(BaseModel):
     # Permission details
     required_permissions = ArrayField(
         models.CharField(max_length=100),
+        default=list,
         help_text='Permissions that were required'
     )
     user_permissions = ArrayField(
@@ -306,9 +272,18 @@ class PermissionDenialAudit(BaseModel):
     )
 
     # Request details
-    attempted_action = models.CharField(max_length=100)
-    request_path = models.CharField(max_length=500)
-    request_method = models.CharField(max_length=10)
+    attempted_action = models.CharField(
+        max_length=100,
+        default='unknown'
+    )
+    request_path = models.CharField(
+        max_length=500,
+        default='/'
+    )
+    request_method = models.CharField(
+        max_length=10,
+        default='GET'
+    )
 
     # Risk assessment
     is_suspicious = models.BooleanField(
@@ -326,7 +301,7 @@ class PermissionDenialAudit(BaseModel):
         verbose_name = 'Permission Denial Audit'
         verbose_name_plural = 'Permission Denial Audits'
         indexes = [
-            models.Index(fields=['is_suspicious', '-created_on']),
+            models.Index(fields=['is_suspicious', '-created_at']),
             models.Index(fields=['risk_score']),
         ]
 

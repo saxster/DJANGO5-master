@@ -14,9 +14,16 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-
-    LLMRecommendation, AuthoritativeKnowledge, PreferenceProfile,
-    Experiment, ExperimentAssignment, RecommendationInteraction
+from apps.onboarding.models import (
+    Bt,
+    LLMRecommendation,
+    AuthoritativeKnowledge,
+)
+from apps.onboarding_api.services.learning import PreferenceProfile
+from apps.onboarding_api.services.experiments import (
+    Experiment,
+    ExperimentAssignment,
+    RecommendationInteraction,
 )
 
 User = get_user_model()

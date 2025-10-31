@@ -6,6 +6,7 @@ import django.contrib.postgres.fields
 import django.core.serializers.json
 import django.db.models.deletion
 from django.conf import settings
+import django.utils.timezone
 from django.db import migrations, models
 
 
@@ -23,8 +24,8 @@ class Migration(migrations.Migration):
             name='GeneratePDF',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('document_type', models.CharField(choices=[('PF', 'PF'), ('ESIC', 'ESIC'), ('PAYROLL', 'PAYROLL')], max_length=60, null=True, verbose_name='Document Type')),
                 ('company', models.CharField(choices=[('SPS', 'SPS'), ('SFS', 'SFS'), ('TARGET', 'TARGET')], max_length=60, null=True, verbose_name='Company')),
@@ -70,8 +71,8 @@ class Migration(migrations.Migration):
             name='ScheduleReport',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='cdtz')),
-                ('mdtz', models.DateTimeField(default=apps.peoples.models.now, verbose_name='mdtz')),
+                ('cdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='cdtz')),
+                ('mdtz', models.DateTimeField(default=django.utils.timezone.now, verbose_name='mdtz')),
                 ('ctzoffset', models.IntegerField(default=-1, verbose_name='TimeZone')),
                 ('report_type', models.CharField(choices=[('', 'Select Report'), ('TASKSUMMARY', 'Task Summary'), ('TOURSUMMARY', 'Tour Summary'), ('LISTOFTASKS', 'List of Tasks'), ('LISTOFTOURS', 'List of Internal Tours'), ('PPMSUMMARY', 'PPM Summary'), ('LISTOFTICKETS', 'List of Tickets'), ('WORKORDERLIST', 'Work Order List'), ('SITEVISITREPORT', 'Site Visit Report'), ('SITEREPORT', 'Site Report'), ('PeopleQR', 'People-QR'), ('ASSETQR', 'Asset-QR'), ('CHECKPOINTQR', 'Checkpoint-QR'), ('ASSETWISETASKSTATUS', 'Assetwise Task Status'), ('DetailedTourSummary', 'Detailed Tour Summary'), ('STATICDETAILEDTOURSUMMARY', 'Static Detailed Tour Summary'), ('DYNAMICDETAILEDTOURSUMMARY', 'Dynamic Detailed Tour Summary'), ('DYNAMICTOURDETAILS', 'Dynamic Tour Details'), ('STATICTOURDETAILS', 'Static Tour Details'), ('RP_SITEVISITREPORT', 'RP Site Visit Report'), ('LOGSHEET', 'Log Sheet'), ('PEOPLEATTENDANCESUMMARY', 'People Attendance Summary')], max_length=50, verbose_name='Report Type')),
                 ('filename', models.CharField(max_length=200, null=True)),

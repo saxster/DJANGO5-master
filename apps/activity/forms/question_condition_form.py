@@ -3,6 +3,8 @@ Form for managing question display conditions in admin interface
 """
 import json
 from django import forms
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from apps.activity.models.question_model import QuestionSetBelonging
 import django_select2.forms as s2forms
 
@@ -211,5 +213,5 @@ class QuestionConditionInlineForm(forms.ModelForm):
                 text = f"Hide when condition is met ({text})"
             
             return text
-        except:
+        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             return "Invalid condition"

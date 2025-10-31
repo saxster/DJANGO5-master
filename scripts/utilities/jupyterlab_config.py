@@ -21,7 +21,7 @@ if project_dir not in sys.path:
     sys.path.insert(0, project_dir)
 
 # Setup Django
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings.development")
 
 try:
     import django

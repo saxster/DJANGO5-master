@@ -106,7 +106,7 @@ class AttendanceTicketService:
                 Bt = apps.get_model('onboarding', 'Bt')
                 site = Bt.objects.get(id=bu_id)
                 assignee_id = site.siteincharge_id if site.siteincharge_id else 1
-            except:
+            except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 assignee_id = get_or_create_none_people().id
 
             ticket_data = {

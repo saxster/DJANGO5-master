@@ -6,9 +6,11 @@ Complies with .claude/rules.md - security-first approach.
 """
 
 import logging
+from typing import Optional, Any, Dict
+
 from django.http import HttpRequest, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 
 from apps.core.caching.security import (
     CacheRateLimiter,

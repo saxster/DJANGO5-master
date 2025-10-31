@@ -1,0 +1,90 @@
+{# Agent Intelligence Panel - Dashboard Header Component #}
+{# Shows real-time agent status and recommendations #}
+{# Phase 5.1: Agent Intelligence Panel #}
+
+<div class="card card-flush agent-intelligence-panel mb-4">
+    <div class="card-header">
+        <h3 class="card-title align-items-start flex-column">
+            <span class="card-label fw-bold fs-2" style="color: #01579b;">
+                <i class="bi bi-robot"></i> AI Agent Insights
+            </span>
+            <span class="text-muted mt-1 fw-semibold fs-7">
+                Powered by <span id="llm-provider-badge" class="badge badge-success badge-sm">Gemini</span>
+            </span>
+        </h3>
+        <div class="card-toolbar">
+            <button class="btn btn-sm btn-light-primary" id="refresh-agents" title="Refresh agent insights">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body pt-5">
+        {# Agent Status Table #}
+        <div class="agent-status-section mb-6">
+            <h5 class="fw-bold mb-3">Agent Status</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-row-bordered agent-status-table">
+                    <thead>
+                        <tr class="fw-bold fs-7 text-gray-800 border-bottom border-gray-200">
+                            <th>Agent</th>
+                            <th>Last Action</th>
+                            <th>Status</th>
+                            <th class="text-end">Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-status-tbody">
+                        {# Populated by JavaScript #}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Loading agent status...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Agent Activity Timeline #}
+        <div class="agent-timeline-section">
+            <h5 class="fw-bold mb-3">Recent Activity</h5>
+            <div class="timeline timeline-border-dashed" id="agent-activity-feed">
+                {# Populated by JavaScript #}
+                <div class="text-center text-muted py-3">
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Loading activity feed...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.agent-intelligence-panel {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.agent-status-table tbody tr:hover {
+    background-color: #f5f5f5;
+    transition: background-color 0.2s ease;
+}
+
+.timeline-border-dashed .timeline-item {
+    border-left: 2px dashed #e0e0e0;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.agent-badge-active {
+    background-color: #28a745;
+    color: white;
+}
+
+.agent-badge-idle {
+    background-color: #6c757d;
+    color: white;
+}
+</style>

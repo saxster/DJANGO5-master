@@ -8,6 +8,8 @@ Handles all business logic for Site Group operations including:
 - Complex bulk operations
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
@@ -17,10 +19,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
 from apps.core.services.base_service import BaseService
-from apps.core.services import with_transaction
+from apps.core.services import with_transaction, monitor_service_performance
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import UserManagementException, DatabaseException
-from apps.peoples.models import Pgroup, Pgbelonging
 from apps.core.utils_new.db_utils import get_current_db_name
 import apps.peoples.utils as putils
 
@@ -49,7 +50,7 @@ class SiteGroupManagementService(BaseService):
         self.related_fields = ["identifier"]
         self.list_fields = ["groupname", "enable", "id"]
 
-    @BaseService.monitor_performance("get_site_group_list")
+    @monitor_service_performance("get_site_group_list")
     def get_site_group_list(
         self,
         request_params: Dict[str, Any],
@@ -65,6 +66,8 @@ class SiteGroupManagementService(BaseService):
         Returns:
             Dictionary with pagination data
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             total, filtered, objs = Pgroup.objects.list_view_sitegrp(
                 request_params, {'session': session}
@@ -81,7 +84,7 @@ class SiteGroupManagementService(BaseService):
             self.logger.error(f"Database error retrieving site groups: {str(e)}")
             raise
 
-    @BaseService.monitor_performance("create_site_group")
+    @monitor_service_performance("create_site_group")
     @with_transaction()
     def create_site_group(
         self,
@@ -102,6 +105,8 @@ class SiteGroupManagementService(BaseService):
         Returns:
             SiteGroupOperationResult with created group
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             with transaction.atomic(using=get_current_db_name()):
                 group = Pgroup(**form_data)
@@ -144,7 +149,7 @@ class SiteGroupManagementService(BaseService):
                 correlation_id=correlation_id
             )
 
-    @BaseService.monitor_performance("update_site_group")
+    @monitor_service_performance("update_site_group")
     @with_transaction()
     def update_site_group(
         self,
@@ -167,6 +172,8 @@ class SiteGroupManagementService(BaseService):
         Returns:
             SiteGroupOperationResult with updated group
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             with transaction.atomic(using=get_current_db_name()):
                 group = Pgroup.objects.get(id=group_id)
@@ -216,6 +223,7 @@ class SiteGroupManagementService(BaseService):
 
     def _reset_assigned_sites(self, group: Pgroup) -> None:
         """Remove all existing site assignments for group."""
+        from apps.peoples.models import Pgbelonging  # Late import to prevent circular dependency
         Pgbelonging.objects.filter(pgroup_id=group.id).delete()
 
     def _save_assigned_sites(
@@ -234,6 +242,8 @@ class SiteGroupManagementService(BaseService):
             user: Current user
             session: User session data
         """
+        from apps.peoples.models import Pgbelonging  # Late import to prevent circular dependency
+
         for site in sites_array:
             belonging = Pgbelonging(
                 pgroup=group,
@@ -245,7 +255,7 @@ class SiteGroupManagementService(BaseService):
             )
             putils.save_userinfo(belonging, user, session)
 
-    @BaseService.monitor_performance("get_assigned_sites")
+    @monitor_service_performance("get_assigned_sites")
     def get_assigned_sites(
         self,
         group_id: int
@@ -259,11 +269,13 @@ class SiteGroupManagementService(BaseService):
         Returns:
             List of assigned site data
         """
+        from apps.peoples.models import Pgbelonging  # Late import to prevent circular dependency
+
         return list(
             Pgbelonging.objects.get_assigned_sitesto_sitegrp(group_id)
         )
 
-    @BaseService.monitor_performance("get_site_group")
+    @monitor_service_performance("get_site_group")
     def get_site_group(
         self,
         group_id: int
@@ -277,6 +289,8 @@ class SiteGroupManagementService(BaseService):
         Returns:
             Pgroup instance or None
         """
+        from apps.peoples.models import Pgroup  # Late import to prevent circular dependency
+
         try:
             return Pgroup.objects.select_related(
                 *self.related_fields
@@ -285,7 +299,7 @@ class SiteGroupManagementService(BaseService):
             self.logger.warning(f"Site group not found: {group_id}")
             return None
 
-    @BaseService.monitor_performance("delete_site_group")
+    @monitor_service_performance("delete_site_group")
     @with_transaction()
     def delete_site_group(
         self,
@@ -304,6 +318,8 @@ class SiteGroupManagementService(BaseService):
         Returns:
             SiteGroupOperationResult with deletion status
         """
+        from apps.peoples.models import Pgroup, Pgbelonging  # Late import to prevent circular dependency
+
         try:
             group = Pgroup.objects.get(id=group_id)
             groupname = group.groupname

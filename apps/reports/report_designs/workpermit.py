@@ -1,8 +1,8 @@
-from apps.reports.utils import BaseReportsExport
+from apps.reports.report_utils import BaseReportsExport
 from apps.core.utils import get_timezone
 from apps.work_order_management.models import Wom
 from django.conf import settings
-import pytz
+from zoneinfo import ZoneInfo
 
 
 class WorkPermit(BaseReportsExport):
@@ -46,7 +46,7 @@ class WorkPermit(BaseReportsExport):
             section for section in wp_sections if section.get("section") != "EMAIL"
         ]
         utc_now = Wom.objects.get(id=id).mdtz
-        ist_timezone = pytz.timezone("Asia/Kolkata")
+        ist_timezone = ZoneInfo("Asia/Kolkata")
         current_time_ist = utc_now.astimezone(ist_timezone)
         formatted_time = current_time_ist.strftime("%d-%b-%Y %H:%M:%S")
         self.context = {

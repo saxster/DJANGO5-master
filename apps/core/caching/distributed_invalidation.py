@@ -38,8 +38,19 @@ class DistributedCacheInvalidator:
     def _get_redis_client(self):
         """Get Redis client for pub/sub"""
         try:
-            return cache._cache.get_master_client()
-        except (AttributeError, ConnectionError) as e:
+            # Check if cache backend has _cache attribute (django-redis specific)
+            if not hasattr(cache, '_cache'):
+                logger.debug("Cache backend does not support direct Redis client access")
+                return None
+
+            # Try to get the master client
+            if hasattr(cache._cache, 'get_master_client'):
+                from django_redis import get_redis_connection
+                return get_redis_connection("default")
+            else:
+                logger.debug("Cache backend does not have get_master_client method")
+                return None
+        except (AttributeError, ConnectionError, TypeError) as e:
             logger.error(f"Could not get Redis client: {e}")
             return None
 

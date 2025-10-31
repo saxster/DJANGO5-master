@@ -6,6 +6,7 @@ for compliance, debugging, and performance monitoring.
 """
 
 from django.db import migrations, models
+from django.conf import settings
 import django.db.models.deletion
 import django.core.serializers.json
 import uuid
@@ -14,6 +15,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('activity', '0010_add_comprehensive_indexes'),
         ('activity', '0010_add_version_field_jobneed'),
         ('peoples', '0003_add_performance_indexes'),
     ]

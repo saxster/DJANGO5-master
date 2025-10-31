@@ -5,7 +5,9 @@ This service extracts capability management logic from the People model
 to improve separation of concerns and testability.
 """
 import logging
+from typing import Any, Dict, List, Tuple
 from django.core.exceptions import ValidationError
+from django.db import DatabaseError, IntegrityError
 from apps.core.error_handling import ErrorHandler
 
 logger = logging.getLogger("people.capabilities")

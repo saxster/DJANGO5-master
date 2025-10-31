@@ -3,7 +3,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 import pytest
 
-from apps.schedhuler import utils as sutils
+from apps.scheduler import utils as sutils
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.peoples.models import People, Pgroup
@@ -30,8 +30,8 @@ class CreateJobTestCase(TransactionTestCase):
 
         self.questionset = QuestionSet.objects.create(qsetname="Test Questionset")
 
-    @patch("apps.schedhuler.utils.filter_jobs")
-    @patch("apps.schedhuler.utils.process_job")
+    @patch("apps.scheduler.utils.filter_jobs")
+    @patch("apps.scheduler.utils.process_job")
     def test_create_job_success(self, mock_process_job, mock_filter_jobs):
         job_data = {
             "id": 1,
@@ -53,7 +53,7 @@ class CreateJobTestCase(TransactionTestCase):
         self.assertIsNotNone(response)
         self.assertIn("story", result)
 
-    @patch("apps.schedhuler.utils.filter_jobs")
+    @patch("apps.scheduler.utils.filter_jobs")
     def test_create_job_no_jobs(self, mock_filter_jobs):
         mock_filter_jobs.return_value = []
 
@@ -61,8 +61,8 @@ class CreateJobTestCase(TransactionTestCase):
 
         self.assertIn("story", result)
 
-    @patch("apps.schedhuler.utils.filter_jobs")
-    @patch("apps.schedhuler.utils.process_job")
+    @patch("apps.scheduler.utils.filter_jobs")
+    @patch("apps.scheduler.utils.process_job")
     def test_create_job_with_jobids(self, mock_process_job, mock_filter_jobs):
         job_data = {"id": 1, "jobname": "Test Job", "cron": "0 8 * * *"}
 
@@ -81,7 +81,7 @@ class FilterJobsTestCase(TestCase):
             assetcode="TESTASSET001", assetname="Test Asset", iscritical=False
         )
 
-    @patch("apps.schedhuler.utils.Job.objects.filter")
+    @patch("apps.scheduler.utils.Job.objects.filter")
     def test_filter_jobs_with_jobids(self, mock_filter):
         mock_queryset = Mock()
         mock_queryset.select_related.return_value.values.return_value = [{"id": 1}]
@@ -91,7 +91,7 @@ class FilterJobsTestCase(TestCase):
 
         self.assertIsInstance(result, list)
 
-    @patch("apps.schedhuler.utils.Job.objects.filter")
+    @patch("apps.scheduler.utils.Job.objects.filter")
     def test_filter_jobs_without_jobids(self, mock_filter):
         mock_queryset = Mock()
         mock_queryset.select_related.return_value.values.return_value = []
@@ -117,9 +117,9 @@ class ProcessJobTestCase(TestCase):
             "lastgeneratedon": timezone.now() - timedelta(days=1),
         }
 
-    @patch("apps.schedhuler.utils.calculate_startdtz_enddtz")
-    @patch("apps.schedhuler.utils.get_datetime_list")
-    @patch("apps.schedhuler.utils.insert_into_jn_and_jnd")
+    @patch("apps.scheduler.utils.calculate_startdtz_enddtz")
+    @patch("apps.scheduler.utils.get_datetime_list")
+    @patch("apps.scheduler.utils.insert_into_jn_and_jnd")
     def test_process_job_success(self, mock_insert, mock_get_dt, mock_calc_dt):
         mock_calc_dt.return_value = (
             timezone.now(),
@@ -133,8 +133,8 @@ class ProcessJobTestCase(TestCase):
 
         self.assertIsNotNone(response)
 
-    @patch("apps.schedhuler.utils.calculate_startdtz_enddtz")
-    @patch("apps.schedhuler.utils.get_datetime_list")
+    @patch("apps.scheduler.utils.calculate_startdtz_enddtz")
+    @patch("apps.scheduler.utils.get_datetime_list")
     def test_process_job_invalid_cron(self, mock_get_dt, mock_calc_dt):
         mock_calc_dt.return_value = (
             timezone.now(),
@@ -149,8 +149,8 @@ class ProcessJobTestCase(TestCase):
             response["msg"], "Invalid cron expression for job 1: 0 8 * * *"
         )
 
-    @patch("apps.schedhuler.utils.calculate_startdtz_enddtz")
-    @patch("apps.schedhuler.utils.get_datetime_list")
+    @patch("apps.scheduler.utils.calculate_startdtz_enddtz")
+    @patch("apps.scheduler.utils.get_datetime_list")
     def test_process_job_no_datetime(self, mock_get_dt, mock_calc_dt):
         start_dt = timezone.now()
         end_dt = timezone.now() + timedelta(hours=24)
@@ -182,7 +182,7 @@ class CalculateStartdtzEnddtzTestCase(TestCase):
         self.assertIsInstance(end_dt, datetime)
         self.assertTrue(start_dt < end_dt)
 
-    @patch("apps.schedhuler.utils.delete_old_jobs")
+    @patch("apps.scheduler.utils.delete_old_jobs")
     def test_calculate_startdtz_enddtz_modified_job(self, mock_delete):
         now = timezone.now()
         job = {
@@ -257,12 +257,12 @@ class InsertIntoJnAndJndTestCase(TransactionTestCase):
 
         self.questionset = QuestionSet.objects.create(qsetname="Test Questionset")
 
-    @patch("apps.schedhuler.utils.utils.get_or_create_none_jobneed")
-    @patch("apps.schedhuler.utils.utils.get_or_create_none_people")
-    @patch("apps.schedhuler.utils.Asset.objects.get")
-    @patch("apps.schedhuler.utils.insert_into_jn_for_parent")
-    @patch("apps.schedhuler.utils.insert_update_jobneeddetails")
-    @patch("apps.schedhuler.utils.update_lastgeneratedon")
+    @patch("apps.scheduler.utils.utils.get_or_create_none_jobneed")
+    @patch("apps.scheduler.utils.utils.get_or_create_none_people")
+    @patch("apps.scheduler.utils.Asset.objects.get")
+    @patch("apps.scheduler.utils.insert_into_jn_for_parent")
+    @patch("apps.scheduler.utils.insert_update_jobneeddetails")
+    @patch("apps.scheduler.utils.update_lastgeneratedon")
     def test_insert_into_jn_and_jnd_success(
         self,
         mock_update_last,
@@ -310,7 +310,7 @@ class InsertIntoJnAndJndTestCase(TransactionTestCase):
 
         dt_list = [timezone.now()]
 
-        with patch("apps.schedhuler.utils.utils.to_utc", return_value=dt_list):
+        with patch("apps.scheduler.utils.utils.to_utc", return_value=dt_list):
             status, resp = sutils.insert_into_jn_and_jnd(job, dt_list, {})
 
         self.assertEqual(status, "success")

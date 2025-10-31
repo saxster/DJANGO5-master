@@ -198,7 +198,7 @@ class RateLimitViolationLog(models.Model):
     endpoint_type = models.CharField(
         max_length=50,
         db_index=True,
-        help_text="Type of endpoint (admin, api, rest, etc.) - GraphQL removed Oct 2025"
+        help_text="Type of endpoint (admin, api, rest, etc.) - legacy query layer retired Oct 2025"
     )
 
     violation_reason = models.CharField(

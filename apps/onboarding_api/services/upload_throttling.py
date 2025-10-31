@@ -21,7 +21,8 @@ from functools import wraps
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import DatabaseError, IntegrityError, ConnectionError as DjangoConnectionError
+from django.db import DatabaseError, IntegrityError
+# ConnectionError is a built-in Python exception, not from django.db
 
 logger = logging.getLogger(__name__)
 

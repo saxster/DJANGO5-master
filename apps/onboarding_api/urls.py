@@ -4,8 +4,11 @@ URL configuration for Conversational Onboarding API (Phase 1 MVP + Phase 2 Enhan
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from . import views, views_phase2, admin_views, knowledge_views, personalization_views, monitoring_views, views_ui, views_ui_compat
-from .views import site_audit_views
+from .views import site_audit  # Refactored 2025-10-12: site_audit_views.py → site_audit/ package
 from .openapi_schemas import schema_view
+
+# Backward compatibility alias
+site_audit_views = site_audit
 
 app_name = 'onboarding_api'
 
@@ -540,15 +543,19 @@ urlpatterns = [
 
     # Include router URLs
     path('', include(router.urls)),
-
-    # ========== API DOCUMENTATION ==========
-    re_path(r'^swagger(?P<format>\.json|\.yaml)$',
-            schema_view.without_ui(cache_timeout=0),
-            name='schema-json'),
-    re_path(r'^swagger/$',
-            schema_view.with_ui('swagger', cache_timeout=0),
-            name='schema-swagger-ui'),
-    re_path(r'^redoc/$',
-            schema_view.with_ui('redoc', cache_timeout=0),
-            name='schema-redoc'),
 ]
+
+# ========== API DOCUMENTATION (Optional - requires drf-yasg) ==========
+# Only add these URLs if drf-yasg is installed
+if schema_view is not None:
+    urlpatterns += [
+        re_path(r'^swagger(?P<format>\.json|\.yaml)$',
+                schema_view.without_ui(cache_timeout=0),
+                name='schema-json'),
+        re_path(r'^swagger/$',
+                schema_view.with_ui('swagger', cache_timeout=0),
+                name='schema-swagger-ui'),
+        re_path(r'^redoc/$',
+                schema_view.with_ui('redoc', cache_timeout=0),
+                name='schema-redoc'),
+    ]

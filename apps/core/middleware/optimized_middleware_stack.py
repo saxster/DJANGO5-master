@@ -55,18 +55,6 @@ class ConditionalMiddlewareLoader(MiddlewareMixin):
                 'django.contrib.auth.middleware.AuthenticationMiddleware',
             ],
 
-            # GraphQL endpoints - specialized middleware
-            '/graphql': [
-                'django.middleware.security.SecurityMiddleware',
-                'apps.core.error_handling.CorrelationIDMiddleware',
-                'apps.core.middleware.graphql_rate_limiting.GraphQLRateLimitingMiddleware',
-                'apps.core.middleware.graphql_csrf_protection.GraphQLCSRFProtectionMiddleware',
-                'django.contrib.sessions.middleware.SessionMiddleware',
-                'corsheaders.middleware.CorsMiddleware',
-                'django.middleware.common.CommonMiddleware',
-                'django.contrib.auth.middleware.AuthenticationMiddleware',
-            ],
-
             # Admin interface - full middleware stack
             '/admin/': [
                 'django.middleware.security.SecurityMiddleware',
@@ -235,7 +223,6 @@ class OptimizedMiddlewareSettings:
             # Security middleware (consolidated)
             "apps.core.middleware.logging_sanitization.LogSanitizationMiddleware",
             "apps.core.middleware.path_based_rate_limiting.PathBasedRateLimitMiddleware",
-            "apps.core.middleware.graphql_rate_limiting.GraphQLRateLimitingMiddleware",
 
             # Session and CORS
             "django.contrib.sessions.middleware.SessionMiddleware",

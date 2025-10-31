@@ -18,7 +18,7 @@ Test Coverage:
 - Performance validation
 
 Usage:
-    python -m pytest apps/schedhuler/tests/test_schedule_uniqueness_comprehensive.py -v
+    python -m pytest apps/scheduler/tests/test_schedule_uniqueness_comprehensive.py -v
 """
 
 import hashlib
@@ -33,13 +33,13 @@ from django.core.cache import cache
 
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 from apps.core.utils_new.datetime_utilities import get_current_utc
-from apps.schedhuler.models import Job
-from apps.schedhuler.services.schedule_uniqueness_service import (
+from apps.scheduler.models import Job
+from apps.scheduler.services.schedule_uniqueness_service import (
     ScheduleUniquenessService,
     SchedulingException,
     BusinessLogicException,
 )
-from apps.schedhuler.services.schedule_coordinator import ScheduleCoordinator
+from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
 from apps.onboarding.models import BusinessUnit
 from apps.activity.models import Asset
 

@@ -397,13 +397,24 @@ class EnhancedSecureString(CharField):
         Returns:
             Decrypted or original value
         """
-        # Try legacy migration first
+        # Quick check: if value looks like an email or phone number, treat as plaintext
+        if isinstance(value, str) and ('@' in value or value.isdigit() or value.startswith('+')):
+            logger.debug(
+                "Unversioned data looks like plaintext email/phone, skipping decryption",
+                extra={
+                    'field_class': self.__class__.__name__,
+                    'value_prefix': value[:10] if len(value) > 10 else value
+                }
+            )
+            return value
+
+        # Try legacy migration for base64-looking data
         try:
             migration_successful, result = SecureEncryptionService.migrate_legacy_data(value)
             if migration_successful:
                 return SecureEncryptionService.decrypt(result)
-        except (ValueError, TypeError, UnicodeDecodeError, AttributeError) as e:
-            # Migration failed - log specific error and continue to fallback
+        except (ValueError, TypeError, UnicodeDecodeError, AttributeError, OSError) as e:
+            # Migration failed - log and continue to fallback
             logger.debug(
                 f"Legacy migration failed for unversioned data: {type(e).__name__}",
                 extra={
@@ -413,12 +424,11 @@ class EnhancedSecureString(CharField):
                 }
             )
 
-        # Fallback: treat as plaintext (for very old records)
-        logger.warning(
-            "Unversioned data found, treating as plaintext for migration",
+        # Fallback: treat as plaintext (for manually inserted records)
+        logger.info(
+            "Unversioned data treated as plaintext (will be encrypted on next save)",
             extra={
-                'field_class': self.__class__.__name__,
-                'value_prefix': value[:10] if len(value) > 10 else value
+                'field_class': self.__class__.__name__
             }
         )
         return value

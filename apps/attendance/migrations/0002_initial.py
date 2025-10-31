@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('attendance', '0001_initial'),
+        ('attendance', '0002_add_spatial_indexes'),
         ('onboarding', '0001_initial'),
     ]
 

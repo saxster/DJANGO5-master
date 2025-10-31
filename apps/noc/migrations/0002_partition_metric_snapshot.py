@@ -11,7 +11,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('noc', '0001_initial'),
+        # Note: 0001_initial does not exist. This migration assumes noc_metric_snapshot table exists.
+        # Table is created via models.py auto-migration or manual SQL.
     ]
 
     operations = [

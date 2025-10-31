@@ -16,11 +16,16 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from apps.face_recognition.models import (
     FaceRecognitionModel,
     FaceEmbedding,
-    FaceVerificationLog
+    FaceVerificationLog,
 )
 from apps.face_recognition.services import get_face_recognition_service, VerificationEngine
+from apps.core.exceptions import LLMServiceException
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from typing import List, Dict, Any
 
 
 User = get_user_model()

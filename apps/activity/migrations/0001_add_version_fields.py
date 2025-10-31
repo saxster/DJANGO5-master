@@ -15,18 +15,24 @@ import concurrency.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('activity', '__latest__'),  # Replace with actual latest migration
+        ('activity', '0020_migrate_to_json_fields'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='job',
-            name='version',
-            field=concurrency.fields.IntegerVersionField(default=0, help_text='Version number for optimistic locking'),
+        # Note: Job version field added (jobneed.version already exists from 0010_add_version_field_jobneed)
+        migrations.RunSQL(
+            sql="""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='job' AND column_name='version'
+                ) THEN
+                    ALTER TABLE job ADD COLUMN version INTEGER DEFAULT 0;
+                END IF;
+            END $$;
+            """,
+            reverse_sql="ALTER TABLE job DROP COLUMN IF EXISTS version;"
         ),
-        migrations.AddField(
-            model_name='jobneed',
-            name='version',
-            field=concurrency.fields.IntegerVersionField(default=0, help_text='Version number for optimistic locking'),
-        ),
+        # Skip jobneed.version - already added by migration 0010
     ]

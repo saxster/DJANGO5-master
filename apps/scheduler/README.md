@@ -1,8 +1,8 @@
-# Schedhuler App
+# Scheduler App
 
 ## ⚠️ Important Note about App Name
 
-This app is named `schedhuler` instead of the correct spelling `scheduler` due to legacy reasons. While this is a typo, **it should NOT be renamed** without careful consideration as it would require:
+This app was previously misnamed due to legacy reasons. It is now correctly named `scheduler`. Renaming required coordinated changes across the codebase, including:
 
 - Updating all URL patterns and references
 - Modifying import statements across the codebase

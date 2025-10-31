@@ -44,7 +44,7 @@ class EscalationService:
             shift_time = timezone.now()
 
         try:
-            from apps.schedhuler.models import OnCallSchedule
+            from apps.scheduler.models import OnCallSchedule
             schedule = OnCallSchedule.objects.filter(
                 client=client,
                 shift_start__lte=shift_time,

@@ -24,7 +24,7 @@ print("   - This calls the PostgreSQL function directly")
 print("\n4. Testing which one is used:")
 print("   Option A: Temporarily rename the PostgreSQL function")
 print("   ALTER FUNCTION fn_getassetdetails RENAME TO fn_getassetdetails_backup;")
-print("   Then try the GraphQL query - if it fails, PostgreSQL version is being used")
+print("   Then try the legacy API query - if it fails, PostgreSQL version is being used")
 print("\n   Option B: Add logging to PostgreSQL function")
 print("   Add RAISE NOTICE in the PostgreSQL function and check logs")
 

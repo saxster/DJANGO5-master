@@ -5,6 +5,8 @@ This module contains the foundational model classes that other models inherit fr
 ensuring consistency across the application and adhering to DRY principles.
 """
 
+from datetime import datetime
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -87,3 +89,21 @@ class BaseModel(models.Model):
         """
         self.mdtz = now()
         super().save(*args, **kwargs)
+
+    @property
+    def created_at(self) -> datetime:
+        """Backward-compatible alias for creation timestamp."""
+        return self.cdtz
+
+    @created_at.setter
+    def created_at(self, value: datetime):
+        self.cdtz = value
+
+    @property
+    def updated_at(self) -> datetime:
+        """Backward-compatible alias for modification timestamp."""
+        return self.mdtz
+
+    @updated_at.setter
+    def updated_at(self, value: datetime):
+        self.mdtz = value

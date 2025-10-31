@@ -90,10 +90,11 @@ class QueryMonitor:
         self.initial_query_count = len(connection.queries)
         self.start_time = time.time()
 
-        # Enable query logging if not already enabled
-        self._original_debug = settings.DEBUG
-        if not self._original_debug:
-            settings.DEBUG = True
+        # Enable query logging via connection (not global settings)
+        # This avoids mutating settings.DEBUG which can cause race conditions
+        self._original_force_debug = getattr(connection, 'force_debug_cursor', False)
+        if not settings.DEBUG:
+            connection.force_debug_cursor = True
 
         return self
 
@@ -112,9 +113,9 @@ class QueryMonitor:
                 params=None
             )
 
-        # Restore original DEBUG setting
-        if not self._original_debug:
-            settings.DEBUG = self._original_debug
+        # Restore original force_debug_cursor setting
+        if not settings.DEBUG:
+            connection.force_debug_cursor = self._original_force_debug
 
         # Log results
         self._log_results()

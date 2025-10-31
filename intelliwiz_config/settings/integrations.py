@@ -162,7 +162,6 @@ CELERY_TASK_ROUTES = {
     'create_job': {'queue': 'maintenance', 'priority': 4},
 
     # DEFAULT - General tasks (Queue: default, Priority: 5)
-    'background_tasks.tasks.process_graphql_mutation_async': {'queue': 'default', 'priority': 5},
     'background_tasks.tasks.*': {'queue': 'default', 'priority': 5},
     'ticket_escalation': {'queue': 'default', 'priority': 6},  # Higher priority for escalations
 }
@@ -186,9 +185,9 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "email-smtp.us-east-1.amazonaws.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = env("AWS_SES_SMTP_USER")
-EMAIL_HOST_PASSWORD = env("AWS_SES_SMTP_PASSWORD")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+EMAIL_HOST_USER = env("AWS_SES_SMTP_USER", default="")
+EMAIL_HOST_PASSWORD = env("AWS_SES_SMTP_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="dev@localhost")
 EMAIL_FROM_ADDRESS = DEFAULT_FROM_EMAIL
 
 # Email Verification Configuration
@@ -198,25 +197,29 @@ EMAIL_MAIL_SUBJECT = "Confirm your email"
 EMAIL_MAIL_HTML = "email.html"
 EMAIL_MAIL_PLAIN = "mail_body.txt"
 EMAIL_MAIL_PAGE_TEMPLATE = "email_verify.html"
-EMAIL_PAGE_DOMAIN = env("EMAIL_PAGE_DOMAIN")
+EMAIL_PAGE_DOMAIN = env("EMAIL_PAGE_DOMAIN", default="localhost:8000")
 EMAIL_MULTI_USER = True
 CUSTOM_SALT = env("CUSTOM_SALT", default="django-email-verification-salt")
 
 # Email verification callbacks moved to apps.peoples.utils.email_callbacks for better organization
-from apps.peoples.utils import verified_callback
-EMAIL_VERIFIED_CALLBACK = verified_callback
-EMAIL_MAIL_CALLBACK = verified_callback
+# Use string path to avoid importing models during settings loading (Django app registry issue)
+EMAIL_VERIFIED_CALLBACK = 'apps.peoples.utils.verified_callback'
+EMAIL_MAIL_CALLBACK = 'apps.peoples.utils.verified_callback'
 
 # OPTIMIZED REDIS CACHE CONFIGURATION
 # Integrates advanced connection pooling, security, and performance enhancements
 
 from .redis_optimized import get_optimized_caches_config, get_channel_layers_config
 
+# Use environment detection instead of hardcoded 'production'
+# DJANGO_ENVIRONMENT is set in intelliwiz_config/settings/__init__.py before imports
+_django_environment = env('DJANGO_ENVIRONMENT', default='development')
+
 # Default cache configuration (will be overridden by environment-specific settings)
-CACHES = get_optimized_caches_config('production')  # Default to production settings
+CACHES = get_optimized_caches_config(_django_environment)
 
 # CHANNEL LAYERS - WebSocket support with optimized Redis connection pooling
-CHANNEL_LAYERS = get_channel_layers_config('production')  # Default to production settings
+CHANNEL_LAYERS = get_channel_layers_config(_django_environment)
 
 # POSTGRESQL TASK QUEUE CONFIGURATION
 POSTGRESQL_TASK_QUEUE = {
@@ -228,10 +231,10 @@ POSTGRESQL_TASK_QUEUE = {
 # MQTT CONFIGURATION
 
 MQTT_CONFIG = {
-    "BROKER_ADDRESS": env("MQTT_BROKER_ADDRESS"),
-    "broker_port": env.int("MQTT_BROKER_PORT"),
-    "broker_userNAME": env("MQTT_BROKER_USERNAME"),
-    "broker_password": env("MQTT_BROKER_PASSWORD"),
+    "BROKER_ADDRESS": env("MQTT_BROKER_ADDRESS", default="localhost"),
+    "broker_port": env.int("MQTT_BROKER_PORT", default=1883),
+    "broker_userNAME": env("MQTT_BROKER_USERNAME", default=""),
+    "broker_password": env("MQTT_BROKER_PASSWORD", default=""),
 }
 
 # CLIENT DOMAINS CONFIGURATION
@@ -297,14 +300,132 @@ NOTIFICATION_ROUTING = {
 # FILE STORAGE AND BUCKETS
 
 BUCKET = env("BUCKET", default="prod-attachment-sukhi-group")
-TEMP_REPORTS_GENERATED = env("TEMP_REPORTS_GENERATED")
-ONDEMAND_REPORTS_GENERATED = env("ONDEMAND_REPORTS_GENERATED")
+TEMP_REPORTS_GENERATED = env("TEMP_REPORTS_GENERATED", default="/tmp/temp_reports")
+ONDEMAND_REPORTS_GENERATED = env("ONDEMAND_REPORTS_GENERATED", default="/tmp/ondemand_reports")
 DATA_UPLOAD_MAX_MEMORY_SIZE = env.int("DATA_UPLOAD_MAX_MEMORY_SIZE", default=10485760)
+
+# GOOGLE CLOUD STORAGE CONFIGURATION
+# Security compliance: Rule #4 (Secure Secret Management)
+# Configuration-based credentials prevent hardcoded paths and enable environment-specific deployment
+
+# GCS Bucket for media uploads (move_media_to_cloud_storage task)
+GCS_BUCKET_NAME = env("GCS_BUCKET_NAME", default=BUCKET)  # Defaults to existing BUCKET setting
+
+# GCS Project ID (optional - inferred from credentials if not set)
+GCS_PROJECT_ID = env("GCS_PROJECT_ID", default="")
+
+# GCS Credentials Path - MUST be absolute path to service account JSON file
+# Default location: <project_root>/credentials/gcs-service-account.json
+# Production: Set via GOOGLE_APPLICATION_CREDENTIALS environment variable
+from pathlib import Path
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent  # intelliwiz_config/settings/../.. -> project root
+GCS_CREDENTIALS_PATH = env(
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    default=str(_BASE_DIR / "credentials" / "gcs-service-account.json")
+)
+
+# GCS Configuration Validation (fail fast at startup)
+# Prevents runtime errors from missing/invalid credentials
+GCS_ENABLED = env.bool("GCS_ENABLED", default=False)  # Explicit opt-in for GCS usage
+
+if GCS_ENABLED:
+    # Validate GCS configuration if explicitly enabled
+    if not GCS_BUCKET_NAME:
+        raise ValueError(
+            "GCS_ENABLED is True but GCS_BUCKET_NAME is not set. "
+            "Please set GCS_BUCKET_NAME environment variable."
+        )
+
+    if not GCS_CREDENTIALS_PATH:
+        raise ValueError(
+            "GCS_ENABLED is True but GOOGLE_APPLICATION_CREDENTIALS is not set. "
+            "Please set GOOGLE_APPLICATION_CREDENTIALS environment variable."
+        )
+
+    # Verify credentials file exists
+    if not os.path.exists(GCS_CREDENTIALS_PATH):
+        raise FileNotFoundError(
+            f"GCS credentials file not found at: {GCS_CREDENTIALS_PATH}\n"
+            f"Please ensure the service account JSON file exists at this path.\n"
+            f"Set GOOGLE_APPLICATION_CREDENTIALS environment variable to override."
+        )
+
+    # Verify credentials file is readable and valid JSON
+    try:
+        with open(GCS_CREDENTIALS_PATH, 'r') as f:
+            creds_data = json.load(f)
+            required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+            missing_fields = [field for field in required_fields if field not in creds_data]
+            if missing_fields:
+                raise ValueError(
+                    f"GCS credentials file is missing required fields: {', '.join(missing_fields)}"
+                )
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"GCS credentials file is not valid JSON: {GCS_CREDENTIALS_PATH}\n"
+            f"Error: {e}"
+        )
+    except PermissionError:
+        raise PermissionError(
+            f"Cannot read GCS credentials file: {GCS_CREDENTIALS_PATH}\n"
+            f"Please check file permissions."
+        )
 
 # EXTERNAL API KEYS
 
-GOOGLE_MAP_SECRET_KEY = env("GOOGLE_MAP_SECRET_KEY")
-BULK_IMPORT_GOOGLE_DRIVE_API_KEY = env("BULK_IMPORT_GOOGLE_DRIVE_API_KEY")
+GOOGLE_MAP_SECRET_KEY = env("GOOGLE_MAP_SECRET_KEY", default="")
+BULK_IMPORT_GOOGLE_DRIVE_API_KEY = env("BULK_IMPORT_GOOGLE_DRIVE_API_KEY", default="")
+
+# ========================================
+# LLM PROVIDER CONFIGURATION (Agent Intelligence)
+# ========================================
+
+# Google Gemini - Primary LLM provider for dashboard agents
+GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")
+GEMINI_MODEL_MAKER = env("GEMINI_MODEL_MAKER", default="gemini-1.5-pro-latest")
+GEMINI_MODEL_CHECKER = env("GEMINI_MODEL_CHECKER", default="gemini-1.5-flash-latest")
+
+# Anthropic Claude - Fallback LLM provider
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+
+# OpenAI - Secondary fallback
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+
+# LLM Provider Configuration
+LLM_PROVIDERS_ENABLED = {
+    'gemini': env.bool('LLM_GEMINI_ENABLED', default=True),      # Primary
+    'anthropic': env.bool('LLM_ANTHROPIC_ENABLED', default=True),   # Fallback 1
+    'openai': env.bool('LLM_OPENAI_ENABLED', default=False),     # Fallback 2 (disabled by default)
+}
+
+# Fallback chain priority: Gemini → Claude → OpenAI
+LLM_DEFAULT_FALLBACK_CHAIN = ['gemini', 'anthropic', 'openai']
+
+# Validate Gemini configuration if enabled
+if LLM_PROVIDERS_ENABLED['gemini'] and not GOOGLE_API_KEY:
+    import warnings
+    warnings.warn(
+        "LLM_GEMINI_ENABLED is True but GOOGLE_API_KEY is not set. "
+        "Dashboard agent intelligence will fall back to Claude or be disabled. "
+        "Set GOOGLE_API_KEY environment variable to enable Gemini.",
+        RuntimeWarning
+    )
+
+# TWILIO IVR CONFIGURATION
+# Required for Twilio webhook signature validation (Rule #3 compliance)
+# Webhook signature validation prevents unauthorized webhook calls (CVSS 7.5)
+# See: apps/noc/security_intelligence/ivr/decorators.py
+TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")
+TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN", default="")
+TWILIO_FROM_NUMBER = env("TWILIO_FROM_NUMBER", default="")
+
+# Validate Twilio configuration at startup (fail fast if configured incorrectly)
+if TWILIO_ACCOUNT_SID and not TWILIO_AUTH_TOKEN:
+    raise ValueError(
+        "TWILIO_ACCOUNT_SID is configured but TWILIO_AUTH_TOKEN is missing. "
+        "Both are required for webhook signature validation. "
+        "Please set TWILIO_AUTH_TOKEN environment variable."
+    )
 
 # ENVIRONMENT-SPECIFIC INTEGRATION SETTINGS
 

@@ -8,7 +8,7 @@ from .base import *
 from .logging import setup_logging
 from .security import get_development_security_settings
 from .integrations import get_development_integrations
-from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, GRAPHQL_VERSION_CONFIG, SPECTACULAR_SETTINGS
+from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, SPECTACULAR_SETTINGS
 
 # Environment imports
 import environ
@@ -16,12 +16,26 @@ env = environ.Env()
 
 # Environment configuration
 ENV_FILE = ".env.dev.secure"
-ENVPATH = os.path.join(BASE_DIR.parent, "intelliwiz_config/envs")
+ENVPATH = os.path.join(BASE_DIR, "intelliwiz_config/envs")
 environ.Env.read_env(os.path.join(ENVPATH, ENV_FILE), overwrite=True)
 
 # Debug configuration
 DEBUG = True
-ALLOWED_HOSTS = ["127.0.0.1:8005", "127.0.0.1", "localhost", "192.168.1.243"]
+
+# SECURITY FIX (2025-10-11): Import refactored security configs with DEBUG override
+# This ensures Django's DEBUG setting is the single source of truth for security decisions
+from .security.hosts import get_allowed_hosts
+from .security.cors import get_cors_allowed_origins
+
+# Override with Django DEBUG setting (NOT env var)
+ALLOWED_HOSTS = get_allowed_hosts(is_debug=DEBUG)
+CORS_ALLOWED_ORIGINS = get_cors_allowed_origins(is_debug=DEBUG)
+
+# Validation: Ensure security settings are properly configured
+assert isinstance(ALLOWED_HOSTS, list), "ALLOWED_HOSTS must be a list"
+assert len(ALLOWED_HOSTS) > 0, "ALLOWED_HOSTS cannot be empty in development"
+assert isinstance(CORS_ALLOWED_ORIGINS, list), "CORS_ALLOWED_ORIGINS must be a list"
+assert len(CORS_ALLOWED_ORIGINS) > 0, "CORS_ALLOWED_ORIGINS cannot be empty in development"
 
 # Development-specific apps and middleware
 INSTALLED_APPS += ["debug_toolbar"]
@@ -31,17 +45,22 @@ MIDDLEWARE.append("apps.core.middleware.query_performance_monitoring.QueryPerfor
 # Add AI Mentor system in development with explicit enablement
 if os.environ.get('MENTOR_ENABLED') == '1':
     INSTALLED_APPS.extend(["apps.mentor", "apps.mentor_api"])
-    print("🤖 AI Mentor system enabled - Development mode only")
+    import sys
+    sys.stdout.write("🤖 AI Mentor system enabled - Development mode only\n")
 
 # Environment variables with security validation
 # CRITICAL: Apply Rule 4 validation - Secure Secret Management
-from apps.core.validation import (
+# NOTE: Import from validation.py (not validation_pydantic package)
+import sys
+sys.path.insert(0, os.path.join(BASE_DIR, 'apps/core'))
+from validation import (
     validate_secret_key,
     validate_encryption_key,
     validate_admin_password,
     SecretValidationLogger,
     SecretValidationError
 )
+sys.path.pop(0)
 import logging
 
 # Use dedicated secret validation logger
@@ -73,10 +92,11 @@ except SecretValidationError as e:
     )
 
     # Console output for developer (generic guidance only, NO secret details)
-    print(f"\n🚨 CRITICAL: Secret validation failed (correlation_id: {correlation_id})")
-    print("📋 Check logs for details: /tmp/youtility4_logs/django_dev.log")
-    print("🔧 Review environment file: intelliwiz_config/envs/.env.dev.secure")
-    print("📖 Documentation: docs/security/secret-validation-logging.md\n")
+    import sys
+    sys.stderr.write(f"\n🚨 CRITICAL: Secret validation failed (correlation_id: {correlation_id})\n")
+    sys.stderr.write("📋 Check logs for details: /tmp/youtility4_logs/django_dev.log\n")
+    sys.stderr.write("🔧 Review environment file: intelliwiz_config/envs/.env.dev.secure\n")
+    sys.stderr.write("📖 Documentation: docs/security/secret-validation-logging.md\n\n")
     sys.exit(1)
 except Exception as e:
     import sys
@@ -109,9 +129,8 @@ DATABASES = {
         "CONN_MAX_AGE": 600,  # 10 minutes - optimal for development
         "CONN_HEALTH_CHECKS": True,  # Enable connection health checks
         "OPTIONS": {
-            "MAX_CONNS": 20,  # Maximum connections per process
-            "MIN_CONNS": 2,   # Minimum connections to maintain
             "application_name": "youtility_dev",  # For connection tracking
+            "connect_timeout": 10,  # Connection timeout in seconds
         },
     }
 }
@@ -130,7 +149,8 @@ REDIS_MONITORING_ENABLED = True
 REDIS_PERFORMANCE_LOGGING = True
 
 # Development-specific Redis settings
-os.environ.setdefault('DJANGO_ENVIRONMENT', 'development')
+# Note: DJANGO_ENVIRONMENT is now set in intelliwiz_config/settings/__init__.py
+# before imports to ensure correct environment detection during module initialization
 
 # Static and media files for development
 STATIC_ROOT = env("STATIC_ROOT")
@@ -156,6 +176,9 @@ CUSTOM_SALT = env("CUSTOM_SALT", default="django-email-verification-salt-dev")
 
 # Setup development logging
 setup_logging('development')
+
+# Reduce environ logging verbosity (suppress DEBUG logs during startup)
+logging.getLogger('environ.environ').setLevel(logging.INFO)
 
 # Development-specific feature flags
 ENABLE_CONVERSATIONAL_ONBOARDING = True
@@ -187,40 +210,6 @@ dev_integrations = get_development_integrations()
 for key, value in dev_integrations.items():
     locals()[key] = value
 
-# ============================================================================
-# GRAPHQL DEVELOPMENT OVERRIDES
-# ============================================================================
-# Development environment uses relaxed GraphQL settings for easier testing
-# and debugging. Production uses strict security settings.
-# ============================================================================
-
-# More relaxed rate limiting for development
-GRAPHQL_RATE_LIMIT_MAX = 1000  # 10x higher than production
-GRAPHQL_RATE_LIMIT_WINDOW = 300  # Same 5 minute window
-
-# Allow GraphQL introspection in development (useful for GraphiQL)
-GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION = False
-
-# Relaxed origin validation for local testing
-GRAPHQL_STRICT_ORIGIN_VALIDATION = False
-GRAPHQL_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-]
-
-# Higher complexity limits for development testing
-GRAPHQL_MAX_QUERY_DEPTH = 15  # Deeper nesting allowed
-GRAPHQL_MAX_QUERY_COMPLEXITY = 2000  # Higher complexity allowed
-GRAPHQL_MAX_MUTATIONS_PER_REQUEST = 10  # More mutations per batch
-
-# Enhanced logging in development
-GRAPHQL_SECURITY_LOGGING['ENABLE_FIELD_ACCESS_LOGGING'] = True
-GRAPHQL_SECURITY_LOGGING['ENABLE_OBJECT_ACCESS_LOGGING'] = True
-
 print(f"[DEV SETTINGS] Development settings loaded from {ENV_FILE}")
 print(f"[DEV SETTINGS] Debug mode: {DEBUG}")
 print(f"[DEV SETTINGS] Database: {DATABASES['default']['NAME']}@{DATABASES['default']['HOST']}")
-print(f"[DEV SETTINGS] GraphQL Rate Limit: {GRAPHQL_RATE_LIMIT_MAX} requests per {GRAPHQL_RATE_LIMIT_WINDOW}s")
-print(f"[DEV SETTINGS] GraphQL Introspection: {'Enabled' if not GRAPHQL_DISABLE_INTROSPECTION_IN_PRODUCTION else 'Disabled'}")

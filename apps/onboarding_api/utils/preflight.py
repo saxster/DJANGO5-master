@@ -6,6 +6,7 @@ configured before enabling conversational onboarding features. It checks for
 required data, configurations, and dependencies.
 """
 import logging
+from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 
@@ -356,7 +357,8 @@ class PreflightValidator:
                 result['recommendations'].append('Consider enabling LLM checker for better recommendations')
 
             result['details']['llm_checker_enabled'] = llm_enabled
-        except:
+        except (AttributeError, ImportError) as e:
+            logger.warning(f"Could not check LLM service configuration: {e}")
             result['warnings'].append('Could not check LLM service configuration')
 
         # Check knowledge base configuration
@@ -367,7 +369,8 @@ class PreflightValidator:
             if not kb_enabled:
                 result['warnings'].append('Knowledge base is disabled')
                 result['recommendations'].append('Enable knowledge base for enhanced onboarding guidance')
-        except:
+        except (AttributeError, ImportError) as e:
+            logger.warning(f"Could not check knowledge base configuration: {e}")
             result['warnings'].append('Could not check knowledge base configuration')
 
         return result
@@ -391,8 +394,10 @@ class PreflightValidator:
                 result['recommendations'].append('Enable rate limiting for production security')
 
             result['details']['rate_limiting_enabled'] = rate_limiting_enabled
-        except:
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.warning(f"Could not check rate limiting configuration: {e}")
+            # Use safe default (enabled)
+            result['details']['rate_limiting_enabled'] = True
 
         # Check CORS configuration
         try:
@@ -401,8 +406,9 @@ class PreflightValidator:
                 result['warnings'].append('No CORS origins configured')
 
             result['details']['cors_configured'] = len(cors_allowed) > 0
-        except:
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.warning(f"Could not check CORS configuration: {e}")
+            result['details']['cors_configured'] = False
 
         return result
 

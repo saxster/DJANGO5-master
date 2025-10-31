@@ -16,7 +16,7 @@ description: |
 impacted_areas:
   - "apps/activity/"
   - "apps/peoples/"
-  - "apps/schedhuler/"
+  - "apps/scheduler/"
   - "apps/core/utils_new/"
 
 target_files:

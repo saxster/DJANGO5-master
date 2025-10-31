@@ -1,6 +1,31 @@
 """
 API Authentication Middleware
 Provides secure API key-based authentication for API endpoints
+
+@ontology(
+    domain="security",
+    purpose="API key authentication middleware for REST API endpoints with HMAC request signing",
+    middleware_type="request",
+    execution_order="early (after CORS, before rate limiting)",
+    authentication_methods=["api_key_header", "bearer_token", "query_param"],
+    security_features=[
+        "HMAC-SHA256 request signing",
+        "API key expiration validation",
+        "Per-key rate limiting",
+        "IP-based access control",
+        "Audit logging of API access"
+    ],
+    affects_all_requests=False,
+    applies_to_paths=["/api/"],
+    performance_impact="~2ms per request (with Redis cache)",
+    cache_strategy="5min cache for valid keys, 1min cache for invalid",
+    criticality="high",
+    error_responses={
+        "401": "Invalid/expired/missing API key",
+        "429": "Rate limit exceeded for API key"
+    },
+    tags=["middleware", "authentication", "api", "security", "hmac"]
+)
 """
 
 import hashlib
@@ -37,7 +62,7 @@ class APIAuthenticationMiddleware(MiddlewareMixin):
         super().__init__(get_response)
         
         # Configuration
-        self.api_paths = getattr(settings, 'API_AUTH_PATHS', ['/api/', '/graphql/'])
+        self.api_paths = getattr(settings, 'API_AUTH_PATHS', ['/api/'])
         self.require_signing = getattr(settings, 'API_REQUIRE_SIGNING', False)
         self.enable_api_auth = getattr(settings, 'ENABLE_API_AUTH', True)
         

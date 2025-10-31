@@ -15,7 +15,7 @@ import concurrency.fields
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('work_order_management', '__latest__'),  # Replace with actual latest migration
+        ('work_order_management', '0003_add_mobile_sync_fields'),
     ]
 
     operations = [

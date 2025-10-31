@@ -7,7 +7,8 @@ All models comply with Rule #7: < 150 lines, single responsibility principle
 from django.db import models
 from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
-from apps.peoples.models import BaseModel, TenantAwareModel, People
+from apps.peoples.models import BaseModel, People
+from apps.tenants.models import TenantAwareModel  # TenantAwareModel is in tenants, not peoples
 from apps.tenants.models import Tenant
 
 

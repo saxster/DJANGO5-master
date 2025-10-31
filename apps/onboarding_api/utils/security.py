@@ -9,6 +9,13 @@ import hmac
 import logging
 import uuid
 from functools import wraps
+from typing import Dict, Any
+from django.conf import settings
+from django.utils import timezone
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError, IntegrityError
+from django.http import HttpRequest
 
 
 logger = logging.getLogger(__name__)
@@ -150,7 +157,7 @@ class TenantScopeValidator:
             if hasattr(user, 'get_capability'):
                 return user.get_capability('can_access_admin_endpoints') or user.get_capability('can_manage_onboarding')
             return user.is_staff
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return user.is_staff
 
     def _has_approval_capability(self, user, client) -> bool:
@@ -159,7 +166,7 @@ class TenantScopeValidator:
             if hasattr(user, 'get_capability'):
                 return user.get_capability('can_approve_ai_recommendations')
             return user.is_staff
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
             return False
 
 

@@ -6,6 +6,9 @@ from .meter_reading_model import MeterReading, MeterReadingAlert
 from .vehicle_entry_model import VehicleEntry, VehicleSecurityAlert
 from .job_model import Job, Jobneed, JobneedDetails
 from .question_model import Question, QuestionSet, QuestionSetBelonging
+from .nfc_models import NFCTag, NFCDevice, NFCScanLog  # Sprint 4.1
+from .asset_field_history import AssetFieldHistory, AssetLifecycleStage  # Sprint 4.4
+from .asset_analytics import AssetUtilizationMetric, MaintenanceCostTracking, AssetHealthScore  # Sprint 4.5
 
 # Conditional imports for models that may not exist
 try:
@@ -38,4 +41,15 @@ __all__ = [
     'QuestionSetBelonging',
     'VehicleEntry',
     'VehicleSecurityAlert',
+    # Sprint 4.1 - NFC Tag Integration
+    'NFCTag',
+    'NFCDevice',
+    'NFCScanLog',
+    # Sprint 4.4 - Comprehensive Audit Trail
+    'AssetFieldHistory',
+    'AssetLifecycleStage',
+    # Sprint 4.5 - Asset Analytics
+    'AssetUtilizationMetric',
+    'MaintenanceCostTracking',
+    'AssetHealthScore',
 ]

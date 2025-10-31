@@ -130,7 +130,7 @@ class OptimizationManager(models.Manager):
         - Uses index on (job_id, plandatetime)
 
         Example:
-            # REST API usage (GraphQL removed Oct 2025):
+            # REST API usage (legacy query layer retired Oct 2025):
             latest = Jobneed.objects.latest_for_job(123)
             if latest:
                 return latest.jobstatus
