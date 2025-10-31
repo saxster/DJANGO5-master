@@ -18,9 +18,8 @@ from django.views.generic import TemplateView, RedirectView
 from django.contrib.auth.decorators import login_required
 from django_email_verification import urls as email_urls
 from apps.peoples.views import SignIn, SignOut
-from graphene_file_upload.django import FileUploadGraphQLView
+# Legacy schema imports removed - October 2025 (REST API migration complete)
 import debug_toolbar
-from apps.service.mutations import SecureUploadFile
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.views.dashboard_views import ModernDashboardView
 
@@ -46,7 +45,8 @@ urlpatterns = [
     path('dashboard/', login_required(ModernDashboardView.as_view()), name='dashboard'),
     path('home/', login_required(ModernDashboardView.as_view()), name='home'),  # Legacy home URL
     path('dashboard/', include('apps.core.urls_dashboard')),
-    
+    path('dashboards/', include('apps.core.urls_dashboard_hub')),  # Dashboard Hub Infrastructure
+
     # ========== CORE BUSINESS DOMAINS ==========
     # Operations (Tasks, Tours, Work Orders, PPM)
     path('operations/', include('apps.core.urls_operations')),
@@ -100,17 +100,9 @@ urlpatterns = [
     path('api/v2/', include('apps.api.v2.urls')),  # Typed sync/device endpoints
     path('api/v2/status/', include('apps.service.rest_service.v2.urls')),  # Status endpoint
 
-    # GraphQL endpoints with CSRF protection (vulnerability fix: CVSS 8.1)
-    # CSRF protection is now handled by GraphQLCSRFProtectionMiddleware
-    # Security: graphiql interface disabled in production (CVSS 7.5 - Information Disclosure)
-    # Consolidated: 3 routes → 2 with optional trailing slash (Oct 2025 - code quality fix)
-    re_path(r'^api/graphql/?$', FileUploadGraphQLView.as_view(
-        graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
-    ), name='api_graphql'),
-    re_path(r'^graphql/?$', FileUploadGraphQLView.as_view(
-        graphiql=settings.DEBUG or getattr(settings, 'ENABLE_GRAPHIQL', False)
-    ), name='graphql'),
-    path('api/upload/att_file/', SecureUploadFile.as_view()),
+    # ========== Legacy Schema Removed - October 2025 ==========
+    # Single API surface operates at /api/v1/
+    # See migration notes for rollout details
 
     # ========== API DOCUMENTATION (OpenAPI/Swagger) ==========
     # Consolidated OpenAPI schema for v1 + v2 REST endpoints

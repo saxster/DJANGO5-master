@@ -2,6 +2,7 @@
 Optimized URL Router for Information Architecture
 Implements domain-driven URL structure with comprehensive legacy support
 """
+from typing import List, Dict, Any
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.core.cache import cache
@@ -18,22 +19,22 @@ class OptimizedURLRouter:
     URL_MAPPINGS = {
         # ========== OPERATIONS DOMAIN ==========
         # Task Management
-        'schedhuler/jobneedtasks/': 'operations/tasks/',
-        'schedhuler/schedhule_task/': 'operations/tasks/schedule/',
-        'schedhuler/tasklist_jobneed/': 'operations/tasks/list/',
-        'schedhuler/jobschdtasks/': 'operations/tasks/scheduled/',
-        'schedhuler/task_jobneed/<str:pk>/': 'operations/tasks/<str:pk>/',
+        'scheduler/jobneedtasks/': 'operations/tasks/',
+        'scheduler/schedhule_task/': 'operations/tasks/schedule/',
+        'scheduler/tasklist_jobneed/': 'operations/tasks/list/',
+        'scheduler/jobschdtasks/': 'operations/tasks/scheduled/',
+        'scheduler/task_jobneed/<str:pk>/': 'operations/tasks/<str:pk>/',
         'activity/adhoctasks/': 'operations/tasks/adhoc/',
         
         # Tour Management
-        'schedhuler/jobneedtours/': 'operations/tours/',
-        'schedhuler/jobneedexternaltours/': 'operations/tours/external/',
-        'schedhuler/internal-tours/': 'operations/tours/internal/',
-        'schedhuler/schd_internal_tour/': 'operations/schedules/tours/internal/',
-        'schedhuler/schd_external_tour/': 'operations/schedules/tours/external/',
-        'schedhuler/schedhule_tour/': 'operations/tours/schedule/',
-        'schedhuler/external_schedhule_tour/': 'operations/tours/external/schedule/',
-        'schedhuler/site_tour_tracking/': 'operations/tours/tracking/',
+        'scheduler/jobneedtours/': 'operations/tours/',
+        'scheduler/jobneedexternaltours/': 'operations/tours/external/',
+        'scheduler/internal-tours/': 'operations/tours/internal/',
+        'scheduler/schd_internal_tour/': 'operations/schedules/tours/internal/',
+        'scheduler/schd_external_tour/': 'operations/schedules/tours/external/',
+        'scheduler/schedhule_tour/': 'operations/tours/schedule/',
+        'scheduler/external_schedhule_tour/': 'operations/tours/external/schedule/',
+        'scheduler/site_tour_tracking/': 'operations/tours/tracking/',
         'activity/adhoctours/': 'operations/tours/adhoc/',
         
         # Work Order Management
@@ -144,7 +145,6 @@ class OptimizedURLRouter:
         # ========== API ENDPOINTS ==========
         'api/': 'api/v1/',
         'service/': 'api/v1/service/',
-        'graphql/': 'api/graphql/',
         
         # ========== MONITORING ==========
         'monitoring/health/': 'monitoring/health/',
@@ -162,7 +162,7 @@ class OptimizedURLRouter:
         'apps/customers/getting-started.html': 'dashboard/',
         'apps/customers/list.html': 'people/',
         'apps/customers/view.html': 'people/',
-        'schedhuler/retrieve_tickets/': 'help-desk/tickets/',
+        'scheduler/retrieve_tickets/': 'help-desk/tickets/',
         'reminder/': 'dashboard/',  # Reminder app was removed
     }
     
@@ -518,5 +518,9 @@ class OptimizedURLRouter:
         for new_url, old_urls in target_counts.items():
             if len(old_urls) > 1:
                 issues['duplicate_targets'][new_url] = old_urls
-        
+
         return issues
+
+
+# Backward compatibility alias for legacy imports
+URLRouter = OptimizedURLRouter
