@@ -107,6 +107,25 @@ NOC_CELERY_BEAT_SCHEDULE = {
             'expires': 3600,  # 1 hour expiry
         }
     },
+
+    # Metric Downsampling Tasks
+    'noc-downsample-hourly': {
+        'task': 'noc.metrics.downsample_hourly',
+        'schedule': crontab(minute=5),  # Every hour at :05
+        'options': {
+            'queue': 'maintenance',
+            'expires': 3300,  # 55 minutes expiry (before next run)
+        }
+    },
+
+    'noc-downsample-daily': {
+        'task': 'noc.metrics.downsample_daily',
+        'schedule': crontab(hour=1, minute=0),  # Daily at 1:00 AM
+        'options': {
+            'queue': 'maintenance',
+            'expires': 3600,  # 1 hour expiry
+        }
+    },
 }
 
 

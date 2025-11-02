@@ -1,7 +1,7 @@
 """
 NOC Alert Correlation Service.
 
-Handles alert de-duplication, correlation, and intelligent alert management.
+Handles alert de-duplication, correlation, clustering, and intelligent alert management.
 Follows .claude/rules.md Rule #7 (<150 lines), Rule #11 (specific exceptions),
 Rule #17 (transaction management).
 """
@@ -72,6 +72,24 @@ class AlertCorrelationService:
                     **alert_data
                 )
                 logger.info(f"New alert created", extra={'alert_id': alert.id, 'alert_type': alert.alert_type})
+
+                # Cluster alert using ML-based clustering service
+                try:
+                    from .alert_clustering_service import AlertClusteringService
+                    cluster, created = AlertClusteringService.cluster_alert(alert)
+                    logger.info(
+                        f"Alert clustered",
+                        extra={
+                            'alert_id': alert.id,
+                            'cluster_id': cluster.cluster_id,
+                            'cluster_created': created,
+                            'cluster_size': cluster.alert_count
+                        }
+                    )
+                except Exception as e:
+                    # Don't fail alert creation if clustering fails
+                    logger.error(f"Error clustering alert", extra={'alert_id': alert.id, 'error': str(e)}, exc_info=True)
+
                 return alert
 
         except (DatabaseError, IntegrityError) as e:

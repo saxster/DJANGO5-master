@@ -16,6 +16,8 @@ from .incident_service import NOCIncidentService
 from .websocket_service import NOCWebSocketService
 from .export_service import NOCExportService
 from .view_service import NOCViewService
+from .time_series_query_service import TimeSeriesQueryService
+from .playbook_engine import PlaybookEngine
 
 __all__ = [
     'NOCAggregationService',
@@ -29,4 +31,6 @@ __all__ = [
     'NOCWebSocketService',
     'NOCExportService',
     'NOCViewService',
+    'TimeSeriesQueryService',
+    'PlaybookEngine',
 ]
