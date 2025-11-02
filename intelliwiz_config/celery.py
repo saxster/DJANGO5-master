@@ -458,6 +458,69 @@ app.conf.beat_schedule = {
     },
 
     # ============================================================================
+    # PHASE 2: ML DRIFT MONITORING TASKS
+    # ============================================================================
+    # Daily tasks for model performance monitoring and drift detection
+    # Sequential execution: outcome tracking → metrics → statistical → performance
+    # ============================================================================
+
+    # Track conflict prediction outcomes (prerequisite for metrics)
+    # Runs: Daily at 1:00 AM UTC
+    # Rationale: Populates outcome fields before metrics computation
+    "ml_track_conflict_outcomes": {
+        'task': 'ml.track_conflict_prediction_outcomes',
+        'schedule': crontab(minute='0', hour='1'),  # Daily 1:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'maintenance',
+            'soft_time_limit': 480,  # 8 minutes
+            'time_limit': 600,       # 10 minutes
+        }
+    },
+
+    # Compute daily performance metrics
+    # Runs: Daily at 2:00 AM UTC
+    # Rationale: Aggregates yesterday's predictions after outcomes populated
+    "ml_compute_daily_metrics": {
+        'task': 'apps.ml.tasks.compute_daily_performance_metrics',
+        'schedule': crontab(minute='0', hour='2'),  # Daily 2:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'reports',
+            'soft_time_limit': 3300,  # 55 minutes
+            'time_limit': 3600,       # 1 hour
+        }
+    },
+
+    # Detect statistical drift (KS test)
+    # Runs: Daily at 3:00 AM UTC
+    # Rationale: Compare recent vs baseline prediction distributions
+    "ml_detect_statistical_drift": {
+        'task': 'apps.ml.tasks.detect_statistical_drift',
+        'schedule': crontab(minute='0', hour='3'),  # Daily 3:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'maintenance',
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,       # 10 minutes
+        }
+    },
+
+    # Detect performance drift (accuracy degradation)
+    # Runs: Daily at 4:00 AM UTC
+    # Rationale: Compare recent vs baseline performance metrics
+    "ml_detect_performance_drift": {
+        'task': 'apps.ml.tasks.detect_performance_drift',
+        'schedule': crontab(minute='0', hour='4'),  # Daily 4:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'maintenance',
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,       # 10 minutes
+        }
+    },
+
+    # ============================================================================
     # ✅ SCHEDULE HEALTH SUMMARY & VALIDATION
     # ============================================================================
     #

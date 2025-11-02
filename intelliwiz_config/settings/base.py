@@ -377,6 +377,15 @@ NOC_CONFIG = {
 }
 
 # ============================================================================
+# ML CONFIGURATION (PHASE 2)
+# ============================================================================
+# Machine Learning drift monitoring and auto-retraining configuration
+# Feature flags, thresholds, and safeguards for automated ML operations
+# ============================================================================
+
+from .ml_config import ML_CONFIG
+
+# ============================================================================
 # UNFOLD ADMIN THEME CONFIGURATION
 # ============================================================================
 # Modern admin interface with organized model grouping and enhanced UX
