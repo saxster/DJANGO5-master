@@ -82,7 +82,7 @@ def asset_json():
     ],
     used_by=[
         "apps.activity.services.asset_service.AssetManagementService (CRUD operations)",
-        "apps.activity.views.asset_views (Django admin and web CRUD)",
+        "apps.activity.views.asset (Django admin and web CRUD)",
         "apps.scheduler.models.Job (PPM schedules tied to assets)",
         "apps.work_order_management.models.Wom (work orders for asset maintenance)",
         "apps.inventory.models (spare parts linked to assets)",

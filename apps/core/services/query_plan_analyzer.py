@@ -29,6 +29,7 @@ from django.core.cache import cache
 
 from apps.core.models.query_execution_plans import QueryExecutionPlan, PlanRegressionAlert
 from apps.core.models.query_performance import SlowQueryAlert
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger("query_plan_analyzer")
 
@@ -377,11 +378,20 @@ class QueryPlanAnalyzer:
                               baseline_plan: QueryExecutionPlan) -> bool:
         """Check if current plan lost index usage compared to baseline."""
         try:
+            # Validate inputs
+            if not current_plan or not baseline_plan:
+                logger.warning("Missing execution plan for index usage comparison")
+                return False
+
             # Simplified check - could be more sophisticated
             current_has_seqscan = 'Seq Scan' in str(current_plan.execution_plan)
             baseline_has_seqscan = 'Seq Scan' in str(baseline_plan.execution_plan)
 
             return current_has_seqscan and not baseline_has_seqscan
 
-        except Exception:
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Invalid execution plan format: {e}", exc_info=True)
             return False
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error checking index usage: {e}", exc_info=True)
+            raise  # Re-raise database errors

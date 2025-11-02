@@ -111,6 +111,9 @@ class TicketView(LoginRequiredMixin, View):
 
         if R.get("action") == "list":
             # Use optimized manager method with unified serialization
+            # Query optimization note: select_related() covers all foreign keys accessed by serializer
+            # (assignedtopeople.peoplename, bu.buname, etc.). No nested relationships like
+            # assignedtopeople.profile are accessed, so current optimization is sufficient.
             tickets = P["model"].objects.filter(
                 cdtz__date__gte=request.GET.get('from'),
                 cdtz__date__lte=request.GET.get('to'),

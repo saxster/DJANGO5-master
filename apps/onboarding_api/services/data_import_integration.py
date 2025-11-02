@@ -27,7 +27,7 @@ class ImportRecommendationEngine:
             'users': {
                 'name': 'User Import',
                 'description': 'Import users, roles, and assignments from CSV/Excel',
-                'url_name': 'onboarding:import',
+                'url_name': 'admin:peoples_people_import',
                 'template_file': 'users_import_template.xlsx',
                 'required_columns': ['email', 'name', 'role'],
                 'optional_columns': ['phone', 'department', 'shift', 'permissions'],
@@ -41,7 +41,7 @@ class ImportRecommendationEngine:
             'locations': {
                 'name': 'Location Import',
                 'description': 'Import business units, sites, and locations from CSV/Excel',
-                'url_name': 'onboarding:import',
+                'url_name': 'admin:onboarding_bt_import',
                 'template_file': 'locations_import_template.xlsx',
                 'required_columns': ['location_code', 'location_name', 'address'],
                 'optional_columns': ['gps_coordinates', 'timezone', 'operating_hours'],
@@ -55,7 +55,7 @@ class ImportRecommendationEngine:
             'shifts': {
                 'name': 'Shift Schedule Import',
                 'description': 'Import shift schedules and patterns from CSV/Excel',
-                'url_name': 'onboarding:import',
+                'url_name': 'admin:onboarding_shift_import',
                 'template_file': 'shifts_import_template.xlsx',
                 'required_columns': ['shift_name', 'start_time', 'end_time'],
                 'optional_columns': ['people_count', 'designation', 'captcha_frequency'],
@@ -69,7 +69,7 @@ class ImportRecommendationEngine:
             'devices': {
                 'name': 'Device Import',
                 'description': 'Import devices, handsets, and equipment from CSV/Excel',
-                'url_name': 'onboarding:import',
+                'url_name': 'admin:inventory_device_import',
                 'template_file': 'devices_import_template.xlsx',
                 'required_columns': ['device_name', 'model', 'imei'],
                 'optional_columns': ['phone_number', 'assigned_user', 'location'],

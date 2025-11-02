@@ -186,14 +186,111 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
             'timestamp': timezone.now().isoformat()
         }))
 
-    async def alert_notification(self, event):
-        """Handle alert broadcast from channel layer."""
+    async def handle_noc_event(self, event):
+        """
+        Unified NOC event router.
+
+        Routes events to specific handlers based on event type discriminator.
+        TASK 11: Gap #14 - Consolidated NOC Event Feed
+        """
+        event_type = event.get('type')
+
+        handlers = {
+            'alert_created': self.alert_created,
+            'alert_updated': self.alert_updated,
+            'finding_created': self.finding_created,
+            'anomaly_detected': self.anomaly_detected,
+            'ticket_updated': self.ticket_updated,
+        }
+
+        handler = handlers.get(event_type)
+        if handler:
+            await handler(event)
+        else:
+            # Fallback for unknown event types
+            await self.send(text_data=json.dumps(event))
+
+    async def alert_created(self, event):
+        """Handle alert created broadcast."""
         await self.send(text_data=json.dumps({
-            'type': 'alert_new',
+            'type': 'alert_created',
             'alert_id': event['alert_id'],
             'alert_type': event['alert_type'],
             'severity': event['severity'],
             'message': event['message'],
+            'timestamp': event.get('timestamp')
+        }))
+
+    async def alert_updated(self, event):
+        """Handle alert updated broadcast."""
+        await self.send(text_data=json.dumps({
+            'type': 'alert_updated',
+            'alert_id': event['alert_id'],
+            'status': event.get('status'),
+            'message': event['message'],
+            'timestamp': event.get('timestamp')
+        }))
+
+    async def alert_notification(self, event):
+        """
+        Handle alert broadcast from channel layer (legacy compatibility).
+
+        Maintained for backward compatibility with old broadcast methods.
+        Routes to unified handler.
+        """
+        # Convert legacy format to unified format
+        event['type'] = event.get('type', 'alert_created')
+        await self.handle_noc_event(event)
+
+    async def finding_created(self, event):
+        """Handle audit finding broadcast from channel layer."""
+        await self.send(text_data=json.dumps({
+            'type': 'finding_created',
+            'finding_id': event['finding_id'],
+            'finding_type': event['finding_type'],
+            'severity': event['severity'],
+            'category': event['category'],
+            'site_id': event.get('site_id'),
+            'site_name': event.get('site_name'),
+            'title': event['title'],
+            'evidence_summary': event.get('evidence_summary', ''),
+            'detected_at': event['detected_at']
+        }))
+
+    async def anomaly_detected(self, event):
+        """Handle attendance anomaly broadcast from channel layer."""
+        await self.send(text_data=json.dumps({
+            'type': 'anomaly_detected',
+            'anomaly_id': event['anomaly_id'],
+            'person_id': event['person_id'],
+            'person_name': event['person_name'],
+            'site_id': event['site_id'],
+            'site_name': event['site_name'],
+            'anomaly_type': event['anomaly_type'],
+            'fraud_score': event.get('fraud_score', 0.0),
+            'severity': event['severity'],
+            'timestamp': event['timestamp']
+        }))
+
+    async def ticket_updated(self, event):
+        """
+        Handle ticket state change broadcast from channel layer.
+
+        TASK 11: Gap #14 - Consolidated NOC Event Feed
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'ticket_updated',
+            'ticket_id': event['ticket_id'],
+            'ticket_no': event['ticket_no'],
+            'old_status': event['old_status'],
+            'new_status': event['new_status'],
+            'priority': event.get('priority'),
+            'assigned_to': event.get('assigned_to'),
+            'site_id': event.get('site_id'),
+            'site_name': event.get('site_name'),
+            'description': event.get('description', ''),
+            'updated_at': event.get('updated_at'),
+            'timestamp': event.get('timestamp')
         }))
 
     async def send_initial_status(self):

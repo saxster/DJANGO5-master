@@ -3,6 +3,9 @@ from apps.y_helpdesk.models import Ticket
 from django.db.models import Value
 from django.db.models.functions import Concat
 from django.db.models import Q
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.utils import timezone
 import apps.peoples.utils as putils
 import json
 import re
@@ -355,7 +358,7 @@ def savejsonbdata(request, id_id, asset, location):
     ticketlog = {
         "performedby": id_id.performedby,
         "status": id_id.status,
-        "datetime": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "datetime": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
         "comments": id_id.comments,
         "assignedto": assignedto,
         "asset": asset,
@@ -531,48 +534,42 @@ def generate_qr_code_images(data, size=1):
 
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-import time
+from apps.core.utils_new.retry_mechanism import with_retry
 
 
+@with_retry(
+    exceptions=(GeocoderTimedOut, GeocoderServiceError),
+    max_retries=3,
+    retry_policy='EXTERNAL_API'
+)
 def get_address_from_coordinates(
     latitude: float, longitude: float, max_retries: int = 3
 ) -> dict:
-    """Lookup an address using latitude and longitude via Nominatim."""
+    """Lookup an address using latitude and longitude via Nominatim.
+
+    Uses exponential backoff retry mechanism for geocoding API calls.
+    """
     # Initialize the geocoder with a custom user agent
     geolocator = Nominatim(user_agent="my_geocoder_app")
 
-    for attempt in range(max_retries):
-        try:
-            # Get location data from coordinates
-            location = geolocator.reverse((latitude, longitude), language="en")
+    # Get location data from coordinates
+    location = geolocator.reverse((latitude, longitude), language="en")
 
-            if location and location.raw.get("address"):
-                address = location.raw["address"]
+    if location and location.raw.get("address"):
+        address = location.raw["address"]
 
-                # Create a structured response
-                result = {
-                    "full_address": location.address,
-                    "street": address.get("road", ""),
-                    "city": address.get(
-                        "city", address.get("town", address.get("village", ""))
-                    ),
-                    "state": address.get("state", ""),
-                    "country": address.get("country", ""),
-                    "postal_code": address.get("postcode", ""),
-                }
+        # Create a structured response
+        result = {
+            "full_address": location.address,
+            "street": address.get("road", ""),
+            "city": address.get(
+                "city", address.get("town", address.get("village", ""))
+            ),
+            "state": address.get("state", ""),
+            "country": address.get("country", ""),
+            "postal_code": address.get("postcode", ""),
+        }
 
-                return result
-
-        except (GeocoderTimedOut, GeocoderServiceError) as e:
-            if attempt == max_retries - 1:
-                logger.error(
-                    "Error: Failed to get address after %s attempts: %s",
-                    max_retries,
-                    str(e),
-                )
-                return None
-
-            # Wait before retrying
-            time.sleep(1)
+        return result
 
     return None

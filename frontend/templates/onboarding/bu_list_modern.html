@@ -4,7 +4,7 @@
 {% block card_title %}
 Business Units Directory - Modern View
 <div class="float-end">
-	<a href="{{ url('onboarding:bu') }}?template=true" class="btn btn-sm btn-light-secondary me-2">
+	<a href="{{ url('admin:onboarding_bt_changelist') }}" class="btn btn-sm btn-light-secondary me-2">
 		<i class="bi bi-table"></i> Classic View
 	</a>
 	<button class="btn btn-sm btn-primary" id="header-add-new">
@@ -23,7 +23,7 @@ Business Units Directory
 <!----------- BEGIN PAGE BREADCUMBS ----------->
 {% block pagebreadcumb %}
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('onboarding:bu') }}?template=true&modern=true" class="pe-3">Business Units</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('admin:onboarding_bt_changelist') }}" class="pe-3">Business Units</a></li>
 {% endblock pagebreadcumb %}
 <!----------- END PAGE BREADCUMBS ------------->
 
@@ -594,7 +594,7 @@ $(document).ready(function () {
 		$('#bu-list').addClass('d-none');
 		$('#bu-empty').addClass('d-none');
 		
-		let url = '{{ url("onboarding:bu") }}?action=list&length=1000';
+		let url = '/api/v1/admin/config/business-units/'  // Migrated from onboarding:bu&length=1000';
 		
 		// Apply filters
 		if (currentFilter === 'active') url += '&filter_active=true';
@@ -687,7 +687,7 @@ $(document).ready(function () {
 	
 	// Add new button
 	$('#header-add-new').click(function() {
-		window.location.href = '{{ url("onboarding:bu") }}?action=form';
+		window.location.href = '{% url 'admin:onboarding_bt_add' %}'';
 	});
 	
 	// Export button

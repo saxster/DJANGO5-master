@@ -42,12 +42,6 @@ INSTALLED_APPS += ["debug_toolbar"]
 MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware")
 MIDDLEWARE.append("apps.core.middleware.query_performance_monitoring.QueryPerformanceMonitoringMiddleware")
 
-# Add AI Mentor system in development with explicit enablement
-if os.environ.get('MENTOR_ENABLED') == '1':
-    INSTALLED_APPS.extend(["apps.mentor", "apps.mentor_api"])
-    import sys
-    sys.stdout.write("🤖 AI Mentor system enabled - Development mode only\n")
-
 # Environment variables with security validation
 # CRITICAL: Apply Rule 4 validation - Secure Secret Management
 # NOTE: Import from validation.py (not validation_pydantic package)

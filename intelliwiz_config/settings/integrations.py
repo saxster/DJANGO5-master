@@ -105,66 +105,10 @@ CELERY_TASK_QUEUES = (
 )
 
 # ENHANCED TASK ROUTING - BUSINESS DOMAIN SEPARATION
-CELERY_TASK_ROUTES = {
-    # CRITICAL PRIORITY - Safety & Security (Queue: critical, Priority: 9-10)
-    'background_tasks.journal_wellness_tasks.process_crisis_intervention_alert': {
-        'queue': 'critical', 'priority': 10
-    },
-    'background_tasks.journal_wellness_tasks.monitor_crisis_patterns': {
-        'queue': 'critical', 'priority': 9
-    },
-    'apps.noc.security_intelligence.tasks.*': {
-        'queue': 'critical', 'priority': 9
-    },
-    'background_tasks.noc_tasks.escalate_security_alert': {
-        'queue': 'critical', 'priority': 9
-    },
-
-    # HIGH PRIORITY - User-facing operations (Queue: high_priority, Priority: 8)
-    'apps.face_recognition.integrations.process_biometric_verification': {
-        'queue': 'high_priority', 'priority': 8
-    },
-    'background_tasks.tasks.send_ticket_email': {
-        'queue': 'high_priority', 'priority': 8
-    },
-    'background_tasks.tasks.alert_sendmail': {
-        'queue': 'high_priority', 'priority': 8
-    },
-    'apps.y_helpdesk.*escalate*': {
-        'queue': 'high_priority', 'priority': 8
-    },
-
-    # EMAIL QUEUE - Dedicated email processing (Queue: email, Priority: 7)
-    'background_tasks.tasks.send_*_email*': {'queue': 'email', 'priority': 7},
-    'background_tasks.journal_wellness_tasks.notify_support_team': {'queue': 'email', 'priority': 7},
-    'send_reminder_email': {'queue': 'email', 'priority': 7},
-    'send_generated_report_on_mail': {'queue': 'email', 'priority': 7},
-
-    # REPORTS QUEUE - Background analytics (Queue: reports, Priority: 6)
-    'background_tasks.tasks.create_*_report*': {'queue': 'reports', 'priority': 6},
-    'background_tasks.journal_wellness_tasks.update_user_analytics': {
-        'queue': 'reports', 'priority': 6
-    },
-    'background_tasks.personalization_tasks.*': {'queue': 'reports', 'priority': 6},
-    'create_scheduled_reports': {'queue': 'reports', 'priority': 6},
-
-    # EXTERNAL API - With circuit breaker protection (Queue: external_api, Priority: 5)
-    'background_tasks.tasks.publish_mqtt': {'queue': 'external_api', 'priority': 5},
-    'background_tasks.onboarding_tasks.*api*': {'queue': 'external_api', 'priority': 5},
-    'apps.journal.mqtt_integration.*': {'queue': 'external_api', 'priority': 5},
-
-    # MAINTENANCE - Lowest priority cleanup (Queue: maintenance, Priority: 3)
-    'background_tasks.tasks.auto_close_jobs': {'queue': 'maintenance', 'priority': 3},
-    'background_tasks.tasks.cache_warming_scheduled': {'queue': 'maintenance', 'priority': 3},
-    'background_tasks.tasks.cleanup_*': {'queue': 'maintenance', 'priority': 3},
-    'background_tasks.tasks.move_media_to_cloud_storage': {'queue': 'maintenance', 'priority': 2},
-    'create_ppm_job': {'queue': 'maintenance', 'priority': 4},
-    'create_job': {'queue': 'maintenance', 'priority': 4},
-
-    # DEFAULT - General tasks (Queue: default, Priority: 5)
-    'background_tasks.tasks.*': {'queue': 'default', 'priority': 5},
-    'ticket_escalation': {'queue': 'default', 'priority': 6},  # Higher priority for escalations
-}
+# CELERY TASK ROUTING
+# Import from single source of truth (apps/core/tasks/celery_settings.py)
+# DO NOT define routes here to prevent configuration drift
+from apps.core.tasks.celery_settings import CELERY_TASK_ROUTES
 
 # RETRY CONFIGURATION
 CELERY_TASK_DEFAULT_RETRY_DELAY = 60        # 1 minute default
@@ -221,12 +165,9 @@ CACHES = get_optimized_caches_config(_django_environment)
 # CHANNEL LAYERS - WebSocket support with optimized Redis connection pooling
 CHANNEL_LAYERS = get_channel_layers_config(_django_environment)
 
-# POSTGRESQL TASK QUEUE CONFIGURATION
-POSTGRESQL_TASK_QUEUE = {
-    "DEFAULT_QUEUE": "default", "MAX_RETRIES": 3, "RETRY_DELAY": 60,
-    "WORKER_CONCURRENCY": 4, "HEARTBEAT_INTERVAL": 30, "CLEANUP_INTERVAL": 86400,
-    "QUEUES": ["default", "high_priority", "email", "reports", "mqtt", "maintenance"],
-}
+# PostgreSQL Task Queue - REMOVED (Phase 4.1 - Nov 1, 2025)
+# Was defined but never used (6+ years old). Celery with Redis is the standard.
+# Removed during Message Bus Architecture Remediation.
 
 # MQTT CONFIGURATION
 

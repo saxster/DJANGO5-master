@@ -332,40 +332,164 @@ class SecureFileDownloadService:
         """
         Validate user has permission to access file.
 
-        This is a hook for implementing access control logic.
-        Override or extend as needed for specific authorization requirements.
+        Security Checks (in order):
+        1. Superuser bypass (full access with audit logging)
+        2. Attachment ownership (cuser match)
+        3. Tenant isolation (CRITICAL - cross-tenant block)
+        4. Business unit access (BU membership)
+        5. Django permissions (role-based)
 
         Args:
             file_path: Validated Path object
             user: Authenticated user
-            owner_id: Owner/resource ID for access control
+            owner_id: Owner/resource ID for access control (Attachment.owner UUID)
             correlation_id: Request correlation ID
 
         Raises:
             PermissionDenied: If user lacks access
         """
-        # TODO: Implement access control logic based on your requirements
-        # Example: Check if user owns the file, is admin, or has specific permissions
-
-        # For now, basic validation that owner_id is provided
         if not owner_id:
+            # No owner_id means direct file access - require staff privileges
+            if not user.is_staff:
+                logger.warning(
+                    "Direct file access denied - non-staff user",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': user.id,
+                        'file_path': str(file_path)
+                    }
+                )
+                raise PermissionDenied("Direct file access not permitted")
+
+            logger.info(
+                "Direct file access granted - staff user",
+                extra={'correlation_id': correlation_id, 'user_id': user.id}
+            )
             return
 
-        # Log access attempt for audit
-        logger.info(
-            "File access control check",
-            extra={
-                'correlation_id': correlation_id,
-                'user_id': user.id,
-                'owner_id': owner_id,
-                'file_path': str(file_path)
-            }
-        )
+        from apps.activity.models import Attachment
 
-        # Implement your access control logic here
-        # Example:
-        # if not user.has_perm('view_file', owner_id):
-        #     raise PermissionDenied("Access denied")
+        try:
+            # Find attachment by owner UUID
+            attachment = Attachment.objects.get(owner=owner_id)
+
+            # Level 1: Superuser bypass (always allow with audit trail)
+            if user.is_superuser:
+                logger.info(
+                    "File access granted - superuser",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': user.id,
+                        'attachment_id': attachment.id,
+                        'attachment_owner': owner_id
+                    }
+                )
+                return
+
+            # Level 2: Ownership check (creator always has access)
+            if hasattr(attachment, 'cuser') and attachment.cuser == user:
+                logger.info(
+                    "File access granted - owner",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': user.id,
+                        'attachment_id': attachment.id
+                    }
+                )
+                return
+
+            # Level 3: Tenant isolation (CRITICAL for multi-tenant security)
+            if hasattr(attachment, 'tenant') and hasattr(user, 'tenant'):
+                # Both have tenant attributes - enforce isolation
+                if attachment.tenant and user.tenant:
+                    if attachment.tenant != user.tenant:
+                        logger.error(
+                            "SECURITY VIOLATION: Cross-tenant file access attempt blocked",
+                            extra={
+                                'correlation_id': correlation_id,
+                                'user_id': user.id,
+                                'user_tenant': user.tenant.tenantname if user.tenant else None,
+                                'user_tenant_id': user.tenant.id if user.tenant else None,
+                                'attachment_tenant': attachment.tenant.tenantname if attachment.tenant else None,
+                                'attachment_tenant_id': attachment.tenant.id if attachment.tenant else None,
+                                'attachment_id': attachment.id,
+                                'file_path': str(file_path)
+                            }
+                        )
+                        raise PermissionDenied("Cross-tenant access denied")
+
+            # Level 4: Business unit access check (same BU required)
+            if hasattr(attachment, 'bu') and attachment.bu:
+                # Check if user has access to this business unit
+                user_has_bu_access = False
+
+                # Check direct BU membership
+                if hasattr(user, 'bu') and user.bu == attachment.bu:
+                    user_has_bu_access = True
+
+                # Check if user belongs to the BU through PeopleOrganizational
+                if hasattr(user, 'organizational') and user.organizational:
+                    if hasattr(user.organizational, 'bu') and user.organizational.bu == attachment.bu:
+                        user_has_bu_access = True
+
+                if not user_has_bu_access:
+                    logger.warning(
+                        "File access denied - different business unit",
+                        extra={
+                            'correlation_id': correlation_id,
+                            'user_id': user.id,
+                            'attachment_bu': attachment.bu.buname if hasattr(attachment.bu, 'buname') else str(attachment.bu),
+                            'attachment_id': attachment.id
+                        }
+                    )
+                    raise PermissionDenied("Access denied - different business unit")
+
+            # Level 5: Django permissions check (role-based access control)
+            if not user.has_perm('activity.view_attachment'):
+                logger.warning(
+                    "File access denied - missing view_attachment permission",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': user.id,
+                        'attachment_id': attachment.id
+                    }
+                )
+                raise PermissionDenied("Missing required permission: view_attachment")
+
+            # Level 6: Staff users can view all attachments within their tenant (after tenant check)
+            if user.is_staff:
+                logger.info(
+                    "File access granted - staff user within same tenant",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': user.id,
+                        'attachment_id': attachment.id
+                    }
+                )
+                return
+
+            # Default: If we reach here and none of the above granted access, deny
+            logger.warning(
+                "File access denied - no matching access rule",
+                extra={
+                    'correlation_id': correlation_id,
+                    'user_id': user.id,
+                    'attachment_id': attachment.id,
+                    'validation_path': 'default_deny'
+                }
+            )
+            raise PermissionDenied("Access denied")
+
+        except Attachment.DoesNotExist:
+            logger.error(
+                "File access denied - attachment not found for owner_id",
+                extra={
+                    'correlation_id': correlation_id,
+                    'owner_id': owner_id,
+                    'user_id': user.id
+                }
+            )
+            raise Http404("Attachment not found")
 
     @classmethod
     def _create_secure_response(cls, file_path, original_filename, correlation_id):
@@ -424,6 +548,14 @@ class SecureFileDownloadService:
         """
         Validate user has access to specific attachment.
 
+        Security Checks (in order):
+        1. Superuser bypass (full access with audit logging)
+        2. Attachment ownership (cuser match)
+        3. Tenant isolation (CRITICAL - cross-tenant block)
+        4. Business unit access (BU membership)
+        5. Django permissions (role-based)
+        6. Staff access within tenant
+
         Args:
             attachment_id: Attachment database ID
             user: Authenticated user
@@ -440,12 +572,103 @@ class SecureFileDownloadService:
         try:
             attachment = Attachment.objects.get(id=attachment_id)
 
-            # TODO: Implement your access control logic
-            # Example: Check if user owns attachment or has permission
-            # if attachment.cuser != user and not user.is_staff:
-            #     raise PermissionDenied("Access denied")
+            # Level 1: Superuser bypass (always allow with audit trail)
+            if user.is_superuser:
+                logger.info(
+                    "Attachment access granted - superuser",
+                    extra={
+                        'user_id': user.id,
+                        'attachment_id': attachment_id
+                    }
+                )
+                return attachment
 
-            return attachment
+            # Level 2: Ownership check (creator always has access)
+            if hasattr(attachment, 'cuser') and attachment.cuser == user:
+                logger.info(
+                    "Attachment access granted - owner",
+                    extra={
+                        'user_id': user.id,
+                        'attachment_id': attachment_id
+                    }
+                )
+                return attachment
+
+            # Level 3: Tenant isolation check (CRITICAL for multi-tenant security)
+            if hasattr(attachment, 'tenant') and hasattr(user, 'tenant'):
+                # Both have tenant attributes - enforce isolation
+                if attachment.tenant and user.tenant:
+                    if attachment.tenant != user.tenant:
+                        logger.error(
+                            "SECURITY VIOLATION: Cross-tenant attachment access attempt blocked",
+                            extra={
+                                'user_id': user.id,
+                                'attachment_id': attachment_id,
+                                'user_tenant': user.tenant.tenantname if user.tenant else None,
+                                'user_tenant_id': user.tenant.id if user.tenant else None,
+                                'attachment_tenant': attachment.tenant.tenantname if attachment.tenant else None,
+                                'attachment_tenant_id': attachment.tenant.id if attachment.tenant else None
+                            }
+                        )
+                        raise PermissionDenied("Cross-tenant access denied")
+
+            # Level 4: Business unit access check (same BU required)
+            if hasattr(attachment, 'bu') and attachment.bu:
+                # Check if user has access to this business unit
+                user_has_bu_access = False
+
+                # Check direct BU membership
+                if hasattr(user, 'bu') and user.bu == attachment.bu:
+                    user_has_bu_access = True
+
+                # Check if user belongs to the BU through PeopleOrganizational
+                if hasattr(user, 'organizational') and user.organizational:
+                    if hasattr(user.organizational, 'bu') and user.organizational.bu == attachment.bu:
+                        user_has_bu_access = True
+
+                if not user_has_bu_access:
+                    logger.warning(
+                        "Attachment access denied - different business unit",
+                        extra={
+                            'user_id': user.id,
+                            'attachment_id': attachment_id,
+                            'attachment_bu': attachment.bu.buname if hasattr(attachment.bu, 'buname') else str(attachment.bu)
+                        }
+                    )
+                    raise PermissionDenied("Access denied - different business unit")
+
+            # Level 5: Django permissions check (role-based access control)
+            if not user.has_perm('activity.view_attachment'):
+                logger.warning(
+                    "Attachment access denied - missing view_attachment permission",
+                    extra={
+                        'user_id': user.id,
+                        'attachment_id': attachment_id
+                    }
+                )
+                raise PermissionDenied("Missing required permission: view_attachment")
+
+            # Level 6: Staff users can view all attachments within their tenant (after tenant check)
+            if user.is_staff:
+                logger.info(
+                    "Attachment access granted - staff user within same tenant",
+                    extra={
+                        'user_id': user.id,
+                        'attachment_id': attachment_id
+                    }
+                )
+                return attachment
+
+            # Default: If we reach here and none of the above granted access, deny
+            logger.warning(
+                "Attachment access denied - no matching access rule",
+                extra={
+                    'user_id': user.id,
+                    'attachment_id': attachment_id,
+                    'validation_path': 'default_deny'
+                }
+            )
+            raise PermissionDenied("Access denied")
 
         except Attachment.DoesNotExist:
             logger.warning(

@@ -7,11 +7,15 @@ Follows Django Channels best practices with authentication, rate limiting, and e
 
 import json
 import logging
+import time
 from datetime import timedelta
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from django.core.cache import cache
+
+# Phase 3.2: Add TaskMetrics for WebSocket observability
+from apps.core.tasks.base import TaskMetrics
 
 logger = logging.getLogger('noc.websocket')
 
@@ -62,6 +66,12 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
             extra={'user_id': user.id, 'tenant_id': self.tenant_id}
         )
 
+        # Phase 3.2: Record connection metric
+        TaskMetrics.increment_counter('websocket_connection_established', {
+            'consumer': 'noc_dashboard',
+            'tenant_id': str(self.tenant_id)[:20]
+        })
+
         await self.send_initial_status()
 
     async def disconnect(self, close_code):
@@ -83,6 +93,12 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
             f"NOC WebSocket disconnected",
             extra={'close_code': close_code}
         )
+
+        # Phase 3.2: Record disconnection metric
+        TaskMetrics.increment_counter('websocket_connection_closed', {
+            'consumer': 'noc_dashboard',
+            'close_code': str(close_code)
+        })
 
     async def receive(self, text_data):
         """Handle incoming WebSocket messages."""
@@ -187,7 +203,13 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         }))
 
     async def alert_notification(self, event):
-        """Handle alert broadcast from channel layer."""
+        """
+        Handle alert broadcast from channel layer.
+
+        Phase 3.2: Added metrics tracking for WebSocket message delivery.
+        """
+        start_time = time.time()
+
         await self.send(text_data=json.dumps({
             'type': 'alert_new',
             'alert_id': event['alert_id'],
@@ -195,6 +217,56 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
             'severity': event['severity'],
             'message': event['message'],
         }))
+
+        # Phase 3.2: Record message delivery metrics
+        duration_ms = (time.time() - start_time) * 1000
+        TaskMetrics.record_timing('websocket_message_delivery', duration_ms, {
+            'consumer': 'noc_dashboard',
+            'message_type': 'alert_notification'
+        })
+        TaskMetrics.increment_counter('websocket_message_sent', {
+            'consumer': 'noc_dashboard',
+            'message_type': 'alert_notification',
+            'severity': event.get('severity', 'unknown')
+        })
+
+    async def critical_alert(self, event):
+        """
+        Handle critical alert broadcast from MQTT/Celery tasks.
+
+        This handler receives messages from WebSocketBroadcastTask.broadcast_to_noc_dashboard()
+        with message_type='critical_alert'.
+
+        Phase 2.1 Integration: Enables direct Celery → WebSocket communication.
+        Phase 3.2: Added metrics tracking.
+        """
+        start_time = time.time()
+
+        # Extract data from event
+        data = event.get('data', {})
+
+        await self.send(text_data=json.dumps({
+            'type': 'critical_alert',
+            'source_id': data.get('source_id'),
+            'alert_type': data.get('alert_type'),
+            'severity': data.get('severity', 'critical'),
+            'message': data.get('message'),
+            'location': data.get('location'),
+            'timestamp': data.get('timestamp'),
+            'priority': event.get('priority', 'critical')
+        }))
+
+        # Phase 3.2: Record metrics
+        duration_ms = (time.time() - start_time) * 1000
+        TaskMetrics.record_timing('websocket_message_delivery', duration_ms, {
+            'consumer': 'noc_dashboard',
+            'message_type': 'critical_alert'
+        })
+        TaskMetrics.increment_counter('websocket_message_sent', {
+            'consumer': 'noc_dashboard',
+            'message_type': 'critical_alert',
+            'severity': data.get('severity', 'critical')
+        })
 
     async def send_initial_status(self):
         """Send initial connection status."""
@@ -258,3 +330,106 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         """Get cached metrics for client."""
         from apps.noc.services.cache_service import NOCCacheService
         return NOCCacheService.get_metrics_cached(client_id) or {}
+
+    async def finding_created(self, event):
+        """
+        Handle audit finding broadcast from channel layer.
+
+        Phase 3.2: Added metrics tracking for WebSocket message delivery.
+        """
+        start_time = time.time()
+
+        await self.send(text_data=json.dumps({
+            'type': 'finding_created',
+            'finding_id': event['finding_id'],
+            'finding_type': event['finding_type'],
+            'severity': event['severity'],
+            'category': event.get('category'),
+            'site_id': event.get('site_id'),
+            'site_name': event.get('site_name'),
+            'title': event.get('title'),
+            'evidence_summary': event.get('evidence_summary'),
+            'detected_at': event.get('detected_at')
+        }))
+
+        # Phase 3.2: Record metrics
+        duration_ms = (time.time() - start_time) * 1000
+        TaskMetrics.record_timing('websocket_message_delivery', duration_ms, {
+            'consumer': 'noc_dashboard',
+            'message_type': 'finding_created'
+        })
+        TaskMetrics.increment_counter('websocket_message_sent', {
+            'consumer': 'noc_dashboard',
+            'message_type': 'finding_created',
+            'severity': event.get('severity', 'unknown')
+        })
+
+    async def anomaly_detected(self, event):
+        """
+        Handle anomaly detection broadcast from channel layer.
+
+        TASK 9: Gap #11 - Anomaly WebSocket Broadcasts
+        Phase 3.2: Added metrics tracking for WebSocket message delivery.
+        """
+        start_time = time.time()
+
+        await self.send(text_data=json.dumps({
+            'type': 'anomaly_detected',
+            'anomaly_id': event['anomaly_id'],
+            'person_id': event['person_id'],
+            'person_name': event['person_name'],
+            'site_id': event['site_id'],
+            'site_name': event['site_name'],
+            'anomaly_type': event['anomaly_type'],
+            'fraud_score': event.get('fraud_score', 0.0),
+            'severity': event['severity'],
+            'timestamp': event['timestamp']
+        }))
+
+        # Phase 3.2: Record metrics
+        duration_ms = (time.time() - start_time) * 1000
+        TaskMetrics.record_timing('websocket_message_delivery', duration_ms, {
+            'consumer': 'noc_dashboard',
+            'message_type': 'anomaly_detected'
+        })
+        TaskMetrics.increment_counter('websocket_message_sent', {
+            'consumer': 'noc_dashboard',
+            'message_type': 'anomaly_detected',
+            'severity': event.get('severity', 'unknown')
+        })
+
+    async def ticket_updated(self, event):
+        """
+        Handle ticket state change broadcast from channel layer.
+
+        TASK 10: Gap #13 - Ticket State Change Broadcasts
+        Phase 3.2: Added metrics tracking for WebSocket message delivery.
+        """
+        start_time = time.time()
+
+        await self.send(text_data=json.dumps({
+            'type': 'ticket_updated',
+            'ticket_id': event['ticket_id'],
+            'ticket_no': event['ticket_no'],
+            'old_status': event['old_status'],
+            'new_status': event['new_status'],
+            'priority': event.get('priority'),
+            'assigned_to': event.get('assigned_to'),
+            'site_id': event.get('site_id'),
+            'site_name': event.get('site_name'),
+            'description': event.get('description'),
+            'updated_at': event['updated_at']
+        }))
+
+        # Phase 3.2: Record metrics
+        duration_ms = (time.time() - start_time) * 1000
+        TaskMetrics.record_timing('websocket_message_delivery', duration_ms, {
+            'consumer': 'noc_dashboard',
+            'message_type': 'ticket_updated'
+        })
+        TaskMetrics.increment_counter('websocket_message_sent', {
+            'consumer': 'noc_dashboard',
+            'message_type': 'ticket_updated',
+            'old_status': event.get('old_status', 'unknown'),
+            'new_status': event.get('new_status', 'unknown')
+        })

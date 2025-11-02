@@ -95,8 +95,44 @@ python manage.py validate_schedules --check-orphaned-tasks
 | `@csrf_exempt` | Disables CSRF protection | Document alternative protection mechanism |
 | Debug info in responses | Exposes internal architecture | Sanitize all error responses |
 | File upload without validation | Path traversal, injection attacks | Use `perform_secure_uploadattachment` |
+| File download without permissions | IDOR, cross-tenant access | Use `SecureFileDownloadService` with validation |
 | Missing network timeouts | Workers hang indefinitely | `requests.get(url, timeout=(5, 15))` |
 | Secrets without validation | Runtime failures in production | Validate on settings load |
+
+### 🔒 Secure File Access Standards
+
+**ALL file downloads MUST use `SecureFileDownloadService` for permission validation:**
+
+```python
+# ✅ CORRECT: Secure file download with multi-layer validation
+from apps.core.services.secure_file_download_service import SecureFileDownloadService
+
+# Validate attachment access (ownership, tenant, permissions)
+attachment = SecureFileDownloadService.validate_attachment_access(
+    attachment_id=request.GET['id'],
+    user=request.user
+)
+
+# Serve file securely (path validation + permission check)
+response = SecureFileDownloadService.validate_and_serve_file(
+    filepath=attachment.filepath,
+    filename=attachment.filename,
+    user=request.user,
+    owner_id=attachment.owner
+)
+
+# ❌ FORBIDDEN: Direct file access without validation
+attachment = Attachment.objects.get(id=request.GET['id'])  # No permission check
+with open(attachment.path, 'rb') as f:  # IDOR vulnerability
+    return FileResponse(f)
+```
+
+**Security Layers Enforced:**
+1. **Tenant Isolation** - Cross-tenant access blocked
+2. **Ownership Validation** - User must own file or have permissions
+3. **Path Traversal Prevention** - MEDIA_ROOT boundary enforcement
+4. **Audit Logging** - All access attempts logged with correlation IDs
+5. **Default Deny** - Explicit permission required for access
 
 ### 📐 Architecture Limits (MANDATORY)
 
@@ -184,6 +220,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 | **Help Desk** | `y_helpdesk` | Ticketing, escalations, SLAs |
 | **Reports** | `reports` | Analytics, scheduled reports |
 | **Security** | `noc`, `face_recognition` | AI monitoring, biometrics |
+| **AI/ML** | `ml_training` | ML training data platform, dataset management, labeling, active learning |
 | **Wellness** | `journal`, `wellness` | Wellbeing aggregation, evidence-based interventions |
 
 ### URL Structure
@@ -195,6 +232,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 /help-desk/      # Tickets, escalations
 /reports/        # Analytics
 /admin/          # Administration
+/ml-training/    # ML training data platform (dataset management, labeling, active learning)
 /api/journal/    # Journal entries from mobile (Kotlin)
 /api/wellness/   # Wellness content delivery
 /journal/analytics/  # Wellbeing trends dashboard (admin)
@@ -287,6 +325,7 @@ for user in People.objects.all():
 ### Architecture & Design
 
 - **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
+- **[Query Optimization Architecture](docs/architecture/QUERY_OPTIMIZATION_ARCHITECTURE.md)** - N+1 detection vs optimization service, decision tree, performance patterns
 - **Custom User Model** - Multi-model design (People, PeopleProfile, PeopleOrganizational)
 - **URL Structure** - Domain-driven organization with backward compatibility
 
@@ -359,6 +398,15 @@ for user in People.objects.all():
 
 ---
 
-**Last Updated**: October 29, 2025 (Documentation restructuring - 75% size reduction)
+**Last Updated**: November 1, 2025 (Configuration cleanup - INSTALLED_APPS consolidation, mentor removal, ml_training activation)
+**Previous Update**: October 29, 2025 (Documentation restructuring - 75% size reduction)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
+
+**Recent Changes (Nov 1, 2025)**:
+- ✅ INSTALLED_APPS consolidated to single source of truth in base.py (deleted installed_apps.py)
+- ✅ apps.ontology activated (was missing from runtime configuration)
+- ✅ apps.ml_training activated at `/ml-training/` (dataset management, labeling, active learning)
+- ✅ Mentor module fully removed (moved to separate service - API layer orphaned and deleted)
+- ✅ Dead code removed: top-level issue_tracker/, settings_local.py
+- 📋 See REMOVED_CODE_INVENTORY.md for complete details

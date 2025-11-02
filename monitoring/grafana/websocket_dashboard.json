@@ -1,0 +1,35 @@
+{
+  "dashboard": {
+    "title": "WebSocket Real-Time Communication",
+    "tags": ["websocket", "channels", "real-time"],
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active WebSocket Connections",
+        "type": "stat",
+        "targets": [{"expr": "sum(celery_websocket_connection_established_total) - sum(celery_websocket_connection_closed_total)"}]
+      },
+      {
+        "id": 2,
+        "title": "WebSocket Broadcast Success Rate (%)",
+        "type": "gauge",
+        "targets": [{"expr": "100 * rate(celery_websocket_broadcast_success_total[5m]) / (rate(celery_websocket_broadcast_success_total[5m]) + rate(celery_websocket_broadcast_failure_total[5m]))"}]
+      },
+      {
+        "id": 3,
+        "title": "Message Delivery Latency",
+        "type": "graph",
+        "targets": [{"expr": "histogram_quantile(0.95, rate(celery_websocket_message_delivery_seconds_bucket[5m]))", "legendFormat": "p95 - {{message_type}}"}]
+      },
+      {
+        "id": 4,
+        "title": "Connection Churn (connects + disconnects/min)",
+        "type": "graph",
+        "targets": [
+          {"expr": "rate(celery_websocket_connection_established_total[1m])", "legendFormat": "Connections"},
+          {"expr": "rate(celery_websocket_connection_closed_total[1m])", "legendFormat": "Disconnections"}
+        ]
+      }
+    ]
+  }
+}

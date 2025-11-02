@@ -104,21 +104,53 @@ class TaskMetrics:
 
     @staticmethod
     def increment_counter(metric_name: str, tags: Dict[str, str] = None):
-        """Increment a counter metric"""
+        """
+        Increment a counter metric.
+
+        Metrics are stored in both Redis cache and Prometheus (if enabled).
+
+        Args:
+            metric_name: Name of the counter metric
+            tags: Optional tags/labels dictionary
+        """
+        tags = tags or {}
         cache_key = f"task_metrics:{metric_name}"
         if tags:
-            cache_key += ":" + ":".join([f"{k}={v}" for k, v in tags.items()])
+            cache_key += ":" + ":".join([f"{k}={v}" for k, v in sorted(tags.items())])
 
+        # Store in cache (legacy behavior, 24hr TTL)
         current = cache.get(cache_key, 0)
         cache.set(cache_key, current + 1, timeout=SECONDS_IN_HOUR * 24)
 
+        # OBSERVABILITY: Export to Prometheus
+        if PROMETHEUS_ENABLED:
+            try:
+                prometheus.increment_counter(
+                    f"celery_{metric_name}_total",
+                    labels=tags,
+                    help_text=f"Total count of {metric_name} events"
+                )
+            except Exception as e:
+                logger.debug(f"Failed to record Prometheus counter: {e}")
+
     @staticmethod
     def record_timing(metric_name: str, duration_ms: float, tags: Dict[str, str] = None):
-        """Record timing metric"""
+        """
+        Record timing metric (duration).
+
+        Metrics are stored in both Redis cache (histogram) and Prometheus.
+
+        Args:
+            metric_name: Name of the timing metric
+            duration_ms: Duration in milliseconds
+            tags: Optional tags/labels dictionary
+        """
+        tags = tags or {}
         cache_key = f"task_timing:{metric_name}"
         if tags:
-            cache_key += ":" + ":".join([f"{k}={v}" for k, v in tags.items()])
+            cache_key += ":" + ":".join([f"{k}={v}" for k, v in sorted(tags.items())])
 
+        # Store in cache (legacy behavior, last 1000 measurements)
         timings = cache.get(cache_key, [])
         timings.append(duration_ms)
 
@@ -127,6 +159,20 @@ class TaskMetrics:
             timings = timings[-1000:]
 
         cache.set(cache_key, timings, timeout=SECONDS_IN_HOUR * 24)
+
+        # OBSERVABILITY: Export to Prometheus as histogram
+        if PROMETHEUS_ENABLED:
+            try:
+                # Convert milliseconds to seconds for Prometheus convention
+                duration_seconds = duration_ms / 1000.0
+                prometheus.observe_histogram(
+                    f"celery_{metric_name}_seconds",
+                    duration_seconds,
+                    labels=tags,
+                    help_text=f"Duration histogram for {metric_name} in seconds"
+                )
+            except Exception as e:
+                logger.debug(f"Failed to record Prometheus histogram: {e}")
 
     @staticmethod
     def record_retry(task_name: str, reason: str, retry_count: int):
@@ -385,11 +431,11 @@ class EmailTask(BaseTask):
                 raise ValueError(f"Missing required email field: {field}")
 
         # Sanitize email addresses
-        from apps.core.utils import sanitize_email
+        from apps.core.utils_new.form_security import InputSanitizer
         if isinstance(email_data['recipient'], list):
-            email_data['recipient'] = [sanitize_email(email) for email in email_data['recipient']]
+            email_data['recipient'] = [InputSanitizer.sanitize_email(email) for email in email_data['recipient']]
         else:
-            email_data['recipient'] = sanitize_email(email_data['recipient'])
+            email_data['recipient'] = InputSanitizer.sanitize_email(email_data['recipient'])
 
         return email_data
 

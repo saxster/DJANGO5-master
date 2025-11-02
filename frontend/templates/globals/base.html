@@ -96,7 +96,7 @@
   // tojson filter converts python datatypes to json datatypes.
   var   session            = {{ dict(request.session) |default ("") | tojson }}
   console.log("session", session)
-  const fileUploadUrl = "{{ url('onboarding:file_upload') }}"
+  const fileUploadUrl = "{{ url('admin:onboarding_typeassist_import') }}"
 
   var dontBlock = false;
   var target = document.querySelector("body")

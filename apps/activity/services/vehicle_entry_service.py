@@ -25,6 +25,7 @@ from django.conf import settings
 from apps.activity.models import Location, VehicleEntry, VehicleSecurityAlert
 from apps.onboarding_api.services.ocr_service import get_ocr_service
 from apps.peoples.models import People
+from apps.ml_training.integrations import track_vehicle_entry_result
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,23 @@ class VehicleEntryService:
 
                 result['vehicle_entry'] = vehicle_entry
                 result['success'] = True
+
+                # ML Training Integration: Track low-confidence license plate readings
+                # Only capture uncertain predictions (confidence < 0.7) for active learning
+                if ocr_result['confidence'] < 0.7:
+                    try:
+                        track_vehicle_entry_result(
+                            vehicle_entry=vehicle_entry,
+                            confidence_score=ocr_result['confidence'],
+                            raw_ocr_text=ocr_result.get('raw_text', '')
+                        )
+                        logger.debug(
+                            f"Low-confidence vehicle entry tracked for ML training: "
+                            f"plate={license_plate}, confidence={ocr_result['confidence']:.2f}"
+                        )
+                    except Exception as e:
+                        # Non-critical: Log but don't fail the main operation
+                        logger.warning(f"Failed to track vehicle entry for ML training: {e}")
 
                 # Check for security alerts
                 alerts = self._check_security_alerts(vehicle_entry)

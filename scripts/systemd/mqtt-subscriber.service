@@ -1,0 +1,28 @@
+[Unit]
+Description=MQTT Subscriber Service for IoT Device Communication
+After=network.target redis.service postgresql.service
+Wants=redis.service postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/intelliwiz
+Environment="DJANGO_SETTINGS_MODULE=intelliwiz_config.settings"
+Environment="DJANGO_ALLOW_ASYNC_UNSAFE=true"
+ExecStart=/opt/intelliwiz/venv/bin/python /opt/intelliwiz/apps/mqtt/subscriber.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mqtt-subscriber
+
+# Security settings
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

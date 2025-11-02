@@ -21,6 +21,9 @@ urlpatterns = [
     # ML predictions
     path('predict/conflict/', ml_views.ConflictPredictionView.as_view(), name='predict-conflict'),
 
+    # ML training feedback
+    path('ml-training/corrections/', ml_views.OCRCorrectionView.as_view(), name='ml-training-corrections'),
+
     # Device management
     path('devices/', device_views.DeviceListView.as_view(), name='device-list'),
     path('devices/register/', device_views.DeviceRegisterView.as_view(), name='device-register'),

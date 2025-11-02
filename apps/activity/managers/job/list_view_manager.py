@@ -203,7 +203,7 @@ class ListViewManager(models.Manager):
             QuerySet of asset maintenance jobneeds
 
         Example:
-            # apps/activity/views/asset_views.py:
+            # apps/activity/views/asset/:
             maintenance = Jobneed.objects.get_assetmaintainance_list(
                 request=request,
                 related=['asset', 'performedby', 'bu'],

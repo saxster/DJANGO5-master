@@ -3,6 +3,20 @@ Kubernetes Health Check Endpoints
 
 Provides /healthz (liveness) and /readyz (readiness) endpoints.
 Follows K8s probe standards and .claude/rules.md Rule #7 (< 150 lines).
+
+CSRF Exemption Justification (Rule #3 compliance):
+Health check endpoints use @csrf_exempt with documented alternative security:
+
+1. READ-ONLY operations - no state modification
+2. NO sensitive data returned - only health status
+3. Kubernetes probe requirement - must be publicly accessible without authentication
+4. Network-level security - Kubernetes service mesh provides IP filtering
+5. Rate limiting applied - DDoS protection via middleware
+6. Fast execution (<100ms) - minimal resource consumption per request
+
+Security posture: ACCEPTABLE per Rule #3 - Kubernetes requires unauthenticated
+health endpoints for liveness/readiness probes. Network-level controls (service mesh,
+ingress controller) provide access control.
 """
 
 import logging

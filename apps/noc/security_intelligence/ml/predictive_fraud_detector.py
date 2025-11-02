@@ -2,7 +2,13 @@
 Predictive Fraud Detector Service.
 
 Proactive fraud prediction before attendance occurs.
-Uses ML models and behavioral profiles for early warning.
+Uses trained XGBoost models and behavioral profiles for early warning.
+
+Architecture:
+- Load XGBoost model from FraudDetectionModel registry
+- Extract 12 features using FraudFeatureExtractor
+- Predict with optimal threshold
+- Fallback to behavioral heuristics if model fails
 
 Follows .claude/rules.md:
 - Rule #7: Service < 150 lines
@@ -11,14 +17,20 @@ Follows .claude/rules.md:
 """
 
 import logging
+import numpy as np
 from django.utils import timezone
 from django.db import transaction
+from django.core.cache import cache
+import joblib
 
 logger = logging.getLogger('noc.security_intelligence.ml')
 
 
 class PredictiveFraudDetector:
-    """Predicts fraud probability before it occurs."""
+    """Predicts fraud probability using trained XGBoost model."""
+
+    # Class-level model cache
+    _model_cache = {}
 
     @classmethod
     def predict_attendance_fraud(cls, person, site, scheduled_time):
@@ -31,84 +43,250 @@ class PredictiveFraudDetector:
             scheduled_time: datetime of scheduled attendance
 
         Returns:
-            dict: Prediction result
+            dict: Prediction result with fraud_probability and risk_level
         """
         from apps.noc.security_intelligence.models import BehavioralProfile
-        from apps.noc.security_intelligence.ml import GoogleMLIntegrator
 
         try:
+            # Check if sufficient behavioral data exists
             profile = BehavioralProfile.objects.filter(person=person).first()
 
             if not profile or not profile.is_sufficient_data:
                 return cls._get_default_prediction()
 
-            features = cls._extract_prediction_features(person, site, scheduled_time, profile)
+            # Try ML model prediction first
+            try:
+                ml_prediction = cls._predict_with_model(person, site, scheduled_time, profile)
+                if ml_prediction:
+                    return ml_prediction
+            except (ValueError, AttributeError, OSError) as e:
+                logger.warning(f"ML model prediction failed, falling back to heuristics: {e}")
 
-            ml_prediction = GoogleMLIntegrator.predict_fraud_probability(features)
-
-            behavioral_risk = cls._calculate_behavioral_risk(features, profile)
-
-            combined_probability = (
-                ml_prediction['fraud_probability'] * 0.7 +
-                behavioral_risk * 0.3
-            )
-
-            risk_level = cls._determine_risk_level(combined_probability)
-
-            return {
-                'fraud_probability': round(combined_probability, 2),
-                'risk_level': risk_level,
-                'model_confidence': ml_prediction['model_confidence'],
-                'behavioral_risk': behavioral_risk,
-                'features': features,
-                'model_version': ml_prediction['model_version'],
-            }
+            # Fallback to behavioral heuristics
+            return cls._predict_with_heuristics(person, site, scheduled_time, profile)
 
         except (ValueError, AttributeError) as e:
             logger.error(f"Fraud prediction error: {e}", exc_info=True)
             return cls._get_default_prediction()
 
     @classmethod
-    def _extract_prediction_features(cls, person, site, scheduled_time, profile):
-        """Extract features for ML prediction."""
+    def _predict_with_model(cls, person, site, scheduled_time, profile):
+        """
+        Predict fraud using trained XGBoost model.
+
+        Args:
+            person: People instance
+            site: Bt instance
+            scheduled_time: datetime
+            profile: BehavioralProfile instance
+
+        Returns:
+            dict: Prediction result or None if model unavailable
+        """
+        # Load model
+        model, model_record = cls._load_model(person.tenant)
+        if not model or not model_record:
+            return None
+
+        # Create mock attendance event for feature extraction
+        mock_event = type('obj', (object,), {
+            'punchintime': scheduled_time,
+            'datefor': scheduled_time.date(),
+            'scheduled_time': scheduled_time,
+            'startlat': None,  # Will be populated from profile if available
+            'startlng': None,
+            'peventlogextras': {},
+            'people': person,
+            'bu': site,
+        })()
+
+        # Extract features
+        from apps.ml.features.fraud_features import FraudFeatureExtractor
+        features_dict = FraudFeatureExtractor.extract_all_features(mock_event, person, site)
+
+        # Convert to numpy array (preserve feature order)
+        feature_cols = [
+            'hour_of_day', 'day_of_week', 'is_weekend', 'is_holiday',
+            'gps_drift_meters', 'location_consistency_score',
+            'check_in_frequency_zscore', 'late_arrival_rate', 'weekend_work_frequency',
+            'face_recognition_confidence', 'biometric_mismatch_count_30d', 'time_since_last_event'
+        ]
+        X = np.array([[features_dict[col] for col in feature_cols]])
+
+        # Predict probability
+        fraud_probability = model.predict_proba(X)[0, 1]
+
+        # Apply optimal threshold
+        optimal_threshold = model_record.optimal_threshold
+        is_fraud = fraud_probability >= optimal_threshold
+
+        # Determine risk level
+        risk_level = cls._determine_risk_level(fraud_probability)
+
+        # Calculate behavioral risk for context
+        behavioral_risk = cls._calculate_behavioral_risk(features_dict, profile)
+
+        # Generate confidence intervals using conformal prediction (Phase 1)
+        conformal_interval = cls._get_conformal_interval(
+            fraud_probability,
+            model_record.model_version
+        )
+
+        result = {
+            'fraud_probability': round(float(fraud_probability), 3),
+            'risk_level': risk_level,
+            'model_confidence': model_record.pr_auc,  # Use PR-AUC as confidence
+            'behavioral_risk': behavioral_risk,
+            'features': features_dict,
+            'model_version': model_record.model_version,
+            'optimal_threshold': optimal_threshold,
+            'prediction_method': 'xgboost',
+        }
+
+        # Add conformal prediction intervals if available
+        if conformal_interval:
+            result.update({
+                'prediction_lower_bound': conformal_interval['lower_bound'],
+                'prediction_upper_bound': conformal_interval['upper_bound'],
+                'confidence_interval_width': conformal_interval['width'],
+                'calibration_score': conformal_interval['calibration_score'],
+                'is_narrow_interval': conformal_interval['width'] < 0.2,
+            })
+
+        return result
+
+    @classmethod
+    def _load_model(cls, tenant):
+        """
+        Load active XGBoost model for tenant.
+
+        Uses cache to avoid repeated disk I/O.
+
+        Args:
+            tenant: Tenant instance
+
+        Returns:
+            tuple: (model, model_record) or (None, None)
+        """
+        cache_key = f'fraud_model_{tenant.id}'
+
+        # Check cache first
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
+        # Load from database
+        from apps.noc.security_intelligence.models import FraudDetectionModel
+        model_record = FraudDetectionModel.get_active_model(tenant)
+
+        if not model_record:
+            logger.warning(f"No active fraud detection model for tenant {tenant.schema_name}")
+            return None, None
+
+        try:
+            # Load model from disk
+            model = joblib.load(model_record.model_path)
+
+            # Cache for 1 hour
+            cache.set(cache_key, (model, model_record), 3600)
+
+            logger.info(f"Loaded fraud detection model {model_record.model_version}")
+            return model, model_record
+
+        except (FileNotFoundError, ValueError, OSError) as e:
+            logger.error(f"Model loading error: {e}", exc_info=True)
+            return None, None
+
+    @classmethod
+    def _predict_with_heuristics(cls, person, site, scheduled_time, profile):
+        """
+        Fallback prediction using behavioral heuristics.
+
+        Used when ML model is unavailable or fails.
+
+        Args:
+            person: People instance
+            site: Bt instance
+            scheduled_time: datetime
+            profile: BehavioralProfile instance
+
+        Returns:
+            dict: Prediction result
+        """
         from apps.noc.security_intelligence.services import FraudScoreCalculator
 
         try:
+            # Create mock event for feature extraction
+            mock_event = type('obj', (object,), {
+                'scheduled_time': scheduled_time,
+                'datefor': scheduled_time.date(),
+            })()
+
+            from apps.ml.features.fraud_features import FraudFeatureExtractor
+            features = FraudFeatureExtractor.extract_all_features(mock_event, person, site)
+
+            # Calculate fraud history score
             history = FraudScoreCalculator.calculate_person_fraud_history_score(person, days=30)
 
+            # Behavioral risk calculation
+            behavioral_risk = cls._calculate_behavioral_risk(features, profile)
+
+            # Simple weighted heuristic
+            fraud_probability = (
+                behavioral_risk * 0.5 +
+                (history['history_score'] * 0.3) +
+                (features['late_arrival_rate'] * 0.2)
+            )
+
+            risk_level = cls._determine_risk_level(fraud_probability)
+
             return {
-                'person_id': person.id,
-                'site_id': site.id,
-                'hour': scheduled_time.hour,
-                'day_of_week': scheduled_time.weekday(),
-                'baseline_fraud_score': profile.baseline_fraud_score,
-                'consistency_score': profile.consistency_score,
-                'avg_biometric_confidence': profile.avg_biometric_confidence,
-                'site_variety_score': profile.site_variety_score,
-                'history_fraud_score': history['history_score'],
-                'total_flags_30d': history['total_flags'],
+                'fraud_probability': round(fraud_probability, 3),
+                'risk_level': risk_level,
+                'model_confidence': 0.6,  # Lower confidence for heuristics
+                'behavioral_risk': behavioral_risk,
+                'features': features,
+                'model_version': 'heuristic_fallback',
+                'prediction_method': 'heuristic',
             }
 
         except (ValueError, AttributeError) as e:
-            logger.error(f"Feature extraction error: {e}", exc_info=True)
-            return {}
+            logger.error(f"Heuristic prediction error: {e}", exc_info=True)
+            return cls._get_default_prediction()
 
     @staticmethod
     def _calculate_behavioral_risk(features, profile):
-        """Calculate risk from behavioral deviation."""
+        """
+        Calculate risk from behavioral deviation.
+
+        Args:
+            features: dict of extracted features
+            profile: BehavioralProfile instance
+
+        Returns:
+            float: Risk score (0-1)
+        """
         try:
             risk = 0.0
 
-            if features.get('hour') not in profile.typical_punch_in_hours:
+            # Unusual hour
+            if features.get('hour_of_day') not in profile.typical_punch_in_hours:
                 risk += 0.2
 
+            # Unusual day
             if features.get('day_of_week') not in profile.typical_work_days:
                 risk += 0.15
 
-            if features.get('history_fraud_score', 0) > 0.3:
-                risk += 0.3
+            # High GPS drift
+            if features.get('gps_drift_meters', 0) > 500:
+                risk += 0.25
 
-            if profile.consistency_score < 0.5:
+            # Low location consistency
+            if features.get('location_consistency_score', 1.0) < 0.5:
+                risk += 0.2
+
+            # Weekend work without history
+            if features.get('is_weekend') and features.get('weekend_work_frequency', 0) < 0.1:
                 risk += 0.2
 
             return min(risk, 1.0)
@@ -140,7 +318,36 @@ class PredictiveFraudDetector:
             'behavioral_risk': 0.0,
             'features': {},
             'model_version': 'none',
+            'prediction_method': 'default',
         }
+
+    @staticmethod
+    def _get_conformal_interval(fraud_probability, model_version):
+        """
+        Generate confidence interval using conformal prediction.
+
+        Phase 1 enhancement: Adds uncertainty quantification to fraud predictions.
+
+        Args:
+            fraud_probability: Point prediction (0-1)
+            model_version: Model version for calibration lookup
+
+        Returns:
+            dict: Interval bounds and metadata, or None if calibration unavailable
+        """
+        from apps.ml.services.conformal_predictor import ConformalPredictorService
+
+        try:
+            interval = ConformalPredictorService.predict_with_intervals(
+                point_prediction=fraud_probability,
+                model_type='fraud_detector',
+                model_version=model_version,
+                coverage_level=90  # 90% coverage by default
+            )
+            return interval
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Conformal interval calculation failed: {e}")
+            return None
 
     @classmethod
     @transaction.atomic
@@ -160,22 +367,41 @@ class PredictiveFraudDetector:
         from apps.noc.security_intelligence.models import FraudPredictionLog
 
         try:
-            log = FraudPredictionLog.objects.create(
-                tenant=person.tenant,
-                person=person,
-                site=site,
-                predicted_at=timezone.now(),
-                prediction_type='ATTENDANCE',
-                fraud_probability=prediction_result['fraud_probability'],
-                risk_level=prediction_result['risk_level'],
-                model_confidence=prediction_result['model_confidence'],
-                features_used=prediction_result['features'],
-                baseline_deviation=prediction_result['behavioral_risk'],
-                model_version=prediction_result['model_version'],
-            )
+            # Base log fields
+            log_data = {
+                'tenant': person.tenant,
+                'person': person,
+                'site': site,
+                'predicted_at': timezone.now(),
+                'prediction_type': 'ATTENDANCE',
+                'fraud_probability': prediction_result['fraud_probability'],
+                'risk_level': prediction_result['risk_level'],
+                'model_confidence': prediction_result['model_confidence'],
+                'features_used': prediction_result['features'],
+                'baseline_deviation': prediction_result['behavioral_risk'],
+                'model_version': prediction_result['model_version'],
+            }
+
+            # Add confidence interval fields if available (Phase 1)
+            if 'prediction_lower_bound' in prediction_result:
+                log_data.update({
+                    'prediction_lower_bound': prediction_result['prediction_lower_bound'],
+                    'prediction_upper_bound': prediction_result['prediction_upper_bound'],
+                    'confidence_interval_width': prediction_result['confidence_interval_width'],
+                    'calibration_score': prediction_result['calibration_score'],
+                })
+
+            log = FraudPredictionLog.objects.create(**log_data)
 
             return log
 
         except (ValueError, AttributeError) as e:
             logger.error(f"Prediction logging error: {e}", exc_info=True)
             return None
+
+    @classmethod
+    def clear_model_cache(cls):
+        """Clear cached model instances."""
+        cls._model_cache = {}
+        cache.delete_pattern('fraud_model_*')
+        logger.info("Cleared fraud detection model cache")

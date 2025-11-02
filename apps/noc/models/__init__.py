@@ -14,6 +14,9 @@ from .dashboard_config import NOCDashboardConfig
 from .export_config import NOCExportTemplate, NOCExportHistory
 from .saved_view import NOCSavedView
 from .scheduled_export import NOCScheduledExport
+from .correlated_incident import CorrelatedIncident
+from .ml_model_metrics import MLModelMetrics
+from .noc_event_log import NOCEventLog
 
 __all__ = [
     'NOCMetricSnapshot',
@@ -26,4 +29,7 @@ __all__ = [
     'NOCExportHistory',
     'NOCSavedView',
     'NOCScheduledExport',
+    'CorrelatedIncident',
+    'MLModelMetrics',
+    'NOCEventLog',
 ]

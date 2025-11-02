@@ -242,12 +242,8 @@ def train_ml_models_daily():
     Train ML models daily (runs once per day).
 
     Updates behavioral profiles and trains fraud detection models.
+    XGBoost models are retrained weekly (checked daily).
     """
-    from apps.noc.security_intelligence.ml import (
-        BehavioralProfiler,
-        GoogleMLIntegrator
-    )
-    from apps.peoples.models import People
     from apps.tenants.models import Tenant
 
     try:
@@ -261,49 +257,63 @@ def train_ml_models_daily():
 
 
 def _train_models_for_tenant(tenant):
-    """Train models for a tenant."""
-    from apps.noc.security_intelligence.ml import (
-        BehavioralProfiler,
-        GoogleMLIntegrator
-    )
+    """Train models for a tenant (called by train_ml_models_daily)."""
+    from apps.noc.security_intelligence.ml import BehavioralProfiler
+    from apps.noc.security_intelligence.ml.fraud_model_trainer import FraudModelTrainer
+    from apps.noc.management.commands.train_fraud_model import Command as TrainCommand
+    from apps.noc.security_intelligence.models import FraudDetectionModel
     from apps.peoples.models import People
 
     try:
-        logger.info(f"Training models for {tenant.name}")
+        logger.info(f"Training models for {tenant.schema_name}")
 
+        # Update behavioral profiles (keep existing code)
         active_guards = People.objects.filter(
             tenant=tenant,
             enable=True,
             isverified=True
-        )[:1000]
+        )[:100]
 
         profiles_updated = 0
         for guard in active_guards:
-            profile = BehavioralProfiler.create_or_update_profile(guard, days=90)
-            if profile:
-                profiles_updated += 1
+            try:
+                profile = BehavioralProfiler.create_or_update_profile(guard, days=90)
+                if profile:
+                    profiles_updated += 1
+            except Exception as e:
+                logger.error(f"Profile update failed for {guard.peoplename}: {e}")
 
-        logger.info(f"Updated {profiles_updated} behavioral profiles for {tenant.name}")
+        logger.info(f"Updated {profiles_updated} behavioral profiles for {tenant.schema_name}")
 
-        export_result = GoogleMLIntegrator.export_training_data(tenant, days=90)
+        # XGBoost fraud model retraining (weekly check)
+        active_model = FraudDetectionModel.get_active_model(tenant) if FraudDetectionModel.objects.filter(tenant=tenant).exists() else None
+        should_retrain = (
+            not active_model or
+            (timezone.now() - active_model.activated_at).days >= 7
+        )
 
-        if export_result.get('success'):
-            from apps.noc.security_intelligence.models import MLTrainingDataset
+        if should_retrain:
+            logger.info(f"Triggering XGBoost retraining for {tenant.schema_name}")
 
-            dataset = MLTrainingDataset.objects.filter(
-                tenant=tenant,
-                status='EXPORTED'
-            ).order_by('-cdtz').first()
+            # Export training data
+            export_result = FraudModelTrainer.export_training_data(tenant, days=180)
 
-            if dataset:
-                training_result = GoogleMLIntegrator.train_fraud_model(dataset)
-
-                if training_result.get('success'):
-                    logger.info(f"Model training completed for {tenant.name}")
-                    logger.info(f"Metrics: {training_result['metrics']}")
+            if export_result['success'] and export_result['record_count'] >= 100:
+                # Train new model via management command
+                trainer = TrainCommand()
+                try:
+                    trainer.handle(tenant=tenant.id, days=180, test_size=0.2, verbose=False)
+                    logger.info(f"✅ XGBoost training completed for {tenant.schema_name}")
+                except Exception as e:
+                    logger.error(f"❌ XGBoost training failed for {tenant.schema_name}: {e}")
+            else:
+                logger.warning(
+                    f"Insufficient training data for {tenant.schema_name}: "
+                    f"{export_result.get('record_count', 0)} records (need 100+)"
+                )
 
     except (ValueError, AttributeError) as e:
-        logger.error(f"Tenant ML training error for {tenant.name}: {e}", exc_info=True)
+        logger.error(f"Tenant ML training error for {tenant.schema_name}: {e}", exc_info=True)
 
 
 def update_behavioral_profiles_weekly():
@@ -331,3 +341,98 @@ def update_behavioral_profiles_weekly():
 
     except (ValueError, AttributeError) as e:
         logger.error(f"Profile update error: {e}", exc_info=True)
+
+
+def track_fraud_prediction_outcomes():
+    """
+    Track fraud prediction outcomes (runs daily).
+
+    Reviews high-risk predictions after 30 days and marks false positives.
+    Updates actual fraud outcomes for model feedback loop.
+    """
+    from apps.noc.security_intelligence.models import FraudPredictionLog
+    from apps.tenants.models import Tenant
+
+    try:
+        now = timezone.now()
+        review_cutoff = now - timedelta(days=30)
+
+        logger.info("Starting fraud prediction outcome tracking")
+
+        for tenant in Tenant.objects.filter(is_active=True):
+            _track_outcomes_for_tenant(tenant, review_cutoff)
+
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Fraud outcome tracking error: {e}", exc_info=True)
+
+
+@transaction.atomic
+def _track_outcomes_for_tenant(tenant, review_cutoff):
+    """Track fraud outcomes for a tenant."""
+    from apps.noc.security_intelligence.models import (
+        FraudPredictionLog,
+        AttendanceAnomalyLog
+    )
+
+    try:
+        # Get high-risk predictions needing review (older than 30 days, no outcome)
+        pending_predictions = FraudPredictionLog.objects.filter(
+            tenant=tenant,
+            predicted_at__lte=review_cutoff,
+            actual_fraud_detected__isnull=True,
+            risk_level__in=['HIGH', 'CRITICAL']
+        ).select_related('person', 'site', 'actual_attendance_event')
+
+        marked_count = 0
+        fraud_confirmed_count = 0
+
+        for prediction in pending_predictions:
+            # Check if attendance event exists
+            if not prediction.actual_attendance_event:
+                # No attendance occurred - mark as prevented or false positive
+                prediction.actual_fraud_detected = False
+                prediction.actual_fraud_score = 0.0
+                prediction.prediction_accuracy = 1.0 - prediction.fraud_probability
+                prediction.save(update_fields=[
+                    'actual_fraud_detected',
+                    'actual_fraud_score',
+                    'prediction_accuracy'
+                ])
+                marked_count += 1
+                continue
+
+            # Check if fraud was confirmed via anomaly log
+            fraud_confirmed = AttendanceAnomalyLog.objects.filter(
+                attendance_event=prediction.actual_attendance_event,
+                status='CONFIRMED'
+            ).exists()
+
+            if fraud_confirmed:
+                prediction.actual_fraud_detected = True
+                prediction.actual_fraud_score = 1.0
+                fraud_confirmed_count += 1
+            else:
+                # No fraud report after 30 days = false positive
+                prediction.actual_fraud_detected = False
+                prediction.actual_fraud_score = 0.0
+
+            # Calculate accuracy
+            prediction_diff = abs(prediction.fraud_probability - prediction.actual_fraud_score)
+            prediction.prediction_accuracy = 1.0 - min(prediction_diff, 1.0)
+
+            prediction.save(update_fields=[
+                'actual_fraud_detected',
+                'actual_fraud_score',
+                'prediction_accuracy'
+            ])
+            marked_count += 1
+
+        if marked_count > 0:
+            logger.info(
+                f"Tenant {tenant.schema_name}: Marked {marked_count} predictions "
+                f"({fraud_confirmed_count} confirmed fraud, "
+                f"{marked_count - fraud_confirmed_count} false positives)"
+            )
+
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Outcome tracking error for {tenant.schema_name}: {e}", exc_info=True)

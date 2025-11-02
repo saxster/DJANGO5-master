@@ -79,6 +79,153 @@ Leverages existing components:
 
 ---
 
+## Secure File Download Service (Oct 2025)
+
+### Overview
+
+Enterprise-grade file download service with **multi-layer permission validation** preventing IDOR vulnerabilities and cross-tenant data breaches.
+
+**CVSS Score Mitigated:** 7.5-8.5 (High) - Broken Access Control / IDOR
+
+### Security Layers
+
+1. **Tenant Isolation** - Enforces cross-tenant boundaries (CRITICAL for multi-tenant SaaS)
+2. **Ownership Validation** - Verifies user created/owns the file
+3. **Path Traversal Prevention** - MEDIA_ROOT boundary enforcement with symlink protection
+4. **Role-Based Permissions** - Django permission system integration (`activity.view_attachment`)
+5. **Business Unit Access Control** - Same BU membership required
+6. **Audit Logging** - All access attempts logged with correlation IDs
+7. **Default Deny** - Explicit permission required; no silent failures
+
+### Quick Access
+
+#### Validate Attachment Access
+
+```python
+from apps.core.services.secure_file_download_service import SecureFileDownloadService
+from django.core.exceptions import PermissionDenied
+
+try:
+    # Multi-layer permission validation
+    attachment = SecureFileDownloadService.validate_attachment_access(
+        attachment_id=request.GET['id'],
+        user=request.user
+    )
+    # Returns attachment only if user has permission
+
+except PermissionDenied as e:
+    return JsonResponse({'error': str(e)}, status=403)
+```
+
+#### Secure File Download
+
+```python
+from apps.core.services.secure_file_download_service import SecureFileDownloadService
+
+# Path validation + permission check + secure serving
+response = SecureFileDownloadService.validate_and_serve_file(
+    filepath='uploads',
+    filename='document.pdf',
+    user=request.user,
+    owner_id='attachment-uuid'  # For permission validation
+)
+return response  # FileResponse with security headers
+```
+
+### Permission Validation Flow
+
+```
+1. Authentication Check → User must be authenticated
+2. Superuser Bypass → is_superuser = full access (logged)
+3. Ownership Check → attachment.cuser == user
+4. Tenant Isolation → attachment.tenant == user.tenant (CRITICAL)
+5. Business Unit Check → user belongs to attachment's BU
+6. Django Permissions → user.has_perm('activity.view_attachment')
+7. Staff Access → is_staff can access within tenant
+8. Default Deny → PermissionDenied if no rule matches
+```
+
+### Features
+
+- **Path Traversal Protection:** Detects `..`, null bytes, symlinks outside MEDIA_ROOT
+- **MIME Type Validation:** Proper Content-Type headers
+- **Security Headers:** X-Content-Type-Options, X-Frame-Options
+- **Correlation IDs:** Every request tracked for incident investigation
+- **Error Distinction:** 403 Forbidden vs 404 Not Found (prevents enumeration)
+
+### Exposed Endpoints
+
+| Endpoint | Purpose | Method |
+|----------|---------|--------|
+| `/activity/attachments/` | Direct file download | `GET` with `action=download` |
+| `/activity/previewImage/` | Attachment preview | `GET` with `id=<attachment_id>` |
+
+**Both endpoints protected by `LoginRequiredMixin` + `SecureFileDownloadService` validation**
+
+### Test Coverage
+
+**Test File:** `apps/core/tests/test_secure_file_download_permissions.py`
+
+**Test Scenarios (25+ tests):**
+- Cross-tenant access blocking (CRITICAL)
+- Ownership validation
+- Superuser bypass
+- Staff access within tenant
+- Django permission enforcement
+- Business unit isolation
+- IDOR prevention
+- Direct file access (staff-only)
+- Edge cases (404 vs 403, invalid UUIDs)
+
+### Security Compliance
+
+✅ **OWASP Top 10 #1:** Broken Access Control - MITIGATED
+✅ **Multi-Tenant Data Segregation:** Enforced at application layer
+✅ **CVSS 9.8 (Path Traversal):** Prevented via MEDIA_ROOT boundary checks
+✅ **Audit Requirements:** All access attempts logged with correlation IDs
+✅ **Rule 14b Compliance:** `.claude/rules.md` - File Download and Access Control
+
+### Code References
+
+- **Service:** `apps/core/services/secure_file_download_service.py`
+- **Views:** `apps/activity/views/attachment_views.py` (lines 84-139, 311-364)
+- **Tests:** `apps/core/tests/test_secure_file_download_permissions.py`
+- **Tests (Path Traversal):** `apps/core/tests/test_path_traversal_vulnerabilities.py`
+
+### Monitoring
+
+**Security Events Logged:**
+- Cross-tenant access attempts (ERROR level)
+- Permission denials (WARNING level)
+- Superuser access (INFO level, audit trail)
+- Path traversal attempts (ERROR level)
+- File not found vs access denied (distinct handling)
+
+**Recommended Alerts:**
+- Alert on cross-tenant access attempts (potential breach)
+- Monitor failed permission checks for patterns
+- Track correlation IDs for incident investigation
+
+### Migration from Legacy Patterns
+
+**❌ FORBIDDEN (Insecure):**
+```python
+attachment = Attachment.objects.get(id=request.GET['id'])  # No permission check
+with open(attachment.path, 'rb') as f:
+    return FileResponse(f)  # IDOR vulnerability
+```
+
+**✅ REQUIRED (Secure):**
+```python
+attachment = SecureFileDownloadService.validate_attachment_access(
+    attachment_id=request.GET['id'],
+    user=request.user
+)
+# Permission validated before access
+```
+
+---
+
 ## Stream Testbench (Real-Time Testing)
 
 ### Overview

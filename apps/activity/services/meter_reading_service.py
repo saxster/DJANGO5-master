@@ -25,6 +25,7 @@ from django.conf import settings
 from apps.activity.models import Asset, MeterReading, MeterReadingAlert
 from apps.onboarding_api.services.ocr_service import get_ocr_service
 from apps.peoples.models import People
+from apps.ml_training.integrations import track_meter_reading_result
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,23 @@ class MeterReadingService:
 
                 result['meter_reading'] = meter_reading
                 result['success'] = True
+
+                # ML Training Integration: Track low-confidence readings for model improvement
+                # Only capture uncertain predictions (confidence < 0.7) to focus on hard cases
+                if ocr_result['confidence'] < 0.7:
+                    try:
+                        track_meter_reading_result(
+                            meter_reading=meter_reading,
+                            confidence_score=ocr_result['confidence'],
+                            raw_ocr_text=ocr_result.get('raw_text', '')
+                        )
+                        logger.debug(
+                            f"Low-confidence meter reading tracked for ML training: "
+                            f"confidence={ocr_result['confidence']:.2f}"
+                        )
+                    except Exception as e:
+                        # Non-critical: Log but don't fail the main operation
+                        logger.warning(f"Failed to track meter reading for ML training: {e}")
 
                 # Check for anomalies and create alerts
                 if meter_reading.is_anomaly:

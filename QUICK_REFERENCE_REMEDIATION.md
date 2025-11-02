@@ -12,8 +12,8 @@
 **Impact**: Asset CRUD, GPS tracking, analytics now fully functional.
 
 ```python
-# OLD (broken):
-from apps.activity.views.asset_views import AssetView  # Placeholder
+# OLD (broken - REMOVED 2025-10-31):
+from apps.activity.views.asset_views import AssetView  # File deleted
 
 # NEW (working):
 from apps.activity.views.asset import AssetView  # Concrete implementation
@@ -96,7 +96,7 @@ def authenticate_user(self, ...):
 apps/activity/views/asset/__init__.py       ← NEW package exports
 apps/activity/urls.py                       ← Updated imports
 apps/core/urls_assets.py                    ← Updated imports
-apps/activity/views/asset_views.py          ← Deprecated with compatibility
+apps/activity/views/asset_views.py          ← REMOVED (2025-10-31) - shim deleted
 ```
 
 ### Phase 2: GCS Security (3 files)

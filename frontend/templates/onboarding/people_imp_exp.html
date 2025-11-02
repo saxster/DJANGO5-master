@@ -100,7 +100,7 @@ $(document).ready(function(){
                 formdata.append('ctzoffset', $("#id_ctzoffset").val())
                 formdata.append('csrfmiddlewaretoken', '{{ csrf_token }}')
                 $.ajax({
-                    url: "{{ url('onboarding:import') }}",
+                    url: "{{ url('admin:onboarding_typeassist_import') }}",
                     type: "POST",
                     data: formdata,
                     processData: false,

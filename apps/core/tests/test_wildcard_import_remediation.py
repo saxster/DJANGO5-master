@@ -64,7 +64,7 @@ class TestBackwardCompatibility:
             'apps.core.utils_new.form_security',
             'apps.core.utils_new.error_handling',
             'apps.core.utils_new.sentinel_resolvers',
-            'apps.core.utils_new.query_optimization',
+            # 'apps.core.utils_new.query_optimization',  # REMOVED 2025-10-31: Deprecated (moved to .deprecated/)
             'apps.core.utils_new.query_optimizer',
             'apps.core.utils_new.sql_security',
             'apps.core.utils_new.datetime_utilities',

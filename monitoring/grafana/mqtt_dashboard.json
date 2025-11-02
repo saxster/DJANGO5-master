@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "title": "MQTT Message Bus Monitoring",
+    "tags": ["mqtt", "iot", "telemetry", "message-bus"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "MQTT Messages Received (by topic prefix)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(celery_mqtt_message_processed_total[5m])",
+            "legendFormat": "{{topic_prefix}} (QoS {{qos}})"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "MQTT Processing Latency",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(celery_mqtt_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 - {{topic_prefix}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "MQTT Subscriber Status",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "celery_mqtt_subscriber_connected_total"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Critical Alerts Processed",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 8, "w": 18, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(celery_mqtt_critical_alert_processed_total[5m])",
+            "legendFormat": "{{alert_type}} ({{severity}})"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Guard GPS Locations Tracked",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(celery_mqtt_guard_gps_processed_total)"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Geofence Violations",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 16, "w": 16, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(celery_mqtt_geofence_violation_total[5m])",
+            "legendFormat": "Guard {{guard_id}}"
+          }
+        ],
+        "alert": {
+          "name": "Geofence Violation Detected",
+          "conditions": [
+            {
+              "evaluator": {"params": [0], "type": "gt"}
+            }
+          ],
+          "message": "Guard has violated geofence boundaries"
+        }
+      }
+    ],
+    "refresh": "30s"
+  }
+}

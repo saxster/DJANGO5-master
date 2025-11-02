@@ -42,8 +42,6 @@ __all__ = [
     'create_tenant_with_alias',
     'check_nones',
     'get_record_from_input',
-    'dictfetchall',
-    'namedtuplefetchall',
     'runrawsql',
     'get_action_on_ticket_states',
     'store_ticket_history',

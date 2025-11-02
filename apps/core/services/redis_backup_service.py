@@ -467,10 +467,17 @@ class RedisBackupService:
                 else:
                     header = f.read(9)
 
-                return header.startswith(b'REDIS')
+                is_valid = header.startswith(b'REDIS')
+                if not is_valid:
+                    logger.warning(f"Invalid Redis backup header in {file_path}")
+                return is_valid
 
-        except Exception:
-            return False
+        except (OSError, IOError) as e:
+            logger.error(f"Cannot read backup file {file_path}: {e}")
+            raise  # Don't hide file access errors
+        except gzip.BadGzipFile as e:
+            logger.error(f"Corrupted gzip file {file_path}: {e}")
+            return False  # Invalid format, but we could read it
 
     def _stop_redis_safely(self):
         """Safely stop Redis service."""

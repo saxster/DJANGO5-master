@@ -139,7 +139,7 @@ class SLA_View(LoginRequiredMixin, View):
 
         # Return empty form with month
         if action == "form":
-            month_name = (datetime.datetime.now() - relativedelta(months=1)).strftime(
+            month_name = (timezone.now() - relativedelta(months=1)).strftime(
                 "%B"
             )
             cxt = {
@@ -190,7 +190,7 @@ class SLA_View(LoginRequiredMixin, View):
                 "slaform": form,
                 "ownerid": uuid.uuid4(),
                 "approvers": approvers,
-                "month_name": datetime.datetime.now().strftime("%B"),
+                "month_name": timezone.now().strftime("%B"),
             }
             return render(request, P["template_form"], context=context)
 

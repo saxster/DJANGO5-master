@@ -19,10 +19,14 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib import messages
 from datetime import timedelta
+import logging
 
 from apps.core.models.task_failure_record import TaskFailureRecord
 from apps.core.services.task_priority_service import priority_service
 from background_tasks.dead_letter_queue import DeadLetterQueueService
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -257,7 +261,14 @@ class TaskFailureRecordAdmin(admin.ModelAdmin):
                     success_count += 1
                 else:
                     error_count += 1
-            except Exception:
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error retrying task {record.task_id}: {e}", exc_info=True)
+                error_count += 1
+            except NETWORK_EXCEPTIONS as e:
+                logger.error(f"Network error retrying task {record.task_id}: {e}", exc_info=True)
+                error_count += 1
+            except (TypeError, ValueError, KeyError) as e:
+                logger.error(f"Invalid task data for {record.task_id}: {e}", exc_info=True)
                 error_count += 1
         
         if success_count > 0:
@@ -294,8 +305,12 @@ class TaskFailureRecordAdmin(admin.ModelAdmin):
                     record.status = 'RETRYING'
                     record.save(update_fields=['status'])
                     success_count += 1
-            except Exception:
-                pass
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error requeueing task {record.task_id} with HIGH priority: {e}", exc_info=True)
+            except NETWORK_EXCEPTIONS as e:
+                logger.error(f"Network error requeueing task {record.task_id} with HIGH priority: {e}", exc_info=True)
+            except (TypeError, ValueError, KeyError) as e:
+                logger.error(f"Invalid task data for {record.task_id}: {e}", exc_info=True)
         
         self.message_user(
             request,
@@ -324,8 +339,12 @@ class TaskFailureRecordAdmin(admin.ModelAdmin):
                     record.status = 'RETRYING'
                     record.save(update_fields=['status'])
                     success_count += 1
-            except Exception:
-                pass
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error requeueing task {record.task_id} with CRITICAL priority: {e}", exc_info=True)
+            except NETWORK_EXCEPTIONS as e:
+                logger.error(f"Network error requeueing task {record.task_id} with CRITICAL priority: {e}", exc_info=True)
+            except (TypeError, ValueError, KeyError) as e:
+                logger.error(f"Invalid task data for {record.task_id}: {e}", exc_info=True)
         
         self.message_user(
             request,

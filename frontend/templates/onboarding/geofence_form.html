@@ -335,7 +335,7 @@ function getGeofenceData(GEOFENCE){
 }
 
 function createNewGeoFence(){
- location.href = '{{ url("onboarding:geofence") }}?action=form'
+ location.href = '{% url 'admin:onboarding_geofencemaster_add' %}''
 }
 
 function initAutocomplete() {

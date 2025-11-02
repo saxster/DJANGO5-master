@@ -97,6 +97,16 @@ NOC_CELERY_BEAT_SCHEDULE = {
             'expires': 3600,  # 1 hour expiry
         }
     },
+
+    # Baseline Threshold Tuning (Weekly)
+    'baseline-threshold-update': {
+        'task': 'noc.baseline.update_thresholds',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Sunday 3:00 AM
+        'options': {
+            'queue': 'reports',
+            'expires': 3600,  # 1 hour expiry
+        }
+    },
 }
 
 

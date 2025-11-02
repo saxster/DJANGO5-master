@@ -17,12 +17,17 @@ ENABLE_API_AUTH = True
 API_AUTH_PATHS = ["/api/"]
 API_REQUIRE_SIGNING = False
 
-# SESSION SECURITY
+# SESSION SECURITY (Rule #10: Session Security Standards)
+# All session settings MUST be defined here, not in database.py
 
-SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"  # Use cached_db for performance
+SESSION_CACHE_ALIAS = "default"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE = 2 * 60 * 60  # 2 hours (Rule #10: Session Security Standards)
 SESSION_SAVE_EVERY_REQUEST = True  # Security first (Rule #10)
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+SESSION_COOKIE_SAMESITE = "Lax"  # CSRF protection
+# SESSION_COOKIE_SECURE is set in production.py (env-specific)
 
 # PostgreSQL session optimization
 DATABASE_SESSION_OPTIMIZATIONS = {

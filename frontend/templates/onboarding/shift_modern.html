@@ -4,7 +4,7 @@
 {% block card_title %}
 Shift Management
 <div class="float-end">
-	<a href="{{ url('onboarding:shift') }}?template=true&classic=true{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}" class="btn btn-sm btn-light-secondary me-2">
+	<a href="{{ url('admin:onboarding_shift_changelist') }}" class="btn btn-sm btn-light-secondary me-2">
 		<i class="bi bi-table"></i> Classic View
 	</a>
 	<button class="btn btn-sm btn-primary" id="header-add-new">
@@ -23,7 +23,7 @@ Shift Management
 <!----------- BEGIN PAGE BREADCUMBS ----------->
 {% block pagebreadcumb %}
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('onboarding:shift') }}?template=true{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}" class="pe-3">Shift List</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('admin:onboarding_shift_changelist') }}" class="pe-3">Shift List</a></li>
 {% endblock pagebreadcumb %}
 <!----------- END PAGE BREADCUMBS ------------->
 
@@ -746,7 +746,7 @@ $(document).ready(function () {
 		$('#shift-empty').addClass('d-none');
 		
 		$.ajax({
-			url: '{{ url("onboarding:shift") }}?action=list',
+			/api/v1/admin/config/shifts/',
 			type: 'GET',
 			success: function(response) {
 				console.log('Response received:', response); // Debug

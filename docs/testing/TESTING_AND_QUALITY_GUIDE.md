@@ -12,12 +12,21 @@
 python -m pytest --cov=apps --cov-report=html:coverage_reports/html --tb=short -v
 ```
 
+### Shared test directories
+
+```bash
+python -m pytest tests/unit -v                       # Cross-domain unit tests
+python -m pytest tests/integration -v                # Integration flows spanning apps
+python -m pytest -m performance tests/performance -v # On-demand performance smoke tests
+```
+
 ### Test categories
 
 ```bash
 python -m pytest -m unit          # Unit tests
 python -m pytest -m integration   # Integration tests
 python -m pytest -m security      # Security tests
+python -m pytest -m performance   # Performance tests
 ```
 
 ### Specific test suites

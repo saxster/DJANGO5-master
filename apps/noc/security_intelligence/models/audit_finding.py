@@ -174,6 +174,32 @@ class AuditFinding(BaseModel, TenantAwareModel):
         help_text="Time from detection to resolution"
     )
 
+    # Ticket escalation tracking (Gap #5)
+    escalated_to_ticket = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether finding was escalated to a ticket"
+    )
+
+    escalation_ticket_id = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="ID of ticket created from escalation"
+    )
+
+    escalated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When finding was escalated to ticket"
+    )
+
+    # Evidence summary for quick reference
+    evidence_summary = models.TextField(
+        blank=True,
+        help_text="Summarized evidence for dashboard display"
+    )
+
     class Meta(BaseModel.Meta):
         db_table = 'noc_audit_finding'
         verbose_name = 'Audit Finding'

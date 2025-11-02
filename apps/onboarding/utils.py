@@ -8,7 +8,7 @@ from tablib import Dataset
 import logging
 from django.conf import settings
 from django.db import DatabaseError, IntegrityError
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 
 # Use settings values directly (importing specific values from settings causes issues)
 api_key = getattr(settings, 'BULK_IMPORT_GOOGLE_DRIVE_API_KEY', '')
@@ -816,7 +816,6 @@ def is_point_in_geofence(lat, lon, geofence):
 # create a geofence from the gpslocation and radius
 def bulk_create_geofence(gpslocation, radius):
     from django.contrib.gis.geos import GEOSGeometry
-    from django.core.exceptions import ValidationError
 
     # Fetch the WKB geometry from the database
     wkb_data = gpslocation

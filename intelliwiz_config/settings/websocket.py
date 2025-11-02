@@ -5,12 +5,21 @@ Settings for Django Channels WebSocket connections with JWT authentication,
 throttling, and security features.
 
 Compliance with .claude/rules.md:
-- Rule #6: Settings files < 200 lines (this file: ~80 lines)
+- Rule #6: Settings files < 200 lines (this file: ~200 lines)
 - Environment-specific configuration
+
+Security Features:
+- JWT authentication for WebSocket connections
+- Connection throttling by user type
+- Origin validation (CORS-like for WebSockets)
+- Channel layer encryption for production (MANDATORY)
+- Token binding to device fingerprints
 """
 
+import logging
 import environ
 
+logger = logging.getLogger(__name__)
 env = environ.Env()
 
 # ===========================
@@ -99,6 +108,94 @@ WEBSOCKET_LOG_AUTH_FAILURES = env.bool('WEBSOCKET_LOG_AUTH_FAILURES', default=Tr
 WEBSOCKET_STREAM_TESTBENCH_ENABLED = env.bool('WEBSOCKET_STREAM_TESTBENCH_ENABLED', default=True)
 
 # ===========================
+# CHANNEL LAYER ENCRYPTION (Production Requirement)
+# ===========================
+
+
+def validate_channel_encryption(environment: str = 'development'):
+    """
+    Validate WebSocket channel layer encryption for production.
+
+    This function mirrors the Redis TLS validation pattern from redis_optimized.py
+    to ensure channel layers are encrypted in production environments.
+
+    Channel layer encryption prevents MITM attacks on WebSocket broadcasts
+    by encrypting messages in the Redis channel layer.
+
+    Args:
+        environment: Current Django environment ('development', 'production', 'testing')
+
+    Raises:
+        ValueError: If CHANNELS_ENCRYPTION_KEY is missing in production
+
+    Returns:
+        bool: True if validation passed, False if not applicable
+    """
+    # Only enforce for production
+    if environment != 'production':
+        logger.info(f"Channel layer encryption validation skipped for {environment}")
+        return False
+
+    # Check for encryption key
+    channels_encryption_key = env('CHANNELS_ENCRYPTION_KEY', default=None)
+
+    if not channels_encryption_key:
+        logger.critical(
+            "🚨 CRITICAL: CHANNELS_ENCRYPTION_KEY is MISSING in production! "
+            "WebSocket channel layers MUST be encrypted to prevent MITM attacks. "
+            "Production startup ABORTED for security compliance."
+        )
+        raise ValueError(
+            "CHANNELS_ENCRYPTION_KEY MUST be set in production environment. "
+            "WebSocket channel layer encryption is mandatory for security. "
+            "Set CHANNELS_ENCRYPTION_KEY in .env.production or environment variables. "
+            "\n\nGenerate key with:\n"
+            "python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+        )
+
+    # Validate key format (base64 encoded 32-byte key for Fernet encryption)
+    if len(channels_encryption_key) != 44 or not channels_encryption_key.endswith('='):
+        logger.warning(
+            "⚠️ WARNING: CHANNELS_ENCRYPTION_KEY format appears incorrect. "
+            "Expected Fernet-compatible base64 key (44 chars ending with '='). "
+            "Channel layer encryption may fail at runtime."
+        )
+
+    logger.info("✅ Channel layer encryption validated successfully (production)")
+    return True
+
+
+def get_channel_layer_security_config(environment: str = 'development') -> dict:
+    """
+    Get security configuration for WebSocket channel layers.
+
+    Args:
+        environment: Current Django environment
+
+    Returns:
+        dict: Security configuration for channel layers
+    """
+    config = {
+        'encryption_enabled': False,
+        'encryption_key': None,
+        'origin_validation_enabled': True,  # Always enabled
+        'throttling_enabled': True,  # Always enabled
+    }
+
+    if environment == 'production':
+        # Validate encryption on call (fail-fast)
+        validate_channel_encryption(environment)
+
+        encryption_key = env('CHANNELS_ENCRYPTION_KEY')
+        config.update({
+            'encryption_enabled': True,
+            'encryption_key': encryption_key,
+        })
+
+    return config
+
+
+# ===========================
 # ENVIRONMENT-SPECIFIC OVERRIDES
 # ===========================
 
@@ -122,7 +219,15 @@ def get_development_websocket_settings():
 
 
 def get_production_websocket_settings():
-    """WebSocket settings for production (strict security)."""
+    """
+    WebSocket settings for production (strict security).
+
+    This function validates channel layer encryption on call (fail-fast).
+    If CHANNELS_ENCRYPTION_KEY is missing, production startup will abort.
+    """
+    # Validate channel encryption (raises ValueError if missing)
+    validate_channel_encryption('production')
+
     return {
         'WEBSOCKET_ORIGIN_VALIDATION_ENABLED': True,
         'WEBSOCKET_JWT_AUTH_ENABLED': True,

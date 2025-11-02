@@ -169,14 +169,14 @@ tests/
 ├── performance/           # Performance and load tests
 ├── security/              # Security-specific tests
 ├── api/                   # API endpoint tests
-└── [app_name]/           # App-specific test modules
+└── unit/                  # Cross-domain unit tests (app-local tests stay in apps/*/tests)
 ```
 
 ### Test Patterns
-- **Fixtures**: Comprehensive fixtures in `conftest.py`
-- **Factories**: Use factory classes for consistent test data
-- **Markers**: Use pytest markers for test categorization
-- **Coverage**: Maintain high test coverage for critical paths
+- **Fixtures**: Shared fixtures live in `tests/conftest.py`; app-specific fixtures stay near their code
+- **Factories**: Use factory classes under `tests/factories/` for consistent test data
+- **Markers**: Use pytest markers (`unit`, `integration`, `performance`, `security`) for targeted runs
+- **Coverage**: Maintain high test coverage for critical paths across apps and shared suites
 
 ## Documentation Standards
 

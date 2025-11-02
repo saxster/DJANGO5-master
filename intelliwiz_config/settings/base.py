@@ -37,11 +37,11 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results", "corsheaders", "django_cleanup.apps.CleanupConfig",
     # Local apps
-    'apps.core', 'apps.peoples', 'apps.onboarding', 'apps.onboarding_api', 'apps.people_onboarding', 'apps.tenants',
+    'apps.core', 'apps.ontology', 'apps.peoples', 'apps.onboarding', 'apps.onboarding_api', 'apps.people_onboarding', 'apps.tenants',
     'apps.attendance', 'apps.activity', 'apps.scheduler', 'apps.reminder', 'apps.reports',
     'apps.service', 'apps.y_helpdesk', 'apps.work_order_management', 'apps.mqtt', 'apps.face_recognition',
     'apps.voice_recognition', 'apps.journal', 'apps.wellness', 'apps.streamlab', 'apps.issue_tracker',
-    'apps.ai_testing', 'apps.search', 'apps.api', 'apps.noc', 'apps.helpbot', 'monitoring',
+    'apps.ai_testing', 'apps.search', 'apps.api', 'apps.noc', 'apps.ml_training', 'apps.helpbot', 'monitoring',
 ]
 
 # ============================================================================
@@ -338,6 +338,43 @@ HELPBOT_WIDGET_POSITION = 'bottom-right'  # Widget position on page
 HELPBOT_WIDGET_THEME = 'modern'  # UI theme (modern, classic, minimal)
 HELPBOT_SHOW_TYPING_INDICATOR = True  # Show typing indicator during AI response
 HELPBOT_ENABLE_QUICK_SUGGESTIONS = True  # Show quick suggestion buttons
+
+# ============================================================================
+# NOC INTELLIGENCE SYSTEM CONFIGURATION
+# ============================================================================
+
+# NOC Operational Intelligence Settings
+NOC_CONFIG = {
+    # Telemetry & API
+    'TELEMETRY_CACHE_TTL': 60,  # seconds - Cache telemetry data
+    'CORRELATION_WINDOW_MINUTES': 15,  # Time window for signal-to-alert correlation
+
+    # Fraud Detection & ML
+    'FRAUD_SCORE_TICKET_THRESHOLD': 0.80,  # Auto-create ticket if fraud score >= 80%
+    'ML_MODEL_MIN_TRAINING_SAMPLES': 500,  # Minimum labeled samples for model training
+    'ML_MODEL_VALIDATION_THRESHOLDS': {
+        'precision': 0.85,  # Minimum precision to accept model
+        'recall': 0.75,     # Minimum recall to accept model
+        'f1': 0.80          # Minimum F1 score to accept model
+    },
+    'FRAUD_DEDUPLICATION_HOURS': 24,  # Max 1 fraud ticket per person per 24h
+
+    # Audit & Escalation
+    'AUDIT_FINDING_TICKET_SEVERITIES': ['CRITICAL', 'HIGH'],  # Auto-escalate these severities
+    'TICKET_DEDUPLICATION_HOURS': 4,  # Max 1 ticket per finding type per 4h
+
+    # Baseline Learning & Threshold Tuning
+    'BASELINE_FP_THRESHOLD': 0.3,  # High false positive rate threshold (30%)
+    'BASELINE_STABLE_SAMPLE_COUNT': 100,  # Sample count for "stable" baseline
+    'BASELINE_DEFAULT_THRESHOLD': 3.0,  # Default z-score threshold
+    'BASELINE_SENSITIVE_THRESHOLD': 2.5,  # Threshold for stable baselines (more sensitive)
+    'BASELINE_CONSERVATIVE_THRESHOLD': 4.0,  # Threshold for high FP rate (less sensitive)
+
+    # WebSocket & Real-Time
+    'WEBSOCKET_RATE_LIMIT': 100,  # Max events per minute per tenant
+    'WEBSOCKET_BROADCAST_TIMEOUT': 5,  # Seconds before broadcast times out
+    'EVENT_LOG_RETENTION_DAYS': 90,  # Keep event logs for 90 days
+}
 
 # ============================================================================
 # UNFOLD ADMIN THEME CONFIGURATION

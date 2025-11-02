@@ -6,13 +6,10 @@ from django.contrib.gis.measure import Distance
 
 __all__ = [
     'CustomJsonEncoderWithDistance',
-    'encrypt',
-    'decrypt',
     'clean_record',
     'getformatedjson',
     'sumDig',
     'orderedRandom',
-    'format_data',
 ]
 
 
@@ -137,12 +134,3 @@ def orderedRandom(arr, k):
         return arr
     indices = random.sample(range(len(arr)), k)
     return [arr[i] for i in sorted(indices)]
-
-
-def format_data(objects):
-    columns, rows, data = objects[0].keys(), {}, {}
-    for i, d in enumerate(objects):
-        for c in columns:
-            rows[i][c] = "" if rows[i][c] is None else str(rows[i][c])
-    data["rows"] = rows
-    return data

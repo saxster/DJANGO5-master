@@ -1,0 +1,183 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}ML Training Metrics Dashboard{% endblock %}
+
+{% block content %}
+<h1>ML Training Data Capture Metrics</h1>
+
+<div class="module" style="margin-bottom: 20px;">
+    <h2>Capture Rate (Last 7 Days)</h2>
+    <table style="width: 100%;">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+            <th>Status</th>
+        </tr>
+        <tr>
+            <td>Total Examples Captured</td>
+            <td>{{ capture_rate.total_examples|default:"0" }}</td>
+            <td>
+                {% if capture_rate.alert_status == 'ok' %}
+                    <span style="color: green;">✓ Healthy</span>
+                {% elif capture_rate.alert_status == 'warning' %}
+                    <span style="color: orange;">⚠ Warning</span>
+                {% elif capture_rate.alert_status == 'critical' %}
+                    <span style="color: red;">✗ Critical</span>
+                {% else %}
+                    <span style="color: gray;">? Unknown</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>Examples Per Day</td>
+            <td>{{ capture_rate.examples_per_day|default:"0" }} (target: 10-20/day)</td>
+            <td>{{ capture_rate.alert_message|default:"No data" }}</td>
+        </tr>
+        <tr>
+            <td>Last 24h Captures</td>
+            <td>{{ capture_rate.last_24h_count|default:"0" }}</td>
+            <td>
+                {% if capture_rate.last_24h_count == 0 %}
+                    <span style="color: red;">⚠ ALERT: Zero captures in 24h</span>
+                {% else %}
+                    <span style="color: green;">✓ Active</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>User Corrections</td>
+            <td>{{ capture_rate.user_corrections|default:"0" }}</td>
+            <td>High-value training data</td>
+        </tr>
+        <tr>
+            <td>Low Confidence Rate</td>
+            <td>{{ capture_rate.low_confidence_rate|default:"0" }} ({{ capture_rate.low_confidence_rate|floatformat:1 }}%)</td>
+            <td>Uncertainty > 0.7</td>
+        </tr>
+    </table>
+
+    {% if capture_rate.by_source_system %}
+    <h3>Breakdown by Source System</h3>
+    <table>
+        <tr>
+            <th>Source System</th>
+            <th>Count</th>
+        </tr>
+        {% for source in capture_rate.by_source_system %}
+        <tr>
+            <td>{{ source.source_system }}</td>
+            <td>{{ source.count }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</div>
+
+<div class="module" style="margin-bottom: 20px;">
+    <h2>Labeling Backlog</h2>
+    <table style="width: 100%;">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Pending Tasks</td>
+            <td>{{ labeling.pending_tasks|default:"0" }}</td>
+        </tr>
+        <tr>
+            <td>In Progress Tasks</td>
+            <td>{{ labeling.in_progress_tasks|default:"0" }}</td>
+        </tr>
+        <tr>
+            <td>Overdue Tasks</td>
+            <td style="{% if labeling.overdue_tasks > 0 %}color: red;{% endif %}">
+                {{ labeling.overdue_tasks|default:"0" }}
+                {% if labeling.overdue_tasks > 0 %}⚠{% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>Avg Completion Time</td>
+            <td>{{ labeling.avg_completion_time_hours|default:"0" }} hours</td>
+        </tr>
+        <tr>
+            <td>Examples Pending Labeling</td>
+            <td>{{ labeling.total_examples_pending_labeling|default:"0" }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="module" style="margin-bottom: 20px;">
+    <h2>Data Quality (Last 30 Days)</h2>
+    <table style="width: 100%;">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Average Quality Score</td>
+            <td>{{ quality.avg_quality_score|default:"0" }} / 1.0</td>
+        </tr>
+        <tr>
+            <td>High Quality Examples</td>
+            <td>{{ quality.high_quality_count|default:"0" }} (score ≥ 0.8)</td>
+        </tr>
+        <tr>
+            <td>Low Quality Examples</td>
+            <td style="{% if quality.low_quality_count > 0 %}color: orange;{% endif %}">
+                {{ quality.low_quality_count|default:"0" }} (score < 0.5)
+            </td>
+        </tr>
+        <tr>
+            <td>Reviewed Percentage</td>
+            <td>{{ quality.reviewed_percentage|default:"0" }}%</td>
+        </tr>
+        <tr>
+            <td>Total Labeled</td>
+            <td>{{ quality.total_labeled|default:"0" }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="module">
+    <h2>Active Learning Effectiveness</h2>
+    <table style="width: 100%;">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Selected for Labeling</td>
+            <td>{{ active_learning.selected_for_labeling|default:"0" }}</td>
+        </tr>
+        <tr>
+            <td>Actually Labeled</td>
+            <td>{{ active_learning.labeled_from_selection|default:"0" }}</td>
+        </tr>
+        <tr>
+            <td>Selection-to-Label Rate</td>
+            <td>{{ active_learning.selection_to_label_rate|default:"0" }}%</td>
+        </tr>
+        <tr>
+            <td>High-Value Examples</td>
+            <td>{{ active_learning.high_value_examples|default:"0" }} (uncertainty/difficulty > 0.7)</td>
+        </tr>
+    </table>
+</div>
+
+<div class="module" style="margin-top: 20px; background-color: #f8f9fa; padding: 15px;">
+    <h3>📊 Quick Actions</h3>
+    <ul>
+        <li><a href="{% url 'admin:ml_training_trainingexample_changelist' %}">View Training Examples</a></li>
+        <li><a href="{% url 'admin:ml_training_labelingtask_changelist' %}">View Labeling Tasks</a></li>
+        <li><a href="{% url 'admin:ml_training_trainingdataset_changelist' %}">View Datasets</a></li>
+    </ul>
+
+    <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
+        <strong>Last Updated:</strong> {{ metrics.generated_at }}<br>
+        <strong>Cache Duration:</strong> 5 minutes<br>
+        <strong>Refresh:</strong> Reload this page to see latest metrics
+    </p>
+</div>
+
+{% endblock %}

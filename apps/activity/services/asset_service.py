@@ -118,9 +118,8 @@ class AssetOperationResult:
         "apps.core.exceptions (BusinessLogicException, DatabaseException)",
     ],
     used_by=[
-        "apps.activity.views.asset_views.AssetCreateView (Django CBV)",
-        "apps.activity.views.asset_views.AssetUpdateView",
-        "apps.activity.views.asset_views.AssetDeleteView",
+        "apps.activity.views.asset.AssetView (Django CBV for Create/Update)",
+        "apps.activity.views.asset.AssetDeleteView",
         "REST API endpoints: POST/PUT/DELETE /api/v1/assets/",
         "Mobile sync service for offline asset updates",
         "Admin panel asset management forms",

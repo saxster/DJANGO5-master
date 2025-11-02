@@ -99,6 +99,7 @@ urlpatterns = [
     # REST API v2 (Type-safe endpoints with Pydantic validation)
     path('api/v2/', include('apps.api.v2.urls')),  # Typed sync/device endpoints
     path('api/v2/status/', include('apps.service.rest_service.v2.urls')),  # Status endpoint
+    path('api/v2/noc/', include(('apps.noc.api.v2.urls', 'noc_api_v2'), namespace='noc_telemetry_api')),  # NOC Telemetry API
 
     # ========== Legacy Schema Removed - October 2025 ==========
     # Single API surface operates at /api/v1/
@@ -129,10 +130,9 @@ urlpatterns = [
     path('health/detailed/', detailed_health_check, name='root_detailed_health_check'),
     
     # ========== AI & INTELLIGENCE ==========
-    # AI Mentor system (development only)
-    path('mentor/', include(('apps.mentor_api.urls', 'mentor_api'), namespace='mentor_web')),
-    path('api/v1/mentor/', include(('apps.mentor_api.urls', 'mentor_api'), namespace='mentor_api')),
-    
+    # ML Training Data Platform
+    path('ml-training/', include('apps.ml_training.urls')),
+
     # ========== UTILITIES ==========
     path('select2/', include('django_select2.urls')),
     

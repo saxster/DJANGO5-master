@@ -23,7 +23,10 @@ from apps.noc.security_intelligence.models import (
 from apps.noc.security_intelligence.services.evidence_collector import EvidenceCollector
 from apps.noc.security_intelligence.services.task_compliance_monitor import TaskComplianceMonitor
 from apps.noc.security_intelligence.services.activity_signal_collector import ActivitySignalCollector
+from apps.noc.security_intelligence.services.signal_correlation_service import SignalCorrelationService
 from apps.noc.services import AlertCorrelationService
+from apps.noc.services.websocket_service import NOCWebSocketService
+from apps.noc.services.audit_escalation_service import AuditEscalationService
 
 logger = logging.getLogger('noc.audit_orchestrator')
 
@@ -115,6 +118,17 @@ class RealTimeAuditOrchestrator:
                 site=site,
                 window_minutes=window_minutes
             )
+
+            # Correlate signals with existing alerts
+            try:
+                SignalCorrelationService.correlate_signals_with_alerts(
+                    person=active_people,
+                    site=site,
+                    signals=signals,
+                    window_minutes=window_minutes
+                )
+            except Exception as e:
+                logger.warning(f"Signal correlation failed: {e}")
 
             signal_count = signals.get(f'{signal_type}_count', 0)
 
@@ -237,6 +251,21 @@ class RealTimeAuditOrchestrator:
             )
 
             logger.info(f"Created finding: {finding}")
+
+            # Broadcast finding to WebSocket clients
+            try:
+                NOCWebSocketService.broadcast_finding(finding)
+            except Exception as e:
+                logger.warning(f"Failed to broadcast finding {finding.id}: {e}")
+
+            # Escalate high-severity findings to tickets
+            try:
+                ticket = AuditEscalationService.escalate_finding_to_ticket(finding)
+                if ticket:
+                    logger.info(f"Finding {finding.id} escalated to ticket {ticket.id}")
+            except Exception as e:
+                logger.warning(f"Failed to escalate finding {finding.id}: {e}")
+
             return finding
 
         except (DatabaseError, ValueError) as e:

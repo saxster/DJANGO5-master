@@ -342,6 +342,122 @@ app.conf.beat_schedule = {
     },
 
     # ============================================================================
+    # ML TRAINING & AI IMPROVEMENT TASKS
+    # ============================================================================
+
+    # Active Learning Sample Selection (ML Training)
+    # Runs: Every Sunday at 2:00 AM UTC
+    # Rationale: Weekly batch selection, off-peak hour, low collision risk
+    # Queue: ai_processing (ML/AI workloads)
+    # Purpose: Selects 50 most uncertain + diverse samples for human labeling
+    "ml_training_active_learning_weekly": {
+        'task': 'apps.ml_training.tasks.active_learning_loop',
+        'schedule': crontab(minute='0', hour='2', day_of_week='0'),  # Sunday 2:00 AM
+        'options': {
+            'expires': 3600,  # 1 hour (task should complete quickly)
+            'queue': 'ai_processing',
+            'soft_time_limit': 300,  # 5 minutes
+            'time_limit': 600,  # 10 minutes hard limit
+        }
+    },
+
+    # Track Conflict Prediction Outcomes
+    # Runs: Every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+    # Rationale: Check 24-hour-old predictions for actual outcomes
+    # Queue: ml_training (ML workloads, non-critical)
+    # Purpose: Update actual_conflict_occurred field, calculate accuracy metrics
+    "ml_track_conflict_prediction_outcomes": {
+        'task': 'ml.track_conflict_prediction_outcomes',
+        'schedule': crontab(minute='0', hour='*/6'),  # Every 6 hours
+        'options': {
+            'expires': 21600,  # 6 hours (before next run)
+            'queue': 'ml_training',
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,  # 10 minutes hard limit
+        }
+    },
+
+    # Weekly Conflict Model Retraining
+    # Runs: Every Monday at 3:00 AM UTC
+    # Rationale: Weekly retraining on 90 days data, off-peak hour
+    # Queue: ml_training (ML workloads, resource-intensive)
+    # Purpose: Extract data, train model, auto-activate if >5% improvement
+    "ml_retrain_conflict_model_weekly": {
+        'task': 'ml.retrain_conflict_model_weekly',
+        'schedule': crontab(minute='0', hour='3', day_of_week='1'),  # Monday 3:00 AM
+        'options': {
+            'expires': 7200,  # 2 hours (long-running task)
+            'queue': 'ml_training',
+            'soft_time_limit': 1620,  # 27 minutes
+            'time_limit': 1800,  # 30 minutes hard limit
+        }
+    },
+
+    # ============================================================================
+    # INFRASTRUCTURE MONITORING & ANOMALY DETECTION
+    # ============================================================================
+
+    # Collect Infrastructure Metrics (CPU, memory, disk, DB, app)
+    # Runs: Every 60 seconds
+    # Rationale: High-frequency monitoring for real-time anomaly detection
+    # Queue: monitoring (dedicated queue for metrics)
+    "monitoring_collect_infrastructure_metrics": {
+        'task': 'monitoring.collect_infrastructure_metrics',
+        'schedule': 60.0,  # Every 60 seconds
+        'options': {
+            'expires': 50,  # 50 seconds (before next run)
+            'queue': 'monitoring',
+            'soft_time_limit': 30,  # 30 seconds
+            'time_limit': 50,  # 50 seconds hard limit
+        }
+    },
+
+    # Detect Infrastructure Anomalies
+    # Runs: Every 5 minutes at :01, :06, :11, :16, :21, :26, :31, :36, :41, :46, :51, :56
+    # Rationale: Analyze last hour of data, offset by 1 minute from collection tasks
+    # Queue: monitoring (analytical processing)
+    "monitoring_detect_infrastructure_anomalies": {
+        'task': 'monitoring.detect_infrastructure_anomalies',
+        'schedule': crontab(minute='1,6,11,16,21,26,31,36,41,46,51,56'),  # Every 5 min, offset +1
+        'options': {
+            'expires': 240,  # 4 minutes (buffer before next run)
+            'queue': 'monitoring',
+            'soft_time_limit': 120,  # 2 minutes
+            'time_limit': 240,  # 4 minutes hard limit
+        }
+    },
+
+    # Cleanup Old Infrastructure Metrics
+    # Runs: Daily at 2:00 AM UTC
+    # Rationale: Off-peak hour, deletes metrics older than 30 days
+    # Queue: maintenance (low priority cleanup)
+    "monitoring_cleanup_infrastructure_metrics": {
+        'task': 'monitoring.cleanup_infrastructure_metrics',
+        'schedule': crontab(minute='0', hour='2'),  # Daily 2:00 AM UTC
+        'options': {
+            'expires': 3600,  # 1 hour
+            'queue': 'maintenance',
+            'soft_time_limit': 300,  # 5 minutes
+            'time_limit': 540,  # 9 minutes hard limit
+        }
+    },
+
+    # Auto-Tune Anomaly Detection Thresholds
+    # Runs: Weekly on Sunday at 3:00 AM UTC
+    # Rationale: Adjust thresholds based on false positive rates (weekly review)
+    # Queue: maintenance (low priority tuning)
+    "monitoring_auto_tune_anomaly_thresholds": {
+        'task': 'monitoring.auto_tune_anomaly_thresholds',
+        'schedule': crontab(minute='0', hour='3', day_of_week='0'),  # Sunday 3:00 AM
+        'options': {
+            'expires': 3600,  # 1 hour
+            'queue': 'maintenance',
+            'soft_time_limit': 120,  # 2 minutes
+            'time_limit': 240,  # 4 minutes hard limit
+        }
+    },
+
+    # ============================================================================
     # ✅ SCHEDULE HEALTH SUMMARY & VALIDATION
     # ============================================================================
     #
@@ -357,6 +473,9 @@ app.conf.beat_schedule = {
     # :35 - reports (every 15min) ─────────────────── ✓ Safe zone
     # :45 - ticket escalation (every 30min) ───────── ✓ 15min offset from autoclose
     # :50 - reports (every 15min) ─────────────────── ✓ Safe zone
+    #
+    # WEEKLY TASKS:
+    # Sunday 2:00 AM - ML active learning ─────────── ✓ Off-peak, no conflicts
     #
     # ✓ DESIGN GOALS ACHIEVED:
     # - No overlaps at common times (:00, :15, :30, :45)

@@ -933,7 +933,7 @@ class SecretValidator:
             )
 
         # Use Django's configured password validators if apps are ready
-        from django.core.exceptions import ValidationError as DjangoValidationError
+        from django.core.exceptions import ValidationError as DjangoValidationError, ImproperlyConfigured
         from django.apps import apps
 
         # Check if Django apps are ready (may not be during settings loading)
@@ -964,9 +964,12 @@ class SecretValidator:
                 f"{secret_name} validation failed: {error_messages}",
                 "Use a strong password that meets the configured password policy (min 12 chars, not similar to user info, not common)"
             )
-        except Exception:
-            # Apps not ready or other issue - continue with basic validation below
-            logger.debug(f"Could not use Django password validators for {secret_name} - using basic validation")
+        except ImproperlyConfigured as e:
+            # Apps not ready - acceptable to fall back to basic validation
+            logger.debug(f"Django password validators not ready for {secret_name}: {e}")
+        except ImportError as e:
+            # Missing dependencies for password validation
+            logger.debug(f"Could not import password validators for {secret_name}: {e}")
 
         # Additional checks for admin passwords
         if len(secret_value) < 16:

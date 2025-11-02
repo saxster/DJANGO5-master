@@ -111,6 +111,28 @@ class FraudPredictionLog(BaseModel, TenantAwareModel):
         help_text="Type of ML model used"
     )
 
+    # Conformal prediction confidence intervals (Phase 1 enhancement)
+    prediction_lower_bound = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='Lower bound of prediction interval (90% coverage)'
+    )
+    prediction_upper_bound = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='Upper bound of prediction interval (90% coverage)'
+    )
+    confidence_interval_width = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='Width of confidence interval (upper - lower)'
+    )
+    calibration_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='Conformal predictor calibration quality (0-1)'
+    )
+
     # Outcome tracking (for model improvement)
     actual_attendance_event = models.ForeignKey(
         'attendance.PeopleEventlog',
@@ -167,10 +189,26 @@ class FraudPredictionLog(BaseModel, TenantAwareModel):
             models.Index(fields=['risk_level', 'predicted_at']),
             models.Index(fields=['fraud_probability']),
             models.Index(fields=['actual_fraud_detected']),
+            models.Index(
+                fields=['confidence_interval_width'],
+                name='fraud_pred_log_ci_width_idx'
+            ),
         ]
 
     def __str__(self):
         return f"Prediction: {self.person.peoplename} - {self.risk_level} ({self.fraud_probability:.2f})"
+
+    @property
+    def is_narrow_interval(self):
+        """
+        Check if prediction has narrow confidence interval (high confidence).
+
+        Narrow interval defined as width < 0.2, indicating high certainty.
+        Used for human-out-of-loop automation eligibility.
+        """
+        if self.confidence_interval_width is None:
+            return False
+        return self.confidence_interval_width < 0.2
 
     def record_outcome(self, attendance_event, fraud_detected, fraud_score):
         """

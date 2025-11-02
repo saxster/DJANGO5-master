@@ -60,7 +60,7 @@ check_prerequisites() {
     
     # Check Django settings
     if [[ -z "$DJANGO_SETTINGS_MODULE" ]]; then
-        export DJANGO_SETTINGS_MODULE="intelliwiz_config.settings.test"
+        export DJANGO_SETTINGS_MODULE="intelliwiz_config.settings_test"
         print_status $YELLOW "Set DJANGO_SETTINGS_MODULE to $DJANGO_SETTINGS_MODULE"
     fi
     

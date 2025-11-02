@@ -99,25 +99,14 @@ CACHES = {
     },
 }
 
-# Session configuration
-SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
-SESSION_CACHE_ALIAS = "default"
-SESSION_COOKIE_AGE = 28800  # 8 hours
-SESSION_COOKIE_SECURE = False  # Set to True in production
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_SAVE_EVERY_REQUEST = False  # Performance optimization
+# NOTE: Session configuration has been moved to security/authentication.py
+# to avoid conflicts and ensure security settings are in a single location.
+# Session settings MUST be configured in security/authentication.py only.
+# See Rule #10: Session Security Standards in .claude/rules.md
 
 __all__ = [
     'DATABASES',
     'DEFAULT_AUTO_FIELD',
     'DATABASE_ROUTERS',
     'CACHES',
-    'SESSION_ENGINE',
-    'SESSION_CACHE_ALIAS',
-    'SESSION_COOKIE_AGE',
-    'SESSION_COOKIE_SECURE',
-    'SESSION_COOKIE_HTTPONLY',
-    'SESSION_COOKIE_SAMESITE',
-    'SESSION_SAVE_EVERY_REQUEST',
 ]

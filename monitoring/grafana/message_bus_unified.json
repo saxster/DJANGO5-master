@@ -1,0 +1,71 @@
+{
+  "dashboard": {
+    "title": "Message Bus - Unified Overview",
+    "tags": ["message-bus", "overview", "celery", "mqtt", "websocket"],
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Health Overview",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1}
+      },
+      {
+        "id": 2,
+        "title": "Celery Workers",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 1, "w": 6, "h": 4},
+        "targets": [{"expr": "celery_worker_active_tasks"}],
+        "thresholds": {"mode": "absolute", "steps": [{"value": 0, "color": "red"}, {"value": 1, "color": "green"}]}
+      },
+      {
+        "id": 3,
+        "title": "MQTT Subscriber",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 1, "w": 6, "h": 4},
+        "targets": [{"expr": "celery_mqtt_subscriber_connected_total"}],
+        "thresholds": {"steps": [{"value": 0, "color": "red"}, {"value": 1, "color": "green"}]}
+      },
+      {
+        "id": 4,
+        "title": "WebSocket Connections",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 1, "w": 6, "h": 4},
+        "targets": [{"expr": "sum(celery_websocket_connection_established_total) - sum(celery_websocket_connection_closed_total)"}]
+      },
+      {
+        "id": 5,
+        "title": "Circuit Breaker Status",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 1, "w": 6, "h": 4},
+        "targets": [{"expr": "celery_external_service_circuit_open_total"}],
+        "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 1, "color": "red"}]}
+      },
+      {
+        "id": 6,
+        "title": "Message Flow",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 5, "w": 24, "h": 1}
+      },
+      {
+        "id": 7,
+        "title": "End-to-End Latency (MQTT → WebSocket)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 6, "w": 24, "h": 8},
+        "targets": [
+          {"expr": "rate(celery_mqtt_message_processed_total[5m])", "legendFormat": "MQTT Received"},
+          {"expr": "rate(celery_websocket_broadcast_success_total[5m])", "legendFormat": "WebSocket Broadcast"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Critical Alerts (Last 24h)",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 14, "w": 24, "h": 8},
+        "targets": [
+          {"expr": "sum by (alert_type, severity) (increase(celery_mqtt_critical_alert_processed_total[24h]))", "format": "table"}
+        ]
+      }
+    ],
+    "refresh": "30s"
+  }
+}

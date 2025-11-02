@@ -202,3 +202,28 @@ def client_with_user_no_capability(tenant, db):
     client = APIClient()
     client.force_authenticate(user=user)
     return client
+
+
+@pytest.fixture
+def noc_alert_event(tenant, sample_client, sample_site, db):
+    """
+    Create NOC alert event for testing.
+
+    Added for TASK 11: Consolidated event feed tests.
+    """
+    return NOCAlertEvent.objects.create(
+        tenant=tenant,
+        client=sample_client,
+        bu=sample_site,
+        alert_type='FRAUD_ALERT',
+        severity='HIGH',
+        status='NEW',
+        dedup_key='fraud_alert_001',
+        message='High fraud probability detected',
+        entity_type='attendance',
+        entity_id=123,
+        metadata={
+            'fraud_score': 0.85,
+            'detection_method': 'ML_PREDICTION'
+        }
+    )

@@ -4,7 +4,7 @@
 {% block card_title %}
 GeoFence List - Classic View
 <div class="float-end">
-	<a href="{{ url('onboarding:geofence') }}?template=true" class="btn btn-sm btn-light-primary me-2">
+	<a href="{{ url('admin:onboarding_geofencemaster_changelist') }}" class="btn btn-sm btn-light-primary me-2">
 		<i class="bi bi-grid-3x3-gap"></i> Modern View
 	</a>
 </div>
@@ -44,7 +44,7 @@ var table             = null;
 $(document).ready(function(){
     table = $(table_id).DataTable({
 			ajax:{
-				url: '{{ url("onboarding:geofence") }}?action=list',
+				/api/v1/admin/config/geofences/',
 			},
 			pageLength:50,
 			columns     : [
@@ -83,7 +83,7 @@ $(document).ready(function(){
                     text     : `Add New &nbsp;<i class='fas fa-plus ch4'></i></a>`,
 					className: "btn btn-sm border border-primary btn-light-primary add_new_geofence",
                     action:function(e, dt, node, config){
-                        location.href = '{{ url("onboarding:geofence") }}?action=form'
+                        location.href = '{% url 'admin:onboarding_geofencemaster_add' %}''
                     }
                 }
 			]

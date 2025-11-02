@@ -7,11 +7,14 @@ training examples, and labeling tasks with rich functionality.
 
 from django.contrib import admin
 from django.utils.html import format_html
-from django.urls import reverse
+from django.urls import reverse, path
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Avg
+from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
 
 from .models import TrainingDataset, TrainingExample, LabelingTask
+from .monitoring import TrainingDataMetrics
 
 
 @admin.register(TrainingDataset)
@@ -547,3 +550,45 @@ class LabelingTaskAdmin(admin.ModelAdmin):
         updated = queryset.update(priority=10)
         self.message_user(request, f'{updated} tasks set to high priority.')
     set_high_priority.short_description = "Set high priority"
+
+
+# ============================================================================
+# CUSTOM ADMIN VIEWS - ML TRAINING MONITORING DASHBOARD
+# ============================================================================
+
+@staff_member_required
+def ml_training_metrics_dashboard(request):
+    """
+    Custom admin view showing ML training data capture metrics.
+
+    Provides real-time health monitoring for:
+    - Training data capture rate
+    - Labeling task backlog
+    - Data quality metrics
+    - Active learning effectiveness
+    """
+    metrics = TrainingDataMetrics.get_comprehensive_dashboard()
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'ML Training Metrics Dashboard',
+        'metrics': metrics,
+        'capture_rate': metrics.get('capture_rate', {}),
+        'labeling': metrics.get('labeling_backlog', {}),
+        'quality': metrics.get('quality', {}),
+        'active_learning': metrics.get('active_learning', {}),
+    }
+
+    return render(request, 'admin/ml_training/metrics_dashboard.html', context)
+
+
+# Custom admin site URLs
+class MLTrainingAdminSite(admin.AdminSite):
+    """Custom admin site with ML training dashboard."""
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('ml-training/metrics/', ml_training_metrics_dashboard, name='ml_training_metrics'),
+        ]
+        return custom_urls + urls

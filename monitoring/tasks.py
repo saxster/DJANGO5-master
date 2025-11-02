@@ -37,6 +37,9 @@ __all__ = [
     'scan_security_threats_task',
     'cleanup_old_metrics_task',
     'update_performance_baselines_task',
+    'collect_infrastructure_metrics_task',
+    'detect_infrastructure_anomalies_task',
+    'auto_tune_anomaly_thresholds_task',
 ]
 
 
@@ -351,4 +354,254 @@ def update_performance_baselines_task(self, metric_names: Optional[List[str]] = 
 
     except Exception as e:
         logger.error(f"Baseline update task failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=120)
+
+
+@shared_task(
+    bind=True,
+    queue='monitoring',
+    max_retries=3,
+    retry_backoff=True,
+    time_limit=120,
+    name='monitoring.collect_infrastructure_metrics'
+)
+def collect_infrastructure_metrics_task(self):
+    """
+    Collect infrastructure metrics (CPU, memory, disk, database, app).
+
+    Schedule: Every 60 seconds
+    Queue: monitoring
+    """
+    try:
+        from monitoring.collectors.infrastructure_collector import InfrastructureCollector
+        from monitoring.models import InfrastructureMetric
+
+        # Collect all metrics
+        metrics = InfrastructureCollector.collect_all_metrics()
+
+        # Batch insert for performance
+        if metrics:
+            metric_objects = [
+                InfrastructureMetric(**metric_data)
+                for metric_data in metrics
+            ]
+            InfrastructureMetric.objects.bulk_create(
+                metric_objects,
+                batch_size=100,
+                ignore_conflicts=True
+            )
+
+            logger.info(
+                f"Infrastructure metrics collected: {len(metrics)} metrics",
+                extra={'metric_count': len(metrics)}
+            )
+
+        return {
+            'success': True,
+            'metrics_collected': len(metrics)
+        }
+
+    except Exception as e:
+        logger.error(f"Infrastructure metrics collection task failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=60)
+
+
+@shared_task(
+    bind=True,
+    queue='monitoring',
+    max_retries=3,
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=300,
+    name='monitoring.detect_infrastructure_anomalies'
+)
+def detect_infrastructure_anomalies_task(self, window_hours: int = 1):
+    """
+    Detect anomalies in infrastructure metrics and create alerts.
+
+    Schedule: Every 5 minutes
+    Queue: monitoring
+    Rate Limiting: Max 10 alerts per 15 minutes
+
+    Args:
+        window_hours: Time window for anomaly detection (default: 1 hour)
+    """
+    try:
+        from monitoring.models import InfrastructureMetric
+        from monitoring.services.anomaly_detector import AnomalyDetector
+        from monitoring.services.anomaly_alert_service import AnomalyAlertService
+
+        # Metrics to monitor
+        metric_names = [
+            'cpu_percent',
+            'memory_percent',
+            'disk_io_read_mb',
+            'disk_io_write_mb',
+            'db_connections_active',
+            'db_query_time_ms',
+            'celery_queue_depth',
+            'request_latency_p95',
+            'error_rate'
+        ]
+
+        detector = AnomalyDetector()
+        anomalies_found = 0
+        alerts_created = 0
+
+        for metric_name in metric_names:
+            try:
+                # Fetch last N hours of data
+                cutoff_time = timezone.now() - timedelta(hours=window_hours)
+                metrics = InfrastructureMetric.objects.filter(
+                    metric_name=metric_name,
+                    timestamp__gte=cutoff_time
+                ).order_by('timestamp').values('timestamp', 'value')
+
+                if len(metrics) < 10:
+                    # Need at least 10 data points
+                    continue
+
+                # Convert to list of dicts for anomaly detector
+                data_points = list(metrics)
+
+                # Detect anomalies
+                # Note: We need to adapt the detector to work with our data structure
+                # For now, use statistical detection on values
+                values = [m['value'] for m in data_points]
+                mean_value = sum(values) / len(values)
+                latest_value = values[-1]
+
+                # Create anomaly stats dict
+                stats = {
+                    'mean': mean_value,
+                    'p50': sorted(values)[len(values)//2],
+                    'p95': sorted(values)[int(len(values)*0.95)],
+                    'min': min(values),
+                    'max': max(values),
+                    'count': len(values)
+                }
+
+                # Detect using Z-score
+                anomaly = detector._detect_by_zscore(metric_name, latest_value, stats)
+                if anomaly:
+                    anomalies_found += 1
+
+                    # Create alert if high/critical severity
+                    if anomaly.severity in ('high', 'critical'):
+                        alert = AnomalyAlertService.convert_anomaly_to_alert(anomaly)
+                        if alert:
+                            alerts_created += 1
+
+                # Also detect spikes
+                spike_anomaly = detector._detect_spike(metric_name, latest_value, stats)
+                if spike_anomaly and spike_anomaly.severity in ('high', 'critical'):
+                    anomalies_found += 1
+                    alert = AnomalyAlertService.convert_anomaly_to_alert(spike_anomaly)
+                    if alert:
+                        alerts_created += 1
+
+            except Exception as e:
+                logger.warning(
+                    f"Error detecting anomalies for {metric_name}: {e}",
+                    extra={'metric_name': metric_name}
+                )
+                continue
+
+        logger.info(
+            f"Infrastructure anomaly detection completed: {anomalies_found} anomalies, {alerts_created} alerts",
+            extra={
+                'anomalies_found': anomalies_found,
+                'alerts_created': alerts_created,
+                'window_hours': window_hours
+            }
+        )
+
+        return {
+            'success': True,
+            'anomalies_found': anomalies_found,
+            'alerts_created': alerts_created,
+            'metrics_analyzed': len(metric_names)
+        }
+
+    except Exception as e:
+        logger.error(f"Infrastructure anomaly detection task failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=60)
+
+
+@shared_task(
+    bind=True,
+    queue='maintenance',
+    max_retries=2,
+    time_limit=600,
+    name='monitoring.cleanup_infrastructure_metrics'
+)
+def cleanup_infrastructure_metrics_task(self, retention_days: int = 30):
+    """
+    Clean up old infrastructure metrics from database.
+
+    Schedule: Daily at 2 AM
+    Retention: 30 days (configurable)
+
+    Args:
+        retention_days: Number of days to retain metrics
+    """
+    try:
+        from monitoring.models import InfrastructureMetric
+
+        cutoff_time = timezone.now() - timedelta(days=retention_days)
+
+        # Delete old metrics
+        deleted_count, _ = InfrastructureMetric.objects.filter(
+            timestamp__lt=cutoff_time
+        ).delete()
+
+        logger.info(
+            f"Infrastructure metrics cleanup completed: {deleted_count} old metrics removed",
+            extra={'deleted_count': deleted_count, 'retention_days': retention_days}
+        )
+
+        return {
+            'success': True,
+            'metrics_deleted': deleted_count,
+            'retention_days': retention_days
+        }
+
+    except Exception as e:
+        logger.error(f"Infrastructure metrics cleanup task failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=120)
+
+
+@shared_task(
+    bind=True,
+    queue='maintenance',
+    max_retries=2,
+    time_limit=300,
+    name='monitoring.auto_tune_anomaly_thresholds'
+)
+def auto_tune_anomaly_thresholds_task(self):
+    """
+    Auto-tune anomaly detection thresholds based on false positive rates.
+
+    Schedule: Weekly (Sunday at 3:00 AM UTC)
+    Logic:
+    - If FP rate > 20% for a metric, increase threshold (less sensitive)
+    - If FP rate < 5%, decrease threshold (more sensitive)
+    """
+    try:
+        from monitoring.services.anomaly_feedback_service import AnomalyFeedbackService
+
+        result = AnomalyFeedbackService.auto_tune_thresholds()
+
+        if result['success']:
+            logger.info(
+                f"Anomaly threshold auto-tuning completed: {result['adjustments_count']} adjustments",
+                extra={'adjustments_count': result['adjustments_count']}
+            )
+        else:
+            logger.error(f"Anomaly threshold auto-tuning failed: {result.get('error')}")
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Anomaly threshold auto-tuning task failed: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=120)

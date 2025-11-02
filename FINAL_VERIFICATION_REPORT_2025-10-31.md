@@ -763,7 +763,7 @@ PHASE 1 (4 files):
   apps/activity/views/asset/__init__.py
   apps/activity/urls.py
   apps/core/urls_assets.py
-  apps/activity/views/asset_views.py
+  apps/activity/views/asset_views.py (REMOVED 2025-10-31)
 
 PHASE 2 (3 files):
   intelliwiz_config/settings/integrations.py

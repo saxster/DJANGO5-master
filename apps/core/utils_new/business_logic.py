@@ -33,8 +33,6 @@ __all__ = [
     'save_capsinfo_inside_session',
     'save_user_session',
     'update_timeline_data',
-    'process_wizard_form',
-    'update_wizard_form',
     'update_prev_step',
     'update_next_step',
     'update_other_info',
@@ -47,8 +45,6 @@ __all__ = [
     'get_index_for_deletion',
     'delete_object',
     'delete_unsaved_objects',
-    'cache_it',
-    'get_from_cache',
 ]
 
 

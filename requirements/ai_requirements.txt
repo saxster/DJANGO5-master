@@ -28,6 +28,7 @@ hnswlib>=0.7.0    # Hierarchical Navigable Small World graphs
 # numpy>=1.24.0  # Already in base.txt line 139
 # pandas>=2.0.0  # Already in base.txt line 159
 # scipy>=1.11.0  # Already in base.txt line 208
+xgboost>=2.0.0  # Gradient boosting for fraud detection and imbalanced classification
 
 # Deep Learning and Transformers
 # NOTE: These are already in base.txt - duplicates removed to avoid conflicts

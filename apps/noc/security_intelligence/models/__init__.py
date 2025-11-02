@@ -16,6 +16,7 @@ from .biometric_verification_log import BiometricVerificationLog
 from .gps_validation_log import GPSValidationLog
 from .behavioral_profile import BehavioralProfile
 from .fraud_prediction_log import FraudPredictionLog
+from .fraud_detection_model import FraudDetectionModel
 from .ml_training_dataset import MLTrainingDataset
 from .non_negotiables_scorecard import NonNegotiablesScorecard
 from .site_audit_schedule import SiteAuditSchedule
@@ -35,6 +36,7 @@ __all__ = [
     'GPSValidationLog',
     'BehavioralProfile',
     'FraudPredictionLog',
+    'FraudDetectionModel',
     'MLTrainingDataset',
     'NonNegotiablesScorecard',
     'SiteAuditSchedule',
