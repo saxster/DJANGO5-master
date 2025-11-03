@@ -133,6 +133,18 @@ class FraudPredictionLog(BaseModel, TenantAwareModel):
         help_text='Conformal predictor calibration quality (0-1)'
     )
 
+    # SHAP explainability (Phase 4, Feature 1)
+    shap_values = models.JSONField(
+        null=True,
+        blank=True,
+        default=dict,
+        help_text='SHAP feature contributions for this prediction'
+    )
+    explanation_text = models.TextField(
+        blank=True,
+        help_text='Human-readable explanation (top contributing features)'
+    )
+
     # Outcome tracking (for model improvement)
     actual_attendance_event = models.ForeignKey(
         'attendance.PeopleEventlog',
