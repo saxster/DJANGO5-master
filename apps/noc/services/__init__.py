@@ -13,11 +13,13 @@ from .reporting_service import NOCReportingService
 from .cache_service import NOCCacheService
 from .privacy_service import NOCPrivacyService
 from .incident_service import NOCIncidentService
+from .incident_context_service import IncidentContextService
 from .websocket_service import NOCWebSocketService
 from .export_service import NOCExportService
 from .view_service import NOCViewService
 from .time_series_query_service import TimeSeriesQueryService
 from .playbook_engine import PlaybookEngine
+from .predictive_alerting_service import PredictiveAlertingService
 
 __all__ = [
     'NOCAggregationService',
@@ -28,9 +30,11 @@ __all__ = [
     'NOCCacheService',
     'NOCPrivacyService',
     'NOCIncidentService',
+    'IncidentContextService',
     'NOCWebSocketService',
     'NOCExportService',
     'NOCViewService',
     'TimeSeriesQueryService',
     'PlaybookEngine',
+    'PredictiveAlertingService',
 ]

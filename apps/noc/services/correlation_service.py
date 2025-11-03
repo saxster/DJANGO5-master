@@ -73,6 +73,24 @@ class AlertCorrelationService:
                 )
                 logger.info(f"New alert created", extra={'alert_id': alert.id, 'alert_type': alert.alert_type})
 
+                # Calculate priority score using ML-based service
+                try:
+                    from .alert_priority_scorer import AlertPriorityScorer
+                    priority_score, priority_features = AlertPriorityScorer.calculate_priority(alert)
+                    alert.calculated_priority = priority_score
+                    alert.priority_features = priority_features
+                    alert.save(update_fields=['calculated_priority', 'priority_features'])
+                    logger.info(
+                        f"Priority calculated",
+                        extra={
+                            'alert_id': alert.id,
+                            'priority_score': priority_score
+                        }
+                    )
+                except Exception as e:
+                    # Don't fail alert creation if priority calculation fails
+                    logger.error(f"Error calculating priority", extra={'alert_id': alert.id, 'error': str(e)}, exc_info=True)
+
                 # Cluster alert using ML-based clustering service
                 try:
                     from .alert_clustering_service import AlertClusteringService

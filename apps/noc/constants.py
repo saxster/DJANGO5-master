@@ -76,6 +76,26 @@ NOC_CAPABILITIES = {
 
 
 ALERT_TYPES = {
+    # Predictive Alert Types (Enhancement #5)
+    'PREDICTIVE_SLA_BREACH': {
+        'code': 'PREDICTIVE_SLA_BREACH',
+        'name': 'Predictive SLA Breach',
+        'description': 'ML prediction: Ticket/WO likely to breach SLA in next 2 hours',
+        'default_severity': 'HIGH',
+    },
+    'PREDICTIVE_DEVICE_FAILURE': {
+        'code': 'PREDICTIVE_DEVICE_FAILURE',
+        'name': 'Predictive Device Failure',
+        'description': 'ML prediction: Device likely to go offline in next 1 hour',
+        'default_severity': 'HIGH',
+    },
+    'PREDICTIVE_STAFFING_GAP': {
+        'code': 'PREDICTIVE_STAFFING_GAP',
+        'name': 'Predictive Staffing Gap',
+        'description': 'ML prediction: Site likely understaffed in next 4 hours',
+        'default_severity': 'MEDIUM',
+    },
+    # Reactive Alert Types
     'SLA_BREACH': {
         'code': 'SLA_BREACH',
         'name': 'SLA Breach',

@@ -113,8 +113,18 @@ class PredictiveFraudDetector:
         ]
         X = np.array([[features_dict[col] for col in feature_cols]])
 
-        # Predict probability
-        fraud_probability = model.predict_proba(X)[0, 1]
+        # Track inference latency (Recommendation #8 - Observability)
+        from apps.ml.services.inference_metrics_collector import InferenceMetricsCollector
+
+        with InferenceMetricsCollector.track_inference(
+            model_type='fraud_detector',
+            model_version=model_record.model_version
+        ) as inference_metrics:
+            # Predict probability
+            fraud_probability = model.predict_proba(X)[0, 1]
+
+        # Log inference latency
+        inference_latency_ms = inference_metrics.get('latency_ms', 0)
 
         # Apply optimal threshold
         optimal_threshold = model_record.optimal_threshold
@@ -141,6 +151,7 @@ class PredictiveFraudDetector:
             'model_version': model_record.model_version,
             'optimal_threshold': optimal_threshold,
             'prediction_method': 'xgboost',
+            'inference_latency_ms': inference_latency_ms,  # Observability
         }
 
         # Add conformal prediction intervals if available
@@ -152,6 +163,17 @@ class PredictiveFraudDetector:
                 'calibration_score': conformal_interval['calibration_score'],
                 'is_narrow_interval': conformal_interval['width'] < 0.2,
             })
+
+            # Log decision (Recommendation #8 - Observability)
+            decision_type = 'ticket' if result.get('is_narrow_interval') and risk_level in ['HIGH', 'CRITICAL'] else 'alert'
+            automated = result.get('is_narrow_interval', False) and risk_level in ['HIGH', 'CRITICAL']
+
+            InferenceMetricsCollector.log_decision(
+                model_type='fraud_detector',
+                decision_type=decision_type,
+                confidence=conformal_interval['calibration_score'],
+                automated=automated
+            )
 
         return result
 

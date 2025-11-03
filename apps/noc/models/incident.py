@@ -32,6 +32,39 @@ class NOCIncident(TenantAwareModel, BaseModel):
         on_delete=models.CASCADE,
         verbose_name=_("Client")
     )
+    site = models.ForeignKey(
+        'onboarding.Bt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='noc_incidents',
+        verbose_name=_("Site")
+    )
+
+    title = models.CharField(
+        max_length=255,
+        verbose_name=_("Incident Title")
+    )
+    description = models.TextField(
+        verbose_name=_("Incident Description")
+    )
+    severity = models.CharField(
+        max_length=20,
+        choices=[
+            ('CRITICAL', 'Critical'),
+            ('HIGH', 'High'),
+            ('MEDIUM', 'Medium'),
+            ('LOW', 'Low'),
+            ('INFO', 'Informational'),
+        ],
+        default='MEDIUM',
+        verbose_name=_("Severity")
+    )
+    metadata = models.JSONField(
+        default=dict,
+        verbose_name=_("Metadata"),
+        help_text=_("Enrichment context and additional metadata")
+    )
 
     alerts = models.ManyToManyField(
         'noc.NOCAlertEvent',

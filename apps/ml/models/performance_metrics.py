@@ -133,6 +133,30 @@ class ModelPerformanceMetrics(models.Model):
         help_text='Average conformal prediction calibration quality'
     )
 
+    # Inference performance metrics (Recommendation #8)
+    avg_inference_latency_ms = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='Average inference latency in milliseconds'
+    )
+    p95_inference_latency_ms = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='95th percentile inference latency (ms)'
+    )
+    total_decisions = models.IntegerField(
+        default=0,
+        help_text='Total decisions made (tickets + alerts)'
+    )
+    automated_decisions = models.IntegerField(
+        default=0,
+        help_text='Decisions made automatically (no human review)'
+    )
+    manual_review_decisions = models.IntegerField(
+        default=0,
+        help_text='Decisions requiring manual review'
+    )
+
     # Drift indicators (computed by drift detection service)
     statistical_drift_pvalue = models.FloatField(
         null=True,

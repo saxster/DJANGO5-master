@@ -25,10 +25,20 @@ Background tasks for NOC operations including:
 from .baseline_tasks import UpdateBaselineThresholdsTask
 from .metric_downsampling_tasks import DownsampleMetricsHourlyTask, DownsampleMetricsDailyTask
 from .playbook_tasks import ExecutePlaybookTask
+from .predictive_alerting_tasks import (
+    PredictSLABreachesTask,
+    PredictDeviceFailuresTask,
+    PredictStaffingGapsTask,
+    ValidatePredictiveAlertsTask,
+)
 
 __all__ = [
     'UpdateBaselineThresholdsTask',
     'DownsampleMetricsHourlyTask',
     'DownsampleMetricsDailyTask',
     'ExecutePlaybookTask',
+    'PredictSLABreachesTask',
+    'PredictDeviceFailuresTask',
+    'PredictStaffingGapsTask',
+    'ValidatePredictiveAlertsTask',
 ]
