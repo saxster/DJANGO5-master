@@ -14,7 +14,7 @@ This breaks the circular dependency while maintaining 100% backward compatibilit
 import logging
 
 logger = logging.getLogger("django")
-# Late imports applied: apps.peoples.utils, apps.peoples.models, apps.onboarding.models, Approver
+# Late imports applied: apps.peoples.utils, apps.peoples.models, apps.core_onboarding.models, apps.client_onboarding.models, Approver
 # These are now imported inside functions to prevent circular dependencies
 from django.conf import settings
 import django.shortcuts as scts
@@ -410,7 +410,8 @@ def save_user_session(request, people, ctzoffset=None):
 
 def update_timeline_data(ids, request, update=False):
     # Late imports to prevent circular dependency
-    import apps.onboarding.models as ob
+    from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
     from apps.peoples import models as pm
 
     # sourcery skip: hoist-statement-from-if, remove-pass-body

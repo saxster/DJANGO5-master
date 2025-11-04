@@ -12,7 +12,8 @@ import json
 from apps.core.utils_new.business_logic import initailize_form_fields
 
 # from this project
-import apps.onboarding.models as obm  # onboarding-models
+from .models import Bt, TypeAssist  # client_onboarding models (formerly apps.onboarding)
+from apps.core_onboarding.models import GeofenceMaster, Bu
 from apps.peoples import models as pm  # onboarding-utils
 from django.contrib.gis.geos import GEOSGeometry
 from django.http import QueryDict
@@ -31,7 +32,7 @@ class SuperTypeAssistForm(forms.ModelForm):
     }
 
     class Meta:
-        model = obm.TypeAssist
+        model = TypeAssist
         fields = ["tacode", "taname", "tatype", "ctzoffset", "enable"]
         labels = {
             "tacode": "Code",
@@ -87,7 +88,7 @@ class TypeAssistForm(SuperTypeAssistForm):
         S = self.request.session
         super().__init__(*args, **kwargs)
         self.fields["enable"].initial = True
-        self.fields["tatype"].queryset = obm.TypeAssist.objects.filter(
+        self.fields["tatype"].queryset = TypeAssist.objects.filter(
             (Q(cuser__is_superuser=True) | Q(client_id__in=[S["client_id"], 1])),
             enable=True,
         )
@@ -124,7 +125,7 @@ class BtForm(forms.ModelForm):
     parent = forms.ModelChoiceField(
         label="Belongs to",
         required=False,
-        queryset=obm.Bt.objects.none()  # Set in __init__ for tenant filtering
+        queryset=Bt.objects.none()  # Set in __init__ for tenant filtering
     )
     controlroom = forms.MultipleChoiceField(required=False, label="Control Room")
     permissibledistance = forms.IntegerField(
@@ -137,7 +138,7 @@ class BtForm(forms.ModelForm):
     designation = forms.ModelChoiceField(
         label="Desigantion",
         required=False,
-        queryset=obm.TypeAssist.objects.none()  # Set in __init__ for tenant filtering
+        queryset=TypeAssist.objects.none()  # Set in __init__ for tenant filtering
     )
     designation_count = forms.IntegerField(
         required=False, min_value=0, label="Designation Count"
@@ -156,7 +157,7 @@ class BtForm(forms.ModelForm):
     jsonData = forms.CharField(widget=forms.HiddenInput(), required=False)
 
     class Meta:
-        model = obm.Bt
+        model = Bt
         fields = [
             "bucode",
             "buname",
@@ -247,21 +248,21 @@ class BtForm(forms.ModelForm):
         )
 
         if self.client:
-            self.fields["identifier"].initial = obm.TypeAssist.objects.get(
+            self.fields["identifier"].initial = TypeAssist.objects.get(
                 tacode="CLIENT"
             ).id
             self.fields["identifier"].required = True
 
         self.fields["siteincharge"].initial = 1
         # filters for dropdown fields
-        self.fields["identifier"].queryset = obm.TypeAssist.objects.filter(
+        self.fields["identifier"].queryset = TypeAssist.objects.filter(
             Q(tacode="CLIENT") if self.client else Q(tatype__tacode="BVIDENTIFIER")
         )
-        self.fields["butype"].queryset = obm.TypeAssist.objects.filter(
+        self.fields["butype"].queryset = TypeAssist.objects.filter(
             tatype__tacode="SITETYPE", client_id=S["client_id"]
         )
-        qset = obm.Bt.objects.get_whole_tree(self.request.session["client_id"])
-        self.fields["parent"].queryset = obm.Bt.objects.filter(id__in=qset)
+        qset = Bt.objects.get_whole_tree(self.request.session["client_id"])
+        self.fields["parent"].queryset = Bt.objects.filter(id__in=qset)
         self.fields["controlroom"].choices = pm.People.objects.controlroomchoices(
             self.request
         )
@@ -272,7 +273,7 @@ class BtForm(forms.ModelForm):
             Q(peoplecode="NONE")
             | (Q(client_id=self.request.session["client_id"]) & Q(enable=True))
         )
-        self.fields["designation"].queryset = obm.TypeAssist.objects.filter(
+        self.fields["designation"].queryset = TypeAssist.objects.filter(
             Q(bu_id__in=[S["bu_id"], 1])
             | Q(bu_id__in=S["assignedsites"])
             | Q(bu_id__isnull=True),
@@ -302,7 +303,7 @@ class BtForm(forms.ModelForm):
         # Check for recent duplicate submissions (race condition protection)
         if not instance.pk and newcode and newtype and parent:  # Only for new records
             recent_cutoff = timezone.now() - timedelta(minutes=2)  # Check last 2 minutes
-            existing = obm.Bt.objects.filter(
+            existing = Bt.objects.filter(
                 bucode=newcode, 
                 parent=parent, 
                 identifier=newtype,
@@ -456,7 +457,7 @@ class ShiftForm(forms.ModelForm):
         S = self.request.session
         super().__init__(*args, **kwargs)
         self.fields["nightshiftappicable"].initial = False
-        self.fields["designation"].queryset = obm.TypeAssist.objects.filter(
+        self.fields["designation"].queryset = TypeAssist.objects.filter(
             Q(bu_id__in=[S["bu_id"], 1])
             | Q(bu_id__in=S["assignedsites"])
             | Q(bu_id__isnull=True),
@@ -531,7 +532,7 @@ class GeoFenceForm(forms.ModelForm):
         self.request = kwargs.pop("request", None)
         super().__init__(*args, **kwargs)
         self.fields["alerttogroup"].required = True
-        self.fields["bu"].queryset = obm.Bt.objects.filter(
+        self.fields["bu"].queryset = Bt.objects.filter(
             id__in=self.request.session["assignedsites"]
         )
         self.fields["alerttopeople"].required = True

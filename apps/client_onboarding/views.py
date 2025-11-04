@@ -12,18 +12,19 @@ from django.core.cache.backends.base import DEFAULT_TIMEOUT
 from django.db import IntegrityError, transaction
 from django.conf import settings
 from django.http.request import QueryDict
-from .models import Shift, TypeAssist, Bt, GeofenceMaster, Device, Subscription
+from .models import Shift, TypeAssist, Bt, Device, Subscription
+from apps.core_onboarding.models import GeofenceMaster
 from apps.peoples.utils import save_userinfo
 from apps.core import utils
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job, Jobneed
 from apps.peoples.models import Pgbelonging
 from apps.attendance.models import PeopleEventlog
-import apps.onboarding.forms as obforms
+from . import forms as client_forms  # client_onboarding forms (formerly apps.onboarding.forms)
 import apps.peoples.utils as putils
-import apps.onboarding.utils as obutils
+from . import utils as client_utils  # client_onboarding utils (formerly apps.onboarding.utils)
 from apps.peoples import admin as people_admin
-from apps.onboarding import admin as ob_admin
+from . import admin as client_admin  # client_onboarding admin (formerly apps.onboarding.admin)
 from apps.activity.admin.asset_admin import AssetResource, AssetResourceUpdate
 from apps.activity.admin.location_admin import LocationResource, LocationResourceUpdate
 # Updated import path after question_admin.py refactoring (2025-10-10)
@@ -78,7 +79,7 @@ def handle_pop_forms(request):
         return
     form_name = request.POST.get("form_name")
     form_dict = {
-        "ta_form": obforms.TypeAssistForm,
+        "ta_form": client_forms.TypeAssistForm,
     }
     form = form_dict[form_name](request.POST, request=request)
     if not form.is_valid():
@@ -99,7 +100,7 @@ def handle_pop_forms(request):
 
 class SuperTypeAssist(LoginRequiredMixin, View):
     params = {
-        "form_class": obforms.SuperTypeAssistForm,
+        "form_class": client_forms.SuperTypeAssistForm,
         "template_form": "onboarding/partials/partial_ta_form.html",
         "template_list": "onboarding/supertypeassist.html",
         "partial_form": "onboarding/partials/partial_ta_form.html",

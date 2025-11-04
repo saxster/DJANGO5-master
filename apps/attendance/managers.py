@@ -57,7 +57,7 @@ from apps.core.json_utils import safe_json_parse_params
         "apps.attendance.services.geospatial_service.GeospatialService",
         "apps.tenants.managers.TenantAwareManager (automatic tenant filtering)",
         "apps.activity.models.attachment_model.Attachment",
-        "apps.onboarding.models.GeofenceMaster"
+        "apps.core_onboarding.models.GeofenceMaster"
     ],
     used_by=[
         "apps.attendance.views.AttendanceReportViews (spatial analytics)",

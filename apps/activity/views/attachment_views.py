@@ -9,7 +9,7 @@ from django.views.generic.base import View
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
 import apps.activity.utils as av_utils
-import apps.onboarding.models as obm
+from apps.core_onboarding.models import GeofenceMaster
 from apps.core import utils
 from apps.client_onboarding.utils import is_point_in_geofence, polygon_to_address
 from apps.service.services.database_service import get_model_or_form
@@ -228,7 +228,7 @@ class PreviewImage(LoginRequiredMixin, View):
 
                 if get_people:
                     get_geofence_data = (
-                        obm.GeofenceMaster.objects.filter(
+                        GeofenceMaster.objects.filter(
                             id=get_people[0]["geofence_id"], enable=True
                         )
                         .exclude(id=1)

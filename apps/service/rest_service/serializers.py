@@ -95,7 +95,7 @@ class PgroupSerializer(ValidatedModelSerializer):
 class BtSerializer(BaseBtSerializer):
     """
     Mobile API serializer for Bt.
-    Inherits all validation from apps.onboarding.serializers.BtSerializers
+    Inherits all validation from apps.client_onboarding.serializers.BtSerializers
     """
     pass
 
@@ -103,7 +103,7 @@ class BtSerializer(BaseBtSerializer):
 class ShiftSerializer(BaseShiftSerializer):
     """
     Mobile API serializer for Shift.
-    Inherits all validation from apps.onboarding.serializers.ShiftSerializers
+    Inherits all validation from apps.client_onboarding.serializers.ShiftSerializers
     """
     pass
 
@@ -111,7 +111,7 @@ class ShiftSerializer(BaseShiftSerializer):
 class TypeAssistSerializer(BaseTypeAssistSerializer):
     """
     Mobile API serializer for TypeAssist with field remapping.
-    Inherits validation from apps.onboarding.serializers.TypeAssistSerializers
+    Inherits validation from apps.client_onboarding.serializers.TypeAssistSerializers
     """
 
     tatype_id = serializers.PrimaryKeyRelatedField(source="tatype", read_only=True)

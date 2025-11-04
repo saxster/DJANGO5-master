@@ -277,5 +277,5 @@ class KnowledgeReview(TenantAwareModel):
         return float(sum(scores) / len(scores)) if scores else 0.0
 
     # NOTE: Complex workflow logic (approve, reject, transitions) moved to:
-    # apps.onboarding.services.knowledge_review_service.KnowledgeReviewService
+    # apps.core_onboarding.services.knowledge_review_service.KnowledgeReviewService
     # This keeps the model lean (<150 lines per CLAUDE.md Rule #7)

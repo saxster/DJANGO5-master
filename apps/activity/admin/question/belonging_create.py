@@ -20,7 +20,8 @@ from import_export import fields, resources
 from import_export import widgets as wg
 
 from apps.activity.models.question_model import QuestionSetBelonging, QuestionSet, Question
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 from apps.service.validators import clean_string
 

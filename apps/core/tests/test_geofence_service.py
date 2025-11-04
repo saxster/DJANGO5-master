@@ -75,7 +75,7 @@ class GeofenceServiceTests(TestCase):
             )
             self.assertTrue(stabilized_state)  # Should maintain previous state
     
-    @patch('apps.onboarding.models.GeofenceMaster.objects.filter')
+    @patch('apps.core_onboarding.models.GeofenceMaster.objects.filter')
     def test_get_active_geofences_no_cache(self, mock_filter):
         """Test getting active geofences without cache"""
         # Mock database response
@@ -95,7 +95,7 @@ class GeofenceServiceTests(TestCase):
         self.assertEqual(geofences[0]['gfcode'], 'GF001')
         mock_filter.assert_called_once()
     
-    @patch('apps.onboarding.models.GeofenceMaster.objects.filter')
+    @patch('apps.core_onboarding.models.GeofenceMaster.objects.filter')
     def test_get_active_geofences_with_cache(self, mock_filter):
         """Test getting active geofences with cache"""
         mock_geofences = [

@@ -57,7 +57,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
         Bt.objects.all().delete()
         TypeAssist.objects.all().delete()
 
-    @patch('apps.onboarding.management.commands.init_intelliwiz.log')
+    @patch('apps.client_onboarding.management.commands.init_intelliwiz.log')
     def test_password_not_logged_in_superuser_creation(self, mock_log):
         """
         CRITICAL: Verify that passwords are NEVER logged during superuser creation.
@@ -84,7 +84,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
                    'password' in call_str.lower() and 'superadmin@2022#' not in call_str, \
                 f"❌ PASSWORD CONTEXT FOUND IN LOG: {call_str}"
 
-    @patch('apps.onboarding.management.commands.init_intelliwiz.log')
+    @patch('apps.client_onboarding.management.commands.init_intelliwiz.log')
     def test_loginid_is_logged(self, mock_log):
         """Verify that loginid (non-sensitive) IS logged for tracking."""
         from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
@@ -101,7 +101,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
 
         assert logged_loginid, "✅ loginid should be logged for audit trail"
 
-    @patch('apps.onboarding.management.commands.init_intelliwiz.log')
+    @patch('apps.client_onboarding.management.commands.init_intelliwiz.log')
     def test_correlation_id_present_in_logs(self, mock_log):
         """Verify correlation ID is present for tracking without exposing credentials."""
         from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
@@ -125,7 +125,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
 
         assert found_correlation_id, "Correlation ID should be present for secure tracking"
 
-    @patch('apps.onboarding.management.commands.init_intelliwiz.log')
+    @patch('apps.client_onboarding.management.commands.init_intelliwiz.log')
     def test_security_event_tracking(self, mock_log):
         """Verify security_event field is present for audit purposes."""
         from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
@@ -160,7 +160,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
         assert user.check_password(DEFAULT_PASSWORD), \
             "Password should be set correctly even if not logged"
 
-    @patch('apps.onboarding.management.commands.init_intelliwiz.log')
+    @patch('apps.client_onboarding.management.commands.init_intelliwiz.log')
     def test_existing_superuser_not_recreated(self, mock_log):
         """Verify existing superuser doesn't trigger password logging."""
         from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
@@ -195,7 +195,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
         )
 
         # Capture all log output
-        with patch('apps.onboarding.management.commands.init_intelliwiz.log') as mock_log:
+        with patch('apps.client_onboarding.management.commands.init_intelliwiz.log') as mock_log:
             client, site = create_dummy_client_and_site()
             user = create_superuser(client, site)
 
@@ -218,7 +218,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
         """
         from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
 
-        with patch('apps.onboarding.management.commands.init_intelliwiz.log') as mock_log:
+        with patch('apps.client_onboarding.management.commands.init_intelliwiz.log') as mock_log:
             client, site = create_dummy_client_and_site()
             user = create_superuser(client, site)
 
@@ -261,7 +261,7 @@ class TestInitIntellwizManagementCommandSecurity(TestCase):
         log_stream = StringIO()
         handler = logging.StreamHandler(log_stream)
         handler.setLevel(logging.INFO)
-        logger = logging.getLogger('apps.onboarding.management.commands.init_intelliwiz')
+        logger = logging.getLogger('apps.client_onboarding.management.commands.init_intelliwiz')
         logger.addHandler(handler)
 
         try:

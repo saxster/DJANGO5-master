@@ -2,13 +2,14 @@ from django.conf import settings
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from apps.activity.forms.job_form import JobForm, JobNeedForm
-import apps.onboarding.utils as ob_utils
+from apps.client_onboarding import utils as client_utils
 from apps.core import utils
 from django_select2 import forms as s2forms
 from django.db.models import Q
 from apps.activity.models.question_model import QuestionSet
 import apps.peoples.models as pm
-import apps.onboarding.models as ob
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from django.utils import timezone as dtimezone
 from datetime import datetime
 from apps.core.utils_new.business_logic import initailize_form_fields

@@ -5,7 +5,8 @@ from .base_extractor import BaseDataExtractor
 
 class TypeAssistExtractor(BaseDataExtractor):
     def extract(self, session_data: Dict[str, Any]) -> List[Tuple]:
-        import apps.onboarding.models as ob
+        from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 
         self._validate_session_data(session_data)
 

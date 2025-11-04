@@ -4,7 +4,8 @@ from django.http import QueryDict
 import re
 from apps.activity.models.location_model import Location
 from apps.core.utils_new.business_logic import initailize_form_fields
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 
 
