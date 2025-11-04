@@ -10,6 +10,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from .models import WellnessUserProgress, WellnessContentInteraction, WellnessContent
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 import logging
 
 User = get_user_model()
@@ -90,8 +91,8 @@ def check_wellness_milestones(user):
         except ImportError:
             # Milestone notification service not implemented yet
             pass
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to queue milestone notification: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to queue milestone notification: {e}", exc_info=True)
 
 
 def schedule_follow_up_content(interaction):
@@ -106,8 +107,8 @@ def schedule_follow_up_content(interaction):
             # from .services.content_scheduler import schedule_related_content
             # schedule_related_content(interaction.user, interaction.content.related_topics)
 
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to schedule follow-up content: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to schedule follow-up content: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=WellnessContent)
@@ -125,8 +126,8 @@ def handle_wellness_content_updated(sender, instance, created, **kwargs):
         try:
             # TODO: Update ML models with new content
             logger.debug("Queuing ML model update for new wellness content")
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to update ML models: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to update ML models: {e}", exc_info=True)
 
     else:
         logger.debug(f"Wellness content updated: '{instance.title}'")
@@ -150,8 +151,8 @@ def handle_wellness_preferences_updated(sender, instance, created, **kwargs):
         if instance.daily_tip_enabled:
             try:
                 schedule_daily_wellness_tip(instance.user)
-            except (ValueError, TypeError) as e:
-                logger.error(f"Failed to schedule initial daily tip: {e}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to schedule initial daily tip: {e}", exc_info=True)
 
     else:
         logger.debug(f"Wellness preferences updated for user {instance.user.peoplename}")
@@ -160,8 +161,8 @@ def handle_wellness_preferences_updated(sender, instance, created, **kwargs):
         if instance.daily_tip_enabled:
             try:
                 reschedule_daily_wellness_content(instance.user)
-            except (ValueError, TypeError) as e:
-                logger.error(f"Failed to reschedule wellness content: {e}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to reschedule wellness content: {e}", exc_info=True)
 
 
 def schedule_daily_wellness_tip(user):
@@ -208,8 +209,8 @@ def update_content_effectiveness_metrics(sender, instance, created, **kwargs):
             # - Training personalization models
             # - Adjusting content priority scores based on engagement
 
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to update effectiveness metrics: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to update effectiveness metrics: {e}", exc_info=True)
 
 
 # Mental Health Intervention Integration
@@ -251,8 +252,8 @@ def trigger_mental_health_intervention_analysis(sender, instance, created, **kwa
 
         logger.debug(f"Mental health intervention analysis queued for entry {instance.id}")
 
-    except Exception as e:
-        logger.error(f"Mental health intervention signal processing failed for entry {instance.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Mental health intervention signal processing failed for entry {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='journal.JournalEntry')
@@ -300,8 +301,8 @@ def monitor_crisis_patterns(sender, instance, created, **kwargs):
 
                 logger.critical(f"Crisis intervention task started: {crisis_task.id} for user {user.id}")
 
-    except Exception as e:
-        logger.error(f"Crisis monitoring signal failed for entry {instance.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Crisis monitoring signal failed for entry {instance.id}: {e}", exc_info=True)
 
 
 # Crisis intervention integration (legacy - updated above)
@@ -367,8 +368,8 @@ def _check_intervention_consent(user):
         # Using analytics_consent as proxy for intervention consent
         return privacy_settings.analytics_consent
 
-    except Exception as e:
-        logger.error(f"Consent check failed for user {user.id}: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Consent check failed for user {user.id}: {e}", exc_info=True)
         return False  # Conservative default
 
 
@@ -482,8 +483,8 @@ def trigger_wisdom_conversation_generation(sender, instance, created, **kwargs):
             else:
                 logger.debug(f"No conversation generated for delivery {instance.id}")
 
-    except Exception as e:
-        logger.error(f"Error in wisdom conversation generation signal for delivery {instance.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Error in wisdom conversation generation signal for delivery {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='wellness.ConversationThread')
@@ -516,8 +517,8 @@ def handle_conversation_thread_created(sender, instance, created, **kwargs):
 
                 logger.debug(f"Initialized thread {instance.id} with personality profile")
 
-        except Exception as e:
-            logger.error(f"Error initializing conversation thread {instance.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error initializing conversation thread {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='wellness.WisdomConversation')
@@ -552,8 +553,8 @@ def handle_wisdom_conversation_created(sender, instance, created, **kwargs):
             # Track conversation creation analytics
             _track_conversation_creation_analytics(instance)
 
-        except Exception as e:
-            logger.error(f"Error in post-processing for conversation {instance.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error in post-processing for conversation {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='wellness.ConversationEngagement')
@@ -579,8 +580,8 @@ def handle_conversation_engagement_created(sender, instance, created, **kwargs):
             # Check for milestone achievements
             _check_engagement_milestones(instance.user)
 
-        except Exception as e:
-            logger.error(f"Error processing conversation engagement {instance.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error processing conversation engagement {instance.id}: {e}", exc_info=True)
 
 
 # Helper functions for wisdom conversation signals
@@ -646,8 +647,8 @@ def _track_conversation_creation_analytics(conversation):
             }
         )
 
-    except Exception as e:
-        logger.error(f"Error tracking conversation creation analytics: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error tracking conversation creation analytics: {e}", exc_info=True)
 
 
 def _update_conversation_effectiveness(engagement):
@@ -671,8 +672,8 @@ def _update_conversation_effectiveness(engagement):
 
         logger.debug(f"Updated conversation {conversation.id} effectiveness score to {conversation.personalization_score}")
 
-    except Exception as e:
-        logger.error(f"Error updating conversation effectiveness: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error updating conversation effectiveness: {e}", exc_info=True)
 
 
 def _update_user_personalization_from_engagement(engagement):
@@ -704,8 +705,8 @@ def _update_user_personalization_from_engagement(engagement):
 
         logger.debug(f"Updated personalization data for user {engagement.user.peoplename}")
 
-    except Exception as e:
-        logger.error(f"Error updating user personalization from engagement: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Error updating user personalization from engagement: {e}", exc_info=True)
 
 
 def _check_engagement_milestones(user):
@@ -733,5 +734,5 @@ def _check_engagement_milestones(user):
 
                 break
 
-    except Exception as e:
-        logger.error(f"Error checking engagement milestones for user {user.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Error checking engagement milestones for user {user.id}: {e}", exc_info=True)

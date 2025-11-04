@@ -17,6 +17,7 @@ from django.core.cache import cache
 from django.contrib.sessions.models import Session
 
 from apps.helpbot.models import HelpBotContext, HelpBotSession
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +90,8 @@ class HelpBotContextService:
                 logger.debug(f"Captured context {context.context_id} for user {user.email}")
                 return context
 
-        except Exception as e:
-            logger.error(f"Error capturing context: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error capturing context: {e}", exc_info=True)
             # Return minimal context to avoid breaking functionality
             return self._create_minimal_context(user, session)
 
@@ -138,8 +139,8 @@ class HelpBotContextService:
 
             return context
 
-        except Exception as e:
-            logger.error(f"Error extracting context from request: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error extracting context from request: {e}", exc_info=True)
             return {}
 
     def _is_sensitive_field(self, field_name: str) -> bool:
@@ -182,8 +183,8 @@ class HelpBotContextService:
 
             return browser_info
 
-        except Exception as e:
-            logger.error(f"Error extracting browser info: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error extracting browser info: {e}", exc_info=True)
             return {}
 
     def _extract_error_context(self, request, context_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -216,8 +217,8 @@ class HelpBotContextService:
 
             return error_context
 
-        except Exception as e:
-            logger.error(f"Error extracting error context: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error extracting error context: {e}", exc_info=True)
             return {}
 
     def _update_user_journey(self, user, current_url: str) -> List[Dict[str, Any]]:
@@ -248,8 +249,8 @@ class HelpBotContextService:
 
             return user_journey
 
-        except Exception as e:
-            logger.error(f"Error updating user journey: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error updating user journey: {e}", exc_info=True)
             return []
 
     def _determine_user_role(self, user) -> str:
@@ -283,8 +284,8 @@ class HelpBotContextService:
                 user_journey=[],
                 browser_info={}
             )
-        except Exception as e:
-            logger.error(f"Error creating minimal context: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error creating minimal context: {e}", exc_info=True)
             raise
 
     def get_current_context(self, user) -> Optional[HelpBotContext]:
@@ -311,8 +312,8 @@ class HelpBotContextService:
                 timestamp__gte=cutoff_time
             ).order_by('-timestamp').first()
 
-        except Exception as e:
-            logger.error(f"Error getting current context: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error getting current context: {e}", exc_info=True)
             return None
 
     def get_context_suggestions(self, user, current_context: HelpBotContext = None) -> List[Dict[str, str]]:
@@ -350,8 +351,8 @@ class HelpBotContextService:
 
             return unique_suggestions[:6]  # Limit to 6 suggestions
 
-        except Exception as e:
-            logger.error(f"Error getting context suggestions: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error getting context suggestions: {e}", exc_info=True)
             return self._get_default_suggestions()
 
     def _get_app_specific_suggestions(self, app_name: str) -> List[Dict[str, str]]:
@@ -525,8 +526,8 @@ class HelpBotContextService:
                 }
             }
 
-        except Exception as e:
-            logger.error(f"Error analyzing user journey: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error analyzing user journey: {e}", exc_info=True)
             return {'analysis': 'error', 'insights': []}
 
     def cleanup_old_contexts(self, days: int = 30) -> int:
@@ -541,6 +542,6 @@ class HelpBotContextService:
             logger.info(f"Cleaned up {deleted_count} old context records")
             return deleted_count
 
-        except Exception as e:
-            logger.error(f"Error cleaning up old contexts: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error cleaning up old contexts: {e}", exc_info=True)
             return 0

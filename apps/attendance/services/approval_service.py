@@ -376,31 +376,32 @@ class ApprovalWorkflowService:
             int: Number of requests expired
         """
         try:
-            expired_requests = ApprovalRequest.objects.filter(
-                status='PENDING',
-                expires_at__lt=timezone.now()
-            )
-
-            count = expired_requests.count()
-
-            for request in expired_requests:
-                request.status = 'EXPIRED'
-                request.save(update_fields=['status'])
-
-                # Create action record
-                ApprovalAction.objects.create(
-                    approval_request=request,
-                    action='EXPIRED',
-                    action_by=None,  # System action
-                    notes=f"Auto-expired after {request.expires_at}",
-                    tenant=request.tenant,
-                    client=request.client
+            with transaction.atomic():
+                expired_requests = ApprovalRequest.objects.filter(
+                    status='PENDING',
+                    expires_at__lt=timezone.now()
                 )
 
-            if count > 0:
-                logger.info(f"Expired {count} old approval requests")
+                count = expired_requests.count()
 
-            return count
+                for request in expired_requests:
+                    request.status = 'EXPIRED'
+                    request.save(update_fields=['status'])
+
+                    # Create action record
+                    ApprovalAction.objects.create(
+                        approval_request=request,
+                        action='EXPIRED',
+                        action_by=None,  # System action
+                        notes=f"Auto-expired after {request.expires_at}",
+                        tenant=request.tenant,
+                        client=request.client
+                    )
+
+                if count > 0:
+                    logger.info(f"Expired {count} old approval requests")
+
+                return count
 
         except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error expiring requests: {e}", exc_info=True)
@@ -415,41 +416,42 @@ class ApprovalWorkflowService:
             int: Number of requests escalated
         """
         try:
-            escalation_cutoff = timezone.now() - timedelta(minutes=cls.ESCALATION_THRESHOLD_MINUTES)
+            with transaction.atomic():
+                escalation_cutoff = timezone.now() - timedelta(minutes=cls.ESCALATION_THRESHOLD_MINUTES)
 
-            # Find pending requests older than threshold
-            unresponded = ApprovalRequest.objects.filter(
-                status='PENDING',
-                priority__in=['URGENT', 'HIGH'],
-                requested_at__lt=escalation_cutoff
-            ).select_related('related_site')
+                # Find pending requests older than threshold
+                unresponded = ApprovalRequest.objects.filter(
+                    status='PENDING',
+                    priority__in=['URGENT', 'HIGH'],
+                    requested_at__lt=escalation_cutoff
+                ).select_related('related_site')
 
-            escalated_count = 0
+                escalated_count = 0
 
-            for request in unresponded:
-                # Find site manager to escalate to
-                # TODO: Implement manager finding logic
-                # For now, just create escalation action
+                for request in unresponded:
+                    # Find site manager to escalate to
+                    # TODO: Implement manager finding logic
+                    # For now, just create escalation action
 
-                ApprovalAction.objects.create(
-                    approval_request=request,
-                    action='ESCALATED',
-                    action_by=None,  # System
-                    notes=f"Auto-escalated after {cls.ESCALATION_THRESHOLD_MINUTES} minutes with no response",
-                    tenant=request.tenant,
-                    client=request.client
-                )
+                    ApprovalAction.objects.create(
+                        approval_request=request,
+                        action='ESCALATED',
+                        action_by=None,  # System
+                        notes=f"Auto-escalated after {cls.ESCALATION_THRESHOLD_MINUTES} minutes with no response",
+                        tenant=request.tenant,
+                        client=request.client
+                    )
 
-                escalated_count += 1
+                    escalated_count += 1
 
-                logger.warning(
-                    f"Escalated approval request {request.id} (no response for {cls.ESCALATION_THRESHOLD_MINUTES} min)"
-                )
+                    logger.warning(
+                        f"Escalated approval request {request.id} (no response for {cls.ESCALATION_THRESHOLD_MINUTES} min)"
+                    )
 
-            if escalated_count > 0:
-                logger.info(f"Escalated {escalated_count} approval requests")
+                if escalated_count > 0:
+                    logger.info(f"Escalated {escalated_count} approval requests")
 
-            return escalated_count
+                return escalated_count
 
         except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error escalating requests: {e}", exc_info=True)
@@ -475,23 +477,30 @@ class ApprovalWorkflowService:
         """
         stats = {'approved': 0, 'failed': 0, 'errors': []}
 
-        for request_id in request_ids:
-            try:
-                request = ApprovalRequest.objects.get(id=request_id)
-                success, message = cls.manual_approve(request, reviewer, notes)
+        try:
+            with transaction.atomic():
+                for request_id in request_ids:
+                    try:
+                        request = ApprovalRequest.objects.get(id=request_id)
+                        success, message = cls.manual_approve(request, reviewer, notes)
 
-                if success:
-                    stats['approved'] += 1
-                else:
-                    stats['failed'] += 1
-                    stats['errors'].append(f"Request {request_id}: {message}")
+                        if success:
+                            stats['approved'] += 1
+                        else:
+                            stats['failed'] += 1
+                            stats['errors'].append(f"Request {request_id}: {message}")
 
-            except ApprovalRequest.DoesNotExist:
-                stats['failed'] += 1
-                stats['errors'].append(f"Request {request_id} not found")
-            except (DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
-                stats['failed'] += 1
-                stats['errors'].append(f"Request {request_id}: {str(e)}")
+                    except ApprovalRequest.DoesNotExist:
+                        stats['failed'] += 1
+                        stats['errors'].append(f"Request {request_id} not found")
+                    except (DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
+                        stats['failed'] += 1
+                        stats['errors'].append(f"Request {request_id}: {str(e)}")
+
+        except (DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
+            logger.error(f"Bulk approval transaction failed: {e}", exc_info=True)
+            stats['failed'] += len(request_ids) - stats['approved']
+            stats['errors'].append(f"Transaction failed: {str(e)}")
 
         logger.info(
             f"Bulk approval by {reviewer.id}: {stats['approved']} approved, {stats['failed']} failed"

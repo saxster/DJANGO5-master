@@ -188,7 +188,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_default
-    command: celery -A intelliwiz_config worker -Q default -n default@%h --loglevel=info --concurrency=4 --max-tasks-per-child=1000
+    command: celery -A intelliwiz_config worker -Q default -n default@%h --loglevel=info --autoscale=6,2 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
@@ -224,7 +224,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_email
-    command: celery -A intelliwiz_config worker -Q email -n email@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    command: celery -A intelliwiz_config worker -Q email -n email@%h --loglevel=info --autoscale=4,1 --max-tasks-per-child=100
     volumes:
       - ./logs:/app/logs
     env_file:
@@ -259,7 +259,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_reports
-    command: celery -A intelliwiz_config worker -Q reports -n reports@%h --loglevel=info --concurrency=2 --max-tasks-per-child=100
+    command: celery -A intelliwiz_config worker -Q reports -n reports@%h --loglevel=info --autoscale=4,1 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
@@ -295,7 +295,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_onboarding
-    command: celery -A intelliwiz_config worker -Q onboarding -n onboarding@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    command: celery -A intelliwiz_config worker -Q onboarding -n onboarding@%h --loglevel=info --autoscale=4,1 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
@@ -331,7 +331,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_ml
-    command: celery -A intelliwiz_config worker -Q ml_training -n ml@%h --loglevel=info --concurrency=2 --max-tasks-per-child=50
+    command: celery -A intelliwiz_config worker -Q ml_training -n ml@%h --loglevel=info --autoscale=4,1 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
@@ -367,7 +367,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_priority
-    command: celery -A intelliwiz_config worker -Q priority -n priority@%h --loglevel=info --concurrency=4 --max-tasks-per-child=1000
+    command: celery -A intelliwiz_config worker -Q priority -n priority@%h --loglevel=info --autoscale=4,2 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
@@ -403,7 +403,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_scheduled
-    command: celery -A intelliwiz_config worker -Q scheduled_tasks -n scheduled@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    command: celery -A intelliwiz_config worker -Q scheduled_tasks -n scheduled@%h --loglevel=info --autoscale=4,1 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
@@ -439,7 +439,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: intelliwiz_celery_gcs
-    command: celery -A intelliwiz_config worker -Q gcs_file_operations -n gcs@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    command: celery -A intelliwiz_config worker -Q gcs_file_operations -n gcs@%h --loglevel=info --autoscale=4,1 --max-tasks-per-child=100
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs

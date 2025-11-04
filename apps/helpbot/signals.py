@@ -33,8 +33,8 @@ def handle_session_save(sender, instance, created, **kwargs):
             analytics_service.record_session_metrics(instance)
             logger.debug(f"Recorded analytics for completed session: {instance.session_id}")
 
-    except Exception as e:
-        logger.error(f"Error in session save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in session save signal: {e}"), exc_info=True
 
 
 @receiver(pre_save, sender=HelpBotSession)
@@ -54,8 +54,8 @@ def handle_session_pre_save(sender, instance, **kwargs):
             except HelpBotSession.DoesNotExist:
                 pass
 
-    except Exception as e:
-        logger.error(f"Error in session pre_save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in session pre_save signal: {e}"), exc_info=True
 
 
 @receiver(post_save, sender=HelpBotMessage)
@@ -91,8 +91,8 @@ def handle_message_save(sender, instance, created, **kwargs):
                             }
                         )
 
-    except Exception as e:
-        logger.error(f"Error in message save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in message save signal: {e}"), exc_info=True
 
 
 @receiver(post_save, sender=HelpBotFeedback)
@@ -119,8 +119,8 @@ def handle_feedback_save(sender, instance, created, **kwargs):
                             f"Updated knowledge effectiveness for {source['id']}: {effectiveness_score}"
                         )
 
-    except Exception as e:
-        logger.error(f"Error in feedback save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in feedback save signal: {e}"), exc_info=True
 
 
 @receiver(post_save, sender=HelpBotKnowledge)
@@ -147,8 +147,8 @@ def handle_knowledge_save(sender, instance, created, **kwargs):
             # Existing knowledge updated
             logger.debug(f"Knowledge article updated: {instance.knowledge_id}")
 
-    except Exception as e:
-        logger.error(f"Error in knowledge save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in knowledge save signal: {e}"), exc_info=True
 
 
 @receiver(post_delete, sender=HelpBotKnowledge)
@@ -160,8 +160,8 @@ def handle_knowledge_delete(sender, instance, **kwargs):
         # TODO: Update txtai index to remove deleted knowledge
         # This would integrate with the existing txtai infrastructure
 
-    except Exception as e:
-        logger.error(f"Error in knowledge delete signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in knowledge delete signal: {e}"), exc_info=True
 
 
 # Optional: Handle other model signals for comprehensive tracking
@@ -183,19 +183,20 @@ def handle_user_activity(sender, instance, created, **kwargs):
                 logger.debug(f"User {instance.email} has active HelpBot sessions during profile update")
                 # Could trigger context refresh here
 
-    except Exception as e:
-        logger.error(f"Error in user activity signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in user activity signal: {e}"), exc_info=True
 
 
 # Error handling for signal failures
 def handle_signal_error(sender, **kwargs):
     """Generic error handler for signal failures."""
     exception = kwargs.get('exception')
-    logger.error(f"Signal error in {sender}: {exception}")
+    logger.error(f"Signal error in {sender}: {exception}"), exc_info=True
 
 
 # Optional: Connect to Django's got_request_exception for error tracking
 from django.core.signals import got_request_exception
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 
 @receiver(got_request_exception)
@@ -215,5 +216,5 @@ def handle_request_exception(sender, request, **kwargs):
                     'user_agent': request.META.get('HTTP_USER_AGENT', ''),
                 }
 
-    except Exception as e:
-        logger.error(f"Error handling request exception signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error handling request exception signal: {e}"), exc_info=True

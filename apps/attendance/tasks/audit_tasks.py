@@ -131,46 +131,49 @@ def batch_create_audit_logs(self, audit_logs_data: list) -> int:
         Number of audit logs created
     """
     try:
-        audit_logs = []
-        for log_data in audit_logs_data:
-            # Build audit log instance (don't save yet)
-            user = None
-            if log_data.get('user_id'):
-                try:
-                    user = User.objects.get(id=log_data['user_id'])
-                except User.DoesNotExist:
-                    pass
+        from django.db import transaction
 
-            attendance_record = None
-            if log_data.get('attendance_record_id'):
-                try:
-                    attendance_record = PeopleEventlog.objects.get(
-                        id=log_data['attendance_record_id']
-                    )
-                except PeopleEventlog.DoesNotExist:
-                    pass
+        with transaction.atomic():
+            audit_logs = []
+            for log_data in audit_logs_data:
+                # Build audit log instance (don't save yet)
+                user = None
+                if log_data.get('user_id'):
+                    try:
+                        user = User.objects.get(id=log_data['user_id'])
+                    except User.DoesNotExist:
+                        pass
 
-            audit_logs.append(AttendanceAccessLog(
-                user=user,
-                action=log_data['action'],
-                attendance_record=attendance_record,
-                resource_type=log_data.get('resource_type', 'ATTENDANCE_RECORD'),
-                duration_ms=log_data.get('duration_ms'),
-                status_code=log_data.get('status_code'),
-                ip_address=log_data.get('ip_address'),
-                user_agent=log_data.get('user_agent'),
-                request_path=log_data.get('request_path'),
-                http_method=log_data.get('http_method'),
-                correlation_id=log_data.get('correlation_id'),
-                old_values=log_data.get('old_values'),
-                new_values=log_data.get('new_values'),
-            ))
+                attendance_record = None
+                if log_data.get('attendance_record_id'):
+                    try:
+                        attendance_record = PeopleEventlog.objects.get(
+                            id=log_data['attendance_record_id']
+                        )
+                    except PeopleEventlog.DoesNotExist:
+                        pass
 
-        # Batch insert
-        created = AttendanceAccessLog.objects.bulk_create(audit_logs, batch_size=1000)
+                audit_logs.append(AttendanceAccessLog(
+                    user=user,
+                    action=log_data['action'],
+                    attendance_record=attendance_record,
+                    resource_type=log_data.get('resource_type', 'ATTENDANCE_RECORD'),
+                    duration_ms=log_data.get('duration_ms'),
+                    status_code=log_data.get('status_code'),
+                    ip_address=log_data.get('ip_address'),
+                    user_agent=log_data.get('user_agent'),
+                    request_path=log_data.get('request_path'),
+                    http_method=log_data.get('http_method'),
+                    correlation_id=log_data.get('correlation_id'),
+                    old_values=log_data.get('old_values'),
+                    new_values=log_data.get('new_values'),
+                ))
 
-        logger.info(f"Batch created {len(created)} audit logs")
-        return len(created)
+            # Batch insert within transaction
+            created = AttendanceAccessLog.objects.bulk_create(audit_logs, batch_size=1000)
+
+            logger.info(f"Batch created {len(created)} audit logs")
+            return len(created)
 
     except Exception as e:
         logger.error(f"Failed to batch create audit logs: {e}", exc_info=True)

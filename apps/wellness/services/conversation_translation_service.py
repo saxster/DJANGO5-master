@@ -25,6 +25,7 @@ from django.contrib.auth import get_user_model
 
 from ..models.wisdom_conversations import WisdomConversation
 from ..models.conversation_translation import WisdomConversationTranslation, TranslationQualityFeedback
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -75,8 +76,8 @@ class GoogleTranslateBackend(TranslationBackend):
                 'cost_estimate': len(text) * 0.00002  # $20 per 1M characters
             }
 
-        except Exception as e:
-            logger.error(f"Google Translate API error: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Google Translate API error: {e}", exc_info=True)
             return {'error': str(e), 'backend': 'google'}
 
     def get_supported_languages(self) -> List[str]:
@@ -101,8 +102,8 @@ class AzureTranslatorBackend(TranslationBackend):
                 'cost_estimate': len(text) * 0.00001  # $10 per 1M characters
             }
 
-        except Exception as e:
-            logger.error(f"Azure Translator API error: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Azure Translator API error: {e}", exc_info=True)
             return {'error': str(e), 'backend': 'azure'}
 
     def get_supported_languages(self) -> List[str]:
@@ -137,8 +138,8 @@ class OpenAITranslationBackend(TranslationBackend):
                 'cultural_adaptation': True
             }
 
-        except Exception as e:
-            logger.error(f"OpenAI Translation API error: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"OpenAI Translation API error: {e}", exc_info=True)
             return {'error': str(e), 'backend': 'openai'}
 
     def get_supported_languages(self) -> List[str]:
@@ -318,8 +319,8 @@ class ConversationTranslationService:
                 logger.info(f"Successfully translated conversation {conversation.id} to {target_language} using {backend_name}")
                 return result
 
-            except Exception as e:
-                logger.error(f"Error with backend {backend_name}: {e}")
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                logger.error(f"Error with backend {backend_name}: {e}", exc_info=True)
                 continue
 
         # All backends failed
@@ -403,8 +404,8 @@ class ConversationTranslationService:
                 'translation_date': translation.created_at.isoformat(),
             }
 
-        except Exception as e:
-            logger.error(f"Error retrieving cached translation from database: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error retrieving cached translation from database: {e}", exc_info=True)
             return None
 
     def _store_translation_in_db(
@@ -444,8 +445,8 @@ class ConversationTranslationService:
                 }
             )
 
-        except Exception as e:
-            logger.error(f"Failed to store translation in database: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to store translation in database: {e}", exc_info=True)
 
     def _track_translation_usage(
         self,
@@ -475,8 +476,8 @@ class ConversationTranslationService:
             analytics_list.append(analytics_data)
             cache.set(analytics_key, analytics_list, 86400)  # 24 hours
 
-        except Exception as e:
-            logger.error(f"Failed to track translation analytics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to track translation analytics: {e}", exc_info=True)
 
     def get_translation_stats(self, days: int = 30) -> Dict:
         """Get translation usage statistics"""
@@ -517,8 +518,8 @@ class ConversationTranslationService:
 
             return stats
 
-        except Exception as e:
-            logger.error(f"Failed to get translation stats: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to get translation stats: {e}", exc_info=True)
             return {'error': str(e)}
 
     def batch_translate_conversations(
@@ -571,7 +572,7 @@ class ConversationTranslationService:
                 # Rate limiting - small delay between translations
                 time.sleep(0.1)
 
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 results['failed'] += 1
                 results['errors'].append({
                     'conversation_id': str(conversation.id),

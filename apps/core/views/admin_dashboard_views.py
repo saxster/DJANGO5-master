@@ -26,6 +26,7 @@ from apps.y_helpdesk.models import Ticket
 from apps.activity.models import Task
 from apps.core.models import APIAccessLog, CSPViolation
 from apps.core.serializers.frontend_serializers import FrontendResponseMixin
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
 
             return stats
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             # Return safe defaults on error
             return {
                 'total_users': 0,
@@ -204,7 +205,7 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
 
             return activities[:5]
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             return [{
                 'description': 'Dashboard data unavailable',
                 'user': 'System',
@@ -320,7 +321,7 @@ def admin_chart_data_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -362,7 +363,7 @@ def admin_recent_activity_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=[],
@@ -411,7 +412,7 @@ def admin_export_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -441,7 +442,7 @@ def admin_system_check_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -481,7 +482,7 @@ def admin_clear_caches_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -537,7 +538,7 @@ def perform_system_health_check():
             'message': 'Database is accessible',
             'response_time_ms': 10
         })
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         results['checks'].append({
             'name': 'Database Connectivity',
             'status': 'fail',
@@ -556,7 +557,7 @@ def perform_system_health_check():
             'message': 'Cache is working normally',
             'response_time_ms': 5
         })
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         results['checks'].append({
             'name': 'Cache System',
             'status': 'fail',

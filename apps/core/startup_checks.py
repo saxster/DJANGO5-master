@@ -25,6 +25,7 @@ from typing import List, Dict, Tuple
 from dataclasses import dataclass
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +147,8 @@ class SecurityStartupValidator:
                     )
                 )
 
-        except Exception as e:
-            logger.error(f"Error validating Jinja2 autoescape: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating Jinja2 autoescape: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="Jinja2 Autoescape",
@@ -192,8 +193,8 @@ class SecurityStartupValidator:
                 message=f"✅ ACCESS_TOKEN_LIFETIME configured: {hours} hours"
             )
 
-        except Exception as e:
-            logger.error(f"Error validating JWT expiration: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating JWT expiration: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="JWT Token Expiration",
@@ -237,8 +238,8 @@ class SecurityStartupValidator:
                     )
                 )
 
-        except Exception as e:
-            logger.error(f"Error validating language cookie security: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating language cookie security: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="Language Cookie Security",
@@ -297,8 +298,8 @@ class SecurityStartupValidator:
                     )
                 )
 
-        except Exception as e:
-            logger.error(f"Error validating Jinja2 auto-reload: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating Jinja2 auto-reload: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="Jinja2 Auto-Reload",
@@ -329,8 +330,8 @@ class SecurityStartupValidator:
                 message="✅ CSRF and session cookies configured correctly"
             )
 
-        except Exception as e:
-            logger.error(f"Error validating CSRF protection: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating CSRF protection: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="CSRF/Session Cookie Security",
@@ -379,8 +380,8 @@ class SecurityStartupValidator:
                 message="✅ SECRET_KEY is set and appears strong"
             )
 
-        except Exception as e:
-            logger.error(f"Error validating SECRET_KEY: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating SECRET_KEY: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="SECRET_KEY Configuration",
@@ -409,8 +410,8 @@ class SecurityStartupValidator:
                 message=f"✅ DEBUG = {debug} ({'development' if debug else 'production'} mode)"
             )
 
-        except Exception as e:
-            logger.error(f"Error validating DEBUG setting: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating DEBUG setting: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="DEBUG Setting",
@@ -440,8 +441,8 @@ class SecurityStartupValidator:
                 message=f"✅ ALLOWED_HOSTS configured: {len(allowed_hosts)} host(s)"
             )
 
-        except Exception as e:
-            logger.error(f"Error validating ALLOWED_HOSTS: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error validating ALLOWED_HOSTS: {e}", exc_info=True), exc_info=True
             return ValidationResult(
                 passed=False,
                 check_name="ALLOWED_HOSTS Configuration",

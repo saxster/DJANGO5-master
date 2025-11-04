@@ -32,6 +32,7 @@ from apps.core.models.image_metadata import (
     ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
 )
 from apps.core.services.photo_authenticity_service import PhotoAuthenticityService
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,8 @@ class EXIFAnalyticsDashboard(TemplateView):
 
             return context
 
-        except (ValueError, TypeError) as e:
-            logger.error(f"Dashboard context preparation failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Dashboard context preparation failed: {e}", exc_info=True)
             context['error'] = "Dashboard data loading failed"
             return context
 
@@ -101,8 +102,8 @@ class EXIFAnalyticsDashboard(TemplateView):
 
             return stats
 
-        except Exception as e:
-            logger.error(f"Summary statistics calculation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Summary statistics calculation failed: {e}", exc_info=True)
             return {'error': str(e)}
 
     def _get_fraud_trend_data(self, start_date: datetime) -> dict:
@@ -143,8 +144,8 @@ class EXIFAnalyticsDashboard(TemplateView):
                 'trend_summary': self._calculate_trend_summary(daily_stats[-7:])  # Last week
             }
 
-        except Exception as e:
-            logger.error(f"Fraud trend calculation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Fraud trend calculation failed: {e}", exc_info=True)
             return {'error': str(e)}
 
     def _calculate_trend_summary(self, recent_data: list) -> dict:
@@ -211,8 +212,8 @@ class EXIFAnalyticsDashboard(TemplateView):
                 ).count()
             }
 
-        except Exception as e:
-            logger.error(f"Device analytics calculation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Device analytics calculation failed: {e}", exc_info=True)
             return {'error': str(e)}
 
     def _get_location_analytics(self, start_date: datetime) -> dict:
@@ -243,8 +244,8 @@ class EXIFAnalyticsDashboard(TemplateView):
                 'gps_coverage_areas': self._get_gps_coverage_summary(photos_with_gps)
             }
 
-        except Exception as e:
-            logger.error(f"Location analytics calculation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Location analytics calculation failed: {e}", exc_info=True)
             return {'error': str(e)}
 
     def _get_gps_coverage_summary(self, gps_photos_queryset) -> dict:
@@ -267,7 +268,7 @@ class EXIFAnalyticsDashboard(TemplateView):
                 }
             }
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.debug(f"GPS coverage summary failed: {e}")
             return {'total_gps_photos': 0}
 
@@ -315,7 +316,8 @@ def _get_api_summary_data(start_date: datetime) -> dict:
             'timestamp': timezone.now().isoformat()
         }
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"API summary data failed: {e}", exc_info=True)
         return {'error': str(e)}
 
 
@@ -353,7 +355,8 @@ def _get_api_fraud_trends(start_date: datetime) -> dict:
             'period': '24_hours'
         }
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"API fraud trends failed: {e}", exc_info=True)
         return {'error': str(e)}
 
 
@@ -370,7 +373,8 @@ def _get_api_device_stats(start_date: datetime) -> dict:
             'high_fraud_devices': devices.filter(fraud_incidents__gt=2).count()
         }
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"API device stats failed: {e}", exc_info=True)
         return {'error': str(e)}
 
 
@@ -390,7 +394,8 @@ def _get_api_location_stats(start_date: datetime) -> dict:
             'pending': validations.filter(validation_result='pending').count()
         }
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"API location stats failed: {e}", exc_info=True)
         return {'error': str(e)}
 
 
@@ -465,8 +470,8 @@ def _generate_system_report(start_date: datetime, upload_type: str = None) -> di
             'top_risk_indicators': _get_top_risk_indicators(photos)
         }
 
-    except Exception as e:
-        logger.error(f"System report generation failed: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"System report generation failed: {e}", exc_info=True)
         return {'error': str(e)}
 
 
@@ -483,6 +488,6 @@ def _get_top_risk_indicators(photos_queryset) -> list:
             {'indicator': 'PHOTO_MANIPULATION', 'count': 12}
         ]
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.debug(f"Risk indicator analysis failed: {e}")
         return []

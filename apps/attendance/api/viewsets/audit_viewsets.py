@@ -44,6 +44,7 @@ from apps.attendance.services.audit_service import (
 )
 from apps.core.permissions import TenantIsolationPermission
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +118,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             stats = AuditAnalyticsService.get_access_statistics(days)
             return Response(stats)
-        except Exception as e:
-            logger.error(f"Failed to get audit statistics: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to get audit statistics: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to generate statistics'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -141,8 +142,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             logs = AuditQueryService.get_user_activity(int(user_id), days)
             serializer = self.get_serializer(logs, many=True)
             return Response(serializer.data)
-        except Exception as e:
-            logger.error(f"Failed to get user activity: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to get user activity: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve user activity'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -159,8 +160,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             history = AuditInvestigationService.trace_data_access(int(record_id))
             return Response(history)
-        except Exception as e:
-            logger.error(f"Failed to get record history: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to get record history: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve record history'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -183,8 +184,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             logs = AuditQueryService.get_failed_access_attempts(hours)
             serializer = self.get_serializer(logs, many=True)
             return Response(serializer.data)
-        except Exception as e:
-            logger.error(f"Failed to get failed attempts: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to get failed attempts: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve failed attempts'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -208,8 +209,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             records = AuditAnalyticsService.get_most_accessed_records(days, limit)
             return Response(records)
-        except Exception as e:
-            logger.error(f"Failed to get most accessed records: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to get most accessed records: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve most accessed records'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -244,8 +245,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
             return Response(report)
-        except Exception as e:
-            logger.error(f"Failed to generate compliance report: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to generate compliance report: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to generate compliance report'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -276,8 +277,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             investigation = AuditInvestigationService.investigate_user(user_id, days)
 
             return Response(investigation)
-        except Exception as e:
-            logger.error(f"Failed to investigate user: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to investigate user: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to complete investigation'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -312,8 +313,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
                 response['Content-Disposition'] = f'attachment; filename="audit_logs_{timestamp}.csv"'
                 return response
 
-        except Exception as e:
-            logger.error(f"Failed to export audit logs: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to export audit logs: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to export audit logs'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -335,8 +336,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             patterns = AuditAnalyticsService.get_user_access_patterns(int(user_id), days)
             return Response(patterns)
-        except Exception as e:
-            logger.error(f"Failed to analyze user patterns: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to analyze user patterns: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to analyze access patterns'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -358,8 +359,8 @@ class AttendanceAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             anomalies = AuditAnalyticsService.detect_anomalies(int(user_id), days)
             return Response({'anomalies': anomalies})
-        except Exception as e:
-            logger.error(f"Failed to detect anomalies: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to detect anomalies: {e}", exc_info=True, exc_info=True)
             return Response(
                 {'error': 'Failed to detect anomalies'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

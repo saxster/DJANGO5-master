@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -162,8 +163,8 @@ class RedisBackupService:
 
             return backup_info
 
-        except Exception as e:
-            logger.error(f"Redis backup failed: {backup_id} - {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Redis backup failed: {backup_id} - {e}"), exc_info=True
             raise
 
     def restore_backup(self, backup_info: BackupInfo,
@@ -232,8 +233,8 @@ class RedisBackupService:
                 pre_restore_backup_id=pre_restore_backup_id
             )
 
-        except Exception as e:
-            logger.error(f"Redis restore failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Redis restore failed: {e}"), exc_info=True
             # Attempt to restart Redis even if restore failed
             try:
                 self._start_redis_safely()
@@ -285,8 +286,8 @@ class RedisBackupService:
             # Sort by creation date (newest first)
             backups.sort(key=lambda x: x.created_at, reverse=True)
 
-        except Exception as e:
-            logger.error(f"Error listing backups: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error listing backups: {e}"), exc_info=True
 
         return backups
 
@@ -323,13 +324,13 @@ class RedisBackupService:
 
                         logger.info(f"Deleted old backup: {backup_info.backup_id}")
 
-                    except Exception as e:
+                    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                         error_msg = f"Failed to delete {backup_info.backup_id}: {e}"
                         results['errors'].append(error_msg)
-                        logger.error(error_msg)
+                        logger.error(error_msg), exc_info=True
 
-        except Exception as e:
-            logger.error(f"Backup cleanup error: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Backup cleanup error: {e}"), exc_info=True
             results['errors'].append(str(e))
 
         logger.info(
@@ -360,8 +361,8 @@ class RedisBackupService:
 
             return backup_path
 
-        except Exception as e:
-            logger.error(f"RDB backup failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"RDB backup failed: {e}"), exc_info=True
             raise
 
     def _create_aof_backup(self, backup_id: str, timestamp: datetime) -> str:
@@ -379,8 +380,8 @@ class RedisBackupService:
 
             return backup_path
 
-        except Exception as e:
-            logger.error(f"AOF backup failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"AOF backup failed: {e}"), exc_info=True
             raise
 
     def _create_full_backup(self, backup_id: str, timestamp: datetime) -> str:
@@ -406,8 +407,8 @@ class RedisBackupService:
 
             return backup_path
 
-        except Exception as e:
-            logger.error(f"Full backup failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Full backup failed: {e}"), exc_info=True
             raise
 
     def _compress_backup(self, backup_path: str) -> str:
@@ -452,8 +453,8 @@ class RedisBackupService:
 
             return "verified"
 
-        except Exception as e:
-            logger.error(f"Backup verification error: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Backup verification error: {e}"), exc_info=True
             return f"failed_verification_error"
 
     def _verify_rdb_format(self, file_path: str) -> bool:
@@ -473,10 +474,10 @@ class RedisBackupService:
                 return is_valid
 
         except (OSError, IOError) as e:
-            logger.error(f"Cannot read backup file {file_path}: {e}")
+            logger.error(f"Cannot read backup file {file_path}: {e}"), exc_info=True
             raise  # Don't hide file access errors
         except gzip.BadGzipFile as e:
-            logger.error(f"Corrupted gzip file {file_path}: {e}")
+            logger.error(f"Corrupted gzip file {file_path}: {e}"), exc_info=True
             return False  # Invalid format, but we could read it
 
     def _stop_redis_safely(self):

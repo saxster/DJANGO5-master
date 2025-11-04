@@ -130,8 +130,8 @@ class TaskMetrics:
                     labels=tags,
                     help_text=f"Total count of {metric_name} events"
                 )
-            except Exception as e:
-                logger.debug(f"Failed to record Prometheus counter: {e}")
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                logger.debug(f"Failed to record Prometheus counter: {e}", exc_info=True)
 
     @staticmethod
     def record_timing(metric_name: str, duration_ms: float, tags: Dict[str, str] = None):
@@ -171,8 +171,8 @@ class TaskMetrics:
                     labels=tags,
                     help_text=f"Duration histogram for {metric_name} in seconds"
                 )
-            except Exception as e:
-                logger.debug(f"Failed to record Prometheus histogram: {e}")
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                logger.debug(f"Failed to record Prometheus histogram: {e}", exc_info=True)
 
     @staticmethod
     def record_retry(task_name: str, reason: str, retry_count: int):
@@ -211,7 +211,7 @@ class TaskMetrics:
                     f"reason={reason}, attempt={retry_count}"
                 )
 
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 # Don't fail task execution if metrics fail
                 logger.warning(f"Failed to record Prometheus retry metric: {e}")
 
@@ -734,6 +734,7 @@ class IdempotentTask(BaseTask):
         return result
 # Re-export utility functions for backward compatibility
 from .utils import log_task_context
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 __all__ = ['BaseTask', 'IdempotentTask', 'EmailTask', 'ExternalServiceTask', 
            'MaintenanceTask', 'CriticalTask', 'TaskMetrics', 'log_task_context']

@@ -11,6 +11,7 @@ import json
 from typing import Optional, Dict, Any
 from django.core.cache import cache
 from django.conf import settings
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 __all__ = ['QueryCache']
 
@@ -88,7 +89,7 @@ class QueryCache:
             QueryCache._increment_miss_counter()
             return None
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Cache retrieval error: {e}")
             # Fail gracefully - return None on cache errors
             return None
@@ -131,8 +132,8 @@ class QueryCache:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Cache storage error: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Cache storage error: {e}", exc_info=True), exc_info=True
             return False
 
     @staticmethod
@@ -155,8 +156,8 @@ class QueryCache:
             logger.info(f"Invalidated cache", extra={'cache_key': cache_key})
             return True
 
-        except Exception as e:
-            logger.error(f"Cache invalidation error: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Cache invalidation error: {e}"), exc_info=True
             return False
 
     @staticmethod
@@ -199,8 +200,8 @@ class QueryCache:
             )
             return True
 
-        except Exception as e:
-            logger.error(f"Tenant cache invalidation error: {e}", exc_info=True)
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Tenant cache invalidation error: {e}", exc_info=True), exc_info=True
             return False
 
     @staticmethod
@@ -274,5 +275,5 @@ class QueryCache:
             cache.delete(f"{QueryCache.CACHE_PREFIX}:stats:hits")
             cache.delete(f"{QueryCache.CACHE_PREFIX}:stats:misses")
             logger.info("Cache statistics reset")
-        except Exception as e:
-            logger.error(f"Failed to reset cache stats: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to reset cache stats: {e}"), exc_info=True

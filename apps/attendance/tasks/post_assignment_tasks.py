@@ -43,6 +43,8 @@ def detect_no_shows_task(self):
         dict: Statistics about no-shows detected
     """
     try:
+        from django.db import transaction
+
         logger.info("Starting no-show detection task")
 
         today = date.today()
@@ -60,65 +62,67 @@ def detect_no_shows_task(self):
         no_shows_detected = 0
         notifications_sent = 0
 
-        for assignment in assignments:
-            # Calculate expected check-in time
-            expected_checkin = datetime.combine(today, assignment.start_time)
-            expected_checkin = timezone.make_aware(expected_checkin)
+        # Mark assignments and create tickets within transaction (PERF-006)
+        with transaction.atomic():
+            for assignment in assignments:
+                # Calculate expected check-in time
+                expected_checkin = datetime.combine(today, assignment.start_time)
+                expected_checkin = timezone.make_aware(expected_checkin)
 
-            # Check if past threshold
-            if current_time >= (expected_checkin + no_show_threshold):
-                # Mark as no-show
-                assignment.mark_no_show()
-                no_shows_detected += 1
+                # Check if past threshold
+                if current_time >= (expected_checkin + no_show_threshold):
+                    # Mark as no-show
+                    assignment.mark_no_show()
+                    no_shows_detected += 1
 
-                logger.warning(
-                    f"No-show detected: Worker {assignment.worker.id} did not check in for "
-                    f"assignment {assignment.id} (post {assignment.post.post_code})",
-                    extra={
-                        'assignment_id': assignment.id,
-                        'worker_id': assignment.worker.id,
-                        'post_code': assignment.post.post_code,
-                        'expected_time': expected_checkin.isoformat()
-                    }
-                )
-
-                # Create alert ticket
-                try:
-                    from apps.attendance.ticket_integration import AttendanceTicketService
-
-                    worker_name = (assignment.worker.get_full_name()
-                                 if hasattr(assignment.worker, 'get_full_name')
-                                 else str(assignment.worker))
-
-                    ticket = AttendanceTicketService.create_attendance_ticket(
-                        category_code='ATTENDANCE_MISSING_IN',
-                        description=(
-                            f"No-show detected: {worker_name} did not check in for "
-                            f"{assignment.post.post_name} on {assignment.assignment_date}. "
-                            f"Expected check-in: {assignment.start_time.strftime('%H:%M')}. "
-                            f"Threshold passed at {current_time.strftime('%H:%M')}."
-                        ),
-                        people_id=assignment.worker.id,
-                        client_id=assignment.worker.client_id,
-                        bu_id=assignment.site.id,
-                        priority='HIGH',
-                        additional_data={
-                            'metadata': {
-                                'source': 'no_show_detection',
-                                'assignment_id': assignment.id,
-                                'post_code': assignment.post.post_code,
-                                'expected_time': assignment.start_time.isoformat(),
-                                'detected_at': current_time.isoformat(),
-                            }
+                    logger.warning(
+                        f"No-show detected: Worker {assignment.worker.id} did not check in for "
+                        f"assignment {assignment.id} (post {assignment.post.post_code})",
+                        extra={
+                            'assignment_id': assignment.id,
+                            'worker_id': assignment.worker.id,
+                            'post_code': assignment.post.post_code,
+                            'expected_time': expected_checkin.isoformat()
                         }
                     )
 
-                    if ticket:
-                        notifications_sent += 1
-                        logger.info(f"Created no-show ticket {ticket.id}")
+                    # Create alert ticket
+                    try:
+                        from apps.attendance.ticket_integration import AttendanceTicketService
 
-                except Exception as e:
-                    logger.error(f"Failed to create no-show ticket: {e}", exc_info=True)
+                        worker_name = (assignment.worker.get_full_name()
+                                     if hasattr(assignment.worker, 'get_full_name')
+                                     else str(assignment.worker))
+
+                        ticket = AttendanceTicketService.create_attendance_ticket(
+                            category_code='ATTENDANCE_MISSING_IN',
+                            description=(
+                                f"No-show detected: {worker_name} did not check in for "
+                                f"{assignment.post.post_name} on {assignment.assignment_date}. "
+                                f"Expected check-in: {assignment.start_time.strftime('%H:%M')}. "
+                                f"Threshold passed at {current_time.strftime('%H:%M')}."
+                            ),
+                            people_id=assignment.worker.id,
+                            client_id=assignment.worker.client_id,
+                            bu_id=assignment.site.id,
+                            priority='HIGH',
+                            additional_data={
+                                'metadata': {
+                                    'source': 'no_show_detection',
+                                    'assignment_id': assignment.id,
+                                    'post_code': assignment.post.post_code,
+                                    'expected_time': assignment.start_time.isoformat(),
+                                    'detected_at': current_time.isoformat(),
+                                }
+                            }
+                        )
+
+                        if ticket:
+                            notifications_sent += 1
+                            logger.info(f"Created no-show ticket {ticket.id}")
+
+                    except Exception as e:
+                        logger.error(f"Failed to create no-show ticket: {e}", exc_info=True)
 
         logger.info(
             f"No-show detection complete: {no_shows_detected} detected, {notifications_sent} tickets created"
@@ -475,6 +479,8 @@ def archive_old_assignments_task(self, days_old=90):
         dict: Statistics about archived assignments
     """
     try:
+        from django.db import transaction
+
         logger.info(f"Starting assignment archival task (>{days_old} days)")
 
         cutoff_date = date.today() - timedelta(days=days_old)
@@ -493,18 +499,19 @@ def archive_old_assignments_task(self, days_old=90):
         count = to_archive.count()
 
         if count > 0:
-            # Add archival metadata
-            archived = 0
-            for assignment in to_archive:
-                if not assignment.assignment_metadata:
-                    assignment.assignment_metadata = {}
+            # Add archival metadata within transaction (PERF-005)
+            with transaction.atomic():
+                archived = 0
+                for assignment in to_archive:
+                    if not assignment.assignment_metadata:
+                        assignment.assignment_metadata = {}
 
-                assignment.assignment_metadata['archived'] = True
-                assignment.assignment_metadata['archived_at'] = timezone.now().isoformat()
-                assignment.save(update_fields=['assignment_metadata'])
-                archived += 1
+                    assignment.assignment_metadata['archived'] = True
+                    assignment.assignment_metadata['archived_at'] = timezone.now().isoformat()
+                    assignment.save(update_fields=['assignment_metadata'])
+                    archived += 1
 
-            logger.info(f"Archived {archived} old assignments (>{days_old} days)")
+                logger.info(f"Archived {archived} old assignments (>{days_old} days)")
 
             return {
                 'status': 'success',
