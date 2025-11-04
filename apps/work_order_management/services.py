@@ -418,7 +418,7 @@ def optimize_manager_methods():
     """
     from apps.work_order_management.models import Vendor, Wom, Approver
     from apps.y_helpdesk.models import Ticket, EscalationMatrix
-    from apps.onboarding.models import TypeAssist
+    from apps.core_onboarding.models import TypeAssist
     from apps.activity.models.job_model import Jobneed
 
     # Work Order Management optimizations

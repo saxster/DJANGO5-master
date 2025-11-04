@@ -396,7 +396,7 @@ class ReplyWorkOrder(View):
             Attachment instance
         """
         from apps.activity.models.attachment_model import Attachment
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         ownername = TypeAssist.objects.filter(tacode="WOMDETAILS").first()
         return Attachment.objects.create(

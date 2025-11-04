@@ -23,7 +23,8 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from pydantic import ValidationError as PydanticValidationError
 import logging
 
-from apps.onboarding.models import GeofenceMaster, Shift
+from apps.client_onboarding.models import Shift
+from apps.core_onboarding.models import GeofenceMaster
 from apps.activity.models.location_model import Location
 from apps.peoples.models import Pgroup
 from apps.api.permissions import TenantIsolationPermission
@@ -122,7 +123,7 @@ class BusinessUnitViewSet(viewsets.GenericViewSet):
         """
         try:
             from apps.service.pydantic_schemas.bt_schema import SiteListSchema
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
 
             filter_data = {
                 'clientid': int(request.query_params.get('clientid')),
@@ -285,7 +286,7 @@ class BusinessUnitViewSet(viewsets.GenericViewSet):
             List of type assistance records
         """
         try:
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
 
             mdtz = request.query_params.get('mdtz')
             ctzoffset = int(request.query_params.get('ctzoffset', 0))

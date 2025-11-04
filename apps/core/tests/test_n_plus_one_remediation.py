@@ -12,7 +12,8 @@ from apps.core.testing import assert_max_queries, detect_n_plus_one, QueryCountA
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.question_model import Question, QuestionSet
 from apps.activity.models.job_model import Jobneed, JobneedDetails
-from apps.onboarding.models import BT, TypeAssist
+from apps.core_onboarding.models import TypeAssist
+from apps.onboarding.models import BT
 
 People = get_user_model()
 
@@ -159,7 +160,7 @@ class JobneedViewN1TestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         from apps.activity.models.asset_model import Asset
-        from apps.onboarding.models import Shift
+        from apps.client_onboarding.models import Shift
 
         cls.bt = BT.objects.create(
             bucode="TEST_BT", buname="Test Business", enable=True

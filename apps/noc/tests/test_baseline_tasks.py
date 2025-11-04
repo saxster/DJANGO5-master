@@ -24,7 +24,7 @@ from apps.noc.tasks.baseline_tasks import UpdateBaselineThresholdsTask
 from apps.noc.security_intelligence.models import BaselineProfile
 from apps.noc.models import NOCAlertEvent
 from apps.peoples.models import People
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 

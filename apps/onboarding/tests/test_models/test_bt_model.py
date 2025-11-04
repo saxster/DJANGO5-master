@@ -3,7 +3,7 @@ Tests for Bt (Business Unit) model
 """
 import pytest
 from django.db import IntegrityError
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 @pytest.mark.django_db

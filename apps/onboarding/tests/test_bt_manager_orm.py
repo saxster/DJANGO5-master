@@ -3,7 +3,8 @@ Tests for BtManagerORM Django ORM implementations.
 """
 
 from django.test import TestCase
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.onboarding.bt_manager_orm import BtManagerORM
 from apps.peoples.models import People
 

@@ -17,7 +17,8 @@ from apps.face_recognition.models import (
     FaceEmbedding,
     FaceVerificationLog
 )
-from apps.onboarding.models import Bt, Shift, TypeAssist
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist
 
 User = get_user_model()
 

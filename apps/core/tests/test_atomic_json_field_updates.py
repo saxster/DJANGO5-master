@@ -23,7 +23,8 @@ from apps.activity.models.job_model import Jobneed
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.y_helpdesk.models import Ticket
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.core.utils_new.atomic_json_updater import (
     AtomicJSONFieldUpdater,
     update_json_field_safely,

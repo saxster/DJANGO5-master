@@ -707,7 +707,7 @@ def create_ticket_for_autoclose(jobneedrecord, ticketdesc):
 
 def get_email_recipients(buid, clientid=None):
     from apps.peoples.models import People
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
 
     #get email of siteincharge
     emaillist = People.objects.get_siteincharge_emails(buid)

@@ -17,7 +17,7 @@ from apps.peoples.services import (
     EmailVerificationService
 )
 from apps.peoples.forms import NoSiteForm
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)

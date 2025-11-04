@@ -4,7 +4,7 @@ Tests for TypeAssist model
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from apps.onboarding.models import TypeAssist
+from apps.core_onboarding.models import TypeAssist
 
 
 @pytest.mark.django_db

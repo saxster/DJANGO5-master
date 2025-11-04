@@ -45,7 +45,7 @@ def populate_tenant_field(apps, schema_editor):
         ('Job', Job),
         ('Jobneed', Jobneed),
         ('JobneedDetails', JobneedDetails),
-        ('Asset', Asset'),
+        ('Asset', Asset),
         ('AssetLog', AssetLog),
     ]
 

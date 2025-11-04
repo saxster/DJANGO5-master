@@ -200,7 +200,7 @@ class PredictiveAlertingServiceTests(TestCase):
     def setUp(self):
         """Set up test data."""
         from apps.tenants.models import Tenant
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         self.tenant = Tenant.objects.create(tenantname='TestTenant', isactive=True)
         self.client = Bt.objects.create(tenant=self.tenant, buname='TestClient')
@@ -401,7 +401,7 @@ class AlertDeduplicationTests(TestCase):
     def setUp(self):
         """Set up test data."""
         from apps.tenants.models import Tenant
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         self.tenant = Tenant.objects.create(tenantname='TestTenant', isactive=True)
         self.client = Bt.objects.create(tenant=self.tenant, buname='TestClient')

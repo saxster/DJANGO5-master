@@ -47,7 +47,8 @@ from apps.y_helpdesk.serializers.unified_ticket_serializer import (
 from apps.y_helpdesk.utils.query_monitor import monitor_queries
 
 from apps.peoples.models import People, Pgroup
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 
 
 class TicketSystemIntegrationTestCase(TestCase):

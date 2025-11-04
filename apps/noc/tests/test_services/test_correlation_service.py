@@ -10,7 +10,7 @@ from datetime import timedelta
 from django.utils import timezone
 from apps.noc.services import AlertCorrelationService
 from apps.noc.models import NOCAlertEvent, MaintenanceWindow
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 
@@ -26,7 +26,7 @@ class TestAlertCorrelationService:
     @pytest.fixture
     def client_bt(self, tenant):
         """Create test client business unit."""
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         client_type = TypeAssist.objects.create(
             taname="CLIENT",
             tacode="CLIENT",

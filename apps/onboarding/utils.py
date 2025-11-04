@@ -14,7 +14,8 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 api_key = getattr(settings, 'BULK_IMPORT_GOOGLE_DRIVE_API_KEY', '')
 google_map_key = getattr(settings, 'GOOGLE_MAP_SECRET_KEY', '')
 
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.peoples.models import People
 from apps.core import utils
 import json

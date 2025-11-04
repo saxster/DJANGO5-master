@@ -21,7 +21,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 
 from apps.peoples.models import People
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.noc.models import CorrelatedIncident
 from apps.noc.security_intelligence.services.activity_signal_collector import ActivitySignalCollector
 from apps.core.decorators import require_capability

@@ -20,7 +20,7 @@ import logging
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
-from apps.onboarding.models import KnowledgeReview
+from apps.core_onboarding.models import KnowledgeReview
 
 logger = logging.getLogger(__name__)
 

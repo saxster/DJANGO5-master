@@ -12,7 +12,7 @@ from django.core.cache import cache
 from apps.noc.models import NOCIncident, NOCAlertEvent, IncidentContext
 from apps.noc.services import IncidentContextService
 from apps.peoples.models import People, PeopleProfile, PeopleOrganizational
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 pytestmark = pytest.mark.django_db

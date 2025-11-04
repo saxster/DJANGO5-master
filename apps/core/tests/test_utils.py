@@ -417,7 +417,7 @@ class TestUtilityIntegration:
         from apps.activity.models.location_model import Location
         from apps.activity.models.asset_model import Asset
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # These should be available without error
         assert Location is not None

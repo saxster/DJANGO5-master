@@ -302,7 +302,7 @@ class StreamingAnomalyConsumer(AsyncWebsocketConsumer):
         Returns list of finding dicts.
         """
         from apps.noc.security_intelligence.services.anomaly_detector import AnomalyDetector
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # Get site from event data
         site_id = event_data.get('site_id') or event_data.get('bu_id')

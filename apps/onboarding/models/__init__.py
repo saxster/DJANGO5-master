@@ -153,6 +153,7 @@ __all__ = [
 # 5. Modular structure supports easier testing and maintenance
 
 # Usage examples:
-# from apps.onboarding.models import Bt, Shift  # Still works exactly as before
+# from apps.client_onboarding.models import Bt
+from apps.onboarding.models import Shift  # Still works exactly as before
 # from apps.onboarding.models.business_unit import Bt  # New explicit import
 # from apps.onboarding.models import *  # Imports all models via __all__

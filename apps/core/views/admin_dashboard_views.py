@@ -631,7 +631,7 @@ class AdminUserManagementView(TemplateView):
         Get user distribution by business unit
         """
         try:
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             return Bt.objects.annotate(
                 user_count=Count('people')
             ).values('buname', 'user_count').order_by('-user_count')[:10]

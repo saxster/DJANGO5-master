@@ -68,7 +68,7 @@ from background_tasks.tasks import (
 )
 
 # Onboarding models
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 # Services
 from apps.work_order_management.services import WorkOrderQueryOptimizer

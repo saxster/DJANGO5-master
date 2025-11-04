@@ -32,7 +32,7 @@ class BtManagerORM:
             Business unit IDs in requested format
         """
         # Import here to avoid circular import
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         
         # Get all business units for tree building
         all_bus = list(
@@ -169,7 +169,7 @@ class BtManagerORM:
         """
         # Import here to avoid circular import
         from apps.peoples.models import People, Pgbelonging
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         
         try:
             person = People.objects.get(id=people_id, client_id=client_id)

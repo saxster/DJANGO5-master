@@ -14,7 +14,8 @@ from unittest.mock import patch, MagicMock
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from apps.y_helpdesk.models import Ticket
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.peoples.models import People
 from background_tasks.utils import create_ticket_for_autoclose
 

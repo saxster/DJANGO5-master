@@ -22,7 +22,7 @@ from apps.noc.security_intelligence.models import SiteAuditSchedule
 from apps.noc.security_intelligence.services.real_time_audit_orchestrator import RealTimeAuditOrchestrator
 from apps.noc.security_intelligence.services.baseline_calculator import BaselineCalculator
 from apps.noc.security_intelligence.services.anomaly_detector import AnomalyDetector
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger('background_tasks.site_audit')

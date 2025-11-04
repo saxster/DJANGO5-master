@@ -4,7 +4,7 @@ Tests for GeofenceMaster model
 import pytest
 from django.db import IntegrityError
 from django.contrib.gis.geos import Point, Polygon
-from apps.onboarding.models import GeofenceMaster
+from apps.core_onboarding.models import GeofenceMaster
 
 
 @pytest.mark.django_db

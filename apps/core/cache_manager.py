@@ -310,7 +310,7 @@ def warm_critical_caches():
     QueryRepository.get_mob_caps_for_client()
     
     # Warm BT hierarchies for active clients
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     active_clients = Bt.objects.filter(
         identifier__tacode='CLIENT',
         enable=True

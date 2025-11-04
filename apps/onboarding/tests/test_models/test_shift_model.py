@@ -3,7 +3,7 @@ Tests for Shift model
 """
 import pytest
 from django.db import IntegrityError
-from apps.onboarding.models import Shift
+from apps.client_onboarding.models import Shift
 
 
 @pytest.mark.django_db

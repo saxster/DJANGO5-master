@@ -8,8 +8,8 @@ from django.db.models.functions import Cast, Extract
 from apps.core import utils
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
-from apps.onboarding.models import Shift
-from apps.onboarding.models import GeofenceMaster
+from apps.client_onboarding.models import Shift
+from apps.core_onboarding.models import GeofenceMaster
 from apps.tenants.managers import TenantAwareManager
 from itertools import chain
 import json
@@ -759,7 +759,7 @@ class PELManager(TenantAwareManager):
         return data
 
     def get_sitecrisis_types(self):
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         qset = (
             TypeAssist.objects.filter(tatype__tacode="SITECRISIS")

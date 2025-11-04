@@ -27,7 +27,7 @@ class DesignReport(LoginRequiredMixin, View):
             return self.render_using_pandoc(html_string)
         # excel file
         if R.get("text") == "xl":
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
 
             data = Bt.objects.get_sample_data()
             return self.render_excelfile(data)

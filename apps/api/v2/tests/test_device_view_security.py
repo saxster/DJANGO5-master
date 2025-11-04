@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.models.device_registry import UserDevice, DeviceSyncState
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 User = get_user_model()
 

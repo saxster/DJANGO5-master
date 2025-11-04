@@ -274,7 +274,8 @@ def send_email(subject, body, to, from_email=None, atts=None, cc=None):
 
 
 def create_client_site():
-    from apps.onboarding.models import Bt, TypeAssist
+    from apps.client_onboarding.models import Bt
+    from apps.core_onboarding.models import TypeAssist
 
     client_type, _ = TypeAssist.objects.get_or_create(tacode="CLIENT", taname="Client")
     site_type, _ = TypeAssist.objects.get_or_create(

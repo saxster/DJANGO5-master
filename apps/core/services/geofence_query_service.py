@@ -17,7 +17,8 @@ from django.conf import settings
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
-from apps.onboarding.models import GeofenceMaster, Bt
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import GeofenceMaster
 from apps.core.constants.spatial_constants import GEOFENCE_CACHE_TTL
 
 logger = logging.getLogger(__name__)

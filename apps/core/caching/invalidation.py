@@ -426,7 +426,7 @@ def warm_dropdown_caches(tenant_id: Optional[int] = None):
         tenant_id: Tenant ID to warm caches for
     """
     from apps.peoples.models import People
-    from apps.onboarding.models import TypeAssist
+    from apps.core_onboarding.models import TypeAssist
     from apps.activity.models.asset_model import Asset
 
     # Implementation would go here to pre-populate dropdown caches

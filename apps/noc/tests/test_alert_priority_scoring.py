@@ -21,7 +21,7 @@ from apps.noc.services.alert_priority_scorer import AlertPriorityScorer
 from apps.noc.services.correlation_service import AlertCorrelationService
 from apps.noc.ml.priority_model_trainer import PriorityModelTrainer
 from apps.tenants.models import Tenant
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 
 

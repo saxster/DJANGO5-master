@@ -175,7 +175,7 @@ class Command(BaseCommand):
         
         try:
             # Warm job caches for active business units
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             active_bus = Bt.objects.filter(
                 enable=True,
                 identifier__tacode__in=['BUSINESSUNIT', 'CLIENT']
@@ -213,7 +213,7 @@ class Command(BaseCommand):
         
         try:
             # Warm asset caches for active business units
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             active_bus = Bt.objects.filter(
                 enable=True,
                 identifier__tacode='BUSINESSUNIT'
@@ -349,7 +349,7 @@ class Command(BaseCommand):
                     self.stdout.write('  Warmed capability tree cache')
             
             # Warm type assist lookups
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
             
             for category in ['JOBSTATUS', 'PRIORITY', 'ASSET_TYPE']:
                 cache_key = f"typeassist:{category}"

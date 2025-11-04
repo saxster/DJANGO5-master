@@ -24,7 +24,7 @@ from django.db.models import Avg, Count, Max, Q
 from django.db import models
 
 from apps.peoples.models import People
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.noc.security_intelligence.models import (
     FraudPredictionLog,
     FraudDetectionModel

@@ -116,7 +116,7 @@ class Command(BaseCommand):
         """Parse business unit IDs from command line argument."""
         if not business_units_str:
             # Get top 10 most active business units
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             return list(
                 Bt.objects.annotate(
                     ticket_count=models.Count('ticket')
@@ -127,7 +127,7 @@ class Command(BaseCommand):
 
     def _warm_escalation_matrix_cache(self, business_units: list, force_refresh: bool) -> int:
         """Warm escalation matrix cache."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         warmed_count = 0
 
@@ -179,7 +179,7 @@ class Command(BaseCommand):
 
     def _warm_dashboard_stats_cache(self, business_units: list, days_back: int, force_refresh: bool) -> int:
         """Warm dashboard statistics cache."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         warmed_count = 0
         end_date = timezone.now().date()
@@ -248,7 +248,7 @@ class Command(BaseCommand):
 
     def _warm_ticket_list_cache(self, business_units: list, days_back: int, force_refresh: bool) -> int:
         """Warm ticket list cache for common scenarios."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         warmed_count = 0
         end_date = timezone.now().date()

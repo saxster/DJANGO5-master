@@ -34,7 +34,7 @@ class PathTraversalUploadTests(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         self.user = User.objects.create(
             loginid='test_user',
@@ -404,7 +404,7 @@ class IntegrationPathTraversalTests(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         self.user = User.objects.create(
             loginid='integration_user',

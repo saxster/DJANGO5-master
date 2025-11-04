@@ -173,7 +173,7 @@ class PredictiveAlertingService:
             List of predictions created
         """
         from apps.scheduler.models import Schedule
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         predictions = []
 

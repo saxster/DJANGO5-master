@@ -120,7 +120,7 @@ class TestAnomalyWebSocketBroadcast:
     def test_broadcast_anomaly_without_site(self, tenant, mock_user, db):
         """Test broadcast works when anomaly has no site (edge case)."""
         from apps.attendance.models import PeopleEventlog
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         site = Bt.objects.create(
             tenant=tenant,

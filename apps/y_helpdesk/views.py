@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.db.utils import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from apps.onboarding.models import TypeAssist
+from apps.core_onboarding.models import TypeAssist
 from .models import EscalationMatrix, Ticket
 from .forms import TicketForm, EscalationForm
 from django.contrib.auth.mixins import LoginRequiredMixin

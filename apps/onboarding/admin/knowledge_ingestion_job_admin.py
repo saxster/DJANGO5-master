@@ -18,7 +18,7 @@ import logging
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
-from apps.onboarding.models import KnowledgeIngestionJob
+from apps.core_onboarding.models import KnowledgeIngestionJob
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,8 @@ For new development, prefer explicit imports from model modules:
 - etc.
 
 Legacy imports continue to work unchanged:
-- from apps.onboarding.models import Bt, Shift, TypeAssist
+- from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist
 """
 
 # Import all models from the new modular structure

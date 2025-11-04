@@ -10,7 +10,8 @@
 
 
 # def create_dummy_client_site_and_superadmin(self):
-#     from apps.onboarding.models import Bt, TypeAssist
+#     from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 #     from apps.peoples.models import People
 #     try:
 #         clienttype = TypeAssist.objects.get(tatype__tacode = 'BVIDENTIFIER', tacode='CLIENT')
@@ -53,7 +54,7 @@
 #     """
 #     Inserts Default rows in TypeAssist Table
 #     """
-#     from apps.onboarding.models import TypeAssist
+#     from apps.core_onboarding.models import TypeAssist
 #     from django.conf import settings
 #     from tablib import Dataset
 #     from apps.onboarding.admin import TaResource

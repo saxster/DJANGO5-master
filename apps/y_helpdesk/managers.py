@@ -12,7 +12,7 @@ from django.db.models import (
     Value as V,
 )
 from django.db.models.functions import Cast
-from apps.onboarding.models import TypeAssist
+from apps.core_onboarding.models import TypeAssist
 from apps.peoples.models import Pgbelonging
 from apps.tenants.managers import TenantAwareManager
 import logging
@@ -316,7 +316,7 @@ class ESCManager(TenantAwareManager):
     def get_escalation_listview(self, request):
         """Optimized escalation list retrieval with caching"""
         from django.core.cache import cache
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         R, S = request.GET, request.session
 

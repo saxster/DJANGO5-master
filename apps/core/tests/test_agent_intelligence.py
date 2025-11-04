@@ -108,7 +108,7 @@ class TestAgentRecommendationModel:
 
     def test_model_creation(self):
         """Test basic model creation"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # Create test site
         site = Bt.objects.create(buname='Test Site')
@@ -133,7 +133,7 @@ class TestAgentRecommendationModel:
 
     def test_recommendation_to_dict(self):
         """Test to_dict() serialization"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         site = Bt.objects.create(buname='Test Site')
 

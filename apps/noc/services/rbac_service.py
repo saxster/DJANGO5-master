@@ -36,7 +36,7 @@ class NOCRBACService:
         Returns:
             QuerySet of Bt instances (clients)
         """
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.onboarding.managers import BtManager
 
         capabilities = UserCapabilityService.get_effective_permissions(user)

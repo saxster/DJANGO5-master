@@ -29,7 +29,7 @@ from apps.work_order_management.models import Wom, Vendor
 from apps.activity.models import Job, Jobneed
 from apps.reports.models import ReportHistory, ScheduleReport
 from apps.peoples.models import People
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 
 
 @pytest.mark.performance

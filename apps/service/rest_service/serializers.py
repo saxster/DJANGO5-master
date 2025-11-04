@@ -12,7 +12,8 @@ Compliance with Rule #13: Form Validation Requirements
 from rest_framework import serializers
 from apps.attendance.models import PeopleEventlog
 from apps.peoples.models import People, Pgroup, Pgbelonging
-from apps.onboarding.models import Bt, TypeAssist, Shift
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist
 from apps.activity.models.job_model import Jobneed, Job
 from apps.activity.models.question_model import Question, QuestionSet
 from apps.activity.models.location_model import Location

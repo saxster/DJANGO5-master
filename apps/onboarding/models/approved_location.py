@@ -23,7 +23,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 logger = logging.getLogger(__name__)
 

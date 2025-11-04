@@ -15,7 +15,8 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from unittest.mock import Mock, patch, MagicMock
 from apps.peoples.models import People
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.onboarding.management.commands.init_intelliwiz import create_superuser
 
 

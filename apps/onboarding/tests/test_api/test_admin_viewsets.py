@@ -23,7 +23,7 @@ from unittest.mock import patch
 from apps.peoples.models import People, Pgroup
 from apps.tenants.models import Client, BusinessUnit
 from apps.activity.models.location_model import Location
-from apps.onboarding.models import Shift
+from apps.client_onboarding.models import Shift
 
 
 @pytest.mark.django_db

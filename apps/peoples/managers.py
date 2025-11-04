@@ -194,7 +194,7 @@ class PeopleManager(BaseUserManager):
         return qset or self.none()
 
     def get_assigned_sites(self, clientid, peopleid):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         qset = (
             Bt.objects.filter(id__gte=12, id__lte=150)
@@ -367,7 +367,7 @@ class PeopleManager(BaseUserManager):
         return qset or self.none()
 
     def get_sitemanager_or_emergencycontact(self, bu):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         if Bt.objects.filter(
             ~Q(siteincharge_id=1), id=bu.id, siteincharge__isnull=False
@@ -545,7 +545,7 @@ class PgblngManager(models.Manager):
         return qset or self.none()
 
     def make_choices_of_sites(self, ids):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         qset = (
             Bt.objects.annotate(text=Concat(F("buname"), V(" ("), F("bucode"), V(")")))
@@ -555,7 +555,7 @@ class PgblngManager(models.Manager):
         return qset or self.none()
 
     def return_sites_for_service(self, ids, fields):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         qset = Bt.objects.filter(id__in=ids).annotate(bu_id=F("id")).values(*fields)
         return qset or self.none()
@@ -564,7 +564,7 @@ class PgblngManager(models.Manager):
         self, peopleid, makechoice=False, forservice=False
     ):
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # get default site of people
         people = People.objects.filter(id=peopleid).first()

@@ -18,7 +18,7 @@ def test_user(db):
 @pytest.fixture
 def test_client(db):
     """Create test client (will be in client_onboarding later)"""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     return Bt.objects.create(
         bucode='TESTCLIENT',
         buname='Test Client'

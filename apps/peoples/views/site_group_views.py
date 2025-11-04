@@ -18,7 +18,7 @@ from django.http.request import QueryDict
 
 from apps.peoples.services import SiteGroupManagementService
 from apps.peoples.forms import SiteGroupForm
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 logger = logging.getLogger(__name__)
 

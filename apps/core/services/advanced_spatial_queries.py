@@ -34,7 +34,8 @@ from django.core.exceptions import ValidationError
 
 from apps.attendance.models import PeopleEventlog
 from apps.activity.models import Asset, Location
-from apps.onboarding.models import Bt, GeofenceMaster
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import GeofenceMaster
 from apps.core.constants.spatial_constants import METERS_PER_DEGREE_LAT
 
 logger = logging.getLogger(__name__)

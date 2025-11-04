@@ -20,7 +20,7 @@ from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 import logging
 
-from apps.onboarding.models import GeofenceMaster
+from apps.core_onboarding.models import GeofenceMaster
 from apps.api.permissions import TenantIsolationPermission
 from apps.api.pagination import MobileSyncCursorPagination
 

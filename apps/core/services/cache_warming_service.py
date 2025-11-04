@@ -125,7 +125,7 @@ class CacheWarmingService:
         """Warm dropdown data caches"""
         try:
             from apps.peoples.models import People
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
 
             keys_warmed = 0
 

@@ -3,7 +3,8 @@ from django.db.utils import IntegrityError, DatabaseError
 from apps.core.utils_new import db_utils as utils
 from apps.core.exceptions import patterns as excp
 from django.core.exceptions import ObjectDoesNotExist
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.peoples.models import People
 from apps.onboarding.admin import TaResource
 from apps.peoples.admin import CapabilityResource
@@ -222,9 +223,10 @@ class Command(BaseCommand):
         # Note: Removed set_db_for_router() call - function no longer exists after refactoring
         # Database routing is handled automatically by TenantDbRouter
         self.stdout.write(self.style.SUCCESS(f"Initializing database: {db}"))
-        
+
         # Check if key data already exists
-        from apps.onboarding.models import TypeAssist, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
         if not force and TypeAssist.objects.filter(tacode='PEOPLETYPE').exists():
             self.stdout.write(self.style.WARNING('Database appears to be already initialized. Use --force to reinitialize.'))
             return

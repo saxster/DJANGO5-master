@@ -25,7 +25,7 @@ from apps.y_helpdesk.signals import track_ticket_status_change, broadcast_ticket
 from apps.noc.services.websocket_service import NOCWebSocketService
 from apps.noc.consumers import NOCDashboardConsumer
 from apps.peoples.models import People
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 

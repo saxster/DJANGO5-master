@@ -18,7 +18,7 @@ from django.db import transaction
 from django.utils import timezone
 from apps.tenants.models.retention_policy import RetentionPolicy, DEFAULT_RETENTION_DAYS
 from apps.core.models import LLMUsageLog
-from apps.onboarding.models import KnowledgeIngestionJob, LLMRecommendation
+from apps.core_onboarding.models import KnowledgeIngestionJob, LLMRecommendation
 from apps.core.models import SagaState
 
 logger = logging.getLogger('purge_tasks')

@@ -172,7 +172,7 @@ def insert_questions_to_qsetblng(assigned_questions, model, fields, request):
 def get_assignedsitedata(request):
     """Return BU ids for sites assigned to the current user."""
     bu_list = []
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
 
     try:
         data = Bt.objects.get_people_bu_list(request.user).values(

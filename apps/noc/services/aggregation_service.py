@@ -40,7 +40,7 @@ class NOCAggregationService:
             DatabaseError: If database operation fails
             ValueError: If client_id is invalid
         """
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.onboarding.managers import BtManager
 
         try:

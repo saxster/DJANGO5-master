@@ -14,7 +14,7 @@ from apps.scheduler.views import (
 from apps.peoples.models import People, Pgroup
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 User = get_user_model()
 

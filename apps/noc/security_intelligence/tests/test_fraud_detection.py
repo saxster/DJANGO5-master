@@ -21,7 +21,7 @@ class TestBiometricFraudDetector:
         """Test detection of concurrent biometric usage at different sites."""
         from apps.noc.security_intelligence.services import BiometricFraudDetector
         from apps.noc.security_intelligence.models import BiometricVerificationLog
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         other_site = Bt.objects.create(
             tenant=attendance_event.tenant,
