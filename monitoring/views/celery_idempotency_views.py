@@ -25,6 +25,7 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from apps.core.decorators import require_monitoring_api_key
 from monitoring.services.celery_idempotency_collector import celery_idempotency_collector
 from monitoring.services.pii_redaction_service import MonitoringPIIRedactionService
@@ -58,7 +59,7 @@ class CeleryIdempotencyView(View):
         recommendations = self._generate_recommendations(stats)
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_hours': window_hours,
             'statistics': stats,
             'recommendations': recommendations,
@@ -114,7 +115,7 @@ class CeleryIdempotencyBreakdownView(View):
         stats = celery_idempotency_collector.get_idempotency_stats(window_hours)
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_hours': window_hours,
             'scope_breakdown': stats.get('scope_breakdown', []),
             'top_endpoints': self._format_endpoints(stats.get('top_endpoints', [])),
@@ -165,7 +166,7 @@ class CeleryIdempotencyHealthView(View):
         health_status = stats.get('health_status', 'unknown')
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_hours': window_hours,
             'health_status': health_status,
             'duplicate_rate': duplicate_rate,

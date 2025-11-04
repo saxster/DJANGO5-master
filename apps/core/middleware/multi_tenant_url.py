@@ -33,7 +33,7 @@ from django.conf import settings
 from django.http import HttpRequest, Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.core.cache import cache
+from apps.core.cache.tenant_aware import tenant_cache as cache
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,7 @@ class MultiTenantURLMiddleware:
     TENANT_PATH_PATTERN = re.compile(r'^/t/(?P<tenant_slug>[\w-]+)/')
 
     # Cache key prefix for tenant lookups
+    # NOTE: Uses tenant-aware cache to prevent cross-tenant collisions
     CACHE_PREFIX = 'tenant_lookup'
     CACHE_TTL = 3600  # 1 hour
 
@@ -143,14 +144,19 @@ class MultiTenantURLMiddleware:
             request.tenant = None
 
         # Process request
-        response = self.get_response(request)
+        try:
+            response = self.get_response(request)
 
-        # Add tenant info to response headers (for debugging)
-        if hasattr(request, 'tenant') and request.tenant:
-            response['X-Tenant-ID'] = request.tenant.tenant_id
-            response['X-Tenant-Slug'] = request.tenant.tenant_slug
+            # Add tenant info to response headers (for debugging)
+            if hasattr(request, 'tenant') and request.tenant:
+                response['X-Tenant-ID'] = request.tenant.tenant_id
+                response['X-Tenant-Slug'] = request.tenant.tenant_slug
 
-        return response
+            return response
+        finally:
+            # CRITICAL: Cleanup thread-local context
+            from apps.tenants.utils import cleanup_tenant_context
+            cleanup_tenant_context()
 
     def _should_skip(self, path: str) -> bool:
         """

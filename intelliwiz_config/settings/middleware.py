@@ -78,6 +78,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.onboarding_api.middleware.OnboardingAPIMiddleware",
     "apps.onboarding_api.middleware.OnboardingAuditMiddleware",
+    "apps.attendance.middleware.AttendanceAuditMiddleware",  # Attendance access audit logging (Nov 2025)
 
     # ========================================================================
     # Layer 10: Application Middleware

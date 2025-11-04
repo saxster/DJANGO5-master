@@ -14,6 +14,7 @@ from datetime import datetime, time, date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.http import JsonResponse, QueryDict
 from django.shortcuts import render, redirect
 from django.views import View
@@ -25,6 +26,7 @@ from apps.scheduler.mixins.view_mixins import (
 )
 from apps.core.exceptions import ValidationError, DatabaseException
 from apps.activity.models.job_model import Job
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
 
@@ -79,25 +81,26 @@ class BaseSchedulingView(LoginRequiredMixin, ErrorHandlingMixin, FilterMixin, Vi
             JsonResponse: Success or error response
         """
         try:
-            if operation == "create":
-                result = self.service.create_job(
-                    form_data=form_data,
-                    user=request.user,
-                    session=request.session
-                )
-            else:
-                result = self.service.update_job(
-                    job_id=obj_id,
-                    form_data=form_data,
-                    user=request.user,
-                    session=request.session
-                )
+            with transaction.atomic(using=get_current_db_name()):
+                if operation == "create":
+                    result = self.service.create_job(
+                        form_data=form_data,
+                        user=request.user,
+                        session=request.session
+                    )
+                else:
+                    result = self.service.update_job(
+                        job_id=obj_id,
+                        form_data=form_data,
+                        user=request.user,
+                        session=request.session
+                    )
 
-            obj, success = result
-            if success:
-                return self.handle_success_response(
-                    obj,
-                    success_url=self.get_success_url(obj)
+                obj, success = result
+                if success:
+                    return self.handle_success_response(
+                        obj,
+                        success_url=self.get_success_url(obj)
                 )
 
         except ValidationError as e:

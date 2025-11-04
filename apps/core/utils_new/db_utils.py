@@ -678,14 +678,41 @@ def create_super_admin(db):
 THREAD_LOCAL = threading.local()
 
 
-def get_current_db_name():
+def get_current_db_name() -> str:
+    """
+    Get current tenant database alias from thread-local storage.
+
+    Returns:
+        Database alias string (e.g., 'intelliwiz_django' or 'default')
+
+    Example:
+        >>> from apps.core.utils_new.db_utils import get_current_db_name
+        >>> db = get_current_db_name()
+        >>> print(db)  # 'intelliwiz_django'
+    """
     return getattr(THREAD_LOCAL, "DB", "default")
 
 
-def set_db_for_router(db):
+def set_db_for_router(db: str) -> None:
+    """
+    Set database alias for current request context.
+
+    Args:
+        db: Database alias from settings.DATABASES
+
+    Raises:
+        NoDbError: If database alias doesn't exist in settings
+
+    Security:
+        - Validates database exists before setting
+        - Used by TenantMiddleware for request routing
+
+    Example:
+        >>> set_db_for_router('intelliwiz_django')
+    """
     from django.conf import settings
 
     dbs = settings.DATABASES
     if db not in dbs:
-        raise excp.NoDbError("Database with this alias not exist!")
+        raise excp.NoDbError(f"Database '{db}' does not exist in settings.DATABASES!")
     setattr(THREAD_LOCAL, "DB", db)

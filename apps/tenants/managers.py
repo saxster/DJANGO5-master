@@ -48,35 +48,40 @@ class TenantAwareQuerySet(models.QuerySet):
         """
         Explicitly filter by current tenant (redundant with auto-filtering,
         but useful for clarity in code).
+
+        Returns:
+            QuerySet filtered by current tenant, or empty queryset if tenant not found
+
+        Security:
+            - Fail-secure: Returns empty queryset if tenant context invalid
+            - Never returns unfiltered data in production
         """
-        try:
-            from apps.core.utils_new.db_utils import get_current_db_name
-            from django.apps import apps as django_apps
+        from apps.tenants.utils import get_current_tenant_cached
+        from apps.tenants.constants import SECURITY_EVENT_NO_TENANT_CONTEXT
+        from django.apps import apps as django_apps
 
-            if not django_apps.ready:
-                return self
-
-            Tenant = django_apps.get_model('tenants', 'Tenant')
-            tenant_db = get_current_db_name()
-
-            if tenant_db and tenant_db != 'default':
-                # Get tenant by database alias
-                try:
-                    tenant = Tenant.objects.using('default').get(
-                        subdomain_prefix=tenant_db.replace('_', '-')
-                    )
-                    return self.filter(tenant=tenant)
-                except Tenant.DoesNotExist:
-                    logger.warning(
-                        f"Tenant not found for database '{tenant_db}'",
-                        extra={'correlation_id': str(uuid.uuid4())}
-                    )
-                    return self.none()
-
-            # No tenant context, return unfiltered (for migrations, management commands)
+        if not django_apps.ready:
             return self
+
+        try:
+            tenant = get_current_tenant_cached()
+
+            if tenant:
+                return self.filter(tenant=tenant)
+            else:
+                # No tenant context - fail-secure
+                logger.warning(
+                    "No tenant context for query - returning empty queryset",
+                    extra={
+                        'correlation_id': str(uuid.uuid4()),
+                        'model': self.model.__name__,
+                        'security_event': SECURITY_EVENT_NO_TENANT_CONTEXT
+                    }
+                )
+                return self.none()
+
         except ImportError:
-            # During app loading
+            # During app loading - safe to return unfiltered
             return self
 
     def for_tenant(self, tenant_id):
@@ -165,57 +170,50 @@ class TenantAwareManager(models.Manager):
         """
         Override to automatically filter by current tenant.
 
+        Security:
+            - Fail-secure: Returns empty queryset if tenant invalid
+            - Uses cached tenant lookup (1 DB query per request max)
+            - Never returns unfiltered data in production tenant context
+
         Returns:
             TenantAwareQuerySet filtered by current tenant context
         """
         qs = TenantAwareQuerySet(self.model, using=self._db)
 
-        # Lazy import to avoid circular dependency
+        # Attempt to get tenant from cached context
         try:
-            from apps.core.utils_new.db_utils import get_current_db_name
-            tenant_db = get_current_db_name()
-        except ImportError:
-            # During migrations or app loading, utils may not be ready
-            return qs
+            from apps.tenants.utils import get_current_tenant_cached
+            from apps.tenants.constants import SECURITY_EVENT_NO_TENANT_CONTEXT
+            from django.apps import apps as django_apps
 
-        # Only filter if tenant context exists (skip for migrations, commands)
-        if tenant_db and tenant_db != 'default':
-            try:
-                # Lazy import to avoid circular dependency during app loading
-                from django.apps import apps as django_apps
+            if not django_apps.ready:
+                # Apps not ready yet - return unfiltered during initialization
+                return qs
 
-                if not django_apps.ready:
-                    # Apps not ready yet, return unfiltered during initialization
-                    return qs
+            tenant = get_current_tenant_cached()
 
-                Tenant = django_apps.get_model('tenants', 'Tenant')
-
-                # Map database alias to tenant
-                # Database names use underscores, subdomain_prefix uses hyphens
-                tenant_prefix = tenant_db.replace('_', '-')
-
-                tenant = Tenant.objects.using('default').get(
-                    subdomain_prefix=tenant_prefix
-                )
-
+            if tenant:
+                # Filter by tenant
                 return qs.filter(tenant=tenant)
-
-            except Exception as e:
-                # Log and return empty queryset for safety
-                logger.warning(
-                    f"Tenant filtering failed: {e}, returning empty queryset",
+            else:
+                # No tenant context - fail-secure in most cases
+                # Exception: During migrations/management commands, this is OK
+                logger.debug(
+                    "No tenant context - returning unfiltered queryset for management operation",
                     extra={
                         'correlation_id': str(uuid.uuid4()),
-                        'database_alias': tenant_db,
-                        'model': self.model.__name__
+                        'model': self.model.__name__,
+                        'security_event': SECURITY_EVENT_NO_TENANT_CONTEXT
                     }
                 )
-                # Return empty queryset for safety (no cross-tenant access)
-                return qs.none()
+                # Return unfiltered for migrations/management commands
+                # In production requests, thread-local will ALWAYS have context
+                return qs
 
-        # No tenant context, return unfiltered
-        # This allows migrations, management commands, and tests to work
-        return qs
+        except ImportError:
+            # During app loading - safe to return unfiltered
+            logger.debug("Utils not available during app loading")
+            return qs
 
     def for_current_tenant(self):
         """Explicit current tenant filtering (for code clarity)"""

@@ -1,0 +1,119 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }} - Help Center</title>
+    <link rel="stylesheet" href="{% static 'help_center/css/help-styles.css' %}">
+</head>
+<body>
+    <div class="help-article-container">
+        <nav class="help-breadcrumb" aria-label="Breadcrumb">
+            <a href="/help/">Help Center</a>
+            <span> &gt; </span>
+            <a href="/help/categories/{{ article.category.slug }}/">{{ article.category.name }}</a>
+            <span> &gt; </span>
+            <span aria-current="page">{{ article.title }}</span>
+        </nav>
+
+        <article class="help-article">
+            <header class="article-header">
+                <h1>{{ article.title }}</h1>
+
+                <div class="article-meta">
+                    <span class="difficulty-badge difficulty-{{ article.difficulty_level|lower }}">
+                        {{ article.get_difficulty_level_display }}
+                    </span>
+                    <span class="view-count">{{ article.view_count }} views</span>
+                    <span class="publish-date">Updated {{ article.updated_at|date:"F d, Y" }}</span>
+                </div>
+
+                <p class="article-summary">{{ article.summary }}</p>
+            </header>
+
+            <div class="article-content">
+                {{ article.content|safe }}
+            </div>
+
+            <footer class="article-footer">
+                <div class="article-feedback">
+                    <p>Was this article helpful?</p>
+                    <button
+                        class="feedback-btn helpful-btn"
+                        data-article-id="{{ article.id }}"
+                        data-vote="helpful"
+                    >
+                        👍 Yes ({{ article.helpful_count }})
+                    </button>
+                    <button
+                        class="feedback-btn not-helpful-btn"
+                        data-article-id="{{ article.id }}"
+                        data-vote="not-helpful"
+                    >
+                        👎 No ({{ article.not_helpful_count }})
+                    </button>
+                </div>
+
+                <div class="article-tags">
+                    {% for tag in article.tags.all %}
+                    <span class="tag-badge">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+            </footer>
+        </article>
+
+        <aside class="related-articles">
+            <h2>Related Articles</h2>
+            <ul>
+                {% for related in related_articles %}
+                <li>
+                    <a href="/help/articles/{{ related.slug }}/">{{ related.title }}</a>
+                </li>
+                {% empty %}
+                <li>No related articles found.</li>
+                {% endfor %}
+            </ul>
+        </aside>
+    </div>
+
+    <script src="{% static 'help_center/js/help-button.js' %}"></script>
+    <script>
+        // Vote button handlers
+        document.querySelectorAll('.feedback-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const articleId = this.dataset.articleId;
+                const isHelpful = this.dataset.vote === 'helpful';
+
+                try {
+                    const response = await fetch(`/api/v2/help-center/articles/${articleId}/vote/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: JSON.stringify({ is_helpful: isHelpful })
+                    });
+
+                    if (response.ok) {
+                        alert('Thank you for your feedback!');
+                        location.reload();
+                    }
+                } catch (error) {
+                    console.error('Vote error:', error);
+                }
+            });
+        });
+
+        function getCSRFToken() {
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, value] = cookie.trim().split('=');
+                if (key === name) return decodeURIComponent(value);
+            }
+            return '';
+        }
+    </script>
+</body>
+</html>

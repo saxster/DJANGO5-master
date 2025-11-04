@@ -27,6 +27,9 @@ from apps.wellness.services.conversation_translation_service import Conversation
 # Import existing task infrastructure
 from apps.core.tasks.base import BaseTask, TaskMetrics, log_task_context
 from apps.core.tasks.utils import task_retry_policy
+from apps.core.exceptions.patterns import (
+    DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, NETWORK_EXCEPTIONS
+)
 
 User = get_user_model()
 logger = logging.getLogger('mental_health_tasks')
@@ -102,9 +105,9 @@ def process_entry_for_mental_health_interventions(self, journal_entry_id, user_i
 
             return processing_result
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             TaskMetrics.increment_counter('mental_health_intervention_analysis_error')
-            logger.error(f"Mental health intervention task failed: {e}")
+            logger.error(f"Mental health intervention task failed: {e}", exc_info=True)
             raise
 
 
@@ -177,9 +180,9 @@ def process_crisis_mental_health_intervention(self, user_id, crisis_assessment, 
             logger.critical(f"Crisis intervention processing complete for user {user_id}")
             return result
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             TaskMetrics.increment_counter('mental_health_crisis_intervention_failed')
-            logger.error(f"Crisis intervention processing failed for user {user_id}: {e}")
+            logger.error(f"Crisis intervention processing failed for user {user_id}: {e}", exc_info=True)
             raise
 
 
@@ -236,9 +239,9 @@ def update_intervention_effectiveness_analytics(self):
 
             return result
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             TaskMetrics.increment_counter('mental_health_analytics_update_failed')
-            logger.error(f"Mental health analytics update failed: {e}")
+            logger.error(f"Mental health analytics update failed: {e}", exc_info=True)
             raise
 
 
@@ -279,8 +282,8 @@ def schedule_proactive_mental_health_interventions(self):
                         scheduled_count += scheduling_result['interventions_scheduled']
                         logger.debug(f"Scheduled {scheduling_result['interventions_scheduled']} interventions for user {user.id}")
 
-                except Exception as e:
-                    logger.error(f"Proactive scheduling failed for user {user.id}: {e}")
+                except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                    logger.error(f"Proactive scheduling failed for user {user.id}: {e}", exc_info=True)
                     continue
 
             result = {
@@ -301,8 +304,8 @@ def schedule_proactive_mental_health_interventions(self):
 
             return result
 
-        except Exception as e:
-            logger.error(f"Proactive mental health intervention scheduling failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Proactive mental health intervention scheduling failed: {e}", exc_info=True)
             raise
 
 
@@ -347,9 +350,9 @@ def monitor_high_risk_users_task(self):
 
             return monitoring_result
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             TaskMetrics.increment_counter('high_risk_user_monitoring_error')
-            logger.error(f"High-risk user monitoring task failed: {e}")
+            logger.error(f"High-risk user monitoring task failed: {e}", exc_info=True)
             raise
 
 
@@ -405,8 +408,8 @@ def cleanup_expired_intervention_data(self):
                     'message': 'No expired data found'
                 }
 
-        except Exception as e:
-            logger.error(f"Intervention data cleanup failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Intervention data cleanup failed: {e}", exc_info=True)
             raise
 
 
@@ -450,14 +453,14 @@ def _get_users_eligible_for_proactive_interventions():
                 privacy_settings = JournalPrivacySettings.objects.filter(user=user).first()
                 if not privacy_settings or privacy_settings.analytics_consent:
                     consented_users.append(user)
-            except Exception as e:
-                logger.error(f"Consent check failed for user {user.id}: {e}")
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                logger.error(f"Consent check failed for user {user.id}: {e}", exc_info=True)
                 continue
 
         return consented_users
 
-    except Exception as e:
-        logger.error(f"Failed to get eligible users for proactive interventions: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Failed to get eligible users for proactive interventions: {e}", exc_info=True)
         return []
 
 
@@ -483,8 +486,8 @@ def _update_system_wide_metrics(effectiveness_report):
             'key_metrics': system_metrics
         }
 
-    except Exception as e:
-        logger.error(f"System metrics update failed: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"System metrics update failed: {e}", exc_info=True)
         return {
             'metrics_updated': False,
             'error': str(e)
@@ -538,8 +541,8 @@ def generate_weekly_mental_health_report(self):
 
             return result
 
-        except Exception as e:
-            logger.error(f"Weekly mental health report generation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Weekly mental health report generation failed: {e}", exc_info=True)
             raise
 
 
@@ -747,7 +750,7 @@ def translate_conversation_async(self, conversation_id, target_language, priorit
                     'retry_count': retry_count
                 }
 
-        except Exception as e:
+        except (NETWORK_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             # Unexpected error
             logger.error(f"Unexpected error in translation task for conversation {conversation_id}: {e}", exc_info=True)
 
@@ -843,7 +846,7 @@ def cleanup_expired_translations(self):
                     'message': 'No expired translations found'
                 }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             TaskMetrics.increment_counter('translation_cleanup_failed')
             logger.error(f"Translation cleanup failed: {e}", exc_info=True)
             raise

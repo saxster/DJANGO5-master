@@ -5,7 +5,7 @@ REST API endpoints for telemetry and operational intelligence.
 """
 
 from django.urls import path
-from . import telemetry_views, fraud_views
+from . import telemetry_views, fraud_views, nl_query_views
 
 app_name = 'noc_api_v2'
 
@@ -47,5 +47,17 @@ urlpatterns = [
         'security/ml-models/performance/',
         fraud_views.ml_model_performance_view,
         name='ml-model-performance'
+    ),
+
+    # Natural Language Query endpoints (Enhancement #10)
+    path(
+        'query/nl/',
+        nl_query_views.natural_language_query_view,
+        name='nl-query'
+    ),
+    path(
+        'query/nl/stats/',
+        nl_query_views.query_cache_stats_view,
+        name='nl-query-stats'
     ),
 ]

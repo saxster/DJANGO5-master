@@ -28,6 +28,8 @@ from django.http import JsonResponse, HttpRequest
 from django.utils.translation import gettext as _
 from django.core.exceptions import PermissionDenied
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,37 +42,37 @@ class RateLimitConfig:
 
     # Geocoding operations (Google Maps API)
     GEOCODING_RATE_LIMIT = getattr(settings, 'GEOCODING_RATE_LIMIT', {
-        'anonymous': {'calls': 10, 'period': 3600},  # 10 calls per hour
-        'authenticated': {'calls': 100, 'period': 3600},  # 100 calls per hour
-        'staff': {'calls': 1000, 'period': 3600},  # 1000 calls per hour
+        'anonymous': {'calls': 10, 'period': SECONDS_IN_HOUR},  # 10 calls per hour
+        'authenticated': {'calls': 100, 'period': SECONDS_IN_HOUR},  # 100 calls per hour
+        'staff': {'calls': 1000, 'period': SECONDS_IN_HOUR},  # 1000 calls per hour
     })
 
     # Reverse geocoding operations
     REVERSE_GEOCODING_RATE_LIMIT = getattr(settings, 'REVERSE_GEOCODING_RATE_LIMIT', {
-        'anonymous': {'calls': 10, 'period': 3600},
-        'authenticated': {'calls': 100, 'period': 3600},
-        'staff': {'calls': 1000, 'period': 3600},
+        'anonymous': {'calls': 10, 'period': SECONDS_IN_HOUR},
+        'authenticated': {'calls': 100, 'period': SECONDS_IN_HOUR},
+        'staff': {'calls': 1000, 'period': SECONDS_IN_HOUR},
     })
 
     # Route optimization operations
     ROUTE_OPTIMIZATION_RATE_LIMIT = getattr(settings, 'ROUTE_OPTIMIZATION_RATE_LIMIT', {
-        'anonymous': {'calls': 5, 'period': 3600},
-        'authenticated': {'calls': 50, 'period': 3600},
-        'staff': {'calls': 500, 'period': 3600},
+        'anonymous': {'calls': 5, 'period': SECONDS_IN_HOUR},
+        'authenticated': {'calls': 50, 'period': SECONDS_IN_HOUR},
+        'staff': {'calls': 500, 'period': SECONDS_IN_HOUR},
     })
 
     # Spatial query operations
     SPATIAL_QUERY_RATE_LIMIT = getattr(settings, 'SPATIAL_QUERY_RATE_LIMIT', {
-        'anonymous': {'calls': 100, 'period': 3600},
-        'authenticated': {'calls': 1000, 'period': 3600},
-        'staff': {'calls': 10000, 'period': 3600},
+        'anonymous': {'calls': 100, 'period': SECONDS_IN_HOUR},
+        'authenticated': {'calls': 1000, 'period': SECONDS_IN_HOUR},
+        'staff': {'calls': 10000, 'period': SECONDS_IN_HOUR},
     })
 
     # GPS submission operations
     GPS_SUBMISSION_RATE_LIMIT = getattr(settings, 'GPS_SUBMISSION_RATE_LIMIT', {
-        'anonymous': {'calls': 0, 'period': 3600},  # Not allowed for anonymous
-        'authenticated': {'calls': 500, 'period': 3600},
-        'staff': {'calls': 5000, 'period': 3600},
+        'anonymous': {'calls': 0, 'period': SECONDS_IN_HOUR},  # Not allowed for anonymous
+        'authenticated': {'calls': 500, 'period': SECONDS_IN_HOUR},
+        'staff': {'calls': 5000, 'period': SECONDS_IN_HOUR},
     })
 
 
@@ -315,7 +317,7 @@ def rate_limit(
 
                 operation_config = config_map.get(operation, {})
                 user_tier = get_user_tier(request)
-                limit_config = operation_config.get(user_tier, {'calls': 100, 'period': 3600})
+                limit_config = operation_config.get(user_tier, {'calls': 100, 'period': SECONDS_IN_HOUR})
 
             # Create rate limiter
             rate_limiter = RateLimiter(
@@ -427,7 +429,7 @@ class GlobalRateLimitMiddleware:
             # Get rate limit config
             user_tier = get_user_tier(request)
             limit_config = RateLimitConfig.SPATIAL_QUERY_RATE_LIMIT.get(
-                user_tier, {'calls': 100, 'period': 3600}
+                user_tier, {'calls': 100, 'period': SECONDS_IN_HOUR}
             )
 
             # Create rate limiter
@@ -506,7 +508,7 @@ def check_rate_limit(
 
     operation_config = config_map.get(operation, {})
     user_tier = get_user_tier(request)
-    limit_config = operation_config.get(user_tier, {'calls': 100, 'period': 3600})
+    limit_config = operation_config.get(user_tier, {'calls': 100, 'period': SECONDS_IN_HOUR})
 
     # Create rate limiter
     rate_limiter = RateLimiter(
@@ -553,7 +555,7 @@ def get_rate_limit_stats(request: HttpRequest, operation: str) -> dict:
     }
 
     operation_config = config_map.get(operation, {})
-    limit_config = operation_config.get(user_tier, {'calls': 100, 'period': 3600})
+    limit_config = operation_config.get(user_tier, {'calls': 100, 'period': SECONDS_IN_HOUR})
 
     # Create rate limiter
     rate_limiter = RateLimiter(

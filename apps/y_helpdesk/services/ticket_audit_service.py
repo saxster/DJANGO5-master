@@ -459,7 +459,12 @@ class TicketAuditService:
 
     @classmethod
     def _write_audit_log(cls, event: AuditEvent) -> None:
-        """Write audit event to configured storage."""
+        """
+        Write audit event to configured storage.
+
+        Compliance enhancement: Now writes to both logger AND persistent database
+        for immutable audit trail (SOC 2, HIPAA, GDPR compliance).
+        """
         # Convert to structured log format
         log_data = event.to_dict()
 
@@ -475,5 +480,72 @@ class TicketAuditService:
         else:
             logger.info("AUDIT", extra=log_data)
 
-        # Future enhancement: Write to dedicated audit database table
-        # This would enable better querying and compliance reporting
+        # Write to persistent audit database for compliance
+        try:
+            from apps.y_helpdesk.models.audit_log import TicketAuditLog
+            from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+            # Map event type to category
+            category_map = {
+                'ticket_created': 'modification',
+                'ticket_updated': 'modification',
+                'ticket_deleted': 'modification',
+                'ticket_accessed': 'access',
+                'permission_denied': 'security',
+                'status_transition': 'workflow',
+                'escalation': 'escalation',
+            }
+
+            # Get request context if available
+            ip_address = None
+            user_agent = None
+            request_method = None
+            request_path = None
+
+            if hasattr(event.context, 'request') and event.context.request:
+                request = event.context.request
+                ip_address = cls._get_client_ip(request)
+                user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
+                request_method = request.method
+                request_path = request.path[:500]
+
+            # Create immutable audit log entry
+            TicketAuditLog.objects.create(
+                event_id=log_data.get('event_id'),
+                correlation_id=log_data.get('correlation_id'),
+                event_type=event.event_type.value,
+                event_category=category_map.get(event.event_type.value, 'modification'),
+                severity_level=event.level.value.lower(),
+                user=event.context.user if hasattr(event.context, 'user') else None,
+                tenant=event.context.user.tenant if (hasattr(event.context, 'user') and event.context.user and hasattr(event.context.user, 'tenant')) else None,
+                ticket_id=log_data.get('ticket_id'),
+                event_data=log_data,
+                old_values=log_data.get('old_values'),
+                new_values=log_data.get('new_values'),
+                ip_address=ip_address,
+                user_agent=user_agent,
+                request_method=request_method,
+                request_path=request_path,
+                timestamp=event.context.timestamp,
+            )
+
+            logger.debug(f"Audit log persisted to database: {event.event_type.value}")
+
+        except DATABASE_EXCEPTIONS as e:
+            # Don't fail the operation if audit logging fails
+            # Just log the error - audit logging is best-effort
+            logger.error(
+                f"Failed to persist audit log to database: {e}",
+                exc_info=True,
+                extra={'event_type': event.event_type.value}
+            )
+
+    @staticmethod
+    def _get_client_ip(request) -> str:
+        """Extract client IP from request."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip

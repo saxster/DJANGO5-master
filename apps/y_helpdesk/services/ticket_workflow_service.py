@@ -362,7 +362,13 @@ class TicketWorkflowService:
         user = None
     ) -> int:
         """
-        Atomically update multiple tickets.
+        Atomically update multiple tickets with deadlock prevention.
+
+        Deadlock Prevention Strategy:
+        - Sort ticket IDs to ensure consistent lock ordering
+        - Hash ALL ticket IDs (not just first 5) for lock key
+        - Use order_by('pk') to acquire locks in consistent order
+        - Reduced timeout to fail fast (10s instead of 20s)
 
         Args:
             ticket_ids: List of ticket IDs to update
@@ -375,11 +381,22 @@ class TicketWorkflowService:
         # Lazy import to break circular dependency
         from apps.y_helpdesk.models import Ticket
 
-        lock_key = f"ticket_bulk_update:{'_'.join(map(str, sorted(ticket_ids[:5])))}"
+        # Sort ticket IDs for consistent lock ordering (prevents deadlocks)
+        sorted_ids = sorted(ticket_ids)
 
-        with distributed_lock(lock_key, timeout=20, blocking_timeout=15):
+        # Hash ALL ticket IDs for lock key (not just first 5)
+        import hashlib
+        id_string = '_'.join(map(str, sorted_ids))
+        id_hash = hashlib.md5(id_string.encode()).hexdigest()[:16]
+        lock_key = f"ticket_bulk_update:{id_hash}"
+
+        # Reduced timeout for fail-fast behavior
+        with distributed_lock(lock_key, timeout=10, blocking_timeout=5):
             try:
-                tickets = Ticket.objects.select_for_update().filter(pk__in=ticket_ids)
+                # Lock tickets in sorted order to prevent deadlocks
+                tickets = Ticket.objects.select_for_update().filter(
+                    pk__in=sorted_ids
+                ).order_by('pk')  # Consistent lock acquisition order
 
                 update_dict = {**updates}
                 update_dict['modifieddatetime'] = timezone.now()
@@ -394,6 +411,7 @@ class TicketWorkflowService:
                     f"Bulk updated {count} tickets",
                     extra={
                         'ticket_count': count,
+                        'ticket_ids_count': len(sorted_ids),
                         'updates': list(updates.keys())
                     }
                 )

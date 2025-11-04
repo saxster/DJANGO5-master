@@ -127,6 +127,78 @@ for file in $STAGED_FILES; do
     fi
 done
 
+# Check 7: Deprecated datetime.utcnow() (Python 3.12+)
+echo "Checking for deprecated datetime.utcnow()..."
+for file in $STAGED_FILES; do
+    if grep -n "datetime\.utcnow()" "$file" 2>/dev/null; then
+        echo -e "${RED}❌ ERROR: $file uses deprecated datetime.utcnow() (Python 3.12+)${NC}"
+        echo "   Use timezone.now() from django.utils instead"
+        echo "   See: docs/DATETIME_FIELD_STANDARDS.md"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
+# Check 8: Unaliased timezone import (name collision)
+echo "Checking for unaliased timezone imports..."
+for file in $STAGED_FILES; do
+    if grep -n "^from datetime import timezone$" "$file" 2>/dev/null; then
+        # Check if django.utils.timezone is also imported
+        if grep -n "from django.utils import timezone" "$file" 2>/dev/null; then
+            echo -e "${RED}❌ ERROR: $file has name collision with timezone imports${NC}"
+            echo "   Use 'from datetime import timezone as dt_timezone' to avoid conflict"
+            echo "   See: docs/DATETIME_FIELD_STANDARDS.md#import-standards"
+            ERRORS=$((ERRORS + 1))
+        fi
+    fi
+done
+
+# Check 9: Magic time numbers (excluding constants file)
+echo "Checking for magic time numbers..."
+for file in $STAGED_FILES; do
+    # Skip the datetime constants file itself
+    if echo "$file" | grep -E "datetime_constants\.py$" >/dev/null; then
+        continue
+    fi
+
+    # Check for common magic numbers: 86400, 3600, 604800
+    if grep -n '\b86400\b' "$file" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  WARNING: $file uses magic number 86400 (seconds in day)${NC}"
+        echo "   Consider using SECONDS_IN_DAY from apps.core.constants.datetime_constants"
+        echo "   from apps.core.constants.datetime_constants import SECONDS_IN_DAY"
+        # Warning only, don't block commit
+    fi
+
+    if grep -n '\b3600\b' "$file" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  WARNING: $file uses magic number 3600 (seconds in hour)${NC}"
+        echo "   Consider using SECONDS_IN_HOUR from apps.core.constants.datetime_constants"
+        echo "   from apps.core.constants.datetime_constants import SECONDS_IN_HOUR"
+        # Warning only, don't block commit
+    fi
+
+    if grep -n '\b604800\b' "$file" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  WARNING: $file uses magic number 604800 (seconds in week)${NC}"
+        echo "   Consider using SECONDS_IN_WEEK from apps.core.constants.datetime_constants"
+        echo "   from apps.core.constants.datetime_constants import SECONDS_IN_WEEK"
+        # Warning only, don't block commit
+    fi
+done
+
+# Check 10: Prefer timezone.now() over datetime.now()
+echo "Checking for datetime.now() usage (prefer timezone.now())..."
+for file in $STAGED_FILES; do
+    # Skip test files and utility scripts where datetime.now() might be acceptable
+    if echo "$file" | grep -E "test_|/tests/|scripts/|/testing/" >/dev/null; then
+        continue
+    fi
+
+    if grep -n '\bdatetime\.now()\b' "$file" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  WARNING: $file uses datetime.now() instead of timezone.now()${NC}"
+        echo "   For timezone-aware datetimes, use timezone.now() from django.utils"
+        echo "   See: docs/DATETIME_FIELD_STANDARDS.md#datetime-creation"
+        # Warning only, don't block commit
+    fi
+done
+
 # Summary
 echo ""
 if [ $ERRORS -gt 0 ]; then

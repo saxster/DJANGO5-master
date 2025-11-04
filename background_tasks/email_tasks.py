@@ -776,7 +776,7 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
                     "status": status,
                     "vendorname": vendor_name,
                     "service_month": (
-                        datetime.now() - relativedelta(months=1)
+                        timezone.now() - relativedelta(months=1)
                     ).strftime("%B %Y"),
                 }
                 html = render_to_string(

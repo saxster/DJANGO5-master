@@ -48,30 +48,23 @@ class TenantAwareAdminMixin:
     def save_model(self, request, obj, form, change):
         """Auto-populate tenant on object creation if not set."""
         if not change and not obj.tenant_id:
-            try:
-                from apps.core.utils_new.db_utils import get_current_db_name
+            from apps.tenants.utils import get_tenant_from_context
 
-                tenant_db = get_current_db_name()
-
-                if tenant_db and tenant_db != 'default':
-                    tenant_prefix = tenant_db.replace('_', '-')
-
-                    try:
-                        tenant = Tenant.objects.using('default').get(
-                            subdomain_prefix=tenant_prefix
-                        )
-                        obj.tenant = tenant
-
-                        logger.info(
-                            f"Auto-populated tenant for new {obj.__class__.__name__}: {tenant.tenantname}"
-                        )
-                    except Tenant.DoesNotExist:
-                        logger.warning(
-                            f"Tenant not found for database '{tenant_db}'"
-                        )
-
-            except ImportError as e:
-                logger.error(f"Could not import tenant utilities: {e}")
+            tenant = get_tenant_from_context()
+            if tenant:
+                obj.tenant = tenant
+                logger.info(
+                    f"Auto-populated tenant for new {obj.__class__.__name__}: {tenant.tenantname}",
+                    extra={
+                        'model': obj.__class__.__name__,
+                        'tenant_slug': tenant.subdomain_prefix
+                    }
+                )
+            else:
+                logger.warning(
+                    f"No tenant context available for new {obj.__class__.__name__}",
+                    extra={'model': obj.__class__.__name__}
+                )
 
         super().save_model(request, obj, form, change)
 

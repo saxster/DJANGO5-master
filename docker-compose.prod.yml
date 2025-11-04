@@ -1,0 +1,634 @@
+version: '3.9'
+
+# Production Docker Compose Configuration
+# Features:
+# - 11 orchestrated services
+# - Network isolation (backend/frontend)
+# - Resource limits
+# - Health checks
+# - Auto-restart policies
+# - Specialized Celery workers matching existing queue architecture
+
+services:
+  # ============================================
+  # PostgreSQL Database with PostGIS
+  # ============================================
+  postgres:
+    image: postgis/postgis:14-3.2
+    container_name: intelliwiz_postgres_prod
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8
+      - POSTGRES_MAX_CONNECTIONS=200
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups/postgres:/backups  # Mount for manual backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=postgres,environment=production"
+
+  # ============================================
+  # Redis (Cache & Message Broker)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: intelliwiz_redis_prod
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=redis,environment=production"
+
+  # ============================================
+  # Django Web Application (Gunicorn)
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: intelliwiz_web_prod
+    command: gunicorn intelliwiz_config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120 --max-requests 1000 --max-requests-jitter 50 --log-level info --access-logfile - --error-logfile -
+    volumes:
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=web,environment=production"
+
+  # ============================================
+  # Daphne ASGI Server (WebSockets)
+  # ============================================
+  daphne:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_daphne_prod
+    command: daphne -b 0.0.0.0 -p 8001 intelliwiz_config.asgi:application
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=daphne,environment=production"
+
+  # ============================================
+  # Celery Workers (Specialized Queues)
+  # ============================================
+
+  # Default queue worker
+  celery-default:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_default
+    command: celery -A intelliwiz_config worker -Q default -n default@%h --loglevel=info --concurrency=4 --max-tasks-per-child=1000
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-default,environment=production"
+
+  # Email queue worker
+  celery-email:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_email
+    command: celery -A intelliwiz_config worker -Q email -n email@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-email,environment=production"
+
+  # Reports queue worker
+  celery-reports:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_reports
+    command: celery -A intelliwiz_config worker -Q reports -n reports@%h --loglevel=info --concurrency=2 --max-tasks-per-child=100
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-reports,environment=production"
+
+  # Onboarding queue worker
+  celery-onboarding:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_onboarding
+    command: celery -A intelliwiz_config worker -Q onboarding -n onboarding@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-onboarding,environment=production"
+
+  # ML training queue worker
+  celery-ml:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_ml
+    command: celery -A intelliwiz_config worker -Q ml_training -n ml@%h --loglevel=info --concurrency=2 --max-tasks-per-child=50
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'  # ML tasks need more CPU
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-ml,environment=production"
+
+  # Priority queue worker
+  celery-priority:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_priority
+    command: celery -A intelliwiz_config worker -Q priority -n priority@%h --loglevel=info --concurrency=4 --max-tasks-per-child=1000
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-priority,environment=production"
+
+  # Scheduled tasks queue worker
+  celery-scheduled:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_scheduled
+    command: celery -A intelliwiz_config worker -Q scheduled_tasks -n scheduled@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-scheduled,environment=production"
+
+  # GCS file operations queue worker
+  celery-gcs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_gcs
+    command: celery -A intelliwiz_config worker -Q gcs_file_operations -n gcs@%h --loglevel=info --concurrency=2 --max-tasks-per-child=500
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-gcs,environment=production"
+
+  # ============================================
+  # Celery Beat Scheduler (SINGLE INSTANCE ONLY)
+  # ============================================
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_celery_beat
+    command: celery -A intelliwiz_config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.production
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+      replicas: 1  # CRITICAL: Only one beat scheduler
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=celery-beat,environment=production"
+
+  # ============================================
+  # Flower (Celery Monitoring)
+  # ============================================
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliwiz_flower
+    command: celery -A intelliwiz_config flower --port=5555 --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-changeme}
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=flower,environment=production"
+
+  # ============================================
+  # Nginx Reverse Proxy
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: intelliwiz_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - static_volume:/static:ro
+      - media_volume:/media:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - web
+      - daphne
+    networks:
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=nginx,environment=production"
+
+  # ============================================
+  # PostgreSQL Backup Service (Optional)
+  # ============================================
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local
+    container_name: intelliwiz_postgres_backup
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+      - HEALTHCHECK_PORT=8080
+    volumes:
+      - ./backups/postgres:/backups
+    depends_on:
+      - postgres
+    networks:
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=postgres-backup,environment=production"
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  frontend:
+    driver: bridge
+    name: intelliwiz_frontend
+  backend:
+    driver: bridge
+    internal: true  # Backend network isolated from internet
+    name: intelliwiz_backend
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    name: intelliwiz_postgres_data
+  redis_data:
+    name: intelliwiz_redis_data
+  static_volume:
+    name: intelliwiz_static
+  media_volume:
+    name: intelliwiz_media

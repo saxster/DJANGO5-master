@@ -692,3 +692,43 @@ def get_coordinates_from_geometry(geometry: Union[str, GEOSGeometry]) -> Tuple[f
 def validate_point_in_geofence(lat: float, lon: float, geofence: Union[Polygon, tuple]) -> bool:
     """Legacy function wrapper for geofence validation"""
     return GeospatialService.is_point_in_geofence(lat, lon, geofence, use_hysteresis=True)
+
+
+def validate_point_in_geofence_with_config(lat: float, lon: float, geofence_obj) -> bool:
+    """
+    Validate point in geofence using geofence object's configured hysteresis.
+
+    Phase 3.3: Uses per-geofence configurable hysteresis buffer.
+
+    Args:
+        lat: Latitude
+        lon: Longitude
+        geofence_obj: Geofence model instance (must have hysteresis_meters field)
+
+    Returns:
+        True if point is in geofence (with configured buffer)
+
+    Example:
+        from apps.attendance.models import Geofence
+        geofence = Geofence.objects.get(id=123)
+        is_inside = validate_point_in_geofence_with_config(37.7749, -122.4194, geofence)
+    """
+    # Get geofence geometry based on type
+    if geofence_obj.geofence_type == 'POLYGON' and geofence_obj.boundary:
+        geofence = geofence_obj.boundary
+    elif geofence_obj.geofence_type == 'CIRCLE' and geofence_obj.center_point and geofence_obj.radius:
+        # Circular geofence as tuple (center_point, radius_km)
+        geofence = (geofence_obj.center_point, geofence_obj.radius / 1000)  # Convert meters to km
+    else:
+        logger.warning(f"Invalid geofence configuration for {geofence_obj.id}")
+        return False
+
+    # Get configured hysteresis (convert meters to km)
+    hysteresis_km = geofence_obj.hysteresis_meters / 1000
+
+    # Validate with configured hysteresis
+    return GeospatialService.is_point_in_geofence(
+        lat, lon, geofence,
+        use_hysteresis=True,
+        hysteresis_buffer=hysteresis_km
+    )

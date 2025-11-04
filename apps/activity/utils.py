@@ -257,20 +257,35 @@ def column_filter(
 
 def getdatatable_filter(request):
     """Parse datatable request parameters and return filter values."""
+    # SECURITY FIX (IDOR-004): Validate and sanitize datatable parameters
     logger.debug("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-    col0 = request.GET["columns[0][data]"]
-    col1 = request.GET["columns[1][data]"]
-    col2 = request.GET["columns[2][data]"]
-    col3 = request.GET["columns[3][data]"]
-    col4 = request.GET["columns[4][data]"]
-    col5 = request.GET["columns[5][data]"]
-    colval0 = request.GET["columns[0][search][value]"]
-    colval1 = request.GET["columns[1][search][value]"]
-    colval2 = request.GET["columns[2][search][value]"]
-    colval3 = request.GET["columns[3][search][value]"]
-    colval4 = request.GET["columns[4][search][value]"]
-    colval5 = request.GET["columns[5][search][value]"]
-    length, start = int(request.GET["length"]), int(request.GET["start"])
+    try:
+        col0 = request.GET.get("columns[0][data]", "").strip()
+        col1 = request.GET.get("columns[1][data]", "").strip()
+        col2 = request.GET.get("columns[2][data]", "").strip()
+        col3 = request.GET.get("columns[3][data]", "").strip()
+        col4 = request.GET.get("columns[4][data]", "").strip()
+        col5 = request.GET.get("columns[5][data]", "").strip()
+        colval0 = request.GET.get("columns[0][search][value]", "").strip()
+        colval1 = request.GET.get("columns[1][search][value]", "").strip()
+        colval2 = request.GET.get("columns[2][search][value]", "").strip()
+        colval3 = request.GET.get("columns[3][search][value]", "").strip()
+        colval4 = request.GET.get("columns[4][search][value]", "").strip()
+        colval5 = request.GET.get("columns[5][search][value]", "").strip()
+
+        # Validate pagination parameters are positive integers
+        length = request.GET.get("length", "10")
+        start = request.GET.get("start", "0")
+        try:
+            length = int(length)
+            start = int(start)
+            if length < 1 or start < 0:
+                raise ValueError("Invalid pagination parameters")
+        except (ValueError, TypeError):
+            length, start = 10, 0  # Default safe values
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Error parsing datatable parameters: {e}")
+        raise
     return (
         col0,
         col1,
@@ -386,13 +401,38 @@ def increment_ticket_number():
 
 def childlist_viewdata(request, hostname):
     """Return ticket event list for a specific host."""
-    ticketno = request.GET["ticketno"]
-    column = request.GET.get("order[0][column]")
+    # SECURITY FIX (IDOR-005): Validate and sanitize parameters
+    ticketno = request.GET.get("ticketno", "").strip()
+    if not ticketno:
+        raise ValueError("ticketno parameter is required")
+
+    # Validate column index is numeric
+    column = request.GET.get("order[0][column]", "0")
+    try:
+        column = int(column)
+        if column < 0:
+            column = 0
+    except (ValueError, TypeError):
+        column = 0
+
     logger.debug("childlist_viewdata column %s", column)
-    columnname = request.GET.get(f"columns[{column}][data]")
-    columnsort = request.GET.get("order[0][dir]")
+    columnname = request.GET.get(f"columns[{column}][data]", "").strip()
+    columnsort = request.GET.get("order[0][dir]", "asc").strip()
+
+    # Validate sort direction
+    if columnsort not in ['asc', 'desc']:
+        columnsort = 'asc'
+
     logger.debug("list_viewdata %s", columnname)
-    length, start = int(request.GET["length"]), int(request.GET["start"])
+
+    # Validate pagination parameters
+    try:
+        length = int(request.GET.get("length", "10"))
+        start = int(request.GET.get("start", "0"))
+        if length < 1 or start < 0:
+            raise ValueError("Invalid pagination parameters")
+    except (ValueError, TypeError):
+        length, start = 10, 0
     
     # Use the ORM version directly - no need for cursor
     records, _ = ticketevents_query(ticketno, columnsort, columnname)
@@ -416,10 +456,30 @@ def ticketevents_query(ticketno, columnsort, columnname):
 
 def list_viewdata(request, model, fields, kwargs):
     """Return objects for datatable pagination and sorting."""
-    column = request.GET.get("order[0][column]")
-    columnname = request.GET.get(f"columns[{column}][data]")
-    columnsort = request.GET.get("order[0][dir]")
-    length, start = int(request.GET["length"]), int(request.GET["start"])
+    # SECURITY FIX (IDOR-006): Validate and sanitize parameters
+    column = request.GET.get("order[0][column]", "0")
+    try:
+        column = int(column)
+        if column < 0:
+            column = 0
+    except (ValueError, TypeError):
+        column = 0
+
+    columnname = request.GET.get(f"columns[{column}][data]", "").strip()
+    columnsort = request.GET.get("order[0][dir]", "asc").strip()
+
+    # Validate sort direction
+    if columnsort not in ['asc', 'desc']:
+        columnsort = 'asc'
+
+    # Validate pagination parameters
+    try:
+        length = int(request.GET.get("length", "10"))
+        start = int(request.GET.get("start", "0"))
+        if length < 1 or start < 0:
+            raise ValueError("Invalid pagination parameters")
+    except (ValueError, TypeError):
+        length, start = 10, 0
     objects = model.objects.filter(bu=request.session["bu_id"], **kwargs).values(
         *fields
     )

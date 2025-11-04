@@ -26,6 +26,8 @@ from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from apps.core.constants.datetime_constants import SECONDS_IN_DAY, SECONDS_IN_WEEK
+
 logger = logging.getLogger('static_optimization')
 
 try:
@@ -108,7 +110,7 @@ class StaticAssetOptimizer:
             max_age = self.config['cache_max_age']
         else:
             # Other static files
-            max_age = 86400  # 1 day
+            max_age = SECONDS_IN_DAY  # 1 day
         
         # Set cache headers
         response['Cache-Control'] = f'public, max-age={max_age}, immutable'
@@ -174,9 +176,9 @@ class StaticAssetOptimizer:
             )
             
             webp_content = webp_buffer.getvalue()
-            
+
             # Cache the WebP content
-            cache.set(cache_key, webp_content, 86400 * 7)  # Cache for 1 week
+            cache.set(cache_key, webp_content, SECONDS_IN_WEEK)  # Cache for 1 week
             
             logger.info(f"Created WebP version of {original_path}, "
                        f"size reduction: {len(original_response.content)} -> {len(webp_content)} bytes")

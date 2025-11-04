@@ -27,13 +27,24 @@ django_asgi_app = get_asgi_application()
 
 from apps.api.mobile_routing import mobile_websocket_urlpatterns
 from apps.noc.routing import websocket_urlpatterns as noc_websocket_urlpatterns
+from apps.help_center.consumers import HelpChatConsumer
+from django.urls import path
 
 # Import WebSocket middleware
 from apps.core.middleware.websocket_jwt_auth import JWTAuthMiddleware
 from apps.core.middleware.websocket_throttling import ThrottlingMiddleware
 from apps.core.middleware.websocket_origin_validation import OriginValidationMiddleware
 
-websocket_urlpatterns = mobile_websocket_urlpatterns + noc_websocket_urlpatterns
+# Help Center WebSocket routes
+help_center_websocket_urlpatterns = [
+    path('ws/help-center/chat/<uuid:session_id>/', HelpChatConsumer.as_asgi()),
+]
+
+websocket_urlpatterns = (
+    mobile_websocket_urlpatterns +
+    noc_websocket_urlpatterns +
+    help_center_websocket_urlpatterns
+)
 
 # Build WebSocket middleware stack
 # Order: Origin Validation → Throttling → JWT Auth → Session Auth → URLRouter

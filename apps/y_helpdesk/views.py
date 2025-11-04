@@ -114,11 +114,29 @@ class TicketView(LoginRequiredMixin, View):
             # Query optimization note: select_related() covers all foreign keys accessed by serializer
             # (assignedtopeople.peoplename, bu.buname, etc.). No nested relationships like
             # assignedtopeople.profile are accessed, so current optimization is sufficient.
+
+            # Security fix: Validate session data against user's actual organizational context
+            # to prevent cross-tenant access via session manipulation
+            if not hasattr(request.user, 'peopleorganizational'):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("User lacks organizational context")
+
+            user_org = request.user.peopleorganizational
+
+            # Superusers can access all tickets; regular users limited to their scope
+            if request.user.is_superuser:
+                allowed_bu_ids = request.session.get("assignedsites", [])
+                allowed_client_id = request.session.get("client_id")
+            else:
+                # Validate session data matches user's actual organizational context
+                allowed_bu_ids = [user_org.bu_id] if user_org.bu_id else []
+                allowed_client_id = user_org.client_id
+
             tickets = P["model"].objects.filter(
                 cdtz__date__gte=request.GET.get('from'),
                 cdtz__date__lte=request.GET.get('to'),
-                bu_id__in=request.session["assignedsites"],
-                client_id=request.session["client_id"],
+                bu_id__in=allowed_bu_ids,
+                client_id=allowed_client_id,
             ).select_related(
                 'assignedtopeople', 'assignedtogroup', 'bu', 'ticketcategory', 'cuser'
             ).prefetch_related('workflow')
@@ -129,6 +147,26 @@ class TicketView(LoginRequiredMixin, View):
                 tickets = tickets.filter(ticketsource="SYSTEMGENERATED")
             elif status:
                 tickets = tickets.filter(status=status, ticketsource="USERDEFINED")
+
+            # Apply sentiment filtering (Feature 2: NL/AI Platform Quick Win)
+            sentiment_label = request.GET.get("sentiment_label")
+            if sentiment_label:
+                tickets = tickets.filter(sentiment_label=sentiment_label)
+
+            # Filter by sentiment score range
+            min_sentiment = request.GET.get("min_sentiment")
+            max_sentiment = request.GET.get("max_sentiment")
+            if min_sentiment:
+                tickets = tickets.filter(sentiment_score__gte=float(min_sentiment))
+            if max_sentiment:
+                tickets = tickets.filter(sentiment_score__lte=float(max_sentiment))
+
+            # Sort by sentiment (negative first for priority)
+            sentiment_sort = request.GET.get("sort_by_sentiment")
+            if sentiment_sort == "negative_first":
+                tickets = tickets.order_by('sentiment_score', '-cdtz')
+            elif sentiment_sort == "positive_first":
+                tickets = tickets.order_by('-sentiment_score', '-cdtz')
 
             # Use unified serializer for consistent API response
             objs = serialize_for_web_api(tickets, request.user)

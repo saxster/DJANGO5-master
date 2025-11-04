@@ -138,6 +138,9 @@ urlpatterns = [
     # ML Training Data Platform
     path('ml-training/', include('apps.ml_training.urls')),
 
+    # Help Center - Knowledge base and AI assistant
+    path('', include('apps.help_center.urls')),
+
     # ========== UTILITIES ==========
     path('select2/', include('django_select2.urls')),
     

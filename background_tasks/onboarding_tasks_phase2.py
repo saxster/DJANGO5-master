@@ -6,14 +6,18 @@ import logging
 import traceback
 import uuid
 import time
+import socket
+import ipaddress
 from datetime import datetime
 from typing import Dict, Any, Optional, List
+from urllib.parse import urlparse
 
 from celery import shared_task, chain, chord, group
 from django.conf import settings
 from django.db import transaction
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.utils import timezone
 
 # Local imports
 from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
@@ -23,6 +27,117 @@ from apps.onboarding_api.services.translation import get_conversation_translator
 
 logger = logging.getLogger("django")
 task_logger = logging.getLogger("celery.task")
+
+
+# =============================================================================
+# SECURITY VALIDATION HELPERS
+# =============================================================================
+
+# SSRF Protection: Blocked IP ranges
+BLOCKED_IP_RANGES = [
+    ipaddress.ip_network('127.0.0.0/8'),      # Loopback
+    ipaddress.ip_network('169.254.0.0/16'),   # Link-local (AWS metadata)
+    ipaddress.ip_network('10.0.0.0/8'),       # Private
+    ipaddress.ip_network('172.16.0.0/12'),    # Private
+    ipaddress.ip_network('192.168.0.0/16'),   # Private
+    ipaddress.ip_network('::1/128'),          # IPv6 loopback
+    ipaddress.ip_network('fe80::/10'),        # IPv6 link-local
+    ipaddress.ip_network('fc00::/7'),         # IPv6 private
+]
+
+ALLOWED_URL_SCHEMES = ['https']  # Only HTTPS allowed for production
+
+
+def validate_document_url(url: str) -> bool:
+    """
+    Validate URL for SSRF protection before fetching documents.
+
+    Prevents access to:
+    - Private IP ranges (10.0.0.0/8, 192.168.0.0/16, etc.)
+    - Loopback addresses (127.0.0.0/8)
+    - AWS/GCP metadata endpoints (169.254.169.254)
+    - Link-local addresses
+
+    Args:
+        url: URL to validate
+
+    Returns:
+        True if URL is safe
+
+    Raises:
+        ValidationError: If URL is potentially malicious
+    """
+    if not url:
+        raise ValidationError("URL cannot be empty")
+
+    # Parse URL
+    try:
+        parsed = urlparse(url)
+    except Exception as e:
+        raise ValidationError(f"Invalid URL format: {str(e)}")
+
+    # Check scheme
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValidationError(
+            f"URL scheme '{parsed.scheme}' not allowed. Only {ALLOWED_URL_SCHEMES} permitted."
+        )
+
+    # Check hostname exists
+    if not parsed.hostname:
+        raise ValidationError("URL must have a valid hostname")
+
+    # Resolve hostname to IP address
+    try:
+        ip_address = socket.gethostbyname(parsed.hostname)
+        task_logger.debug(f"URL {parsed.hostname} resolves to {ip_address}")
+    except socket.gaierror as e:
+        raise ValidationError(f"Cannot resolve hostname '{parsed.hostname}': {str(e)}")
+
+    # Check if IP is in blocked ranges
+    try:
+        ip_obj = ipaddress.ip_address(ip_address)
+
+        for blocked_range in BLOCKED_IP_RANGES:
+            if ip_obj in blocked_range:
+                task_logger.warning(
+                    f"SSRF attempt blocked: URL {url} resolves to blocked IP {ip_address} "
+                    f"in range {blocked_range}"
+                )
+                raise ValidationError(
+                    f"Access denied: URL resolves to private/internal IP address. "
+                    f"This may be an attempt to access internal resources."
+                )
+    except ValueError as e:
+        raise ValidationError(f"Invalid IP address resolved: {str(e)}")
+
+    task_logger.info(f"URL validation passed for: {url}")
+    return True
+
+
+def _validate_knowledge_id(knowledge_id: str) -> str:
+    """
+    Validate that knowledge_id is a valid UUID format.
+
+    Args:
+        knowledge_id: ID to validate
+
+    Returns:
+        Validated knowledge_id
+
+    Raises:
+        ValidationError: If knowledge_id is not a valid UUID
+    """
+    if not knowledge_id:
+        raise ValidationError("knowledge_id cannot be empty")
+
+    try:
+        # Attempt to parse as UUID
+        uuid.UUID(str(knowledge_id))
+        return knowledge_id
+    except (ValueError, AttributeError) as e:
+        raise ValidationError(
+            f"Invalid knowledge_id format: '{knowledge_id}'. Must be a valid UUID."
+        )
 
 
 # =============================================================================
@@ -116,7 +231,7 @@ def retrieve_knowledge_task(self, conversation_id: str, user_input: str, context
                 'query': user_input,
                 'hits_count': len(knowledge_hits),
                 'authority_filter': authority_filter,
-                'retrieved_at': datetime.now().isoformat()
+                'retrieved_at': timezone.now().isoformat()
             }
         }
 
@@ -176,7 +291,7 @@ def maker_generate_task(
             'maker_metadata': {
                 'generation_time_ms': generation_time,
                 'confidence_score': maker_result.get('confidence_score', 0.0),
-                'generated_at': datetime.now().isoformat()
+                'generated_at': timezone.now().isoformat()
             }
         }
 
@@ -232,7 +347,7 @@ def checker_validate_task(
             'checker_metadata': {
                 'validation_time_ms': validation_time,
                 'is_valid': checker_result.get('is_valid', True),
-                'validated_at': datetime.now().isoformat()
+                'validated_at': timezone.now().isoformat()
             }
         }
 
@@ -289,7 +404,7 @@ def compute_consensus_task(
                 'computation_time_ms': consensus_time,
                 'decision': consensus.get('decision', 'needs_review'),
                 'confidence': consensus.get('consensus_confidence', 0.0),
-                'computed_at': datetime.now().isoformat()
+                'computed_at': timezone.now().isoformat()
             }
         }
 
@@ -381,7 +496,7 @@ def persist_recommendations_task(
                 'trace_id': trace_id,
                 'recommendation_id': str(recommendation.recommendation_id),
                 'final_decision': decision,
-                'processing_completed_at': datetime.now().isoformat(),
+                'processing_completed_at': timezone.now().isoformat(),
                 'total_latency_ms': total_latency
             })
             session.save()
@@ -454,7 +569,7 @@ def notify_completion_task(self, persist_result: Dict[str, Any], conversation_id
             'status': 'completed',
             'recommendation_id': recommendation_id,
             'final_state': persist_result.get('session_state'),
-            'completed_at': datetime.now().isoformat()
+            'completed_at': timezone.now().isoformat()
         }
 
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
@@ -485,7 +600,7 @@ def embed_knowledge_document_task(self, knowledge_id: str, full_content: str, ta
             return {
                 'status': 'completed',
                 'knowledge_id': knowledge_id,
-                'embedded_at': datetime.now().isoformat()
+                'embedded_at': timezone.now().isoformat()
             }
         else:
             task_logger.error(f"Failed to embed knowledge {knowledge_id}")
@@ -517,7 +632,9 @@ def batch_embed_documents_task(self, knowledge_ids: List[str]):
         embed_tasks = []
         for knowledge_id in knowledge_ids:
             try:
-                knowledge = AuthoritativeKnowledge.objects.get(knowledge_id=knowledge_id)
+                # SECURITY: Validate UUID format
+                validated_id = _validate_knowledge_id(knowledge_id)
+                knowledge = AuthoritativeKnowledge.objects.get(knowledge_id=validated_id)
                 content = knowledge.content_summary  # Fallback to summary if full content not provided
 
                 embed_task = embed_knowledge_document_task.si(
@@ -566,7 +683,7 @@ def cleanup_old_traces_task(self, days_old: int = 30):
 
     try:
         from datetime import timedelta
-        cutoff_date = datetime.now() - timedelta(days=days_old)
+        cutoff_date = timezone.now() - timedelta(days=days_old)
 
         # Clean up old recommendations
         old_recommendations = LLMRecommendation.objects.filter(
@@ -608,7 +725,7 @@ def validate_knowledge_freshness_task(self):
         from datetime import timedelta
 
         # Flag documents older than 2 years as potentially stale
-        stale_threshold = datetime.now() - timedelta(days=730)
+        stale_threshold = timezone.now() - timedelta(days=730)
 
         stale_documents = AuthoritativeKnowledge.objects.filter(
             publication_date__lt=stale_threshold,
@@ -668,6 +785,16 @@ def ingest_document(self, job_id: str):
         # Stage 1: Fetch document
         task_logger.info(f"Stage 1: Fetching document from {job.source_url}")
         job.update_status(KnowledgeIngestionJob.StatusChoices.FETCHING)
+
+        # SECURITY: Validate URL for SSRF protection
+        try:
+            validate_document_url(job.source_url)
+        except ValidationError as e:
+            task_logger.error(f"URL validation failed for {job.source_url}: {str(e)}")
+            job.update_status(KnowledgeIngestionJob.StatusChoices.FAILED, str(e))
+            job.source.fetch_error_count += 1
+            job.source.save()
+            raise
 
         fetcher = get_document_fetcher()
         fetch_start = time.time()
@@ -729,7 +856,7 @@ def ingest_document(self, job_id: str):
             document_version=document_info.get('version', '1.0'),
             authority_level='medium',  # Default, can be updated later
             content_summary=parse_result['full_text'][:500] + "..." if len(parse_result['full_text']) > 500 else parse_result['full_text'],
-            publication_date=datetime.now(),
+            publication_date=timezone.now(),
             source_url=job.source_url,
             doc_checksum=fetch_result['content_hash'],
             jurisdiction=job.source.jurisdiction,
@@ -758,7 +885,7 @@ def ingest_document(self, job_id: str):
             notes='Auto-generated review for ingested document. Requires two-person approval before publication.',
             provenance_data={
                 'ingestion_job_id': str(job.job_id),
-                'ingested_at': datetime.now().isoformat(),
+                'ingested_at': timezone.now().isoformat(),
                 'ingested_by': job.created_by.email if job.created_by else 'system',
                 'source': job.source.name,
                 'source_type': job.source.source_type,
@@ -841,7 +968,7 @@ def ingest_document(self, job_id: str):
 
         # Update source statistics
         job.source.total_documents_fetched += 1
-        job.source.last_successful_fetch = datetime.now()
+        job.source.last_successful_fetch = timezone.now()
         job.source.fetch_error_count = 0  # Reset error count on success
         job.source.save()
 
@@ -854,7 +981,7 @@ def ingest_document(self, job_id: str):
             'chunks_created': len(chunks),
             'embeddings_generated': embeddings_generated,
             'processing_time_ms': total_time,
-            'completed_at': datetime.now().isoformat()
+            'completed_at': timezone.now().isoformat()
         }
 
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
@@ -943,9 +1070,9 @@ def reembed_document(self, knowledge_id: str, processing_config: Dict[str, Any] 
             raise Exception("Failed to store re-embedded chunks")
 
         # Update document metadata
-        document.last_verified = datetime.now()
+        document.last_verified = timezone.now()
         document.ingestion_version += 1
-        document.tags['reembedded_at'] = datetime.now().isoformat()
+        document.tags['reembedded_at'] = timezone.now().isoformat()
         document.tags['reembedding_config'] = config
         document.save()
 
@@ -992,7 +1119,7 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
 
         # Only check sources that haven't been checked recently (unless forced)
         if not force_refresh:
-            recent_threshold = datetime.now() - timedelta(hours=6)
+            recent_threshold = timezone.now() - timedelta(hours=6)
             sources = sources.exclude(last_fetch_attempt__gte=recent_threshold)
 
         refreshed_count = 0
@@ -1004,7 +1131,7 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
         for source in sources:
             try:
                 # Update last attempt timestamp
-                source.last_fetch_attempt = datetime.now()
+                source.last_fetch_attempt = timezone.now()
                 source.save()
 
                 # Get documents from this source
@@ -1018,6 +1145,17 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
                     try:
                         # Check if document needs refresh
                         if self._document_needs_refresh(document, force_refresh):
+                            # SECURITY: Validate URL for SSRF protection
+                            try:
+                                validate_document_url(document.source_url)
+                            except ValidationError as e:
+                                task_logger.error(
+                                    f"URL validation failed for document {document.knowledge_id} "
+                                    f"({document.source_url}): {str(e)}"
+                                )
+                                error_count += 1
+                                continue  # Skip this document
+
                             # Fetch current version
                             fetch_result = fetcher.fetch_document(document.source_url, source)
 
@@ -1039,7 +1177,7 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
 
                             else:
                                 # Content unchanged - just update verification timestamp
-                                document.last_verified = datetime.now()
+                                document.last_verified = timezone.now()
                                 document.save()
 
                         refreshed_count += 1
@@ -1059,7 +1197,7 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
             'documents_checked': refreshed_count,
             'documents_updated': updated_count,
             'errors': error_count,
-            'completed_at': datetime.now().isoformat()
+            'completed_at': timezone.now().isoformat()
         }
 
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
@@ -1075,7 +1213,7 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
         # Check if last verified more than 7 days ago
         if document.last_verified:
             from datetime import timedelta
-            stale_threshold = datetime.now() - timedelta(days=7)
+            stale_threshold = timezone.now() - timedelta(days=7)
             return document.last_verified < stale_threshold
 
         return True  # Never verified, needs refresh
@@ -1097,7 +1235,7 @@ def retire_document(self, knowledge_id: str, retirement_reason: str = "Manual re
 
         # Mark as not current
         document.is_current = False
-        document.tags['retired_at'] = datetime.now().isoformat()
+        document.tags['retired_at'] = timezone.now().isoformat()
         document.tags['retirement_reason'] = retirement_reason
         document.save()
 
@@ -1115,7 +1253,7 @@ def retire_document(self, knowledge_id: str, retirement_reason: str = "Manual re
             'knowledge_id': knowledge_id,
             'chunks_retired': chunk_count,
             'retirement_reason': retirement_reason,
-            'retired_at': datetime.now().isoformat()
+            'retired_at': timezone.now().isoformat()
         }
 
     except AuthoritativeKnowledge.DoesNotExist:
@@ -1140,7 +1278,7 @@ def batch_retire_stale_documents(self, max_age_days: int = 1095):
         from apps.core_onboarding.models import AuthoritativeKnowledge
         from datetime import timedelta
 
-        cutoff_date = datetime.now() - timedelta(days=max_age_days)
+        cutoff_date = timezone.now() - timedelta(days=max_age_days)
 
         # Find stale documents
         stale_documents = AuthoritativeKnowledge.objects.filter(
@@ -1189,7 +1327,7 @@ def nightly_knowledge_maintenance(self):
 
     try:
         results = {
-            'maintenance_started_at': datetime.now().isoformat(),
+            'maintenance_started_at': timezone.now().isoformat(),
             'tasks_completed': [],
             'tasks_failed': [],
             'total_duration_ms': 0
@@ -1237,7 +1375,7 @@ def nightly_knowledge_maintenance(self):
             })
 
         results['total_duration_ms'] = int((time.time() - start_time) * 1000)
-        results['maintenance_completed_at'] = datetime.now().isoformat()
+        results['maintenance_completed_at'] = timezone.now().isoformat()
 
         task_logger.info(f"Nightly maintenance completed: {len(results['tasks_completed'])} success, {len(results['tasks_failed'])} failed")
 
@@ -1261,7 +1399,7 @@ def weekly_knowledge_verification(self):
         from datetime import timedelta
 
         # Re-verify documents older than 90 days
-        stale_threshold = datetime.now() - timedelta(days=90)
+        stale_threshold = timezone.now() - timedelta(days=90)
         stale_documents = AuthoritativeKnowledge.objects.filter(
             last_verified__lt=stale_threshold,
             is_current=True
@@ -1286,7 +1424,7 @@ def weekly_knowledge_verification(self):
                         verification_results['documents_refreshed'] += 1
                 else:
                     # Flag for manual review
-                    document.tags['flagged_for_review'] = datetime.now().isoformat()
+                    document.tags['flagged_for_review'] = timezone.now().isoformat()
                     document.tags['flag_reason'] = 'Stale document without source URL'
                     document.save()
                     verification_results['documents_flagged'] += 1
@@ -1300,7 +1438,7 @@ def weekly_knowledge_verification(self):
         return {
             'status': 'completed',
             'verification_results': verification_results,
-            'completed_at': datetime.now().isoformat()
+            'completed_at': timezone.now().isoformat()
         }
 
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:

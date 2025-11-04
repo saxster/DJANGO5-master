@@ -17,6 +17,7 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from apps.core.decorators import require_monitoring_api_key
 from apps.core.constants.datetime_constants import MINUTES_IN_HOUR, MINUTES_IN_DAY
 from monitoring.services.websocket_metrics_collector import websocket_metrics
@@ -46,7 +47,7 @@ class WebSocketMonitoringView(View):
         recommendations = self._generate_recommendations(stats)
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_minutes': window_minutes,
             'statistics': stats,
             'recommendations': recommendations,
@@ -123,7 +124,7 @@ class WebSocketConnectionsView(View):
             }
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_minutes': window_minutes,
             'active_connections': active_connections,
             'total_active': stats.get('total_active', 0),
@@ -152,7 +153,7 @@ class WebSocketRejectionsView(View):
         stats = websocket_metrics.get_websocket_stats(window_minutes)
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_minutes': window_minutes,
             'rejection_summary': {
                 'total_rejections': stats.get('total_rejections', 0),

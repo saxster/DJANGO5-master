@@ -22,6 +22,7 @@ from apps.scheduler.services.base_services import (
 from apps.scheduler.services.checkpoint_manager import CheckpointManagerService
 from apps.activity.models.job_model import Job
 from apps.core.error_handling import ErrorHandler
+from apps.core.services.transaction_manager import with_transaction
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class InternalTourService(BaseTourService):
         """Return Internal Tour identifier."""
         return Job.Identifier.INTERNALTOUR
 
+    @with_transaction
     def create_tour_with_checkpoints(
         self,
         form_data: Dict[str, Any],
@@ -105,6 +107,7 @@ class InternalTourService(BaseTourService):
             logger.error(f"Error creating internal tour: {e}")
             raise
 
+    @with_transaction
     def update_tour_with_checkpoints(
         self,
         tour_id: int,
@@ -197,6 +200,7 @@ class ExternalTourService(BaseTourService):
         """Return External Tour identifier."""
         return Job.Identifier.EXTERNALTOUR
 
+    @with_transaction
     def create_external_tour(
         self,
         form_data: Dict[str, Any],
@@ -232,6 +236,7 @@ class ExternalTourService(BaseTourService):
             logger.error(f"Error creating external tour: {e}")
             raise
 
+    @with_transaction
     def update_external_tour(
         self,
         tour_id: int,

@@ -18,7 +18,7 @@ Compliance with .claude/rules.md:
 import logging
 from typing import Dict, List, Optional, Any, Tuple, Type
 from dataclasses import dataclass, field
-from datetime import timezone
+from datetime import timezone as dt_timezone
 
 from django.db import models, transaction, DatabaseError
 from django.core.exceptions import ValidationError, PermissionDenied

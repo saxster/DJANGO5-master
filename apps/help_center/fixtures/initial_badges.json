@@ -1,0 +1,86 @@
+[
+  {
+    "model": "help_center.helpbadge",
+    "fields": {
+      "name": "First Feedback",
+      "slug": "first-feedback",
+      "description": "Submitted your first article feedback",
+      "icon": "🎯",
+      "color": "#4CAF50",
+      "criteria": {"feedback_count": 1},
+      "points_awarded": 5,
+      "rarity": "COMMON",
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpbadge",
+    "fields": {
+      "name": "Helpful Reviewer",
+      "slug": "helpful-reviewer",
+      "description": "Submitted 10+ helpful votes on articles",
+      "icon": "⭐",
+      "color": "#2196F3",
+      "criteria": {"helpful_votes": 10},
+      "points_awarded": 20,
+      "rarity": "RARE",
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpbadge",
+    "fields": {
+      "name": "Power User",
+      "slug": "power-user",
+      "description": "Viewed 50+ help articles",
+      "icon": "🏆",
+      "color": "#FF9800",
+      "criteria": {"article_views": 50},
+      "points_awarded": 50,
+      "rarity": "EPIC",
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpbadge",
+    "fields": {
+      "name": "Content Contributor",
+      "slug": "content-contributor",
+      "description": "Suggested 3+ new help articles",
+      "icon": "📝",
+      "color": "#9C27B0",
+      "criteria": {"article_suggestions": 3},
+      "points_awarded": 30,
+      "rarity": "RARE",
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpbadge",
+    "fields": {
+      "name": "Help Champion",
+      "slug": "help-champion",
+      "description": "Earned 500+ help points",
+      "icon": "👑",
+      "color": "#FFD700",
+      "criteria": {"total_points": 500},
+      "points_awarded": 100,
+      "rarity": "LEGENDARY",
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpbadge",
+    "fields": {
+      "name": "Early Adopter",
+      "slug": "early-adopter",
+      "description": "One of the first 100 users of the help center",
+      "icon": "🚀",
+      "color": "#00BCD4",
+      "criteria": {"early_user": true},
+      "points_awarded": 15,
+      "rarity": "RARE",
+      "is_active": true
+    }
+  }
+]

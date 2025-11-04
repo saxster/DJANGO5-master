@@ -473,12 +473,21 @@ class PrivacyViolationDetectionMiddleware(MiddlewareMixin):
         violations = []
 
         # Check for cross-user data access attempts
-        if 'user_id' in request.GET and request.GET['user_id'] != str(request.user.id):
-            if not request.user.has_perm('journal.view_others_journalentry'):
+        # SECURITY FIX (IDOR-003): Validate user_id parameter
+        if 'user_id' in request.GET:
+            user_id_param = request.GET['user_id']
+            # Validate ID is numeric
+            if not user_id_param or not str(user_id_param).isdigit():
                 violations.append({
-                    'type': 'unauthorized_cross_user_access',
-                    'details': f"User {request.user.id} attempted to access data for user {request.GET['user_id']}"
+                    'type': 'invalid_user_id_parameter',
+                    'details': f"Invalid user_id parameter: {user_id_param}"
                 })
+            elif user_id_param != str(request.user.id):
+                if not request.user.has_perm('journal.view_others_journalentry'):
+                    violations.append({
+                        'type': 'unauthorized_cross_user_access',
+                        'details': f"User {request.user.id} attempted to access data for user {user_id_param}"
+                    })
 
         # Check for analytics access without consent
         if '/analytics/' in request.path:

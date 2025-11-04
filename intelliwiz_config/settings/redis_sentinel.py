@@ -20,6 +20,7 @@ import logging
 import environ
 from typing import Dict, List, Any, Optional
 from django.core.exceptions import ImproperlyConfigured
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
 logger = logging.getLogger(__name__)
 env = environ.Env()
@@ -189,7 +190,7 @@ def get_sentinel_caches_config(environment: str = 'production') -> Dict[str, Any
                     'MAX_ENTRIES': 10000 if environment == 'production' else 1000,
                     'CULL_FREQUENCY': 3,
                 },
-                'TIMEOUT': 3600 if environment == 'production' else 900,
+                'TIMEOUT': SECONDS_IN_HOUR if environment == 'production' else 900,
                 'KEY_PREFIX': f'select2_mv_sentinel_{environment}',
             })
         else:
@@ -199,7 +200,7 @@ def get_sentinel_caches_config(environment: str = 'production') -> Dict[str, Any
             # Cache-specific optimizations
             if cache_name == 'sessions':
                 cache_config.update({
-                    'TIMEOUT': 7200,  # 2 hours for sessions
+                    'TIMEOUT': 2 * SECONDS_IN_HOUR,  # 2 hours for sessions
                     'KEY_PREFIX': f'sessions_sentinel_{environment}'
                 })
 
@@ -291,7 +292,7 @@ def get_sentinel_channel_layers_config(environment: str = 'production') -> Dict[
                 "master_name": sentinel_settings['service_name'],
                 "capacity": 50000 if environment == 'production' else 1000,
                 "expiry": 120 if environment == 'production' else 60,
-                "group_expiry": 86400 if environment == 'production' else 3600,
+                "group_expiry": SECONDS_IN_DAY if environment == 'production' else SECONDS_IN_HOUR,
                 "db": 2,  # Use database 2 for channels
             },
         },

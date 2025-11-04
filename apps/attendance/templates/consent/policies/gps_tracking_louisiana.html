@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GPS Tracking Consent - Louisiana</title>
+    <style>
+        body { font-family: Georgia, serif; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        .important { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Written Consent for GPS Location Tracking</h1>
+    <p><strong>State of Louisiana - LA Rev Stat § 14:323 Compliance</strong></p>
+
+    <div class="important">
+        <strong>Louisiana Law Requirement:</strong> Louisiana Revised Statutes 14:323 requires written consent before tracking a person's location via GPS.
+    </div>
+
+    <h2>Consent Statement</h2>
+    <p>I, <strong>{{ employee.first_name }} {{ employee.last_name }}</strong> (Employee ID: {{ employee.id }}), hereby provide my explicit written consent to my employer for GPS location tracking during my work hours for the following purposes:</p>
+
+    <ul>
+        <li>Verification of attendance at assigned work locations</li>
+        <li>Employee safety and emergency response</li>
+        <li>Calculation of mileage for expense reimbursement</li>
+        <li>Compliance with client site access requirements</li>
+    </ul>
+
+    <h2>Terms of Consent</h2>
+    <ol>
+        <li><strong>Scope:</strong> GPS tracking will occur ONLY during scheduled work hours when I am on duty</li>
+        <li><strong>Devices:</strong> Tracking applies to company-provided devices and my personal device if I choose to use it for work clock-in/out</li>
+        <li><strong>Data Use:</strong> Location data will be used solely for legitimate business purposes as described above</li>
+        <li><strong>Data Retention:</strong> GPS data will be retained for 90 days, then archived for 2 years for payroll purposes</li>
+        <li><strong>Access:</strong> Only authorized personnel (supervisors, HR, payroll, security) may access my location data</li>
+        <li><strong>Revocation:</strong> I may revoke this consent at any time by providing written notice to HR</li>
+    </ol>
+
+    <h2>Signature</h2>
+    <p>By signing below, I acknowledge that I have read and understood this consent form and voluntarily agree to GPS location tracking during work hours.</p>
+
+    <p><strong>Employee Name:</strong> ________________________________</p>
+    <p><strong>Signature:</strong> ________________________________</p>
+    <p><strong>Date:</strong> ________________________________</p>
+
+    <p style="margin-top: 40px; font-size: 12px; color: #666;">
+        For HR Use Only:<br>
+        Consent Received By: ________________________________<br>
+        Date Received: ________________________________<br>
+        Consent ID: {{ consent.uuid }}<br>
+    </p>
+</body>
+</html>

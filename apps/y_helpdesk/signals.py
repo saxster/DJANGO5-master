@@ -100,3 +100,36 @@ def broadcast_ticket_state_change(sender, instance, created, **kwargs):
                     f"Failed to import NOCWebSocketService: {e}",
                     extra={'ticket_id': instance.id}
                 )
+
+
+# =============================================================================
+# SENTIMENT ANALYSIS SIGNALS (Feature 2: NL/AI Platform Quick Win)
+# =============================================================================
+
+@receiver(post_save, sender=Ticket)
+def analyze_ticket_sentiment_on_creation(sender, instance, created, **kwargs):
+    """
+    Trigger sentiment analysis when ticket is created.
+
+    Runs asynchronously via Celery task to avoid blocking ticket creation.
+
+    Feature 2: NL/AI Platform Quick Win - Sentiment Analysis
+    """
+    if created and instance.ticketdesc and instance.ticketdesc != "NONE":
+        logger.info(
+            f"Triggering sentiment analysis for new ticket {instance.id}",
+            extra={
+                'ticket_id': instance.id,
+                'ticket_no': instance.ticketno
+            }
+        )
+
+        # Import task lazily to avoid circular imports
+        try:
+            from apps.y_helpdesk.tasks.sentiment_analysis_tasks import AnalyzeTicketSentimentTask
+            AnalyzeTicketSentimentTask.delay(instance.id)
+        except ImportError as e:
+            logger.warning(
+                f"Failed to import sentiment analysis task: {e}",
+                extra={'ticket_id': instance.id}
+            )

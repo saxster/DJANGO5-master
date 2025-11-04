@@ -1,0 +1,55 @@
+# Development Dockerfile with hot-reload and debugging support
+# Python 3.11.9 matching production
+
+FROM python:3.11.9-slim-bookworm
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.development
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    libgdal-dev \
+    gdal-bin \
+    libgeos-dev \
+    libproj-dev \
+    libssl-dev \
+    libffi-dev \
+    git \
+    curl \
+    netcat-openbsd \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create application directory
+RUN mkdir -p /app/staticfiles /app/media /app/logs
+WORKDIR /app
+
+# Copy requirements files
+COPY requirements/ /app/requirements/
+
+# Install Python dependencies (including development tools)
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements/base-linux.txt && \
+    pip install -r requirements/observability.txt && \
+    pip install -r requirements/encryption.txt && \
+    pip install -r requirements/ai_requirements.txt && \
+    # Development-specific dependencies
+    pip install ipdb ipython django-debug-toolbar werkzeug gunicorn daphne
+
+# Copy entrypoint scripts
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/wait-for-postgres.sh /usr/local/bin/wait-for-postgres.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/wait-for-postgres.sh
+
+# Expose ports
+EXPOSE 8000
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# Default command for development (Django runserver for hot-reload)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

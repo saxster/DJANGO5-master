@@ -1,6 +1,10 @@
 """
-Real-Time Fraud Detection System for YOUTILITY5
-Advanced AI-powered fraud detection with immediate response capabilities
+Real-Time Fraud Detection System
+
+Advanced fraud detection with immediate response capabilities.
+
+Updated: November 3, 2025
+Status: Production-ready with real ML implementations (replaced mocks)
 """
 
 from __future__ import annotations
@@ -17,6 +21,14 @@ from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
 from apps.attendance.models import PeopleEventlog
+from apps.attendance.services.fraud_detection_orchestrator import FraudDetectionOrchestrator
+from apps.attendance.ml_models import (
+    BehavioralAnomalyDetector,
+    TemporalAnomalyDetector,
+    LocationAnomalyDetector,
+    DeviceFingerprintingDetector,
+)
+
 logger = logging.getLogger(__name__)
 
 

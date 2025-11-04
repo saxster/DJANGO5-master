@@ -12,6 +12,8 @@ Rate limiting is a critical defense-in-depth security control that protects agai
 Compliance: Implements Rule #9 from .claude/rules.md - Comprehensive Rate Limiting
 """
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 # RATE LIMITING CONFIGURATION
 
 ENABLE_RATE_LIMITING = True
@@ -49,7 +51,7 @@ RATE_LIMITS = {
     # API endpoints - moderate limits
     'api': {
         'max_requests': 100,
-        'window_seconds': 3600
+        'window_seconds': SECONDS_IN_HOUR
     },
 
     # Report generation - lower limits (resource intensive)

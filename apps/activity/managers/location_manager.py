@@ -11,8 +11,10 @@ class LocationManager(models.Manager):
     use_in_migrations = True
 
     def get_locationlistview(self, related, fields, request):
+        # SECURITY FIX (IDOR-008): Validate params parameter
         S = request.session
-        P = request.GET["params"]
+        P = request.GET.get("params", "null")  # Use .get() with default
+
         qset = (
             self.annotate(gps=AsGeoJSON("gpslocation"))
             .filter(
@@ -23,9 +25,19 @@ class LocationManager(models.Manager):
             .select_related(*related)
             .values(*fields)
         )
+
         if P not in ["null", None]:
-            P = json.loads(P)
-            qset = qset.filter(locstatus=P["status"])
+            try:
+                P = json.loads(P)
+                # Validate status value is safe string
+                status_val = str(P.get("status", "")).strip()
+                if status_val:
+                    qset = qset.filter(locstatus=status_val)
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                # Log invalid JSON but don't fail - just ignore filter
+                import logging
+                logging.getLogger(__name__).warning(f"Invalid params JSON: {P}, error: {e}")
+
         return qset or self.none()
 
     def get_locations_modified_after(self, mdtz, buid, ctzoffset):

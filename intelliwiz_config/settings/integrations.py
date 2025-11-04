@@ -6,6 +6,7 @@ Celery, Redis, MQTT, Email, Notifications, and other external integrations.
 import os
 import json
 import environ
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 env = environ.Env()
 
@@ -119,9 +120,9 @@ CELERY_TASK_RETRY_JITTER = True             # Add randomness to prevent thunderi
 
 # MONITORING AND RELIABILITY
 CELERY_TASK_TRACK_STARTED = True            # Track task start events
-CELERY_TASK_TIME_LIMIT = 3600               # 1 hour hard limit
+CELERY_TASK_TIME_LIMIT = SECONDS_IN_HOUR               # 1 hour hard limit
 CELERY_TASK_SOFT_TIME_LIMIT = 1800          # 30 minutes soft limit
-CELERY_RESULT_EXPIRES = 3600                # Results expire after 1 hour
+CELERY_RESULT_EXPIRES = SECONDS_IN_HOUR                # Results expire after 1 hour
 
 # EMAIL CONFIGURATION
 

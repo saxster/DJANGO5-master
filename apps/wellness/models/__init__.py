@@ -5,24 +5,27 @@ Refactored from 697-line monolithic file into focused modules.
 Complies with .claude/rules.md Rule #7 (Model Complexity Limits).
 
 Architecture:
-- content_models.py: Content and delivery configuration (168 lines)
-- user_progress.py: User progress and gamification (91 lines)
-- interaction_models.py: Engagement tracking (104 lines)
+- enums.py: Content categorization and delivery enums
+- content.py: WellnessContent model (evidence-based content delivery)
+- progress.py: WellnessUserProgress model (gamification and tracking)
+- interaction.py: WellnessContentInteraction model (engagement tracking)
 
+Related: Ultrathink Code Review Phase 3 - ARCH-001
 All models < 150 lines per file, following Single Responsibility Principle.
 """
 
-from .content_models import (
+from .enums import (
     WellnessContentCategory,
     WellnessDeliveryContext,
     WellnessContentLevel,
     EvidenceLevel,
-    WellnessContent,
 )
 
-from .user_progress import WellnessUserProgress
+from .content import WellnessContent
 
-from .interaction_models import WellnessContentInteraction
+from .progress import WellnessUserProgress
+
+from .interaction import WellnessContentInteraction
 
 from .mental_health_interventions import (
     MentalHealthInterventionType,

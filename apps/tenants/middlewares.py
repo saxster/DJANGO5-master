@@ -51,6 +51,10 @@ class TenantMiddleware:
 
         Returns:
             HTTP response (or 403 if strict mode rejects hostname)
+
+        Security:
+            - Thread-local context is ALWAYS cleaned up in finally block
+            - Prevents context leakage in thread-pooled environments
         """
         try:
             # Get tenant database for this hostname
@@ -83,7 +87,16 @@ class TenantMiddleware:
                 "Please contact your administrator."
             )
 
-        return self.get_response(request)
+        try:
+            # Process request
+            response = self.get_response(request)
+            return response
+        finally:
+            # CRITICAL: Always cleanup thread-local to prevent context leakage
+            # In thread-pooled servers (gunicorn, uwsgi), threads are reused
+            # Without cleanup, next request on same thread inherits old context
+            from apps.tenants.utils import cleanup_tenant_context
+            cleanup_tenant_context()
 
 
 class TenantDbRouter:
@@ -209,9 +222,19 @@ class TenantDbRouter:
             migrations only run on correct databases. Never bypass this
             guard without security team approval.
         """
-        # TEMPORARY FIX: Bypass migration guard for default database during initial setup
-        # TODO: Remove this bypass after initial migrations are complete
-        if db == 'default':
+        # SECURITY: Core Django and tenant management apps can use default database
+        # Tenant-specific data apps must use tenant-specific databases
+        CORE_APPS_ALLOWLIST = {
+            'auth', 'contenttypes', 'sessions', 'admin', 'staticfiles',
+            'tenants',  # Tenant model itself lives in default
+            'sites',  # Django sites framework
+        }
+
+        if db == 'default' and app_label in CORE_APPS_ALLOWLIST:
+            logger.debug(
+                f"Allowing core app '{app_label}' migration on default database",
+                extra={'db': db, 'app_label': app_label, 'model_name': model_name}
+            )
             return True
 
         # Use Migration Guard Service for intelligent routing

@@ -81,15 +81,34 @@ class PortfolioSummaryView(LoginRequiredMixin, View):
 
     def _parse_scope_params(self, request) -> dict:
         """Parse scope parameters from request"""
+        # SECURITY FIX (IDOR-002): Validate and sanitize scope parameters
+        client_ids = self._parse_int_list(request.GET.get("client_ids", ""))
+        bu_ids = self._parse_int_list(request.GET.get("bu_ids", ""))
+        shift_id = request.GET.get("shift_id")
+
+        # Validate shift_id if provided
+        if shift_id:
+            try:
+                shift_id = int(shift_id)
+                if shift_id < 1:
+                    raise ValueError("Shift ID must be positive")
+            except (ValueError, TypeError):
+                raise ValueError("Invalid shift_id parameter")
+
+        # Validate timezone is in acceptable format
+        tz = request.GET.get("tz", "Asia/Kolkata")
+        if not isinstance(tz, str) or len(tz) > 50:
+            tz = "Asia/Kolkata"  # Default to safe value
+
         return {
             "tenant_id": request.user.tenant_id,
-            "client_ids": self._parse_int_list(request.GET.get("client_ids", "")),
-            "bu_ids": self._parse_int_list(request.GET.get("bu_ids", "")),
+            "client_ids": client_ids,
+            "bu_ids": bu_ids,
             "time_range": request.GET.get("time_range", "TODAY"),
             "date_from": request.GET.get("date_from"),
             "date_to": request.GET.get("date_to"),
-            "shift_id": int(request.GET["shift_id"]) if request.GET.get("shift_id") else None,
-            "tz": request.GET.get("tz", "Asia/Kolkata")
+            "shift_id": shift_id,
+            "tz": tz
         }
 
     def _parse_int_list(self, value: str) -> list:

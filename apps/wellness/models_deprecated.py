@@ -1,4 +1,26 @@
 """
+⚠️ DEPRECATED - This file has been refactored into focused modules
+
+DEPRECATION NOTICE:
+This monolithic 697-line models.py has been split into focused files
+to comply with .claude/rules.md Rule #7 (Model Complexity Limits).
+
+DO NOT USE THIS FILE - Import from apps.wellness.models package instead.
+
+New structure (Ultrathink Code Review Phase 3 - ARCH-001):
+- apps/wellness/models/enums.py → Content categorization enums
+- apps/wellness/models/content.py → WellnessContent model
+- apps/wellness/models/progress.py → WellnessUserProgress model
+- apps/wellness/models/interaction.py → WellnessContentInteraction model
+
+All imports remain backward compatible via apps/wellness/models/__init__.py
+
+This file is kept for reference only and will be deleted after verification.
+
+---
+
+Original documentation:
+
 Wellness Education Models - Complete implementation from specification
 
 This module implements the evidence-based wellness education system with:

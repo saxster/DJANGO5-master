@@ -25,6 +25,9 @@ from django.conf import settings
 from django.utils import timezone
 from django.db import models
 
+from apps.y_helpdesk.exceptions import CACHE_EXCEPTIONS
+from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
+
 logger = logging.getLogger(__name__)
 
 
@@ -153,14 +156,47 @@ class TicketCacheService:
                     cls._store_in_memory_cache(cache_key, redis_data, config)
                 return redis_data
 
-        # Cache miss - load data
-        logger.info(f"Cache miss, loading data: {cache_key}")
-        data = data_loader()
+        # Cache miss - load data with stampede protection
+        # Use distributed lock to prevent multiple concurrent rebuilds
+        lock_key = f"cache_rebuild:{cache_key}"
 
-        # Store in all configured cache levels
-        cls._store_in_cache(cache_key, data, config)
+        try:
+            # Try to acquire lock with short timeout (prevent thundering herd)
+            with distributed_lock(lock_key, timeout=5, blocking_timeout=0.1):
+                # Double-check cache after acquiring lock
+                # (another request may have populated it)
+                redis_data = cls._get_from_redis_cache(cache_key, config)
+                if redis_data is not None:
+                    logger.debug(f"L2 cache hit after lock acquisition: {cache_key}")
+                    if CacheLevel.L1_MEMORY in config.levels:
+                        cls._store_in_memory_cache(cache_key, redis_data, config)
+                    return redis_data
 
-        return data
+                # Still a miss - rebuild cache
+                logger.info(f"Cache miss, loading data with lock: {cache_key}")
+                data = data_loader()
+
+                # Store in all configured cache levels
+                cls._store_in_cache(cache_key, data, config)
+                return data
+
+        except LockAcquisitionError:
+            # Another request is rebuilding cache
+            # Wait briefly and retry reading from cache
+            import time
+            time.sleep(0.05)  # 50ms wait
+
+            # Try reading from cache again
+            redis_data = cls._get_from_redis_cache(cache_key, config)
+            if redis_data is not None:
+                logger.debug(f"L2 cache hit after wait: {cache_key}")
+                if CacheLevel.L1_MEMORY in config.levels:
+                    cls._store_in_memory_cache(cache_key, redis_data, config)
+                return redis_data
+
+            # Cache still not available - load directly (fallback)
+            logger.warning(f"Cache stampede fallback for: {cache_key}")
+            return data_loader()
 
     @classmethod
     def invalidate_cache(
@@ -306,7 +342,7 @@ class TicketCacheService:
                     # Decompress if needed
                     return cls._decompress_data(cached_data)
                 return cached_data
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Redis cache error for key {cache_key}: {e}")
 
         return None
@@ -355,7 +391,7 @@ class TicketCacheService:
                 cache_data = cls._compress_data(data)
 
             cache.set(cache_key, cache_data, config.ttl_seconds)
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Redis cache store error for key {cache_key}: {e}")
 
     @classmethod
@@ -371,7 +407,7 @@ class TicketCacheService:
         # Remove from Redis cache
         try:
             cache.delete(cache_key)
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Redis cache delete error for key {cache_key}: {e}")
 
     @classmethod

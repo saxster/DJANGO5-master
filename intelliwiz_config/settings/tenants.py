@@ -28,22 +28,29 @@ from django.conf import settings as django_settings
 logger = logging.getLogger(__name__)
 security_logger = logging.getLogger('security.tenant_operations')
 
-# Load tenant mappings from environment or use defaults
+# Load tenant mappings from environment or use minimal development defaults
+# PRODUCTION: Set TENANT_MAPPINGS environment variable with JSON mapping
+# DEVELOPMENT: Uses localhost defaults below
+
 DEFAULT_TENANT_MAPPINGS = {
-    "intelliwiz.youtility.local": "intelliwiz_django",
-    "sps.youtility.local": "sps",
-    "capgemini.youtility.local": "capgemini",
-    "dell.youtility.local": "dell",
-    "icicibank.youtility.local": "icicibank",
-    "redmine.youtility.in": "sps",
-    "django-local.youtility.in": "default",
-    "barfi.youtility.in": "icicibank",
-    "intelliwiz.youtility.in": "default",
-    "testdb.youtility.local": "testDB",
+    # Minimal safe defaults for local development
+    "localhost": "default",
+    "127.0.0.1": "default",
+    "testserver": "default",  # For Django test client
 }
 
+# Production tenant mappings should be loaded from environment variable
+# Example: TENANT_MAPPINGS='{"prod.example.com": "production_db", ...}'
+if os.environ.get('TENANT_MAPPINGS'):
+    logger.info("Using production tenant mappings from environment")
+else:
+    logger.warning(
+        "Using default development tenant mappings. "
+        "Set TENANT_MAPPINGS environment variable for production!"
+    )
 
-def get_tenant_mappings():
+
+def get_tenant_mappings() -> dict[str, str]:
     """
     Get tenant→database mappings from environment or defaults.
 
@@ -140,7 +147,7 @@ TENANT_UNKNOWN_HOST_ALLOWLIST = [
 # Databases allowed for migrations. By default, only 'default' is allowed.
 # Override with TENANT_MIGRATION_DATABASES environment variable (comma-separated).
 
-def get_migration_databases() -> list:
+def get_migration_databases() -> list[str]:
     """Get list of databases allowed for migrations."""
     env_dbs = os.environ.get('TENANT_MIGRATION_DATABASES', '').strip()
     if env_dbs:
@@ -149,6 +156,9 @@ def get_migration_databases() -> list:
 
 
 TENANT_MIGRATION_DATABASES = get_migration_databases()
+
+# Note: This is used by MigrationGuardService for validation
+# See: apps/tenants/services/migration_guard.py
 
 
 def get_tenant_for_host(hostname: str) -> str:

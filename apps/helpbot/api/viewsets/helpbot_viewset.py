@@ -61,13 +61,25 @@ class HelpBotViewSet(viewsets.GenericViewSet):
         Request:
             {
                 "context": "I need help with task management",
-                "user_role": "field_worker"
+                "user_role": "field_worker",
+                "agent_type": "ticket_assistant"  # Optional: 'general', 'security_facility', 'ticket_assistant'
             }
+
+        Agent Types:
+            - general: General help and guidance (default)
+            - security_facility: Security & Facility Mentor with 7 pillars scorecard
+            - ticket_assistant: HelpDesk ticket assistance with 60% deflection goal
+                * Check ticket status
+                * Create new tickets with knowledge base deflection
+                * View my tickets
+                * Escalate tickets
+                * Knowledge base search for self-service
 
         Returns:
             {
                 "session_id": <uuid>,
-                "message": "Session started"
+                "message": "Session started",
+                "agent_type": "ticket_assistant"
             }
         """
         try:

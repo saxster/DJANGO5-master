@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consent Revoked</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ff9800;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Consent Revoked</h1>
+    </div>
+
+    <div class="content">
+        <p>Dear {{ employee.first_name|default:employee.username }},</p>
+
+        <p>Your consent for <strong>{{ policy.title }}</strong> has been revoked as requested.</p>
+
+        <p><strong>Details:</strong></p>
+        <ul>
+            <li><strong>Policy:</strong> {{ policy.get_policy_type_display }}</li>
+            <li><strong>Revoked On:</strong> {{ revoked_at|date:"F d, Y \a\\t g:i A" }}</li>
+            <li><strong>Reason:</strong> {{ reason }}</li>
+        </ul>
+
+        <div class="warning-box">
+            <h3>Impact of Revocation:</h3>
+            <p>As a result of revoking this consent:</p>
+            <ul>
+                {% if policy.policy_type == 'GPS_TRACKING' %}
+                <li>Your location will no longer be tracked during work hours</li>
+                <li>You may not be able to use mobile clock-in/out features</li>
+                <li>You may need to use alternative attendance methods</li>
+                {% endif %}
+
+                {% if policy.policy_type == 'BIOMETRIC_DATA' or policy.policy_type == 'FACE_RECOGNITION' %}
+                <li>Face recognition features will be disabled</li>
+                <li>You will need to use alternative authentication methods</li>
+                <li>Your biometric templates will be deleted within 30 days</li>
+                {% endif %}
+
+                <li>Your ability to clock in/out may be restricted</li>
+            </ul>
+        </div>
+
+        <p>If you change your mind, you can provide consent again at any time through the attendance portal.</p>
+    </div>
+
+    <div class="footer">
+        <p>This confirmation was sent automatically by the IntelliWiz Attendance System.</p>
+        <p>For questions about your consent or data privacy, contact your HR department.</p>
+    </div>
+</body>
+</html>

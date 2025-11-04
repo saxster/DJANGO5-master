@@ -27,7 +27,7 @@ from apps.core.tasks.base import IdempotentTask
 
 # make it false when u deploy
 MOCK = False
-now = datetime.now() if not MOCK else datetime(2023, 8, 19, 12, 2, 0)
+now = timezone.now() if not MOCK else datetime(2023, 8, 19, 12, 2, 0)
 now_insql = (
     "CURRENT_TIMESTAMP" if not MOCK else "'2023-08-19 12:02:00.419091+00'::timestamp"
 )

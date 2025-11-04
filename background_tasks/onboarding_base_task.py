@@ -23,6 +23,7 @@ from celery import Task
 from django.conf import settings
 from django.db import transaction, DatabaseError, OperationalError, IntegrityError
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 # Resilience imports
 from background_tasks.onboarding_retry_strategies import (
@@ -111,7 +112,7 @@ class OnboardingBaseTask(Task):
             'status': 'completed',
             'result': result,
             'correlation_id': correlation_id,
-            'completed_at': datetime.now().isoformat(),
+            'completed_at': timezone.now().isoformat(),
         }
 
         if metadata:
@@ -151,7 +152,7 @@ class OnboardingBaseTask(Task):
             'error': error_message,
             'error_type': error_type,
             'correlation_id': correlation_id,
-            'failed_at': datetime.now().isoformat(),
+            'failed_at': timezone.now().isoformat(),
         }
 
         if metadata:

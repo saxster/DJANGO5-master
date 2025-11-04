@@ -1,0 +1,32 @@
+Action Required: Consent Request
+================================
+
+Dear {{ employee.first_name|default:employee.username }},
+
+Your employer requires your consent for the following:
+
+{{ policy.title }}
+{{ policy.get_policy_type_display }} - {{ policy.get_state_display }} v{{ policy.version }}
+
+SUMMARY:
+{{ policy.summary }}
+
+{% if policy.requires_signature %}
+NOTE: This policy requires your digital signature.
+{% endif %}
+
+{% if policy.requires_written_consent %}
+NOTE: This policy requires written consent documentation in addition to electronic acceptance.
+{% endif %}
+
+Please review the full policy and provide your consent by visiting:
+{{ consent_url }}
+
+IMPORTANT: Your consent is required to use attendance tracking features including clock-in/out functionality.
+
+---
+Effective Date: {{ policy.effective_date }}
+{% if policy.expiration_date %}Expires: {{ policy.expiration_date }}{% endif %}
+
+This is an automated message from the IntelliWiz Attendance System.
+If you have questions, please contact your manager or HR department.

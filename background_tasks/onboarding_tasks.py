@@ -12,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.db import transaction, DatabaseError, OperationalError, IntegrityError
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 # Local imports
 from apps.core_onboarding.models import ConversationSession, LLMRecommendation
@@ -168,7 +169,7 @@ def process_conversation_step(self, conversation_id: str, user_input: str, conte
             session.current_state = ConversationSession.StateChoices.AWAITING_USER_APPROVAL
             session.collected_data.update({
                 'task_id': task_id,
-                'processed_at': datetime.now().isoformat(),
+                'processed_at': timezone.now().isoformat(),
                 'recommendation_id': str(recommendation.recommendation_id)
             })
             session.save()
@@ -458,7 +459,7 @@ def _create_consensus(maker_result: Dict[str, Any], checker_result: Dict[str, An
         'checker_validated': True,
         'risk_assessment': checker_result.get('risk_assessment', 'unknown'),
         'compliance_check': checker_result.get('compliance_check', 'not_checked'),
-        'consensus_created_at': datetime.now().isoformat()
+        'consensus_created_at': timezone.now().isoformat()
     }
 
     return consensus

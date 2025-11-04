@@ -18,6 +18,7 @@ Security Features:
 
 import logging
 import environ
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 logger = logging.getLogger(__name__)
 env = environ.Env()
@@ -47,7 +48,7 @@ WEBSOCKET_THROTTLE_LIMITS = {
 }
 
 # Connection tracking timeout (seconds)
-WEBSOCKET_CONNECTION_TIMEOUT = env.int('WEBSOCKET_CONNECTION_TIMEOUT', default=3600)  # 1 hour
+WEBSOCKET_CONNECTION_TIMEOUT = env.int('WEBSOCKET_CONNECTION_TIMEOUT', default=SECONDS_IN_HOUR)  # 1 hour
 
 # ===========================
 # HEARTBEAT & PRESENCE MONITORING

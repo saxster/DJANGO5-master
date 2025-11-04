@@ -11,6 +11,8 @@ Author: Claude Code
 Date: 2025-10-01
 """
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 # =============================================================================
 # ONBOARDING FILE UPLOAD LIMITS
 # =============================================================================
@@ -117,7 +119,7 @@ ONBOARDING_UPLOAD_CACHE_KEYS = {
 }
 
 # Cache TTL (matches session duration)
-ONBOARDING_UPLOAD_CACHE_TTL = 3600  # 1 hour
+ONBOARDING_UPLOAD_CACHE_TTL = SECONDS_IN_HOUR  # 1 hour
 
 # =============================================================================
 # ERROR MESSAGES

@@ -18,6 +18,7 @@ from threading import Lock
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
+from django.utils import timezone
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.core.signals import request_started, request_finished
@@ -70,7 +71,7 @@ class MetricsCollector:
                 sanitized_tags = MonitoringPIIRedactionService.sanitize_metric_tags(tags)
 
             metric_data = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timezone.now().isoformat(),
                 'value': value,
                 'tags': sanitized_tags,
                 'correlation_id': correlation_id

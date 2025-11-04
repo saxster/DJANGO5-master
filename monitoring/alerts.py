@@ -16,6 +16,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.core.cache import cache
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from .config import monitoring_config, AlertRule
 from .django_monitoring import metrics_collector
@@ -104,7 +105,7 @@ class AlertManager:
     def _create_alert(self, rule: AlertRule) -> Dict[str, Any]:
         """Create alert dictionary from triggered rule"""
         return {
-            'id': f"{rule.name}_{int(datetime.now().timestamp())}",
+            'id': f"{rule.name}_{int(timezone.now().timestamp())}",
             'name': rule.name,
             'severity': rule.severity,
             'description': rule.description,
@@ -112,7 +113,7 @@ class AlertManager:
             'metric': rule.metric,
             'threshold': rule.threshold,
             'current_value': self._get_metric_value(rule.metric, rule.window_minutes),
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'rule': rule
         }
     
@@ -123,11 +124,11 @@ class AlertManager:
         # Check cooldown
         last_sent = self.alert_cooldown.get(alert_key)
         if last_sent:
-            if datetime.now() - last_sent < timedelta(seconds=self.cooldown_period):
+            if timezone.now() - last_sent < timedelta(seconds=self.cooldown_period):
                 return False
         
         # Update cooldown
-        self.alert_cooldown[alert_key] = datetime.now()
+        self.alert_cooldown[alert_key] = timezone.now()
         return True
     
     def _record_alert(self, alert: Dict[str, Any]):

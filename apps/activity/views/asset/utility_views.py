@@ -8,7 +8,7 @@ people near assets, and asset logs.
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.shortcuts import render
 from django.views.generic.base import View
 from django.http import response as rp
@@ -19,6 +19,7 @@ from apps.activity.forms.asset_form import CheckpointForm
 from apps.activity.models.asset_model import Asset, AssetLog
 from apps.core import utils
 import apps.peoples.utils as putils
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
 
@@ -179,16 +180,17 @@ class Checkpoint(LoginRequiredMixin, View):
         """Handle valid checkpoint form submission."""
         P = self.params
         try:
-            cp = form.save(commit=False)
-            cp.gpslocation = form.cleaned_data["gpslocation"]
-            putils.save_userinfo(cp, request.user, request.session, create=create)
-            data = {
-                "msg": f"{cp.assetcode}",
-                "row": Asset.objects.get_checkpointlistview(
-                    request, P["related"], P["fields"], id=cp.id
-                ),
-            }
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                cp = form.save(commit=False)
+                cp.gpslocation = form.cleaned_data["gpslocation"]
+                putils.save_userinfo(cp, request.user, request.session, create=create)
+                data = {
+                    "msg": f"{cp.assetcode}",
+                    "row": Asset.objects.get_checkpointlistview(
+                        request, P["related"], P["fields"], id=cp.id
+                    ),
+                }
+                return rp.JsonResponse(data, status=200)
         except IntegrityError:
             return utils.handle_intergrity_error("Checkpoint")
 

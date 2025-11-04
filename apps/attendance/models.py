@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.attendance.managers import PELManager
 from django.contrib.postgres.fields import ArrayField
 from apps.core.utils_new.error_handling import safe_property
+from apps.core.fields import EncryptedJSONField
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from typing import TypedDict, List, Optional
@@ -115,6 +116,24 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
     peventtype = models.ForeignKey(
         "onboarding.TypeAssist", null=True, blank=True, on_delete=models.RESTRICT
     )
+
+    # Phase 2: Post Assignment Tracking
+    post = models.ForeignKey(
+        "attendance.Post",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="attendance_records",
+        help_text="Specific duty station worker checked into (Phase 2)",
+    )
+    post_assignment = models.ForeignKey(
+        "attendance.PostAssignment",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="attendance_records",
+        help_text="Reference to scheduled post assignment (Phase 2)",
+    )
     transportmodes = ArrayField(
         models.CharField(
             max_length=50,
@@ -146,15 +165,85 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
     facerecognitionout = models.BooleanField(
         _("Enable Face-Recognition Out"), default=False, null=True, blank=True
     )
-    peventlogextras = models.JSONField(
+    peventlogextras = EncryptedJSONField(
         _("peventlogextras"),
         encoder=DjangoJSONEncoder,
         default=peventlog_json,
-        help_text="JSON field for face recognition, geofence, and verification data"
+        help_text="Encrypted JSON field for face recognition, geofence, and verification data (biometric templates)"
     )
     otherlocation = models.CharField(_("Other Location"), max_length=50, null=True)
     reference = models.CharField("Reference", max_length=55, null=True)
     geojson = models.JSONField(default=pel_geojson, null=True, blank=True)
+
+    # Phase 1.4: Photo capture for buddy punching prevention
+    checkin_photo = models.ForeignKey(
+        'attendance.AttendancePhoto',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='checkin_attendance_records',
+        help_text="Photo captured during clock-in"
+    )
+    checkout_photo = models.ForeignKey(
+        'attendance.AttendancePhoto',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='checkout_attendance_records',
+        help_text="Photo captured during clock-out"
+    )
+
+    # Phase 2.1: Fraud detection results
+    fraud_score = models.FloatField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Fraud detection composite score (0-1)"
+    )
+    fraud_risk_level = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        choices=[
+            ('MINIMAL', 'Minimal'),
+            ('LOW', 'Low'),
+            ('MEDIUM', 'Medium'),
+            ('HIGH', 'High'),
+            ('CRITICAL', 'Critical'),
+        ],
+        help_text="Fraud risk level determined by ML models"
+    )
+    fraud_anomalies = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of detected fraud anomalies with details"
+    )
+    fraud_analyzed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When fraud analysis was performed"
+    )
+
+    # Phase 2.3: Data retention and archival
+    is_archived = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether record has been archived (>2 years old)"
+    )
+    archived_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When record was moved to archive"
+    )
+    gps_purged = models.BooleanField(
+        default=False,
+        help_text="Whether GPS location data has been purged (>90 days)"
+    )
+    gps_purged_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When GPS data was purged for privacy compliance"
+    )
 
     # Optimistic locking for concurrent updates (Rule #17)
     version = VersionField()
@@ -332,10 +421,43 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
         verbose_name = "People Event Log"
         verbose_name_plural = "People Event Logs"
         indexes = [
+            # Existing indexes
             models.Index(fields=['tenant', 'cdtz'], name='pel_tenant_cdtz_idx'),
             models.Index(fields=['tenant', 'people'], name='pel_tenant_people_idx'),
             models.Index(fields=['tenant', 'datefor'], name='pel_tenant_datefor_idx'),
             models.Index(fields=['tenant', 'bu'], name='pel_tenant_bu_idx'),
+
+            # Shift validation query optimization indexes (Phase 1)
+            models.Index(
+                fields=['tenant', 'people', 'shift', 'datefor'],
+                name='pel_validation_lookup_idx'
+            ),
+            models.Index(
+                fields=['tenant', 'bu', 'datefor', 'shift'],
+                name='pel_site_shift_idx'
+            ),
+            models.Index(
+                fields=['tenant', 'people', 'punchouttime'],
+                name='pel_rest_period_idx'
+            ),
+            models.Index(
+                fields=['tenant', 'people', 'datefor', 'punchouttime'],
+                name='pel_duplicate_check_idx'
+            ),
+
+            # Fraud detection and archival indexes (Enhancement Phase 2-3)
+            models.Index(
+                fields=['tenant', 'fraud_score'],
+                name='pel_fraud_score_idx'
+            ),
+            models.Index(
+                fields=['tenant', 'is_archived', 'datefor'],
+                name='pel_archived_date_idx'
+            ),
+            models.Index(
+                fields=['tenant', 'gps_purged'],
+                name='pel_gps_purged_idx'
+            ),
         ]
 
 
@@ -399,6 +521,13 @@ class Geofence(BaseModel):
     boundary = PolygonField(srid=4326, null=True, blank=True)
     center_point = PointField(srid=4326, null=True, blank=True)
     radius = models.FloatField(null=True, blank=True)
+
+    # Phase 3.3: Configurable hysteresis buffer
+    hysteresis_meters = models.FloatField(
+        default=1.0,
+        help_text="Buffer zone in meters to prevent boundary flapping (configurable per geofence)"
+    )
+
     bu = models.ForeignKey('client_onboarding.Bt', null=True, blank=True, on_delete=models.CASCADE)
     client = models.ForeignKey(
         'client_onboarding.Bt', null=True, blank=True,
@@ -421,4 +550,47 @@ class Geofence(BaseModel):
         return f"{self.name} ({self.geofence_type})"
 
 
-__all__ = ['PeopleEventlog', 'Geofence']
+# Import audit log models from separate module
+from apps.attendance.models.audit_log import AttendanceAccessLog, AuditLogRetentionPolicy
+from apps.attendance.models.consent import ConsentPolicy, EmployeeConsentLog, ConsentRequirement
+
+# Import Phase 2 models: Post Assignment and Digital Post Orders
+from apps.attendance.models.post import Post
+from apps.attendance.models.post_assignment import PostAssignment
+from apps.attendance.models.post_order_acknowledgement import PostOrderAcknowledgement
+
+# Import Phase 4 models: Approval Workflow
+from apps.attendance.models.approval_workflow import (
+    ApprovalRequest,
+    ApprovalAction,
+    AutoApprovalRule,
+)
+
+# Import Phase 5 models: Alert & Monitoring
+from apps.attendance.models.alert_monitoring import (
+    AlertRule,
+    AttendanceAlert,
+    AlertEscalation,
+)
+
+__all__ = [
+    'PeopleEventlog',
+    'Geofence',
+    'AttendanceAccessLog',
+    'AuditLogRetentionPolicy',
+    'ConsentPolicy',
+    'EmployeeConsentLog',
+    'ConsentRequirement',
+    # Phase 2: Post Assignment Models
+    'Post',
+    'PostAssignment',
+    'PostOrderAcknowledgement',
+    # Phase 4: Approval Workflow Models
+    'ApprovalRequest',
+    'ApprovalAction',
+    'AutoApprovalRule',
+    # Phase 5: Alert & Monitoring Models
+    'AlertRule',
+    'AttendanceAlert',
+    'AlertEscalation',
+]

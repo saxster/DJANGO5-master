@@ -168,6 +168,18 @@ class Ticket(BaseModel, TenantAwareModel):
         blank=True,
         default=Status.NEW.value,
     )
+    original_language = models.CharField(
+        _("Original Language"),
+        max_length=10,
+        choices=[
+            ('en', 'English'),
+            ('hi', 'Hindi'),
+            ('te', 'Telugu'),
+            ('es', 'Spanish'),
+        ],
+        default='en',
+        help_text="Language in which the ticket was originally created"
+    )
     performedby = models.ForeignKey(
         "peoples.People",
         null=True,
@@ -179,6 +191,36 @@ class Ticket(BaseModel, TenantAwareModel):
         max_length=50, choices=TicketSource.choices, null=True, blank=True
     )
     attachmentcount = models.IntegerField(null=True)
+
+    # Sentiment analysis fields (Feature 2: NL/AI Platform Quick Win)
+    sentiment_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Sentiment score: 0=Very Negative, 5=Neutral, 10=Very Positive"
+    )
+    sentiment_label = models.CharField(
+        max_length=20,
+        choices=[
+            ('very_negative', 'Very Negative'),
+            ('negative', 'Negative'),
+            ('neutral', 'Neutral'),
+            ('positive', 'Positive'),
+            ('very_positive', 'Very Positive'),
+        ],
+        null=True,
+        blank=True,
+        help_text="Human-readable sentiment classification"
+    )
+    emotion_detected = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Detected emotions with scores: {anger: 0.8, frustration: 0.6, ...}"
+    )
+    sentiment_analyzed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last sentiment analysis"
+    )
 
     # Optimistic locking for concurrent updates (Rule #17)
     version = VersionField()
@@ -446,6 +488,12 @@ from .sla_policy import SLAPolicy
 # Import Ticket Workflow (optional - can be lazy-loaded)
 # from .ticket_workflow import TicketWorkflow
 
+# Import Audit Log for compliance (Nov 3, 2025 - Best Practices Remediation)
+from .audit_log import TicketAuditLog
+
+# Import Ticket Attachment (Nov 3, 2025 - Security Enhancement)
+from .ticket_attachment import TicketAttachment
+
 
 # =============================================================================
 # EXPORTS
@@ -456,5 +504,7 @@ __all__ = [
     'TicketNumberField',
     'EscalationMatrix',
     'SLAPolicy',
+    'TicketAuditLog',
+    'TicketAttachment',
     'ticket_defaults',
 ]

@@ -15,6 +15,8 @@ Follows .claude/rules.md:
 - Secure defaults (auto-retrain OFF by default)
 """
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 ML_CONFIG = {
     # ========================================================================
     # FEATURE FLAGS
@@ -156,7 +158,7 @@ ML_CONFIG = {
     # ========================================================================
 
     # Task timeout settings (seconds)
-    'DAILY_METRICS_TIMEOUT': 3600,      # 1 hour for all tenants
+    'DAILY_METRICS_TIMEOUT': SECONDS_IN_HOUR,      # 1 hour for all tenants
     'DRIFT_DETECTION_TIMEOUT': 600,     # 10 minutes
     'RETRAINING_TIMEOUT': 1800,         # 30 minutes for XGBoost
     'ROLLBACK_CHECK_TIMEOUT': 300,      # 5 minutes

@@ -9,6 +9,8 @@ from typing import Dict
 import logging
 from datetime import datetime, timedelta
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+
 logger = logging.getLogger(__name__)
 
 
@@ -119,9 +121,9 @@ class NavigationTrackingMiddleware(MiddlewareMixin):
             username = getattr(user, 'loginid', getattr(user, 'username', str(user.id)))
             if username not in dead_urls[path]['users']:
                 dead_urls[path]['users'].append(username)
-        
+
         # Cache for 24 hours
-        cache.set(self.CACHE_KEY_404_URLS, dead_urls, 86400)
+        cache.set(self.CACHE_KEY_404_URLS, dead_urls, SECONDS_IN_DAY)
         
         # Log significant 404s
         if dead_urls[path]['count'] % 10 == 0:
@@ -176,9 +178,9 @@ class NavigationTrackingMiddleware(MiddlewareMixin):
             count = popular_paths[path]['count']
             popular_paths[path]['total_response_time'] = total_time
             popular_paths[path]['avg_response_time'] = total_time / count
-        
+
         # Cache for 1 hour
-        cache.set(self.CACHE_KEY_POPULAR_PATHS, popular_paths, 3600)
+        cache.set(self.CACHE_KEY_POPULAR_PATHS, popular_paths, SECONDS_IN_HOUR)
     
     def _track_deprecated_url_usage(self, path: str, user=None):
         """Track usage of deprecated URLs"""
@@ -209,8 +211,8 @@ class NavigationTrackingMiddleware(MiddlewareMixin):
                     username = getattr(user, 'loginid', getattr(user, 'username', str(user.id)))
                     if username not in deprecated_usage[old_url]['users']:
                         deprecated_usage[old_url]['users'].append(username)
-                
-                cache.set(self.CACHE_KEY_DEPRECATED_USAGE, deprecated_usage, 86400)
+
+                cache.set(self.CACHE_KEY_DEPRECATED_USAGE, deprecated_usage, SECONDS_IN_DAY)
                 break
     
     def _track_user_flow(self, session_key: str, path: str):

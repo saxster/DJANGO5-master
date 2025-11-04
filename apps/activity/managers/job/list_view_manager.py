@@ -44,6 +44,15 @@ class ListViewManager(models.Manager):
     filtering, and sorting. Supports DataTables integration.
     """
 
+    def _validate_parent_id(self, parent_id):
+        """SECURITY: Validate parent_id parameter"""
+        if not parent_id:
+            raise ValueError("parent_id parameter is required")
+        try:
+            return int(parent_id)
+        except (ValueError, TypeError):
+            raise ValueError("Invalid parent_id parameter")
+
     def get_adhoctasks_listview(self, R, task=True):
         """
         Get adhoc tasks list view with pagination.
@@ -595,7 +604,7 @@ class ListViewManager(models.Manager):
             gps=AsGeoJSON('gpslocation'),
             bu__gpslocation=AsGeoJSON('bu__gpslocation'),
             duration=V(None, output_field=models.CharField(null=True))).select_related(*related).filter(
-            parent_id=request.GET['parent_id'],
+            parent_id=self._validate_parent_id(request.GET.get('parent_id')),
             identifier='EXTERNALTOUR',
             job__enable=True
         ).order_by('seqno').values(*fields)

@@ -22,7 +22,9 @@ Geospatial: PostGIS Point geometry, GeoJSON boundary support
 from rest_framework import serializers
 from apps.attendance.models import PeopleEventlog, Geofence
 from django.contrib.gis.geos import Point
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timezone as dt_timezone, timedelta
+from django.utils import timezone
+import re
 import logging
 
 logger = logging.getLogger(__name__)
@@ -80,7 +82,19 @@ class AttendanceSerializer(serializers.ModelSerializer):
     """
     lat = serializers.FloatField(write_only=True, required=True)
     lng = serializers.FloatField(write_only=True, required=True)
-    device_id = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    timestamp = serializers.DateTimeField(write_only=True, required=False)
+    device_id = serializers.RegexField(
+        regex=r'^[a-zA-Z0-9_-]{1,50}$',
+        max_length=50,
+        required=False,
+        allow_blank=True,
+        error_messages={'invalid': 'Device ID must contain only alphanumeric characters, hyphens, or underscores (max 50 chars)'}
+    )
+
+    # Phase 2-3: Post tracking fields
+    post_code = serializers.CharField(source='post.post_code', read_only=True, allow_null=True)
+    post_name = serializers.CharField(source='post.post_name', read_only=True, allow_null=True)
+    post_assignment_id = serializers.IntegerField(source='post_assignment.id', read_only=True, allow_null=True)
 
     class Meta:
         model = PeopleEventlog
@@ -88,27 +102,36 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'id', 'peopleid', 'event_type', 'event_time',
             'lat', 'lng', 'accuracy', 'device_id',
             'inside_geofence', 'geofence_name',
+            # Phase 2-3: Post tracking
+            'post', 'post_code', 'post_name',
+            'post_assignment', 'post_assignment_id',
             'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'inside_geofence', 'geofence_name']
+        read_only_fields = [
+            'id', 'created_at', 'inside_geofence', 'geofence_name',
+            'post', 'post_code', 'post_name', 'post_assignment', 'post_assignment_id'
+        ]
 
     def validate(self, attrs):
         """
-        Validate GPS coordinates and accuracy.
+        Validate GPS coordinates, accuracy, and timestamp.
 
-        Ontology: validation_rules=True, geospatial=True
-        Validates: GPS coordinate bounds, accuracy threshold
-        Input: lat (float), lng (float), accuracy (float, optional)
+        Ontology: validation_rules=True, geospatial=True, security=True
+        Validates: GPS coordinate bounds, accuracy threshold, timestamp freshness, spoofing
+        Input: lat (float), lng (float), accuracy (float), timestamp (datetime)
         Output: Validated attrs or ValidationError
         Rules:
           - Latitude: -90 to 90 (WGS84 standard)
           - Longitude: -180 to 180 (WGS84 standard)
           - Accuracy: Warning if >100m (mobile GPS typical: 5-30m)
-        Security: Prevents invalid coordinates from corrupting geospatial data
+          - Timestamp: Reject if >5 minutes old (prevents replay attacks)
+          - Spoofing: Reject (0,0) coordinates (Null Island)
+        Security: Prevents invalid/spoofed coordinates and replay attacks
         """
         lat = attrs.get('lat')
         lng = attrs.get('lng')
 
+        # GPS bounds validation
         if not (-90 <= lat <= 90):
             raise serializers.ValidationError({
                 'lat': 'Latitude must be between -90 and 90'
@@ -119,10 +142,37 @@ class AttendanceSerializer(serializers.ModelSerializer):
                 'lng': 'Longitude must be between -180 and 180'
             })
 
+        # GPS spoofing detection: Block (0,0) coordinates
+        if lat == 0 and lng == 0:
+            raise serializers.ValidationError({
+                'coordinates': 'Invalid coordinates detected (0,0 - Null Island). This appears to be spoofed GPS data.'
+            })
+
+        # Additional spoofing detection: Warn on integer coordinates
+        if lat == round(lat) and lng == round(lng):
+            logger.warning(
+                f"Suspicious rounded coordinates detected: ({lat}, {lng}). "
+                f"This may indicate mock location or manual entry."
+            )
+
         # Validate accuracy if provided
         accuracy = attrs.get('accuracy', 0)
         if accuracy > 100:
             logger.warning(f"Low GPS accuracy: {accuracy} meters")
+
+        # Validate location timestamp freshness (prevent replay attacks)
+        timestamp = attrs.get('timestamp')
+        if timestamp:
+            location_age = timezone.now() - timestamp
+            if location_age > timedelta(minutes=5):
+                raise serializers.ValidationError({
+                    'timestamp': f'Location data is stale ({location_age.total_seconds():.0f} seconds old). Maximum age: 5 minutes.'
+                })
+            # Reject future timestamps
+            if timestamp > timezone.now():
+                raise serializers.ValidationError({
+                    'timestamp': 'Location timestamp cannot be in the future.'
+                })
 
         return attrs
 
@@ -227,19 +277,21 @@ class LocationValidationSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         """
-        Validate location data.
+        Validate location data with spoofing detection.
 
-        Ontology: validation_rules=True
+        Ontology: validation_rules=True, security=True
         Validates: Spoofing detection
-        Security: Detects fake GPS coordinates
-        Warning: (0,0) is "Null Island" (Gulf of Guinea) - unlikely real user location
+        Security: Blocks fake GPS coordinates
+        Error: (0,0) is "Null Island" (Gulf of Guinea) - almost certainly spoofed
         """
         lat = attrs.get('lat')
         lng = attrs.get('lng')
 
-        # Check for spoofed coordinates (0,0 is likely fake)
+        # Block spoofed coordinates (0,0) - Security fix
         if lat == 0 and lng == 0:
-            logger.warning("Suspicious coordinates: (0, 0)")
+            raise serializers.ValidationError({
+                'coordinates': 'Invalid coordinates (0,0 - Null Island). This appears to be spoofed GPS data.'
+            })
 
         return attrs
 
