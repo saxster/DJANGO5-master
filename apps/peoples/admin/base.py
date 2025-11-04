@@ -17,7 +17,8 @@ from apps.core.utils_new.db_utils import (
 )
 from django.db.models import Q
 from import_export import widgets as wg
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 from apps.peoples import models as pm
 
 

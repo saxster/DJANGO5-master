@@ -58,7 +58,7 @@ class Migration(migrations.Migration):
                     help_text='Business unit this geofence belongs to',
                     null=True,
                     on_delete=django.db.models.deletion.CASCADE,
-                    to='onboarding.bt'
+                    to='client_onboarding.bt'
                 )),
                 ('client', models.ForeignKey(
                     blank=True,
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                     null=True,
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='geofence_clients',
-                    to='onboarding.bt'
+                    to='client_onboarding.bt'
                 )),
             ],
             options={

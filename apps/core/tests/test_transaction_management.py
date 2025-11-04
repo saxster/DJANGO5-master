@@ -87,7 +87,8 @@ class ViewTransactionTests(TransactionTestCase):
 
     def setUp(self):
         from apps.client_onboarding.models import Bt
-        from apps.onboarding.models import Tenant, Client
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.factory = RequestFactory()
         self.tenant = Tenant.objects.create(
@@ -319,7 +320,8 @@ class DecoratorTests(TestCase):
 
     def setUp(self):
         from apps.client_onboarding.models import Bt
-        from apps.onboarding.models import Tenant, Client
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Test Tenant",
@@ -384,7 +386,8 @@ class RealWorldScenarioTests(TransactionTestCase):
     def setUp(self):
         from apps.client_onboarding.models import Bt
         from apps.core_onboarding.models import TypeAssist
-        from apps.onboarding.models import Tenant, Client
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Test Tenant",
@@ -591,7 +594,8 @@ class ConcurrentTransactionTests(TransactionTestCase):
         from apps.work_order_management.models import Wom, Vendor
         from apps.activity.models.question_model import QuestionSet
         from apps.client_onboarding.models import Bt
-        from apps.onboarding.models import Tenant, Client
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
         import threading
 
         tenant = Tenant.objects.create(tenantname="Concurrent Test", tenantcode="CONCURRENT")

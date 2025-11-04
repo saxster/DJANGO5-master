@@ -33,7 +33,8 @@ from apps.core.widgets import (
     TypeAssistWorkTypeFKWUpdate,
     EnabledTypeAssistWidget,
 )
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 from apps.peoples import models as pm
 from apps.service.validators import clean_string, clean_array_string
 from django.core.exceptions import ValidationError
@@ -61,13 +62,13 @@ class PeopleResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -75,25 +76,25 @@ class PeopleResource(resources.ModelResource):
     Department = fields.Field(
         column_name="Department",
         attribute="department",
-        widget=TypeAssistDepartmentFKW(om.TypeAssist, "tacode"),
+        widget=TypeAssistDepartmentFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     Designation = fields.Field(
         column_name="Designation",
         attribute="designation",
-        widget=TypeAssistDesignationFKW(om.TypeAssist, "tacode"),
+        widget=TypeAssistDesignationFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     PeopleType = fields.Field(
         column_name="Employee Type*",
         attribute="peopletype",
-        widget=TypeAssistEmployeeTypeFKW(om.TypeAssist, "tacode"),
+        widget=TypeAssistEmployeeTypeFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     WorkType = fields.Field(
         column_name="Work Type",
         attribute="worktype",
-        widget=TypeAssistWorkTypeFKW(om.TypeAssist, "tacode"),
+        widget=TypeAssistWorkTypeFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     Reportto = fields.Field(
@@ -271,38 +272,38 @@ class PeopleResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
     Department = fields.Field(
         column_name="Department",
         attribute="department",
-        widget=TypeAssistDepartmentFKWUpdate(om.TypeAssist, "tacode"),
+        widget=TypeAssistDepartmentFKWUpdate(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     Designation = fields.Field(
         column_name="Designation",
         attribute="designation",
-        widget=TypeAssistDesignationFKWUpdate(om.TypeAssist, "tacode"),
+        widget=TypeAssistDesignationFKWUpdate(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     PeopleType = fields.Field(
         column_name="Employee Type",
         attribute="peopletype",
-        widget=TypeAssistEmployeeTypeFKWUpdate(om.TypeAssist, "tacode"),
+        widget=TypeAssistEmployeeTypeFKWUpdate(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     WorkType = fields.Field(
         column_name="Work Type",
         attribute="worktype",
-        widget=TypeAssistWorkTypeFKWUpdate(om.TypeAssist, "tacode"),
+        widget=TypeAssistWorkTypeFKWUpdate(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     Reportto = fields.Field(
@@ -518,20 +519,20 @@ class GroupResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default="NONE",
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default="NONE",
     )
     Identifier = fields.Field(
         attribute="identifier",
         column_name="Type*",
-        widget=wg.ForeignKeyWidget(om.TypeAssist, "tacode"),
+        widget=wg.ForeignKeyWidget(om_core.TypeAssist, "tacode"),
     )
     ID = fields.Field(attribute="id", column_name="ID")
     Enable = fields.Field(
@@ -595,20 +596,20 @@ class GroupResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default="NONE",
     )
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default="NONE",
     )
     Identifier = fields.Field(
         attribute="identifier",
         column_name="Type",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(om_core.TypeAssist, "tacode"),
     )
     ID = fields.Field(attribute="id", column_name="ID*")
     Enable = fields.Field(
@@ -675,13 +676,13 @@ class GroupBelongingResource(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -699,7 +700,7 @@ class GroupBelongingResource(resources.ModelResource):
     )
     SITE = fields.Field(
         column_name="Of Site",
-        widget=BVForeignKeyWidget(om.Bt, "bucode"),
+        widget=BVForeignKeyWidget(om_client.Bt, "bucode"),
         attribute="assignsites",
         default=get_or_create_none_bv,
     )
@@ -751,13 +752,13 @@ class GroupBelongingResourceUpdate(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -775,7 +776,7 @@ class GroupBelongingResourceUpdate(resources.ModelResource):
     )
     SITE = fields.Field(
         column_name="Of Site",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         attribute="assignsites",
         default=get_or_create_none_bv,
     )
@@ -834,13 +835,13 @@ class CapabilityResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default="NONE",
     )
     BV = fields.Field(
         column_name="BV",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default="NONE",
     )

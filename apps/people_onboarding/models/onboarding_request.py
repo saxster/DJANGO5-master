@@ -74,7 +74,7 @@ class OnboardingRequest(EnhancedTenantModel):
 
     # Relationships
     conversation_session = models.ForeignKey(
-        'onboarding.ConversationSession',
+        'core_onboarding.ConversationSession',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

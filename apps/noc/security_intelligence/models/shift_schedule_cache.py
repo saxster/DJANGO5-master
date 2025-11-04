@@ -31,7 +31,7 @@ class ShiftScheduleCache(BaseModel, TenantAwareModel):
     )
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         db_index=True,
         related_name='cached_shifts',
@@ -39,7 +39,7 @@ class ShiftScheduleCache(BaseModel, TenantAwareModel):
     )
 
     shift = models.ForeignKey(
-        'onboarding.Shift',
+        'client_onboarding.Shift',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

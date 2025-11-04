@@ -27,7 +27,7 @@ class MaintenanceWindow(TenantAwareModel, BaseModel):
     """
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -35,7 +35,7 @@ class MaintenanceWindow(TenantAwareModel, BaseModel):
         help_text=_("Client for maintenance window (null = all clients)")
     )
     bu = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

@@ -34,7 +34,7 @@ class BaselineProfile(BaseModel, TenantAwareModel):
     ]
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='baseline_profiles',
         help_text="Site for this baseline"

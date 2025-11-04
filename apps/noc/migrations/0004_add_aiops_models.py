@@ -221,7 +221,7 @@ class Migration(migrations.Migration):
                 )),
                 ('client', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE,
-                    to='onboarding.bt'
+                    to='client_onboarding.bt'
                 )),
             ],
             options={
@@ -259,7 +259,7 @@ class Migration(migrations.Migration):
                 )),
                 ('client', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE,
-                    to='onboarding.bt'
+                    to='client_onboarding.bt'
                 )),
             ],
             options={

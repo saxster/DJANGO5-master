@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='bt',
             name='parent',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='children', to='onboarding.bt', verbose_name='Belongs To'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='children', to='client_onboarding.bt', verbose_name='Belongs To'),
         ),
         migrations.AddField(
             model_name='bt',
@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='device',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='device',
@@ -70,7 +70,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='downtimehistory',
             name='client',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='downtimehistory',
@@ -95,12 +95,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='geofencemaster',
             name='bu',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='for_sites', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='for_sites', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='geofencemaster',
             name='client',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='for_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='for_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='geofencemaster',
@@ -115,12 +115,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='shift',
             name='bu',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='shift_bu', to='onboarding.bt', verbose_name='Buisiness View'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='shift_bu', to='client_onboarding.bt', verbose_name='Buisiness View'),
         ),
         migrations.AddField(
             model_name='shift',
             name='client',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='shift_client', to='onboarding.bt', verbose_name='Buisiness View'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='shift_client', to='client_onboarding.bt', verbose_name='Buisiness View'),
         ),
         migrations.AddField(
             model_name='shift',
@@ -140,12 +140,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='subscription',
             name='assignedhandset',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.device', verbose_name='Assigned Handset'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.device', verbose_name='Assigned Handset'),
         ),
         migrations.AddField(
             model_name='subscription',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='subscription',
@@ -165,12 +165,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='typeassist',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='ta_bus', to='onboarding.bt', verbose_name='Buisiness View'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='ta_bus', to='client_onboarding.bt', verbose_name='Buisiness View'),
         ),
         migrations.AddField(
             model_name='typeassist',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='ta_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='ta_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='typeassist',
@@ -185,7 +185,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='typeassist',
             name='tatype',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='children', to='onboarding.typeassist', verbose_name='TypeAssist'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='children', to='core_onboarding.typeassist', verbose_name='TypeAssist'),
         ),
         migrations.AddField(
             model_name='typeassist',
@@ -195,17 +195,17 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='shift',
             name='designation',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.typeassist', verbose_name='Buisiness View'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='core_onboarding.typeassist', verbose_name='Buisiness View'),
         ),
         migrations.AddField(
             model_name='bt',
             name='butype',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='bu_butypes', to='onboarding.typeassist', verbose_name='Type'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='bu_butypes', to='core_onboarding.typeassist', verbose_name='Type'),
         ),
         migrations.AddField(
             model_name='bt',
             name='identifier',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='bu_idfs', to='onboarding.typeassist', verbose_name='Identifier'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='bu_idfs', to='core_onboarding.typeassist', verbose_name='Identifier'),
         ),
         migrations.AddConstraint(
             model_name='geofencemaster',

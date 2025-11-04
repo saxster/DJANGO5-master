@@ -30,7 +30,7 @@ from datetime import timedelta
 
 from apps.peoples.models import People
 from apps.client_onboarding.models import Bt
-from apps.onboarding.models import Client
+from apps.client_onboarding.models import Bt as Client
 
 
 # ============================================================================

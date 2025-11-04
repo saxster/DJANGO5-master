@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='peopleeventlog',
             name='geofence',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.geofencemaster'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='core_onboarding.geofencemaster'),
         ),
         migrations.AddField(
             model_name='peopleeventlog',
@@ -40,12 +40,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='peopleeventlog',
             name='peventtype',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.typeassist'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='core_onboarding.typeassist'),
         ),
         migrations.AddField(
             model_name='peopleeventlog',
             name='shift',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.shift'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.shift'),
         ),
         migrations.AddField(
             model_name='peopleeventlog',

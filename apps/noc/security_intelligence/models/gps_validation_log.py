@@ -41,7 +41,7 @@ class GPSValidationLog(BaseModel, TenantAwareModel):
     )
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         db_index=True,
         related_name='gps_validations',

@@ -289,8 +289,8 @@ class TestFixedVulnerabilities(TestCase):
 
     def test_onboarding_manager_fix(self):
         """Test that onboarding manager vulnerabilities are fixed"""
-        from apps.onboarding.managers import BtManager
-        from apps.onboarding.bt_manager_orm import BtManagerORM
+        from apps.client_onboarding.managers import BtManager
+        from apps.client_onboarding.managers import BtManagerORM
 
         manager = BtManager()
 

@@ -37,12 +37,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='asset',
             name='servprov',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_serv_providers', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_serv_providers', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='asset',
             name='subcategory',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_subcategories', to='onboarding.typeassist', verbose_name='Sub Category'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_subcategories', to='core_onboarding.typeassist', verbose_name='Sub Category'),
         ),
         migrations.AddField(
             model_name='asset',
@@ -52,12 +52,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='asset',
             name='type',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_types', to='onboarding.typeassist', verbose_name='Type'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_types', to='core_onboarding.typeassist', verbose_name='Type'),
         ),
         migrations.AddField(
             model_name='asset',
             name='unit',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_units', to='onboarding.typeassist', verbose_name='Unit'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_units', to='core_onboarding.typeassist', verbose_name='Unit'),
         ),
         migrations.AddField(
             model_name='assetlog',
@@ -67,12 +67,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='assetlog',
             name='bu',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt', verbose_name='Bu'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt', verbose_name='Bu'),
         ),
         migrations.AddField(
             model_name='assetlog',
             name='client',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='assetlog_client', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='assetlog_client', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='assetlog',
@@ -82,7 +82,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attachment',
             name='bu',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt'),
         ),
         migrations.AddField(
             model_name='attachment',
@@ -97,7 +97,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attachment',
             name='ownername',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.typeassist'),
+            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.RESTRICT, to='core_onboarding.typeassist'),
         ),
         migrations.AddField(
             model_name='attachment',
@@ -107,12 +107,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='deviceeventlog',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt'),
         ),
         migrations.AddField(
             model_name='deviceeventlog',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='deviveevents_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='deviveevents_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='deviceeventlog',
@@ -137,12 +137,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='job',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_bus', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_bus', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='job',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='job',
@@ -152,7 +152,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='job',
             name='geofence',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.geofencemaster', verbose_name='Geofence'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='core_onboarding.geofencemaster', verbose_name='Geofence'),
         ),
         migrations.AddField(
             model_name='job',
@@ -182,7 +182,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='job',
             name='shift',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_shifts', to='onboarding.shift', verbose_name='Shift'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_shifts', to='client_onboarding.shift', verbose_name='Shift'),
         ),
         migrations.AddField(
             model_name='job',
@@ -192,7 +192,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='job',
             name='ticketcategory',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_tktcategories', to='onboarding.typeassist', verbose_name='Notify Category'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='job_tktcategories', to='core_onboarding.typeassist', verbose_name='Notify Category'),
         ),
         migrations.AddField(
             model_name='jobneed',
@@ -202,12 +202,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='jobneed',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='jobneedf_bus', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='jobneedf_bus', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='jobneed',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='jobneed_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='jobneed_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='jobneed',
@@ -247,7 +247,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='jobneed',
             name='remarkstype',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='remark_types', to='onboarding.typeassist'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='remark_types', to='core_onboarding.typeassist'),
         ),
         migrations.AddField(
             model_name='jobneed',
@@ -267,7 +267,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='jobneed',
             name='ticketcategory',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.typeassist', verbose_name='Notify Category'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='core_onboarding.typeassist', verbose_name='Notify Category'),
         ),
         migrations.AddField(
             model_name='jobneeddetails',
@@ -292,12 +292,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='location',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='location_bus', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='location_bus', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='location',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='location_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='location_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='location',
@@ -322,7 +322,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='location',
             name='type',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='location_types', to='onboarding.typeassist', verbose_name='Type'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='location_types', to='core_onboarding.typeassist', verbose_name='Type'),
         ),
         migrations.AddField(
             model_name='asset',
@@ -332,12 +332,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='question',
             name='category',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='category_types', to='onboarding.typeassist', verbose_name='Category'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='category_types', to='core_onboarding.typeassist', verbose_name='Category'),
         ),
         migrations.AddField(
             model_name='question',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='question',
@@ -357,7 +357,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='question',
             name='unit',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='unit_types', to='onboarding.typeassist', verbose_name='Unit'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='unit_types', to='core_onboarding.typeassist', verbose_name='Unit'),
         ),
         migrations.AddField(
             model_name='jobneeddetails',
@@ -367,12 +367,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='questionset',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qset_bus', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qset_bus', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='questionset',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qset_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qset_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='questionset',
@@ -412,12 +412,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='questionsetbelonging',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qsetbelong_bu', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qsetbelong_bu', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='questionsetbelonging',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qsetbelong_client', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='qsetbelong_client', to='client_onboarding.bt', verbose_name='Client'),
         ),
         migrations.AddField(
             model_name='questionsetbelonging',

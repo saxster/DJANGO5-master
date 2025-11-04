@@ -108,7 +108,7 @@ class Migration(migrations.Migration):
                     help_text='Client/business unit',
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='non_negotiables_scorecards',
-                    to='onboarding.bt'
+                    to='client_onboarding.bt'
                 )),
                 ('tenant', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE,

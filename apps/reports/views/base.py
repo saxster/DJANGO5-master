@@ -30,7 +30,8 @@ from django.template.loader import render_to_string
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 from django.urls import reverse
-from apps.onboarding import models as on
+from apps.client_onboarding import models as on_client
+from apps.core_onboarding import models as on_core
 from apps.peoples import utils as putils
 from apps.core import utils
 from apps.activity.forms.question_form import QsetBelongingForm

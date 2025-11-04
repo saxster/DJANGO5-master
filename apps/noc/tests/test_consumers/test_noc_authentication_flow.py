@@ -33,7 +33,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 @pytest.fixture
 def tenant():
     """Create test tenant (business unit)."""
-    from apps.onboarding.models import BusinessUnit
+    from apps.client_onboarding.models import Bt as BusinessUnit
     return BusinessUnit.objects.create(
         unitname='Test Tenant',
         unitcode='TEST001',
@@ -359,7 +359,7 @@ class TestTenantIsolation:
 
     async def test_cross_tenant_client_subscription_blocked(self, noc_application, noc_user):
         """Test that users cannot subscribe to other tenant's clients."""
-        from apps.onboarding.models import BusinessUnit
+        from apps.client_onboarding.models import Bt as BusinessUnit
 
         # Create another tenant
         other_tenant = BusinessUnit.objects.create(

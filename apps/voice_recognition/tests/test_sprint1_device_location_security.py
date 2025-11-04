@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.test import TestCase
 from apps.peoples.models import People, DeviceRegistration, DeviceRiskEvent
 from apps.client_onboarding.models import Bt
-from apps.onboarding.models import ApprovedLocation
+from apps.onboarding.models.approved_location import ApprovedLocation
 from apps.peoples.services.device_trust_service import DeviceTrustService
 from apps.core.services.location_security_service import LocationSecurityService
 from apps.voice_recognition.services.enrollment_service import VoiceEnrollmentService

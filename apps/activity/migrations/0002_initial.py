@@ -17,21 +17,21 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='asset',
             name='brand',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_brands', to='onboarding.typeassist', verbose_name='Brand'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_brands', to='core_onboarding.typeassist', verbose_name='Brand'),
         ),
         migrations.AddField(
             model_name='asset',
             name='bu',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_bus', to='onboarding.bt', verbose_name='Site'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_bus', to='client_onboarding.bt', verbose_name='Site'),
         ),
         migrations.AddField(
             model_name='asset',
             name='category',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_categories', to='onboarding.typeassist', verbose_name='Category'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_categories', to='core_onboarding.typeassist', verbose_name='Category'),
         ),
         migrations.AddField(
             model_name='asset',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_clients', to='onboarding.bt', verbose_name='Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='asset_clients', to='client_onboarding.bt', verbose_name='Client'),
         ),
     ]

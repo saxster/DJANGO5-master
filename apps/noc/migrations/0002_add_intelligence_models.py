@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
                 )),
                 ('site', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE,
-                    to='onboarding.bt',
+                    to='client_onboarding.bt',
                     related_name='correlated_incidents'
                 )),
                 ('tenant', models.ForeignKey(

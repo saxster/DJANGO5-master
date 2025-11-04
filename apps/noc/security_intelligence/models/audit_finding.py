@@ -45,7 +45,7 @@ class AuditFinding(BaseModel, TenantAwareModel):
     ]
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='audit_findings',
         help_text="Site where finding was detected"

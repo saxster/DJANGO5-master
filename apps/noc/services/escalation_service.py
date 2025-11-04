@@ -38,7 +38,7 @@ class EscalationService:
         Returns:
             People instance for escalation target
         """
-        from apps.onboarding.managers import BtManager
+        from apps.client_onboarding.managers import BtManager
 
         if shift_time is None:
             shift_time = timezone.now()

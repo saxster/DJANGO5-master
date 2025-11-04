@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                 )),
                 ('client', models.ForeignKey(
                     help_text='Tenant/client this profile belongs to', on_delete=django.db.models.deletion.CASCADE,
-                    related_name='preference_profiles', to='onboarding.bt', verbose_name='Client'
+                    related_name='preference_profiles', to='client_onboarding.bt', verbose_name='Client'
                 )),
                 ('user', models.ForeignKey(
                     blank=True, help_text='User this profile belongs to (null for tenant-wide profiles)',
@@ -84,7 +84,7 @@ class Migration(migrations.Migration):
                 )),
                 ('session', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE, related_name='interactions',
-                    to='onboarding.conversationsession', verbose_name='Session'
+                    to='core_onboarding.conversationsession', verbose_name='Session'
                 )),
             ],
             options={
@@ -185,7 +185,7 @@ class Migration(migrations.Migration):
                 )),
                 ('client', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE, related_name='experiment_assignments',
-                    to='onboarding.bt', verbose_name='Client'
+                    to='client_onboarding.bt', verbose_name='Client'
                 )),
                 ('experiment', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE, related_name='assignments',

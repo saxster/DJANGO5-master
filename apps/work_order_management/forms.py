@@ -4,7 +4,8 @@ from django.http import QueryDict
 from django.contrib.gis.geos import GEOSGeometry
 import django_select2.forms as s2forms
 from django.utils import timezone
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.location_model import Location
@@ -66,7 +67,7 @@ class VendorForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["address"].required = True
         self.fields["type"].required = False
-        self.fields["type"].queryset = om.TypeAssist.objects.filter(
+        self.fields["type"].queryset = om_core.TypeAssist.objects.filter(
             tatype__tacode="VENDOR_TYPE", enable=True, client_id=S["client_id"]
         )
         initailize_form_fields(self)
@@ -155,14 +156,14 @@ class WorkOrderForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["qset"].required = True
 
-        self.fields["categories"].choices = om.TypeAssist.objects.filter(
+        self.fields["categories"].choices = om_core.TypeAssist.objects.filter(
             (Q(client_id=S["client_id"]) | Q(cuser__is_superuser=True)),
             tatype__tacode="WORKORDER_CATEGORY",
             enable=True,
         ).values_list("tacode", "taname")
         self.fields[
             "ticketcategory"
-        ].queryset = om.TypeAssist.objects.filter_for_dd_notifycategory_field(
+        ].queryset = om_core.TypeAssist.objects.filter_for_dd_notifycategory_field(
             self.request, sitewise=True
         )
         self.fields["asset"].queryset = Asset.objects.filter_for_dd_asset_field(
@@ -182,7 +183,7 @@ class WorkOrderForm(forms.ModelForm):
         if not self.instance.id:
             self.fields["plandatetime"].initial = timezone.now()
             self.fields["priority"].initial = Wom.Priority.LOW
-            self.fields["ticketcategory"].initial = om.TypeAssist.objects.get(
+            self.fields["ticketcategory"].initial = om_core.TypeAssist.objects.get(
                 tacode="AUTOCLOSED", tatype__tacode="NOTIFYCATEGORY"
             )
 
@@ -327,7 +328,7 @@ class ApproverForm(forms.ModelForm):
 
         initailize_form_fields(self)
 
-        self.fields["approverfor"].choices = om.TypeAssist.objects.filter(
+        self.fields["approverfor"].choices = om_core.TypeAssist.objects.filter(
             Q(client_id=S["client_id"]) | Q(client_id=2), tatype__tacode="APPROVERFOR"
         ).values_list("tacode", "taname")
         self.fields["sites"].choices = Pgbelonging.objects.get_assigned_sites_to_people(

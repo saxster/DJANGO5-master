@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
                 ('conversation_session', models.ForeignKey(
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='changesets',
-                    to='onboarding.conversationsession',
+                    to='core_onboarding.conversationsession',
                     verbose_name='Conversation Session'
                 )),
                 ('rolled_back_by', models.ForeignKey(

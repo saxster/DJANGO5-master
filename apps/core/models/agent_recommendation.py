@@ -56,13 +56,13 @@ class AgentRecommendation(models.Model):
         help_text="Dashboard module this recommendation targets"
     )
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='agent_recommendations',
         help_text="Site/business unit for this recommendation"
     )
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='agent_recommendations_client',
         null=True,

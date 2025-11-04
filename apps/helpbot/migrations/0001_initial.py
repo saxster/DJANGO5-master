@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 ('last_activity', models.DateTimeField(auto_now=True, help_text='Timestamp of last user interaction', verbose_name='Last Activity')),
                 ('total_messages', models.IntegerField(default=0, help_text='Total number of messages in this session', verbose_name='Total Messages')),
                 ('satisfaction_rating', models.IntegerField(blank=True, help_text='User satisfaction rating (1-5)', null=True, verbose_name='Satisfaction Rating')),
-                ('client', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='helpbot_sessions', to='onboarding.Bt', verbose_name='Client')),
+                ('client', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='helpbot_sessions', to='client_onboarding.Bt', verbose_name='Client')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='helpbot_sessions', to=settings.AUTH_USER_MODEL, verbose_name='User')),
             ],
             options={

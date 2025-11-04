@@ -54,7 +54,7 @@ MIDDLEWARE = [
     "django.middleware.locale.LocaleMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "apps.onboarding.middlewares.TimezoneMiddleware",
+    "apps.core.middleware.timezone_middleware.TimezoneMiddleware",
 
     # ========================================================================
     # Layer 6: Content Security and Static Files

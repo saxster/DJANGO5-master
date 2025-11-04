@@ -37,7 +37,7 @@ class NOCRBACService:
             QuerySet of Bt instances (clients)
         """
         from apps.client_onboarding.models import Bt
-        from apps.onboarding.managers import BtManager
+        from apps.client_onboarding.managers import BtManager
 
         capabilities = UserCapabilityService.get_effective_permissions(user)
 
@@ -71,7 +71,7 @@ class NOCRBACService:
         Returns:
             Filtered QuerySet of sites user can access
         """
-        from apps.onboarding.managers import BtManager
+        from apps.client_onboarding.managers import BtManager
 
         capabilities = UserCapabilityService.get_effective_permissions(user)
 

@@ -29,7 +29,8 @@ except (ImportError, AttributeError):
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import DatabaseError, OperationalError
 from apps.peoples import models as pm
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 from apps.core.widgets import (
     BVForeignKeyWidget,
     BVForeignKeyWidgetUpdate,
@@ -123,7 +124,7 @@ class AssetFKW(wg.ForeignKeyWidget):
 
 class TktCategoryFKW(wg.ForeignKeyWidget):
     def get_queryset(self, value, row, *args, **kwargs):
-        return om.TypeAssist.objects.select_related().filter(
+        return om_core.TypeAssist.objects.select_related().filter(
             tatype__tacode="NOTIFYCATEGORY"
         )
 
@@ -152,10 +153,10 @@ class BaseJobResource(resources.ModelResource):
     CLIENT = fields.Field(
         attribute="client",
         column_name="Client*",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
     )
     SITE = fields.Field(
-        attribute="bu", column_name="Site*", widget=BVForeignKeyWidget(om.Bt, "bucode")
+        attribute="bu", column_name="Site*", widget=BVForeignKeyWidget(om_client.Bt, "bucode")
     )
     NAME = fields.Field(attribute="jobname", column_name="Name*")
     DESC = fields.Field(attribute="jobdesc", column_name="Description*", default="")
@@ -189,7 +190,7 @@ class BaseJobResource(resources.ModelResource):
     TKTCATEGORY = fields.Field(
         attribute="ticketcategory",
         column_name="Notify Category*",
-        widget=TktCategoryFKW(om.TypeAssist, "tacode"),
+        widget=TktCategoryFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     PRIORITY = fields.Field(
@@ -238,7 +239,7 @@ class TaskResource(BaseJobResource):
     SCANTYPE = fields.Field(attribute="scantype", column_name="Scan Type*")
     ASSET = fields.Field(attribute="asset", column_name="Asset/Checkpoint*", widget=AssetFKW(Asset, "assetcode"))
     QSET = fields.Field(attribute="qset", column_name="Question Set*", widget=QsetFKW(QuestionSet, "qsetname"))
-    TKTCATEGORY = fields.Field(attribute="ticketcategory", column_name="Notify Category*", widget=TktCategoryFKW(om.TypeAssist, "tacode"))
+    TKTCATEGORY = fields.Field(attribute="ticketcategory", column_name="Notify Category*", widget=TktCategoryFKW(om_core.TypeAssist, "tacode"))
     PRIORITY = fields.Field(attribute="priority", column_name="Priority*")
     PEOPLE = fields.Field(attribute="people", column_name="People", widget=PeopleFKW(pm.People, "peoplecode"))
     PGROUP = fields.Field(attribute="pgroup", column_name="Group Name", widget=PgroupFKW(pm.Pgroup, "groupname"))
@@ -318,13 +319,13 @@ class TaskResource(BaseJobResource):
         site_code = row.get("Site*")
         
         # Validate Client exists
-        if not om.Bt.objects.filter(bucode=client_code, identifier='CLIENT').exists():
+        if not om_client.Bt.objects.filter(bucode=client_code, identifier='CLIENT').exists():
             raise ValidationError({
                 'Client*': f"Client with code '{client_code}' does not exist"
             })
         
         # Validate Site exists and belongs to Client
-        if not om.Bt.objects.filter(
+        if not om_client.Bt.objects.filter(
             bucode=site_code, 
             identifier='SITE',
             parent__bucode=client_code
@@ -401,11 +402,11 @@ class TourResource(resources.ModelResource):
     CLIENT = fields.Field(
         attribute="client",
         column_name="Client*",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     SITE = fields.Field(
-        attribute="bu", column_name="Site*", widget=BVForeignKeyWidget(om.Bt, "bucode"),
+        attribute="bu", column_name="Site*", widget=BVForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv
     )
     NAME = fields.Field(attribute="jobname", column_name="Name*", default="Untitled Tour")
@@ -427,7 +428,7 @@ class TourResource(resources.ModelResource):
     TKTCATEGORY = fields.Field(
         attribute="ticketcategory",
         column_name="Notify Category*",
-        widget=TktCategoryFKW(om.TypeAssist, "tacode"),
+        widget=TktCategoryFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     PRIORITY = fields.Field(
@@ -697,12 +698,12 @@ class TaskResourceUpdate(resources.ModelResource):
     CLIENT = fields.Field(
         attribute="client",
         column_name="Client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
     )
     SITE = fields.Field(
         attribute="bu",
         column_name="Site",
-        widget=BVForeignKeyWidgetUpdate(om.Bt, "bucode"),
+        widget=BVForeignKeyWidgetUpdate(om_client.Bt, "bucode"),
     )
     NAME = fields.Field(attribute="jobname", column_name="Name")
     DESC = fields.Field(attribute="jobdesc", column_name="Description", default="")
@@ -736,7 +737,7 @@ class TaskResourceUpdate(resources.ModelResource):
     TKTCATEGORY = fields.Field(
         attribute="ticketcategory",
         column_name="Notify Category",
-        widget=TktCategoryFKWUpdate(om.TypeAssist, "tacode"),
+        widget=TktCategoryFKWUpdate(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     PRIORITY = fields.Field(attribute="priority", column_name="Priority", default="LOW")
@@ -906,13 +907,13 @@ class TourResourceUpdate(resources.ModelResource):
     CLIENT = fields.Field(
         attribute="client",
         column_name="Client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     SITE = fields.Field(
         attribute="bu",
         column_name="Site",
-        widget=BVForeignKeyWidgetUpdate(om.Bt, "bucode"),
+        widget=BVForeignKeyWidgetUpdate(om_client.Bt, "bucode"),
     )
     NAME = fields.Field(attribute="jobname", column_name="Name")
     DESC = fields.Field(attribute="jobdesc", column_name="Description", default="")
@@ -946,7 +947,7 @@ class TourResourceUpdate(resources.ModelResource):
     TKTCATEGORY = fields.Field(
         attribute="ticketcategory",
         column_name="Notify Category",
-        widget=TktCategoryFKWUpdate(om.TypeAssist, "tacode"),
+        widget=TktCategoryFKWUpdate(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
     PRIORITY = fields.Field(attribute="priority", column_name="Priority", default="LOW")
@@ -1097,13 +1098,13 @@ class TourCheckpointResource(resources.ModelResource):
     CLIENT = fields.Field(
         attribute="client",
         column_name="Client*",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv
     )
     SITE = fields.Field(
         attribute="bu", 
         column_name="Site*", 
-        widget=BVForeignKeyWidget(om.Bt, "bucode"),
+        widget=BVForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv
     )
     SEQNO = fields.Field(attribute="seqno", column_name="Seq No*", default=1)

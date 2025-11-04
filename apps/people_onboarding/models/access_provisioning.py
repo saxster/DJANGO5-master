@@ -90,7 +90,7 @@ class AccessProvisioning(EnhancedTenantModel):
 
     # For site access
     allowed_sites = models.ManyToManyField(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         blank=True,
         related_name='onboarded_personnel_access',
         verbose_name=_('Allowed Sites')

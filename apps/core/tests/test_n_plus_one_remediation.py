@@ -13,7 +13,7 @@ from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.question_model import Question, QuestionSet
 from apps.activity.models.job_model import Jobneed, JobneedDetails
 from apps.core_onboarding.models import TypeAssist
-from apps.onboarding.models import BT
+from apps.client_onboarding.models import Bt
 
 People = get_user_model()
 

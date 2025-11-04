@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 from apps.tenants.models import Tenant
 from apps.peoples.models import People
 from apps.client_onboarding.models import Bt
-from apps.onboarding.models import Tacode
+from apps.core_onboarding.models import TypeAssist as Tacode
 from apps.noc.models import NOCAlertEvent, NOCIncident, NOCMetricSnapshot
 
 
