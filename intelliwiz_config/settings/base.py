@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results", "corsheaders", "django_cleanup.apps.CleanupConfig",
     # Local apps
-    'apps.core', 'apps.ontology', 'apps.peoples', 'apps.onboarding', 'apps.onboarding_api', 'apps.people_onboarding', 'apps.tenants',
+    'apps.core', 'apps.ontology', 'apps.peoples', 'apps.people_onboarding', 'apps.tenants',
+    'apps.core_onboarding', 'apps.client_onboarding', 'apps.site_onboarding',
     'apps.attendance', 'apps.activity', 'apps.scheduler', 'apps.reminder', 'apps.reports',
     'apps.service', 'apps.y_helpdesk', 'apps.work_order_management', 'apps.mqtt', 'apps.face_recognition',
     'apps.voice_recognition', 'apps.journal', 'apps.wellness', 'apps.streamlab', 'apps.issue_tracker',
