@@ -15,7 +15,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..permissions import CanApproveAIRecommendations
-from apps.onboarding.models import AIChangeSet, Bt, Shift, TypeAssist
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import AIChangeSet, TypeAssist
 import logging
 
 logger = logging.getLogger(__name__)

@@ -336,7 +336,8 @@ def get_or_create_none_people(using=None):
 
 def get_none_typeassist():
     # Late import to prevent circular dependency
-    import apps.onboarding.models as ob
+    from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 
     try:
         return ob.TypeAssist.objects.get(id=1)
@@ -434,7 +435,8 @@ def get_or_create_none_cap():
 
 def get_or_create_none_bv():
     # Late import to prevent circular dependency
-    import apps.onboarding.models as ob
+    from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 
     # First check if NONE already exists
     try:
@@ -461,7 +463,8 @@ def get_or_create_none_bv():
 
 def get_or_create_none_typeassist():
     # Late import to prevent circular dependency
-    import apps.onboarding.models as ob
+    from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 
     obj, iscreated = ob.TypeAssist.objects.get_or_create(
         tacode="NONE", taname="NONE", defaults={}
@@ -596,7 +599,8 @@ def get_or_create_none_job():
 
 def get_or_create_none_gf():
     # Late import to prevent circular dependency
-    import apps.onboarding.models as ob
+    from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 
     obj, _ = ob.GeofenceMaster.objects.get_or_create(
         gfcode="NONE", gfname="NONE", defaults={"alerttext": "NONE", "enable": False}

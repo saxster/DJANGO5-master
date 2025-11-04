@@ -36,13 +36,13 @@ class NOCMetricSnapshot(TenantAwareModel, BaseModel):
     """
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         verbose_name=_("Client"),
         help_text=_("Root client business unit")
     )
     bu = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

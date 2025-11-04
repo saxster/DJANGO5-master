@@ -26,7 +26,8 @@ from apps.y_helpdesk.utils.query_monitor import monitor_queries, compare_query_p
 from apps.y_helpdesk.serializers.unified_ticket_serializer import serialize_for_web_api
 
 from apps.peoples.models import People, Pgroup
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 
 
 class TicketPerformanceBenchmarkTestCase(TestCase):

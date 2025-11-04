@@ -644,7 +644,7 @@ class KnowledgeVectorPipelineTestCase(TestCase):
 
     def test_vector_store_integration(self):
         """Test that vector store integration works correctly"""
-        from apps.onboarding_api.services.knowledge import get_vector_store
+        from apps.core_onboarding.services.knowledge import get_vector_store
 
         vector_store = get_vector_store()
 
@@ -660,7 +660,7 @@ class KnowledgeVectorPipelineTestCase(TestCase):
 
     def test_enhanced_knowledge_service_interface(self):
         """Test that enhanced knowledge service handles both old and new embedding interfaces"""
-        from apps.onboarding_api.services.knowledge import EnhancedKnowledgeService, get_vector_store
+        from apps.core_onboarding.services.knowledge import EnhancedKnowledgeService, get_vector_store
 
         vector_store = get_vector_store()
         service = EnhancedKnowledgeService(vector_store)
@@ -689,7 +689,7 @@ class KnowledgeVectorPipelineTestCase(TestCase):
 
     def test_knowledge_search_with_embeddings(self):
         """Test knowledge search functionality with vector embeddings"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
 
         service = get_knowledge_service()
 

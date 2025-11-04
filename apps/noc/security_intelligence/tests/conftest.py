@@ -22,7 +22,7 @@ def tenant(db):
 @pytest.fixture
 def client_bt(db, tenant):
     """Create test client business unit."""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     return Bt.objects.create(
         tenant=tenant,
         name='Test Client',
@@ -34,7 +34,7 @@ def client_bt(db, tenant):
 @pytest.fixture
 def site_bt(db, tenant, client_bt):
     """Create test site business unit."""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     return Bt.objects.create(
         tenant=tenant,
         name='Test Site',

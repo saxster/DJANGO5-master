@@ -16,7 +16,7 @@ from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 
 # Local imports
-from apps.onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
 from apps.onboarding_api.services.llm import get_llm_service, get_checker_service, get_consensus_engine
 from apps.onboarding_api.services.knowledge import get_knowledge_service, get_embedding_generator
 from apps.onboarding_api.services.translation import get_conversation_translator
@@ -652,7 +652,7 @@ def ingest_document(self, job_id: str):
     task_logger.info(f"Starting document ingestion for job {job_id}")
 
     try:
-        from apps.onboarding.models import KnowledgeIngestionJob, AuthoritativeKnowledge
+        from apps.core_onboarding.models import KnowledgeIngestionJob, AuthoritativeKnowledge
         from apps.onboarding_api.services.knowledge import (
             get_document_fetcher,
             get_document_parser,
@@ -751,7 +751,7 @@ def ingest_document(self, job_id: str):
 
         # PUBLISH GATE ENFORCEMENT: Create draft review requiring two-person approval
         # This ensures NO document is published without maker-checker review
-        from apps.onboarding.models import KnowledgeReview
+        from apps.core_onboarding.models import KnowledgeReview
         draft_review = KnowledgeReview.objects.create(
             document=document,
             status='draft',
@@ -888,7 +888,7 @@ def reembed_document(self, knowledge_id: str, processing_config: Dict[str, Any] 
     task_logger.info(f"Re-embedding document {knowledge_id}")
 
     try:
-        from apps.onboarding.models import AuthoritativeKnowledge
+        from apps.core_onboarding.models import AuthoritativeKnowledge
         from apps.onboarding_api.services.knowledge import (
             get_document_chunker,
             get_embedding_generator,
@@ -981,7 +981,7 @@ def refresh_documents(self, source_ids: List[str] = None, force_refresh: bool = 
     task_logger.info(f"Refreshing documents (force={force_refresh})")
 
     try:
-        from apps.onboarding.models import KnowledgeSource, AuthoritativeKnowledge
+        from apps.core_onboarding.models import KnowledgeSource, AuthoritativeKnowledge
         from apps.onboarding_api.services.knowledge import get_document_fetcher
         from datetime import timedelta
 
@@ -1089,7 +1089,7 @@ def retire_document(self, knowledge_id: str, retirement_reason: str = "Manual re
     task_logger.info(f"Retiring document {knowledge_id}")
 
     try:
-        from apps.onboarding.models import AuthoritativeKnowledge
+        from apps.core_onboarding.models import AuthoritativeKnowledge
         from apps.onboarding_api.services.knowledge import get_vector_store
 
         # Get document
@@ -1137,7 +1137,7 @@ def batch_retire_stale_documents(self, max_age_days: int = 1095):
     task_logger.info(f"Batch retiring documents older than {max_age_days} days")
 
     try:
-        from apps.onboarding.models import AuthoritativeKnowledge
+        from apps.core_onboarding.models import AuthoritativeKnowledge
         from datetime import timedelta
 
         cutoff_date = datetime.now() - timedelta(days=max_age_days)
@@ -1257,7 +1257,7 @@ def weekly_knowledge_verification(self):
     task_logger.info("Starting weekly knowledge verification")
 
     try:
-        from apps.onboarding.models import AuthoritativeKnowledge
+        from apps.core_onboarding.models import AuthoritativeKnowledge
         from datetime import timedelta
 
         # Re-verify documents older than 90 days

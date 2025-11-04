@@ -11,7 +11,8 @@ from django.db import transaction, IntegrityError
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from apps.onboarding.models import Bt, Shift, TypeAssist, LLMRecommendation
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, LLMRecommendation
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)
@@ -416,7 +417,7 @@ class IntegrationAdapter:
 
                 # Track change in changeset
                 if changeset and not dry_run:
-                    from apps.onboarding.models import AIChangeRecord
+                    from apps.core_onboarding.models import AIChangeRecord
                     action = AIChangeRecord.ActionChoices.CREATE if was_created else AIChangeRecord.ActionChoices.UPDATE
 
                     # Get before state for updates
@@ -531,7 +532,7 @@ class IntegrationAdapter:
 
                     # Track creation in changeset
                     if changeset and not dry_run:
-                        from apps.onboarding.models import AIChangeRecord
+                        from apps.core_onboarding.models import AIChangeRecord
                         action = AIChangeRecord.ActionChoices.CREATE if was_created else AIChangeRecord.ActionChoices.UPDATE
 
                         self.track_change(
@@ -617,7 +618,7 @@ class IntegrationAdapter:
 
                         # Track creation in changeset
                         if changeset and not dry_run:
-                            from apps.onboarding.models import AIChangeRecord
+                            from apps.core_onboarding.models import AIChangeRecord
                             self.track_change(
                                 changeset=changeset,
                                 action=AIChangeRecord.ActionChoices.CREATE,
@@ -703,7 +704,7 @@ class IntegrationAdapter:
 
                     # Track change in changeset
                     if changeset and not dry_run:
-                        from apps.onboarding.models import AIChangeRecord
+                        from apps.core_onboarding.models import AIChangeRecord
                         self.track_change(
                             changeset=changeset,
                             action=AIChangeRecord.ActionChoices.UPDATE,
@@ -848,7 +849,7 @@ class IntegrationAdapter:
 
     def create_changeset(self, conversation_session, approved_by, description="AI Recommendations Applied"):
         """Create a new changeset for tracking changes"""
-        from apps.onboarding.models import AIChangeSet
+        from apps.core_onboarding.models import AIChangeSet
         from django.utils import timezone
 
         changeset = AIChangeSet.objects.create(
@@ -864,7 +865,7 @@ class IntegrationAdapter:
 
     def track_change(self, changeset, action, model_instance, before_state=None, after_state=None, sequence_order=0):
         """Track an individual change within a changeset"""
-        from apps.onboarding.models import AIChangeRecord
+        from apps.core_onboarding.models import AIChangeRecord
         from django.core import serializers
         import json
 
@@ -903,7 +904,7 @@ class IntegrationAdapter:
         Returns:
             dict: Rollback result summary
         """
-        from apps.onboarding.models import AIChangeRecord
+        from apps.core_onboarding.models import AIChangeRecord
         from django.utils import timezone
 
         logger.info(f"Starting rollback of changeset {changeset.changeset_id}")

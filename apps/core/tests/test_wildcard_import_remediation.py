@@ -276,7 +276,8 @@ class TestImportPerformance:
         modules_with_wildcards = [
             'apps.core.utils',
             'apps.core.utils_new',
-            'apps.onboarding.models',
+            'apps.client_onboarding.models',
+            'apps.core_onboarding.models',
         ]
 
         for module_name in modules_with_wildcards:

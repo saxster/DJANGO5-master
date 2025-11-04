@@ -5,7 +5,8 @@ from django import forms
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import Q
 from django.http import QueryDict
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 from apps.core.utils_new import get_current_year
 from apps.core.utils_new.business_logic import initailize_form_fields

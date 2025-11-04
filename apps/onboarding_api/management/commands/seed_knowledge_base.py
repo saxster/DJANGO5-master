@@ -3,7 +3,7 @@ Management command to seed the knowledge base with facility management best prac
 """
 
 from django.db import transaction
-from apps.onboarding.models import AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+from apps.core_onboarding.models import AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
 
 
 class Command(BaseCommand):

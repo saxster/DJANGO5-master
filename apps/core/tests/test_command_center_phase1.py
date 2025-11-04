@@ -39,7 +39,7 @@ from apps.core.api.saved_views_api import (
 from apps.core.services.alert_inbox_service import AlertInboxService
 from apps.core.services.portfolio_metrics_service import PortfolioMetricsService
 from apps.core.serializers.scope_serializers import ScopeConfig
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.activity.models import Jobneed
 from apps.attendance.models import PeopleEventlog
 from apps.y_helpdesk.models import Ticket

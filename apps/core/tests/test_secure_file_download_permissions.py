@@ -23,7 +23,7 @@ from apps.core.services.secure_file_download_service import SecureFileDownloadSe
 from apps.activity.models import Attachment
 from apps.peoples.models import People, PeopleOrganizational
 from apps.tenants.models import Tenant
-from apps.onboarding.models import Bt  # Business unit model
+from apps.client_onboarding.models import Bt  # Business unit model
 
 
 @pytest.mark.django_db

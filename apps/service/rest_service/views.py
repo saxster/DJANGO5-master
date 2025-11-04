@@ -17,7 +17,8 @@ from rest_framework import viewsets
 from apps.service.rest_service import serializers as ytpl_serializers
 from apps.service.rest_service.mixins import TenantFilteredViewSetMixin
 from apps.peoples import models as people_models
-from apps.onboarding import models as ob_models
+from apps.client_onboarding import models as ob_models_client
+from apps.core_onboarding import models as ob_models_core
 from apps.activity import models as act_models
 from apps.attendance.models import PeopleEventlog
 
@@ -83,7 +84,7 @@ class BtViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSet):
     Methods: GET (list), GET (detail)
     Security: Tenant-filtered, paginated
     """
-    queryset = ob_models.Bt.objects.all()
+    queryset = ob_models_client.Bt.objects.all()
     serializer_class = ytpl_serializers.BtSerializer
 
     def _get_related_fields(self):
@@ -115,7 +116,7 @@ class TypeAssistViewset(TenantFilteredViewSetMixin, viewsets.ReadOnlyModelViewSe
     Methods: GET (list), GET (detail)
     Security: Tenant-filtered, paginated
     """
-    queryset = ob_models.TypeAssist.objects.all()
+    queryset = ob_models_core.TypeAssist.objects.all()
     serializer_class = ytpl_serializers.TypeAssistSerializer
 
     def _get_related_fields(self):

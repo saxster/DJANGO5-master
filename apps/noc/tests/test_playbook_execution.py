@@ -428,7 +428,7 @@ def audit_finding(tenant, site_bt):
 @pytest.fixture
 def site_bt(tenant, client_bt, db):
     """Create test site."""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     return Bt.objects.create(
         tenant=tenant,
         client=client_bt,
@@ -440,7 +440,7 @@ def site_bt(tenant, client_bt, db):
 @pytest.fixture
 def client_bt(tenant, db):
     """Create test client."""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     return Bt.objects.create(
         tenant=tenant,
         buname="Test Client",

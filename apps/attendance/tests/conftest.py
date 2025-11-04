@@ -8,7 +8,8 @@ from django.utils import timezone
 from django.contrib.gis.geos import Point, LineString
 from apps.attendance.models import PeopleEventlog, Tracking
 from apps.peoples.models import People
-from apps.onboarding.models import Bt, TypeAssist, Shift, GeofenceMaster
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster
 
 
 @pytest.fixture

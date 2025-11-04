@@ -202,7 +202,7 @@ def preflight_validation(request):
             client_id = data.get('client_id')
             if client_id:
                 try:
-                    from apps.onboarding.models import Bt
+                    from apps.client_onboarding.models import Bt
                     client = Bt.objects.get(id=client_id)
                 except Bt.DoesNotExist:
                     return Response({

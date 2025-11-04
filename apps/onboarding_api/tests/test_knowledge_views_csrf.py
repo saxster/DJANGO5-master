@@ -22,7 +22,7 @@ from django.test import Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
-from apps.onboarding.models import AuthoritativeKnowledge
+from apps.core_onboarding.models import AuthoritativeKnowledge
 
 User = get_user_model()
 

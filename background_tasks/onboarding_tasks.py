@@ -14,7 +14,7 @@ from django.db import transaction, DatabaseError, OperationalError, IntegrityErr
 from django.core.exceptions import ValidationError
 
 # Local imports
-from apps.onboarding.models import ConversationSession, LLMRecommendation
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation
 from apps.onboarding_api.services.llm import get_llm_service, get_checker_service
 from apps.onboarding_api.services.knowledge import get_knowledge_service
 from apps.onboarding_api.services.translation import get_conversation_translator

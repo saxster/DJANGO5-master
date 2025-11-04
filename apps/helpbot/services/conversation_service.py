@@ -57,7 +57,7 @@ class HelpBotConversationService:
             if self.llm_enabled:
                 # Import existing LLM services found in the codebase
                 try:
-                    from apps.onboarding_api.services.llm import get_llm_service
+                    from apps.core_onboarding.services.llm import get_llm_service
                     self.llm_service = get_llm_service()
                     logger.info("Integrated with existing LLM services")
                 except ImportError:

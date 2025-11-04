@@ -250,7 +250,7 @@ class PreflightValidator:
 
         try:
             # Import TypeAssist model (adjust import path as needed)
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
 
             if self.client:
                 # Check for critical TypeAssist entries

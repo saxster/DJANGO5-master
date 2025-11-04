@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
                 ('mailids', models.TextField(max_length=500, verbose_name='Mail Ids')),
                 ('status', models.CharField(choices=[('SUCCESS', 'Success'), ('FAILED', 'FAILED')], max_length=50, verbose_name='Status')),
                 ('asset', models.ForeignKey(blank=True, on_delete=django.db.models.deletion.RESTRICT, to='activity.asset', verbose_name='Asset')),
-                ('bu', models.ForeignKey(blank=True, on_delete=django.db.models.deletion.RESTRICT, to='onboarding.bt', verbose_name='Site')),
+                ('bu', models.ForeignKey(blank=True, on_delete=django.db.models.deletion.RESTRICT, to='client_onboarding.bt', verbose_name='Site')),
                 ('cuser', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.RESTRICT, related_name='%(class)s_cusers', to=settings.AUTH_USER_MODEL)),
                 ('group', models.ForeignKey(blank=True, on_delete=django.db.models.deletion.RESTRICT, to='peoples.pgroup', verbose_name='Group')),
                 ('job', models.ForeignKey(blank=True, on_delete=django.db.models.deletion.RESTRICT, to='activity.job', verbose_name='Job')),

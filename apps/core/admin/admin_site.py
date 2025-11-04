@@ -118,9 +118,9 @@ class IntelliWizAdminSite(AdminSite):
             'Configuration': {
                 'app_label': 'configuration',
                 'models': [
-                    'onboarding.TypeAssist',
-                    'onboarding.Bt',
-                    'onboarding.Shift',
+                    'core_onboarding.TypeAssist',
+                    'client_onboarding.Bt',
+                    'client_onboarding.Shift',
                 ],
             },
             'Wellness & Journal': {

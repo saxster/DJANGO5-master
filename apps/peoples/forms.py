@@ -11,7 +11,8 @@ import binascii
 import apps.peoples.models as pm  # people-models
 from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
-import apps.onboarding.models as om  # onboarding-models
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from django_select2 import forms as s2forms
 from apps.core.utils_new.business_logic import (
     apply_error_classes,
@@ -376,7 +377,7 @@ class SiteGroupForm(PgroupForm):
         super().__init__(*args, **kwargs)
         initailize_form_fields(self)
         self.fields["peoples"].required = False
-        self.fields["identifier"].initial = om.TypeAssist.objects.get(
+        self.fields["identifier"].initial = TypeAssist.objects.get(
             tacode="SITEGROUP"
         )
         self.fields["grouplead"].queryset = pm.People.objects.filter(
@@ -391,7 +392,7 @@ class PeopleGroupForm(PgroupForm):
         super().__init__(*args, **kwargs)
         initailize_form_fields(self)
         site = self.request.user.bu.bucode if self.request.user.bu else ""
-        self.fields["identifier"].initial = om.TypeAssist.objects.get(
+        self.fields["identifier"].initial = TypeAssist.objects.get(
             tacode="PEOPLEGROUP"
         )
 
@@ -643,7 +644,7 @@ class PeopleExtrasForm(forms.Form):
     def clean(self):
         cd = super().clean()
         if cd.get("userfor") and cd["userfor"] != "":
-            client = om.Bt.objects.filter(id=self.request.session["client_id"]).first()
+            client = Bt.objects.filter(id=self.request.session["client_id"]).first()
             preferences = client.bupreferences
             if preferences["billingtype"] == "USERBASED":
                 current_ppl_count = pm.People.objects.filter(

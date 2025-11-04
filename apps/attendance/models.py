@@ -399,9 +399,9 @@ class Geofence(BaseModel):
     boundary = PolygonField(srid=4326, null=True, blank=True)
     center_point = PointField(srid=4326, null=True, blank=True)
     radius = models.FloatField(null=True, blank=True)
-    bu = models.ForeignKey('onboarding.Bt', null=True, blank=True, on_delete=models.CASCADE)
+    bu = models.ForeignKey('client_onboarding.Bt', null=True, blank=True, on_delete=models.CASCADE)
     client = models.ForeignKey(
-        'onboarding.Bt', null=True, blank=True,
+        'client_onboarding.Bt', null=True, blank=True,
         on_delete=models.CASCADE, related_name='attendance_geofence_clients'
     )
     is_active = models.BooleanField(default=True)

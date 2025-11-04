@@ -95,7 +95,7 @@ def wo_history_json():
         "apps.activity.models.Asset (maintenance target)",
         "apps.activity.models.Location (work site)",
         "apps.activity.models.QuestionSet (inspection checklist)",
-        "apps.onboarding.models.TypeAssist (categories, notification types)",
+        "apps.core_onboarding.models.TypeAssist (categories, notification types)",
         "concurrency.fields.VersionField (optimistic locking for concurrent updates)",
     ],
     used_by=[

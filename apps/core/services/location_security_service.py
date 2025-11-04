@@ -23,7 +23,7 @@ from typing import Dict, Any, Optional
 from django.db import DatabaseError
 from django.core.exceptions import ObjectDoesNotExist
 from apps.peoples.models import People
-from apps.onboarding.models import ApprovedLocation
+from apps.core_onboarding.models import ApprovedLocation
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,8 @@ from django.db import transaction
 
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.y_helpdesk.services import TicketWorkflowService, InvalidTicketTransitionError
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.activity.models import Asset, QuestionSet
 from apps.peoples.models import Pgroup
 

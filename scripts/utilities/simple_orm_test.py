@@ -12,7 +12,7 @@ print("="*60)
 print("\n✅ Testing Imports...")
 from apps.core.queries import TreeTraversal, QueryRepository, ReportQueryRepository
 from apps.core.cache_manager import CacheManager, TreeCache
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 print("   All core modules imported successfully!")
 

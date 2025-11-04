@@ -154,7 +154,7 @@ class TestFeatureExtraction:
         """Test feature extraction with attendance events."""
         from apps.tenants.models import Tenant
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
 
         tenant = Tenant.objects.create(
@@ -199,7 +199,7 @@ class TestFeatureExtraction:
         """Test that fraud labels come from FraudPredictionLog."""
         from apps.tenants.models import Tenant
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
         from apps.noc.security_intelligence.models import FraudPredictionLog
 

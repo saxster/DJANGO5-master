@@ -639,7 +639,7 @@ class JobneedManagerORMOptimized:
     @classmethod
     def warm_job_caches(cls, bu_id: int):
         """Warm critical job caches for a business unit"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.peoples.models import People
         from django.utils import timezone
         from datetime import timedelta

@@ -94,7 +94,7 @@ class ResponseValidator:
         Returns:
             dict: Validation result
         """
-        from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+        from apps.core_onboarding.services.speech_service import OnboardingSpeechService
 
         try:
             speech_service = OnboardingSpeechService()

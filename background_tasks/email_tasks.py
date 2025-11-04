@@ -35,7 +35,7 @@ from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validation import XSSPrevention
 # from apps.face_recognition.services import get_face_recognition_service  # Unused import - removed Oct 2025
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 from apps.reminder.models import Reminder
 from apps.reports import utils as rutils
@@ -387,7 +387,7 @@ def send_email_notification_for_vendor_and_security_of_wp_cancellation(
     jsonresp = {"story": "", "traceback": ""}
     try:
         from apps.work_order_management.models import Wom, WomDetails
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from django.template.loader import render_to_string
         from apps.work_order_management.models import Vendor
         from apps.peoples.models import People
@@ -475,7 +475,7 @@ def send_email_notification_for_vendor_and_security_for_rwp(
     jsonresp = {"story": "", "traceback": ""}
     try:
         from apps.work_order_management.models import Wom, WomDetails
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from django.template.loader import render_to_string
         from apps.work_order_management.models import Vendor
 
@@ -554,7 +554,7 @@ def send_email_notification_for_vendor_and_security_after_approval(
     jsonresp = {"story": "", "traceback": ""}
     try:
         from apps.work_order_management.models import Wom, WomDetails
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from django.template.loader import render_to_string
         from apps.work_order_management.models import Vendor
 

@@ -17,7 +17,7 @@ from django.utils import timezone
 from .services import FeedbackIntegrationService, ActiveLearningService
 from .models import TrainingDataset, TrainingExample
 from apps.activity.models import MeterReading, VehicleEntry
-from apps.onboarding_api.services.ocr_service import get_ocr_service
+from apps.core_onboarding.services.ocr_service import get_ocr_service
 
 logger = logging.getLogger(__name__)
 

@@ -39,7 +39,7 @@ from apps.onboarding.models import (
     OnboardingZone,
     ConversationSession
 )
-from apps.onboarding.models.business_unit import Bt
+from apps.client_onboarding.models.business_unit import Bt
 
 from ...serializer_modules.site_audit_serializers import (
     SiteAuditStartSerializer,

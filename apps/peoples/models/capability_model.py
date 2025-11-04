@@ -115,7 +115,7 @@ from apps.ontology.decorators import ontology
         "apps.tenants.models.TenantAwareModel (multi-tenant isolation)",
         "apps.peoples.models.base_model.BaseModel (audit fields: cdtz, mdtz)",
         "apps.peoples.managers.CapabilityManager (custom query methods)",
-        "apps.onboarding.models.Bt (client organization ForeignKey)",
+        "apps.client_onboarding.models.Bt (client organization ForeignKey)",
     ],
     used_by=[
         "apps.peoples.models.membership_model.MembershipCapability (assigns capabilities to users)",

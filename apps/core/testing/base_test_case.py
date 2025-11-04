@@ -19,7 +19,7 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework.authtoken.models import Token
 
 from apps.tenants.models import Tenant
-from apps.onboarding.models import BusinessUnit
+from apps.client_onboarding.models import Bt as BusinessUnit
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

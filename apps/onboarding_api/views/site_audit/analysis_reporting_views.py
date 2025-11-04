@@ -52,8 +52,8 @@ from ...serializer_modules.site_audit_serializers import (
 from apps.onboarding_api.services.sop_generator import SOPGeneratorService
 from apps.onboarding_api.services.site_coverage import get_coverage_planner_service
 from apps.onboarding_api.services.reporting import get_reporting_service
-from apps.onboarding_api.services.llm import get_llm_service, get_checker_service, get_consensus_engine
-from apps.onboarding_api.services.knowledge import get_knowledge_service
+from apps.core_onboarding.services.llm import get_llm_service, get_checker_service, get_consensus_engine
+from apps.core_onboarding.services.knowledge import get_knowledge_service
 from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)

@@ -204,7 +204,7 @@ def process_guard_gps(self, topic: str, data: Dict[str, Any]):
 
         # Phase A3 + A4: Geofence validation (IMPLEMENTED)
         from apps.mqtt.models import GuardLocation
-        from apps.onboarding.models import ApprovedLocation
+        from apps.core_onboarding.models import ApprovedLocation
         from apps.peoples.models import People
 
         # Get guard record

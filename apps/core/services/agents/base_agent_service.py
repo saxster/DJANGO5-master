@@ -19,9 +19,9 @@ from django.utils import timezone
 
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.core.validation_pydantic.agent_schemas import AgentRecommendationSchema
-from apps.onboarding_api.services.llm.provider_router import get_llm_router
-from apps.onboarding_api.services.llm.exceptions import AllProvidersFailedError
-from apps.onboarding.models import Bt
+from apps.core_onboarding.services.llm.provider_router import get_llm_router
+from apps.core_onboarding.services.llm.exceptions import AllProvidersFailedError
+from apps.client_onboarding.models import Bt
 
 logger = logging.getLogger(__name__)
 

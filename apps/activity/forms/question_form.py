@@ -11,7 +11,8 @@ from apps.activity.models.question_model import (
 )
 from apps.core.utils_new.business_logic import initailize_form_fields
 import apps.activity.utils as ac_utils
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 import apps.peoples.models as pm
 from apps.core import utils
 

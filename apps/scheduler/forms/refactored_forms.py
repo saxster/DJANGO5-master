@@ -16,7 +16,8 @@ from django_select2 import forms as s2forms
 
 from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.job_model import Job
-import apps.onboarding.models as ob
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 import apps.peoples.models as pm
 from apps.scheduler.forms.base_forms import BaseTourForm, BaseTaskForm, BaseJobneedForm
 from apps.core.utils_new.business_logic import initailize_form_fields

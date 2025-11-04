@@ -329,7 +329,7 @@ class WorkPermitService:
             ValidationError: If approval validation fails
         """
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.activity.models.question_model import QuestionSet
         from apps.work_order_management.utils import (
             check_all_approved,

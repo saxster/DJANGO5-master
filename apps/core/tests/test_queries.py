@@ -159,7 +159,7 @@ class QueryRepositoryTestCase(TestCase):
     def test_get_childrens_of_bt_caching(self):
         """Test BT children caching."""
         # Create test BT
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         # Use get_or_create to avoid conflicts
         bt_type, _ = TypeAssist.objects.get_or_create(
@@ -189,7 +189,7 @@ class QueryIntegrationTestCase(TestCase):
     def setUp(self):
         """Set up comprehensive test data."""
         # Create test client and BU
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         client_type = TypeAssist.objects.create(
             tacode='CLIENT_INT', taname='Client Type'
         )
@@ -271,7 +271,7 @@ class QueryPerformanceTestCase(TestCase):
     def setUp(self):
         """Set up performance test data."""
         # Create multiple test records for performance testing
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         client_type = TypeAssist.objects.create(
             tacode='PERF_CLIENT', taname='Performance Client Type'
         )

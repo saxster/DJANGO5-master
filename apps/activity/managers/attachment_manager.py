@@ -89,7 +89,7 @@ class AttachmentManager(models.Manager):
 
     def create_att_record(self, request, filename, filepath):
         R, S = request.POST, request.session
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         ta = TypeAssist.objects.filter(taname=R["ownername"]).first()
         size = request.FILES.get("img").size if request.FILES.get("img") else 0

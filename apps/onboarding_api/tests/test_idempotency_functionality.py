@@ -5,7 +5,8 @@ Comprehensive tests for idempotency functionality in IntegrationAdapter
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from apps.onboarding.models import Bt, Shift, TypeAssist, ConversationSession
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, ConversationSession
 from apps.peoples.models import People
 from apps.onboarding_api.integration.mapper import IntegrationAdapter
 

@@ -44,6 +44,7 @@ Provides request/response processing for API endpoints.
     response_headers=["X-Response-Time", "X-API-Version", "X-RateLimit-*", "X-Cache"],
     tags=["middleware", "api", "monitoring", "rate-limiting", "caching", "security"]
 )
+"""
 
 import time
 import json

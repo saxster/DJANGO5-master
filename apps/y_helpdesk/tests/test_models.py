@@ -14,7 +14,7 @@ from apps.peoples.models import People, Pgroup
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job, QuestionSet
 from apps.activity.models.location_model import Location
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 User = get_user_model()
 

@@ -1,5 +1,6 @@
 from django import forms
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 from apps.peoples import models as pm
 from django_select2 import forms as s2forms
 from django.db.models import Q
@@ -50,10 +51,10 @@ class MasterReportTemplate(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["site_type_includes"].choices = om.TypeAssist.objects.filter(
+        self.fields["site_type_includes"].choices = om_core.TypeAssist.objects.filter(
             Q(tatype__tacode="SITETYPE") | Q(tacode="NONE")
         ).values_list("id", "taname")
-        bulist = om.Bt.objects.get_all_sites_of_client(
+        bulist = om_client.Bt.objects.get_all_sites_of_client(
             self.request.session["client_id"]
         ).values_list("id", flat=True)
         self.fields[

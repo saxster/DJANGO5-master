@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
                 ('ip_address', models.GenericIPAddressField(blank=True, help_text='Network IP address of the device', null=True, verbose_name='IP Address')),
                 ('firmware_version', models.CharField(blank=True, default='', help_text='Device firmware version', max_length=50, verbose_name='Firmware Version')),
                 ('metadata', models.JSONField(blank=True, default=dict, help_text='Additional device metadata (model, serial, etc.)', verbose_name='Metadata')),
-                ('location', models.ForeignKey(blank=True, help_text='Physical location of the device', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='nfc_devices', to='onboarding.typeassist', verbose_name='Location')),
+                ('location', models.ForeignKey(blank=True, help_text='Physical location of the device', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='nfc_devices', to='core_onboarding.typeassist', verbose_name='Location')),
                 ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tenants.tenant')),
             ],
             options={
@@ -74,7 +74,7 @@ class Migration(migrations.Migration):
                 ('response_time_ms', models.IntegerField(blank=True, help_text='Tag response time in milliseconds', null=True, verbose_name='Response Time (ms)')),
                 ('metadata', models.JSONField(blank=True, default=dict, help_text='Additional scan metadata (RSSI, read quality, etc.)', verbose_name='Metadata')),
                 ('device', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='scan_logs', to='activity.nfcdevice', verbose_name='NFC Device')),
-                ('scan_location', models.ForeignKey(blank=True, help_text='Location where scan occurred', null=True, on_delete=django.db.models.deletion.SET_NULL, to='onboarding.typeassist', verbose_name='Scan Location')),
+                ('scan_location', models.ForeignKey(blank=True, help_text='Location where scan occurred', null=True, on_delete=django.db.models.deletion.SET_NULL, to='core_onboarding.typeassist', verbose_name='Scan Location')),
                 ('scanned_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='nfc_scans', to=settings.AUTH_USER_MODEL, verbose_name='Scanned By')),
                 ('tag', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='scan_logs', to='activity.nfctag', verbose_name='NFC Tag')),
                 ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='tenants.tenant')),

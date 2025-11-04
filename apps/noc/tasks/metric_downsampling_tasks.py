@@ -75,7 +75,7 @@ class DownsampleMetricsHourlyTask(IdempotentTask):
                 - errors: Number of errors encountered
         """
         from apps.noc.models import NOCMetricSnapshot, NOCMetricSnapshot1Hour
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         logger.info("Starting hourly metric downsampling task")
 
@@ -242,7 +242,7 @@ class DownsampleMetricsDailyTask(IdempotentTask):
                 - errors: Number of errors encountered
         """
         from apps.noc.models import NOCMetricSnapshot1Hour, NOCMetricSnapshot1Day
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         logger.info("Starting daily metric downsampling task")
 

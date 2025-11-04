@@ -21,7 +21,7 @@ from apps.activity.models.asset_model import Asset
 from apps.core import utils
 from apps.activity.utils import get_asset_jsonform
 import apps.activity.utils as av_utils
-import apps.onboarding.forms as obf
+from apps.client_onboarding import forms as client_forms
 import apps.peoples.utils as putils
 from apps.core.constants import ResponseConstants
 

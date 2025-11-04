@@ -1,6 +1,7 @@
 from import_export import widgets as wg
 from django.db.models import Q
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 from apps.activity import models as am
 from apps.peoples import models as pm
 from django.core.exceptions import ValidationError
@@ -37,8 +38,8 @@ class TypeAssistDesignationFKW(wg.ForeignKeyWidget):
 
 class BVForeignKeyWidget(wg.ForeignKeyWidget):
     def get_queryset(self, value, row, *args, **kwargs):
-        client = om.Bt.objects.filter(bucode=row["Client*"]).first()
-        bu_ids = om.Bt.objects.get_whole_tree(client.id)
+        client = om_client.Bt.objects.filter(bucode=row["Client*"]).first()
+        bu_ids = om_client.Bt.objects.get_whole_tree(client.id)
         qset = self.model.objects.select_related("parent", "identifier").filter(
             id__in=bu_ids, identifier__tacode="SITE", parent__bucode=row["Client*"]
         )
@@ -97,8 +98,8 @@ class TypeAssistDesignationFKWUpdate(wg.ForeignKeyWidget):
 class BVForeignKeyWidgetUpdate(wg.ForeignKeyWidget):
     def get_queryset(self, value, row, *args, **kwargs):
         if "Client" in row:
-            client = om.Bt.objects.filter(bucode=row["Client"]).first()
-            bu_ids = om.Bt.objects.get_whole_tree(client.id)
+            client = om_client.Bt.objects.filter(bucode=row["Client"]).first()
+            bu_ids = om_client.Bt.objects.get_whole_tree(client.id)
             qset = self.model.objects.select_related("parent", "identifier").filter(
                 id__in=bu_ids, identifier__tacode="SITE", parent__bucode=row["Client"]
             )
@@ -117,7 +118,7 @@ class QsetFKWUpdate(wg.ForeignKeyWidget):
 
 class TktCategoryFKWUpdate(wg.ForeignKeyWidget):
     def get_queryset(self, value, row, *args, **kwargs):
-        return om.TypeAssist.objects.select_related().filter(
+        return om_core.TypeAssist.objects.select_related().filter(
             tatype__tacode="NOTIFYCATEGORY"
         )
 
@@ -180,7 +181,7 @@ class ClientAwareTypeAssistWidget(wg.ForeignKeyWidget):
         client_code = row.get("Client*", "NONE")
         
         # Get the actual client object and ID
-        client = om.Bt.objects.filter(bucode=client_code).first()
+        client = om_client.Bt.objects.filter(bucode=client_code).first()
         client_id = client.id if client else 1
         
         # Filter: client_id matches row client OR 1 OR NULL
@@ -210,7 +211,7 @@ class ClientAwareTypeAssistWidget(wg.ForeignKeyWidget):
             # If multiple matches, return the most specific one
             # Priority: exact client match > client_id=1 > client_id=NULL
             client_code = row.get("Client*", "NONE") if row else "NONE"
-            client = om.Bt.objects.filter(bucode=client_code).first()
+            client = om_client.Bt.objects.filter(bucode=client_code).first()
             client_id = client.id if client else 1
             
             # Try exact client match first

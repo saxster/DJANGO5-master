@@ -36,12 +36,12 @@ class NOCAlertEvent(TenantAwareModel, BaseModel):
     STATUS_CHOICES = ALERT_STATUSES
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         verbose_name=_("Client")
     )
     bu = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

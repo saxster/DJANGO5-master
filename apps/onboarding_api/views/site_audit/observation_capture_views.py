@@ -46,9 +46,9 @@ from ...serializer_modules.site_audit_serializers import (
     ObservationSerializer
 )
 
-from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+from apps.core_onboarding.services.speech_service import OnboardingSpeechService
 from apps.onboarding_api.services.image_analysis import get_image_analysis_service
-from apps.onboarding_api.services.ocr_service import get_ocr_service
+from apps.core_onboarding.services.ocr_service import get_ocr_service
 from apps.onboarding_api.services.multimodal_fusion import get_multimodal_fusion_service
 from apps.onboarding_api.services.domain.security_banking import BankingSecurityExpertise
 from apps.onboarding_api.services.upload_throttling import get_upload_throttling_service
@@ -261,7 +261,7 @@ class ObservationCaptureView(APIView):
 
         # Translate to English if not English
         if language != 'en':
-            from apps.onboarding_api.services.translation import get_conversation_translator
+            from apps.core_onboarding.services.translation import get_conversation_translator
             translator = get_conversation_translator()
             translated = translator.translate_text(
                 result['transcript'],

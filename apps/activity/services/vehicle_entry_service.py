@@ -23,7 +23,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.conf import settings
 
 from apps.activity.models import Location, VehicleEntry, VehicleSecurityAlert
-from apps.onboarding_api.services.ocr_service import get_ocr_service
+from apps.core_onboarding.services.ocr_service import get_ocr_service
 from apps.peoples.models import People
 from apps.ml_training.integrations import track_vehicle_entry_result
 

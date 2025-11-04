@@ -36,7 +36,7 @@ def noc_aggregate_snapshot_task(self):
     Runs every 5 minutes via Celery Beat.
     """
     from apps.tenants.models import Tenant
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     from apps.noc.services import NOCAggregationService
 
     success_count = 0

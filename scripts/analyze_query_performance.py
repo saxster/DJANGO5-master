@@ -249,7 +249,7 @@ class QueryPerformanceAnalyzer:
     
     def _benchmark_bt_hierarchy(self) -> Tuple[float, int]:
         """Benchmark BT hierarchy query"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         
         start_time = time.time()
         

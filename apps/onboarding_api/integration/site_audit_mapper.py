@@ -31,7 +31,7 @@ from apps.onboarding.models import (
     TypeAssist,
     Bt
 )
-from apps.onboarding.models import AIChangeSet, AIChangeRecord
+from apps.core_onboarding.models import AIChangeSet, AIChangeRecord
 from apps.core.utils_new.db_utils import get_current_db_name
 from .mapper import IntegrationAdapter
 

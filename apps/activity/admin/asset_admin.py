@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 from import_export import fields, resources
 from import_export import widgets as wg
 from apps.activity.models.asset_model import Asset
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 import logging
 from apps.core.utils_new.db_utils import (

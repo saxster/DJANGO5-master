@@ -20,8 +20,8 @@ from django.core.cache import cache
 from apps.core import utils
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
-from apps.onboarding.models import Shift
-from apps.onboarding.models import GeofenceMaster
+from apps.client_onboarding.models import Shift
+from apps.core_onboarding.models import GeofenceMaster
 from itertools import chain
 import json
 import logging
@@ -440,7 +440,7 @@ class OptimizedPELManager(models.Manager):
             return cached_types
 
         try:
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
 
             types = list(
                 TypeAssist.objects.select_related("tatype").filter(

@@ -73,7 +73,9 @@ class ConcurrentAssetUpdateTests(TransactionTestCase):
     """Test concurrent Asset updates with AssetLog signal."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Asset Test Tenant",
@@ -157,7 +159,9 @@ class ConcurrentWorkOrderTests(TransactionTestCase):
     """Test concurrent work order operations."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="WO Test Tenant",
@@ -262,7 +266,9 @@ class DistributedLockTests(TransactionTestCase):
         """
         from apps.activity.models.job_model import Job
         from apps.activity.models.question_model import QuestionSet
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         tenant = Tenant.objects.create(tenantname="Lock Test", tenantcode="LOCK")
         client = Client.objects.create(bucode="LC", buname="Lock Client", tenant=tenant)
@@ -341,7 +347,9 @@ class SaveUserInfoRaceConditionTests(TransactionTestCase):
     """Test save_userinfo under concurrent access."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="SaveUserInfo Test",
@@ -435,7 +443,10 @@ class WorkPermitDetailConcurrencyTests(TransactionTestCase):
     """Test concurrent work permit detail creation."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="WP Detail Test",
@@ -550,7 +561,9 @@ class TransactionDeadlockTests(TransactionTestCase):
         """
         from apps.activity.models.job_model import Job
         from apps.activity.models.question_model import QuestionSet
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         tenant = Tenant.objects.create(tenantname="DL Test", tenantcode="DL")
         client = Client.objects.create(bucode="DL_C", buname="DL Client", tenant=tenant)
@@ -629,7 +642,10 @@ class TicketRaceConditionTests(TransactionTestCase):
     """Test ticket number generation under concurrent load."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
+        from apps.tenants.models import Tenant
+from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Ticket Test",

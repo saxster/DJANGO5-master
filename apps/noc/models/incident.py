@@ -28,12 +28,12 @@ class NOCIncident(TenantAwareModel, BaseModel):
     STATE_CHOICES = INCIDENT_STATES
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         verbose_name=_("Client")
     )
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

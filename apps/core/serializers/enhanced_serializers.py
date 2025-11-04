@@ -13,7 +13,7 @@ from apps.core.serializers.frontend_serializers import (
     RelationshipEagerLoadingMixin
 )
 from apps.peoples.models import People
-from apps.onboarding.models import ConversationSession, LLMRecommendation
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation
 from apps.activity.models import Task
 from apps.y_helpdesk.models import Ticket
 

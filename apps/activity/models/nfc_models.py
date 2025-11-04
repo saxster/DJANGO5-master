@@ -138,7 +138,7 @@ class NFCDevice(BaseModel, TenantAwareModel):
     )
 
     location = models.ForeignKey(
-        'onboarding.TypeAssist',
+        'core_onboarding.TypeAssist',
         verbose_name=_("Location"),
         on_delete=models.SET_NULL,
         null=True,
@@ -234,7 +234,7 @@ class NFCScanLog(BaseModel, TenantAwareModel):
     )
 
     scan_location = models.ForeignKey(
-        'onboarding.TypeAssist',
+        'core_onboarding.TypeAssist',
         verbose_name=_("Scan Location"),
         on_delete=models.SET_NULL,
         null=True,

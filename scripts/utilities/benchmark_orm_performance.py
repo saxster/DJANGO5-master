@@ -27,10 +27,10 @@ from django.test.utils import override_settings
 # Import implementations
 from apps.activity.managers.asset_manager_orm import AssetManagerORM
 from apps.activity.managers.job_manager_orm import JobneedManagerORM
-from apps.onboarding.bt_manager_orm import BtManagerORM
+from apps.client_onboarding.bt_manager_orm import BtManagerORM
 from apps.peoples.models import Capability
 from apps.activity.models.job_model import Jobneed
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 class PerformanceBenchmark:

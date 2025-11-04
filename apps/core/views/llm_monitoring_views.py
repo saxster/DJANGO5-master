@@ -20,7 +20,7 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db.models import Sum, Avg, Count
 from django.utils import timezone
 from apps.core.models import LLMUsageLog, LLMQuota
-from apps.onboarding_api.services.llm.circuit_breaker import CircuitBreaker
+from apps.core_onboarding.services.llm.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 

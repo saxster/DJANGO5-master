@@ -12,7 +12,8 @@ Compliance with Rule #13: Form Validation Requirements
 from rest_framework import serializers
 from apps.attendance.models import PeopleEventlog
 from apps.peoples.models import People, Pgroup, Pgbelonging
-from apps.onboarding.models import Bt, TypeAssist, Shift
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist
 from apps.activity.models.job_model import Jobneed, Job
 from apps.activity.models.question_model import Question, QuestionSet
 from apps.activity.models.location_model import Location
@@ -20,7 +21,7 @@ from apps.activity.models.asset_model import Asset
 
 from apps.attendance.serializers import PeopleEventlogSerializer as BasePeopleEventlogSerializer
 from apps.peoples.serializers import PeopleSerializer as BasePeopleSerializer
-from apps.onboarding.serializers import (
+from apps.client_onboarding.serializers import (
     BtSerializers as BaseBtSerializer,
     TypeAssistSerializers as BaseTypeAssistSerializer,
     ShiftSerializers as BaseShiftSerializer,
@@ -94,7 +95,7 @@ class PgroupSerializer(ValidatedModelSerializer):
 class BtSerializer(BaseBtSerializer):
     """
     Mobile API serializer for Bt.
-    Inherits all validation from apps.onboarding.serializers.BtSerializers
+    Inherits all validation from apps.client_onboarding.serializers.BtSerializers
     """
     pass
 
@@ -102,7 +103,7 @@ class BtSerializer(BaseBtSerializer):
 class ShiftSerializer(BaseShiftSerializer):
     """
     Mobile API serializer for Shift.
-    Inherits all validation from apps.onboarding.serializers.ShiftSerializers
+    Inherits all validation from apps.client_onboarding.serializers.ShiftSerializers
     """
     pass
 
@@ -110,7 +111,7 @@ class ShiftSerializer(BaseShiftSerializer):
 class TypeAssistSerializer(BaseTypeAssistSerializer):
     """
     Mobile API serializer for TypeAssist with field remapping.
-    Inherits validation from apps.onboarding.serializers.TypeAssistSerializers
+    Inherits validation from apps.client_onboarding.serializers.TypeAssistSerializers
     """
 
     tatype_id = serializers.PrimaryKeyRelatedField(source="tatype", read_only=True)

@@ -14,7 +14,7 @@ from rest_framework.test import APITestCase, APIClient
 from apps.onboarding.models import (
     Bt, ConversationSession, LLMRecommendation, AuthoritativeKnowledge
 )
-from apps.onboarding.admin import (
+from apps.client_onboarding.admin import (
     ConversationSessionAdmin, LLMRecommendationAdmin, AuthoritativeKnowledgeAdmin
 )
 

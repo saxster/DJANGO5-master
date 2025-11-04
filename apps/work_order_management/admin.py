@@ -30,7 +30,8 @@ except ImportError:
 from django.db.models import Q
 from import_export import fields, resources, widgets as wg
 from apps.work_order_management import models as wom
-from apps.onboarding import models as om
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
 import re, math
 from apps.core.widgets import EnabledTypeAssistWidget
 from apps.core.utils_new.db_utils import (
@@ -64,20 +65,20 @@ class VendorResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
     Type = fields.Field(
         column_name="Type*",
         attribute="type",
-        widget=VendorTypeFKW(om.TypeAssist, "tacode"),
+        widget=VendorTypeFKW(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
 
@@ -177,14 +178,14 @@ class VendorResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(om_client.Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -192,7 +193,7 @@ class VendorResourceUpdate(resources.ModelResource):
     Type = fields.Field(
         column_name="Type",
         attribute="type",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(om_core.TypeAssist, "tacode"),
         default=default_ta,
     )
 

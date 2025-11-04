@@ -7,7 +7,7 @@ from apps.scheduler import utils as sutils
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.peoples.models import People, Pgroup
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 @pytest.mark.skip(reason="Tests refer to non-existent functions: filter_jobs, process_job")

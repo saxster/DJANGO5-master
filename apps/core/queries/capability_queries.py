@@ -51,7 +51,7 @@ class CapabilityQueries:
 
         Replaces recursive CTE with simple tree traversal.
         """
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         business_units = list(
             Bt.objects

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 
-from apps.onboarding_api.services.knowledge import (
+from apps.core_onboarding.services.knowledge import (
     VectorStore,
     PostgresArrayBackend,
     KnowledgeService,
@@ -25,7 +25,7 @@ class TestBackwardCompatibility:
 
     def test_all_classes_importable(self):
         """Verify all refactored classes can be imported"""
-        from apps.onboarding_api.services.knowledge import (
+        from apps.core_onboarding.services.knowledge import (
             VectorStore,
             PostgresArrayBackend,
             PgVectorBackend,
@@ -46,7 +46,7 @@ class TestBackwardCompatibility:
 
     def test_factory_functions_available(self):
         """Verify all factory functions are importable"""
-        from apps.onboarding_api.services.knowledge import (
+        from apps.core_onboarding.services.knowledge import (
             get_vector_store,
             get_knowledge_service,
             get_embedding_generator,
@@ -61,7 +61,7 @@ class TestBackwardCompatibility:
 
     def test_exceptions_importable(self):
         """Verify all custom exceptions are importable"""
-        from apps.onboarding_api.services.knowledge import (
+        from apps.core_onboarding.services.knowledge import (
             SecurityError,
             DocumentFetchError,
             DocumentParseError,
@@ -138,7 +138,7 @@ class TestURLValidator:
 
     def test_validate_allowed_domain(self):
         """Test validation of allowed domains"""
-        from apps.onboarding_api.services.knowledge.security import URLValidator
+        from apps.core_onboarding.services.knowledge.security import URLValidator
 
         validator = URLValidator(['nist.gov', 'iso.org'])
 
@@ -149,7 +149,7 @@ class TestURLValidator:
 
     def test_reject_disallowed_domain(self):
         """Test rejection of disallowed domains"""
-        from apps.onboarding_api.services.knowledge.security import URLValidator
+        from apps.core_onboarding.services.knowledge.security import URLValidator
 
         validator = URLValidator(['nist.gov'])
 
@@ -158,7 +158,7 @@ class TestURLValidator:
 
     def test_reject_suspicious_patterns(self):
         """Test rejection of suspicious URL patterns"""
-        from apps.onboarding_api.services.knowledge.security import URLValidator
+        from apps.core_onboarding.services.knowledge.security import URLValidator
 
         validator = URLValidator(['example.com'])
 
@@ -171,7 +171,7 @@ class TestRateLimiter:
 
     def test_rate_limiter_enforces_delay(self):
         """Test that rate limiter enforces delays"""
-        from apps.onboarding_api.services.knowledge.security import RateLimiter
+        from apps.core_onboarding.services.knowledge.security import RateLimiter
         import time
 
         limiter = RateLimiter(delay_seconds=0.1)

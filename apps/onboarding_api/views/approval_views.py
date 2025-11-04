@@ -21,7 +21,8 @@ from rest_framework.views import APIView
 
 from ..permissions import CanApproveAIRecommendations
 from ..serializers import RecommendationApprovalSerializer
-from apps.onboarding.models import ConversationSession, ChangeSetApproval
+from apps.core_onboarding.models import ConversationSession
+from apps.core_onboarding.models import ChangeSetApproval
 import logging
 
 logger = logging.getLogger(__name__)
@@ -267,7 +268,7 @@ class SecondaryApprovalView(APIView):
     def post(self, request, approval_id):
         """Process secondary approval decision"""
         from ..permissions import security_logger
-        from apps.onboarding.models import ChangeSetApproval
+        from apps.core_onboarding.models import ChangeSetApproval
 
         if not settings.ENABLE_CONVERSATIONAL_ONBOARDING:
             return Response(

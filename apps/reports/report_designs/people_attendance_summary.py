@@ -1,7 +1,7 @@
 from apps.reports.utils import BaseReportsExport, format_data, get_day_header
 from apps.core.utils import get_timezone
 from apps.core.queries import ReportQueryRepository
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from django.conf import settings
 
 

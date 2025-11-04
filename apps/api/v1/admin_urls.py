@@ -12,7 +12,7 @@ Compliance with .claude/rules.md:
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from apps.onboarding.api.viewsets import BusinessUnitViewSet
+from apps.client_onboarding.api.viewsets import BusinessUnitViewSet
 
 app_name = 'admin'
 
