@@ -31,7 +31,7 @@ jobs:
 
     - name: 📦 Install Security Tools
       run: |
-        pip install bandit[toml] safety semgrep
+        pip install bandit[toml] safety semgrep pip-audit
         pip install -r requirements/base.txt
 
     - name: 🔍 Bandit Security Scan
@@ -46,6 +46,13 @@ jobs:
         echo "🛡️ Checking for vulnerable dependencies..."
         safety check --json > safety-report.json || true
         safety check
+      continue-on-error: true
+
+    - name: 📦 Pip-Audit (Supply Chain Security)
+      run: |
+        echo "📦 Running pip-audit for supply chain vulnerabilities..."
+        pip-audit --desc --output json > pip-audit-report.json || true
+        pip-audit --desc
       continue-on-error: true
 
     - name: 🔎 Semgrep Security Rules
@@ -63,6 +70,7 @@ jobs:
         path: |
           bandit-report.json
           safety-report.json
+          pip-audit-report.json
           semgrep-report.json
 
   # =============================================================================

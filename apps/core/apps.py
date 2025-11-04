@@ -72,6 +72,13 @@ class CoreConfig(AppConfig):
                 # Let the application continue but log the error
                 # Production validation will catch this via startup_checks.py
 
+            # Validate middleware ordering on startup
+            try:
+                from apps.core.middleware.validator import validate_middleware_on_startup
+                validate_middleware_on_startup(settings.MIDDLEWARE)
+            except Exception as e:
+                logger.error(f"Middleware validation error: {e}", exc_info=True)
+
         # Register dashboards in central registry
         try:
             from apps.core.registry import register_core_dashboards
