@@ -21,7 +21,7 @@ import time
 from typing import Callable, Any, Dict
 from django.core.cache import cache
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE
-from apps.onboarding_api.services.llm.exceptions import CircuitBreakerOpenError
+from apps.core_onboarding.services.llm.exceptions import CircuitBreakerOpenError
 
 logger = logging.getLogger(__name__)
 

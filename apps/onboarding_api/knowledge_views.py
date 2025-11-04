@@ -29,7 +29,7 @@ from apps.onboarding.models import (
     AuthoritativeKnowledge,
     KnowledgeReview,
 )
-from apps.onboarding_api.services.knowledge.exceptions import (
+from apps.core_onboarding.services.knowledge.exceptions import (
     DocumentParseError,
     SecurityError
 )

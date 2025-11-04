@@ -14,10 +14,10 @@ Sprint 7-8 Phase 4: Routing & Fallback
 
 import logging
 from typing import List
-from apps.onboarding_api.services.llm.base import MakerLLM, CheckerLLM
-from apps.onboarding_api.services.llm.providers import get_provider, PROVIDER_REGISTRY
-from apps.onboarding_api.services.llm.circuit_breaker import CircuitBreaker
-from apps.onboarding_api.services.llm.exceptions import (
+from apps.core_onboarding.services.llm.base import MakerLLM, CheckerLLM
+from apps.core_onboarding.services.llm.providers import get_provider, PROVIDER_REGISTRY
+from apps.core_onboarding.services.llm.circuit_breaker import CircuitBreaker
+from apps.core_onboarding.services.llm.exceptions import (
     AllProvidersFailedError,
     CircuitBreakerOpenError,
     LLMProviderError

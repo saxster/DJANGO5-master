@@ -42,7 +42,7 @@ class CitationAwareCheckerLLM(CheckerLLM):
 
     def __init__(self, knowledge_service=None):
         try:
-            from apps.onboarding_api.services.knowledge import get_knowledge_service
+            from apps.core_onboarding.services.knowledge import get_knowledge_service
             self.knowledge_service = knowledge_service or get_knowledge_service()
         except ImportError:
             logger.warning("Knowledge service not available, citation validation will be limited")

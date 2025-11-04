@@ -23,7 +23,7 @@ import re
 from typing import Dict, Any, List, Tuple
 from django.conf import settings
 from html import escape
-from apps.onboarding_api.services.knowledge.exceptions import SecurityError
+from apps.core_onboarding.services.knowledge.exceptions import SecurityError
 
 logger = logging.getLogger(__name__)
 

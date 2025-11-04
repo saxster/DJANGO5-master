@@ -21,7 +21,7 @@ from rest_framework import status
 from apps.onboarding.models import (
     Bt, Shift, TypeAssist, ConversationSession, LLMRecommendation
 )
-from apps.onboarding_api.services.translation import GoogleTranslateService
+from apps.core_onboarding.services.translation import GoogleTranslateService
 
 User = get_user_model()
 
@@ -150,7 +150,7 @@ class TranslationServiceImportTests(TestCase):
 
     def test_datetime_import_available(self):
         """Test that datetime is properly imported in translation service"""
-        from apps.onboarding_api.services.translation import datetime
+        from apps.core_onboarding.services.translation import datetime
 
         # This should not raise ImportError
         self.assertTrue(hasattr(datetime, 'now'))
@@ -522,7 +522,7 @@ class RegressionTests(TestCase):
     def test_services_can_be_imported(self):
         """Test that all services can be imported without errors"""
         try:
-            from apps.onboarding_api.services.translation import (
+            from apps.core_onboarding.services.translation import (
                 TranslationService,
                 GoogleTranslateService,
             )

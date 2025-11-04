@@ -15,9 +15,9 @@ import logging
 import time
 from typing import Dict, Any
 from decimal import Decimal
-from apps.onboarding_api.services.llm.base import MakerLLM, CheckerLLM
-from apps.onboarding_api.services.llm.usage_tracker import LLMUsageTracker
-from apps.onboarding_api.services.llm.exceptions import (
+from apps.core_onboarding.services.llm.base import MakerLLM, CheckerLLM
+from apps.core_onboarding.services.llm.usage_tracker import LLMUsageTracker
+from apps.core_onboarding.services.llm.exceptions import (
     LLMProviderError,
     PromptTooLongError,
     RateLimitError

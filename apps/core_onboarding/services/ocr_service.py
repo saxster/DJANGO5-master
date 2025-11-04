@@ -22,7 +22,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from django.core.files.uploadedfile import UploadedFile
-from apps.onboarding_api.services.pii_integration import get_pii_service
+from apps.core_onboarding.services.pii_integration import get_pii_service
 
 logger = logging.getLogger(__name__)
 

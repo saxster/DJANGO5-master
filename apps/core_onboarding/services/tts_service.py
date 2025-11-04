@@ -123,7 +123,7 @@ class TTSService:
 
             # Translate text if needed
             if target_language != 'en':
-                from apps.onboarding_api.services.translation import get_translation_service
+                from apps.core_onboarding.services.translation import get_translation_service
                 translation_service = get_translation_service()
                 text_to_speak = translation_service.translate_text(
                     text_en,

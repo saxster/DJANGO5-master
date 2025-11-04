@@ -19,7 +19,7 @@ from django.db import transaction, DatabaseError
 from django.db.models import Sum
 from django.utils import timezone
 from apps.core.models import LLMUsageLog, LLMQuota
-from apps.onboarding_api.services.llm.exceptions import QuotaExceededError
+from apps.core_onboarding.services.llm.exceptions import QuotaExceededError
 
 logger = logging.getLogger(__name__)
 

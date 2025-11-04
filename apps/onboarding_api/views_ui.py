@@ -32,7 +32,7 @@ def ui_config(request):
     Return UI configuration as JSON including voice capabilities
     """
     # Check voice service availability
-    from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+    from apps.core_onboarding.services.speech_service import OnboardingSpeechService
     speech_service = OnboardingSpeechService()
 
     config = {

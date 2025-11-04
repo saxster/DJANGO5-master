@@ -19,7 +19,7 @@ from django.core.cache import cache
 from django.contrib.auth import get_user_model
 
 from apps.core_onboarding.models import ConversationSession, LLMRecommendation
-from apps.onboarding_api.services.security import get_rate_limiter
+from apps.core_onboarding.services.security import get_rate_limiter
 from apps.onboarding_api.services.upload_throttling import get_upload_throttling_service
 from apps.onboarding_api.services.funnel_analytics import get_funnel_analytics_service
 from apps.onboarding_api.services.session_recovery import (

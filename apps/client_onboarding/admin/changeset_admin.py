@@ -11,7 +11,7 @@ from .base import *
 
 # Exception for LLM service errors (if not defined elsewhere)
 try:
-    from apps.onboarding_api.services.llm import LLMServiceException
+    from apps.core_onboarding.services.llm import LLMServiceException
 except ImportError:
     class LLMServiceException(Exception):
         """LLM service exception placeholder"""

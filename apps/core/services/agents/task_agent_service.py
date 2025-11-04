@@ -26,7 +26,7 @@ from apps.core.services.agents.base_agent_service import BaseAgentService
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.activity.models.job_model import Jobneed
 from apps.reports.services.frappe_service import get_frappe_service
-from apps.onboarding_api.services.llm.exceptions import LLMProviderError
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 

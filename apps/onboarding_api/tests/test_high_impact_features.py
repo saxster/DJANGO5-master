@@ -671,7 +671,7 @@ class EnhancedKnowledgeEmbeddingsTestCase(TestCase):
 
     def test_chunked_knowledge_processing(self):
         """Test that knowledge documents are properly chunked for better retrieval"""
-        from apps.onboarding_api.services.knowledge import DocumentChunker
+        from apps.core_onboarding.services.knowledge import DocumentChunker
 
         chunker = DocumentChunker(chunk_size=500, chunk_overlap=100)
 
@@ -705,7 +705,7 @@ class EnhancedKnowledgeEmbeddingsTestCase(TestCase):
 
     def test_semantic_search_quality(self):
         """Test semantic search quality with embeddings"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
 
         service = get_knowledge_service()
 
@@ -722,7 +722,7 @@ class EnhancedKnowledgeEmbeddingsTestCase(TestCase):
 
     def test_knowledge_validation_against_sources(self):
         """Test recommendation validation against authoritative knowledge"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
 
         service = get_knowledge_service()
 

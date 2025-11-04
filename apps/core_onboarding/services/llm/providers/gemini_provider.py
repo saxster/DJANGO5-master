@@ -24,8 +24,8 @@ except ImportError:
     genai = None
     GEMINI_AVAILABLE = False
 
-from apps.onboarding_api.services.llm.base import MakerLLM, CheckerLLM
-from apps.onboarding_api.services.llm.exceptions import LLMProviderError
+from apps.core_onboarding.services.llm.base import MakerLLM, CheckerLLM
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 

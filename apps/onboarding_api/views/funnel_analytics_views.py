@@ -29,7 +29,7 @@ from apps.onboarding_api.services.funnel_analytics import (
     get_funnel_optimization_engine,
     get_funnel_metrics_for_dashboard
 )
-from apps.onboarding_api.services.llm import LLMServiceException
+from apps.core_onboarding.services.llm import LLMServiceException
 
 logger = logging.getLogger(__name__)
 

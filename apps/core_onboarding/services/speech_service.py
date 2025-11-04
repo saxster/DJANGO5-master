@@ -25,7 +25,7 @@ from typing import Dict, Any, Optional
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from apps.core.services.speech_to_text_service import SpeechToTextService
-from apps.onboarding_api.services.pii_integration import get_pii_service
+from apps.core_onboarding.services.pii_integration import get_pii_service
 
 logger = logging.getLogger(__name__)
 

@@ -46,7 +46,7 @@ def get_provider(provider_name: str, llm_type: str, tenant_id: int, api_key: str
     Raises:
         ValueError: If provider not found
     """
-    from apps.onboarding_api.services.llm.exceptions import InvalidProviderConfigError
+    from apps.core_onboarding.services.llm.exceptions import InvalidProviderConfigError
 
     if provider_name not in PROVIDER_REGISTRY:
         raise InvalidProviderConfigError(

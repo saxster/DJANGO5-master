@@ -73,7 +73,7 @@ class ConversationVoiceInputView(APIView):
 
     def _process_voice_input(self, session, audio_file, language, request):
         """Process voice input"""
-        from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+        from apps.core_onboarding.services.speech_service import OnboardingSpeechService
         speech_service = OnboardingSpeechService()
 
         if not speech_service.is_language_supported(language):
@@ -166,7 +166,7 @@ class VoiceCapabilityView(APIView):
 
     def get(self, request):
         """Return voice capability information"""
-        from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+        from apps.core_onboarding.services.speech_service import OnboardingSpeechService
 
         speech_service = OnboardingSpeechService()
 
