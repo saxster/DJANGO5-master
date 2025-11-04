@@ -87,7 +87,6 @@ urlpatterns = [
     path('api/v1/sync/', include('apps.api.v1.urls')),  # Mobile Sync API (Sprint 2)
     path('api/v1/biometrics/', include('apps.api.biometrics_urls')),  # Biometric Authentication API (Sprint 2)
     path('api/v1/assets/nfc/', include('apps.activity.api.nfc_urls')),  # NFC Asset Tracking API (Sprint 4)
-    path('api/v1/onboarding/', include('apps.onboarding_api.urls')),  # Conversational Onboarding API (Phase 1 MVP)
     path('api/v1/journal/', include(('apps.journal.urls', 'journal'), namespace='journal_api')),  # Journal & Wellness API endpoints
     path('api/v1/wellness/', include(('apps.wellness.urls', 'wellness'), namespace='wellness_api')),  # Wellness education API endpoints
     path('api/v1/search/', include(('apps.search.urls', 'search'))),  # Global Cross-Domain Search API
@@ -100,6 +99,12 @@ urlpatterns = [
     path('api/v2/', include('apps.api.v2.urls')),  # Typed sync/device endpoints
     path('api/v2/status/', include('apps.service.rest_service.v2.urls')),  # Status endpoint
     path('api/v2/noc/', include(('apps.noc.api.v2.urls', 'noc_api_v2'), namespace='noc_telemetry_api')),  # NOC Telemetry API
+
+    # Bounded Context APIs (Multimodal Onboarding)
+    path('api/v2/client-onboarding/', include('apps.client_onboarding.urls')),  # Client onboarding context
+    path('api/v2/site-onboarding/', include('apps.site_onboarding.urls')),  # Site survey context
+    path('api/v2/worker-onboarding/', include('apps.people_onboarding.urls')),  # Worker intake context
+    path('api/v2/conversation/', include('apps.core_onboarding.urls')),  # Conversation session management
 
     # ========== Legacy Schema Removed - October 2025 ==========
     # Single API surface operates at /api/v1/
@@ -164,7 +169,6 @@ if settings.DEBUG:
 # These can be removed once migration is complete
 LEGACY_PATTERNS = [
     # These are included but will trigger redirects from OptimizedURLRouter
-    path('onboarding/', include('apps.onboarding.urls')),
     path('work_order_management/', include('apps.work_order_management.urls')),
     path('peoples/', include(('apps.peoples.urls', 'people'), namespace='peoples_legacy')),  # Legacy redirect for peoples → people
     path('attendance/', include('apps.attendance.urls')),
@@ -177,7 +181,7 @@ LEGACY_PATTERNS = [
 
     # ========== INTERNATIONALIZATION ==========
     path('i18n/', include('django.conf.urls.i18n')),  # Language switching URLs
-    path('jsi18n/', JavaScriptCatalog.as_view(packages=['apps.core', 'apps.peoples', 'apps.onboarding', 'apps.scheduler']), name='javascript-catalog'),
+    path('jsi18n/', JavaScriptCatalog.as_view(packages=['apps.core', 'apps.peoples', 'apps.scheduler']), name='javascript-catalog'),
 ]
 
 # Add legacy patterns only if feature flag is enabled
