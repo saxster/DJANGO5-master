@@ -6,6 +6,7 @@ asttokens==3.0.0
 astunparse==1.6.3
 attrs==25.3.0
 beautifulsoup4==4.13.4
+bleach==6.2.0  # HTML sanitization for XSS prevention
 billiard==4.2.1
 blinker==1.9.0
 blis>=1.0.0  # Updated for Python 3.13 compatibility (was 0.7.11)
@@ -48,6 +49,7 @@ django-environ==0.12.0
 django-extensions==4.1
 django-filter==25.1
 django-import-export==4.3.7
+django-ratelimit==4.1.0  # Brute force protection for authentication endpoints
 django-redis==5.4.0
 django-select2==8.4.1  # Security update: CVE-2025-48383
 django-ses==4.3.0

@@ -16,6 +16,7 @@ import logging
 import environ
 from functools import lru_cache
 from typing import Dict, Any, Optional
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
 env = environ.Env()
 logger = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ def get_redis_tls_config(environment: str = 'production') -> Dict[str, Any]:
         from datetime import datetime, timezone as dt_timezone
 
         # PCI DSS Compliance Enforcement Date: April 1, 2025
+        # STATUS (Nov 2025): Enforcement is ACTIVE - production deployments without TLS will FAIL
         compliance_deadline = datetime(2025, 4, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
         current_time = datetime.now(dt_timezone.utc)
         days_until_deadline = (compliance_deadline - current_time).days
@@ -358,13 +360,13 @@ def get_optimized_caches_config(environment: str = 'development') -> Dict[str, A
                     'MAX_ENTRIES': 10000 if environment == 'production' else 1000,
                     'CULL_FREQUENCY': 3,
                 },
-                'TIMEOUT': 3600 if environment == 'production' else 900,  # 1 hour vs 15 min
+                'TIMEOUT': SECONDS_IN_HOUR if environment == 'production' else 900,  # 1 hour vs 15 min
                 'KEY_PREFIX': f'select2_mv_{environment}',
             })
 
         elif cache_name == 'sessions':
             # Session-specific optimizations
-            cache_config['TIMEOUT'] = 7200  # 2 hours for sessions
+            cache_config['TIMEOUT'] = 2 * SECONDS_IN_HOUR  # 2 hours for sessions
             cache_config['OPTIONS']['KEY_PREFIX'] = f'sessions_{environment}'
 
             # Session-specific connection pool (fewer connections needed)
@@ -405,7 +407,7 @@ def get_channel_layers_config(environment: str = 'development') -> Dict[str, Any
             "hosts": [redis_url],
             "capacity": 50000,        # Higher capacity for production
             "expiry": 120,            # 2 minutes message expiry
-            "group_expiry": 86400,    # 24 hours group expiry
+            "group_expiry": SECONDS_IN_DAY,    # 24 hours group expiry
             "symmetric_encryption_keys": [env('CHANNELS_ENCRYPTION_KEY', default='')],
         }
     elif environment == 'testing':
@@ -420,7 +422,7 @@ def get_channel_layers_config(environment: str = 'development') -> Dict[str, Any
             "hosts": [redis_url],
             "capacity": 1000,         # Lower for development
             "expiry": 60,             # 1 minute expiry
-            "group_expiry": 3600,     # 1 hour group expiry
+            "group_expiry": SECONDS_IN_HOUR,     # 1 hour group expiry
         }
 
     return {
