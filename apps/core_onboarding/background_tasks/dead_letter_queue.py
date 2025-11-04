@@ -345,6 +345,11 @@ class DeadLetterQueueHandler:
             else:
                 # Lock held by another process, wait briefly and retry
                 import time
+                # SAFE: time.sleep() acceptable here - DLQ fallback path for Redis unavailable
+                # This code only runs when:
+                # 1. Redis is unavailable (rare)
+                # 2. Task has already failed (not in request path)
+                # 3. Lock contention occurs (very rare)
                 time.sleep(0.1 * (attempt + 1))  # Exponential backoff
 
         if attempt == max_retries - 1:
@@ -395,6 +400,11 @@ class DeadLetterQueueHandler:
             else:
                 # Lock held by another process, wait briefly and retry
                 import time
+                # SAFE: time.sleep() acceptable here - DLQ fallback path for Redis unavailable
+                # This code only runs when:
+                # 1. Redis is unavailable (rare)
+                # 2. Task has already failed (not in request path)
+                # 3. Lock contention occurs (very rare)
                 time.sleep(0.1 * (attempt + 1))  # Exponential backoff
 
         if attempt == max_retries - 1:
