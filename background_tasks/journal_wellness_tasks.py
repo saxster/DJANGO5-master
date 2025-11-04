@@ -888,24 +888,31 @@ def daily_wellness_content_scheduling(self):
 
     try:
         # Get all users with daily tips enabled
+        # OPTIMIZATION: Prefetch today's tips to eliminate N+1 query (PERF-001)
+        from django.db.models import Prefetch
+
+        today = timezone.now().date()
         users_with_daily_tips = WellnessUserProgress.objects.filter(
             daily_tip_enabled=True,
             user__isverified=True  # Only verified/active users
-        ).select_related('user')
+        ).select_related('user').prefetch_related(
+            Prefetch(
+                'user__wellnesscontentinteraction_set',
+                queryset=WellnessContentInteraction.objects.filter(
+                    delivery_context='daily_tip',
+                    interaction_date__date=today
+                ),
+                to_attr='todays_tips'
+            )
+        )
 
         scheduled_count = 0
         skipped_count = 0
 
         for progress in users_with_daily_tips:
             try:
-                # Check if user already received content today
-                today_tips = WellnessContentInteraction.objects.filter(
-                    user=progress.user,
-                    delivery_context='daily_tip',
-                    interaction_date__date=timezone.now().date()
-                )
-
-                if not today_tips.exists():
+                # Check if user already received content today (no extra query!)
+                if not progress.user.todays_tips:
                     # Schedule daily tip
                     schedule_wellness_content_delivery.delay(
                         progress.user.id, 'daily_schedule'
@@ -1041,9 +1048,10 @@ def enforce_data_retention_policies():
         privacy_manager = JournalPrivacyManager()
 
         # Get users with auto-delete enabled
+        # OPTIMIZATION: Use iterator() for memory-efficient streaming (PERF-003)
         users_with_retention = User.objects.filter(
             journal_privacy_settings__auto_delete_enabled=True
-        )
+        ).select_related('journal_privacy_settings').iterator(chunk_size=100)
 
         total_deleted = 0
         total_anonymized = 0
@@ -1051,8 +1059,8 @@ def enforce_data_retention_policies():
         for user in users_with_retention:
             try:
                 retention_result = privacy_manager.enforce_data_retention_policy(user)
-                total_deleted += retention_result['entries_deleted']
-                total_anonymized += retention_result['entries_anonymized']
+                total_deleted += retention_result.get('entries_deleted', 0)
+                total_anonymized += retention_result.get('entries_anonymized', 0)
 
             except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
                 logger.error(f"Retention enforcement failed for user {user.id}: {e}")

@@ -43,23 +43,35 @@ def noc_aggregate_snapshot_task(self):
     error_count = 0
 
     try:
-        for tenant in Tenant.objects.filter(enable=True):
-            clients = Bt.objects.filter(
-                tenant=tenant,
-                identifier__tacode='CLIENT',
-                enable=True
-            ).select_related('tenant', 'identifier')
+        # OPTIMIZATION: Prefetch all clients to eliminate N+1 query (PERF-002)
+        from django.db.models import Prefetch
 
-            for client in clients:
+        tenants = Tenant.objects.filter(enable=True).prefetch_related(
+            Prefetch(
+                'bt_set',
+                queryset=Bt.objects.filter(
+                    identifier__tacode='CLIENT',
+                    enable=True
+                ).select_related('identifier'),
+                to_attr='active_clients'
+            )
+        )
+
+        for tenant in tenants:
+            # Batch client IDs for potential bulk processing
+            client_ids = [client.id for client in tenant.active_clients]
+
+            # Process each client (consider adding bulk method to NOCAggregationService)
+            for client_id in client_ids:
                 try:
-                    NOCAggregationService.create_snapshot_for_client(client.id)
+                    NOCAggregationService.create_snapshot_for_client(client_id)
                     success_count += 1
                 except (ValueError, DatabaseError) as e:
                     error_count += 1
                     logger.error(
                         f"Snapshot failed for client",
                         extra={
-                            'client_id': client.id,
+                            'client_id': client_id,
                             'tenant_id': tenant.id,
                             'error': str(e)
                         }
