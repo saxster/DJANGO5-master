@@ -24,6 +24,7 @@ from django.utils import timezone
 
 from ..models import TrainingDataset, TrainingExample
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ class DatasetIngestionService:
         except DatabaseError as e:
             logger.error(f"Database error creating dataset: {str(e)}")
             result['error'] = f"Database error: {str(e)}"
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Unexpected error creating dataset: {str(e)}", exc_info=True)
             result['error'] = f"Failed to create dataset: {str(e)}"
 
@@ -168,7 +169,7 @@ class DatasetIngestionService:
                             result['skipped'] += 1
                             result['errors'].append(f"{image_file.name}: {upload_result['error']}")
 
-                    except Exception as e:
+                    except BUSINESS_LOGIC_EXCEPTIONS as e:
                         result['skipped'] += 1
                         result['errors'].append(f"{image_file.name}: {str(e)}")
                         logger.error(f"Error processing {image_file.name}: {str(e)}")
@@ -185,7 +186,7 @@ class DatasetIngestionService:
         except DatabaseError as e:
             logger.error(f"Database error during bulk upload: {str(e)}")
             result['errors'].append(f"Database error: {str(e)}")
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Unexpected error during bulk upload: {str(e)}", exc_info=True)
             result['errors'].append(f"Upload failed: {str(e)}")
 
@@ -267,7 +268,7 @@ class DatasetIngestionService:
             result['error'] = f"Validation error: {str(e)}"
         except (IOError, OSError) as e:
             result['error'] = f"File operation error: {str(e)}"
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error processing image {image_file.name}: {str(e)}", exc_info=True)
             result['error'] = f"Processing failed: {str(e)}"
 
@@ -306,13 +307,13 @@ class DatasetIngestionService:
                     # Check if image can be processed
                     img.verify()
 
-            except Exception as e:
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
                 result['error'] = f"Invalid image file: {str(e)}"
                 return result
 
             result['valid'] = True
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             result['error'] = f"Validation failed: {str(e)}"
 
         return result
@@ -376,7 +377,7 @@ class DatasetIngestionService:
                         if k in [272, 306, 36867, 36868]  # Camera make, datetime, etc.
                     }
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.warning(f"Failed to extract image metadata: {str(e)}")
 
         return metadata
@@ -432,7 +433,7 @@ class DatasetIngestionService:
                                 f"Record {record.get('id', 'unknown')}: {import_result['error']}"
                             )
 
-                    except Exception as e:
+                    except BUSINESS_LOGIC_EXCEPTIONS as e:
                         result['skipped'] += 1
                         result['errors'].append(f"Record processing error: {str(e)}")
 
@@ -444,7 +445,7 @@ class DatasetIngestionService:
                     f"{result['imported']} imported, {result['skipped']} skipped"
                 )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Production import failed: {str(e)}", exc_info=True)
             result['errors'].append(f"Import failed: {str(e)}")
 
@@ -510,7 +511,7 @@ class DatasetIngestionService:
 
             result['success'] = True
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Failed to import production record: {str(e)}")
             result['error'] = str(e)
 

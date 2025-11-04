@@ -105,6 +105,15 @@ API_EXCEPTIONS = NETWORK_EXCEPTIONS + (
     KeyError,            # Missing expected key in response
 )
 
+# Business Logic Operations (general application logic)
+BUSINESS_LOGIC_EXCEPTIONS = (
+    ValidationError,     # Business rule validation
+    ValueError,          # Invalid value
+    TypeError,           # Type mismatch
+    KeyError,            # Missing required key
+    AttributeError,      # Missing attribute
+)
+
 
 # =============================================================================
 # EXCEPTION HANDLERS - Reusable handler functions
@@ -492,6 +501,7 @@ __all__ = [
     'API_EXCEPTIONS',
     'VALIDATION_EXCEPTIONS',
     'VALIDATION_ERRORS',  # Backward compatibility alias
+    'BUSINESS_LOGIC_EXCEPTIONS',
 
     # Handler functions
     'handle_database_operations',

@@ -7,6 +7,7 @@ Handles knowledge indexing, retrieval, and content processing.
 
 import os
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
@@ -84,8 +85,8 @@ class HelpBotKnowledgeService:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Error initializing HelpBot knowledge index: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error initializing HelpBot knowledge index: {e}", exc_info=True)
             return False
 
     def _process_documentation_files(self) -> int:
@@ -148,8 +149,8 @@ class HelpBotKnowledgeService:
             logger.debug(f"{'Created' if created else 'Updated'} knowledge: {title}")
             return 1 if created else 0
 
-        except Exception as e:
-            logger.error(f"Error processing file {file_path}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
             return 0
 
     def _classify_document(self, file_path: Path, content: str) -> Tuple[str, str]:
@@ -302,8 +303,8 @@ class HelpBotKnowledgeService:
 
             return processed_count
 
-        except Exception as e:
-            logger.error(f"Error processing API documentation: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing API documentation: {e}", exc_info=True)
             return 0
 
     def _process_api_file(self, file_path: Path) -> int:
@@ -312,8 +313,8 @@ class HelpBotKnowledgeService:
             # This would process OpenAPI/Swagger files
             # For now, just treat as regular documentation
             return self._process_single_file(file_path)
-        except Exception as e:
-            logger.error(f"Error processing API file {file_path}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing API file {file_path}: {e}", exc_info=True)
             return 0
 
     def _process_model_documentation(self) -> int:
@@ -331,8 +332,8 @@ class HelpBotKnowledgeService:
 
             return processed_count
 
-        except Exception as e:
-            logger.error(f"Error processing model documentation: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing model documentation: {e}", exc_info=True)
             return 0
 
     def _process_model(self, model) -> int:
@@ -362,8 +363,8 @@ class HelpBotKnowledgeService:
 
             return 1 if created else 0
 
-        except Exception as e:
-            logger.error(f"Error processing model {model}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing model {model}: {e}", exc_info=True)
             return 0
 
     def _generate_model_documentation(self, model) -> str:
@@ -504,8 +505,8 @@ class HelpBotKnowledgeService:
             # Here you would actually build the txtai index
             # This requires the txtai configuration from the existing system
 
-        except Exception as e:
-            logger.error(f"Error building txtai index: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error building txtai index: {e}", exc_info=True)
 
     def search_knowledge(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -522,8 +523,8 @@ class HelpBotKnowledgeService:
             # Fallback to database search
             return self._database_search(query, category, limit)
 
-        except Exception as e:
-            logger.error(f"Error searching knowledge: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error searching knowledge: {e}", exc_info=True)
             return []
 
     def _txtai_search(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
@@ -534,8 +535,8 @@ class HelpBotKnowledgeService:
             logger.debug(f"txtai search for: {query}")
             return []
 
-        except Exception as e:
-            logger.error(f"Error in txtai search: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error in txtai search: {e}", exc_info=True)
             return []
 
     def _database_search(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
@@ -589,8 +590,8 @@ class HelpBotKnowledgeService:
 
             return search_results
 
-        except Exception as e:
-            logger.error(f"Error in database search: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error in database search: {e}", exc_info=True)
             return []
 
     def get_knowledge_by_id(self, knowledge_id: str) -> Optional[Dict[str, Any]]:
@@ -616,8 +617,8 @@ class HelpBotKnowledgeService:
 
         except HelpBotKnowledge.DoesNotExist:
             return None
-        except Exception as e:
-            logger.error(f"Error getting knowledge by ID {knowledge_id}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error getting knowledge by ID {knowledge_id}: {e}", exc_info=True)
             return None
 
     def update_knowledge_effectiveness(self, knowledge_id: str, feedback_score: float):
@@ -637,8 +638,8 @@ class HelpBotKnowledgeService:
 
         except HelpBotKnowledge.DoesNotExist:
             logger.warning(f"Knowledge {knowledge_id} not found for effectiveness update")
-        except Exception as e:
-            logger.error(f"Error updating knowledge effectiveness: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error updating knowledge effectiveness: {e}", exc_info=True)
 
     def _record_analytics(self, metric_type: str, value: float, dimension_data: Dict = None):
         """Record analytics metrics."""
@@ -653,5 +654,5 @@ class HelpBotKnowledgeService:
                 hour=timezone.now().hour,
             )
 
-        except Exception as e:
-            logger.error(f"Error recording analytics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error recording analytics: {e}", exc_info=True)

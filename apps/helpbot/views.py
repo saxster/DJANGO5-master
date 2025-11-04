@@ -33,6 +33,7 @@ from apps.helpbot.services import (
     HelpBotContextService,
     HelpBotAnalyticsService
 )
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class SecurityScorecardView(APIView):
                 {'error': 'Invalid date format. Use YYYY-MM-DD'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error generating scorecard: {e}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
@@ -141,7 +142,7 @@ class SecurityScorecardView(APIView):
                 {'error': 'Invalid date format. Use YYYY-MM-DD'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error generating scorecard: {e}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
@@ -180,8 +181,8 @@ class HelpBotChatView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        except Exception as e:
-            logger.error(f"Error in HelpBot chat view: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in HelpBot chat view: {e}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -219,8 +220,8 @@ class HelpBotChatView(APIView):
                 )
             })
 
-        except Exception as e:
-            logger.error(f"Error starting HelpBot session: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error starting HelpBot session: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not start session'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -274,8 +275,8 @@ class HelpBotChatView(APIView):
 
             return Response(result)
 
-        except Exception as e:
-            logger.error(f"Error processing HelpBot message: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error processing HelpBot message: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not process message'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -316,8 +317,8 @@ class HelpBotChatView(APIView):
                 'message': 'Session ended successfully' if success else 'Error ending session'
             })
 
-        except Exception as e:
-            logger.error(f"Error ending HelpBot session: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error ending HelpBot session: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not end session'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -357,8 +358,8 @@ class HelpBotChatView(APIView):
                 }
             })
 
-        except Exception as e:
-            logger.error(f"Error getting HelpBot session info: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting HelpBot session info: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not get session info'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -432,8 +433,8 @@ class HelpBotFeedbackView(APIView):
                 'message': 'Feedback submitted successfully' if success else 'Error submitting feedback'
             })
 
-        except Exception as e:
-            logger.error(f"Error submitting HelpBot feedback: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error submitting HelpBot feedback: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not submit feedback'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -489,8 +490,8 @@ class HelpBotKnowledgeView(APIView):
                     'total': len(results)
                 })
 
-        except Exception as e:
-            logger.error(f"Error in HelpBot knowledge view: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in HelpBot knowledge view: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not process knowledge request'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -557,8 +558,8 @@ class HelpBotAnalyticsView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        except Exception as e:
-            logger.error(f"Error in HelpBot analytics view: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in HelpBot analytics view: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not get analytics data'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -591,8 +592,8 @@ class HelpBotContextView(APIView):
                 )
             })
 
-        except Exception as e:
-            logger.error(f"Error updating HelpBot context: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error updating HelpBot context: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not update context'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -622,8 +623,8 @@ class HelpBotContextView(APIView):
 
             return Response(response_data)
 
-        except Exception as e:
-            logger.error(f"Error getting HelpBot context: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting HelpBot context: {e}", exc_info=True)
             return Response(
                 {'error': 'Could not get context'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -669,8 +670,8 @@ class HelpBotWidgetView(View):
                     'error': 'Invalid action'
                 }, status=400)
 
-        except Exception as e:
-            logger.error(f"Error in HelpBot widget view: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in HelpBot widget view: {e}", exc_info=True)
             return JsonResponse({
                 'error': 'Internal server error'
             }, status=500)
@@ -709,8 +710,8 @@ class HelpBotWidgetView(View):
                 )
             })
 
-        except Exception as e:
-            logger.error(f"Error starting widget session: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error starting widget session: {e}", exc_info=True)
             return JsonResponse({
                 'success': False,
                 'error': 'Could not start session'
@@ -748,8 +749,8 @@ class HelpBotWidgetView(View):
 
             return JsonResponse(result)
 
-        except Exception as e:
-            logger.error(f"Error processing widget message: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error processing widget message: {e}", exc_info=True)
             return JsonResponse({
                 'success': False,
                 'error': 'Could not process message'
@@ -768,8 +769,8 @@ class HelpBotWidgetView(View):
                 'suggestions': suggestions
             })
 
-        except Exception as e:
-            logger.error(f"Error getting suggestions: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting suggestions: {e}", exc_info=True)
             return JsonResponse({
                 'success': False,
                 'error': 'Could not get suggestions'
@@ -798,14 +799,14 @@ def helpbot_health(request):
             knowledge_service = HelpBotKnowledgeService()
             knowledge_count = knowledge_service._record_analytics('health_check', 0)
             health_status['services']['knowledge_service'] = True
-        except Exception:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS):
             health_status['services']['knowledge_service'] = False
             health_status['status'] = 'degraded'
 
         return Response(health_status)
 
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
         return Response({
             'status': 'unhealthy',
             'error': str(e),
@@ -834,8 +835,8 @@ def helpbot_config(request):
 
         return Response(config)
 
-    except Exception as e:
-        logger.error(f"Error getting HelpBot config: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error getting HelpBot config: {e}", exc_info=True)
         return Response({
             'error': 'Could not get configuration'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

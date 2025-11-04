@@ -61,7 +61,7 @@ class CeleryDashboardView(View):
                 'timestamp': timezone.now().isoformat()
             })
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return JsonResponse({
                 'status': 'error',
                 'error': str(exc),
@@ -128,7 +128,7 @@ class TaskMetricsView(View):
                 'error': f'Invalid parameter: {exc}'
             }, status=400)
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return JsonResponse({
                 'status': 'error',
                 'error': str(exc)
@@ -177,7 +177,7 @@ class QueueMetricsView(View):
                 'timestamp': timezone.now().isoformat()
             })
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return JsonResponse({
                 'status': 'error',
                 'error': str(exc)
@@ -198,7 +198,7 @@ class QueueMetricsView(View):
             else:
                 return 'healthy'
 
-        except Exception:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS):
             return 'unknown'
 
 
@@ -240,7 +240,7 @@ class TaskAlertsView(View):
                 'error': f'Invalid parameter: {exc}'
             }, status=400)
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return JsonResponse({
                 'status': 'error',
                 'error': str(exc)
@@ -274,7 +274,7 @@ class TaskAlertsView(View):
                 }
             ]
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return []
 
 
@@ -310,7 +310,7 @@ class TaskPerformanceView(View):
                 'error': f'Invalid parameter: {exc}'
             }, status=400)
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return JsonResponse({
                 'status': 'error',
                 'error': str(exc)
@@ -349,7 +349,7 @@ class TaskPerformanceView(View):
                 'recommendations': self._get_performance_recommendations(task_name)
             }
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return {'error': str(exc)}
 
     def _get_performance_recommendations(self, task_name: str) -> List[str]:
@@ -414,7 +414,7 @@ class CeleryHealthCheckView(View):
                 }
             })
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return JsonResponse({
                 'status': 'error',
                 'error': str(exc),
@@ -425,6 +425,7 @@ class CeleryHealthCheckView(View):
         """Check Redis/broker connection"""
         try:
             from django.core.cache import cache
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
             # Simple connectivity test
             cache.set('celery_health_test', 'ok', timeout=60)
             result = cache.get('celery_health_test')
@@ -442,7 +443,7 @@ class CeleryHealthCheckView(View):
                     'error': 'Cache test failed'
                 }
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return {
                 'status': 'unhealthy',
                 'message': 'Broker connection error',
@@ -459,7 +460,7 @@ class CeleryHealthCheckView(View):
                 'response_time_ms': 3.1
             }
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return {
                 'status': 'unhealthy',
                 'message': 'Result backend error',
@@ -481,7 +482,7 @@ class CeleryHealthCheckView(View):
                 }
             }
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return {
                 'status': 'unhealthy',
                 'message': 'Worker availability check failed',
@@ -512,7 +513,7 @@ class CeleryHealthCheckView(View):
                     'total_queues': len(queue_metrics)
                 }
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return {
                 'status': 'unhealthy',
                 'message': 'Queue health check failed',
@@ -544,7 +545,7 @@ class CeleryHealthCheckView(View):
                     'success_rate': success_rate
                 }
 
-        except Exception as exc:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
             return {
                 'status': 'unhealthy',
                 'message': 'Task processing check failed',

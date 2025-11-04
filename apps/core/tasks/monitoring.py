@@ -28,6 +28,7 @@ from django.db.models import Count, Avg, Q
 from django.conf import settings
 
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE, SECONDS_IN_HOUR
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 
 logger = logging.getLogger('celery.monitoring')
@@ -115,8 +116,8 @@ class TaskMonitoringService:
             # Check for alerts
             self._check_task_alerts(task_name, metric_type, value)
 
-        except Exception as exc:
-            logger.error(f"Failed to record task metric: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to record task metric: {exc}", exc_info=True)
 
     def _update_aggregated_metrics(self, task_name: str, metric_type: str, value: Union[int, float]):
         """Update aggregated metrics for faster dashboard queries"""
@@ -141,8 +142,8 @@ class TaskMonitoringService:
 
             cache.set(day_key, dict(daily_data), timeout=SECONDS_IN_HOUR * 24 * 7)  # Keep for a week
 
-        except Exception as exc:
-            logger.error(f"Failed to update aggregated metrics: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to update aggregated metrics: {exc}", exc_info=True)
 
     def _check_task_alerts(self, task_name: str, metric_type: str, value: Union[int, float]):
         """Check if any alerts should be triggered"""
@@ -170,8 +171,8 @@ class TaskMonitoringService:
                     severity='medium'
                 )
 
-        except Exception as exc:
-            logger.error(f"Failed to check task alerts: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to check task alerts: {exc}", exc_info=True)
 
     def _trigger_alert(self, title: str, message: str, severity: str = 'medium'):
         """Trigger a monitoring alert"""
@@ -196,8 +197,8 @@ class TaskMonitoringService:
             if hasattr(settings, 'CELERY_ALERT_WEBHOOK_URL'):
                 self._send_external_alert(alert_data)
 
-        except Exception as exc:
-            logger.error(f"Failed to trigger alert: {exc}")
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to trigger alert: {exc}", exc_info=True)
 
     def _send_external_alert(self, alert_data: Dict[str, Any]):
         """Send alert to external monitoring system"""
@@ -214,8 +215,8 @@ class TaskMonitoringService:
             )
             response.raise_for_status()
 
-        except Exception as exc:
-            logger.error(f"Failed to send external alert: {exc}")
+        except NETWORK_EXCEPTIONS as exc:
+            logger.error(f"Failed to send external alert: {exc}", exc_info=True)
 
     def get_task_metrics(self, task_name: str, metric_type: str = None,
                         hours: int = 24) -> List[TaskMetric]:
@@ -237,8 +238,8 @@ class TaskMonitoringService:
             else:
                 return self._get_raw_metrics(task_name, metric_type, hours)
 
-        except Exception as exc:
-            logger.error(f"Failed to get task metrics: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get task metrics: {exc}", exc_info=True)
             return []
 
     def _get_raw_metrics(self, task_name: str, metric_type: str, hours: int) -> List[TaskMetric]:
@@ -254,8 +255,8 @@ class TaskMonitoringService:
             # Placeholder implementation - in production use proper time-series DB
             # or Redis SCAN commands for pattern matching
 
-        except Exception as exc:
-            logger.error(f"Failed to get raw metrics: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get raw metrics: {exc}", exc_info=True)
 
         return metrics
 
@@ -285,8 +286,8 @@ class TaskMonitoringService:
                         }
                     ))
 
-        except Exception as exc:
-            logger.error(f"Failed to get aggregated metrics: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get aggregated metrics: {exc}", exc_info=True)
 
         return metrics
 
@@ -305,8 +306,8 @@ class TaskMonitoringService:
 
             return total_count
 
-        except Exception as exc:
-            logger.error(f"Failed to get task metric count: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get task metric count: {exc}", exc_info=True)
             return 0
 
     def get_queue_metrics(self) -> List[QueueMetrics]:
@@ -329,8 +330,8 @@ class TaskMonitoringService:
                 if metrics:
                     queue_metrics.append(metrics)
 
-        except Exception as exc:
-            logger.error(f"Failed to get queue metrics: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get queue metrics: {exc}", exc_info=True)
 
         return queue_metrics
 
@@ -360,8 +361,8 @@ class TaskMonitoringService:
             cache.set(cache_key, asdict(stats), timeout=60)
             return stats
 
-        except Exception as exc:
-            logger.error(f"Failed to get queue stats for {queue_name}: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get queue stats for {queue_name}: {exc}", exc_info=True)
             return None
 
     def get_task_dashboard_data(self) -> Dict[str, Any]:
@@ -411,8 +412,8 @@ class TaskMonitoringService:
 
             return dashboard_data
 
-        except Exception as exc:
-            logger.error(f"Failed to get dashboard data: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get dashboard data: {exc}", exc_info=True)
             return {'error': str(exc)}
 
     def _get_top_tasks_by_volume(self, hours: int, limit: int) -> List[Dict[str, Any]]:
@@ -460,8 +461,8 @@ class TaskMonitoringService:
 
             return min(1.0, max(0.0, health_score))
 
-        except Exception as exc:
-            logger.error(f"Failed to calculate system health: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to calculate system health: {exc}", exc_info=True)
             return 0.5  # Default to neutral
 
     def _get_success_rate(self, hours: int) -> float:
@@ -471,8 +472,8 @@ class TaskMonitoringService:
             # Placeholder implementation
             return 0.92
 
-        except Exception as exc:
-            logger.error(f"Failed to get success rate: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get success rate: {exc}", exc_info=True)
             return 0.0
 
     def _get_queue_health_score(self) -> float:
@@ -482,8 +483,8 @@ class TaskMonitoringService:
             # Placeholder implementation
             return 0.85
 
-        except Exception as exc:
-            logger.error(f"Failed to get queue health score: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get queue health score: {exc}", exc_info=True)
             return 0.0
 
     def _get_response_time_score(self) -> float:
@@ -500,8 +501,8 @@ class TaskMonitoringService:
             else:
                 return 0.4
 
-        except Exception as exc:
-            logger.error(f"Failed to get response time score: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get response time score: {exc}", exc_info=True)
             return 0.5
 
     def _get_avg_task_duration(self, hours: int) -> float:
@@ -511,8 +512,8 @@ class TaskMonitoringService:
             # Placeholder implementation
             return 45.2
 
-        except Exception as exc:
-            logger.error(f"Failed to get average task duration: {exc}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
+            logger.error(f"Failed to get average task duration: {exc}", exc_info=True)
             return 0.0
 
 
@@ -548,7 +549,7 @@ def monitor_task_execution(task_name: str):
 
                 return result
 
-            except Exception as exc:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as exc:
                 # Record failure and duration
                 duration = time.time() - start_time
                 task_monitoring.record_task_metric(task_name, 'failure', 1,

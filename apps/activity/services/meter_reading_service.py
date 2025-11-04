@@ -26,6 +26,7 @@ from apps.activity.models import Asset, MeterReading, MeterReadingAlert
 from apps.core_onboarding.services.ocr_service import get_ocr_service
 from apps.peoples.models import People
 from apps.ml_training.integrations import track_meter_reading_result
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class MeterReadingService:
                             f"Low-confidence meter reading tracked for ML training: "
                             f"confidence={ocr_result['confidence']:.2f}"
                         )
-                    except Exception as e:
+                    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                         # Non-critical: Log but don't fail the main operation
                         logger.warning(f"Failed to track meter reading for ML training: {e}")
 
@@ -156,7 +157,7 @@ class MeterReadingService:
         except DatabaseError as e:
             logger.error(f"Database error in meter reading: {str(e)}")
             result['error'] = f"Database error: {str(e)}"
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Unexpected error in meter reading: {str(e)}", exc_info=True)
             result['error'] = f"Processing error: {str(e)}"
 
@@ -208,7 +209,7 @@ class MeterReadingService:
         except MeterReading.DoesNotExist:
             logger.error(f"Reading {reading_id} not found for validation")
             return False
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error validating reading {reading_id}: {str(e)}")
             return False
 
@@ -234,7 +235,7 @@ class MeterReadingService:
                 .order_by('-reading_timestamp')[:limit]
             )
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error fetching readings for asset {asset_id}: {str(e)}")
             return []
 
@@ -284,7 +285,7 @@ class MeterReadingService:
                 'estimated_monthly': daily_average * 30,
             }
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error generating analytics for asset {asset_id}: {str(e)}")
             return {'error': str(e)}
 
@@ -313,14 +314,14 @@ class MeterReadingService:
 
                     processed_count += 1
 
-                except Exception as e:
+                except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                     logger.warning(f"Error processing reading {reading.id}: {str(e)}")
                     continue
 
             logger.info(f"Processed {processed_count} readings for anomaly detection")
             return processed_count
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error in batch anomaly detection: {str(e)}")
             return 0
 
@@ -389,7 +390,7 @@ class MeterReadingService:
             content = photo.read()
             photo.seek(0)  # Reset again for later use
             return hashlib.sha256(content).hexdigest()
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Error calculating image hash: {str(e)}")
             return hashlib.sha256(str(datetime.now()).encode()).hexdigest()
 
@@ -480,7 +481,7 @@ class MeterReadingService:
             # Return relative path
             return os.path.relpath(file_path, settings.MEDIA_ROOT)
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error saving meter image: {str(e)}")
             return ""
 
@@ -495,7 +496,7 @@ class MeterReadingService:
                 message=f"Anomalous reading detected: {reading.reading_value} {reading.unit}",
                 actual_value=reading.reading_value
             )
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error creating anomaly alert: {str(e)}")
 
 

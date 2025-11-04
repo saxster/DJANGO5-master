@@ -10,6 +10,7 @@ from .logging import setup_logging
 from .security import get_production_security_settings
 from .integrations import get_production_integrations
 from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, SPECTACULAR_SETTINGS
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 logger = logging.getLogger(__name__)
 
@@ -113,13 +114,17 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 EMAIL_FROM_ADDRESS = DEFAULT_FROM_EMAIL
 
 # Database configuration with SSL and optimized connection pooling
+# POOLING STRATEGY: Django's CONN_MAX_AGE (inherited from database.py, overridden here for production)
+# This is the SINGLE source of truth for connection pooling. No psycopg3 pool config in use.
+# See intelliwiz_config/settings/database.py for base configuration and pooling strategy rationale.
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "USER": env("DBUSER"), "NAME": env("DBNAME"), "PASSWORD": env("DBPASS"),
         "HOST": env("DBHOST"), "PORT": "5432",
-        # Production-optimized connection pooling
-        "CONN_MAX_AGE": 3600,  # 1 hour - longer for production stability
+        # Production-optimized connection pooling via CONN_MAX_AGE
+        # Overrides base config value (600s) with 1 hour for production stability
+        "CONN_MAX_AGE": SECONDS_IN_HOUR,  # 3600s (1 hour) - production-specific value
         "CONN_HEALTH_CHECKS": True,  # Enable connection health checks
         "OPTIONS": {
             "sslmode": "require",

@@ -25,9 +25,25 @@ from apps.activity.admin.vehicle_alert_admin import VehicleSecurityAlertAdmin  #
 
 # Question admins are in question/ subdirectory and auto-registered
 
+# Explicit __all__ to control namespace (Rule #16: Wildcard Import Prevention)
 __all__ = [
+    # From asset_admin.py
+    'AssetResource',
+    'AssetResourceUpdate',
+
+    # From location_admin.py
+    'LocationResource',
+    'LocationResourceUpdate',
+
+    # From meter_reading_admin.py
     'MeterReadingAdmin',
+
+    # From meter_alert_admin.py
     'MeterReadingAlertAdmin',
+
+    # From vehicle_entry_admin.py
     'VehicleEntryAdmin',
+
+    # From vehicle_alert_admin.py
     'VehicleSecurityAlertAdmin',
 ]

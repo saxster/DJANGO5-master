@@ -8,6 +8,7 @@ import os
 from datetime import timedelta
 from django.contrib.messages import constants as message_constants
 from django.core.management.utils import get_random_secret_key
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -36,13 +37,15 @@ INSTALLED_APPS = [
     "drf_spectacular", "drf_spectacular_sidecar",
     "django_celery_beat",
     "django_celery_results", "corsheaders", "django_cleanup.apps.CleanupConfig",
+    # Multi-Factor Authentication (MFA) support
+    "django_otp", "django_otp.plugins.otp_totp",
     # Local apps
     'apps.core', 'apps.ontology', 'apps.peoples', 'apps.people_onboarding', 'apps.tenants',
     'apps.core_onboarding', 'apps.client_onboarding', 'apps.site_onboarding',
     'apps.attendance', 'apps.activity', 'apps.scheduler', 'apps.reminder', 'apps.reports',
     'apps.service', 'apps.y_helpdesk', 'apps.work_order_management', 'apps.mqtt', 'apps.face_recognition',
     'apps.voice_recognition', 'apps.journal', 'apps.wellness', 'apps.streamlab', 'apps.issue_tracker',
-    'apps.ai_testing', 'apps.search', 'apps.api', 'apps.noc', 'apps.ml_training', 'apps.helpbot', 'monitoring',
+    'apps.ai_testing', 'apps.search', 'apps.api', 'apps.noc', 'apps.ml_training', 'apps.helpbot', 'apps.help_center', 'monitoring',
 ]
 
 # ============================================================================
@@ -291,7 +294,7 @@ from .security.headers import (
 # Session and security configuration
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_AGE = 2 * 60 * 60  # 2 hours (Rule #10: Session Security Standards)
+SESSION_COOKIE_AGE = 2 * SECONDS_IN_HOUR  # 2 hours (Rule #10: Session Security Standards)
 SESSION_SAVE_EVERY_REQUEST = True  # Security first (Rule #10)
 
 # Note: SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE, CSRF_COOKIE_HTTPONLY, CSRF_COOKIE_SAMESITE
@@ -387,6 +390,15 @@ NOC_CONFIG = {
 # ============================================================================
 
 from .ml_config import ML_CONFIG
+
+# ============================================================================
+# ATTENDANCE SYSTEM CONFIGURATION (Enhanced Nov 2025)
+# ============================================================================
+# Comprehensive attendance configuration including audit logging, fraud detection,
+# consent management, photo capture, and data retention policies
+# ============================================================================
+
+from .attendance import *
 
 # ============================================================================
 # UNFOLD ADMIN THEME CONFIGURATION

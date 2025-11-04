@@ -6,6 +6,7 @@ and the knowledge base for intelligent responses.
 """
 
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
@@ -67,8 +68,8 @@ class HelpBotConversationService:
                 self.llm_service = None
                 logger.info("LLM integration not enabled")
 
-        except Exception as e:
-            logger.error(f"Error initializing LLM integration: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error initializing LLM integration: {e}", exc_info=True)
             self.llm_service = None
 
     def _init_parlant_integration(self):
@@ -89,8 +90,8 @@ class HelpBotConversationService:
                 self.parlant_service = None
                 logger.info("Parlant agent disabled (ENABLE_PARLANT_AGENT=False)")
 
-        except Exception as e:
-            logger.error(f"Error initializing Parlant integration: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error initializing Parlant integration: {e}", exc_info=True)
             self.parlant_service = None
 
     def start_session(self, user, session_type: str = "general_help",
@@ -137,8 +138,8 @@ class HelpBotConversationService:
                 logger.info(f"Started HelpBot session {session.session_id} for user {user.email}")
                 return session
 
-        except Exception as e:
-            logger.error(f"Error starting HelpBot session: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error starting HelpBot session: {e}", exc_info=True)
             raise
 
     def _get_active_session(self, user) -> Optional[HelpBotSession]:
@@ -155,8 +156,8 @@ class HelpBotConversationService:
                 last_activity__gte=cutoff_time
             ).first()
 
-        except Exception as e:
-            logger.error(f"Error getting active session: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting active session: {e}", exc_info=True)
             return None
 
     def _generate_welcome_message(self, session: HelpBotSession) -> Dict[str, Any]:
@@ -205,8 +206,8 @@ class HelpBotConversationService:
                 "rich_content": rich_content
             }
 
-        except Exception as e:
-            logger.error(f"Error generating welcome message: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error generating welcome message: {e}", exc_info=True)
             return {
                 "content": "Hi! I'm here to help you. What can I assist you with today?",
                 "rich_content": {}
@@ -365,8 +366,8 @@ class HelpBotConversationService:
                     }
                 }
 
-        except Exception as e:
-            logger.error(f"Error processing message: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error processing message: {e}", exc_info=True)
 
             # Add error message
             error_response = self._generate_error_response(str(e))
@@ -397,12 +398,49 @@ class HelpBotConversationService:
             metadata={}
         )
 
+    def start_ticket_assistant_session(self, user, context_data: Dict[str, Any] = None,
+                                      language: str = "en") -> HelpBotSession:
+        """
+        Start a new ticket assistant conversation session.
+
+        Args:
+            user: Django user instance
+            context_data: Initial context data
+            language: User's preferred language
+
+        Returns:
+            HelpBotSession instance for ticket assistance
+        """
+        try:
+            # Create session with custom type marker for routing
+            session_data = context_data or {}
+            session_data['agent_type'] = 'ticket_assistant'
+
+            session = self.start_session(
+                user=user,
+                session_type=HelpBotSession.SessionTypeChoices.GENERAL_HELP,  # Use base type
+                context_data=session_data,
+                language=language
+            )
+
+            logger.info(f"Started ticket assistant session {session.session_id} for user {user.email}")
+            return session
+
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error starting ticket assistant session: {e}", exc_info=True)
+            raise
+
     def _generate_ai_response(self, session: HelpBotSession, user_message: str) -> Dict[str, Any]:
         """Generate AI response using Parlant, knowledge base, or LLM services."""
         try:
-            # Try Parlant first for SECURITY_FACILITY sessions (Phase 3)
-            if (self.parlant_service and
-                session.session_type == HelpBotSession.SessionTypeChoices.SECURITY_FACILITY):
+            # Check if this is a ticket assistant session
+            agent_type = session.context_data.get('agent_type')
+
+            # Try Parlant first for SECURITY_FACILITY or TICKET_ASSISTANT sessions (Phase 3)
+            if self.parlant_service and (
+                session.session_type == HelpBotSession.SessionTypeChoices.SECURITY_FACILITY or
+                agent_type == 'ticket_assistant'
+            ):
                 try:
                     parlant_response = self.parlant_service.process_message_sync(
                         session_id=str(session.session_id),
@@ -411,17 +449,19 @@ class HelpBotConversationService:
                             'tenant': session.tenant,
                             'client': session.client or session.user.bu,
                             'user': session.user,
+                            'agent_type': agent_type,
                         }
                     )
 
                     if parlant_response.get('success'):
-                        logger.info("Using Parlant-powered response")
+                        logger.info(f"Using Parlant-powered response (agent_type={agent_type})")
                         return {
                             'content': parlant_response['content'],
                             'confidence_score': parlant_response.get('confidence_score', 0.9),
                             'knowledge_sources': [],
                             'rich_content': {
                                 'parlant_powered': True,
+                                'agent_type': agent_type,
                                 'tools_used': parlant_response.get('tools_used', []),
                                 'guidelines_matched': parlant_response.get('guidelines_matched', []),
                                 'journey_state': parlant_response.get('journey_state'),
@@ -463,8 +503,8 @@ class HelpBotConversationService:
 
             return response
 
-        except Exception as e:
-            logger.error(f"Error generating AI response: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error generating AI response: {e}", exc_info=True)
             return self._generate_fallback_response(user_message)
 
     def _analyze_user_intent(self, message: str, session: HelpBotSession) -> Dict[str, Any]:
@@ -559,8 +599,8 @@ class HelpBotConversationService:
                 'rich_content': self._format_rich_content(knowledge_results),
             }
 
-        except Exception as e:
-            logger.error(f"Error with LLM response generation: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error with LLM response generation: {e}", exc_info=True)
             return self._generate_template_response(user_message, knowledge_results, {})
 
     def _generate_template_response(self, user_message: str, knowledge_results: List[Dict],
@@ -608,8 +648,8 @@ class HelpBotConversationService:
                     'rich_content': {},
                 }
 
-        except Exception as e:
-            logger.error(f"Error generating template response: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error generating template response: {e}", exc_info=True)
             return self._generate_fallback_response(user_message)
 
     def _format_rich_content(self, knowledge_results: List[Dict]) -> Dict[str, Any]:
@@ -746,8 +786,8 @@ class HelpBotConversationService:
             logger.info(f"Added feedback {feedback.feedback_id} for message {message_id}")
             return True
 
-        except Exception as e:
-            logger.error(f"Error adding feedback: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error adding feedback: {e}", exc_info=True)
             return False
 
     def end_session(self, session: HelpBotSession, satisfaction_rating: int = None) -> bool:
@@ -761,8 +801,8 @@ class HelpBotConversationService:
             logger.info(f"Ended session {session.session_id}")
             return True
 
-        except Exception as e:
-            logger.error(f"Error ending session: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error ending session: {e}", exc_info=True)
             return False
 
     def get_session_history(self, session: HelpBotSession) -> List[Dict[str, Any]]:
@@ -786,8 +826,8 @@ class HelpBotConversationService:
 
             return history
 
-        except Exception as e:
-            logger.error(f"Error getting session history: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting session history: {e}", exc_info=True)
             return []
 
     def generate_security_scorecard(self, session: HelpBotSession, check_date=None) -> Dict[str, Any]:
