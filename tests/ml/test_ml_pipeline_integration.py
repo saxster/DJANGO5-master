@@ -218,7 +218,7 @@ class TestFraudDetectionPipeline:
         7. Check accuracy metrics updated
         """
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
         from apps.noc.security_intelligence.models import FraudPredictionLog
         from apps.ml.features.fraud_features import FraudFeatureExtractor
@@ -278,7 +278,7 @@ class TestFraudDetectionPipeline:
     def test_fraud_detection_with_high_risk_features(self):
         """Test fraud detection with suspicious feature values."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
         from apps.ml.features.fraud_features import FraudFeatureExtractor
 

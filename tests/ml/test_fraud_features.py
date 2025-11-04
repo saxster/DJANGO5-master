@@ -204,7 +204,7 @@ class TestLocationFeatures:
     def test_location_consistency_high(self):
         """Test high location consistency (same GPS coords)."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
 
         person = People.objects.create(
@@ -235,7 +235,7 @@ class TestLocationFeatures:
     def test_location_consistency_low(self):
         """Test low location consistency (GPS spoofing pattern)."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
 
         person = People.objects.create(
@@ -278,7 +278,7 @@ class TestBehavioralFeatures:
     def test_check_in_frequency_zscore_normal(self):
         """Test normal check-in frequency (within 1 stddev)."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
 
         # Create test person and site
@@ -308,7 +308,7 @@ class TestBehavioralFeatures:
     def test_check_in_frequency_zscore_high(self):
         """Test abnormally high check-in frequency."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
 
         person = People.objects.create(
@@ -337,7 +337,7 @@ class TestBehavioralFeatures:
     def test_late_arrival_rate_zero(self):
         """Test 0% late arrival rate (always on time)."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
         from apps.scheduler.models import Schedule
 
@@ -379,7 +379,7 @@ class TestBehavioralFeatures:
     def test_late_arrival_rate_high(self):
         """Test high late arrival rate (frequently late)."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.attendance.models import PeopleEventlog
         from apps.scheduler.models import Schedule
 
@@ -636,7 +636,7 @@ class TestPerformance:
         """Test feature extraction completes <1s for 1000 samples."""
         import time
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         person = People.objects.create(
             username='perf_user',
@@ -726,7 +726,7 @@ class TestEdgeCases:
     def test_extract_all_features_empty_dataset(self):
         """Test feature extraction with no historical data."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         person = People.objects.create(
             username='new_user',

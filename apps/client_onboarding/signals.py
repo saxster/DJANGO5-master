@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from apps.client_onboarding.models import Bt, Shift
 from apps.core_onboarding.models import TypeAssist, GeofenceMaster
-from apps.onboarding.serializers import (
+from apps.client_onboarding.serializers import (
     GeofenceMasterSerializers,
     BtSerializers,
     ShiftSerializers,

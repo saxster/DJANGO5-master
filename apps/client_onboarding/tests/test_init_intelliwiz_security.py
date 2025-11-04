@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch, MagicMock
 from apps.peoples.models import People
 from apps.client_onboarding.models import Bt
 from apps.core_onboarding.models import TypeAssist
-from apps.onboarding.management.commands.init_intelliwiz import create_superuser
+from apps.client_onboarding.management.commands.init_intelliwiz import create_superuser
 
 
 @pytest.mark.unit
@@ -65,7 +65,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
         Security Impact: CVSS 9.1 if passwords are logged (PCI-DSS violation)
         """
         # Create test client and site
-        from apps.onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
         client, site = create_dummy_client_and_site()
 
         # Create superuser
@@ -87,7 +87,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
     @patch('apps.onboarding.management.commands.init_intelliwiz.log')
     def test_loginid_is_logged(self, mock_log):
         """Verify that loginid (non-sensitive) IS logged for tracking."""
-        from apps.onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
         client, site = create_dummy_client_and_site()
 
         user = create_superuser(client, site)
@@ -104,7 +104,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
     @patch('apps.onboarding.management.commands.init_intelliwiz.log')
     def test_correlation_id_present_in_logs(self, mock_log):
         """Verify correlation ID is present for tracking without exposing credentials."""
-        from apps.onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
         client, site = create_dummy_client_and_site()
 
         user = create_superuser(client, site)
@@ -128,7 +128,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
     @patch('apps.onboarding.management.commands.init_intelliwiz.log')
     def test_security_event_tracking(self, mock_log):
         """Verify security_event field is present for audit purposes."""
-        from apps.onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
         client, site = create_dummy_client_and_site()
 
         user = create_superuser(client, site)
@@ -148,7 +148,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
 
     def test_password_set_correctly(self):
         """Verify password is set correctly even though not logged."""
-        from apps.onboarding.management.commands.init_intelliwiz import (
+        from apps.client_onboarding.management.commands.init_intelliwiz import (
             create_dummy_client_and_site,
             DEFAULT_PASSWORD
         )
@@ -163,7 +163,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
     @patch('apps.onboarding.management.commands.init_intelliwiz.log')
     def test_existing_superuser_not_recreated(self, mock_log):
         """Verify existing superuser doesn't trigger password logging."""
-        from apps.onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
         client, site = create_dummy_client_and_site()
 
         # Create first time
@@ -189,7 +189,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
 
         This test validates compliance with payment card industry data security standards.
         """
-        from apps.onboarding.management.commands.init_intelliwiz import (
+        from apps.client_onboarding.management.commands.init_intelliwiz import (
             create_dummy_client_and_site,
             DEFAULT_PASSWORD
         )
@@ -216,7 +216,7 @@ class TestInitIntellwizPasswordSecurity(TestCase):
 
         Only necessary information should be logged.
         """
-        from apps.onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_dummy_client_and_site
 
         with patch('apps.onboarding.management.commands.init_intelliwiz.log') as mock_log:
             client, site = create_dummy_client_and_site()
@@ -252,7 +252,7 @@ class TestInitIntellwizManagementCommandSecurity(TestCase):
         # Note: This test requires database 'default' to exist
         # In real execution, would use: python manage.py init_intelliwiz default
 
-        from apps.onboarding.management.commands.init_intelliwiz import (
+        from apps.client_onboarding.management.commands.init_intelliwiz import (
             create_dummy_client_and_site,
             DEFAULT_PASSWORD
         )

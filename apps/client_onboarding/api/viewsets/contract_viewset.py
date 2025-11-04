@@ -17,7 +17,7 @@ from django.db import DatabaseError
 from django.core.exceptions import ObjectDoesNotExist
 import logging
 
-from apps.onboarding.models import Contract
+from apps.client_onboarding.models import Contract
 from apps.api.permissions import TenantIsolationPermission
 from apps.api.pagination import MobileSyncCursorPagination
 

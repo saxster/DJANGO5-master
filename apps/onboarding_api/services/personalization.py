@@ -744,7 +744,7 @@ class BanditEngine:
     def _get_user_interactions_for_experiment(self, user: People, experiment: Experiment,
                                             since_date: datetime):
         """Get user interactions relevant to experiment"""
-        from apps.onboarding.models import RecommendationInteraction
+        from apps.client_onboarding.models import RecommendationInteraction
 
         return RecommendationInteraction.objects.filter(
             session__user=user,

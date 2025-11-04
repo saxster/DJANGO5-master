@@ -21,7 +21,7 @@ from apps.activity.models.asset_model import Asset
 
 from apps.attendance.serializers import PeopleEventlogSerializer as BasePeopleEventlogSerializer
 from apps.peoples.serializers import PeopleSerializer as BasePeopleSerializer
-from apps.onboarding.serializers import (
+from apps.client_onboarding.serializers import (
     BtSerializers as BaseBtSerializer,
     TypeAssistSerializers as BaseTypeAssistSerializer,
     ShiftSerializers as BaseShiftSerializer,

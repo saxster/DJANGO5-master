@@ -13,7 +13,7 @@ from import_export.admin import ImportExportModelAdmin
 import apps.tenants.models as tm
 from apps.service.validators import clean_point_field, clean_string
 from apps.peoples import models as pm
-from apps.onboarding.forms import (
+from apps.client_onboarding.forms import (
     BtForm,
     ShiftForm,
 )
@@ -29,7 +29,7 @@ from django.db import OperationalError, ProgrammingError, DatabaseError
 import re
 from math import isnan
 from apps.core.widgets import EnabledTypeAssistWidget
-from apps.onboarding.utils import bulk_create_geofence
+from apps.client_onboarding.utils import bulk_create_geofence
 from apps.activity.models.job_model import Job
 
 

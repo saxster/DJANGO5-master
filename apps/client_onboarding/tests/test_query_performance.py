@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.db import connection
 from django.test.utils import override_settings
-from apps.onboarding.views import SuperTypeAssist
+from apps.client_onboarding.views import SuperTypeAssist
 
 User = get_user_model()
 

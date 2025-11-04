@@ -33,7 +33,7 @@ from apps.attendance.models import PeopleEventlog
 from apps.work_order_management.models import Wom
 from apps.activity.models import Job
 from apps.peoples.models import People
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 
 
 @pytest.mark.slow

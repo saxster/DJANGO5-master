@@ -13,9 +13,9 @@ Provides REST API endpoints for:
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from apps.onboarding.api.viewsets.business_unit_viewset import BusinessUnitViewSet
-from apps.onboarding.api.viewsets.geofence_viewset import GeofenceViewSet
-from apps.onboarding.api.viewsets.contract_viewset import ContractViewSet
+from apps.client_onboarding.api.viewsets.business_unit_viewset import BusinessUnitViewSet
+from apps.client_onboarding.api.viewsets.geofence_viewset import GeofenceViewSet
+from apps.client_onboarding.api.viewsets.contract_viewset import ContractViewSet
 
 app_name = 'onboarding_admin_api'
 

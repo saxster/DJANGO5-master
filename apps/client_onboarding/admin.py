@@ -12,15 +12,15 @@ New code should import directly from apps.onboarding.admin package or domain-spe
 
 Usage:
     # OLD (still works via this file):
-    from apps.onboarding.admin import TaAdmin
+    from apps.client_onboarding.admin import TaAdmin
     from apps.onboarding import admin
     admin.TaAdmin
 
     # NEW (recommended):
-    from apps.onboarding.admin.typeassist_admin import TaAdmin
-    from apps.onboarding.admin import typeassist_admin
+    from apps.client_onboarding.admin.typeassist_admin import TaAdmin
+    from apps.client_onboarding.admin import typeassist_admin
     typeassist_admin.TaAdmin
 """
 
 # Import everything from the new admin package
-from apps.onboarding.admin import *
+from apps.client_onboarding.admin import *

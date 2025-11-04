@@ -32,7 +32,7 @@ from apps.onboarding.models import (
     Observation,
     ConversationSession
 )
-from apps.onboarding.models.business_unit import Bt
+from apps.client_onboarding.models.business_unit import Bt
 
 User = get_user_model()
 

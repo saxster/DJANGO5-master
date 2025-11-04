@@ -114,7 +114,7 @@ class GeofenceViewSet(viewsets.ReadOnlyModelViewSet):
             geofence = self.get_object()
 
             # Get assigned people through GeofencePeopleM2m
-            from apps.onboarding.models import GeofencePeopleM2m
+            from apps.client_onboarding.models import GeofencePeopleM2m
 
             assignments = GeofencePeopleM2m.objects.filter(
                 geofencemaster=geofence

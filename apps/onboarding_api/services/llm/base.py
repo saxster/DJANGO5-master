@@ -13,7 +13,7 @@ from typing import Dict, List, Any, TYPE_CHECKING
 
 # TYPE_CHECKING import to prevent circular dependency
 if TYPE_CHECKING:
-    from apps.onboarding.models.conversational_ai import ConversationSession
+    from apps.client_onboarding.models.conversational_ai import ConversationSession
 
 
 class MakerLLM(ABC):

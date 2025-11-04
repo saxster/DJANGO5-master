@@ -29,7 +29,7 @@ from apps.onboarding.models import (
     AIChangeSet,
     AIChangeRecord
 )
-from apps.onboarding.models.business_unit import Bt
+from apps.client_onboarding.models.business_unit import Bt
 from apps.peoples.models import People
 from apps.onboarding_api.integration.site_audit_mapper import SiteAuditMapper
 

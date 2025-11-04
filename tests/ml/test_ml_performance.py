@@ -56,7 +56,7 @@ class TestPredictionLatency:
     def test_fraud_feature_extraction_latency_1000_samples_under_1s(self):
         """Test that fraud feature extraction for 1000 samples < 1s."""
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.ml.features.fraud_features import FraudFeatureExtractor
 
         person = People.objects.create(

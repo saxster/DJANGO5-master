@@ -726,7 +726,7 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
     def post(self, request):
         """Submit document review (first or second review)"""
         try:
-            from apps.onboarding.services import KnowledgeReviewService
+            from apps.client_onboarding.services import KnowledgeReviewService
             from django.core.exceptions import ValidationError, PermissionDenied
 
             data = json.loads(request.body)

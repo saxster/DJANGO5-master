@@ -213,7 +213,7 @@ class Bt(BaseModel, TenantAwareModel):
     objects = BtManager()
 
     class Meta(BaseModel.Meta):
-        db_table = "client_onboarding_businessunit"
+        db_table = "bt"
         verbose_name = "Business Unit"
         verbose_name_plural = "Business Units"
         constraints = [

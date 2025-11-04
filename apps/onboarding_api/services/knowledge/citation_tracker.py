@@ -25,7 +25,7 @@ from django.core.cache import cache
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
-from apps.onboarding.models import Observation
+from apps.site_onboarding.models import Observation
 from apps.site_onboarding.models import OnboardingSite
 from apps.onboarding_api.services.knowledge import get_knowledge_service
 from apps.core.utils_new.db_utils import get_current_db_name

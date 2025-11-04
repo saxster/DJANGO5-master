@@ -234,7 +234,7 @@ class TestSuperuserCreationSecurity:
     def test_superuser_creation_with_env_password(self, monkeypatch):
         """Test that DJANGO_SUPERUSER_PASSWORD env var works in dev."""
         import os
-        from apps.onboarding.management.commands.init_intelliwiz import create_superuser
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_superuser
         from apps.client_onboarding.models import Bt
         from apps.core_onboarding.models import TypeAssist
 
@@ -290,7 +290,7 @@ class TestSuperuserCreationSecurity:
 
     def test_superuser_creation_without_env_generates_random(self, monkeypatch):
         """Test that random password is generated when env var not set."""
-        from apps.onboarding.management.commands.init_intelliwiz import create_superuser
+        from apps.client_onboarding.management.commands.init_intelliwiz import create_superuser
         from apps.client_onboarding.models import Bt
         from apps.core_onboarding.models import TypeAssist
 

@@ -94,7 +94,7 @@ class Instructions(object):
     def __init__(self, tablename):
         from apps.core.data.excel_templates import HEADER_MAPPING, HEADER_MAPPING_UPDATE
 
-        from apps.onboarding.views import MODEL_RESOURCE_MAP
+        from apps.client_onboarding.views import MODEL_RESOURCE_MAP
 
         # Check if tablename is provided initializing the class
         if tablename is None:

@@ -6,7 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from apps.client_onboarding.models import Bt
 from apps.core_onboarding.models import TypeAssist
 from apps.peoples.models import People
-from apps.onboarding.admin import TaResource
+from apps.client_onboarding.admin import TaResource
 from apps.peoples.admin import CapabilityResource
 from django.conf import settings
 from tablib import Dataset

@@ -47,7 +47,7 @@ from pprint import pformat
 import uuid
 import json
 # Import polygon_to_address from correct location
-from apps.onboarding.utils import polygon_to_address
+from apps.client_onboarding.utils import polygon_to_address
 from apps.core.utils_new.db_utils import get_current_db_name
 
 CACHE_TTL = getattr(settings, "CACHE_TTL", DEFAULT_TIMEOUT)

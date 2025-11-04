@@ -84,7 +84,7 @@ class BusinessUnitViewSet(viewsets.GenericViewSet):
                 mdtzinput, validated.buid, validated.ctzoffset
             )
 
-            from apps.onboarding.api.serializers import LocationSerializer
+            from apps.client_onboarding.api.serializers import LocationSerializer
             serializer = LocationSerializer(data, many=True)
             logger.info(f"Returned {len(data)} locations")
 
@@ -136,7 +136,7 @@ class BusinessUnitViewSet(viewsets.GenericViewSet):
                 validated.peopleid
             )
 
-            from apps.onboarding.api.serializers import BtSerializer
+            from apps.client_onboarding.api.serializers import BtSerializer
             serializer = BtSerializer(data, many=True)
             logger.info(f"Returned {len(data)} sites")
 
@@ -190,7 +190,7 @@ class BusinessUnitViewSet(viewsets.GenericViewSet):
                 validated.clientid
             )
 
-            from apps.onboarding.api.serializers import ShiftSerializer
+            from apps.client_onboarding.api.serializers import ShiftSerializer
             serializer = ShiftSerializer(data, many=True)
             logger.info(f"Returned {len(data)} shifts")
 
@@ -299,7 +299,7 @@ class BusinessUnitViewSet(viewsets.GenericViewSet):
                 clientid=clientid
             )
 
-            from apps.onboarding.api.serializers import TypeAssistSerializer
+            from apps.client_onboarding.api.serializers import TypeAssistSerializer
             serializer = TypeAssistSerializer(data, many=True)
             logger.info(f"Returned {len(data)} type assist records")
 

@@ -3,7 +3,7 @@ Serializers for Conversational Onboarding API (Phase 1 MVP)
 """
 from rest_framework import serializers
 from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
-from apps.onboarding.models import UserFeedbackLearning
+from apps.core_onboarding.models import UserFeedbackLearning
 
 
 class ConversationStartSerializer(serializers.Serializer):

@@ -994,7 +994,7 @@ def track_funnel_event(session_id: str, event_type: str, metadata: Dict[str, Any
         session = ConversationSession.objects.get(session_id=session_id)
 
         # Create interaction record for funnel tracking
-        from apps.onboarding.models import RecommendationInteraction
+        from apps.client_onboarding.models import RecommendationInteraction
 
         # Get latest recommendation for this session
         latest_recommendation = session.recommendations.order_by('-cdtz').first()
