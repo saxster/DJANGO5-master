@@ -1,13 +1,22 @@
 """
-Journal Models - Complete implementation from DJANGO_BACKEND_COMPLETE_JOURNAL_SPECIFICATION.md
+DEPRECATED: This file has been refactored into focused modules.
 
-This module implements the comprehensive journal system with:
-- Privacy-aware journal entries with tenant isolation
-- Advanced wellbeing metrics (mood, stress, energy tracking)
-- Positive psychology integration (gratitude, affirmations, achievements)
-- Media attachments with sync support
-- Privacy controls and consent management
-- Multi-tenant support using existing TenantAwareModel
+This monolithic 698-line file has been split into:
+- apps/journal/models/enums.py (Privacy scope, entry types, sync status)
+- apps/journal/models/entry.py (JournalEntry model)
+- apps/journal/models/media.py (JournalMediaAttachment model)
+- apps/journal/models/privacy.py (JournalPrivacySettings model)
+- apps/journal/models/__init__.py (Backward compatibility imports)
+
+All imports from 'apps.journal.models' continue to work unchanged.
+
+Deprecation Date: November 4, 2025
+Removal Date: After verification period (30 days)
+Related: Journal models refactoring following wellness pattern
+Complies with: .claude/rules.md Rule #7 (Model Complexity Limits)
+
+DO NOT USE THIS FILE FOR NEW DEVELOPMENT.
+Import from apps.journal.models instead.
 """
 
 from django.db import models

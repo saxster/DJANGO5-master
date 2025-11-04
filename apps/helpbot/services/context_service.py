@@ -18,6 +18,7 @@ from django.contrib.sessions.models import Session
 
 from apps.helpbot.models import HelpBotContext, HelpBotSession
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +266,7 @@ class HelpBotContextService:
             else:
                 return 'user'
 
-        except Exception:
+        except (PARSING_EXCEPTIONS, NETWORK_EXCEPTIONS):
             return 'user'
 
     def _create_minimal_context(self, user, session: HelpBotSession = None) -> HelpBotContext:

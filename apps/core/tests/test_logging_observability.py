@@ -306,7 +306,7 @@ class TestCorrelationIDInLogs(TestCase):
             from apps.core.middleware.correlation_id_middleware import get_correlation_id
             correlation_id = get_correlation_id()
             self.assertIsNone(correlation_id)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Logging without correlation ID raised exception: {e}")
 
 
@@ -436,7 +436,7 @@ class TestLogSanitizationService:
             sanitized = self.service.sanitize(None)
             # Should return None or empty string
             assert sanitized is None or sanitized == ''
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             # If it raises, should be AttributeError or TypeError
             assert isinstance(e, (AttributeError, TypeError))
 

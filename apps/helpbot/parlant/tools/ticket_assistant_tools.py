@@ -11,6 +11,7 @@ import logging
 import re
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 # Parlant will be imported when available
 try:
@@ -174,7 +175,7 @@ async def check_ticket_status(
                 hours_since_update = update_delta.total_seconds() / 3600
             else:
                 hours_since_update = hours_open
-        except Exception:
+        except (PARSING_EXCEPTIONS, ValueError):
             hours_since_update = hours_open
 
         return p.ToolResult({

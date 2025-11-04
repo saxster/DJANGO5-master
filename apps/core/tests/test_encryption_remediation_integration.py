@@ -210,7 +210,7 @@ class EncryptionRemediationIntegrationTest(TestCase):
                     user.delete()
 
                 results.put(f"thread_{thread_id}_success")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.put(f"Thread {thread_id}: {str(e)}")
 
         threads = []

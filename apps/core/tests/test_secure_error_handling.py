@@ -283,7 +283,7 @@ class ErrorHandlerSecurityTest(TestCase):
         try:
             # Generate an exception with stack trace
             raise RuntimeError("Intentional test exception")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             response = ErrorHandler.handle_task_exception(
                 e,
                 task_name="security_test",
@@ -407,7 +407,7 @@ class ErrorHandlerPerformanceTest(TestCase):
         for _ in range(1000):
             try:
                 raise ValueError("Test exception")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 ErrorHandler.handle_exception(e)
 
         end_time = time.time()
@@ -452,7 +452,7 @@ class ErrorHandlerIntegrationTest(TestCase):
         # Test that our error handling works with task context
         try:
             raise Exception("Integration test exception")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             response = ErrorHandler.handle_task_exception(
                 e,
                 task_name="integration_test",
@@ -506,7 +506,7 @@ class ErrorHandlerIntegrationTest(TestCase):
         def generate_error():
             try:
                 raise ValueError("Concurrent test error")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 response = ErrorHandler.handle_task_exception(
                     e,
                     task_name="concurrent_test"

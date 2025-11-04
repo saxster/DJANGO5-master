@@ -71,7 +71,7 @@ class AdvisoryLockPerformanceTestCase(PerformanceBaseTestCase):
                         'acquisition_time_ms': acquisition_time,
                         'success': True
                     }
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 return {
                     'user_index': user_index,
                     'acquired': False,
@@ -175,7 +175,7 @@ class APIPerformanceTestCase(PerformanceBaseTestCase):
                     'response_time_ms': response_time,
                     'success': True
                 }
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 return {
                     'user_index': user_index,
                     'error': str(e),
@@ -261,7 +261,7 @@ class CachePerformanceTestCase(PerformanceBaseTestCase):
                     'success': True
                 }
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 return {
                     'operation_index': operation_index,
                     'error': str(e),
@@ -401,7 +401,7 @@ class LoadTestCase(PerformanceBaseTestCase):
                     'success': True
                 }
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 return {
                     'user_index': user_index,
                     'error': str(e),
@@ -455,7 +455,7 @@ class LoadTestCase(PerformanceBaseTestCase):
 
                 return result
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 error_count += 1
                 return {'success': False, 'error': str(e)}
 
@@ -481,7 +481,7 @@ class LoadTestCase(PerformanceBaseTestCase):
             # Simulate API call processing
             time.sleep(0.01)  # 10ms simulation
             return {'success': True, 'operation': 'feature_status'}
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return {'success': False, 'error': str(e)}
 
     def _simulate_preflight_check(self):
@@ -490,7 +490,7 @@ class LoadTestCase(PerformanceBaseTestCase):
             # Simulate validation processing
             time.sleep(0.02)  # 20ms simulation
             return {'success': True, 'operation': 'preflight'}
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return {'success': False, 'error': str(e)}
 
     def _simulate_health_check(self):
@@ -499,7 +499,7 @@ class LoadTestCase(PerformanceBaseTestCase):
             # Simulate health check processing
             time.sleep(0.005)  # 5ms simulation
             return {'success': True, 'operation': 'health_check'}
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return {'success': False, 'error': str(e)}
 
 

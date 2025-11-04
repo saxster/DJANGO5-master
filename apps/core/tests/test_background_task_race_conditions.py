@@ -173,7 +173,7 @@ class TestBackgroundTaskRaceConditions(TransactionTestCase):
                 resp = {'id': [], 'story': ''}
                 result = update_job_autoclose_status(record, resp)
                 results.append((worker_id, result))
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=autoclose_worker, args=(i,)) for i in range(5)]
@@ -236,7 +236,7 @@ class TestBackgroundTaskRaceConditions(TransactionTestCase):
             try:
                 from apps.activity.models.job_model import Jobneed as JobneedModel
                 check_for_checkpoints_status(parent_job, JobneedModel)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=autoclose_checkpoints_worker, args=(i,)) for i in range(3)]
@@ -283,7 +283,7 @@ class TestBackgroundTaskRaceConditions(TransactionTestCase):
                 }
                 result = {'story': '', 'traceback': ''}
                 update_ticket_log(ticket.id, history_item, result)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=append_history, args=(i,)) for i in range(num_updates)]
@@ -337,7 +337,7 @@ class TestBackgroundTaskRaceConditions(TransactionTestCase):
                 tickets_copy = copy.deepcopy(tickets_data)
                 outcome = update_ticket_data(tickets_copy, result)
                 results.append((worker_id, outcome))
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=escalate_worker, args=(i,)) for i in range(3)]
@@ -430,7 +430,7 @@ class TestBackgroundTaskRaceConditions(TransactionTestCase):
                         ismailsent=True,
                         mdtz=timezone.now()
                     )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=mark_mail_sent, args=(i,)) for i in range(10)]

@@ -77,7 +77,7 @@ class TestBatchIngestion(TestCase):
                 try:
                     result = ingest_document(str(job.job_id))
                     results.append(result)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     results.append({'status': 'failed', 'error': str(e)})
 
         # Verify each job processed independently

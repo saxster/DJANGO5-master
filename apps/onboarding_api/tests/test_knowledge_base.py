@@ -889,7 +889,7 @@ class ErrorHandlingTests(TestCase):
             result = parser._parse_html(malformed_html)
             # Should not raise exception
             self.assertIsNotNone(result)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Parser should handle malformed HTML gracefully: {str(e)}")
 
     def test_vector_store_error_recovery(self):

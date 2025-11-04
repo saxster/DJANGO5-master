@@ -147,7 +147,7 @@ class TestGeofencePerformance(TestCase):
         for lat, lon in test_coordinates:
             try:
                 GeospatialService.validate_coordinates(lat, lon)
-            except:
+            except (ValueError, TypeError):
                 pass  # Some coordinates might be invalid, that's expected
 
         end_time = time.time()
@@ -168,7 +168,7 @@ class TestGeofencePerformance(TestCase):
             try:
                 point = GeospatialService.create_point(lat, lon)
                 points.append(point)
-            except:
+            except (ValueError, TypeError):
                 pass  # Some coordinates might be invalid
 
         end_time = time.time()
@@ -287,7 +287,7 @@ class TestConcurrentGeofenceOperations(TransactionTestCase):
                     assert distance >= 0
                     assert isinstance(is_inside, bool)
 
-            except Exception as e:
+            except (ValueError, TypeError, AssertionError) as e:
                 thread_errors.append(f"Thread {thread_id}: {str(e)}")
 
             return thread_errors

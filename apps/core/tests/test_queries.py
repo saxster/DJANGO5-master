@@ -245,7 +245,7 @@ class QueryIntegrationTestCase(TestCase):
         try:
             result = get_query('get_web_caps_for_client')
             self.assertIsInstance(result, list)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"get_query failed with: {e}")
     
     def test_query_parameter_passing(self):
@@ -261,7 +261,7 @@ class QueryIntegrationTestCase(TestCase):
                 end_date=end_date
             )
             self.assertIsInstance(result, list)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Parameterized query failed with: {e}")
 
 

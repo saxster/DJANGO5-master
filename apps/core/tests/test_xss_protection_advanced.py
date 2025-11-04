@@ -288,7 +288,7 @@ class AdvancedObfuscationTest(TestCase):
                     is_xss = self.middleware._is_xss_attempt(attack)
                     # Either detected as XSS or handled safely
                     self.assertIsInstance(is_xss, bool)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     self.fail(f"Encoding attack caused exception: {e}")
 
 
@@ -577,7 +577,7 @@ class PerformanceUnderAttackTest(TestCase):
                 # Should complete quickly regardless of regex complexity
                 self.assertLess(processing_time, 0.5, f"Potential ReDoS detected: {processing_time:.3f}s for {payload[:20]}...")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 self.fail(f"Exception during ReDoS test: {e}")
 
 
@@ -754,7 +754,7 @@ class XSSProtectionIntegrationTest(TestCase):
 
                 results.put(f"thread_{thread_id}_success")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.put(f"Thread {thread_id}: {str(e)}")
 
         # Create multiple concurrent threads

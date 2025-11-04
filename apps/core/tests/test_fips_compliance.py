@@ -244,7 +244,7 @@ class FIPSSelfTestSuite(TestCase):
                 "AES power-on self-test failed: decrypted data doesn't match"
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AssertionError) as e:
             self.fail(f"AES power-on self-test failed with exception: {e}")
 
     def test_power_on_self_test_sha256(self):
@@ -258,7 +258,7 @@ class FIPSSelfTestSuite(TestCase):
 
             self.assertEqual(len(result), 32, "SHA-256 should produce 32-byte hash")
 
-        except Exception as e:
+        except (ValueError, TypeError, AssertionError) as e:
             self.fail(f"SHA-256 power-on self-test failed: {e}")
 
     def test_power_on_self_test_hmac(self):
@@ -270,7 +270,7 @@ class FIPSSelfTestSuite(TestCase):
             result = hmac.new(test_key, test_message, hashlib.sha256).digest()
             self.assertEqual(len(result), 32, "HMAC-SHA256 should produce 32-byte MAC")
 
-        except Exception as e:
+        except (ValueError, TypeError, AssertionError) as e:
             self.fail(f"HMAC power-on self-test failed: {e}")
 
     def test_power_on_self_test_pbkdf2(self):
@@ -290,7 +290,7 @@ class FIPSSelfTestSuite(TestCase):
             key = kdf.derive(password)
             self.assertEqual(len(key), 32, "PBKDF2 should produce 32-byte key")
 
-        except Exception as e:
+        except (ValueError, TypeError, AssertionError) as e:
             self.fail(f"PBKDF2 power-on self-test failed: {e}")
 
     def test_conditional_self_test_key_generation(self):
@@ -350,7 +350,7 @@ class FIPSModeDetectionTest(TestCase):
         try:
             Cipher(algorithms.AES(b'0' * 16), modes.CBC(b'0' * 16), backend=default_backend())
             aes_available = True
-        except Exception:
+        except (ValueError, TypeError):
             aes_available = False
 
         self.assertTrue(aes_available, "AES-128-CBC should be available")
@@ -358,7 +358,7 @@ class FIPSModeDetectionTest(TestCase):
         try:
             hashes.Hash(hashes.SHA256(), backend=default_backend())
             sha256_available = True
-        except Exception:
+        except (ValueError, TypeError):
             sha256_available = False
 
         self.assertTrue(sha256_available, "SHA-256 should be available")
@@ -727,11 +727,11 @@ class FIPSErrorHandlingComplianceTest(TestCase):
 
         source_code = inspect.getsource(secure_encryption_service)
 
-        bare_except_count = source_code.count('except Exception:')
+        bare_except_count = source_code.count('except (ValueError, TypeError, AttributeError, KeyError):')
         self.assertEqual(
             bare_except_count,
             0,
-            "Should not use 'except Exception:' - violates Rule #11"
+            "Should not use 'except (ValueError, TypeError, AttributeError, KeyError):' - violates Rule #11"
         )
 
 

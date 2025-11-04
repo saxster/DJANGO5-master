@@ -242,7 +242,7 @@ class CodeQualityIntegrationTest(TestCase):
             result = check_path(temp_path)
             self.assertIsInstance(result, bool)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Runtime error with type-annotated functions: {e}")
 
 

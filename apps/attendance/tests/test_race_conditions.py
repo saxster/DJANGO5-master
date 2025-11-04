@@ -97,7 +97,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     result, str(attendance.uuid), attendance.people_id, 'default'
                 )
                 assert success, "Punch-in update failed"
-            except Exception as e:
+            except (AssertionError, AttributeError, KeyError) as e:
                 errors.append(('punch_in', e))
 
         def update_punch_out():
@@ -111,7 +111,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     result, str(attendance.uuid), attendance.people_id, 'default'
                 )
                 assert success, "Punch-out update failed"
-            except Exception as e:
+            except (AssertionError, AttributeError, KeyError) as e:
                 errors.append(('punch_out', e))
 
         # Run updates concurrently
@@ -158,7 +158,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     PeopleEventlog.objects.update_fr_results(
                         result, str(attendance.uuid), attendance.people_id, 'default'
                     )
-            except Exception as e:
+            except (AttributeError, KeyError, ValueError) as e:
                 errors.append((iteration, e))
 
         threads = [threading.Thread(target=rapid_update, args=(i,)) for i in range(num_threads)]
@@ -198,7 +198,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     )
                 except LockTimeoutError:
                     error_caught.append(True)
-                except Exception as e:
+                except (AttributeError, KeyError, ValueError) as e:
                     error_caught.append(e)
 
             t = threading.Thread(target=attempt_update)
@@ -244,7 +244,7 @@ class TestFaceRecognitionRaceConditions(TransactionTestCase):
                     similarity_score=0.8 if is_success else 0.4,
                     processing_time_ms=100
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 errors.append(e)
 
         # Create mix of successful and failed verifications
@@ -292,7 +292,7 @@ class TestFaceRecognitionRaceConditions(TransactionTestCase):
                     face_confidence=0.9,
                     is_validated=True
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 errors.append(e)
 
         # Try to create multiple embeddings concurrently
@@ -341,7 +341,7 @@ class TestFaceRecognitionRaceConditions(TransactionTestCase):
                     similarity_score=0.85,
                     processing_time_ms=100
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 errors.append(e)
 
         threads = [threading.Thread(target=create_verification) for _ in range(num_verifications)]

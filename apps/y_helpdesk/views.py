@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.db.utils import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from apps.core_onboarding.models import TypeAssist
 from .models import EscalationMatrix, Ticket
 from .forms import TicketForm, EscalationForm
@@ -8,6 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.http import response as rp
 from apps.core import utils
+from apps.api.pagination import StandardPageNumberPagination
 from django.db import transaction, DatabaseError
 from apps.peoples import utils as putils
 from apps.peoples import models as pm
@@ -40,10 +42,32 @@ class EscalationMatrixView(LoginRequiredMixin, View):
             return render(request, P["template_form"], cxt)
 
         if R.get("action") == "loadPeoples":
+            # Performance: Apply pagination to prevent loading all users at once
             qset = pm.People.objects.getPeoplesForEscForm(request)
-            return rp.JsonResponse(
-                {"items": list(qset), "total_count": len(qset)}, status=200
-            )
+
+            # Get pagination parameters from request
+            page_number = int(R.get('page', 1))
+            page_size = int(R.get('page_size', 25))  # Default from StandardPageNumberPagination
+
+            # Apply pagination
+            paginator = Paginator(qset, page_size)
+            try:
+                page_obj = paginator.page(page_number)
+                items = list(page_obj)
+            except (EmptyPage, PageNotAnInteger):
+                # Return empty results for invalid page numbers
+                items = []
+                page_obj = None
+
+            return rp.JsonResponse({
+                "items": items,
+                "total_count": paginator.count if paginator else 0,
+                "page_size": page_size,
+                "current_page": page_number,
+                "total_pages": paginator.num_pages if paginator else 0,
+                "has_next": page_obj.has_next() if page_obj else False,
+                "has_previous": page_obj.has_previous() if page_obj else False
+            }, status=200)
 
         if R.get("action") == "loadGroups":
             qset = pm.Pgroup.objects.getGroupsForEscForm(request)

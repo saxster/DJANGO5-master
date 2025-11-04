@@ -251,7 +251,7 @@ class SQLInjectionPenetrationTests(TestCase):
                     for indicator in sql_error_indicators:
                         assert indicator not in content, f"SQL error leaked in {endpoint} with payload {payload}"
 
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     # Endpoints might not exist in test environment
                     pass
 

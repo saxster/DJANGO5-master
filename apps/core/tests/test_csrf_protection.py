@@ -217,7 +217,7 @@ class CSRFIntegrationTest(TestCase):
         try:
             from apps.core.xss_protection import CSRFHeaderMiddleware
             middleware = CSRFHeaderMiddleware()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Middleware initialization should not fail: {e}")
 
     def test_security_headers_comprehensive_check(self):

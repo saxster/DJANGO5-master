@@ -138,7 +138,7 @@ class TestAtomicJSONFieldUpdates(TransactionTestCase):
                     field_name='other_info',
                     update_func=increment_counter
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [
@@ -189,7 +189,7 @@ class TestAtomicJSONFieldUpdates(TransactionTestCase):
                     array_key='events',
                     item={'worker': worker_id, 'timestamp': str(timezone.now())}
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [
@@ -267,7 +267,7 @@ class TestAtomicJSONFieldUpdates(TransactionTestCase):
                     array_key='ticket_history',
                     item=history_item
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [

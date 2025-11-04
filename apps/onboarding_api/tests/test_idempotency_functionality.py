@@ -353,7 +353,7 @@ class ConcurrentAccessTest(TransactionTestCase):
                     unique_fields=['bucode', 'parent']
                 )
                 return obj, was_created
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 return None, str(e)
 
         # Run concurrent operations

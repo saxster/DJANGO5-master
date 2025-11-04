@@ -1194,8 +1194,10 @@ def generate_wellness_analytics_reports():
         reports_generated = []
 
         # Generate reports for each tenant
+        # Performance: Prefetch tenant users to avoid N+1 queries in generate_tenant_wellness_report
         from apps.tenants.models import Tenant
-        for tenant in Tenant.objects.all():
+        tenants = Tenant.objects.prefetch_related('people_set').all()
+        for tenant in tenants:
             try:
                 report = generate_tenant_wellness_report(tenant)
                 reports_generated.append(report)

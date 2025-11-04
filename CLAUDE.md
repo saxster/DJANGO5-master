@@ -72,6 +72,7 @@ python manage.py init_intelliwiz default                # Initialize
 
 ## Code quality
 python scripts/validate_code_quality.py --verbose
+python scripts/check_file_sizes.py --verbose              # Check file size limits
 
 ## Schedule validation
 python manage.py validate_schedules --verbose
@@ -326,6 +327,8 @@ for user in People.objects.all():
 
 - **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
 - **[Query Optimization Architecture](docs/architecture/QUERY_OPTIMIZATION_ARCHITECTURE.md)** - N+1 detection vs optimization service, decision tree, performance patterns
+- **[Refactoring Patterns](docs/architecture/REFACTORING_PATTERNS.md)** - God file refactoring patterns with step-by-step guide and examples
+- **[Architecture Decision Records (ADRs)](docs/architecture/adr/)** - Documented architectural decisions with context and consequences
 - **Custom User Model** - Multi-model design (People, PeopleProfile, PeopleOrganizational)
 - **URL Structure** - Domain-driven organization with backward compatibility
 
@@ -398,12 +401,18 @@ for user in People.objects.all():
 
 ---
 
-**Last Updated**: November 1, 2025 (Configuration cleanup - INSTALLED_APPS consolidation, mentor removal, ml_training activation)
-**Previous Update**: October 29, 2025 (Documentation restructuring - 75% size reduction)
+**Last Updated**: November 4, 2025 (Phase 1 Documentation - File size validation, refactoring patterns, ADRs)
+**Previous Update**: November 1, 2025 (Configuration cleanup - INSTALLED_APPS consolidation, mentor removal, ml_training activation)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
 
-**Recent Changes (Nov 1, 2025)**:
+**Recent Changes (Nov 4, 2025)**:
+- ✅ File size validation script added (`scripts/check_file_sizes.py`)
+- ✅ Refactoring patterns documented (`docs/architecture/REFACTORING_PATTERNS.md`)
+- ✅ Architecture Decision Records created (5 ADRs covering file limits, dependencies, services, testing, exceptions)
+- ✅ Documentation indexed and linked in CLAUDE.md
+
+**Previous Changes (Nov 1, 2025)**:
 - ✅ INSTALLED_APPS consolidated to single source of truth in base.py (deleted installed_apps.py)
 - ✅ apps.ontology activated (was missing from runtime configuration)
 - ✅ apps.ml_training activated at `/ml-training/` (dataset management, labeling, active learning)

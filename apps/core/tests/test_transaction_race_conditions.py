@@ -44,7 +44,7 @@ class ConcurrentPeopleCreationTests(TransactionTestCase):
                     with lock:
                         results['success'].append(people.id)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results['failed'].append((person_num, str(e)))
 
@@ -133,7 +133,7 @@ from apps.client_onboarding.models import Bt as Client
                     with lock:
                         results['success'].append((thread_num, status))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results['failed'].append((thread_num, str(e)))
 
@@ -238,7 +238,7 @@ from apps.client_onboarding.models import Bt as Client
                         if approver_num == 0:
                             mock_send_email(permit.id)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 pass
 
         threads = []
@@ -321,7 +321,7 @@ from apps.client_onboarding.models import Bt as Client
             except LockAcquisitionError:
                 with lock_obj:
                     results['lock_failed'] += 1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock_obj:
                     results['errors'].append(str(e))
 
@@ -415,7 +415,7 @@ from apps.client_onboarding.models import Bt as Client
                     with lock:
                         results.append(('success', update_num))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results.append(('failed', update_num, str(e)))
 
@@ -530,7 +530,7 @@ from apps.client_onboarding.models import Bt as Client
                     with lock:
                         results.append(('success', permit_num, wom.id))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results.append(('failed', permit_num, str(e)))
 
@@ -620,7 +620,7 @@ from apps.client_onboarding.models import Bt as Client
                     with lock:
                         results.append(('success', thread_num))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results.append(('failed', thread_num, str(e)))
 

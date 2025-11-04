@@ -684,7 +684,7 @@ class KnowledgeVectorPipelineTestCase(TestCase):
             chunks = [{'text': 'test chunk'}]
             # The service should handle the new interface correctly
             self.assertTrue(True)  # If we get here, interface works
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Enhanced knowledge service failed to handle new interface: {str(e)}")
 
     def test_knowledge_search_with_embeddings(self):
@@ -953,7 +953,7 @@ class SecurityValidationTestSuite(TestCase):
             )
             # If we get here, logging structure is correct
             self.assertTrue(True)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Security audit logging failed: {str(e)}")
 
 

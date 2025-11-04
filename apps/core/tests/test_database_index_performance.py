@@ -159,7 +159,7 @@ class IndexPerformanceTestCase(TransactionTestCase):
                     client=bt,
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             print(f"Test data setup failed: {type(e).__name__}: {str(e)}")
 
     def test_status_filter_performance(self):
@@ -202,7 +202,7 @@ class IndexPerformanceTestCase(TransactionTestCase):
             query_count = len(connection.queries_log)
             self.assertEqual(query_count, 1, "Date range should use single query")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Date query test skipped: {type(e).__name__}")
 
     def test_json_containment_query_performance(self):
@@ -217,7 +217,7 @@ class IndexPerformanceTestCase(TransactionTestCase):
             query_count = len(connection.queries_log)
             self.assertEqual(query_count, 1, "JSON query should use GIN index")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"JSON query test skipped: {type(e).__name__}")
 
     def test_n_plus_one_prevention_with_indexes(self):
@@ -260,7 +260,7 @@ class IndexRecommendationServiceTestCase(TestCase):
             results = service.analyze_and_recommend()
             self.assertIn('recommendations', results)
             self.assertIn('statistics', results)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Recommendation analysis skipped: {type(e).__name__}")
 
 
@@ -324,7 +324,7 @@ class IndexAuditCommandTestCase(TestCase):
             results = auditor.audit_all_models(app_label='y_helpdesk')
             self.assertIn('findings', results)
             self.assertIn('stats', results)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Audit skipped: {type(e).__name__}")
 
 

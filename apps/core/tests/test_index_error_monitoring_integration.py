@@ -66,7 +66,7 @@ class IndexHealthDashboardIntegrationTestCase(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn('index_stats', response.context)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Dashboard test skipped: {type(e).__name__}")
 
     def test_index_health_api_returns_metrics(self):
@@ -83,7 +83,7 @@ class IndexHealthDashboardIntegrationTestCase(TestCase):
             self.assertIn('correlation_id', content)
             self.assertIn('timestamp', content)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"API test skipped: {type(e).__name__}")
 
 
@@ -119,7 +119,7 @@ class ErrorSanitizationDashboardIntegrationTestCase(TestCase):
 
             self.assertEqual(response.status_code, 200)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Dashboard test skipped: {type(e).__name__}")
 
     def test_correlation_id_lookup_works(self):
@@ -134,7 +134,7 @@ class ErrorSanitizationDashboardIntegrationTestCase(TestCase):
                 self.assertIn('correlation_id', content)
                 self.assertEqual(content['correlation_id'], test_correlation_id)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Lookup test skipped: {type(e).__name__}")
 
 
@@ -153,7 +153,7 @@ class ManagementCommandIntegrationTestCase(TestCase):
             self.assertIn('AUDIT', output.upper())
             self.assertIn('completed', output.lower())
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Command test skipped: {type(e).__name__}: {str(e)}")
 
     def test_audit_error_sanitization_command(self):
@@ -166,7 +166,7 @@ class ManagementCommandIntegrationTestCase(TestCase):
 
             self.assertIn('COMPLIANCE', output.upper())
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Command test skipped: {type(e).__name__}: {str(e)}")
 
 
@@ -220,7 +220,7 @@ class EndToEndMonitoringTestCase(TestCase):
             self.assertIn('stats', results)
             self.assertGreater(results['stats']['total_models'], 0)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.skipTest(f"Workflow test skipped: {type(e).__name__}")
 
     def test_error_detection_to_dashboard_workflow(self):

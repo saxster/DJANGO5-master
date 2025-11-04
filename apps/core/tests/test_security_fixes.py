@@ -741,7 +741,7 @@ class SecretValidationIntegrationTest(TestCase):
             try:
                 result = validator(secret_name, valid_value)
                 self.assertEqual(result, valid_value)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 self.fail(f"Production-grade {secret_name} should be valid: {e}")
 
             # Invalid values should fail
@@ -788,7 +788,7 @@ class SecretValidationIntegrationTest(TestCase):
             else:
                 try:
                     test_func()
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     self.fail(f"Rule 4 test failed: {description} - {e}")
 
 

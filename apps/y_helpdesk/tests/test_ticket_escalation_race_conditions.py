@@ -116,7 +116,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
                     user=self.user
                 )
                 success_count[0] += 1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=escalate_ticket, args=(i,)) for i in range(5)]
@@ -160,7 +160,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
                 success_count[0] += 1
             except InvalidTicketTransitionError:
                 pass
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=transition_to_open, args=(i,)) for i in range(3)]
@@ -216,7 +216,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
                     ticket_id=ticket.id,
                     history_item=history_item
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=append_history, args=(i,)) for i in range(num_appends)]

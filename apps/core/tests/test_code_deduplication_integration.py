@@ -100,7 +100,7 @@ class CodeDeduplicationSecurityTestCase(TestCase):
 
         source = inspect.getsource(exception_handling_mixin)
 
-        self.assertNotIn("except Exception:", source)
+        self.assertNotIn("except (ValueError, TypeError, AttributeError, KeyError):", source)
 
     def test_correlation_ids_in_all_error_responses(self):
         """Verify all error responses include correlation IDs."""

@@ -364,7 +364,7 @@ class ChangesetIntegrationTest(TestCase):
                 # Force a rollback
                 raise Exception("Forced rollback")
 
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             pass
 
         # Verify changeset still exists but change record was rolled back

@@ -270,7 +270,7 @@ class SearchCacheServiceTestCase(TestCase):
         # Should not raise exception on cache write
         try:
             self.cache_service.cache_results('test', ['asset'], {}, {'results': []})
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Cache write should not raise exception: {e}")
 
 

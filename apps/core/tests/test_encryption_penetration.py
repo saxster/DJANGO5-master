@@ -657,7 +657,7 @@ class ConcurrentAttackTest(TestCase):
                             results.put(('expected_failure', thread_id, i))
                         else:
                             errors.put(('unexpected_failure', thread_id, i))
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.put(('exception', thread_id, str(e)))
 
         threads = []

@@ -462,7 +462,7 @@ class TestResponseContractValidation(TestCase):
         try:
             validated = VoiceSyncResponseModel.model_validate(data)
             self.assertIsNotNone(validated)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Response does not match VoiceSyncResponseModel contract: {e}")
 
     def test_device_list_response_matches_contract(self):
@@ -498,7 +498,7 @@ class TestResponseContractValidation(TestCase):
         try:
             validated = DeviceListResponseModel.model_validate(data)
             self.assertIsNotNone(validated)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Response does not match DeviceListResponseModel contract: {e}")
 
     def test_device_register_response_matches_contract(self):
@@ -543,7 +543,7 @@ class TestResponseContractValidation(TestCase):
         try:
             validated = DeviceRegisterResponseModel.model_validate(data)
             self.assertIsNotNone(validated)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Response does not match DeviceRegisterResponseModel contract: {e}")
 
 
@@ -565,7 +565,7 @@ class TestWebSocketContractValidation(TestCase):
             message = parse_websocket_message(raw_message)
             self.assertIsInstance(message, HeartbeatAckMessage)
             self.assertEqual(message.type, 'heartbeat_ack')
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"HeartbeatAckMessage failed to parse: {e}")
 
     def test_websocket_message_type_registry(self):

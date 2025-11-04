@@ -370,7 +370,7 @@ class CSRFComplianceValidationTest(TestCase):
                             if csrf_exempt_pattern.search(content):
                                 violations.append(relative_path)
 
-                    except Exception:
+                    except (ValueError, TypeError, AttributeError, KeyError):
                         pass
 
         if violations:

@@ -282,7 +282,7 @@ class TestErrorHandling:
         # Simulate an error that would be logged
         try:
             raise Exception("Test error for logging")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             utils.logger.error(f"Test error occurred: {str(e)}")
 
         # Verify logger was called

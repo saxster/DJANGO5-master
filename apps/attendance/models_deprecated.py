@@ -1,3 +1,22 @@
+"""
+DEPRECATED - DO NOT IMPORT FROM THIS FILE
+
+This file has been refactored into a modularized models/ package.
+
+All models have been moved to:
+- apps/attendance/models/people_eventlog.py - PeopleEventlog
+- apps/attendance/models/geofence.py - Geofence
+- apps/attendance/models/tracking.py - Tracking
+- apps/attendance/models/test_geo.py - TestGeo
+
+For backward compatibility, use:
+    from apps.attendance.models import PeopleEventlog, Geofence, etc.
+
+This file will be deleted after verification that all imports work correctly.
+
+Date Deprecated: 2025-11-04
+Replaced By: apps/attendance/models/ package
+"""
 from apps.peoples.models import BaseModel
 import uuid
 from apps.tenants.models import TenantAwareModel

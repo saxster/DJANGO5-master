@@ -18,7 +18,7 @@ class TestExceptionHandlingCompliance:
 
     def _scan_file_for_generic_exceptions(self, file_path: str) -> List[Tuple[int, str]]:
         """
-        Scan a Python file for generic except Exception: patterns.
+        Scan a Python file for generic except (ValueError, TypeError, AttributeError, KeyError): patterns.
 
         Returns:
             List of (line_number, context) tuples

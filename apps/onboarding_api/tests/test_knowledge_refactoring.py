@@ -233,7 +233,7 @@ class TestRefactoringCompliance:
         assert len(violations) == 0, f"Files exceeding 300 lines: {violations}"
 
     def test_no_generic_exception_handlers(self):
-        """Verify no generic 'except Exception:' patterns (Rule 11)"""
+        """Verify no generic 'except (ValueError, TypeError, AttributeError, KeyError):' patterns (Rule 11)"""
         import os
         import glob
         import re

@@ -1178,7 +1178,7 @@ class IntegrationTestSuite(TestCase):
             self.assertIsNotNone(idempotency_manager)
             self.assertIsNotNone(audit_logger)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Cross-feature compatibility issue: {str(e)}")
 
 

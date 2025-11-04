@@ -11,7 +11,7 @@ import json
 from typing import Optional, Dict, Any
 from django.core.cache import cache
 from django.conf import settings
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 __all__ = ['QueryCache']
 
@@ -248,7 +248,7 @@ class QueryCache:
         """Increment cache hit counter."""
         try:
             cache.incr(f"{QueryCache.CACHE_PREFIX}:stats:hits", delta=1, default=0)
-        except Exception:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS):
             pass  # Fail silently for metrics
 
     @staticmethod
@@ -256,7 +256,7 @@ class QueryCache:
         """Increment cache miss counter."""
         try:
             cache.incr(f"{QueryCache.CACHE_PREFIX}:stats:misses", delta=1, default=0)
-        except Exception:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS):
             pass  # Fail silently for metrics
 
     @staticmethod
@@ -265,7 +265,7 @@ class QueryCache:
         try:
             value = cache.get(f"{QueryCache.CACHE_PREFIX}:stats:{counter_name}")
             return value if value is not None else 0
-        except Exception:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS):
             return 0
 
     @staticmethod

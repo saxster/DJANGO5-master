@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 from apps.helpbot.models import HelpBotKnowledge, HelpBotAnalytics
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -437,7 +438,7 @@ class HelpBotKnowledgeService:
 
             return f"- **{field_name}**: {field_type}{prop_str}{help_text}"
 
-        except Exception:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS):
             return ""
 
     def _categorize_model(self, app_label: str) -> str:

@@ -573,7 +573,7 @@ class TestMiddlewareStackOrdering:
         # Execute JWT authentication
         try:
             await jwt_middleware(scope_base, AsyncMock(), send_mock)
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             pass  # May raise on invalid token
 
         # Verify user remains anonymous (auth failed)

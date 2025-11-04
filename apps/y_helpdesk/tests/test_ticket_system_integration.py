@@ -197,7 +197,7 @@ class TicketSystemIntegrationTestCase(TestCase):
                     self.ticket.id, self.assignee.id, context
                 )
                 return {'worker_id': worker_id, 'success': result.success}
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 return {'worker_id': worker_id, 'error': str(e)}
 
         # Run concurrent assignment operations

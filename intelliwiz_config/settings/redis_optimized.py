@@ -53,15 +53,14 @@ def get_redis_password(environment: str = 'development') -> str:
             "Set via environment variable or .env.redis.production file."
         )
 
-    # Development/Testing: Use safe default with warning
+    # Development/Testing: Require password even for dev (no hardcoded defaults)
     if not password:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(
-            f"REDIS_PASSWORD not set for {environment} environment. "
-            f"Using development default. DO NOT use in production!"
+        raise ValueError(
+            f"REDIS_PASSWORD must be set for {environment} environment. "
+            f"Set via environment variable or create .env.redis.{environment} file with REDIS_PASSWORD=your_password. "
+            f"Even development environments require explicit password configuration for security awareness. "
+            f"Example: Create .env.redis.development with REDIS_PASSWORD=dev_redis_pass_2024"
         )
-        password = 'dev_redis_password_2024'
 
     return password
 

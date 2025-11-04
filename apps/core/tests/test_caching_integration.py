@@ -213,7 +213,7 @@ class CachingIntegrationTestCase(TestCase):
             # Should show what would be warmed
             self.assertIn('DRY RUN MODE', output)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             # Command might not be fully implemented yet
             self.skipTest(f'Cache warming command not fully implemented: {e}')
 
@@ -240,7 +240,7 @@ class CachingIntegrationTestCase(TestCase):
             # Should clear the cache
             self.assertIsNone(cache.get('tenant:1:dropdown:people:test'))
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             # Command might encounter import issues in test environment
             self.skipTest(f'Invalidation command test skipped: {e}')
 
@@ -285,7 +285,7 @@ class CachePerformanceIntegrationTestCase(TestCase):
                     cache.set(cache_key, data, 300)
                     results.append({'worker': worker_id, 'cached': False, 'data': data})
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append(str(e))
 
         # Run concurrent requests
@@ -365,7 +365,7 @@ class CacheMonitoringIntegrationTestCase(TestCase):
             data = json.loads(response.content)
             self.assertEqual(data['status'], 'healthy')
 
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             # URL might not be configured yet
             self.skipTest('Cache health check endpoint not configured')
 
@@ -386,7 +386,7 @@ class CacheMonitoringIntegrationTestCase(TestCase):
             # May be 200 or 404 depending on URL configuration
             # self.assertIn(response.status_code, [200, 404])
 
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             # URL might not be configured yet
             self.skipTest('Cache metrics API endpoint not configured')
 
@@ -506,7 +506,7 @@ class CacheConsistencyTestCase(TestCase):
             self.assertIsNotNone(cached_data)
             self.assertEqual(len(cached_data['items']), 1000)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f'Failed to cache large data: {e}')
 
     def test_cache_survives_serialization(self):
@@ -564,7 +564,7 @@ class CacheStressTestCase(TestCase):
                 if cached_value is None:
                     errors.append(f'Cache miss for key {cache_key}')
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append(str(e))
 
         # Should have minimal errors (< 1%)

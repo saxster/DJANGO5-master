@@ -638,7 +638,7 @@ from apps.client_onboarding.models import Bt as Client
                         client=client
                     )
                     results.append(('success', permit_num, wom.id))
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 results.append(('failed', permit_num, str(e)))
 
         threads = []

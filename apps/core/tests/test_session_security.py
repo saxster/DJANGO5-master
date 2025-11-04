@@ -365,7 +365,7 @@ class SessionSecurityAttackTest(TestCase):
             if malicious_session_data:
                 # Additional checks would be needed in production
                 pass
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             # Session access denied - this is good
             pass
 

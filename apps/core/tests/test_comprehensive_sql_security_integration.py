@@ -252,7 +252,7 @@ def another_vulnerable():
                 for indicator in sql_indicators:
                     self.assertNotIn(indicator, content)
 
-            except Exception:
+            except (ValueError, TypeError, AttributeError, KeyError):
                 # Some endpoints might not exist in test environment
                 pass
 

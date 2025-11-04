@@ -521,7 +521,7 @@ class TestSchedulingServiceIntegration(TransactionTestCase):
 
         try:
             self.scheduling_service._validate_tour_configuration(config)
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             pass  # We're just testing metrics tracking
 
         updated_metrics = self.scheduling_service.get_service_metrics()

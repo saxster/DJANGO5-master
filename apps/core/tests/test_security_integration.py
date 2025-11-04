@@ -126,7 +126,7 @@ class SecurityStackIntegrationTest(TestCase):
             # If an error occurs, it should be handled securely
             try:
                 raise Exception("Test security integration error")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 response = ErrorHandler.handle_task_exception(
                     e,
                     task_name="session_security_test",
@@ -237,7 +237,7 @@ class SecurityStackIntegrationTest(TestCase):
                 # Test error handling doesn't expose attack payload
                 try:
                     raise ValueError(f"Attack payload: {payload}")
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     response = ErrorHandler.handle_task_exception(
                         e,
                         task_name="attack_simulation",
@@ -379,7 +379,7 @@ class SecurityStackIntegrationTest(TestCase):
         # Layer 4: Secure Error Handling
         try:
             raise Exception("Attack simulation with complex payload")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             error_response = ErrorHandler.handle_task_exception(
                 e,
                 task_name="multi_layer_test",
@@ -424,7 +424,7 @@ class SecurityStackIntegrationTest(TestCase):
         # Ensure stack trace exposure is fixed
         try:
             raise Exception("Regression test exception")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             response = ErrorHandler.handle_task_exception(
                 e,
                 task_name="regression_test"
@@ -512,7 +512,7 @@ class SecurityComplianceTest(TestCase):
         # A3: Sensitive Data Exposure (error handling)
         try:
             raise Exception("Sensitive database password: secret123")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             response = ErrorHandler.handle_task_exception(e, "compliance_test")
             response_str = json.dumps(response)
             self.assertNotIn("secret123", response_str)
@@ -537,7 +537,7 @@ class SecurityComplianceTest(TestCase):
 
         try:
             raise Exception("GDPR test exception")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             response = ErrorHandler.handle_task_exception(
                 e,
                 task_name="gdpr_test",

@@ -373,7 +373,7 @@ class CSRFExemptRemovalTestCase(TestCase):
                                         'file': file_path,
                                         'functions': matches
                                     })
-                        except Exception:
+                        except (ValueError, TypeError, AttributeError, KeyError):
                             pass  # Skip files that can't be read
 
         # Assert no violations found

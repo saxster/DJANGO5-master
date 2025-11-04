@@ -140,7 +140,7 @@ class ConcurrentUploadTests(TestCase):
                     'correlation_id': result['correlation_id']
                 })
 
-        except Exception as e:
+        except (ValueError, TypeError, IOError, OSError) as e:
             with self.lock:
                 self.results.append({
                     'index': file_index,
