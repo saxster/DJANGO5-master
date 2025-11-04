@@ -7,6 +7,7 @@ from .classification import TypeAssist, GeofenceMaster
 from .knowledge_source import KnowledgeSource
 from .ingestion import KnowledgeIngestionJob
 from .review import KnowledgeReview
+from .approved_location import ApprovedLocation
 
 __all__ = [
     'OnboardingMedia',
@@ -23,4 +24,5 @@ __all__ = [
     'KnowledgeSource',
     'KnowledgeIngestionJob',
     'KnowledgeReview',
+    'ApprovedLocation',
 ]
