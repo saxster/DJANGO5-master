@@ -29,7 +29,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import transaction, DatabaseError, IntegrityError
 from django.utils import timezone
 
-from apps.onboarding.models import ConversationSession
+from apps.core_onboarding.models import ConversationSession
 
 logger = logging.getLogger(__name__)
 

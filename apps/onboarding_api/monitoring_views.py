@@ -197,7 +197,7 @@ def get_resource_utilization(request):
     Returns database usage, cache usage, and other resource metrics
     """
     try:
-        from apps.onboarding.models import ConversationSession, LLMRecommendation, AIChangeSet
+        from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AIChangeSet
         from django.db import connection
 
         # Database statistics

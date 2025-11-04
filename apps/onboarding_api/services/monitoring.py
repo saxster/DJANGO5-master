@@ -20,7 +20,7 @@ from django.core.cache import cache
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
-from apps.onboarding.models import LLMRecommendation, ConversationSession
+from apps.core_onboarding.models import LLMRecommendation, ConversationSession
 from apps.onboarding_api.services.experiments import (
     Experiment,
     ExperimentAssignment,

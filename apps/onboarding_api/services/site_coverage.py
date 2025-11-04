@@ -22,7 +22,7 @@ from datetime import datetime, time, timedelta
 from typing import Dict, Any, List, Optional
 from decimal import Decimal
 
-from apps.onboarding.models import OnboardingSite, OnboardingZone
+from apps.site_onboarding.models import OnboardingSite, OnboardingZone
 
 logger = logging.getLogger(__name__)
 

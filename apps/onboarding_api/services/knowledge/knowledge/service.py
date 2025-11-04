@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from django.db.models import Q
 
-from apps.onboarding.models import AuthoritativeKnowledge
+from apps.core_onboarding.models import AuthoritativeKnowledge
 from ..base import VectorStore
 
 logger = logging.getLogger(__name__)

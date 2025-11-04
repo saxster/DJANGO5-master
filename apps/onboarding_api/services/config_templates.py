@@ -934,7 +934,8 @@ class ConfigurationTemplateService:
 
         try:
             from django.db import transaction
-            from apps.onboarding.models import Bt, Shift, TypeAssist
+            from apps.client_onboarding.models import Bt, Shift
+            from apps.core_onboarding.models import TypeAssist
 
             if not dry_run:
                 with transaction.atomic():

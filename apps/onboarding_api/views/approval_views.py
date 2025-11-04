@@ -21,7 +21,8 @@ from rest_framework.views import APIView
 
 from ..permissions import CanApproveAIRecommendations
 from ..serializers import RecommendationApprovalSerializer
-from apps.onboarding.models import ConversationSession, ChangeSetApproval
+from apps.core_onboarding.models import ConversationSession
+from apps.onboarding.models import ChangeSetApproval
 import logging
 
 logger = logging.getLogger(__name__)

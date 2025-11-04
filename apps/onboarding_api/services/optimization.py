@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 from apps.onboarding_api.services.learning import PreferenceProfile
 from apps.core.exceptions import LLMServiceException

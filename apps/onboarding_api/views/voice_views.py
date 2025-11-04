@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import ConversationSession
+from apps.core_onboarding.models import ConversationSession
 from ..services.llm import get_llm_service
 from ..utils.security import require_tenant_scope
 import logging

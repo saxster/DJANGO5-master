@@ -15,7 +15,7 @@ from typing import Dict, Any, List
 from django.core.cache import cache
 from django.utils import timezone
 
-from apps.onboarding.models import ConversationSession, LLMRecommendation, AIChangeSet
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AIChangeSet
 from apps.onboarding_api.services.llm import get_llm_service
 from apps.onboarding_api.services.knowledge import get_knowledge_service
 

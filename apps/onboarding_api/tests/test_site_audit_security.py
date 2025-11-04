@@ -381,7 +381,7 @@ class FileUploadSecurityTests(TransactionTestCase):
             # Should either reject or sanitize filename
             # Verify no traversal sequences in stored path if accepted
             if response.status_code == status.HTTP_201_CREATED:
-                from apps.onboarding.models import SitePhoto
+                from apps.site_onboarding.models import SitePhoto
                 photo_record = SitePhoto.objects.filter(site=self.site).first()
                 if photo_record:
                     self.assertNotIn('..', str(photo_record.image.name))

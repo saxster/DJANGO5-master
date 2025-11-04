@@ -27,7 +27,7 @@ from django.db import DatabaseError, IntegrityError
 from django.db.models import Count, Avg, Q
 from django.utils import timezone
 
-from apps.onboarding.models import ConversationSession
+from apps.core_onboarding.models import ConversationSession
 from apps.onboarding_api.services.funnel_analytics import get_funnel_analytics_service
 from apps.onboarding_api.services.session_recovery import get_session_recovery_service
 from apps.onboarding_api.services.error_recovery import get_error_recovery_service

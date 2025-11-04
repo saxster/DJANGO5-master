@@ -7,7 +7,8 @@ for comprehensive testing of all onboarding functionality.
 import pytest
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
-from apps.onboarding.models import Bt, ConversationSession, AuthoritativeKnowledge
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import ConversationSession, AuthoritativeKnowledge
 
 
 User = get_user_model()

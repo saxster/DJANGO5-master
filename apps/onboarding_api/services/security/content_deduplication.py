@@ -26,7 +26,7 @@ class ContentDeduplicator:
             content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
 
         try:
-            from apps.onboarding.models import AuthoritativeKnowledge
+            from apps.core_onboarding.models import AuthoritativeKnowledge
 
             existing_docs = AuthoritativeKnowledge.objects.filter(
                 doc_checksum=content_hash,
@@ -64,7 +64,7 @@ class ContentDeduplicator:
     def check_duplicate_with_versioning(self, content_hash: str, document_info: Dict[str, Any]) -> Dict[str, Any]:
         """Check for duplicates considering version bumps"""
         try:
-            from apps.onboarding.models import AuthoritativeKnowledge
+            from apps.core_onboarding.models import AuthoritativeKnowledge
 
             dedup_result = {
                 'is_duplicate': False,
@@ -141,7 +141,7 @@ class ContentDeduplicator:
     def retire_superseded_versions(self, document_info: Dict[str, Any]) -> List[str]:
         """Retire superseded versions when a new version is ingested"""
         try:
-            from apps.onboarding.models import AuthoritativeKnowledge
+            from apps.core_onboarding.models import AuthoritativeKnowledge
 
             older_versions = AuthoritativeKnowledge.objects.filter(
                 source_organization=document_info.get('source_organization'),
@@ -171,7 +171,7 @@ class ContentDeduplicator:
     def _find_similar_content(self, content: str, content_hash: str) -> List[Dict[str, Any]]:
         """Find similar content using fuzzy matching"""
         try:
-            from apps.onboarding.models import AuthoritativeKnowledge
+            from apps.core_onboarding.models import AuthoritativeKnowledge
 
             similar_candidates = AuthoritativeKnowledge.objects.filter(
                 is_current=True

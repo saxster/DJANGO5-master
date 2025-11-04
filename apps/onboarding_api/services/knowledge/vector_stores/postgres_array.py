@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 
-from apps.onboarding.models import AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+from apps.core_onboarding.models import AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
 from ..base import VectorStore
 
 logger = logging.getLogger(__name__)

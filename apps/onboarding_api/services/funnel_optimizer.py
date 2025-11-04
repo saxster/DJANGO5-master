@@ -22,7 +22,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError
 
-from apps.onboarding.models import ConversationSession
+from apps.core_onboarding.models import ConversationSession
 
 logger = logging.getLogger(__name__)
 

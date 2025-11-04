@@ -417,7 +417,7 @@ class EmbeddingQueueManager:
                 return True
 
             # Create or update ingestion job
-            from apps.onboarding.models import KnowledgeSource
+            from apps.core_onboarding.models import KnowledgeSource
 
             # Get or create a source for manual queuing
             manual_source, created = KnowledgeSource.objects.get_or_create(

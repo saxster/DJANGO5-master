@@ -17,7 +17,7 @@ from django.db.models.functions import TruncHour, TruncDate
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError, IntegrityError
 
-from apps.onboarding.models import ConversationSession, LLMRecommendation
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation
 from apps.onboarding_api.services.llm import LLMServiceException
 
 logger = logging.getLogger(__name__)
@@ -989,7 +989,7 @@ def track_funnel_event(session_id: str, event_type: str, metadata: Dict[str, Any
         metadata: Optional event metadata
     """
     try:
-        from apps.onboarding.models import ConversationSession
+        from apps.core_onboarding.models import ConversationSession
 
         session = ConversationSession.objects.get(session_id=session_id)
 

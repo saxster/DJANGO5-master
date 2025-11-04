@@ -7,7 +7,7 @@ from typing import Dict
 from django.conf import settings
 
 # Sprint 3: KnowledgeSource model now implemented ✅
-from apps.onboarding.models import KnowledgeSource
+from apps.core_onboarding.models import KnowledgeSource
 
 from ..exceptions import SecurityError, DocumentFetchError
 from ..security.url_validator import URLValidator

@@ -14,7 +14,7 @@ from apps.onboarding_api.permissions import (
     CanManageKnowledgeBase,
     CanEscalateConversations,
 )
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 class UserCapabilitiesTest(TestCase):

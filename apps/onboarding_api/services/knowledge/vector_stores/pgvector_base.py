@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError, connection
 
-from apps.onboarding.models import AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+from apps.core_onboarding.models import AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
 from ..base import VectorStore
 
 logger = logging.getLogger(__name__)

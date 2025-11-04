@@ -13,7 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from apps.onboarding.models import AuthoritativeKnowledge
+from apps.core_onboarding.models import AuthoritativeKnowledge
 from ..serializers import AuthoritativeKnowledgeSerializer
 import logging
 
