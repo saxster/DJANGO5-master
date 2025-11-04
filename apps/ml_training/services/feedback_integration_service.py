@@ -20,6 +20,7 @@ from django.utils import timezone
 from ..models import TrainingDataset, TrainingExample, LabelingTask
 from apps.activity.models import MeterReading, VehicleEntry
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
