@@ -267,12 +267,12 @@ app.conf.beat_schedule = {
     },
 
     # Email Generated Reports
-    # Runs: Every 27 minutes (CHANGED: better distribution)
-    # Rationale: Prime number for even distribution
-    # NOTE: Consider changing to hourly if load is high
+    # Runs: Every ~27 minutes at :02, :29, :56 (offset from :27 collision)
+    # Rationale: Prime number distribution, avoids DB pool contention with create_job
+    # FIXED (CELERY-001): Offset from :27 to prevent collision with create_job task
     "send_report_generated_on_mail": {  # FIXED: typo in key name
         'task': 'send_generated_report_on_mail',
-        'schedule': crontab(minute='*/27'),
+        'schedule': crontab(minute='2,29,56'),  # Every ~27min, offset from :27
         'options': {
             'expires': 1500,  # 25 minutes (buffer before next run)
             'queue': 'email',
@@ -464,19 +464,9 @@ app.conf.beat_schedule = {
     # Sequential execution: outcome tracking → metrics → statistical → performance
     # ============================================================================
 
-    # Track conflict prediction outcomes (prerequisite for metrics)
-    # Runs: Daily at 1:00 AM UTC
-    # Rationale: Populates outcome fields before metrics computation
-    "ml_track_conflict_outcomes": {
-        'task': 'ml.track_conflict_prediction_outcomes',
-        'schedule': crontab(minute='0', hour='1'),  # Daily 1:00 AM
-        'options': {
-            'expires': 3600,
-            'queue': 'maintenance',
-            'soft_time_limit': 480,  # 8 minutes
-            'time_limit': 600,       # 10 minutes
-        }
-    },
+    # REMOVED (INFRA-001): Duplicate task definition
+    # This was identical to ml_track_conflict_prediction_outcomes (line 369)
+    # The 6-hour version (line 369) is kept as it provides more frequent tracking
 
     # Compute daily performance metrics
     # Runs: Daily at 2:00 AM UTC
