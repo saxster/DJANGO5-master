@@ -20,7 +20,9 @@ Related Bounded Contexts:
 # Client Business Models
 from .business_unit import Bt, bu_defaults
 from .scheduling import Shift, shiftdata_json
-from .infrastructure import Device, Subscription, DownTimeHistory
+from .device import Device
+from .subscription import Subscription
+from .downtime import DownTimeHistory
 
 __all__ = [
     # Core Business Models

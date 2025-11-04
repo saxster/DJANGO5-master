@@ -29,49 +29,9 @@ import uuid
 
 from apps.tenants.models import TenantAwareModel
 from apps.peoples.models import BaseModel
-from ..managers import BtManager
-
-
-def bu_defaults():
-    """Default preferences for business units with comprehensive settings."""
-    return {
-        "mobilecapability": [],
-        "validimei": "",
-        "webcapability": [],
-        "portletcapability": [],
-        "validip": "",
-        "reliveronpeoplecount": 0,
-        "reportcapability": [],
-        "usereliver": False,
-        "pvideolength": 10,
-        "guardstrenth": 0,
-        "malestrength": 0,
-        "femalestrength": 0,
-        "siteclosetime": "",
-        "tag": "",
-        "siteopentime": "",
-        "nearbyemergencycontacts": [],
-        "maxadmins": 5,
-        "address": "",
-        "address2": None,
-        "permissibledistance": 0,
-        "controlroom": [],
-        "ispermitneeded": False,
-        "no_of_devices_allowed": 0,
-        "no_of_users_allowed_mob": 0,
-        "no_of_users_allowed_web": 0,
-        "no_of_users_allowed_both": 0,
-        "devices_currently_added": 0,
-        "startdate": "",
-        "enddate": "",
-        "onstop": "",
-        "onstopmessage": "",
-        "clienttimezone": "",
-        "billingtype": "",
-        "total_people_count": 0,
-        "contract_designcount": {},
-        "posted_people": [],
-    }
+from ...managers import BtManager
+from .bt_helpers import bu_defaults
+from .bt_cache import clear_bu_cache_for_instance
 
 
 class Bt(BaseModel, TenantAwareModel):
@@ -239,11 +199,6 @@ class Bt(BaseModel, TenantAwareModel):
 
         Returns:
             Bt: The CLIENT business unit, or None if not found
-
-        Examples:
-            >>> site = Bt.objects.get(identifier__tacode='SITE', pk=123)
-            >>> client = site.get_client_parent()
-            >>> assert client.identifier.tacode == 'CLIENT'
         """
         if self.identifier and self.identifier.tacode == 'CLIENT':
             return self
@@ -273,52 +228,10 @@ class Bt(BaseModel, TenantAwareModel):
             self.butype = utils.get_none_typeassist()
 
         # Clear cache after save
-        self._clear_bu_cache(old_parent_id)
+        clear_bu_cache_for_instance(self, old_parent_id)
 
     def delete(self, *args, **kwargs):
         """Enhanced delete with cache cleanup."""
         parent_id = self.parent_id
         super().delete(*args, **kwargs)
-        self._clear_bu_cache(parent_id)
-
-    def _clear_bu_cache(self, old_parent_id=None):
-        """Clear BU tree cache for affected clients."""
-        from django.core.cache import cache
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        if self.parent_id:
-            self._clear_cache_for_bu_tree(self.parent_id)
-
-        if old_parent_id and old_parent_id != self.parent_id:
-            self._clear_cache_for_bu_tree(old_parent_id)
-
-        self._clear_cache_for_bu_tree(self.id)
-        logger.info(f"Cache cleared for BU {self.bucode} (ID: {self.id})")
-
-    def _clear_cache_for_bu_tree(self, bu_id):
-        """Clear all cache keys related to a BU tree."""
-        from django.core.cache import cache
-
-        cache_patterns = [
-            f"bulist_{bu_id}_True_True_array",
-            f"bulist_{bu_id}_True_True_text",
-            f"bulist_{bu_id}_True_True_jsonb",
-            f"bulist_{bu_id}_True_False_array",
-            f"bulist_{bu_id}_True_False_text",
-            f"bulist_{bu_id}_True_False_jsonb",
-            f"bulist_{bu_id}_False_True_array",
-            f"bulist_{bu_id}_False_True_text",
-            f"bulist_{bu_id}_False_True_jsonb",
-            f"bulist_{bu_id}_False_False_array",
-            f"bulist_{bu_id}_False_False_text",
-            f"bulist_{bu_id}_False_False_jsonb",
-            f"bulist_idnf_{bu_id}_True_True",
-            f"bulist_idnf_{bu_id}_True_False",
-            f"bulist_idnf_{bu_id}_False_True",
-            f"bulist_idnf_{bu_id}_False_False",
-        ]
-
-        for pattern in cache_patterns:
-            cache.delete(pattern)
+        clear_bu_cache_for_instance(self, parent_id)

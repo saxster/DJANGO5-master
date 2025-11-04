@@ -9,7 +9,8 @@ from .checkpoint import Checkpoint
 from .coverage_plan import CoveragePlan
 from .meter_point import MeterPoint
 from .site import OnboardingSite
-from .site_media import SitePhoto, SiteVideo
+from .site_photo import SitePhoto
+from .site_video import SiteVideo
 from .sop import SOP
 from .zone import OnboardingZone
 

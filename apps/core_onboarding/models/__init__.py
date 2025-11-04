@@ -1,7 +1,9 @@
 from .media import OnboardingMedia
 from .observation import OnboardingObservation
 from .conversation import ConversationSession
-from .knowledge import LLMRecommendation, AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+from .llm_recommendation import LLMRecommendation
+from .authoritative_knowledge import AuthoritativeKnowledge
+from .knowledge_chunk import AuthoritativeKnowledgeChunk
 from .changeset import AIChangeSet, AIChangeRecord, ChangeSetApproval
 from .classification import TypeAssist, GeofenceMaster
 from .knowledge_source import KnowledgeSource
