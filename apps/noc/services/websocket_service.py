@@ -11,7 +11,9 @@ from typing import Dict, Any, Optional
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.utils import timezone
+from django.db import DatabaseError, IntegrityError
 from apps.noc.models import NOCAlertEvent, NOCIncident
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 __all__ = ['NOCWebSocketService']
 
@@ -103,7 +105,7 @@ class NOCWebSocketService:
                     broadcast_success=False,
                     error_message=str(e)
                 )
-            except Exception:
+            except DATABASE_EXCEPTIONS:
                 pass  # Best effort logging
 
     @staticmethod

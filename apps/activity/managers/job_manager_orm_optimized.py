@@ -23,6 +23,7 @@ from django.core.cache import cache
 from apps.peoples.models import Pgbelonging
 from apps.core.queries import TreeTraversal
 from apps.core.cache_manager import CacheManager, invalidate_user_cache
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 
 __all__ = ['JobneedManagerORMOptimized']
@@ -152,7 +153,7 @@ class JobneedManagerORMOptimized:
             try:
                 if job.get('plandatetime') is not None and job.get('ctzoffset') is not None:
                     cplandatetime = job['plandatetime'] + timedelta(minutes=job['ctzoffset'])
-            except Exception:
+            except DATABASE_EXCEPTIONS:
                 cplandatetime = None
             if cplandatetime:
                 job['cplandatetime'] = cplandatetime.strftime('%d-%b-%Y %H:%M:%S')

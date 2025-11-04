@@ -18,6 +18,7 @@ from apps.journal.models import JournalPrivacySettings
 from apps.wellness.models import WellnessUserProgress
 from apps.journal.permissions import JournalWellnessPermissions, setup_permissions_for_tenant
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -431,7 +432,7 @@ class Command(BaseCommand):
                 try:
                     url = reverse(endpoint_name)
                     resolved.append({'name': endpoint_name, 'url': url})
-                except Exception:
+                except DATABASE_EXCEPTIONS:
                     invalid.append(endpoint_name)
 
             return {

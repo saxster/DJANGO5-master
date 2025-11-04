@@ -29,6 +29,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from apps.core.observability.tracing import TracingService
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
 
 logger = logging.getLogger('monitoring.celery_tracing')
 
@@ -200,7 +201,7 @@ def end_otel_span_on_task_complete(sender=None, task_id=None, task=None,
         try:
             if hasattr(task.request, '_otel_span'):
                 task.request._otel_span.end()
-        except Exception:
+        except NETWORK_EXCEPTIONS:
             pass
 
 

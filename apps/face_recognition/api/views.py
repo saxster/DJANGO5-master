@@ -26,6 +26,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
 
 from apps.face_recognition.models import FaceEmbedding, BiometricConsentLog
 from apps.face_recognition.services import (
@@ -219,7 +220,7 @@ class FaceEnrollmentView(APIView):
             try:
                 if 'image_path' in locals():
                     default_storage.delete(image_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -371,7 +372,7 @@ class FaceVerificationView(APIView):
             try:
                 if 'image_path' in locals():
                     default_storage.delete(image_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -440,7 +441,7 @@ class FaceQualityView(APIView):
             try:
                 if 'image_path' in locals():
                     default_storage.delete(image_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -520,7 +521,7 @@ class FaceLivenessView(APIView):
             try:
                 if 'image_path' in locals():
                     default_storage.delete(image_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(

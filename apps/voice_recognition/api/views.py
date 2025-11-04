@@ -26,6 +26,7 @@ from django.core.files.base import ContentFile
 from django.db import DatabaseError, IntegrityError
 from django.utils import timezone
 from datetime import timedelta
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
 
 from apps.voice_recognition.models import VoiceEmbedding
 from apps.face_recognition.models import BiometricConsentLog  # Shared consent model
@@ -179,7 +180,7 @@ class VoiceEnrollmentView(APIView):
             try:
                 if 'audio_path' in locals():
                     default_storage.delete(audio_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -303,7 +304,7 @@ class VoiceVerificationView(APIView):
             try:
                 if 'audio_path' in locals():
                     default_storage.delete(audio_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -366,7 +367,7 @@ class VoiceQualityView(APIView):
             try:
                 if 'audio_path' in locals():
                     default_storage.delete(audio_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(

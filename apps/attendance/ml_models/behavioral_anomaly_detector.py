@@ -25,6 +25,7 @@ from apps.attendance.models.user_behavior_profile import UserBehaviorProfile
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 import logging
 import statistics
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class BehavioralAnomalyDetector:
                 try:
                     lon, lat = GeospatialService.extract_coordinates(record.startlocation)
                     locations.append({'lat': lat, 'lng': lon})
-                except Exception:
+                except (PARSING_EXCEPTIONS, ValueError):
                     pass
 
             if record.geofence_id:

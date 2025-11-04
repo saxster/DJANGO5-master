@@ -16,6 +16,7 @@ import logging
 from typing import Optional
 from django.utils import timezone
 from django.db import transaction, DatabaseError, IntegrityError
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger('monitoring.anomaly_feedback')
 
@@ -182,7 +183,7 @@ class AnomalyFeedbackService:
                 'adjustments': adjustments_made
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error auto-tuning thresholds: {e}", exc_info=True)
             return {
                 'success': False,
@@ -205,5 +206,5 @@ class AnomalyFeedbackService:
         try:
             feedback = AnomalyFeedback.objects.filter(metric_name=metric_name).first()
             return feedback.threshold_adjustment if feedback else 0.0
-        except Exception:
+        except DATABASE_EXCEPTIONS:
             return 0.0

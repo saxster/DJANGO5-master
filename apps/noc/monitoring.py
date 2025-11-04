@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 from apps.core.decorators import require_monitoring_api_key
 from django.core.cache import cache
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
 
 logger = logging.getLogger('noc.monitoring')
 
@@ -159,7 +160,7 @@ def _check_celery():
         from celery import current_app
         stats = current_app.control.inspect().stats()
         return {'healthy': stats is not None, 'message': 'Celery operational'}
-    except Exception:
+    except (ImportError, NETWORK_EXCEPTIONS, RuntimeError):
         return {'healthy': False, 'message': 'Celery unavailable'}
 
 

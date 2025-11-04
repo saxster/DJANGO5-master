@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional, List
 from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework.response import Response
 from collections import OrderedDict
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 
 class SearchOffsetPagination(PageNumberPagination):
@@ -194,7 +195,7 @@ class HybridSearchPagination:
             # Try to get exact count up to threshold
             count = queryset[:self.MAX_COUNT_ESTIMATE + 1].count()
             return min(count, self.MAX_COUNT_ESTIMATE)
-        except Exception:
+        except DATABASE_EXCEPTIONS:
             # Fallback to approximate count
             return self.MAX_COUNT_ESTIMATE
 

@@ -16,6 +16,7 @@ from datetime import timedelta
 from apps.attendance.models import PeopleEventlog
 from apps.attendance.services.geospatial_service import GeospatialService
 import logging
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ class LocationAnomalyDetector:
         try:
             lon, lat = GeospatialService.extract_coordinates(record.startlocation)
             return (abs(lat) < 0.001 and abs(lon) < 0.001)
-        except Exception:
+        except (PARSING_EXCEPTIONS, ValueError):
             return False
 
     def _check_gps_accuracy(self, record) -> Optional[Dict[str, Any]]:

@@ -29,6 +29,7 @@ from django.db import models
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ValidationError
 from typing import Any, Dict, Optional
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +194,7 @@ class EncryptedJSONField(models.TextField):
                 decrypted_dict = BiometricEncryptionService.decrypt_biometric_data(value)
                 json_string = decrypted_dict.get('data', '{}')
                 return json.loads(json_string, cls=self.decoder)
-            except Exception:
+            except PARSING_EXCEPTIONS:
                 # Not encrypted, try plain JSON deserialization
                 try:
                     return json.loads(value, cls=self.decoder)

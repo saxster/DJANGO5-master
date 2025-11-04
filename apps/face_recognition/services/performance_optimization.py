@@ -18,6 +18,7 @@ from django.core.cache import cache
 from django.db import connection
 from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +243,7 @@ class BiometricPerformanceOptimizer:
                 # Try to get cache stats (Redis-specific)
                 cache_info = cache._cache.get_stats() if hasattr(cache, '_cache') else {}
                 cache_stats = cache_info
-            except Exception:
+            except PARSING_EXCEPTIONS:
                 cache_stats = {'note': 'Cache stats not available'}
 
             return {

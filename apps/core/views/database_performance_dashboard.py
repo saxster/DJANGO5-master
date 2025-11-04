@@ -42,6 +42,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 
 from apps.core.models.query_performance import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
     QueryPerformanceSnapshot,
     SlowQueryAlert,
     QueryPattern
@@ -302,7 +303,7 @@ class PerformanceMetricsAPI(View):
                     'active_queries': row[1] if row else 0,
                     'total_connections': row[2] if row else 0,
                 }
-        except Exception:
+        except DATABASE_EXCEPTIONS:
             return {
                 'database_size': 'Unknown',
                 'active_queries': 0,

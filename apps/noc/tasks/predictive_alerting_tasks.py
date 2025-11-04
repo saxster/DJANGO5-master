@@ -42,6 +42,7 @@ from apps.core.tasks.base import IdempotentTask
 from django.utils import timezone
 from django.db.models import Q
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger('noc.predictive_tasks')
 
@@ -302,7 +303,7 @@ class ValidatePredictiveAlertsTask(IdempotentTask):
                 device = Device.objects.get(id=prediction.entity_id, tenant=prediction.tenant)
                 # Check if device is currently offline
                 return not device.is_online
-            except Exception:
+            except DATABASE_EXCEPTIONS:
                 return False
 
         elif prediction.prediction_type == 'staffing_gap':

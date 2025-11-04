@@ -33,6 +33,7 @@ from django.db.models import Q, F
 from django.utils import timezone
 
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -568,7 +569,7 @@ class UnifiedSemanticSearchService:
                         recency_boost = 0.05
                     else:
                         recency_boost = 0.0
-                except Exception:
+                except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS):
                     recency_boost = 0.0
             else:
                 recency_boost = 0.0

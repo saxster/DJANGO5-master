@@ -28,6 +28,7 @@ from django.core.exceptions import ValidationError
 from django.http import StreamingHttpResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 logger = logging.getLogger("django.reports")
 
@@ -374,8 +375,9 @@ class StreamingPDFService:
             html = HTML(string=error_html)
             return html.write_pdf()
 
-        except Exception:
+        except (ImportError, PARSING_EXCEPTIONS, OSError, RuntimeError):
             # Ultimate fallback - return minimal PDF error indicator
+            # Catches: weasyprint import errors, HTML parsing, file I/O, rendering errors
             return b'%PDF-1.4\n%Error generating report\n%%EOF'
 
 
