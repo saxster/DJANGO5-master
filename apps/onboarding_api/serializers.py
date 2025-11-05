@@ -5,6 +5,21 @@ from rest_framework import serializers
 from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
 from apps.core_onboarding.models import UserFeedbackLearning
 
+__all__ = [
+    'ConversationStartSerializer',
+    'ConversationSessionSerializer',
+    'ConversationProcessSerializer',
+    'LLMRecommendationSerializer',
+    'RecommendationApprovalSerializer',
+    'ConversationStatusSerializer',
+    'TaskStatusSerializer',
+    'AuthoritativeKnowledgeSerializer',
+    'UserFeedbackSerializer',
+    'VoiceInputSerializer',
+    'VoiceTranscriptionResponseSerializer',
+    'VoiceCapabilityResponseSerializer',
+]
+
 
 class ConversationStartSerializer(serializers.Serializer):
     """Serializer for starting a new conversation session"""

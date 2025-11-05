@@ -18,7 +18,7 @@ from django.contrib.gis.geos import Point
 from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import FileValidationException
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
-from apps.core.models.image_metadata import (
+from apps.core.models import (
     ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
 )
 

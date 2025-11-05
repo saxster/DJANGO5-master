@@ -36,13 +36,11 @@ from .enhanced_base_model import (
 from .cron_job_definition import CronJobDefinition
 from .cron_job_execution import CronJobExecution
 
-# Image metadata and EXIF
-from .image_metadata import (
-    ImageMetadata,
-    PhotoAuthenticityLog,
-    CameraFingerprint,
-    ImageQualityAssessment
-)
+# Image metadata and EXIF (refactored into 4 modules)
+from .image_metadata_core import ImageMetadata
+from .photo_authenticity import PhotoAuthenticityLog
+from .camera_fingerprint import CameraFingerprint
+from .image_quality import ImageQualityAssessment
 
 # Security and audit models
 from .security_models import (
@@ -182,6 +180,9 @@ from .encrypted_secret import EncryptedSecret
 from .user_scope import UserScope
 from .dashboard_saved_view import DashboardSavedView
 
+# Quality metrics tracking (Phase 7)
+from .quality_metrics import QualityMetric
+
 # Explicit __all__ for clarity and documentation
 __all__ = [
     # Enhanced base models and mixins
@@ -286,4 +287,6 @@ __all__ = [
     # User scope (Command Center - Phase 1)
     "UserScope",
     "DashboardSavedView",
+    # Quality metrics (Phase 7)
+    "QualityMetric",
 ]

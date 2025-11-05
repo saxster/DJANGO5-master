@@ -6,7 +6,19 @@ Views for configuring site reports, incident reports, and work permit report tem
 Migrated from apps/reports/views.py
 Date: 2025-09-30
 """
-from .base import *
+from .base import (
+    rp,
+    render,
+    json,
+    ValidationError,
+    utils,
+    log,
+    debug_log,
+    IntegrationException,
+    MasterReportForm,
+    LoginRequiredMixin,
+    View,
+)
 
 
 class ConfigSiteReportTemplate(LoginRequiredMixin, View):

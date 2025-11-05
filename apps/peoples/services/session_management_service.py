@@ -25,7 +25,7 @@ from django.utils import timezone
 from django.db.models import Q, Count
 from django.contrib.sessions.models import Session
 
-from apps.peoples.models.session_models import UserSession, SessionActivityLog
+from apps.peoples.models import UserSession, SessionActivityLog
 from apps.core.services import BaseService, monitor_service_performance
 from apps.ontology.decorators import ontology
 

@@ -132,6 +132,49 @@ class APIVisitor(OntologyVisitor):
 
         return ""
 
+    def _process_class_attribute(self, attr_name, item, info):
+        """Process a single class attribute and update info dict."""
+        if attr_name == "permission_classes":
+            info["permissions"] = self._extract_list_value(item.value)
+        elif attr_name == "authentication_classes":
+            info["authentication"] = self._extract_list_value(item.value)
+        elif attr_name == "throttle_classes":
+            info["throttle"] = self._extract_list_value(item.value)
+        elif attr_name == "http_method_names":
+            info["http_methods"] = self._extract_list_value(item.value)
+        elif attr_name == "queryset":
+            info["queryset"] = ast.unparse(item.value)
+        elif attr_name == "serializer_class":
+            info["serializer_class"] = ast.unparse(item.value)
+
+    def _extract_class_attributes(self, node, info):
+        """Extract class attributes for permissions, authentication, etc."""
+        for item in node.body:
+            if not isinstance(item, ast.Assign):
+                continue
+            for target in item.targets:
+                if isinstance(target, ast.Name):
+                    self._process_class_attribute(target.id, item, info)
+
+    def _process_method_definitions(self, node, info):
+        """Extract HTTP methods and action decorators."""
+        for item in node.body:
+            if not isinstance(item, ast.FunctionDef):
+                continue
+            method_name = item.name
+
+            # Check if this is an HTTP method handler
+            if method_name in ["get", "post", "put", "patch", "delete", "head", "options"]:
+                info["http_methods"].append(method_name.upper())
+
+            # Check for action decorators
+            for decorator in item.decorator_list:
+                decorator_name = self._get_decorator_name(decorator)
+                if "action" in decorator_name.lower():
+                    info["actions"].append(
+                        {"name": method_name, "decorator": decorator_name, "line": item.lineno}
+                    )
+
     def _extract_view_info(self, node: ast.ClassDef) -> Dict[str, Any]:
         """
         Extract view-specific information.
@@ -150,44 +193,50 @@ class APIVisitor(OntologyVisitor):
             "throttle": [],
         }
 
-        # Extract class attributes for permissions, authentication, etc.
-        for item in node.body:
-            if isinstance(item, ast.Assign):
-                for target in item.targets:
-                    if isinstance(target, ast.Name):
-                        attr_name = target.id
-
-                        if attr_name == "permission_classes":
-                            info["permissions"] = self._extract_list_value(item.value)
-                        elif attr_name == "authentication_classes":
-                            info["authentication"] = self._extract_list_value(item.value)
-                        elif attr_name == "throttle_classes":
-                            info["throttle"] = self._extract_list_value(item.value)
-                        elif attr_name == "http_method_names":
-                            info["http_methods"] = self._extract_list_value(item.value)
-                        elif attr_name == "queryset":
-                            info["queryset"] = ast.unparse(item.value)
-                        elif attr_name == "serializer_class":
-                            info["serializer_class"] = ast.unparse(item.value)
-
-        # Extract methods (HTTP methods and custom actions)
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef):
-                method_name = item.name
-
-                # Check if this is an HTTP method handler
-                if method_name in ["get", "post", "put", "patch", "delete", "head", "options"]:
-                    info["http_methods"].append(method_name.upper())
-
-                # Check for action decorators
-                for decorator in item.decorator_list:
-                    decorator_name = self._get_decorator_name(decorator)
-                    if "action" in decorator_name.lower():
-                        info["actions"].append(
-                            {"name": method_name, "decorator": decorator_name, "line": item.lineno}
-                        )
+        self._extract_class_attributes(node, info)
+        self._process_method_definitions(node, info)
 
         return info
+
+    def _extract_serializer_fields(self, node, info):
+        """Extract field definitions from serializer."""
+        for item in node.body:
+            if not isinstance(item, ast.Assign):
+                continue
+            for target in item.targets:
+                if isinstance(target, ast.Name):
+                    field_name = target.id
+                    if field_name.startswith("_"):
+                        continue
+                    if isinstance(item.value, ast.Call):
+                        field_type = self._get_name(item.value.func)
+                        if "Field" in field_type or "Serializer" in field_type:
+                            info["fields"].append(
+                                {
+                                    "name": field_name,
+                                    "type": field_type,
+                                    "line": item.lineno,
+                                    "required": self._extract_field_required(item.value),
+                                }
+                            )
+
+    def _extract_meta_class(self, node, info):
+        """Extract Meta class attributes from serializer."""
+        for item in node.body:
+            if isinstance(item, ast.ClassDef) and item.name == "Meta":
+                self._process_meta_attributes(item, info)
+
+    def _process_meta_attributes(self, meta_node, info):
+        """Process attributes in Meta class."""
+        for meta_item in meta_node.body:
+            if not isinstance(meta_item, ast.Assign):
+                continue
+            for target in meta_item.targets:
+                if isinstance(target, ast.Name):
+                    if target.id == "model":
+                        info["meta_model"] = ast.unparse(meta_item.value)
+                    elif target.id == "fields":
+                        info["meta_fields"] = ast.unparse(meta_item.value)
 
     def _extract_serializer_info(self, node: ast.ClassDef) -> Dict[str, Any]:
         """
@@ -201,42 +250,8 @@ class APIVisitor(OntologyVisitor):
         """
         info = {"fields": [], "meta_model": None, "meta_fields": None}
 
-        # Extract field definitions
-        for item in node.body:
-            if isinstance(item, ast.Assign):
-                for target in item.targets:
-                    if isinstance(target, ast.Name):
-                        field_name = target.id
-
-                        # Skip private attributes
-                        if field_name.startswith("_"):
-                            continue
-
-                        if isinstance(item.value, ast.Call):
-                            field_type = self._get_name(item.value.func)
-
-                            # Check if this looks like a serializer field
-                            if "Field" in field_type or "Serializer" in field_type:
-                                info["fields"].append(
-                                    {
-                                        "name": field_name,
-                                        "type": field_type,
-                                        "line": item.lineno,
-                                        "required": self._extract_field_required(item.value),
-                                    }
-                                )
-
-        # Extract Meta class
-        for item in node.body:
-            if isinstance(item, ast.ClassDef) and item.name == "Meta":
-                for meta_item in item.body:
-                    if isinstance(meta_item, ast.Assign):
-                        for target in meta_item.targets:
-                            if isinstance(target, ast.Name):
-                                if target.id == "model":
-                                    info["meta_model"] = ast.unparse(meta_item.value)
-                                elif target.id == "fields":
-                                    info["meta_fields"] = ast.unparse(meta_item.value)
+        self._extract_serializer_fields(node, info)
+        self._extract_meta_class(node, info)
 
         return info
 

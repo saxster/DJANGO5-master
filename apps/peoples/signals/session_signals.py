@@ -21,7 +21,7 @@ from django.db.models.signals import post_save, pre_delete
 from django.contrib.sessions.models import Session
 from user_agents import parse
 
-from apps.peoples.models.session_models import UserSession, SessionActivityLog
+from apps.peoples.models import UserSession, SessionActivityLog
 
 logger = logging.getLogger('security.sessions')
 

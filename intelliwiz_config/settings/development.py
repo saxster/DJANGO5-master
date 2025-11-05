@@ -130,7 +130,7 @@ DATABASES = {
 }
 
 # OPTIMIZED Redis Configuration - Connection Pool & Performance Enhancements
-from .redis_optimized import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
+from .redis import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
 
 # Cache configuration with optimized connection pooling
 CACHES = OPTIMIZED_CACHES

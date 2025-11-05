@@ -6,7 +6,39 @@ Admin interfaces for AI-generated changeset management with rollback capabilitie
 Migrated from apps/onboarding/admin.py
 Date: 2025-09-30
 """
-from .base import *
+from .base import (
+    BaseResource,
+    BaseFieldSet2,
+    admin,
+    resources,
+    fields,
+    wg,
+    ImportExportModelAdmin,
+    tm,
+    clean_point_field,
+    clean_string,
+    pm,
+    BtForm,
+    ShiftForm,
+    Bt,
+    Shift,
+    TypeAssist,
+    GeofenceMaster,
+    Bu,
+    get_or_create_none_typeassist,
+    get_or_create_none_bv,
+    get_or_create_none_people,
+    utils,
+    ValidationError,
+    OperationalError,
+    ProgrammingError,
+    DatabaseError,
+    re,
+    isnan,
+    EnabledTypeAssistWidget,
+    bulk_create_geofence,
+    Job,
+)
 
 
 # Exception for LLM service errors (if not defined elsewhere)

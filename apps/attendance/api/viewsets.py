@@ -89,13 +89,19 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     ordering = ['-event_time']
 
     def get_queryset(self):
-        """Get queryset with tenant filtering."""
-        queryset = PeopleEventlog.objects.all()
+        """Get queryset with tenant filtering and comprehensive optimization."""
+        queryset = PeopleEventlog.objects.select_related(
+            'peopleid',
+            'peopleid__profile',
+            'peopleid__organizational',
+            'geofence'
+        ).prefetch_related(
+            'metadata'
+        )
 
         if not self.request.user.is_superuser:
             queryset = queryset.filter(peopleid__client_id=self.request.user.client_id)
 
-        queryset = queryset.select_related('peopleid')
         return queryset
 
     @action(detail=False, methods=['post'])
@@ -556,8 +562,12 @@ class GeofenceViewSet(viewsets.ModelViewSet):
     filterset_fields = ['geofence_type', 'bu_id', 'client_id', 'is_active']
 
     def get_queryset(self):
-        """Get queryset with tenant filtering."""
-        queryset = Geofence.objects.all()
+        """Get queryset with tenant filtering and query optimization."""
+        queryset = Geofence.objects.select_related(
+            'client',
+            'created_by',
+            'modified_by'
+        )
 
         if not self.request.user.is_superuser:
             queryset = queryset.filter(client_id=self.request.user.client_id)

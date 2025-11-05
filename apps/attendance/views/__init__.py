@@ -18,12 +18,18 @@ from .geofence_views import GeofenceTracking
 
 # Import sync and bulk operation views (if they exist)
 try:
-    from .attendance_sync_views import *
+    from .attendance_sync_views import AttendanceSyncView, AttendanceChangesView
 except ImportError:
     pass
 
 try:
-    from .bulk_operations import *
+    from .bulk_operations import (
+        AttendanceBulkTransitionView,
+        AttendanceBulkApproveView,
+        AttendanceBulkRejectView,
+        AttendanceBulkLockView,
+        AttendanceBulkUpdateView,
+    )
 except ImportError:
     pass
 

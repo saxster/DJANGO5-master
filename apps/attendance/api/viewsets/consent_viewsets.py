@@ -63,10 +63,14 @@ class EmployeeConsentViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter to current user's consents only"""
+        """Filter to current user's consents only with query optimization."""
         return EmployeeConsentLog.objects.filter(
             employee=self.request.user
-        ).select_related('policy').order_by('-granted_at')
+        ).select_related(
+            'employee',
+            'employee__profile',
+            'policy'
+        ).order_by('-granted_at')
 
     @action(detail=False, methods=['get'])
     def pending(self, request):

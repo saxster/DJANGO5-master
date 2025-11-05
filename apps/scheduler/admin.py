@@ -17,7 +17,35 @@ Author: Claude Code (Admin Simplification Initiative)
 """
 
 # Import from new location for backward compatibility
-from .import_export_resources import *  # noqa: F401, F403
+from .import_export_resources import (
+    PeopleFKW,
+    PgroupFKW,
+    QsetFKW,
+    AssetFKW,
+    TktCategoryFKW,
+    ParentFKW,
+    BaseJobResource,
+    TaskResource,
+    TourResource,
+    TaskResourceUpdate,
+    TourResourceUpdate,
+    TourCheckpointResource,
+)
+
+__all__ = [
+    'PeopleFKW',
+    'PgroupFKW',
+    'QsetFKW',
+    'AssetFKW',
+    'TktCategoryFKW',
+    'ParentFKW',
+    'BaseJobResource',
+    'TaskResource',
+    'TourResource',
+    'TaskResourceUpdate',
+    'TourResourceUpdate',
+    'TourCheckpointResource',
+]
 
 # Note: This file contains NO Django admin classes
 # All admin registrations for Job model are in apps/activity/admin/

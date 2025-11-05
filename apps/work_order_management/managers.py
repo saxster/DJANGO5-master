@@ -823,56 +823,65 @@ class WorkOrderManager(TenantAwareManager):
         return section_data
 
     def extract_questions_from_section_one(self, new_section_details_one):
-        name_of_supervisor = ""
-        name_of_persons_involved = ""
-        other_control_measures = ""
-        debris_cleared = ""
-        department = ""
-        area_building = ""
-        location = ""
-        job_description = ""
-        employees_contractors = ""
-        workmen_fitness = ""
-        for question in new_section_details_one["questions"]:
-            if question["question__quesname"] == "Name of the Supervisors/Incharge":
-                name_of_supervisor = question["answer"]
-            elif question["question__quesname"] == "Name of the persons involved":
-                name_of_persons_involved = question["answer"]
-            elif question["question__quesname"] == "Debris are Cleared and kept at":
-                debris_cleared = question["answer"]
-            elif (
-                question["question__quesname"]
-                == "Any Other or additional control measures if required"
-            ):
-                other_control_measures = question["answer"]
-            elif question["question__quesname"] == "Department":
-                department = question["answer"]
-            elif question["question__quesname"] == "Area/Building":
-                area_building = question["answer"]
-            elif question["question__quesname"] == "Location":
-                location = question["answer"]
-            elif question["question__quesname"] == "Job Description":
-                job_description = question["answer"]
-            elif question["question__quesname"] == "Name of the Employees/Contractor's":
-                employees_contractors = question["answer"]
-            elif question["question__quesname"] == "Workmen Fitness":
-                workmen_fitness = question["answer"]
+        """Extract work permit questions from section one."""
+        field_mapping = {
+            "Name of the Supervisors/Incharge": "name_of_supervisor",
+            "Name of the persons involved": "name_of_persons_involved",
+            "Debris are Cleared and kept at": "debris_cleared",
+            "Any Other or additional control measures if required": "other_control_measures",
+            "Department": "department",
+            "Area/Building": "area_building",
+            "Location": "location",
+            "Job Description": "job_description",
+            "Name of the Employees/Contractor's": "employees_contractors",
+            "Workmen Fitness": "workmen_fitness",
+        }
 
-            section_data = {
-                "name_of_supervisor": name_of_supervisor,
-                "name_of_persons_involved": name_of_persons_involved,
-                "debris_cleared": debris_cleared,
-                "other_control_measures": other_control_measures,
-                "department": department,
-                "area_building": area_building,
-                "location": location,
-                "job_description": job_description,
-                "employees_contractors": employees_contractors,
-                "workmen_fitness": workmen_fitness,
-            }
+        section_data = {field: "" for field in field_mapping.values()}
+
+        for question in new_section_details_one["questions"]:
+            question_name = question["question__quesname"]
+            if question_name in field_mapping:
+                field_key = field_mapping[question_name]
+                section_data[field_key] = question["answer"]
+
         return section_data
 
+    def _build_work_permit_data(self, general_details_data, section_one_data,
+                                 section_details_two, section_details_three):
+        """Build core work permit data from extracted details."""
+        return {
+            "department": section_one_data["department"],
+            "area_building": section_one_data["area_building"],
+            "location": section_one_data["location"],
+            "job_description": section_one_data["job_description"],
+            "employees_contractors": section_one_data["employees_contractors"],
+            "workmen_fitness": section_one_data["workmen_fitness"],
+            "permit_authorized_by": general_details_data["permit_authorized_by"],
+            "permit_initiated_by": general_details_data["permit_initiated_by"],
+            "name_of_supervisor": section_one_data["name_of_supervisor"],
+            "name_of_persons_involved": section_one_data["name_of_persons_involved"],
+            "other_control_measures": section_one_data["other_control_measures"],
+            "debris_cleared": section_one_data["debris_cleared"],
+            "new_section_details_two": section_details_two["questions"],
+            "new_section_details_three": section_details_three["questions"],
+            "workpermit": general_details_data["workpermit"],
+            "permit_valid_from": general_details_data["permit_valid_from"],
+            "permit_valid_upto": general_details_data["permit_valid_upto"],
+            "permit_returned_at": "",
+            "work_checked_at": "",
+            "name_of_requester": "",
+        }
+
+    def _add_section_five_data(self, data, section_five_data):
+        """Add section five data to work permit data if present."""
+        data["permit_returned_at"] = section_five_data["permit_returned_at"]
+        data["work_checked_at"] = section_five_data["work_checked_at"]
+        data["name_of_requester"] = section_five_data["name_of_requester"]
+        return data
+
     def get_wp_sections_answers(self, wp_answers, id, approval_status):
+        """Get work permit sections answers."""
         general_details = wp_answers[0]
         section_details_one = wp_answers[1]
         section_details_two = wp_answers[2]
@@ -894,46 +903,15 @@ class WorkOrderManager(TenantAwareManager):
             new_section_details_one
         )
 
-        # Creating the final data
-        name_of_supervisor = section_one_data["name_of_supervisor"]
-        name_of_persons_involved = section_one_data["name_of_persons_involved"]
-        department = section_one_data["department"]
-        area_building = section_one_data["area_building"]
-        location = section_one_data["location"]
-        job_description = section_one_data["job_description"]
-        employees_contractors = section_one_data["employees_contractors"]
-        workmen_fitness = section_one_data["workmen_fitness"]
-        other_control_measures = section_one_data["other_control_measures"]
-        debris_cleared = section_one_data["debris_cleared"]
-        permit_authorized_by = general_details_data["permit_authorized_by"]
-        permit_initiated_by = general_details_data["permit_initiated_by"]
-        workpermit = general_details_data["workpermit"]
-        permit_valid_from = general_details_data["permit_valid_from"]
-        permit_valid_upto = general_details_data["permit_valid_upto"]
+        # Build core work permit data
+        data = self._build_work_permit_data(
+            general_details_data,
+            section_one_data,
+            new_section_details_two,
+            new_section_details_three,
+        )
 
-        data = {
-            "department": department,
-            "area_building": area_building,
-            "location": location,
-            "job_description": job_description,
-            "employees_contractors": employees_contractors,
-            "workmen_fitness": workmen_fitness,
-            "permit_authorized_by": permit_authorized_by,
-            "permit_initiated_by": permit_initiated_by,
-            "name_of_supervisor": name_of_supervisor,
-            "name_of_persons_involved": name_of_persons_involved,
-            "other_control_measures": other_control_measures,
-            "debris_cleared": debris_cleared,
-            "new_section_details_two": new_section_details_two["questions"],
-            "new_section_details_three": new_section_details_three["questions"],
-            "workpermit": workpermit,
-            "permit_valid_from": permit_valid_from,
-            "permit_valid_upto": permit_valid_upto,
-            "permit_returned_at": "",
-            "work_checked_at": "",
-            "name_of_requester": "",
-        }
-
+        # Add section five data if present
         if len(wp_answers) == 6:
             section_details_five = wp_answers[5]
             new_section_details_five = self.convert_the_queryset_to_list(
@@ -942,12 +920,7 @@ class WorkOrderManager(TenantAwareManager):
             section_five_data = self.extract_questions_from_section_five(
                 new_section_details_five
             )
-            permit_returned_at = section_five_data["permit_returned_at"]
-            work_checked_at = section_five_data["work_checked_at"]
-            name_of_requester = section_five_data["name_of_requester"]
-            data["permit_returned_at"] = permit_returned_at
-            data["work_checked_at"] = work_checked_at
-            data["name_of_requester"] = name_of_requester
+            data = self._add_section_five_data(data, section_five_data)
 
         return data
 

@@ -28,7 +28,25 @@ from apps.core_onboarding.models import TypeAssist
 # Import all models from the new modular structure
 # This maintains 100% backward compatibility while enabling the new architecture
 
-from .models import *
+from .models import (
+    Bt,
+    bu_defaults,
+    Shift,
+    shiftdata_json,
+    Device,
+    Subscription,
+    DownTimeHistory,
+)
+
+__all__ = [
+    'Bt',
+    'bu_defaults',
+    'Shift',
+    'shiftdata_json',
+    'Device',
+    'Subscription',
+    'DownTimeHistory',
+]
 
 # Legacy compatibility - explicitly expose the most commonly used models
 # These imports ensure existing code continues to work without modification

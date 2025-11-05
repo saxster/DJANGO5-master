@@ -4,7 +4,7 @@ from .asset_model import Asset
 from .location_model import Location
 from .meter_reading_model import MeterReading, MeterReadingAlert
 from .vehicle_entry_model import VehicleEntry, VehicleSecurityAlert
-from .job_model import Job, Jobneed, JobneedDetails
+from .job import Job, Jobneed, JobneedDetails  # Refactored from job_model.py (804→555 lines split)
 from .question_model import Question, QuestionSet, QuestionSetBelonging
 from .nfc_models import NFCTag, NFCDevice, NFCScanLog  # Sprint 4.1
 from .asset_field_history import AssetFieldHistory, AssetLifecycleStage  # Sprint 4.4
@@ -22,7 +22,7 @@ except ImportError:
     DeviceEventlog = None
 
 try:
-    from .job_model import JobWorkflowAuditLog
+    from .job_workflow_audit_log import JobWorkflowAuditLog
 except (ImportError, AttributeError):
     JobWorkflowAuditLog = None
 

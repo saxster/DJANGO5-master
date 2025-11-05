@@ -63,7 +63,7 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
 
     def get_dashboard_stats(self):
         """
-        Get key statistics for dashboard
+        Get key statistics for dashboard with optimized queries
         """
         try:
             # Cache stats for 5 minutes
@@ -74,10 +74,19 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
                 now = timezone.now()
                 last_month = now - timedelta(days=30)
 
+                # Optimize: Use annotate to get multiple counts in fewer queries
+                from django.db.models import Case, When, Value, IntegerField
+
+                people_stats = People.objects.aggregate(
+                    total=Count('id'),
+                    active=Count(Case(When(enable=True, then=1), output_field=IntegerField())),
+                    new_this_month=Count(Case(When(cdtz__gte=last_month, then=1), output_field=IntegerField()))
+                )
+
                 stats = {
-                    'total_users': People.objects.count(),
-                    'active_users': People.objects.filter(enable=True).count(),
-                    'new_users_this_month': People.objects.filter(cdtz__gte=last_month).count(),
+                    'total_users': people_stats['total'],
+                    'active_users': people_stats['active'],
+                    'new_users_this_month': people_stats['new_this_month'],
                     'active_sessions': self.get_active_sessions_count(),
                     'avg_session_duration': '45m',  # Would calculate from session data
                     'open_tickets': self.get_open_tickets_count(),

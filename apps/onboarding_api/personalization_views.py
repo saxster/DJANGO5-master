@@ -40,7 +40,20 @@ from apps.core.exceptions import LLMServiceException
 from apps.onboarding_api.services.learning import get_learning_service
 from apps.onboarding_api.services.experiments import get_experiment_manager
 from apps.onboarding_api.services.personalization import get_assignment_service
-from apps.onboarding_api.serializers import *  # Assuming serializers exist
+from apps.onboarding_api.serializers import (
+    ConversationStartSerializer,
+    ConversationSessionSerializer,
+    ConversationProcessSerializer,
+    LLMRecommendationSerializer,
+    RecommendationApprovalSerializer,
+    ConversationStatusSerializer,
+    TaskStatusSerializer,
+    AuthoritativeKnowledgeSerializer,
+    UserFeedbackSerializer,
+    VoiceInputSerializer,
+    VoiceTranscriptionResponseSerializer,
+    VoiceCapabilityResponseSerializer,
+)
 
 # Temporary stubs for unimplemented models (TBD)
 class PreferenceProfile:

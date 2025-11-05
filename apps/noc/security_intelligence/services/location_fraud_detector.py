@@ -18,7 +18,7 @@ from django.db import transaction
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
-from apps.core.models.image_metadata import ImageMetadata, PhotoAuthenticityLog
+from apps.core.models import ImageMetadata, PhotoAuthenticityLog
 from apps.core.constants.spatial_constants import METERS_PER_DEGREE_LAT
 
 logger = logging.getLogger('noc.security_intelligence')
@@ -362,7 +362,7 @@ class LocationFraudDetector:
             dict: Camera fraud detection result or None
         """
         try:
-            from apps.core.models.image_metadata import CameraFingerprint
+            from apps.core.models import CameraFingerprint
 
             # Get camera fingerprint record
             camera_fingerprint = CameraFingerprint.objects.filter(

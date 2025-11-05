@@ -6,7 +6,22 @@ Views for generating, highlighting, and manipulating PDF documents.
 Extracted from apps/reports/views/generation_views.py
 Date: 2025-10-10
 """
-from .base import *
+from .base import (
+    rp,
+    render,
+    HTML,
+    CSS,
+    FontConfiguration,
+    BytesIO,
+    render_to_string,
+    FileResponse,
+    utils,
+    log,
+    debug_log,
+    IntegrationException,
+    MasterReportForm,
+    json,
+)
 import pandas as pd
 
 # Import centralized Frappe ERP service (Oct 2025 - technical debt elimination)

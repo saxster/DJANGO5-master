@@ -137,25 +137,33 @@ def test_user(test_tenant):
 
 
 @pytest.fixture
-def test_job(test_tenant, test_location, test_asset, test_question_set, test_user):
+def test_job(test_tenant, test_asset, test_question_set, test_user):
     """
     Create a basic job (task template) for testing.
 
     Job represents the template/definition of recurring work.
     """
     from apps.activity.models import Job
+    from django.utils import timezone
 
     return Job.objects.create(
         jobname="Daily Inspection",
+        jobdesc="Daily inspection task",
+        fromdate=timezone.now(),
+        uptodate=timezone.now() + timedelta(days=365),
+        cron="0 8 * * *",
+        identifier="TASK",
+        planduration=60,
+        gracetime=15,
+        expirytime=120,
+        priority="MEDIUM",
+        scantype="QR",
+        frequency="NONE",
         asset=test_asset,
         qset=test_question_set,
-        location=test_location,
-        startdate=datetime.now(dt_timezone.utc).date(),
-        enddate=(datetime.now(dt_timezone.utc) + timedelta(days=365)).date(),
-        starttime=datetime.now(dt_timezone.utc).time(),
         client=test_tenant,
         bu=test_tenant,
-        identifier="TASK",
+        seqno=1,
         enable=True,
         cdby=test_user,
         mdby=test_user
@@ -170,14 +178,20 @@ def test_jobneed(test_job, test_user):
     Jobneed represents a scheduled execution of a job.
     """
     from apps.activity.models import Jobneed
+    from django.utils import timezone
 
     return Jobneed.objects.create(
         jobname="Daily Inspection - 2025-11-04",
+        jobdesc=test_job.jobdesc,
         job=test_job,
-        jobdate=datetime.now(dt_timezone.utc).date(),
-        startdatetime=datetime.now(dt_timezone.utc) + timedelta(hours=1),
-        enddatetime=datetime.now(dt_timezone.utc) + timedelta(hours=2),
+        jobdate=timezone.now().date(),
+        starttime=timezone.now() + timedelta(hours=1),
+        endtime=timezone.now() + timedelta(hours=2),
         jobstatus="ASSIGNED",
+        priority=test_job.priority,
+        scantype=test_job.scantype,
+        gracetime=test_job.gracetime,
+        seqno=1,
         client=test_job.client,
         bu=test_job.bu,
         cdby=test_user,
@@ -189,16 +203,20 @@ def test_jobneed(test_job, test_user):
 def completed_jobneed(test_job, test_user):
     """Create a completed jobneed for testing closure workflows."""
     from apps.activity.models import Jobneed
+    from django.utils import timezone
 
     return Jobneed.objects.create(
         jobname="Completed Inspection",
+        jobdesc=test_job.jobdesc,
         job=test_job,
-        jobdate=datetime.now(dt_timezone.utc).date() - timedelta(days=1),
-        startdatetime=datetime.now(dt_timezone.utc) - timedelta(hours=3),
-        enddatetime=datetime.now(dt_timezone.utc) - timedelta(hours=2),
+        jobdate=timezone.now().date() - timedelta(days=1),
+        starttime=timezone.now() - timedelta(hours=3),
+        endtime=timezone.now() - timedelta(hours=2),
         jobstatus="COMPLETED",
-        actualstartdatetime=datetime.now(dt_timezone.utc) - timedelta(hours=3),
-        actualenddatetime=datetime.now(dt_timezone.utc) - timedelta(hours=2),
+        priority=test_job.priority,
+        scantype=test_job.scantype,
+        gracetime=test_job.gracetime,
+        seqno=1,
         client=test_job.client,
         bu=test_job.bu,
         cdby=test_user,
@@ -207,25 +225,33 @@ def completed_jobneed(test_job, test_user):
 
 
 @pytest.fixture
-def test_tour_job(test_tenant, test_location, test_question_set, test_user):
+def test_tour_job(test_tenant, test_question_set, test_user):
     """
     Create a tour job (parent job with checkpoints).
 
     Tour jobs have parent=NULL and child checkpoint jobs.
     """
     from apps.activity.models import Job
+    from django.utils import timezone
 
     return Job.objects.create(
         jobname="Building A Security Tour",
+        jobdesc="Security patrol tour",
+        fromdate=timezone.now(),
+        uptodate=timezone.now() + timedelta(days=365),
+        cron="0 8 * * *",
+        identifier="INTERNALTOUR",
+        planduration=120,
+        gracetime=15,
+        expirytime=180,
+        priority="HIGH",
+        scantype="NFC",
+        frequency="DAILY",
         qset=test_question_set,
-        location=test_location,
-        startdate=datetime.now(dt_timezone.utc).date(),
-        enddate=(datetime.now(dt_timezone.utc) + timedelta(days=365)).date(),
-        starttime=datetime.now(dt_timezone.utc).time(),
         client=test_tenant,
         bu=test_tenant,
-        identifier="TOUR",
         parent=None,  # Root tour
+        seqno=1,
         enable=True,
         cdby=test_user,
         mdby=test_user
@@ -243,16 +269,23 @@ def checkpoint_job(test_tour_job, test_asset, test_user):
 
     return Job.objects.create(
         jobname="Floor 1 Checkpoint",
+        jobdesc="Checkpoint inspection",
+        fromdate=test_tour_job.fromdate,
+        uptodate=test_tour_job.uptodate,
+        cron=test_tour_job.cron,
+        identifier="TASK",
+        planduration=30,
+        gracetime=test_tour_job.gracetime,
+        expirytime=test_tour_job.expirytime,
+        priority=test_tour_job.priority,
+        scantype=test_tour_job.scantype,
+        frequency=test_tour_job.frequency,
         asset=test_asset,
         qset=test_tour_job.qset,
-        location=test_tour_job.location,
-        startdate=test_tour_job.startdate,
-        enddate=test_tour_job.enddate,
-        starttime=test_tour_job.starttime,
         client=test_tour_job.client,
         bu=test_tour_job.bu,
-        identifier="TASK",
         parent=test_tour_job,  # Child of tour
+        seqno=1,
         enable=True,
         cdby=test_user,
         mdby=test_user

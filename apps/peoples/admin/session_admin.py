@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from apps.peoples.models.session_models import UserSession, SessionActivityLog
+from apps.peoples.models import UserSession, SessionActivityLog
 
 
 @admin.register(UserSession)

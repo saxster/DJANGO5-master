@@ -73,6 +73,11 @@ python manage.py init_intelliwiz default                # Initialize
 ## Code quality
 python scripts/validate_code_quality.py --verbose
 python scripts/check_file_sizes.py --verbose              # Check file size limits
+python scripts/detect_god_files.py --path apps/your_app   # Find refactoring candidates
+
+## Refactoring verification
+python scripts/verify_attendance_models_refactoring.py    # Verify model refactorings
+python manage.py check                                    # Check for import errors
 
 ## Schedule validation
 python manage.py validate_schedules --verbose
@@ -328,7 +333,9 @@ for user in People.objects.all():
 - **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
 - **[Query Optimization Architecture](docs/architecture/QUERY_OPTIMIZATION_ARCHITECTURE.md)** - N+1 detection vs optimization service, decision tree, performance patterns
 - **[Refactoring Patterns](docs/architecture/REFACTORING_PATTERNS.md)** - God file refactoring patterns with step-by-step guide and examples
+- **[Refactoring Playbook](docs/architecture/REFACTORING_PLAYBOOK.md)** ⚠️ **MANDATORY** - Complete refactoring guide for future work (Phase 1-6 patterns)
 - **[Architecture Decision Records (ADRs)](docs/architecture/adr/)** - Documented architectural decisions with context and consequences
+- **[Project Retrospective](docs/PROJECT_RETROSPECTIVE.md)** - Complete Phase 1-6 refactoring journey with lessons learned
 - **Custom User Model** - Multi-model design (People, PeopleProfile, PeopleOrganizational)
 - **URL Structure** - Domain-driven organization with backward compatibility
 
@@ -342,6 +349,7 @@ for user in People.objects.all():
 ### Testing & Quality
 
 - **[Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)** - Comprehensive testing docs, code quality validation, pre-commit hooks, quality metrics
+- **[Testing Training](docs/training/TESTING_TRAINING.md)** - Writing effective tests for refactored code
 - **Code Smell Detection** - Automated anti-pattern detection
 - **Exception Handling Migration** - Tools for migrating to specific exceptions
 - **Race Condition Testing** - Critical data integrity tests
@@ -357,6 +365,13 @@ for user in People.objects.all():
 ### Configuration & Setup
 
 - **[Settings & Configuration](docs/configuration/SETTINGS_AND_CONFIG.md)** - Environment files, settings structure, database config, logging, Redis, security settings
+
+### Team Training
+
+- **[Quality Standards Training](docs/training/QUALITY_STANDARDS_TRAINING.md)** - Understanding quality gates and architecture limits
+- **[Refactoring Training](docs/training/REFACTORING_TRAINING.md)** - How to split god files using proven patterns
+- **[Service Layer Training](docs/training/SERVICE_LAYER_TRAINING.md)** - Implementing ADR 003 service patterns
+- **[Testing Training](docs/training/TESTING_TRAINING.md)** - Writing effective tests for refactored code
 
 ### Troubleshooting
 
@@ -401,12 +416,24 @@ for user in People.objects.all():
 
 ---
 
-**Last Updated**: November 4, 2025 (Phase 1 Documentation - File size validation, refactoring patterns, ADRs)
-**Previous Update**: November 1, 2025 (Configuration cleanup - INSTALLED_APPS consolidation, mentor removal, ml_training activation)
+**Last Updated**: November 5, 2025 (Phase 7 Documentation - Complete refactoring playbook, training materials, retrospective)
+**Previous Update**: November 4, 2025 (Phase 1 Documentation - File size validation, refactoring patterns, ADRs)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
 
-**Recent Changes (Nov 4, 2025)**:
+**Recent Changes (Nov 5, 2025) - Phase 7 Complete**:
+- ✅ **Refactoring Playbook** created (`docs/architecture/REFACTORING_PLAYBOOK.md`) - Complete guide for future refactorings
+- ✅ **Training Materials** created in `docs/training/` (4 comprehensive guides)
+  - Quality Standards Training - Architecture limits and quality gates
+  - Refactoring Training - Step-by-step god file splitting
+  - Service Layer Training - ADR 003 implementation patterns
+  - Testing Training - Effective testing strategies
+- ✅ **Project Retrospective** created (`docs/PROJECT_RETROSPECTIVE.md`) - Complete Phase 1-6 journey
+- ✅ **All ADRs Updated** - Added Phase 1-6 implementation references and validation status
+- ✅ **CLAUDE.md Updated** - New commands, updated architecture section, Phase 1-6 results
+- 📊 **Phase 1-6 Results**: 16 apps refactored, 80+ god files eliminated, 100% backward compatibility
+
+**Previous Changes (Nov 4, 2025) - Phase 1**:
 - ✅ File size validation script added (`scripts/check_file_sizes.py`)
 - ✅ Refactoring patterns documented (`docs/architecture/REFACTORING_PATTERNS.md`)
 - ✅ Architecture Decision Records created (5 ADRs covering file limits, dependencies, services, testing, exceptions)

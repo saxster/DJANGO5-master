@@ -1,2 +1,1 @@
-"""Integration test namespace."""
-
+"""Integration tests for end-to-end workflows."""

@@ -30,7 +30,7 @@ from django.core.exceptions import ValidationError
 
 from apps.core.middleware.rate_limiting import rate_limit_view
 from apps.core.services.google_maps_service import google_maps_service
-from apps.core.utils_new.spatial_validation import (
+from apps.core.utils_new.spatial import (
     validate_coordinates,
     sanitize_coordinate_string
 )

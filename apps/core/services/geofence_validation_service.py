@@ -15,8 +15,7 @@ from typing import List, Dict, Tuple, Optional, Union
 from django.contrib.gis.geos import Point, Polygon, GEOSException
 from django.conf import settings
 
-from apps.core.utils_new.spatial_math import haversine_distance
-from apps.core.utils_new.spatial_validation import validate_coordinates
+from apps.core.utils_new.spatial import haversine_distance, validate_coordinates
 from apps.core.constants.spatial_constants import (
     GEOFENCE_HYSTERESIS_DEFAULT,
     METERS_PER_DEGREE_LAT,

@@ -25,8 +25,14 @@ def is_staff_or_superuser(user):
 @user_passes_test(is_staff_or_superuser)
 def coverage_gaps_list(request):
     """List all coverage gaps with filtering and sorting"""
-    # Base queryset
-    gaps = TestCoverageGap.objects.select_related('anomaly_signature', 'assigned_to')
+    # Base queryset with comprehensive optimization
+    gaps = TestCoverageGap.objects.select_related(
+        'anomaly_signature',
+        'assigned_to',
+        'assigned_to__profile'
+    ).prefetch_related(
+        'related_gaps'
+    )
 
     # Filtering
     coverage_type = request.GET.get('coverage_type')
@@ -236,30 +242,32 @@ def generate_test(request, gap_id):
 @user_passes_test(is_staff_or_superuser)
 def test_generation_dashboard(request):
     """Dashboard for test generation management"""
+    # Optimized: Single queryset fetch with annotations to avoid N+1 queries
+    from django.db.models import Q, Case, When, Value, IntegerField
+
+    # Base queryset with optimization
+    base_qs = TestCoverageGap.objects.select_related(
+        'anomaly_signature',
+        'assigned_to',
+        'assigned_to__profile'
+    ).filter(auto_generated_test_code__isnull=False)
+
     # Recent test generations
-    recent_generations = TestCoverageGap.objects.filter(
-        status__in=['test_generated', 'test_implemented', 'test_verified'],
-        auto_generated_test_code__isnull=False
+    recent_generations = base_qs.filter(
+        status__in=['test_generated', 'test_implemented', 'test_verified']
     ).order_by('-updated_at')[:10]
 
-    # Generation statistics
+    # Generation statistics (annotate in single query to avoid separate counts)
+    all_generated = base_qs.annotate(
+        is_pending=Case(When(status='test_generated', then=Value(1)), default=Value(0), output_field=IntegerField()),
+        is_implemented=Case(When(status__in=['test_implemented', 'test_verified'], then=Value(1)), default=Value(0), output_field=IntegerField())
+    ).values('recommended_framework').annotate(count=Count('id')).values_list('recommended_framework', 'count')
+
     stats = {
-        'total_generated': TestCoverageGap.objects.filter(
-            auto_generated_test_code__isnull=False
-        ).count(),
-        'pending_implementation': TestCoverageGap.objects.filter(
-            status='test_generated'
-        ).count(),
-        'implemented': TestCoverageGap.objects.filter(
-            status__in=['test_implemented', 'test_verified']
-        ).count(),
-        'framework_distribution': dict(
-            TestCoverageGap.objects.filter(
-                auto_generated_test_code__isnull=False
-            ).values('recommended_framework').annotate(
-                count=Count('id')
-            ).values_list('recommended_framework', 'count')
-        )
+        'total_generated': base_qs.count(),
+        'pending_implementation': TestCoverageGap.objects.filter(status='test_generated', auto_generated_test_code__isnull=False).count(),
+        'implemented': TestCoverageGap.objects.filter(status__in=['test_implemented', 'test_verified'], auto_generated_test_code__isnull=False).count(),
+        'framework_distribution': dict(all_generated)
     }
 
     context = {

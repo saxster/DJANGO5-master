@@ -88,8 +88,15 @@ def coverage_gaps_api(request):
         coverage_type_filter = request.GET.get('coverage_type')
         summary_only = request.GET.get('summary') == 'true'
 
-        # Build queryset
-        gaps = TestCoverageGap.objects.select_related('anomaly_signature', 'assigned_to')
+        # Build queryset with comprehensive optimization
+        gaps = TestCoverageGap.objects.select_related(
+            'anomaly_signature',
+            'assigned_to',
+            'assigned_to__profile'
+        ).prefetch_related(
+            'related_gaps',
+            'test_file_references'
+        )
 
         if priority_filter:
             gaps = gaps.filter(priority=priority_filter)
@@ -191,12 +198,18 @@ def regression_risk_api(request, version=None):
     Get regression risk score for a specific version
     """
     try:
+        queryset = RegressionPrediction.objects.select_related(
+            'created_by'
+        ).prefetch_related(
+            'affected_tests'
+        ).order_by('-created_at')
+
         if version:
-            prediction = RegressionPrediction.objects.filter(
+            prediction = queryset.filter(
                 version_identifier=version
-            ).order_by('-created_at').first()
+            ).first()
         else:
-            prediction = RegressionPrediction.objects.order_by('-created_at').first()
+            prediction = queryset.first()
 
         if not prediction:
             return Response({
@@ -235,7 +248,9 @@ def adaptive_thresholds_api(request):
     Get current adaptive thresholds
     """
     try:
-        thresholds = AdaptiveThreshold.objects.all().order_by('metric_name')
+        thresholds = AdaptiveThreshold.objects.select_related(
+            'created_by'
+        ).order_by('metric_name')
         serializer = AdaptiveThresholdSerializer(thresholds, many=True)
 
         return Response({
@@ -262,7 +277,9 @@ def patterns_api(request):
     Get detected coverage patterns
     """
     try:
-        patterns = TestCoveragePattern.objects.filter(
+        patterns = TestCoveragePattern.objects.select_related(
+            'created_by'
+        ).filter(
             is_active=True
         ).order_by('-occurrence_count', '-confidence_score')
 

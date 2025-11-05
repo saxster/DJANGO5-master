@@ -36,7 +36,7 @@ from django.utils.deprecation import MiddlewareMixin
 from django.utils import timezone
 from django.template.loader import render_to_string
 
-from apps.core.utils_new.query_optimizer import NPlusOneDetector
+from apps.core.utils_new.performance import NPlusOneDetector
 
 logger = logging.getLogger('performance_monitor')
 

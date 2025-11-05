@@ -28,7 +28,7 @@ from django.utils import timezone
 
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
 from apps.core.services.secure_file_upload_service import SecureFileUploadService
-from apps.core.models.image_metadata import (
+from apps.core.models import (
     ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
 )
 from apps.noc.security_intelligence.services.location_fraud_detector import LocationFraudDetector

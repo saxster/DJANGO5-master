@@ -50,7 +50,15 @@ class HelpBotViewSet(viewsets.GenericViewSet):
             return HelpBotSession.objects.none()
         if getattr(self.request, 'swagger_fake_view', False):
             return HelpBotSession.objects.none()
-        return HelpBotSession.objects.filter(user=self.request.user)
+        return HelpBotSession.objects.filter(
+            user=self.request.user
+        ).select_related(
+            'user',
+            'user__profile'
+        ).prefetch_related(
+            'messages',
+            'feedback'
+        )
 
     def create(self, request):
         """

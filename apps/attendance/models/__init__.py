@@ -52,19 +52,26 @@ from apps.attendance.models.post import Post
 from apps.attendance.models.post_assignment import PostAssignment
 from apps.attendance.models.post_order_acknowledgement import PostOrderAcknowledgement
 
-# Approval workflow models (Phase 4)
-from apps.attendance.models.approval_workflow import (
-    ApprovalRequest,
-    ApprovalAction,
-    AutoApprovalRule,
+# Approval workflow models (Phase 4 - Refactored)
+from apps.attendance.models.approval_enums import (
+    RequestType,
+    RequestStatus,
+    RequestPriority,
+    ApprovalActionType,
 )
+from apps.attendance.models.approval_request import ApprovalRequest
+from apps.attendance.models.approval_action import ApprovalAction
+from apps.attendance.models.auto_approval_rule import AutoApprovalRule
 
-# Alert & monitoring models (Phase 5)
-from apps.attendance.models.alert_monitoring import (
-    AlertRule,
-    AttendanceAlert,
-    AlertEscalation,
+# Alert & monitoring models (Phase 5 - Refactored)
+from apps.attendance.models.alert_enums import (
+    AlertType,
+    AlertSeverity,
+    AlertStatus,
 )
+from apps.attendance.models.alert_rule import AlertRule
+from apps.attendance.models.attendance_alert import AttendanceAlert
+from apps.attendance.models.alert_escalation import AlertEscalation
 
 # Fraud detection models
 from apps.attendance.models.fraud_alert import FraudAlert
@@ -103,12 +110,19 @@ __all__ = [
     'PostAssignment',
     'PostOrderAcknowledgement',
 
-    # Approval workflow (Phase 4)
+    # Approval workflow (Phase 4 - Refactored)
+    'RequestType',
+    'RequestStatus',
+    'RequestPriority',
+    'ApprovalActionType',
     'ApprovalRequest',
     'ApprovalAction',
     'AutoApprovalRule',
 
-    # Alert & monitoring (Phase 5)
+    # Alert & monitoring (Phase 5 - Refactored)
+    'AlertType',
+    'AlertSeverity',
+    'AlertStatus',
     'AlertRule',
     'AttendanceAlert',
     'AlertEscalation',

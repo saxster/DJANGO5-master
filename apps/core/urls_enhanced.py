@@ -12,7 +12,7 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.decorators import login_required
 
-from apps.core.utils_new.url_optimization import (
+from apps.core.utils_new.url import (
     UrlOptimizer,
     URLAnalytics,
     LegacyURLRedirector

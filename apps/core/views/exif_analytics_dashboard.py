@@ -28,7 +28,7 @@ from django.views.generic import TemplateView
 from django.db.models import Count, Avg, Q
 from django.utils import timezone
 
-from apps.core.models.image_metadata import (
+from apps.core.models import (
     ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
 )
 from apps.core.services.photo_authenticity_service import PhotoAuthenticityService

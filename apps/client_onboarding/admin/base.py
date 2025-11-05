@@ -33,6 +33,41 @@ from apps.core.widgets import EnabledTypeAssistWidget
 from apps.client_onboarding.utils import bulk_create_geofence
 from apps.activity.models.job_model import Job
 
+# Explicit __all__ to control namespace (Rule #16: Wildcard Import Prevention)
+__all__ = [
+    'BaseResource',
+    'BaseFieldSet2',
+    'admin',
+    'resources',
+    'fields',
+    'wg',
+    'ImportExportModelAdmin',
+    'tm',
+    'clean_point_field',
+    'clean_string',
+    'pm',
+    'BtForm',
+    'ShiftForm',
+    'Bt',
+    'Shift',
+    'TypeAssist',
+    'GeofenceMaster',
+    'Bu',
+    'get_or_create_none_typeassist',
+    'get_or_create_none_bv',
+    'get_or_create_none_people',
+    'utils',
+    'ValidationError',
+    'OperationalError',
+    'ProgrammingError',
+    'DatabaseError',
+    're',
+    'isnan',
+    'EnabledTypeAssistWidget',
+    'bulk_create_geofence',
+    'Job',
+]
+
 
 class BaseResource(resources.ModelResource):
     """Base resource class for import/export functionality"""

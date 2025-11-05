@@ -6,7 +6,17 @@ Views and endpoints for integrating with external ERP systems (Frappe/ERPNext).
 Extracted from apps/reports/views/generation_views.py
 Date: 2025-10-10
 """
-from .base import *
+from .base import (
+    rp,
+    render,
+    ValidationError,
+    json,
+    utils,
+    log,
+    debug_log,
+    IntegrationException,
+    MasterReportForm,
+)
 import pandas as pd
 
 # Optional ERP integration - only needed for specific report types
