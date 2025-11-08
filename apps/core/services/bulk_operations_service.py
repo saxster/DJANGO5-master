@@ -204,7 +204,7 @@ class BulkOperationService:
                     transaction.set_rollback(True)
                     result.warnings.append("Dry run - no changes committed")
 
-        except Exception as e:
+        except (ValidationError, DatabaseError, InvalidTransitionError, PermissionDeniedError) as e:
             # Transaction was rolled back
             logger.error(f"Bulk transition failed: {e}", exc_info=True)
 
@@ -297,7 +297,7 @@ class BulkOperationService:
                     transaction.set_rollback(True)
                     result.warnings.append("Dry run - no changes committed")
 
-        except Exception as e:
+        except (ValidationError, DatabaseError) as e:
             logger.error(f"Bulk update failed: {e}", exc_info=True)
 
             if not result.was_rolled_back:

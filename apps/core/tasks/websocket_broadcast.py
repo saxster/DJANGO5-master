@@ -47,6 +47,8 @@ from channels.layers import get_channel_layer
 
 from apps.core.tasks.base import BaseTask, TaskMetrics
 from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger('celery.websocket_broadcast')
 
@@ -171,7 +173,7 @@ class WebSocketBroadcastMixin:
             })
             return False
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Unexpected error broadcasting to WebSocket group '{group_name}': {e}",
                 exc_info=True,
@@ -348,7 +350,7 @@ class WebSocketBroadcastMixin:
         try:
             channel_layer = get_channel_layer()
             return channel_layer is not None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Channel layer health check failed: {e}")
             return False
 
@@ -440,7 +442,7 @@ def broadcast_to_websocket_group(
 
         return True
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.error(f"Standalone broadcast failed for group '{group_name}': {e}", exc_info=True)
         TaskMetrics.increment_counter('websocket_standalone_broadcast_failure', {
             'error_type': type(e).__name__

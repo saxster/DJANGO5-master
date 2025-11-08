@@ -45,6 +45,8 @@ import logging
 import signal
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime, timezone as dt_timezone
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 # Django setup
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
@@ -293,7 +295,7 @@ class MQTTSubscriberService:
                 'qos': str(qos)
             })
 
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             logger.error(f"Error processing message from {topic}: {e}", exc_info=True)
             TaskMetrics.increment_counter('mqtt_subscriber_processing_error', {
                 'topic_prefix': topic.split('/')[0] if '/' in topic else topic,
@@ -401,7 +403,7 @@ class MQTTSubscriberService:
                 'exception': type(e).__name__
             })
             raise
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             logger.error(f"Unexpected error starting MQTT subscriber: {e}", exc_info=True)
             TaskMetrics.increment_counter('mqtt_subscriber_connection_error', {
                 'error_type': 'unexpected',
@@ -458,7 +460,7 @@ def main():
         subscriber.start(blocking=True)
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Fatal error: {e}", exc_info=True)
     finally:
         subscriber.stop()

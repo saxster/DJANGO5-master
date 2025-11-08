@@ -54,6 +54,10 @@ class QuestionViewSet(viewsets.GenericViewSet):
     pagination_class = MobileSyncCursorPagination
     queryset = QuestionSet.objects.all()
 
+    def get_queryset(self):
+        """Optimize queryset with select_related to avoid N+1 queries."""
+        return super().get_queryset().select_related('created_by', 'modified_by')
+
     @action(detail=False, methods=['get'], url_path='questions/modified-after')
     def questions_modified_after(self, request):
         """

@@ -23,6 +23,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from apps.onboarding_api.services.analytics_dashboard import get_analytics_dashboard_service
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +138,7 @@ class SessionReplayView(APIView):
 
             return Response(replay_data)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Error getting session replay: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to load session replay'},

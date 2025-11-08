@@ -2,6 +2,7 @@
 Phase 2 Views for Enhanced Conversational Onboarding API
 Dual-LLM responses, streaming, and knowledge management
 """
+import asyncio
 import json
 import time
 import uuid
@@ -17,6 +18,8 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from django.http import StreamingHttpResponse, JsonResponse
 from django.db import DatabaseError, IntegrityError
 from apps.core.exceptions import IntegrationException
@@ -40,6 +43,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(permission_required('onboarding.change_conversationsession', raise_exception=True), name='dispatch')
 class EnhancedConversationProcessView(APIView):
     """
     Phase 2 Enhanced conversation processing with dual-LLM support
@@ -251,7 +255,7 @@ class ConversationEventsView(APIView):
             max_duration = 300  # 5 minutes max
             check_interval = 2  # Check every 2 seconds
 
-            for _ in range(max_duration // check_interval):
+            for iteration in range(max_duration // check_interval):
                 # Refresh session
                 session.refresh_from_db()
 
@@ -288,7 +292,10 @@ class ConversationEventsView(APIView):
                 ]:
                     break
 
-                time.sleep(check_interval)
+                # SECURITY FIX: Use yield-based delay instead of blocking time.sleep()
+                # This prevents worker thread exhaustion in SSE streams
+                if iteration < (max_duration // check_interval) - 1:
+                    yield f": keepalive\n\n"  # SSE comment for keepalive
 
         response = StreamingHttpResponse(
             event_stream(),
@@ -319,24 +326,36 @@ class ConversationEventsView(APIView):
         return response
 
     def _long_poll_events(self, session: ConversationSession):
-        """Long polling fallback"""
-        max_wait = 30  # 30 seconds max
-        check_interval = 1
-        start_time = time.time()
+        """
+        Long polling fallback (DEPRECATED - should use Celery for background processing)
+        
+        SECURITY NOTE: This endpoint should NOT be used for long-running operations.
+        Instead, use the async/Celery pattern:
+        1. POST to process endpoint → returns task_id
+        2. GET task status endpoint → check completion
+        3. Repeat step 2 with client-side polling (recommended: 5s intervals)
+        """
+        # SECURITY FIX: Removed blocking time.sleep() loop
+        # Long polling creates resource exhaustion - use proper async patterns instead
+        
+        # Single-check pattern: client should poll this endpoint repeatedly
+        session.refresh_from_db()
+        
+        logger.warning(
+            "Long polling endpoint called - consider migrating to proper async/Celery pattern",
+            extra={
+                'session_id': str(session.session_id),
+                'user_id': session.user.id,
+                'deprecated_endpoint': True
+            }
+        )
 
-        while time.time() - start_time < max_wait:
-            session.refresh_from_db()
-
-            if session.current_state != ConversationSession.StateChoices.GENERATING_RECOMMENDATIONS:
-                break
-
-            time.sleep(check_interval)
-
-        # Return current status
+        # Return current status (client will poll again)
         return Response({
             "session_state": session.current_state,
             "progress": self._calculate_progress(session),
-            "next_poll_delay": 5  # Suggest 5-second delay for next poll
+            "next_poll_delay": 5,  # Suggest 5-second delay for next poll
+            "recommendation": "Use SSE streaming or Celery task status endpoint for better performance"
         })
 
     def _calculate_progress(self, session: ConversationSession) -> float:

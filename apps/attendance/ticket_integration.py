@@ -8,6 +8,8 @@ tickets for attendance-related issues like mismatches, missing IN/OUT records, e
 from django.apps import apps
 from django.db import transaction
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -428,7 +430,7 @@ Please review this check-in attempt and take appropriate action:
 
         return ticket
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error creating mismatch ticket: {e}", exc_info=True)
         return None
 

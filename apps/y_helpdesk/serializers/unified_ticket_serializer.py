@@ -70,6 +70,12 @@ class TicketUnifiedSerializer(serializers.ModelSerializer):
 
     Adapts field selection and validation based on serialization context,
     eliminating the need for multiple specialized serializers.
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        Ticket.objects.select_related('assignedtopeople', 'assignedtogroup', 
+                                      'ticketcategory', 'location', 'asset', 
+                                      'bu', 'client', 'cuser', 'muser')
+                      .prefetch_related('workflow')
     """
 
     # Context-specific field sets

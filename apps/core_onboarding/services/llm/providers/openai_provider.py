@@ -18,6 +18,8 @@ from decimal import Decimal
 from apps.core_onboarding.services.llm.base import MakerLLM, CheckerLLM
 from apps.core_onboarding.services.llm.usage_tracker import LLMUsageTracker
 from apps.core_onboarding.services.llm.exceptions import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     LLMProviderError,
     PromptTooLongError,
     RateLimitError
@@ -87,7 +89,7 @@ class OpenAIMakerLLM(MakerLLM):
 
             return result
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self._handle_openai_error(e, 'generate_recommendations')
 
     def _build_maker_prompt(self, session, collected_data: Dict[str, Any]) -> str:

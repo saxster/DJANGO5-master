@@ -15,7 +15,7 @@ from django.db import IntegrityError
 from typing import Dict, Any, Optional
 
 from apps.ontology import ontology
-from apps.api.v1.services.base_sync_service import BaseSyncService
+from apps.core.services.sync.base_sync_service import BaseSyncService
 from apps.activity.models.job_model import Jobneed
 
 

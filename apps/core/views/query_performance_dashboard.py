@@ -32,6 +32,8 @@ from django.utils import timezone
 from django.conf import settings
 
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 
 @staff_member_required
@@ -374,7 +376,7 @@ def database_query_stats(request: HttpRequest) -> JsonResponse:
                     }
                     for row in rows
                 ]
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             stats['error'] = f"pg_stat_statements not available: {e}"
 
     return JsonResponse(stats)

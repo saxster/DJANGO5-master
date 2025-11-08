@@ -10,6 +10,8 @@ Requires 500+ resolved alerts with time_to_resolve data.
 
 from django.core.management.base import BaseCommand, CommandError
 from apps.noc.ml.priority_model_trainer import PriorityModelTrainer
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -52,5 +54,5 @@ class Command(BaseCommand):
 
         except ValueError as e:
             raise CommandError(str(e))
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             raise CommandError(f"Training failed: {str(e)}")

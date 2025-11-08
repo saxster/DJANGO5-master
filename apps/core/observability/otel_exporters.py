@@ -90,7 +90,7 @@ class OTelExporterConfig:
 
             return True
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to configure OTel exporters: {e}", exc_info=True)
             return False
 
@@ -139,7 +139,7 @@ class OTelExporterConfig:
             provider.add_span_processor(processor)
 
             logger.info("Added console span exporter")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Failed to add console exporter: {e}")
 
     @classmethod
@@ -164,7 +164,7 @@ class OTelExporterConfig:
             provider.add_span_processor(processor)
 
             logger.info(f"Added OTLP span exporter: {endpoint}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to add OTLP exporter: {e}", exc_info=True)
 
     @classmethod
@@ -186,7 +186,7 @@ class OTelExporterConfig:
             provider.add_span_processor(processor)
 
             logger.info(f"Added Jaeger span exporter: {jaeger_host}:{jaeger_port}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Failed to add Jaeger exporter: {e}")
 
     @classmethod

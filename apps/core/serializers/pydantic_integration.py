@@ -28,6 +28,10 @@ from apps.core.validation_pydantic.pydantic_base import BaseDjangoModel, Busines
 from apps.core.serializers.base_serializers import ValidatedModelSerializer, SecureSerializerMixin
 from apps.core.error_handling import ErrorHandler
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +137,7 @@ class PydanticSerializerMixin(SecureSerializerMixin):
                     model_class=django_model,
                     context=context
                 )
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 ErrorHandler.handle_exception(
                     e,
                     context={
@@ -239,7 +243,7 @@ class PydanticSerializerMixin(SecureSerializerMixin):
                     if key not in data and hasattr(pydantic_instance, key):
                         # Only add computed/enhanced fields not in DRF serializer
                         data[key] = value
-            except Exception as e:
+            except SERIALIZATION_EXCEPTIONS as e:
                 logger.warning(
                     f"Failed to enhance representation with Pydantic: {e}",
                     extra={

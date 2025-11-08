@@ -119,7 +119,7 @@ class MeterReadingUploadAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Unexpected error in meter upload API: {str(e), exc_info=True}", exc_info=True)
+            logger.error(f"Unexpected error in meter upload API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -157,7 +157,7 @@ class MeterReadingValidateAPIView(APIView):
                 )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating reading {reading_id}: {str(e), exc_info=True}")
+            logger.error(f"Error validating reading {reading_id}: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Validation failed'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -221,7 +221,7 @@ class MeterReadingListAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error fetching readings for asset {asset_id}: {str(e), exc_info=True}")
+            logger.error(f"Error fetching readings for asset {asset_id}: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to fetch readings'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -252,7 +252,7 @@ class MeterReadingAnalyticsAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error generating analytics for asset {asset_id}: {str(e), exc_info=True}")
+            logger.error(f"Error generating analytics for asset {asset_id}: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to generate analytics'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -297,7 +297,7 @@ class MeterReadingDashboard(LoginRequiredMixin, View):
             return render(request, 'activity/meter_reading_dashboard.html', context)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error loading meter reading dashboard: {str(e), exc_info=True}")
+            logger.error(f"Error loading meter reading dashboard: {str(e)}", exc_info=True)
             messages.error(request, "Error loading dashboard")
             return render(request, 'activity/meter_reading_dashboard.html', {})
 
@@ -363,7 +363,7 @@ class MeterReadingCapture(LoginRequiredMixin, View):
                 messages.error(request, f"Failed to process reading: {result['error']}")
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error processing meter reading: {str(e), exc_info=True}")
+            logger.error(f"Error processing meter reading: {str(e)}", exc_info=True)
             messages.error(request, "Error processing meter reading")
 
         return self.get(request)
@@ -418,7 +418,7 @@ class MeterReadingValidation(LoginRequiredMixin, View):
                 messages.error(request, "Validation failed")
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating reading: {str(e), exc_info=True}")
+            logger.error(f"Error validating reading: {str(e)}", exc_info=True)
             messages.error(request, "Error processing validation")
 
         return self.get(request)
@@ -449,7 +449,7 @@ class MeterReadingAssetView(LoginRequiredMixin, View):
             return render(request, 'activity/meter_reading_asset.html', context)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error loading asset readings for {asset_id}: {str(e), exc_info=True}")
+            logger.error(f"Error loading asset readings for {asset_id}: {str(e)}", exc_info=True)
             messages.error(request, "Error loading asset data")
             return render(request, 'activity/meter_reading_asset.html', {'asset': None})
 

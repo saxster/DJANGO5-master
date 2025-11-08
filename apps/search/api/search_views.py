@@ -24,6 +24,7 @@ from django.utils import timezone
 
 from apps.search.services.unified_semantic_search_service import UnifiedSemanticSearchService
 from apps.search.models import SearchAnalytics
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -207,12 +208,12 @@ def unified_search_view(request):
                 response_time_ms=result.get('search_time_ms', 0),
                 correlation_id=correlation_id,
             )
-        except Exception as e:
-            logger.warning(f"Failed to track search analytics: {e}")
+        except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
+            logger.warning(f"Failed to track search analytics: {e}", exc_info=True)
 
         return Response(result, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(
             f"Error in unified search (correlation_id={correlation_id}): {e}",
             exc_info=True
@@ -293,7 +294,7 @@ def search_suggestions_view(request):
             'from_cache': False,
         })
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error getting search suggestions: {e}", exc_info=True)
         return Response(
             {'error': "Failed to get suggestions"},
@@ -370,13 +371,13 @@ def search_analytics_click_view(request):
             })
 
         except SearchAnalytics.DoesNotExist:
-            logger.warning(f"Analytics record not found: {data['correlation_id']}")
+            logger.warning(f"Analytics record not found: {data['correlation_id']}", exc_info=True)
             return Response(
                 {'error': "Search analytics record not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error tracking search click: {e}", exc_info=True)
         return Response(
             {'error': "Failed to track click"},
@@ -415,6 +416,6 @@ def _track_search_analytics(
 
         logger.debug(f"Tracked search analytics: {query} -> {result_count} results")
 
-    except Exception as e:
-        logger.error(f"Failed to save search analytics: {e}")
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
+        logger.error(f"Failed to save search analytics: {e}", exc_info=True)
         # Don't raise - analytics failure shouldn't break search

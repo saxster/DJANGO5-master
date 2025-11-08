@@ -21,6 +21,8 @@ Key Features:
 Usage:
     from apps.core.services.batch_state_transition_service import BatchStateTransitionService
     from apps.activity.state_machines.task_state_machine import TaskStateMachine
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
     # Batch transition multiple jobs
     jobs = Jobneed.objects.filter(jobstatus='ASSIGNED')[:100]
@@ -33,7 +35,7 @@ Usage:
         atomic=True  # All-or-nothing
     )
 
-    print(f"Success: {result.success_count}, Failed: {result.failure_count}")
+    logger.error(f"Success: {result.success_count}, Failed: {result.failure_count}")
 """
 
 import logging
@@ -165,7 +167,7 @@ class BatchStateTransitionService:
 
             return result
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(
                 f"Batch transition failed with error: {e}",
                 extra={'error': str(e)},
@@ -247,7 +249,7 @@ class BatchStateTransitionService:
             for lock_key in reversed(sorted_lock_keys):
                 try:
                     distributed_lock(lock_key, timeout=10, blocking_timeout=5).__exit__(None, None, None)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     logger.warning(f"Failed to release lock {lock_key}: {e}")
 
         return result
@@ -290,7 +292,7 @@ class BatchStateTransitionService:
                         'error': transition_result.error_message
                     })
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(
                     f"Transition failed for {entity_type}:{entity_id}: {e}",
                     exc_info=True
@@ -336,7 +338,7 @@ class BatchStateTransitionService:
                     'error': transition_result.error_message
                 }
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(
                     f"Parallel transition failed for {entity_type}:{entity_id}: {e}",
                     exc_info=True

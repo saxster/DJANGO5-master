@@ -134,14 +134,14 @@ class HATEOASMixin:
                     url_name = f"{view.basename}-detail"
                     return self.build_url(url_name, pk=instance.pk)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.debug(f"Could not build self link from view: {e}")
 
         # Try model's get_absolute_url()
         if hasattr(instance, 'get_absolute_url'):
             try:
                 return instance.get_absolute_url()
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.debug(f"Could not get absolute URL from model: {e}")
 
         return None
@@ -155,7 +155,7 @@ class HATEOASMixin:
             try:
                 url_name = f"{view.basename}-list"
                 return self.build_url(url_name)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.debug(f"Could not build collection link: {e}")
 
         return None

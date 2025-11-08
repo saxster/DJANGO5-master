@@ -24,6 +24,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.exceptions import ObjectDoesNotExist
 from apps.help_center.services.ai_assistant_service import AIAssistantService
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +124,7 @@ class HelpChatConsumer(AsyncWebsocketConsumer):
                 'content': 'Invalid session ID'
             }))
 
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.error(f"Help chat error: {e}", exc_info=True)
             await self.send(text_data=json.dumps({
                 'type': 'error',

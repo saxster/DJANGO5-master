@@ -210,7 +210,7 @@ class SecurityPolicyRegistry:
                 else:
                     passed.append(policy)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(
                     f"Error checking policy {policy_name}: {e}",
                     exc_info=True,

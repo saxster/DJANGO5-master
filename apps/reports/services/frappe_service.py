@@ -22,6 +22,8 @@ import logging
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 # Optional Frappe client - gracefully handle if not installed
 try:
@@ -251,7 +253,7 @@ class FrappeService:
             logger.info(f"Created Frappe client for company: {company.value}")
             return client
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to create Frappe client for {company.value}: {e}", exc_info=True)
             raise FrappeConnectionException(f"Failed to connect to Frappe for {company.value}: {str(e)}")
 
@@ -313,7 +315,7 @@ class FrappeService:
             )
             return all_data
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Failed to retrieve {document_type} from {company.value}: {e}",
                 exc_info=True

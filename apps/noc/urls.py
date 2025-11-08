@@ -10,7 +10,8 @@ from .monitoring import noc_health_check
 from .views import (
     overview_views, drilldown_views, alert_views, incident_views,
     maintenance_views, map_views, analytics_views, export_views, ui_views,
-    view_config_views, api_key_views
+    view_config_views, api_key_views, websocket_performance_dashboard,
+    websocket_admin_tools
 )
 
 app_name = 'noc'
@@ -71,4 +72,12 @@ urlpatterns = [
     path('api-keys/<int:pk>/', api_key_views.NOCAPIKeyDetailView.as_view(), name='api-key-detail'),
     path('api-keys/<int:pk>/rotate/', api_key_views.rotate_api_key, name='api-key-rotate'),
     path('api-keys/<int:pk>/usage/', api_key_views.api_key_usage_stats, name='api-key-usage'),
+    
+    # WebSocket metrics and monitoring (CRITICAL SECURITY FIX 3)
+    path('websocket/dashboard/', websocket_performance_dashboard.WebSocketPerformanceDashboardView.as_view(), name='websocket-dashboard'),
+    path('websocket/metrics/', websocket_performance_dashboard.websocket_metrics_api, name='websocket-metrics-api'),
+    path('admin/connections/', websocket_admin_tools.ConnectionInspectorView.as_view(), name='connection-inspector'),
+    path('admin/message-replay/', websocket_admin_tools.MessageReplayView.as_view(), name='message-replay'),
+    path('admin/kill-switch/', websocket_admin_tools.connection_kill_switch, name='connection-kill-switch'),
+    path('admin/live-connections/', websocket_admin_tools.live_connections_api, name='live-connections-api'),
 ]

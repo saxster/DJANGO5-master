@@ -22,7 +22,7 @@ from apps.api.v1.serializers.sync_base_serializers import (
     SyncRequestSerializer,
     DeltaSyncRequestSerializer,
 )
-from apps.api.v1.services.idempotency_service import IdempotencyService
+from apps.core.services.sync.idempotency_service import IdempotencyService
 
 logger = logging.getLogger(__name__)
 

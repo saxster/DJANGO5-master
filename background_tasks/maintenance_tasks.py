@@ -97,7 +97,11 @@ import traceback as tb
 import uuid
 
 
-@shared_task(name='cache_warming_scheduled')
+@shared_task(
+    name='cache_warming_scheduled',
+    soft_time_limit=900,   # 15 minutes - cache warming
+    time_limit=1200         # 20 minutes hard limit
+)
 def cache_warming_scheduled():
     """
     Scheduled task for automatic cache warming.
@@ -124,7 +128,11 @@ def cache_warming_scheduled():
         return {'error': str(e)}
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    soft_time_limit=300,  # 5 minutes - cleanup
+    time_limit=600         # 10 minutes hard limit
+)
 def cleanup_expired_pdf_tasks(self) -> Dict[str, Any]:
     """
     Clean up expired PDF generation tasks and temporary files.

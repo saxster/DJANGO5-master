@@ -29,7 +29,7 @@ from apps.core.services.async_pdf_service import AsyncPDFGenerationService
 from apps.core.services.cache_warming_service import warm_critical_caches_task
 from apps.core.services.speech_to_text_service import SpeechToTextService
 from apps.core.tasks.base import (
-    BaseTask, EmailTask, ExternalServiceTask, MaintenanceTask, TaskMetrics, log_task_context
+    BaseTask, EmailTask, ExternalServiceTask, MaintenanceTask, TaskMetrics, log_task_context, IdempotentTask
 )
 from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
@@ -95,8 +95,20 @@ import time
 import traceback as tb
 import uuid
 
+# Email task idempotency constants
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
-@shared_task(bind=True, name="send_email_notification_for_workpermit_approval")
+
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_workpermit_approval",
+    soft_time_limit=300,  # 5 minutes soft limit
+    time_limit=600,        # 10 minutes hard limit
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours - approval requests
+    idempotency_scope='global'
+)
 def send_email_notification_for_workpermit_approval(
     self,
     womid,
@@ -171,7 +183,16 @@ def send_email_notification_for_workpermit_approval(
     return jsonresp
 
 
-@shared_task(bind=True, name="send_email_notification_for_wp")
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_wp",
+    soft_time_limit=300,  # 5 minutes soft limit
+    time_limit=600,        # 10 minutes hard limit
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours - approval requests
+    idempotency_scope='global'
+)
 def send_email_notification_for_wp(
     self,
     womid,
@@ -238,7 +259,16 @@ def send_email_notification_for_wp(
     return jsonresp
 
 
-@shared_task(bind=True, name="send_email_notification_for_wp_verifier")
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_wp_verifier",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours - verification requests
+    idempotency_scope='global'
+)
 def send_email_notification_for_wp_verifier(
     self,
     womid,
@@ -304,7 +334,16 @@ def send_email_notification_for_wp_verifier(
     return jsonresp
 
 
-@shared_task(bind=True, name="send_email_notification_for_wp_from_mobile_for_verifier")
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_wp_from_mobile_for_verifier",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 4,  # 4 hours - verification requests
+    idempotency_scope='global'
+)
 def send_email_notification_for_wp_from_mobile_for_verifier(
     self,
     womid,
@@ -371,7 +410,14 @@ def send_email_notification_for_wp_from_mobile_for_verifier(
 
 
 @shared_task(
-    bind=True, name="send_email_notification_for_vendor_and_security_of_wp_cancellation"
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_vendor_and_security_of_wp_cancellation",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 2,  # 2 hours - status notifications
+    idempotency_scope='global'
 )
 def send_email_notification_for_vendor_and_security_of_wp_cancellation(
     self,
@@ -461,7 +507,16 @@ def send_email_notification_for_vendor_and_security_of_wp_cancellation(
     return jsonresp
 
 
-@shared_task(bind=True, name="send_email_notification_for_vendor_and_security_for_rwp")
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_vendor_and_security_for_rwp",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 2,  # 2 hours - status notifications
+    idempotency_scope='global'
+)
 def send_email_notification_for_vendor_and_security_for_rwp(
     self,
     wom_id,
@@ -539,7 +594,14 @@ def send_email_notification_for_vendor_and_security_for_rwp(
 
 
 @shared_task(
-    bind=True, name="send_email_notification_for_vendor_and_security_after_approval"
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_vendor_and_security_after_approval",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 2,  # 2 hours - status notifications
+    idempotency_scope='global'
 )
 def send_email_notification_for_vendor_and_security_after_approval(
     self,
@@ -611,7 +673,16 @@ def send_email_notification_for_vendor_and_security_after_approval(
     return jsonresp
 
 
-@shared_task(bind=True, name="send_email_notification_for_sla_vendor")
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_sla_vendor",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 6,  # 6 hours - SLA reports
+    idempotency_scope='global'
+)
 def send_email_notification_for_sla_vendor(self, wom_id, report_attachment, sitename):
     jsonresp = {"story": "", "traceback": ""}
     try:
@@ -688,7 +759,16 @@ def send_email_notification_for_sla_vendor(self, wom_id, report_attachment, site
     return jsonresp
 
 
-@shared_task(bind=True, name="send_email_notification_for_sla_report")
+@shared_task(
+    base=IdempotentTask,
+    bind=True,
+    name="send_email_notification_for_sla_report",
+    soft_time_limit=300,
+    time_limit=600,
+    max_retries=3,
+    idempotency_ttl=SECONDS_IN_HOUR * 6,  # 6 hours - SLA reports
+    idempotency_scope='global'
+)
 def send_email_notification_for_sla_report(self, slaid, sitename):
     jsonresp = {"story": "", "traceback": ""}
     try:
@@ -804,9 +884,14 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
 
 
 @shared_task(
-    base=EmailTask,
+    base=IdempotentTask,
     bind=True,
-    name="send_reminder_email"
+    name="send_reminder_email",
+    soft_time_limit=600,  # 10 minutes for batch processing
+    time_limit=900,  # 15 minutes hard limit
+    max_retries=2,
+    idempotency_ttl=SECONDS_IN_DAY,  # 24 hours - daily reminder window
+    idempotency_scope='global'
 )
 def send_reminder_email(self):
     from django.template.loader import render_to_string
@@ -875,7 +960,11 @@ def send_reminder_email(self):
     return resp
 
 
-@shared_task(name="send_mismatch_notification")
+@shared_task(
+    name="send_mismatch_notification",
+    soft_time_limit=120,  # 2 minutes - notification
+    time_limit=240         # 4 minutes hard limit
+)
 def send_mismatch_notification(mismatch_data):
     # This task sends mismatch data to the NOC dashboard
     logger.info(f"Mismatched detected: {mismatch_data}")

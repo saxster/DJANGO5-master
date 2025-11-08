@@ -234,7 +234,7 @@ class DisplayConditionsValidator:
             validated = DisplayConditionsSchema(**data)
             return validated
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Display conditions validation failed: {e}",
                 extra={'data': data, 'error_type': type(e).__name__}

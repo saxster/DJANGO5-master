@@ -24,6 +24,8 @@ from dataclasses import dataclass, asdict
 from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +202,7 @@ class RedisMetricsCollector:
             logger.debug(f"Metrics collected for {instance_name}: {metrics.hit_ratio}% hit ratio")
             return metrics
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error collecting Redis metrics for {instance_name}: {e}")
             return None
 
@@ -281,7 +283,7 @@ class RedisMetricsCollector:
                     'Increase memory limit or optimize data structures'
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error analyzing performance metrics: {e}")
 
         return alerts
@@ -398,7 +400,7 @@ class RedisMetricsCollector:
             if not recommendations:
                 recommendations.append("Redis performance is optimal - no capacity changes needed")
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Error generating capacity recommendations: {e}")
             recommendations.append("Error generating recommendations - check Redis connection")
 

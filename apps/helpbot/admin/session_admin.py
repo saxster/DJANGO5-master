@@ -20,6 +20,7 @@ from apps.helpbot.admin.base import (
 
 @admin.register(HelpBotSession)
 class HelpBotSessionAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for HelpBot sessions."""
 
     list_display = [

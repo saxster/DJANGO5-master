@@ -28,9 +28,14 @@ Follows .claude/rules.md:
 
 import logging
 import time
+from datetime import timedelta
 from typing import Dict, Any, Optional
 from django.utils import timezone
 from django.db import DatabaseError
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 __all__ = ['PlaybookEngine']
 
@@ -133,12 +138,14 @@ class PlaybookEngine:
         Send notification action handler.
 
         Args:
-            params: {channel: 'slack'|'email', message: str, recipients: list}
+            params: {channel: 'slack'|'email'|'sms', message: str, recipients: list}
             finding: AuditFinding instance
 
         Returns:
             Dict with result status
         """
+        from apps.reports.services.report_delivery_service import ReportDeliveryService
+        
         channel = params.get('channel', 'email')
         message = params.get('message', f"Finding: {finding.title}")
         recipients = params.get('recipients', [])
@@ -148,13 +155,42 @@ class PlaybookEngine:
             extra={'finding_id': finding.id, 'channel': channel}
         )
 
-        # TODO: Integrate with notification service
-        # For now, log the notification
+        success_count = 0
+        
+        if channel == 'email' and recipients:
+            for recipient in recipients:
+                try:
+                    ReportDeliveryService.send_email(
+                        recipient=recipient,
+                        subject=f"SOAR Alert: {finding.title}",
+                        body=message,
+                        tenant=finding.tenant
+                    )
+                    success_count += 1
+                except (ValueError, TypeError, AttributeError) as e:
+                    logger.error(f"Failed to send email to {recipient}: {e}")
+        
+        elif channel == 'slack':
+            webhook_url = params.get('webhook_url')
+            if webhook_url:
+                try:
+                    import requests
+                    response = requests.post(
+                        webhook_url,
+                        json={'text': message},
+                        timeout=(5, 15)
+                    )
+                    if response.status_code == 200:
+                        success_count = len(recipients) if recipients else 1
+                except NETWORK_EXCEPTIONS as e:
+                    logger.error(f"Failed to send Slack notification: {e}")
+        
         return {
             'action': 'send_notification',
             'channel': channel,
             'recipients_count': len(recipients),
-            'message_sent': True
+            'success_count': success_count,
+            'message_sent': success_count > 0
         }
 
     @classmethod
@@ -209,12 +245,15 @@ class PlaybookEngine:
         Assign resource/personnel action handler.
 
         Args:
-            params: {resource_type: str, resource_id: int, role: str}
+            params: {resource_type: 'user'|'group', resource_id: int}
             finding: AuditFinding instance
 
         Returns:
             Dict with assignment status
         """
+        from apps.peoples.models import People, Pgroup
+        from apps.y_helpdesk.models import Ticket
+        
         resource_type = params.get('resource_type')
         resource_id = params.get('resource_id')
 
@@ -223,12 +262,45 @@ class PlaybookEngine:
             extra={'resource_type': resource_type, 'finding_id': finding.id}
         )
 
-        # TODO: Implement resource assignment logic
+        assigned = False
+        assignee = None
+        
+        try:
+            if resource_type == 'user' and resource_id:
+                assignee = People.objects.get(id=resource_id, tenant=finding.tenant)
+                finding.assigned_to = assignee
+                finding.save(update_fields=['assigned_to'])
+                assigned = True
+                
+                # If there's an associated ticket, assign it too
+                tickets = Ticket.objects.filter(
+                    tenant=finding.tenant,
+                    source='PLAYBOOK',
+                    other_data__finding_id=finding.id
+                )
+                tickets.update(assignee=assignee, status='ASSIGNED')
+                
+            elif resource_type == 'group' and resource_id:
+                group = Pgroup.objects.get(id=resource_id, tenant=finding.tenant)
+                # Assign to first available member in group
+                members = group.members.filter(is_active=True)
+                if members.exists():
+                    assignee = members.first()
+                    finding.assigned_to = assignee
+                    finding.save(update_fields=['assigned_to'])
+                    assigned = True
+                    
+        except (People.DoesNotExist, Pgroup.DoesNotExist) as e:
+            logger.error(f"Resource not found: {e}")
+        except DatabaseError as e:
+            logger.error(f"Database error assigning resource: {e}")
+        
         return {
             'action': 'assign_resource',
             'resource_type': resource_type,
             'resource_id': resource_id,
-            'assigned': True
+            'assignee_id': assignee.id if assignee else None,
+            'assigned': assigned
         }
 
     @classmethod
@@ -243,6 +315,9 @@ class PlaybookEngine:
         Returns:
             Dict with collected diagnostics
         """
+        from apps.mqtt.models import DeviceTelemetry, SensorReading
+        from apps.y_helpdesk.models import Ticket
+        
         diagnostic_types = params.get('diagnostic_types', [])
 
         logger.info(
@@ -250,11 +325,48 @@ class PlaybookEngine:
             extra={'types': diagnostic_types, 'finding_id': finding.id}
         )
 
-        # TODO: Implement diagnostics collection
+        diagnostics = {}
+        
+        try:
+            for diag_type in diagnostic_types:
+                if diag_type == 'device_telemetry' and finding.site:
+                    recent_telemetry = DeviceTelemetry.objects.filter(
+                        tenant=finding.tenant,
+                        timestamp__gte=timezone.now() - timedelta(hours=1)
+                    ).values('device_id', 'battery_level', 'signal_strength', 'status')[:50]
+                    diagnostics['device_telemetry'] = list(recent_telemetry)
+                    
+                elif diag_type == 'sensor_readings' and finding.site:
+                    recent_sensors = SensorReading.objects.filter(
+                        tenant=finding.tenant,
+                        timestamp__gte=timezone.now() - timedelta(hours=1)
+                    ).values('sensor_id', 'reading_value', 'status')[:50]
+                    diagnostics['sensor_readings'] = list(recent_sensors)
+                    
+                elif diag_type == 'related_tickets':
+                    related_tickets = Ticket.objects.filter(
+                        tenant=finding.tenant,
+                        bu=finding.site,
+                        status__in=['NEW', 'ASSIGNED', 'IN_PROGRESS']
+                    ).values('id', 'ticketdesc', 'priority', 'status')[:20]
+                    diagnostics['related_tickets'] = list(related_tickets)
+                    
+                elif diag_type == 'alert_context':
+                    diagnostics['alert_context'] = {
+                        'finding_type': finding.finding_type,
+                        'severity': finding.severity,
+                        'site': finding.site.name if finding.site else None,
+                        'description': finding.description,
+                    }
+                    
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Error collecting diagnostics: {e}", exc_info=True)
+        
         return {
             'action': 'collect_diagnostics',
             'types_collected': diagnostic_types,
-            'collected': True
+            'diagnostics': diagnostics,
+            'collected': len(diagnostics) > 0
         }
 
     @classmethod
@@ -263,13 +375,18 @@ class PlaybookEngine:
         Wait for condition action handler.
 
         Args:
-            params: {condition: str, max_wait_seconds: int, poll_interval: int}
+            params: {condition: str, condition_field: str, expected_value: any, 
+                     max_wait_seconds: int, poll_interval: int}
             finding: AuditFinding instance
 
         Returns:
             Dict with condition result
         """
+        from apps.core.utils_new.condition_polling import ConditionPoller
+        
         condition = params.get('condition')
+        condition_field = params.get('condition_field', 'status')
+        expected_value = params.get('expected_value')
         max_wait = params.get('max_wait_seconds', 300)
         poll_interval = params.get('poll_interval', 10)
 
@@ -278,13 +395,48 @@ class PlaybookEngine:
             extra={'condition': condition, 'finding_id': finding.id}
         )
 
-        # TODO: Implement condition polling
-        # For now, simulate wait
-        time.sleep(min(poll_interval, 5))
-
+        condition_met = False
+        wait_time = 0
+        
+        try:
+            def check_condition():
+                """Check if condition is met on finding object."""
+                finding.refresh_from_db()
+                current_value = getattr(finding, condition_field, None)
+                
+                if condition == 'equals':
+                    return current_value == expected_value
+                elif condition == 'not_equals':
+                    return current_value != expected_value
+                elif condition == 'status_resolved':
+                    return finding.status in ['RESOLVED', 'CLOSED']
+                elif condition == 'assigned':
+                    return finding.assigned_to is not None
+                    
+                return False
+            
+            poller = ConditionPoller(
+                condition_func=check_condition,
+                max_attempts=max_wait // poll_interval,
+                poll_interval=poll_interval
+            )
+            
+            condition_met = poller.wait_for_condition()
+            wait_time = poller.elapsed_time
+            
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"Error in condition polling: {e}", exc_info=True)
+        
+        if not condition_met:
+            logger.warning(
+                f"Condition not met within {max_wait}s",
+                extra={'finding_id': finding.id, 'condition': condition}
+            )
+        
         return {
             'action': 'wait_for_condition',
             'condition': condition,
-            'condition_met': True,
-            'wait_time': poll_interval
+            'condition_met': condition_met,
+            'wait_time': wait_time,
+            'max_wait': max_wait
         }

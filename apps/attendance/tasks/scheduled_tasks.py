@@ -17,6 +17,8 @@ from apps.attendance.services.consent_service import ConsentManagementService
 from apps.attendance.services.fraud_detection_orchestrator import FraudDetectionOrchestrator
 from apps.attendance.tasks.audit_tasks import cleanup_old_audit_logs, analyze_suspicious_access
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,7 @@ def archive_old_records(self, batch_size=1000, dry_run=False):
 
         return result
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"Archive task failed: {e}", exc_info=True)
         raise self.retry(exc=e)
 
@@ -90,7 +92,7 @@ def purge_gps_history(self, batch_size=1000, dry_run=False):
 
         return result
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"GPS purge task failed: {e}", exc_info=True)
         raise self.retry(exc=e)
 
@@ -126,7 +128,7 @@ def delete_old_photos(self, batch_size=100, dry_run=False):
 
         return result
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"Photo deletion task failed: {e}", exc_info=True)
         raise self.retry(exc=e)
 
@@ -150,7 +152,7 @@ def send_consent_reminders():
 
         return {'reminders_sent': sent}
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"Failed to send consent reminders: {e}", exc_info=True)
         return {'reminders_sent': 0, 'error': str(e)}
 
@@ -174,7 +176,7 @@ def expire_old_consents():
 
         return {'expired_count': count}
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"Failed to expire consents: {e}", exc_info=True)
         return {'expired_count': 0, 'error': str(e)}
 
@@ -208,7 +210,7 @@ def train_fraud_baselines(self, force_retrain=False):
 
         return result
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"Baseline training task failed: {e}", exc_info=True)
         raise self.retry(exc=e)
 
@@ -242,6 +244,6 @@ def delete_terminated_employee_data(employee_id: int):
 
         return result
 
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
         logger.error(f"Terminated employee data deletion failed: {e}", exc_info=True)
         return {'deleted': False, 'error': str(e)}

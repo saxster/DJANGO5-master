@@ -28,6 +28,8 @@ from apps.attendance.ml_models import (
     DeviceFingerprintingDetector,
 )
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +144,7 @@ class FraudDetectionOrchestrator:
 
             return result
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Fraud detection failed for {self.employee.username}: {e}", exc_info=True)
             return {
                 'error': str(e),
@@ -287,7 +289,8 @@ class FraudDetectionOrchestrator:
         ).values('people').distinct()
 
         employee_ids = [e['people'] for e in employees_with_attendance if e['people']]
-        employees = User.objects.filter(id__in=employee_ids)
+        # Optimize: select_related to avoid N+1 when accessing employee properties in loop
+        employees = User.objects.filter(id__in=employee_ids).select_related('profile', 'organizational')
 
         trained = 0
         failed = 0
@@ -303,8 +306,8 @@ class FraudDetectionOrchestrator:
                 else:
                     insufficient_data += 1
 
-            except Exception as e:
-                logger.error(f"Failed to train baseline for {employee.username}: {e}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to train baseline for {employee.username}: {e}", exc_info=True)
                 failed += 1
 
         logger.info(
@@ -350,7 +353,7 @@ class FraudDetectionOrchestrator:
                     analysis = orchestrator.analyze_attendance(record)
                     results.append(analysis)
 
-            except Exception as e:
-                logger.error(f"Batch analysis failed for employee {employee_id}: {e}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Batch analysis failed for employee {employee_id}: {e}", exc_info=True)
 
         return results

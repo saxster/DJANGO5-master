@@ -1,22 +1,21 @@
-"""Forms for standard report generation and scheduling."""
-
-from datetime import datetime, timedelta
-from enum import Enum
-
 from django import forms
+from apps.client_onboarding import models as om_client
+from apps.core_onboarding import models as om_core
+from apps.peoples import models as pm
 from django_select2 import forms as s2forms
-
+from django.db.models import Q
+from datetime import datetime, timedelta
 from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.asset_model import Asset
-from apps.peoples import models as pm
 from apps.reports.models import ScheduleReport, GeneratePDF
+from enum import Enum
 from apps.core.utils_new.business_logic import initailize_form_fields
 
 
-class ReportForm(forms.Form):
-    """Main form for generating various types of reports."""
 
+
+class ReportForm(forms.Form):
     required_css_class = "required"
     report_templates = [
         ("", "Select Report"),
@@ -67,6 +66,7 @@ class ReportForm(forms.Form):
     Checkpoint_or_Site_CHOICES = [("CHECKPOINT", "Checkpoint"), ("SITE", "Site")]
     Location_or_Site_CHOICES = [("LOCATION", "Location"), ("SITE", "Site")]
 
+    # data fields
     report_name = forms.ChoiceField(
         label="Report Name",
         required=True,
@@ -211,6 +211,8 @@ class ReportForm(forms.Form):
         choices=Location_or_Site_CHOICES,
         required=False,
     )
+
+    # other form fields
     format = forms.ChoiceField(
         widget=s2forms.Select2Widget(attrs={"data-theme": "bootstrap5"}),
         label="Format",
@@ -247,64 +249,64 @@ class ReportForm(forms.Form):
         self.request = kwargs.pop("request", None)
         S = self.request.session
         super().__init__(*args, **kwargs)
-        self._populate_choices(S)
-        initailize_form_fields(self)
-
-    def _populate_choices(self, session):
-        """Populate all field choices from database."""
-        self.fields["site"].choices = pm.Pgbelonging.objects.get_assigned_sites_to_people(
-            session.get("_auth_user_id"), True
+        self.fields[
+            "site"
+        ].choices = pm.Pgbelonging.objects.get_assigned_sites_to_people(
+            S.get("_auth_user_id"), True
         )
         self.fields["sitegroup"].choices = [("", "")] + list(
             pm.Pgroup.objects.filter(
                 identifier__tacode="SITEGROUP",
-                bu_id__in=session["assignedsites"],
+                bu_id__in=S["assignedsites"],
                 enable=True,
             ).values_list("id", "groupname")
         )
-        self.fields["peoplegroup"].choices = pm.Pgroup.objects.filter_for_dd_pgroup_field(
+        self.fields[
+            "peoplegroup"
+        ].choices = pm.Pgroup.objects.filter_for_dd_pgroup_field(
             self.request, sitewise=True, choices=True
         )
-        self.fields["people"].choices = self.fields["mult_people"].choices = (
-            pm.People.objects.filter_for_dd_people_field(
-                self.request, sitewise=True, choices=True
-            )
+        self.fields["people"].choices = self.fields[
+            "mult_people"
+        ].choices = pm.People.objects.filter_for_dd_people_field(
+            self.request, sitewise=True, choices=True
         )
-        self.fields["asset"].choices = self.fields["mult_asset"].choices = (
-            Asset.objects.asset_choices_for_report(
-                self.request, sitewise=True, choices=True, identifier="ASSET"
-            )
+        self.fields["asset"].choices = self.fields[
+            "mult_asset"
+        ].choices = Asset.objects.asset_choices_for_report(
+            self.request, sitewise=True, choices=True, identifier="ASSET"
         )
-        self.fields["location"].choices = self.fields["mult_location"].choices = (
-            Location.objects.location_choices_for_report(
-                self.request, sitewise=True, choices=True
-            )
+        self.fields["location"].choices = self.fields[
+            "mult_location"
+        ].choices = Location.objects.location_choices_for_report(
+            self.request, sitewise=True, choices=True
         )
-        self.fields["checkpoint"].choices = self.fields["mult_checkpoint"].choices = (
-            Asset.objects.asset_choices_for_report(
-                self.request, sitewise=True, choices=True, identifier="CHECKPOINT"
-            )
+        self.fields["checkpoint"].choices = self.fields[
+            "mult_checkpoint"
+        ].choices = Asset.objects.asset_choices_for_report(
+            self.request, sitewise=True, choices=True, identifier="CHECKPOINT"
         )
         self.fields["assettype"].choices = Asset.objects.asset_type_choices_for_report(
             self.request
         )
-        self.fields["location_type"].choices = (
-            Location.objects.location_type_choices_for_report(self.request)
-        )
-        self.fields["assetcategory"].choices = (
-            Asset.objects.asset_category_choices_for_report(self.request)
-        )
+        self.fields[
+            "location_type"
+        ].choices = Location.objects.location_type_choices_for_report(self.request)
+        self.fields[
+            "assetcategory"
+        ].choices = Asset.objects.asset_category_choices_for_report(self.request)
         self.fields["qset"].choices = QuestionSet.objects.qset_choices_for_report(
             self.request
         )
         self.fields["fromdate"].initial = self.get_default_range_of_dates()[0]
         self.fields["uptodate"].initial = self.get_default_range_of_dates()[1]
         self.fields["cc"].choices = pm.People.objects.filter(
-            isverified=True, client_id=session["client_id"]
+            isverified=True, client_id=S["client_id"]
         ).values_list("email", "peoplename")
         self.fields["to_addr"].choices = pm.People.objects.filter(
-            isverified=True, client_id=session["client_id"]
+            isverified=True, client_id=S["client_id"]
         ).values_list("email", "peoplename")
+        initailize_form_fields(self)
 
     def get_default_range_of_dates(self):
         today = datetime.now().date()
@@ -316,13 +318,14 @@ class ReportForm(forms.Form):
     def clean(self):
         cd = super().clean()
         if (
-            cd.get("report_name") == "SITEREPORT"
+            cd["report_name"] == "SITEREPORT"
             and cd.get("people") in ["", None]
             and cd.get("sitegroup") in ["", None]
         ):
             raise forms.ValidationError(
                 f"Both Site Group and People cannot be empty, when the report is {cd.get('report_name')}"
             )
+
         self.validate_date_range(
             cd, "fromdate", "uptodate", "From date cannot be greater than To date"
         )
@@ -332,6 +335,7 @@ class ReportForm(forms.Form):
             "uptodatetime",
             "From datetime cannot be greater than To datetime",
         )
+
         if cd.get("format") != "pdf":
             self.cleaned_data["preview"] = "false"
         return cd
@@ -339,11 +343,17 @@ class ReportForm(forms.Form):
     def validate_date_range(self, cd, field1, field2, error_msg):
         date1 = cd.get(field1)
         date2 = cd.get(field2)
+
         if date1 and date2 and date1 > date2:
             raise forms.ValidationError(error_msg)
+
         if date1 and date2 and (date2 - date1).days > 31:
             raise forms.ValidationError(
                 "The difference between {} and {} should not be greater than 1 month".format(
                     field1, field2
                 )
             )
+
+
+
+

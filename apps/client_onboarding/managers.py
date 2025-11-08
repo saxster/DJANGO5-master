@@ -8,6 +8,10 @@ from django.db.models.functions import Concat, Cast
 from django.db.models import Value as V
 from apps.core import utils
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class BtManager(models.Manager):
     use_in_migrations = True
@@ -383,7 +387,7 @@ class BtManager(models.Manager):
     def get_allsites_of_client(self, clientid, request=None, fields=None):
         "return all the sites of a client"
         qset = self.get_bus_based_on_idf(clientid, "SITE", request, fields)
-        print("qset: ",qset)
+        logger.debug("qset: ",qset)
         return qset or self.none()
     
     def get_bus_based_on_idf(self, clientid, idf, request=None, fields=None):

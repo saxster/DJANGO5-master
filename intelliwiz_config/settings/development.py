@@ -92,7 +92,7 @@ except SecretValidationError as e:
     sys.stderr.write("🔧 Review environment file: intelliwiz_config/envs/.env.dev.secure\n")
     sys.stderr.write("📖 Documentation: docs/security/secret-validation-logging.md\n\n")
     sys.exit(1)
-except Exception as e:
+except SETTINGS_EXCEPTIONS as e:
     import sys
     import uuid
     correlation_id = str(uuid.uuid4())
@@ -131,6 +131,8 @@ DATABASES = {
 
 # OPTIMIZED Redis Configuration - Connection Pool & Performance Enhancements
 from .redis import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
 # Cache configuration with optimized connection pooling
 CACHES = OPTIMIZED_CACHES

@@ -1,0 +1,86 @@
+[
+  {
+    "model": "help_center.helpcategory",
+    "pk": 100,
+    "fields": {
+      "name": "Best Practices",
+      "slug": "best-practices",
+      "description": "Industry-leading best practices for building secure, performant, maintainable Django applications. Based on comprehensive code review and remediation work.",
+      "parent": null,
+      "icon": "fa-star",
+      "color": "#FFD700",
+      "display_order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 101,
+    "fields": {
+      "name": "Security Best Practices",
+      "slug": "security-best-practices",
+      "description": "Critical security patterns to prevent vulnerabilities and protect user data",
+      "parent": 100,
+      "icon": "fa-shield-alt",
+      "color": "#DC143C",
+      "display_order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 102,
+    "fields": {
+      "name": "Performance Best Practices",
+      "slug": "performance-best-practices",
+      "description": "Database optimization and performance patterns for scalable applications",
+      "parent": 100,
+      "icon": "fa-tachometer-alt",
+      "color": "#1E90FF",
+      "display_order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 103,
+    "fields": {
+      "name": "Code Quality Best Practices",
+      "slug": "code-quality-best-practices",
+      "description": "Maintainable, readable code patterns that scale with your team",
+      "parent": 100,
+      "icon": "fa-code",
+      "color": "#32CD32",
+      "display_order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 104,
+    "fields": {
+      "name": "Testing Best Practices",
+      "slug": "testing-best-practices",
+      "description": "Comprehensive testing strategies for confidence in production",
+      "parent": 100,
+      "icon": "fa-check-circle",
+      "color": "#9370DB",
+      "display_order": 4,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 105,
+    "fields": {
+      "name": "Architecture Best Practices",
+      "slug": "architecture-best-practices",
+      "description": "Proven architectural patterns for enterprise Django applications",
+      "parent": 100,
+      "icon": "fa-sitemap",
+      "color": "#FF8C00",
+      "display_order": 5,
+      "is_active": true
+    }
+  }
+]

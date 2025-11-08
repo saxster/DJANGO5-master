@@ -40,6 +40,7 @@ from datetime import timedelta, datetime, timezone as dt_timezone
 from django.utils import timezone
 from django.db.models import Avg, Min, Max, Sum, Count
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 import logging
 
 logger = logging.getLogger('noc.metric_downsampling')
@@ -184,7 +185,7 @@ class DownsampleMetricsHourlyTask(IdempotentTask):
                     f"{snapshot_count} 5-min snapshots aggregated"
                 )
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 errors += 1
                 logger.error(
                     f"Error downsampling hourly metrics for client {client_id}: {e}",
@@ -346,7 +347,7 @@ class DownsampleMetricsDailyTask(IdempotentTask):
                     f"{snapshot_count} hourly snapshots aggregated"
                 )
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 errors += 1
                 logger.error(
                     f"Error downsampling daily metrics for client {client_id}: {e}",

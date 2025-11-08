@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 User Session Management Model
 
 Tracks user sessions across multiple devices with comprehensive
@@ -237,7 +239,7 @@ class UserSession(models.Model):
         return ' '.join(parts) if parts else 'Unknown Device'
 
     @staticmethod
-    def generate_device_fingerprint(user_agent, ip_address):
+    def generate_device_fingerlogger.info(user_agent, ip_address):
         """
         Generate unique device fingerprint from user agent and IP.
 

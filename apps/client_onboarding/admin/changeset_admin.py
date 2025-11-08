@@ -96,6 +96,8 @@ class AIChangeSetAdmin(admin.ModelAdmin):
 
     actions = ['rollback_changesets']
 
+    list_per_page = 50
+
     def rollback_changesets(self, request, queryset):
         """Admin action to rollback selected changesets"""
         rollback_count = 0
@@ -121,6 +123,7 @@ class AIChangeSetAdmin(admin.ModelAdmin):
 
 @admin.register(om.AIChangeRecord)
 class AIChangeRecordAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Django admin for AIChangeRecord model"""
     list_display = ('record_id', 'changeset', 'model_name', 'object_id', 'action', 'status', 'sequence_order')
     list_filter = ('action', 'status', 'model_name', 'app_label')

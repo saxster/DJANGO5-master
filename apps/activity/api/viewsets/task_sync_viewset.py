@@ -61,6 +61,12 @@ class TaskSyncViewSet(viewsets.GenericViewSet):
         super().__init__(*args, **kwargs)
         self.sync_service = TaskSyncService()
 
+    def get_queryset(self):
+        """Optimize queryset with select_related to avoid N+1 queries."""
+        return super().get_queryset().select_related(
+            'bu', 'client', 'created_by', 'modified_by'
+        ).prefetch_related('people')
+
     @action(detail=False, methods=['get'], url_path='modified-after')
     def modified_after(self, request):
         """

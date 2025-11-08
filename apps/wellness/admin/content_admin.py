@@ -55,6 +55,7 @@ from ..models import WellnessContent, WellnessContentInteraction
 
 @admin.register(WellnessContent)
 class WellnessContentAdmin(WellnessBaseModelAdmin):
+    list_per_page = 50
     """Comprehensive admin for wellness education content"""
 
     list_display = (
@@ -187,6 +188,7 @@ class WellnessContentAdmin(WellnessBaseModelAdmin):
 
 @admin.register(WellnessContentInteraction)
 class WellnessContentInteractionAdmin(WellnessBaseModelAdmin):
+    list_per_page = 50
     """Admin for wellness content interactions and engagement analytics"""
 
     list_display = (

@@ -46,10 +46,8 @@ def track_user_login(sender, request, user, **kwargs):
         ip_address = _get_client_ip(request)
 
         # Generate device fingerprint
-        device_fingerprint = UserSession.generate_device_fingerprint(
-            user_agent_string,
-            ip_address
-        )
+        device_fingerprint = UserSession.generate_device_fingerlogger.info(user_agent_string,
+            ip_address)
 
         # Get or create Django session
         if not request.session.session_key:

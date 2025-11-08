@@ -75,7 +75,7 @@ class QueryMonitor:
         with QueryMonitor("ticket_list_operation") as monitor:
             tickets = Ticket.objects.get_tickets_listview(request)
 
-        print(monitor.get_summary())
+        logger.debug(monitor.get_summary())
     """
 
     def __init__(self, operation_name: str, detailed_logging: bool = False):

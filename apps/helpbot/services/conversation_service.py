@@ -469,7 +469,7 @@ class HelpBotConversationService:
                         }
                     else:
                         logger.warning(f"Parlant failed: {parlant_response.get('error')}, using fallback")
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     logger.warning(f"Parlant processing error: {e}, using fallback")
 
             # Fallback to existing template/LLM approach
@@ -927,7 +927,7 @@ class HelpBotConversationService:
                 }
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error generating security scorecard: {e}", exc_info=True)
             return {
                 'success': False,

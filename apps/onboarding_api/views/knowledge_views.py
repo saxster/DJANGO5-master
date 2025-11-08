@@ -16,6 +16,8 @@ from rest_framework.viewsets import ModelViewSet
 from apps.core_onboarding.models import AuthoritativeKnowledge
 from ..serializers import AuthoritativeKnowledgeSerializer
 import logging
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ def validate_knowledge(request):
 
         return Response(enhanced_result, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"Error in knowledge validation: {str(e)}")
         return Response(
             {

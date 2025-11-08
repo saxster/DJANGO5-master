@@ -666,10 +666,10 @@ class SecretValidationIntegrationTest(TestCase):
         except SecretValidationError as e:
             # This is what settings.py does - print error and exit
             import sys
-            print(f"\n🚨 CRITICAL SECURITY ERROR: {e}")
+            logger.error(f"\n🚨 CRITICAL SECURITY ERROR: {e}")
             if hasattr(e, 'remediation') and e.remediation:
-                print(f"🔧 REMEDIATION: {e.remediation}")
-            print("\n❌ Application startup aborted due to invalid secrets.")
+                logger.info(f"🔧 REMEDIATION: {e.remediation}")
+            logger.info("\n❌ Application startup aborted due to invalid secrets.")
             sys.exit(1)
 
         # sys.exit should have been called

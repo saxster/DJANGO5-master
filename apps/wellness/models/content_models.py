@@ -12,6 +12,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 import uuid
 import logging
 
@@ -113,6 +114,8 @@ class WellnessContent(TenantAwareModel):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, help_text="Content creator/editor")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "Wellness Content"

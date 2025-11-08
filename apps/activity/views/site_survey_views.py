@@ -150,7 +150,7 @@ class SiteSurveyDetailView(LoginRequiredMixin, View):
                     try:
                         lon, lat = GeospatialService.extract_coordinates(survey.gpslocation)
                         survey_data["gpslocation"] = {"lat": lat, "lng": lon}
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError) as e:
                         logger.warning(f"Failed to extract coordinates for survey {survey.id}: {e}")
                         survey_data["gpslocation"] = None
 
@@ -209,7 +209,7 @@ class SiteSurveyDetailView(LoginRequiredMixin, View):
                             try:
                                 lon, lat = GeospatialService.extract_coordinates(attachment.gpslocation)
                                 attachment_info["gpslocation"] = {"lat": lat, "lng": lon}
-                            except Exception as e:
+                            except (ValueError, TypeError, AttributeError) as e:
                                 logger.warning(f"Failed to extract coordinates for attachment {attachment.id}: {e}")
 
                         attachments_data.append(attachment_info)

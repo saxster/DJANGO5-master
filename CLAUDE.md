@@ -328,6 +328,8 @@ for user in People.objects.all():
 
 ## 📚 Complete Documentation
 
+> **📍 IMPORTANT:** Documentation was reorganized on November 7, 2025. See [Documentation Index](docs/INDEX.md) for complete navigation and [Migration Map](docs/MIGRATION_MAP.md) for file movements.
+
 ### Architecture & Design
 
 - **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
@@ -351,7 +353,8 @@ for user in People.objects.all():
 - **[Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)** - Comprehensive testing docs, code quality validation, pre-commit hooks, quality metrics
 - **[Testing Training](docs/training/TESTING_TRAINING.md)** - Writing effective tests for refactored code
 - **Code Smell Detection** - Automated anti-pattern detection
-- **Exception Handling Migration** - Tools for migrating to specific exceptions
+- **[Exception Handling Part 3 Complete](EXCEPTION_HANDLING_PART3_COMPLETE.md)** ✅ - 100% remediation (554→0 violations), automated migration
+- **[Exception Handling Quick Reference](docs/quick_reference/EXCEPTION_HANDLING_QUICK_REFERENCE.md)** - Pattern selector, best practices, validation
 - **Race Condition Testing** - Critical data integrity tests
 
 ### API & Integration

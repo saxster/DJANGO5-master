@@ -358,10 +358,18 @@ class OnboardingBaseTask(Task):
         try:
             result = func(*args, **kwargs)
             return result, None
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
             if log_error:
                 task_logger.warning(
-                    f"Safe execution failed: {str(e)}",
+                    f"Safe execution failed ({type(e).__name__}): {str(e)}",
+                    extra={'function': func.__name__},
+                    exc_info=True
+                )
+            return fallback_value, e
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            if log_error:
+                task_logger.warning(
+                    f"Safe execution data error ({type(e).__name__}): {str(e)}",
                     extra={'function': func.__name__},
                     exc_info=True
                 )
@@ -409,7 +417,7 @@ def with_dlq_integration(task_func):
             result = task_func(self, *args, **kwargs)
             return result
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, LLM_API_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
             # Check if final retry
             if hasattr(self, 'request') and self.request.retries >= self.max_retries:
                 # Send to DLQ

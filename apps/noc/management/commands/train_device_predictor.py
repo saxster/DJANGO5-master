@@ -9,6 +9,8 @@ from datetime import timedelta
 from django.utils import timezone
 from apps.noc.ml.predictive_models.predictive_model_trainer import PredictiveModelTrainer
 import logging
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.management')
 
@@ -59,5 +61,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'  F1 Score: {metrics["f1"]:.3f}'))
             self.stdout.write(self.style.SUCCESS(f'  AUC: {metrics["auc"]:.3f}'))
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             self.stdout.write(self.style.ERROR(f'Error: {e}'))

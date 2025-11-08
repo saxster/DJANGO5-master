@@ -22,6 +22,8 @@ from apps.attendance.models import Post, PostAssignment, PostOrderAcknowledgemen
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS, DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +123,7 @@ def detect_no_shows_task(self):
                             notifications_sent += 1
                             logger.info(f"Created no-show ticket {ticket.id}")
 
-                    except Exception as e:
+                    except BUSINESS_LOGIC_EXCEPTIONS as e:
                         logger.error(f"Failed to create no-show ticket: {e}", exc_info=True)
 
         logger.info(
@@ -135,7 +137,7 @@ def detect_no_shows_task(self):
             'checked_at': current_time.isoformat()
         }
 
-    except Exception as exc:
+    except BUSINESS_LOGIC_EXCEPTIONS as exc:
         logger.error(f"No-show detection task failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
@@ -205,7 +207,7 @@ def send_shift_reminders_task(self, hours_before=2):
             'checked_at': current_time.isoformat()
         }
 
-    except Exception as exc:
+    except DATABASE_EXCEPTIONS as exc:
         logger.error(f"Shift reminder task failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
@@ -294,7 +296,7 @@ def monitor_coverage_gaps_task(self):
                             alerts_created += 1
                             logger.info(f"Created coverage gap alert ticket {ticket.id}")
 
-                    except Exception as e:
+                    except BUSINESS_LOGIC_EXCEPTIONS as e:
                         logger.error(f"Failed to create coverage gap ticket: {e}", exc_info=True)
 
         logger.info(
@@ -309,7 +311,7 @@ def monitor_coverage_gaps_task(self):
             'checked_at': timezone.now().isoformat()
         }
 
-    except Exception as exc:
+    except BUSINESS_LOGIC_EXCEPTIONS as exc:
         logger.error(f"Coverage gap monitoring task failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
@@ -363,7 +365,7 @@ def expire_old_acknowledgements_task(self):
             'checked_at': timezone.now().isoformat()
         }
 
-    except Exception as exc:
+    except DATABASE_EXCEPTIONS as exc:
         logger.error(f"Acknowledgement expiration task failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
@@ -456,7 +458,7 @@ def calculate_assignment_metrics_task(self, date_str=None):
 
         return metrics
 
-    except Exception as exc:
+    except DATABASE_EXCEPTIONS as exc:
         logger.error(f"Metrics calculation task failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
@@ -523,6 +525,6 @@ def archive_old_assignments_task(self, days_old=90):
         logger.info(f"No assignments to archive (all recent or already archived)")
         return {'status': 'no_action_needed', 'cutoff_date': cutoff_date.isoformat()}
 
-    except Exception as exc:
+    except DATABASE_EXCEPTIONS as exc:
         logger.error(f"Archival task failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)

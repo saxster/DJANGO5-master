@@ -14,6 +14,7 @@ from apps.activity.models.job_model import Jobneed
 from apps.activity.models.question_model import QuestionSet
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.json_utils import safe_json_parse_params
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger("django")
 
@@ -56,10 +57,13 @@ class ReportDataService:
             logger.warning(f"Invalid parameters for site reports: {str(e)}")
             return [], f"Invalid parameters: {str(e)}"
         except ObjectDoesNotExist as e:
-            logger.warning(f"Required objects not found for site reports: {str(e)}")
+            logger.warning(f"Required objects not found for site reports: {str(e)}", exc_info=True)
             return [], "Required data not found"
-        except Exception as e:
-            logger.error(f"Unexpected error retrieving site reports: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error retrieving site reports: {str(e)}", exc_info=True)
+            return [], "An error occurred while retrieving reports"
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Data structure error retrieving site reports: {str(e)}", exc_info=True)
             return [], "An error occurred while retrieving reports"
 
     @staticmethod
@@ -91,10 +95,13 @@ class ReportDataService:
             logger.warning(f"Invalid parameters for incident reports: {str(e)}")
             return [], [], f"Invalid parameters: {str(e)}"
         except ObjectDoesNotExist as e:
-            logger.warning(f"Required objects not found for incident reports: {str(e)}")
+            logger.warning(f"Required objects not found for incident reports: {str(e)}", exc_info=True)
             return [], [], "Required data not found"
-        except Exception as e:
-            logger.error(f"Unexpected error retrieving incident reports: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error retrieving incident reports: {str(e)}", exc_info=True)
+            return [], [], "An error occurred while retrieving reports"
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Data structure error retrieving incident reports: {str(e)}", exc_info=True)
             return [], [], "An error occurred while retrieving reports"
 
     @staticmethod
@@ -143,10 +150,13 @@ class ReportDataService:
             return response_data, None
 
         except ValidationError as e:
-            logger.warning(f"Invalid parameters for master report templates: {str(e)}")
+            logger.warning(f"Invalid parameters for master report templates: {str(e)}", exc_info=True)
             return {}, f"Invalid parameters: {str(e)}"
-        except Exception as e:
-            logger.error(f"Error retrieving master report templates: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error retrieving master report templates: {str(e)}", exc_info=True)
+            return {}, "An error occurred while retrieving templates"
+        except (AttributeError, TypeError, KeyError) as e:
+            logger.error(f"Data structure error retrieving master report templates: {str(e)}", exc_info=True)
             return {}, "An error occurred while retrieving templates"
 
     @staticmethod
@@ -179,10 +189,13 @@ class ReportDataService:
             logger.warning(f"Invalid template type {template_type}: {str(e)}")
             return [], f"Invalid template type: {str(e)}"
         except ObjectDoesNotExist as e:
-            logger.warning(f"Template type {template_type} not found: {str(e)}")
+            logger.warning(f"Template type {template_type} not found: {str(e)}", exc_info=True)
             return [], "Template type not found"
-        except Exception as e:
-            logger.error(f"Error retrieving configured templates: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error retrieving configured templates: {str(e)}", exc_info=True)
+            return [], "An error occurred while retrieving templates"
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Data structure error retrieving configured templates: {str(e)}", exc_info=True)
             return [], "An error occurred while retrieving templates"
 
     @staticmethod
@@ -216,10 +229,13 @@ class ReportDataService:
             return sections_data, None
 
         except ValidationError as e:
-            logger.warning(f"Invalid parent_id for sections: {str(e)}")
+            logger.warning(f"Invalid parent_id for sections: {str(e)}", exc_info=True)
             return [], str(e)
-        except Exception as e:
-            logger.error(f"Error retrieving template sections: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error retrieving template sections: {str(e)}", exc_info=True)
+            return [], "An error occurred while retrieving sections"
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Data structure error retrieving template sections: {str(e)}", exc_info=True)
             return [], "An error occurred while retrieving sections"
 
     @staticmethod
@@ -249,10 +265,13 @@ class ReportDataService:
             return template_instance, None
 
         except ValidationError as e:
-            logger.warning(f"Validation error saving template: {str(e)}")
+            logger.warning(f"Validation error saving template: {str(e)}", exc_info=True)
             return None, f"Validation error: {str(e)}"
-        except Exception as e:
-            logger.error(f"Error saving template: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error saving template: {str(e)}", exc_info=True)
+            return None, "An error occurred while saving the template"
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Data structure error saving template: {str(e)}", exc_info=True)
             return None, "An error occurred while saving the template"
 
     @staticmethod
@@ -289,8 +308,8 @@ class ReportDataService:
             return True, None
 
         except ValidationError as e:
-            logger.warning(f"Invalid template_id for deletion: {str(e)}")
+            logger.warning(f"Invalid template_id for deletion: {str(e)}", exc_info=True)
             return False, str(e)
-        except Exception as e:
-            logger.error(f"Error deleting template {template_id}: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error deleting template {template_id}: {str(e)}", exc_info=True)
             return False, "An error occurred while deleting the template"

@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Camera Fingerprinting Model
 
 Device fingerprinting for camera identification and fraud tracking.
@@ -12,7 +14,7 @@ from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
 
 
-class CameraFingerprint(TenantAwareModel):
+class CameraFingerlogger.info(TenantAwareModel):
     """
     Device fingerprinting for camera identification and fraud tracking.
 

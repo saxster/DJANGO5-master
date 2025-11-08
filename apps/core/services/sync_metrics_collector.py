@@ -105,7 +105,7 @@ def sync_metrics_decorator(operation_type: str = 'unknown', domain: str = None):
                         error_message=error_message
                     )
                 except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-                    logger.error(f"Failed to record sync metrics: {e}"), exc_info=True
+                    logger.error(f"Failed to record sync metrics: {e}", exc_info=True)
 
             return result
 
@@ -182,7 +182,7 @@ class SyncMetricsCollector:
             )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error recording sync operation metrics: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error recording sync operation metrics: {e}", exc_info=True)
 
     def _update_device_health(
         self,
@@ -235,7 +235,7 @@ class SyncMetricsCollector:
                 device_health.save()
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to update device health: {e}"), exc_info=True
+            logger.error(f"Failed to update device health: {e}", exc_info=True)
 
     def _record_aggregated_metrics(
         self,
@@ -287,7 +287,7 @@ class SyncMetricsCollector:
             cache.set(cache_key, cached_metrics, seconds_until_next_hour)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to record aggregated metrics: {e}"), exc_info=True
+            logger.error(f"Failed to record aggregated metrics: {e}", exc_info=True)
 
     def _update_realtime_cache(
         self,
@@ -338,7 +338,7 @@ class SyncMetricsCollector:
             cache.set(cache_key, realtime_metrics, self.metrics_cache_ttl)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to update real-time cache: {e}"), exc_info=True
+            logger.error(f"Failed to update real-time cache: {e}", exc_info=True)
 
     def create_analytics_snapshot(self, tenant_id: Optional[int] = None) -> Optional[SyncAnalyticsSnapshot]:
         """
@@ -366,7 +366,7 @@ class SyncMetricsCollector:
                 return snapshot
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to create analytics snapshot: {e}", exc_info=True), exc_info=True
+            logger.error(f"Failed to create analytics snapshot: {e}", exc_info=True)
             return None
 
     def _aggregate_metrics_for_snapshot(self, tenant_id: Optional[int], timestamp: datetime) -> Dict[str, Any]:
@@ -424,7 +424,7 @@ class SyncMetricsCollector:
             }
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to aggregate metrics: {e}"), exc_info=True
+            logger.error(f"Failed to aggregate metrics: {e}", exc_info=True)
             return {}
 
     def get_realtime_metrics(self, tenant_id: Optional[int] = None, domain: Optional[str] = None) -> Dict[str, Any]:

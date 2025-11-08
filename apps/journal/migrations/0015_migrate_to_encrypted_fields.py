@@ -15,6 +15,8 @@ IMPORTANT:
 
 from django.db import migrations
 import logging
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
 
 logger = logging.getLogger('migrations')
 
@@ -64,7 +66,7 @@ def migrate_to_encrypted_fields(apps, schema_editor):
                 migrated_batch.append(entry)
                 total_migrated += 1
 
-            except Exception as e:
+            except ENCRYPTION_EXCEPTIONS as e:
                 logger.error(
                     f"Error migrating journal entry {entry.id}: {str(e)}",
                     exc_info=True
@@ -141,7 +143,7 @@ def reverse_migration(apps, schema_editor):
             entry.is_encrypted = False
             entry.save()
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Error reversing migration for entry {entry.id}: {str(e)}")
 
 

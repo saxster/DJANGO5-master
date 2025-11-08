@@ -15,6 +15,8 @@ from django.utils import timezone
 from apps.core.utils_new.db_utils import get_current_db_name
 from ..models import NOCAlertEvent, MaintenanceWindow
 from ..constants import ALERT_TYPES, DEFAULT_ALERT_SUPPRESSION_WINDOW
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 __all__ = ['AlertCorrelationService']
 
@@ -87,7 +89,7 @@ class AlertCorrelationService:
                             'priority_score': priority_score
                         }
                     )
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     # Don't fail alert creation if priority calculation fails
                     logger.error(f"Error calculating priority", extra={'alert_id': alert.id, 'error': str(e)}, exc_info=True)
 
@@ -104,7 +106,7 @@ class AlertCorrelationService:
                             'cluster_size': cluster.alert_count
                         }
                     )
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     # Don't fail alert creation if clustering fails
                     logger.error(f"Error clustering alert", extra={'alert_id': alert.id, 'error': str(e)}, exc_info=True)
 

@@ -174,7 +174,7 @@ class ResultFormatter:
 
         except NETWORK_EXCEPTIONS as e:
             logger.warning(f"Failed to generate LLM insights: {e}")
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.warning(f"Unexpected error generating insights: {e}")
 
         return ""

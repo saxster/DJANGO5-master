@@ -18,6 +18,7 @@ Following CLAUDE.md Rule #7: Each model <150 lines
 
 from django.db import models
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.peoples.models import People
 
 
@@ -80,6 +81,8 @@ class HelpBadge(TenantAwareModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = TenantAwareManager()
+
     class Meta:
         db_table = 'help_center_badge'
         ordering = ['name']
@@ -116,6 +119,8 @@ class HelpUserBadge(TenantAwareModel):
         help_text="When user was notified of badge"
     )
 
+    objects = TenantAwareManager()
+
     class Meta:
         db_table = 'help_center_user_badge'
         ordering = ['-earned_at']
@@ -150,6 +155,8 @@ class HelpUserPoints(TenantAwareModel):
     badge_bonus_points = models.IntegerField(default=0)
 
     last_updated = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
 
     class Meta:
         db_table = 'help_center_user_points'

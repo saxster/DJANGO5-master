@@ -9,6 +9,10 @@ from django.core.cache import cache
 from apps.core.services.google_maps_service import google_maps_service
 import json
 import logging
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ def google_maps_script(context, callback='initGoogleMaps'):
     try:
         script_tag = google_maps_service.get_api_script_tag(request, callback)
         return script_tag
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"Error generating Google Maps script: {str(e)}")
         return '<!-- Google Maps script generation failed -->'
 
@@ -48,7 +52,7 @@ def google_maps_config(context):
     try:
         config = google_maps_service.get_secure_config(request)
         return mark_safe(json.dumps(config))
-    except Exception as e:
+    except SERIALIZATION_EXCEPTIONS as e:
         logger.error(f"Error generating Google Maps config: {str(e)}")
         return mark_safe('{"enabled": false, "error": "Configuration failed"}')
 
@@ -146,7 +150,7 @@ def geocode_address(address):
     try:
         result = google_maps_service.geocode_with_cache(address)
         return result
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Geocoding failed in template: {str(e)}")
         return None
 

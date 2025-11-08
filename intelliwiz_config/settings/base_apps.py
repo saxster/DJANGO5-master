@@ -97,6 +97,8 @@ INSTALLED_APPS = [
     "apps.ml_training",
     "apps.helpbot",
     "apps.help_center",
+    "apps.performance_analytics",
+    "apps.report_generation",
     "monitoring",
 ]
 

@@ -72,6 +72,9 @@ urlpatterns = [
     
     # Reports (All reporting functionality)
     path('reports/', include('apps.reports.urls')),
+    
+    # Intelligent Report Generation (AI-powered report creation with self-improvement)
+    path('', include('apps.report_generation.urls')),
 
     # Stream Testbench (Stream testing and anomaly detection)
     path('streamlab/', include('apps.streamlab.urls')),
@@ -80,25 +83,27 @@ urlpatterns = [
     # ========== ADMINISTRATION ==========
     path('admin/', include('apps.core.urls_admin')),
     path('admin/secrets/', include('apps.core.urls_secrets')),  # Encrypted Secrets Management
+    path('admin/', include('apps.core.urls.saved_views')),  # Saved Views & Exports
     
     # ========== API ENDPOINTS ==========
-    # REST API v1 (current stable)
-    path('api/v1/', include('apps.service.rest_service.urls')),
-    path('api/v1/sync/', include('apps.api.v1.urls')),  # Mobile Sync API (Sprint 2)
+    # REST API v2 (Primary API - Type-safe endpoints with Pydantic validation)
+    # V1 API DELETED - November 7, 2025 - All clients migrated to V2
+    path('api/v2/', include('apps.api.v2.urls')),  # Core V2 API (Auth, People, HelpDesk, Reports, Wellness, Command Center, HelpBot, Telemetry)
+    path('api/v2/noc/', include(('apps.noc.api.v2.urls', 'noc_api_v2'), namespace='noc_telemetry_api')),  # NOC Telemetry API
+    path('api/v2/operations/', include('apps.api.v2.operations_urls')),  # Operations domain (Jobs, Tasks, Tours, PPM)
+    path('api/v2/attendance/', include('apps.api.v2.attendance_urls')),  # Attendance domain (Check-in/out, Conveyance)
+
+    # Legacy endpoints (non-versioned, will remain)
     path('api/v1/biometrics/', include('apps.api.biometrics_urls')),  # Biometric Authentication API (Sprint 2)
     path('api/v1/assets/nfc/', include('apps.activity.api.nfc_urls')),  # NFC Asset Tracking API (Sprint 4)
-    path('api/v1/journal/', include(('apps.journal.urls', 'journal'), namespace='journal_api')),  # Journal & Wellness API endpoints
-    path('api/v1/wellness/', include(('apps.wellness.urls', 'wellness'), namespace='wellness_api')),  # Wellness education API endpoints
+    path('api/v1/journal/', include(('apps.journal.urls', 'journal'), namespace='journal_api')),  # Journal & Wellness API endpoints (legacy routing)
+    path('api/v1/wellness/', include(('apps.wellness.urls', 'wellness'), namespace='wellness_api')),  # Wellness education API endpoints (legacy routing)
     path('api/v1/search/', include(('apps.search.urls', 'search'))),  # Global Cross-Domain Search API
-    path('api/v1/helpbot/', include('apps.helpbot.urls')),  # AI HelpBot API endpoints
+    path('api/v1/helpbot/', include('apps.helpbot.urls')),  # AI HelpBot API endpoints (legacy routing)
     path('api/dashboard/', include('apps.core.urls_agent_api')),  # Dashboard Agent Intelligence API
+    path('api/performance/', include(('apps.performance_analytics.urls', 'performance_analytics'), namespace='performance_api')),  # Performance Analytics API
     path('', include('apps.core.urls.cron_management')),  # Unified Cron Management API
     path('api/noc/', include(('apps.noc.urls', 'noc'), namespace='noc_api')),  # NOC API endpoints
-
-    # REST API v2 (Type-safe endpoints with Pydantic validation)
-    path('api/v2/', include('apps.api.v2.urls')),  # Typed sync/device endpoints
-    path('api/v2/status/', include('apps.service.rest_service.v2.urls')),  # Status endpoint
-    path('api/v2/noc/', include(('apps.noc.api.v2.urls', 'noc_api_v2'), namespace='noc_telemetry_api')),  # NOC Telemetry API
 
     # Bounded Context APIs (Multimodal Onboarding)
     path('api/v2/client-onboarding/', include('apps.client_onboarding.urls')),  # Client onboarding context

@@ -473,7 +473,7 @@ class PostOrderAcknowledgementViewSet(viewsets.ModelViewSet):
                 'details': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error creating acknowledgement: {e}", exc_info=True)
             return Response({
                 'error': 'SERVER_ERROR',

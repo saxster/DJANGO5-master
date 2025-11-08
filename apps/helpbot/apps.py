@@ -31,7 +31,7 @@ class HelpBotConfig(AppConfig):
             from apps.helpbot.services.knowledge_service import HelpBotKnowledgeService
             knowledge_service = HelpBotKnowledgeService()
             knowledge_service.initialize_index()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Could not initialize HelpBot knowledge index on startup: {e}")

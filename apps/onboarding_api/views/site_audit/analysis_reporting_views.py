@@ -35,6 +35,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.onboarding.models import (
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     OnboardingSite,
     SOP,
     CoveragePlan,
@@ -95,7 +99,7 @@ class AuditAnalysisView(APIView):
                 {'error': 'Audit session not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             logger.error(f"Analysis failed: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Analysis failed'},
@@ -389,7 +393,7 @@ class AuditReportView(APIView):
                 {'error': 'Audit session not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Report generation failed: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Report generation failed'},

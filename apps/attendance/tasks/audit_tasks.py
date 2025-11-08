@@ -14,6 +14,8 @@ from django.contrib.auth import get_user_model
 from apps.attendance.models.audit_log import AttendanceAccessLog
 from apps.attendance.models import PeopleEventlog
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -107,7 +109,7 @@ def create_audit_log_async(
         logger.info(f"Created audit log {audit_log.id} for {action} by user {user_id}")
         return audit_log.id
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Failed to create audit log: {e}", exc_info=True)
         # Retry the task
         raise self.retry(exc=e)
@@ -175,7 +177,7 @@ def batch_create_audit_logs(self, audit_logs_data: list) -> int:
             logger.info(f"Batch created {len(created)} audit logs")
             return len(created)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Failed to batch create audit logs: {e}", exc_info=True)
         raise self.retry(exc=e)
 

@@ -41,8 +41,10 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 
-from apps.core.models.query_performance import (
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.models.query_performance import (
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
     QueryPerformanceSnapshot,
     SlowQueryAlert,
     QueryPattern
@@ -133,7 +135,7 @@ class ConnectionPoolStatusAPI(View):
                 'databases': all_stats
             })
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return JsonResponse({
                 'status': 'error',
                 'error': str(e),
@@ -206,7 +208,7 @@ class SlowQueryAlertsAPI(View):
                 'slow_patterns': patterns_data
             })
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return JsonResponse({
                 'status': 'error',
                 'error': str(e),
@@ -279,7 +281,7 @@ class PerformanceMetricsAPI(View):
                 }
             })
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return JsonResponse({
                 'status': 'error',
                 'error': str(e),
@@ -328,7 +330,7 @@ class QueryAnalysisAPI(View):
             else:
                 return self._get_general_query_analysis()
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             return JsonResponse({
                 'status': 'error',
                 'error': str(e),
@@ -452,7 +454,7 @@ def export_performance_report(request):
 
         return response
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         return JsonResponse({
             'status': 'error',
             'error': str(e),

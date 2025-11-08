@@ -30,6 +30,8 @@ from django.contrib.auth import get_user_model
 from apps.attendance.models.audit_log import AttendanceAccessLog
 import re
 import json
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS, JSON_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -132,7 +134,7 @@ class AttendanceAuditMiddleware(MiddlewareMixin):
         # Extract audit data
         try:
             self._create_audit_log(request, response, duration_ms)
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             # Don't fail the request if audit logging fails
             logger.error(f"Failed to create audit log: {e}", exc_info=True)
 
@@ -301,8 +303,8 @@ class AttendanceAuditMiddleware(MiddlewareMixin):
             if hasattr(request, '_audit_old_values'):
                 old_values = request._audit_old_values
 
-        except Exception as e:
-            logger.warning(f"Failed to extract change data: {e}")
+        except JSON_EXCEPTIONS as e:
+            logger.warning(f"Failed to extract change data: {e}", exc_info=True)
 
         return old_values, new_values
 
@@ -395,8 +397,8 @@ def audit_change(old_value_func=None):
                             k: str(v) for k, v in old_obj.__dict__.items()
                             if not k.startswith('_')
                         }
-                except Exception as e:
-                    logger.warning(f"Failed to capture old values: {e}")
+                except BUSINESS_LOGIC_EXCEPTIONS as e:
+                    logger.warning(f"Failed to capture old values: {e}", exc_info=True)
 
             return view_func(*args, **kwargs)
         return wrapper

@@ -12,6 +12,8 @@ import re
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 # Parlant will be imported when available
 try:
@@ -196,7 +198,7 @@ async def check_ticket_status(
     except DatabaseError as e:
         logger.error(f"Database error checking ticket status: {e}", exc_info=True)
         return p.ToolResult(success=False, error="Database error checking ticket")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error checking ticket status: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Error: {str(e)}")
 
@@ -272,7 +274,7 @@ async def get_my_open_tickets(
     except DatabaseError as e:
         logger.error(f"Database error getting open tickets: {e}", exc_info=True)
         return p.ToolResult(success=False, error="Database error retrieving tickets")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error getting open tickets: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Error: {str(e)}")
 
@@ -325,7 +327,7 @@ async def create_ticket_draft(
             'confirmation_required': True,
         })
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error creating ticket draft: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Error creating draft: {str(e)}")
 
@@ -395,7 +397,7 @@ async def submit_ticket(
     except DatabaseError as e:
         logger.error(f"Database error creating ticket: {e}", exc_info=True)
         return p.ToolResult(success=False, error="Database error creating ticket")
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Unexpected error creating ticket: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Error: {str(e)}")
 
@@ -462,7 +464,7 @@ async def search_knowledge_base(
     except ImportError:
         logger.error("Knowledge service not available")
         return p.ToolResult(success=False, error="Knowledge base service unavailable")
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error searching knowledge base: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Search error: {str(e)}")
 
@@ -538,7 +540,7 @@ async def escalate_ticket(
     except DatabaseError as e:
         logger.error(f"Database error escalating ticket: {e}", exc_info=True)
         return p.ToolResult(success=False, error="Database error escalating ticket")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error escalating ticket: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Error: {str(e)}")
 
@@ -620,7 +622,7 @@ async def update_ticket_status(
     except DatabaseError as e:
         logger.error(f"Database error updating ticket: {e}", exc_info=True)
         return p.ToolResult(success=False, error="Database error updating ticket")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error updating ticket: {e}", exc_info=True)
         return p.ToolResult(success=False, error=f"Error: {str(e)}")
 

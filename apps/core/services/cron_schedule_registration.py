@@ -33,6 +33,8 @@ from django.conf import settings
 from apps.core.services.base_service import BaseService
 from apps.core.services.cron_job_registry import cron_registry
 from apps.core.utils_new.cron_utilities import validate_cron_expression
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +309,7 @@ class CronScheduleRegistry(BaseService):
                 'errors': errors
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to import Celery Beat schedules: {e}")
             return {
                 'success': False,
@@ -363,7 +365,7 @@ class CronScheduleRegistry(BaseService):
                             result = register_func(self)
                             if isinstance(result, int):
                                 discovered_count += result
-                        except Exception as e:
+                        except (ValueError, TypeError, AttributeError) as e:
                             logger.error(
                                 f"Error calling register_cron_schedules in {app_name}",
                                 extra={'error': str(e)}
@@ -387,7 +389,7 @@ class CronScheduleRegistry(BaseService):
                 'discovered_count': discovered_count
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Failed to discover schedules in module {app_name}",
                 extra={'error': str(e)}
@@ -443,7 +445,7 @@ class CronScheduleRegistry(BaseService):
                         failed_count += 1
                         errors.append(f"{job_name}: {result.get('error', 'Unknown error')}")
 
-                except Exception as e:
+                except CELERY_EXCEPTIONS as e:
                     failed_count += 1
                     errors.append(f"{job_name}: {str(e)}")
 
@@ -463,7 +465,7 @@ class CronScheduleRegistry(BaseService):
                 'errors': errors
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to apply registrations: {e}")
             return {
                 'success': False,

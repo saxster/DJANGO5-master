@@ -29,6 +29,10 @@ Usage:
 """
 
 from .base import (
+
+import logging
+logger = logging.getLogger(__name__)
+
     models, Q, F, V, Count, Case, When, Concat, Cast,
     datetime, timedelta, timezone,
     logger, json, utils,
@@ -191,7 +195,7 @@ class ListViewManager(models.Manager):
             # Map ASSIGNED to PENDING for database query (since database uses PENDING but dashboard shows ASSIGNED)
             status_filter = 'PENDING' if P['jobstatus'] == 'ASSIGNED' else P['jobstatus']
             qobjs = qobjs.filter(jobstatus=status_filter)
-            print(f"[TASK LIST DEBUG] After status filter '{status_filter}': {qobjs.count()} records")
+            logger.debug(f"[TASK LIST DEBUG] After status filter '{status_filter}': {qobjs.count()} records")
 
         if P.get('alerts') and P.get('alerts') == 'TASK':
             qobjs = qobjs.filter(alerts=True)
@@ -448,7 +452,7 @@ class ListViewManager(models.Manager):
             # apps/scheduler/views/internal_tour_views.py:
             checkpoints = Jobneed.objects.get_tourdetails(request.GET)
             for cp in checkpoints:
-                print(f"Checkpoint: {cp['asset__assetname']}, Attachments: {cp['attachmentcount']}")
+                logger.debug(f"Checkpoint: {cp['asset__assetname']}, Attachments: {cp['attachmentcount']}")
         """
         qset = self.annotate(gps=AsGeoJSON('gpslocation')).select_related(
             'parent', 'asset', 'qset', 'performedby', 'bu').filter(parent_id=R['parent_id']).values(
@@ -608,7 +612,7 @@ class ListViewManager(models.Manager):
             identifier='EXTERNALTOUR',
             job__enable=True
         ).order_by('seqno').values(*fields)
-        # print('External Tour',qset)
+        logger.debug('External Tour queryset: %s', qset)
         return qset or self.none()
 
 

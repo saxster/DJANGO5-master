@@ -23,6 +23,7 @@ from django.db.models import Count, Avg, Q
 from django.utils import timezone
 from datetime import timedelta
 from apps.y_helpdesk.models import Ticket
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 import logging
 
 logger = logging.getLogger('y_helpdesk.sentiment_analytics')
@@ -60,9 +61,9 @@ class SentimentAnalyticsView(LoginRequiredMixin, View):
                     status=400
                 )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(
-                f"Error in sentiment analytics: {e}",
+                f"Database error in sentiment analytics: {e}",
                 extra={
                     'action': action,
                     'user': request.user.id
@@ -70,8 +71,21 @@ class SentimentAnalyticsView(LoginRequiredMixin, View):
                 exc_info=True
             )
             return JsonResponse(
-                {'error': 'Internal server error'},
+                {'error': 'Database error occurred'},
                 status=500
+            )
+        except (AttributeError, TypeError, ValueError, KeyError) as e:
+            logger.error(
+                f"Data validation error in sentiment analytics: {e}",
+                extra={
+                    'action': action,
+                    'user': request.user.id
+                },
+                exc_info=True
+            )
+            return JsonResponse(
+                {'error': 'Invalid request data'},
+                status=400
             )
 
     def _get_sentiment_distribution(self, request) -> JsonResponse:
@@ -387,9 +401,19 @@ class SentimentReanalysisView(LoginRequiredMixin, View):
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(
-                f"Error queueing sentiment analysis: {e}",
+                f"Database error queueing sentiment analysis: {e}",
+                extra={'action': action, 'user': request.user.id},
+                exc_info=True
+            )
+            return JsonResponse(
+                {'error': 'Database error occurred'},
+                status=500
+            )
+        except (AttributeError, TypeError, ValueError, KeyError) as e:
+            logger.error(
+                f"Validation error queueing sentiment analysis: {e}",
                 extra={'action': action, 'user': request.user.id},
                 exc_info=True
             )

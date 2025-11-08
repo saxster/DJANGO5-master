@@ -347,7 +347,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
                 'connected': True
             }
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             validation_results['errors'].append(f"Master connection failed: {e}")
             validation_results['valid'] = False
 
@@ -369,7 +369,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
                     'status': 'connected'
                 })
 
-            except Exception as e:
+            except SETTINGS_EXCEPTIONS as e:
                 validation_results['sentinel_nodes'].append({
                     'node': i,
                     'host': host,
@@ -388,7 +388,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
     except ImportError:
         validation_results['errors'].append("redis-py sentinel support not available")
         validation_results['valid'] = False
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         validation_results['errors'].append(f"Sentinel validation failed: {e}")
         validation_results['valid'] = False
 
@@ -410,7 +410,7 @@ if env.bool('REDIS_SENTINEL_ENABLED', default=False):
         if DJANGO_ENVIRONMENT == 'production':
             raise ImproperlyConfigured(error_msg)
         else:
-            logger.warning(error_msg)
+            logger.warning(error_msg, exc_info=True)
 
     # Export optimized configurations
     SENTINEL_CACHES = get_sentinel_caches_config(DJANGO_ENVIRONMENT)
@@ -422,6 +422,8 @@ else:
 
     # Fallback to non-Sentinel configurations
     from .redis_optimized import (
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
         get_optimized_caches_config,
         get_channel_layers_config,
         get_celery_redis_config

@@ -7,6 +7,10 @@ import logging
 from typing import Dict, Any, List
 from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ class ContentDeduplicator:
 
             return {'is_duplicate': False, 'duplicate_info': None, 'content_hash': content_hash}
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Error checking duplicate content: {str(e)}")
             return {'is_duplicate': False, 'duplicate_info': None, 'error': str(e)}
 
@@ -112,7 +116,7 @@ class ContentDeduplicator:
 
             return dedup_result
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error checking duplicates: {str(e)}")
             return {'is_duplicate': False, 'error': str(e)}
 
@@ -164,7 +168,7 @@ class ContentDeduplicator:
 
             return retired_ids
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error retiring superseded versions: {str(e)}")
             return []
 
@@ -190,7 +194,7 @@ class ContentDeduplicator:
 
             return similar_docs[:5]
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Error finding similar content: {str(e)}")
             return []
 

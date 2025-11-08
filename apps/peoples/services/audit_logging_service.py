@@ -112,3 +112,31 @@ class AuditLoggingService(BaseService):
     def get_service_name(self) -> str:
         """Return service name for monitoring."""
         return "AuditLoggingService"
+    
+    @staticmethod
+    def log_authentication(
+        user: Optional[Any],
+        method: str,
+        success: bool,
+        error: Optional[str] = None
+    ) -> None:
+        """
+        Log authentication attempt for security monitoring.
+        
+        Args:
+            user: User attempting authentication (None if failed before user resolution)
+            method: Authentication method (saml_sso, oidc_sso, etc.)
+            success: Whether authentication succeeded
+            error: Error message if failed
+        """
+        logger.info(
+            f"AUTH: {method} - {'SUCCESS' if success else 'FAILED'}",
+            extra={
+                'auth_method': method,
+                'success': success,
+                'user_id': getattr(user, 'id', None),
+                'username': getattr(user, 'username', None),
+                'error': error,
+                'timestamp': timezone.now().isoformat()
+            }
+        )

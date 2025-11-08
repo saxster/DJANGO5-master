@@ -192,8 +192,8 @@ class ExpenseCalculationService:
 
             return expense
 
-        except Exception as e:
-            logger.error(f"Expense calculation failed for record {attendance_record.id}: {e}")
+        except (ValueError, TypeError, ArithmeticError) as e:
+            logger.error(f"Expense calculation failed for record {attendance_record.id}: {e}", exc_info=True)
             return Decimal('0.00')
 
     @staticmethod

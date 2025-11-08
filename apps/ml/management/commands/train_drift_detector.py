@@ -7,6 +7,8 @@ Usage:
 
 from django.core.management.base import BaseCommand, CommandError
 from apps.ml.monitoring.drift_detection import DriftDetector
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -40,5 +42,5 @@ class Command(BaseCommand):
             self.stdout.write(f"  Samples: {result['sample_count']}")
             self.stdout.write(f"  Contamination: {result['contamination']}")
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             raise CommandError(f"Failed to train drift detector: {e}")

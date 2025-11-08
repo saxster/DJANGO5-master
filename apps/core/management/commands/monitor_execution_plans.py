@@ -34,6 +34,10 @@ from django.utils import timezone
 from django.conf import settings
 
 from apps.core.models.query_execution_plans import (
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
     QueryExecutionPlan,
     PlanRegressionAlert
 )
@@ -105,7 +109,7 @@ class Command(BaseCommand):
                 self._capture_recent_slow_query_plans(options['hours_back'])
                 self._analyze_recent_regressions()
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Plan monitoring failed: {e}", exc_info=True)
             raise CommandError(f"Plan monitoring failed: {e}")
 
@@ -140,7 +144,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(f"Would capture plan for: {query_text[:100]}...")
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Failed to capture specific query plan: {e}")
             raise
 
@@ -193,7 +197,7 @@ class Command(BaseCommand):
                             else:
                                 self.stdout.write(f"Would capture plan for query {query_hash}")
 
-                except Exception as e:
+                except ENCRYPTION_EXCEPTIONS as e:
                     logger.warning(f"Failed to capture plan for query {query_hash}: {e}")
                     continue
 
@@ -201,7 +205,7 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"Captured {captured_count} execution plans")
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to capture recent slow query plans: {e}")
             raise
 
@@ -273,7 +277,7 @@ class Command(BaseCommand):
                     'total_cost': total_cost,
                 }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to capture query plan: {e}")
             return None
 
@@ -309,7 +313,7 @@ class Command(BaseCommand):
             if self._has_expensive_nested_loop(plan_node):
                 opportunities.append("Expensive nested loop join - consider improving join conditions or indexes")
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.warning(f"Failed to analyze optimization opportunities: {e}")
 
         return opportunities
@@ -404,7 +408,7 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"Detected {regression_count} new regressions")
             )
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to analyze regressions: {e}")
             raise
 
@@ -457,6 +461,6 @@ class Command(BaseCommand):
 
             return None
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.warning(f"Failed to detect regression: {e}")
             return None

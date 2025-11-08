@@ -634,7 +634,7 @@ def translate_conversation_async(self, conversation_id, target_language, priorit
             try:
                 conversation = WisdomConversation.objects.get(id=conversation_id)
             except WisdomConversation.DoesNotExist:
-                logger.error(f"Conversation {conversation_id} not found for translation")
+                logger.error(f"Conversation {conversation_id} not found for translation", exc_info=True)
                 TaskMetrics.increment_counter('conversation_translation_failed', {
                     'error_type': 'conversation_not_found',
                     'target_language': target_language
@@ -711,7 +711,7 @@ def translate_conversation_async(self, conversation_id, target_language, priorit
             else:
                 # Translation failed
                 error_message = result.get('error', 'Unknown translation error')
-                logger.error(f"Translation failed for conversation {conversation_id}: {error_message}")
+                logger.error(f"Translation failed for conversation {conversation_id}: {error_message}", exc_info=True)
 
                 TaskMetrics.increment_counter('conversation_translation_failed', {
                     'error_type': 'translation_service_error',

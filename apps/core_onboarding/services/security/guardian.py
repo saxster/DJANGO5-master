@@ -12,6 +12,8 @@ from .pii_redaction import PIIRedactor
 from .rate_limiting import RateLimiter, RateLimitExceeded
 from .content_deduplication import ContentDeduplicator
 from .license_validation import LicenseValidator
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +78,7 @@ class SecurityGuardian:
                 for allowed_domain in self.source_allowlist
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Error validating source URL {url}: {str(e)}")
             return False
 
@@ -141,7 +143,7 @@ class SecurityGuardian:
             if dedup_result.get('similar_content'):
                 security_validation['recommendations'].append('Review for potential content overlap')
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in document security validation: {str(e)}")
             security_validation.update({
                 'overall_risk': 'high',
@@ -198,7 +200,7 @@ class SecurityGuardian:
                 f"{'allowed' if permission_result['allowed'] else 'denied'}"
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error checking RBAC permissions: {str(e)}")
             permission_result['error'] = str(e)
 

@@ -1,0 +1,403 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}My Saved Views - {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.saved-views-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.saved-views-container h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.saved-views-container > p {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.views-section {
+    margin-bottom: 40px;
+}
+
+.views-section h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #444;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.views-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.view-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.view-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.view-card.shared {
+    border-left: 4px solid #28a745;
+}
+
+.view-card h3 {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+}
+
+.view-card h3 a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.view-card h3 a:hover {
+    text-decoration: underline;
+}
+
+.view-card .badge {
+    display: inline-block;
+    background: #ffc107;
+    color: #000;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.view-card p {
+    color: #666;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.view-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 15px 0;
+    font-size: 13px;
+    color: #777;
+}
+
+.view-meta span {
+    display: inline-flex;
+    align-items: center;
+}
+
+.view-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.view-actions button {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.view-actions button:hover {
+    background: #e9ecef;
+}
+
+.view-actions button.primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.view-actions button.primary:hover {
+    background: #0056b3;
+}
+
+.view-actions button.danger {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.view-actions button.danger:hover {
+    background: #c82333;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.stats-bar {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stat-item {
+    flex: 1;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-top: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="saved-views-container">
+    <h1>💾 My Saved Views</h1>
+    <p>Quickly access your favorite filtered views and reports.</p>
+    
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value">{{ my_views.count }}</div>
+            <div class="stat-label">My Views</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ shared_views.count }}</div>
+            <div class="stat-label">Shared With Me</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ my_views|length }}</div>
+            <div class="stat-label">Total Saved</div>
+        </div>
+    </div>
+    
+    <!-- My Views Section -->
+    <div class="views-section">
+        <h2>My Views</h2>
+        
+        {% if my_views %}
+            <div class="views-grid">
+                {% for view in my_views %}
+                <div class="view-card">
+                    <h3>
+                        <a href="{{ view.page_url }}?load_view={{ view.id }}">
+                            {{ view.name }}
+                        </a>
+                        {% if view.is_default %}
+                        <span class="badge">⭐ Default</span>
+                        {% endif %}
+                    </h3>
+                    
+                    {% if view.description %}
+                    <p>{{ view.description }}</p>
+                    {% endif %}
+                    
+                    <div class="view-meta">
+                        <span>📊 {{ view.get_view_type_display }}</span>
+                        <span>👁️ {{ view.view_count }} views</span>
+                        {% if view.email_frequency != 'NONE' %}
+                        <span>📧 {{ view.get_email_frequency_display }}</span>
+                        {% endif %}
+                        {% if view.sharing_level != 'PRIVATE' %}
+                        <span>🔓 {{ view.get_sharing_level_display }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="view-meta" style="font-size: 12px; color: #999;">
+                        {% if view.last_accessed_at %}
+                        <span>Last used: {{ view.last_accessed_at|timesince }} ago</span>
+                        {% endif %}
+                        {% if view.last_email_sent_at %}
+                        <span>Last emailed: {{ view.last_email_sent_at|timesince }} ago</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="view-actions">
+                        <button class="primary" onclick="loadView({{ view.id }})">
+                            📂 Open
+                        </button>
+                        <button onclick="exportView({{ view.id }}, 'excel')">
+                            📥 Export Excel
+                        </button>
+                        <button onclick="exportView({{ view.id }}, 'csv')">
+                            📄 Export CSV
+                        </button>
+                        <button onclick="shareView({{ view.id }})">
+                            🔗 Share
+                        </button>
+                        <button class="danger" onclick="deleteView({{ view.id }}, '{{ view.name }}')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <h3>No Saved Views Yet</h3>
+                <p>You haven't saved any views yet. Click "💾 Save This View" on any admin page to get started!</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Shared Views Section -->
+    <div class="views-section">
+        <h2>Shared With Me</h2>
+        
+        {% if shared_views %}
+            <div class="views-grid">
+                {% for view in shared_views %}
+                <div class="view-card shared">
+                    <h3>
+                        <a href="{{ view.page_url }}?load_view={{ view.id }}">
+                            {{ view.name }}
+                        </a>
+                    </h3>
+                    
+                    {% if view.description %}
+                    <p>{{ view.description }}</p>
+                    {% endif %}
+                    
+                    <div class="view-meta">
+                        <span>👤 By {{ view.cuser.get_full_name|default:view.cuser.username }}</span>
+                        <span>📊 {{ view.get_view_type_display }}</span>
+                        <span>👁️ {{ view.view_count }} views</span>
+                    </div>
+                    
+                    <div class="view-actions">
+                        <button class="primary" onclick="loadView({{ view.id }})">
+                            📂 Open
+                        </button>
+                        <button onclick="exportView({{ view.id }}, 'excel')">
+                            📥 Export
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <h3>No Shared Views</h3>
+                <p>No one has shared views with you yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function loadView(viewId) {
+    fetch(`/admin/api/load-view/${viewId}/`, {
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Redirect to the page with the view loaded
+            window.location.href = `${data.view.page_url}?load_view=${viewId}`;
+        } else {
+            alert('❌ ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading view:', error);
+        alert('❌ Failed to load view');
+    });
+}
+
+function exportView(viewId, format) {
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = '⏳ Exporting...';
+    
+    window.location.href = `/admin/api/export-view/${viewId}/?format=${format}`;
+    
+    setTimeout(() => {
+        button.disabled = false;
+        button.textContent = button.textContent.includes('Excel') ? '📥 Export Excel' : '📄 Export CSV';
+    }, 2000);
+}
+
+function shareView(viewId) {
+    alert('Share functionality coming soon! You can configure sharing in the view settings.');
+}
+
+function deleteView(viewId, viewName) {
+    if (!confirm(`Are you sure you want to delete "${viewName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch(`/admin/api/delete-view/${viewId}/`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+            location.reload();
+        } else {
+            alert('❌ ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting view:', error);
+        alert('❌ Failed to delete view');
+    });
+}
+</script>
+{% endblock %}

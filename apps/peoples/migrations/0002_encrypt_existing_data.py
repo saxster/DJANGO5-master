@@ -5,6 +5,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Migration-specific exceptions for encryption operations
+ENCRYPTION_EXCEPTIONS = (
+    ValueError,  # Invalid encryption input
+    TypeError,  # Type mismatch in encryption
+    UnicodeDecodeError,  # Decoding errors
+    UnicodeEncodeError,  # Encoding errors
+    AttributeError,  # Missing encryption attributes
+)
+
 
 def encrypt_existing_data(apps, schema_editor):
     """
@@ -31,8 +40,8 @@ def encrypt_existing_data(apps, schema_editor):
                 try:
                     person.email = encrypt(person.email).decode('utf-8')
                     needs_update = True
-                except Exception as e:
-                    logger.warning(f"Failed to encrypt email for person {person.id}: {e}")
+                except ENCRYPTION_EXCEPTIONS as e:
+                    logger.warning(f"Failed to encrypt email for person {person.id}: {e}", exc_info=True)
 
         # Encrypt phone number if it's plain text
         if person.mobno and person.mobno != "":
@@ -41,8 +50,8 @@ def encrypt_existing_data(apps, schema_editor):
                 try:
                     person.mobno = encrypt(person.mobno).decode('utf-8')
                     needs_update = True
-                except Exception as e:
-                    logger.warning(f"Failed to encrypt phone for person {person.id}: {e}")
+                except ENCRYPTION_EXCEPTIONS as e:
+                    logger.warning(f"Failed to encrypt phone for person {person.id}: {e}", exc_info=True)
 
         if needs_update:
             person.save(update_fields=['email', 'mobno'])
@@ -74,16 +83,16 @@ def decrypt_existing_data(apps, schema_editor):
             try:
                 person.email = decrypt(person.email)
                 needs_update = True
-            except Exception as e:
-                logger.warning(f"Failed to decrypt email for person {person.id}: {e}")
+            except ENCRYPTION_EXCEPTIONS as e:
+                logger.warning(f"Failed to decrypt email for person {person.id}: {e}", exc_info=True)
 
         # Decrypt phone number if it's encrypted
         if person.mobno and len(person.mobno) > 20:
             try:
                 person.mobno = decrypt(person.mobno)
                 needs_update = True
-            except Exception as e:
-                logger.warning(f"Failed to decrypt phone for person {person.id}: {e}")
+            except ENCRYPTION_EXCEPTIONS as e:
+                logger.warning(f"Failed to decrypt phone for person {person.id}: {e}", exc_info=True)
 
         if needs_update:
             person.save(update_fields=['email', 'mobno'])

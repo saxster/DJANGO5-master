@@ -234,7 +234,7 @@ class PIISafeExceptionMiddleware:
         try:
             response = self.get_response(request)
             return response
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError) as exc:
             # Log sanitized exception
             sanitized_message = self.pii_service.redact_text(str(exc))
             logger.error(

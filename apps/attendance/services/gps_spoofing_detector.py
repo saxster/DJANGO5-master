@@ -19,6 +19,7 @@ from datetime import timedelta
 from apps.attendance.models import PeopleEventlog
 from apps.attendance.services.geospatial_service import GeospatialService
 from apps.attendance.exceptions import AttendanceValidationError
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -251,9 +252,12 @@ class GPSSpoofingDetector:
 
             return {'is_valid': True, 'velocity_kmh': velocity_kmh}
 
-        except Exception as e:
-            logger.error(f"Velocity check failed: {e}")
-            return {'is_valid': True}  # Don't block on error
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error during velocity check: {e}", exc_info=True)
+            return {'is_valid': True}  # Don't block on database errors
+        except (AttributeError, TypeError, ValueError, KeyError) as e:
+            logger.error(f"Data validation error during velocity check: {e}", exc_info=True)
+            return {'is_valid': True}  # Don't block on validation errors
 
     @classmethod
     def check_spoofing_indicators(

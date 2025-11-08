@@ -59,6 +59,8 @@ from apps.core.utils_new.datetime_utilities import get_current_utc
 from apps.scheduler.models import Job
 from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
 from apps.scheduler.services.schedule_uniqueness_service import (
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
     ScheduleUniquenessService,
     SchedulingException,
 )
@@ -232,7 +234,7 @@ class Command(BaseCommand):
             else:
                 sys.exit(0)  # All good
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             self.stderr.write(self.style.ERROR(f'Command execution error: {e}'))
             if self.verbose:
                 import traceback
@@ -335,7 +337,7 @@ class Command(BaseCommand):
                         'fix_available': False
                     })
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 if self.verbose:
                     self.stdout.write(
                         self.style.WARNING(f"  Could not validate schedule {schedule['id']}: {e}")
@@ -464,7 +466,7 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.SUCCESS('  ✅ All beat tasks are registered'))
 
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             self.errors.append({
                 'type': 'orphaned_task_check_error',
                 'severity': 'error',

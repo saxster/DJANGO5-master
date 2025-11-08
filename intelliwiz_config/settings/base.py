@@ -195,6 +195,26 @@ from .ml_config import ML_CONFIG
 from .attendance import *
 
 # ============================================================================
+# CELERY BEAT SCHEDULE - PREMIUM FEATURES
+# ============================================================================
+# Combine attendance schedules with revenue-generating premium features
+# Premium features add $336K-$672K ARR potential
+# ============================================================================
+
+from .attendance import ATTENDANCE_CELERY_BEAT_SCHEDULE
+from .premium_features_beat_schedule import PREMIUM_FEATURES_BEAT_SCHEDULE
+from .performance_analytics_schedule import PERFORMANCE_ANALYTICS_CELERY_BEAT_SCHEDULE
+from .priority_alerts_schedule import PRIORITY_ALERTS_CELERY_BEAT_SCHEDULE
+
+# Merge all beat schedules
+CELERY_BEAT_SCHEDULE = {
+    **ATTENDANCE_CELERY_BEAT_SCHEDULE,      # Attendance, audit, consent management
+    **PREMIUM_FEATURES_BEAT_SCHEDULE,       # SLA, device health, shift compliance, scorecards
+    **PERFORMANCE_ANALYTICS_CELERY_BEAT_SCHEDULE,  # Performance analytics
+    **PRIORITY_ALERTS_CELERY_BEAT_SCHEDULE,  # Priority alerts
+}
+
+# ============================================================================
 # UNFOLD ADMIN THEME CONFIGURATION
 # ============================================================================
 # Modern admin interface with organized model grouping and enhanced UX

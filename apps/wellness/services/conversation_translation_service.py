@@ -64,9 +64,7 @@ class GoogleTranslateBackend(TranslationBackend):
         try:
             # This would integrate with Google Translate API
             # For now, return a mock response
-
-            # Simulate API call delay
-            time.sleep(0.1)
+            # NOTE: time.sleep() removed - mock translation returns immediately
 
             return {
                 'text': f"[GOOGLE TRANSLATED to {target_language}] {text}",
@@ -91,8 +89,7 @@ class AzureTranslatorBackend(TranslationBackend):
         try:
             # This would integrate with Azure Translator API
             # For now, return a mock response
-
-            time.sleep(0.15)
+            # NOTE: time.sleep() removed - mock translation returns immediately
 
             return {
                 'text': f"[AZURE TRANSLATED to {target_language}] {text}",
@@ -117,8 +114,7 @@ class OpenAITranslationBackend(TranslationBackend):
         try:
             # This would integrate with OpenAI API for culturally-aware translation
             # For now, return a mock response
-
-            time.sleep(0.5)  # Slower but higher quality
+            # NOTE: time.sleep() removed - mock translation returns immediately
 
             language_names = {
                 'hi': 'Hindi',
@@ -569,8 +565,9 @@ class ConversationTranslationService:
 
                 processed += 1
 
-                # Rate limiting - small delay between translations
-                time.sleep(0.1)
+                # NOTE: Rate limiting removed - this method should be called from Celery task
+                # For synchronous batch operations, use individual translate_conversation() calls
+                # REMOVED: time.sleep(0.1) - violates Rule #14 (no blocking I/O in request paths)
 
             except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 results['failed'] += 1

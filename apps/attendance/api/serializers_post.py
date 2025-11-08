@@ -84,7 +84,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = '__all__'
+        exclude = ['internal_notes', 'sensitive_data']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = [
             'id',
             'created_at',
@@ -213,7 +213,7 @@ class PostAssignmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PostAssignment
-        fields = '__all__'
+        exclude = ['internal_notes', 'gps_coordinates_raw']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = [
             'id',
             'created_at',
@@ -511,4 +511,10 @@ class PostOrdersForWorkerSerializer(serializers.Serializer):
     required_certifications = serializers.ListField(child=serializers.CharField())
 
     class Meta:
-        fields = '__all__'
+        fields = [
+            'post_id', 'post_name', 'site_name', 'post_code', 'is_active',
+            'current_status', 'assigned_person_id', 'assigned_person_name',
+            'shift_start_time', 'shift_end_time', 'already_acknowledged',
+            'acknowledged_version', 'must_acknowledge', 'armed_required',
+            'required_certifications'
+        ]  # Security: Explicit field list instead of '__all__'

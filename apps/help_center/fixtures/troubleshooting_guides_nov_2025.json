@@ -1,0 +1,162 @@
+[
+  {
+    "model": "help_center.helpcategory",
+    "pk": 200,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Troubleshooting: Security Issues",
+      "slug": "troubleshooting-security",
+      "description": "Step-by-step guides for fixing security vulnerabilities discovered during code audits",
+      "icon": "🔐",
+      "color": "#e74c3c",
+      "display_order": 20,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 201,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Troubleshooting: Performance Problems",
+      "slug": "troubleshooting-performance",
+      "description": "Identify and fix N+1 queries, slow endpoints, and database bottlenecks",
+      "icon": "⚡",
+      "color": "#f39c12",
+      "display_order": 21,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 202,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Troubleshooting: Code Quality Issues",
+      "slug": "troubleshooting-code-quality",
+      "description": "Fix god files, deep nesting, circular dependencies, and other anti-patterns",
+      "icon": "🔧",
+      "color": "#3498db",
+      "display_order": 22,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 203,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Troubleshooting: Testing Challenges",
+      "slug": "troubleshooting-testing",
+      "description": "Write effective tests, fix race conditions, and validate refactorings",
+      "icon": "🧪",
+      "color": "#9b59b6",
+      "display_order": 23,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 204,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Troubleshooting: Refactoring Guidance",
+      "slug": "troubleshooting-refactoring",
+      "description": "Safe refactoring patterns for legacy code and backward compatibility",
+      "icon": "🏗️",
+      "color": "#1abc9c",
+      "display_order": 24,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 300,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Security",
+      "slug": "security"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 301,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Performance",
+      "slug": "performance"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 302,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Code Quality",
+      "slug": "code-quality"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 303,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Testing",
+      "slug": "testing"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 304,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Refactoring",
+      "slug": "refactoring"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 305,
+    "fields": {
+      "tenant_id": 1,
+      "name": "IDOR",
+      "slug": "idor"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 306,
+    "fields": {
+      "tenant_id": 1,
+      "name": "N+1 Queries",
+      "slug": "n-plus-one"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 307,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Exception Handling",
+      "slug": "exception-handling"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 308,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Deep Nesting",
+      "slug": "deep-nesting"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 309,
+    "fields": {
+      "tenant_id": 1,
+      "name": "God Files",
+      "slug": "god-files"
+    }
+  }
+]

@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Comprehensive tests for HelpBot models.
 
 Tests all 6 refactored models:
@@ -283,7 +285,7 @@ class TestHelpBotMessage(TestCase):
         """Test rich_content field."""
         rich_content = {
             "links": [{"text": "FAQ", "url": "/help/faq"}],
-            "code": {"language": "python", "snippet": "print('hello')"},
+            "code": {"language": "python", "snippet": "logger.info('hello')"},
         }
         message = HelpBotMessage.objects.create(
             session=self.session,

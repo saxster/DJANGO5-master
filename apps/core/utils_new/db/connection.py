@@ -24,7 +24,7 @@ def get_current_db_name() -> str:
     Example:
         >>> from apps.core.utils_new.db.connection import get_current_db_name
         >>> db = get_current_db_name()
-        >>> print(db)  # 'intelliwiz_django'
+        >>> logger.info(db)  # 'intelliwiz_django'
     """
     return getattr(THREAD_LOCAL, "DB", "default")
 

@@ -21,18 +21,22 @@ import logging
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.core.exceptions import ValidationError
+from apps.core.decorators import csrf_protect_ajax
 from apps.core.services.resumable_upload_service import ResumableUploadService
 from apps.core.models.upload_session import UploadSession
 
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='dispatch')
 class InitUploadView(LoginRequiredMixin, View):
-    """Initialize a new resumable upload session."""
+    """
+    Initialize a new resumable upload session.
+    
+    Security: CSRF protected via csrf_protect_ajax (Rule #2 compliant)
+    """
 
     def post(self, request):
         """Initialize upload session with metadata."""
@@ -59,9 +63,13 @@ class InitUploadView(LoginRequiredMixin, View):
             return JsonResponse({'error': str(e)}, status=400)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='dispatch')
 class UploadChunkView(LoginRequiredMixin, View):
-    """Upload a single chunk to an active session."""
+    """
+    Upload a single chunk to an active session.
+    
+    Security: CSRF protected via csrf_protect_ajax (Rule #2 compliant)
+    """
 
     def post(self, request):
         """Upload and validate chunk data."""
@@ -89,9 +97,13 @@ class UploadChunkView(LoginRequiredMixin, View):
             return JsonResponse({'error': str(e)}, status=400)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='dispatch')
 class CompleteUploadView(LoginRequiredMixin, View):
-    """Complete upload by reassembling chunks."""
+    """
+    Complete upload by reassembling chunks.
+    
+    Security: CSRF protected via csrf_protect_ajax (Rule #2 compliant)
+    """
 
     def post(self, request):
         """Reassemble and validate complete file."""
@@ -114,9 +126,13 @@ class CompleteUploadView(LoginRequiredMixin, View):
             return JsonResponse({'error': str(e)}, status=400)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='dispatch')
 class CancelUploadView(LoginRequiredMixin, View):
-    """Cancel an upload session and cleanup resources."""
+    """
+    Cancel an upload session and cleanup resources.
+    
+    Security: CSRF protected via csrf_protect_ajax (Rule #2 compliant)
+    """
 
     def post(self, request):
         """Cancel upload session."""

@@ -96,7 +96,14 @@ import traceback as tb
 import uuid
 
 
-@shared_task(bind=True, default_retry_delay=300, max_retries=5, name="send_ticket_email")
+@shared_task(
+    bind=True,
+    default_retry_delay=300,
+    max_retries=5,
+    soft_time_limit=300,  # 5 minutes soft limit
+    time_limit=600,        # 10 minutes hard limit
+    name="send_ticket_email"
+)
 def send_ticket_email(self, ticket=None, id=None):
     """
     Send ticket notification email with secure error handling.
@@ -237,7 +244,10 @@ def send_ticket_email(self, ticket=None, id=None):
     bind=True,
     name="ticket_escalation",
     idempotency_scope='global',
-    idempotency_ttl=14400  # 4 hours
+    idempotency_ttl=14400,  # 4 hours
+    soft_time_limit=300,     # 5 minutes soft limit
+    time_limit=600,          # 10 minutes hard limit
+    max_retries=3
 )
 def ticket_escalation(self):
     result = {"story": "", "traceback": "", "id": []}
@@ -261,7 +271,12 @@ def ticket_escalation(self):
     return result
 
 
-@shared_task(bind=True, name="alert_sendmail")
+@shared_task(
+    bind=True,
+    name="alert_sendmail",
+    soft_time_limit=180,  # 3 minutes - alert email
+    time_limit=360         # 6 minutes hard limit
+)
 def alert_sendmail(self, id, event, atts=False):
     """
     takes uuid, ownername (which is the model name) and event (observation or deviation)

@@ -17,6 +17,12 @@ from django.utils import timezone
 
 from apps.core.utils_new.db_utils import get_current_db_name
 from .models import (
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     OnboardingRequest, CandidateProfile,
     DocumentSubmission, ApprovalWorkflow, OnboardingTask
 )
@@ -85,7 +91,7 @@ def document_upload_api(request):
                         document, context={'request': request}
                     ).data
                 }, status=status.HTTP_201_CREATED)
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             return Response({
                 'status': 'error',
                 'message': str(e)
@@ -124,7 +130,7 @@ def document_delete_api(request, uuid):
                 'status': 'success',
                 'message': 'Document deleted successfully'
             })
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         return Response({
             'status': 'error',
             'message': str(e)
@@ -198,7 +204,7 @@ def approval_decision_api(request, uuid):
                     approval, context={'request': request}
                 ).data
             })
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         return Response({
             'status': 'error',
             'message': str(e)
@@ -229,7 +235,7 @@ def task_start_api(request, uuid):
                     task, context={'request': request}
                 ).data
             })
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         return Response({
             'status': 'error',
             'message': str(e)
@@ -261,7 +267,7 @@ def task_complete_api(request, uuid):
                     task, context={'request': request}
                 ).data
             })
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         return Response({
             'status': 'error',
             'message': str(e)

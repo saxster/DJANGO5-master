@@ -51,6 +51,7 @@ class AuthoritativeKnowledgeChunkInline(admin.TabularInline):
 
 @admin.register(om.AuthoritativeKnowledge)
 class AuthoritativeKnowledgeAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Django admin for AuthoritativeKnowledge model with document versioning and verification"""
     list_display = ('knowledge_id', 'document_title', 'source_organization', 'authority_level', 'is_current', 'cdtz')
     list_filter = ('authority_level', 'is_current', 'cdtz')
@@ -77,6 +78,7 @@ class AuthoritativeKnowledgeAdmin(admin.ModelAdmin):
 
 @admin.register(om.AuthoritativeKnowledgeChunk)
 class AuthoritativeKnowledgeChunkAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Django admin for AuthoritativeKnowledgeChunk model with vector embedding management"""
     list_display = ('chunk_id', 'knowledge', 'chunk_index', 'is_current', 'vector_status')
     list_filter = ('is_current', 'last_verified')

@@ -29,6 +29,8 @@ from rest_framework import serializers
 from apps.core.security.pii_redaction import PIIRedactionService
 from apps.journal.logging import get_journal_logger
 from django.core.cache import cache
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = get_journal_logger(__name__)
 
@@ -96,7 +98,7 @@ class PIIRedactionMixin:
             cache.set(cache_key, policy, timeout=300)
             self._policy_cache[cache_key] = policy
             return policy
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Failed to load redaction policy for tenant {tenant.id}: {e}")
             return None
 

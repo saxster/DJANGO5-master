@@ -60,6 +60,8 @@ class GroupAdmin(ImportExportModelAdmin):
         "bu",
     ]
 
+    list_per_page = 50
+
     def get_resource_kwargs(self, request, *args, **kwargs):
         """Pass request context to resource."""
         return {"request": request}
@@ -123,6 +125,8 @@ class PgbelongingAdmin(ImportExportModelAdmin):
         "client",
         "bu",
     ]
+
+    list_per_page = 50
 
     def get_resource_kwargs(self, request, *args, **kwargs):
         """Pass request context to resource."""

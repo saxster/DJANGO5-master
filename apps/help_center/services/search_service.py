@@ -133,7 +133,7 @@ class SearchService:
 
             return articles
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Semantic search failed: {e}", exc_info=True)
             return HelpArticle.objects.none()
 

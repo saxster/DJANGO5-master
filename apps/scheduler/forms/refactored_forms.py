@@ -282,8 +282,8 @@ class TaskForm(BaseTaskForm):
                         self.request, sitewise=config["sitewise"]
                     )
                 )
-        except Exception as e:
-            logger.warning(f"Failed to setup {field_name} queryset: {e}")
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.warning(f"Failed to setup {field_name} queryset: {e}", exc_info=True)
 
 
 class InternalTourJobneedForm(BaseJobneedForm):
@@ -364,8 +364,8 @@ class InternalTourCheckpointForm(BaseJobneedForm):
                 client_id=self.request.session.get("client_id"),
                 enable=True,
             )
-        except Exception as e:
-            logger.warning(f"Failed to setup asset queryset: {e}")
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.warning(f"Failed to setup asset queryset: {e}", exc_info=True)
 
 
 # Legacy compatibility - these will be gradually phased out

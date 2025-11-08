@@ -125,7 +125,7 @@ class BehavioralAnomalyDetector:
         except DATABASE_EXCEPTIONS as e:
             logger.error(f"Database error training baseline: {e}", exc_info=True)
             return False
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to train baseline: {e}", exc_info=True)
             return False
 

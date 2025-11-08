@@ -13,6 +13,7 @@ from apps.helpbot.models import HelpBotAnalytics
 
 @admin.register(HelpBotAnalytics)
 class HelpBotAnalyticsAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for HelpBot analytics."""
 
     list_display = [

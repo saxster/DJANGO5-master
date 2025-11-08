@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 @admin.register(KnowledgeReview)
 class KnowledgeReviewAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for Knowledge Reviews.
 
@@ -133,7 +134,7 @@ class KnowledgeReviewAdmin(admin.ModelAdmin):
                     conditions=''
                 )
                 updated += 1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Error approving review {review.review_id}: {e}")
 
         self.message_user(request, f"Approved {updated} reviews.")
@@ -146,7 +147,7 @@ class KnowledgeReviewAdmin(admin.ModelAdmin):
             try:
                 review.reject(notes=review.notes or 'Bulk rejection')
                 updated += 1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Error rejecting review {review.review_id}: {e}")
 
         self.message_user(request, f"Rejected {updated} reviews.", level='warning')

@@ -5,15 +5,25 @@ Exposes all collected metrics in Prometheus text format for scraping.
 
 Endpoint: /metrics
 Format: Prometheus text exposition format
-Authentication: Optional (configurable via settings)
+Authentication: IP whitelist + optional API key (configurable via settings)
 
 Features:
 - Zero-copy metric export (< 5ms response time)
 - Content-Type: text/plain; version=0.0.4; charset=utf-8
-- Optional IP whitelist for security
+- IP whitelist for security (recommended for production)
+- Optional API key validation (defense-in-depth)
 - Automatic metric aggregation from all collectors
 
+Security:
+- CSRF exempt is acceptable here (Rule #2 alternative protection):
+  - Prometheus scraper is automated, not browser-based
+  - IP whitelist prevents unauthorized access
+  - Optional API key provides additional auth layer
+  - No user session or state modification
+  - Read-only operation (GET only)
+
 Compliance:
+- .claude/rules.md Rule #2 (CSRF alternative protection documented)
 - .claude/rules.md Rule #7 (< 150 lines)
 - .claude/rules.md Rule #11 (specific exceptions)
 
@@ -53,14 +63,21 @@ class PrometheusExporterView(View):
     Prometheus metrics exporter view.
 
     Returns all metrics in Prometheus text exposition format.
+    
+    Security: CSRF exempt with alternative protection (Rule #2 compliant):
+    - IP whitelist enforcement (recommended for production)
+    - Optional API key validation (PROMETHEUS_API_KEY setting)
+    - Read-only GET operation (no state modification)
+    
     Rule #7 compliant: < 150 lines
     """
 
     # Prometheus text format content type
     PROMETHEUS_CONTENT_TYPE = 'text/plain; version=0.0.4; charset=utf-8'
 
-    # IP whitelist for production security (optional)
+    # Security configuration
     ALLOWED_IPS = getattr(settings, 'PROMETHEUS_ALLOWED_IPS', None)
+    API_KEY = getattr(settings, 'PROMETHEUS_API_KEY', None)
 
     def get(self, request: HttpRequest) -> HttpResponse:
         """
@@ -77,13 +94,26 @@ class PrometheusExporterView(View):
         start_time = time.time()
 
         try:
-            # Security: IP whitelist check (if configured)
+            # Security Layer 1: IP whitelist check (if configured)
             if self.ALLOWED_IPS and not self._is_ip_allowed(request):
                 logger.warning(
-                    f"Prometheus scrape rejected: IP {self._get_client_ip(request)} not whitelisted"
+                    f"Prometheus scrape rejected: IP {self._get_client_ip(request)} not whitelisted",
+                    extra={'client_ip': self._get_client_ip(request), 'security_event': 'prometheus_ip_blocked'}
                 )
                 return HttpResponse(
                     "403 Forbidden: IP not whitelisted\n",
+                    status=403,
+                    content_type='text/plain'
+                )
+            
+            # Security Layer 2: API key validation (if configured)
+            if self.API_KEY and not self._validate_api_key(request):
+                logger.warning(
+                    f"Prometheus scrape rejected: Invalid API key from {self._get_client_ip(request)}",
+                    extra={'client_ip': self._get_client_ip(request), 'security_event': 'prometheus_invalid_api_key'}
+                )
+                return HttpResponse(
+                    "403 Forbidden: Invalid API key\n",
                     status=403,
                     content_type='text/plain'
                 )
@@ -114,10 +144,25 @@ class PrometheusExporterView(View):
                 status=500,
                 content_type='text/plain'
             )
-        except Exception as e:
-            logger.error(f"Failed to export Prometheus metrics: {e}", exc_info=True)
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            logger.error(
+                f"Data error exporting Prometheus metrics: {e}",
+                exc_info=True,
+                extra={'client_ip': self._get_client_ip(request)}
+            )
             return HttpResponse(
-                f"# ERROR: Failed to export metrics: {str(e)}\n",
+                "# ERROR: Metrics export failed\n",
+                status=500,
+                content_type='text/plain'
+            )
+        except (IOError, OSError) as e:
+            logger.error(
+                f"I/O error exporting Prometheus metrics: {e}",
+                exc_info=True,
+                extra={'client_ip': self._get_client_ip(request)}
+            )
+            return HttpResponse(
+                "# ERROR: Metrics export failed\n",
                 status=500,
                 content_type='text/plain'
             )
@@ -173,6 +218,34 @@ class PrometheusExporterView(View):
 
         # Direct connection
         return request.META.get('REMOTE_ADDR', 'unknown')
+
+    def _validate_api_key(self, request: HttpRequest) -> bool:
+        """
+        Validate API key from request header.
+        
+        API key can be provided via:
+        - Authorization: Bearer <api_key>
+        - X-API-Key: <api_key>
+        
+        Args:
+            request: HTTP request object
+            
+        Returns:
+            bool: True if API key is valid, False otherwise
+        """
+        # Check Authorization header (Bearer token)
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            provided_key = auth_header[7:].strip()
+            return provided_key == self.API_KEY
+        
+        # Check X-API-Key header
+        api_key_header = request.META.get('HTTP_X_API_KEY', '')
+        if api_key_header:
+            return api_key_header.strip() == self.API_KEY
+        
+        # No API key provided
+        return False
 
 
 # Function-based view alias for backwards compatibility

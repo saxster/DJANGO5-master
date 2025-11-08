@@ -15,7 +15,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@permission_required('scheduler.view_schedule', raise_exception=True)
 @require_http_methods(["GET"])
 def get_cron_datetime_optimized(request):
     """

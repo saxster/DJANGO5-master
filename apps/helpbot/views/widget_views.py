@@ -53,8 +53,18 @@ class HelpBotWidgetView(View):
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error in HelpBot widget view: {e}", exc_info=True)
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error in HelpBot widget view: {e}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Internal server error',
+                'correlation_id': correlation_id,
+                'message': 'An error occurred. Please contact support with this correlation ID.'
+            }, status=500)
 
     def _parse_json_body(self, request):
         """Parse JSON from request body."""
@@ -80,10 +90,17 @@ class HelpBotWidgetView(View):
             })
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error starting widget session: {e}", exc_info=True)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error starting widget session: {e}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
             return JsonResponse({
                 'success': False,
-                'error': 'Could not start session'
+                'error': 'Could not start session',
+                'correlation_id': correlation_id
             }, status=500)
 
     def _capture_widget_context(self, request, data):
@@ -135,10 +152,17 @@ class HelpBotWidgetView(View):
             return JsonResponse(result)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error processing widget message: {e}", exc_info=True)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error processing widget message: {e}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
             return JsonResponse({
                 'success': False,
-                'error': 'Could not process message'
+                'error': 'Could not process message',
+                'correlation_id': correlation_id
             }, status=500)
 
     def _handle_get_suggestions(self, request, data):
@@ -155,10 +179,17 @@ class HelpBotWidgetView(View):
             })
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error getting suggestions: {e}", exc_info=True)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error getting suggestions: {e}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
             return JsonResponse({
                 'success': False,
-                'error': 'Could not get suggestions'
+                'error': 'Could not get suggestions',
+                'correlation_id': correlation_id
             }, status=500)
 
     def _get_session(self, session_id, user):

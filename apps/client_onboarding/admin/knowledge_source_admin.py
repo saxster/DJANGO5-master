@@ -22,12 +22,15 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from apps.core_onboarding.models import KnowledgeSource
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
 
 @admin.register(KnowledgeSource)
 class KnowledgeSourceAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for Knowledge Sources.
 
@@ -117,7 +120,7 @@ class KnowledgeSourceAdmin(admin.ModelAdmin):
             try:
                 trigger_knowledge_fetch.delay(str(source.source_id))
                 triggered += 1
-            except Exception as e:
+            except NETWORK_EXCEPTIONS as e:
                 logger.error(f"Error triggering fetch for {source.source_id}: {e}")
 
         self.message_user(

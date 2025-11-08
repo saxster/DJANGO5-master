@@ -20,6 +20,8 @@ Compliance:
 Usage:
     # In Django settings or AppConfig.ready()
     from apps.core.observability.sentry_integration import SentryIntegration
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     SentryIntegration.initialize()
 """
 
@@ -133,7 +135,7 @@ class SentryIntegration:
 
             return True
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to initialize Sentry: {e}", exc_info=True)
             return False
 

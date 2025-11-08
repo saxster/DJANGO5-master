@@ -16,6 +16,7 @@ from django.shortcuts import render
 from django.db.models import Count, Avg, Q
 from datetime import timedelta
 from django.utils import timezone
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 import logging
 
 logger = logging.getLogger('noc.admin')
@@ -104,6 +105,8 @@ class FraudDetectionModelAdmin(admin.ModelAdmin):
     )
 
     actions = ['activate_model']
+
+    list_per_page = 50
 
     def pr_auc_display(self, obj):
         """Display PR-AUC with color coding."""
@@ -322,7 +325,7 @@ class FraudDetectionModelAdmin(admin.ModelAdmin):
 
             return render(request, 'admin/noc/fraud_model_dashboard.html', context)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Dashboard error: {e}", exc_info=True)
             self.message_user(request, f"Dashboard error: {str(e)}", level='error')
             return render(request, 'admin/noc/fraud_model_dashboard.html', {

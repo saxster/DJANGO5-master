@@ -83,7 +83,7 @@ class CircuitBreaker:
             self.record_success()
             return result
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             # Failure - record it
             self.record_failure()
             logger.error(f"Circuit breaker recorded failure for {self.provider_name}: {e}")

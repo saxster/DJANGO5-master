@@ -20,6 +20,8 @@ import os
 from kombu import Queue, Exchange
 
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE, SECONDS_IN_HOUR
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 
 # ============================================================================
@@ -396,7 +398,7 @@ def setup_task_monitoring():
 
         return True
 
-    except Exception as exc:
+    except CELERY_EXCEPTIONS as exc:
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Failed to setup task monitoring: {exc}")

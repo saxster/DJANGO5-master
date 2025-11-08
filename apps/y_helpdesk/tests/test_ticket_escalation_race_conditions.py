@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Ticket Escalation Race Condition Tests
 
 Comprehensive tests for concurrent ticket escalation operations.
@@ -136,7 +138,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
         self.assertTrue(ticket.isescalated, "Ticket should have escalated flag")
 
         logger_msg = f"Escalations attempted: 5, succeeded: {success_count[0]}, errors: {len(errors)}, final level: {ticket.level}"
-        print(logger_msg)
+        logger.info(logger_msg)
 
     def test_concurrent_status_transitions(self):
         """

@@ -13,7 +13,7 @@ import logging
 from django.core.exceptions import ValidationError
 from typing import Dict, Any, Optional
 
-from apps.api.v1.services.base_sync_service import BaseSyncService
+from apps.core.services.sync.base_sync_service import BaseSyncService
 from apps.y_helpdesk.models import Ticket
 from .ticket_state_machine import TicketStateMachine
 

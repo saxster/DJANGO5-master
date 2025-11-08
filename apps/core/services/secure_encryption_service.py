@@ -88,6 +88,9 @@ class SecureEncryptionService:
         Raises:
             ValueError: If encryption fails
         """
+        import uuid
+        correlation_id = str(uuid.uuid4())
+
         try:
             if isinstance(plaintext, str):
                 plaintext_bytes = plaintext.encode('utf-8')
@@ -101,7 +104,21 @@ class SecureEncryptionService:
             encrypted_str = base64.urlsafe_b64encode(encrypted_bytes).decode('ascii')
 
             # Add version prefix for future algorithm upgrades
-            return f"FERNET_V1:{encrypted_str}"
+            result = f"FERNET_V1:{encrypted_str}"
+
+            # Audit logging (NO PLAINTEXT DATA IN LOGS!)
+            logger.info(
+                "Encryption operation successful",
+                extra={
+                    'correlation_id': correlation_id,
+                    'data_length': len(plaintext_bytes),
+                    'algorithm': 'FERNET_V1',
+                    'operation': 'encrypt',
+                    'output_length': len(result)
+                }
+            )
+
+            return result
 
         except (TypeError, AttributeError) as e:
             correlation_id = ErrorHandler.handle_exception(
@@ -139,6 +156,9 @@ class SecureEncryptionService:
         Raises:
             ValueError: If decryption fails or data is corrupted
         """
+        import uuid
+        correlation_id = str(uuid.uuid4())
+
         try:
             if isinstance(encrypted_data, bytes):
                 encrypted_str = encrypted_data.decode('ascii')
@@ -148,9 +168,11 @@ class SecureEncryptionService:
             # Handle versioned encryption
             if encrypted_str.startswith("FERNET_V1:"):
                 encrypted_payload = encrypted_str[len("FERNET_V1:"):]
+                algorithm_version = "FERNET_V1"
             else:
                 # Legacy format - try to decrypt directly (will fail for old zlib data)
                 encrypted_payload = encrypted_str
+                algorithm_version = "LEGACY"
 
             # Decode from base64
             encrypted_bytes = base64.urlsafe_b64decode(encrypted_payload.encode('ascii'))
@@ -159,12 +181,29 @@ class SecureEncryptionService:
             fernet = SecureEncryptionService._get_fernet()
             decrypted_bytes = fernet.decrypt(encrypted_bytes)
 
-            return decrypted_bytes.decode('utf-8')
+            result = decrypted_bytes.decode('utf-8')
+
+            # Audit logging (NO DECRYPTED DATA IN LOGS!)
+            logger.info(
+                "Decryption operation successful",
+                extra={
+                    'correlation_id': correlation_id,
+                    'algorithm': algorithm_version,
+                    'operation': 'decrypt',
+                    'input_length': len(encrypted_data),
+                    'output_length': len(result)
+                }
+            )
+
+            return result
 
         except InvalidToken as e:
             logger.warning(
                 "Invalid token during decryption - data may be corrupted or use old format",
-                extra={'data_prefix': encrypted_data[:20] if encrypted_data else ''}
+                extra={
+                    'correlation_id': correlation_id,
+                    'data_prefix': encrypted_data[:20] if encrypted_data else ''
+                }
             )
             raise ValueError("Decryption failed - invalid or corrupted data") from e
 

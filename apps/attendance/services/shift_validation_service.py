@@ -20,7 +20,7 @@ from apps.activity.models import Jobneed
 from apps.onboarding.models import Shift, Bt
 from apps.attendance.models import PeopleEventlog
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
-from apps.core.exceptions.patterns import ValidationError
+from apps.core.exceptions.patterns import ValidationError, DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS
 
 import logging
 
@@ -223,9 +223,26 @@ class ShiftAssignmentValidationService:
                 message='Check-in authorized'
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(
-                f"Validation error for worker {worker_id} at site {site_id}: {e}",
+                f"Database error during validation for worker {worker_id} at site {site_id}: {e}",
+                exc_info=True,
+                extra={
+                    'worker_id': worker_id,
+                    'site_id': site_id,
+                    'timestamp': timestamp.isoformat() if timestamp else None,
+                }
+            )
+            return ValidationResult(
+                valid=False,
+                reason='DATABASE_ERROR',
+                message='System database error during validation. Please try again or contact support.',
+                error=str(e),
+                requires_approval=False
+            )
+        except (AttributeError, TypeError, KeyError) as e:
+            logger.error(
+                f"Data error during validation for worker {worker_id} at site {site_id}: {e}",
                 exc_info=True,
                 extra={
                     'worker_id': worker_id,
@@ -238,7 +255,7 @@ class ShiftAssignmentValidationService:
                 reason='VALIDATION_ERROR',
                 message='System error during validation. Please contact support.',
                 error=str(e),
-                requires_approval=False  # System errors should not allow override
+                requires_approval=False
             )
 
     def _validate_site_assignment(self, worker_id: int, site_id: int) -> ValidationResult:
@@ -275,8 +292,10 @@ class ShiftAssignmentValidationService:
                             f"Worker {worker_id} found in site {site_id} via bupreferences "
                             "(Pgbelonging missing - should be synced)"
                         )
-            except Exception as e:
-                logger.warning(f"Error checking bupreferences for site {site_id}: {e}")
+            except (KeyError, AttributeError, TypeError) as e:
+                logger.warning(f"Error checking bupreferences for site {site_id}: {e}", exc_info=True)
+            except DATABASE_EXCEPTIONS as e:
+                logger.warning(f"Database error checking bupreferences for site {site_id}: {e}", exc_info=True)
 
         if not assigned:
             logger.warning(

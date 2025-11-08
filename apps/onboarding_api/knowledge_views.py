@@ -114,8 +114,17 @@ class KnowledgeSourceAPIView(StaffRequiredMixin, View):
             })
 
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Error in knowledge source GET: {str(e)}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error in knowledge source GET: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Internal server error',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def post(self, request):
         """Create new knowledge source"""
@@ -158,8 +167,17 @@ class KnowledgeSourceAPIView(StaffRequiredMixin, View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error creating knowledge source: {str(e)}")
-            return JsonResponse({'error': 'Failed to create source'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error creating knowledge source: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to create source',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def put(self, request, source_id):
         """Update knowledge source"""
@@ -198,8 +216,17 @@ class KnowledgeSourceAPIView(StaffRequiredMixin, View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error updating knowledge source: {str(e)}")
-            return JsonResponse({'error': 'Failed to update source'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error updating knowledge source: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to update source',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def delete(self, request, source_id):
         """Delete knowledge source (soft delete by deactivating)"""
@@ -220,8 +247,17 @@ class KnowledgeSourceAPIView(StaffRequiredMixin, View):
         except KnowledgeSource.DoesNotExist:
             return JsonResponse({'error': 'Source not found'}, status=404)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error deactivating knowledge source: {str(e)}")
-            return JsonResponse({'error': 'Failed to deactivate source'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error deactivating knowledge source: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to deactivate source',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def _serialize_source(self, source: KnowledgeSource) -> Dict[str, Any]:
         """Serialize knowledge source for API response"""
@@ -313,8 +349,17 @@ class IngestionJobAPIView(StaffRequiredMixin, View):
             })
 
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error in ingestion job GET: {str(e)}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error in ingestion job GET: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Internal server error',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def post(self, request):
         """Start new ingestion job"""
@@ -360,8 +405,17 @@ class IngestionJobAPIView(StaffRequiredMixin, View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error starting ingestion job: {str(e)}")
-            return JsonResponse({'error': 'Failed to start ingestion'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error starting ingestion job: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to start ingestion',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def _serialize_job(self, job: KnowledgeIngestionJob) -> Dict[str, Any]:
         """Serialize ingestion job for API response"""
@@ -437,8 +491,17 @@ class DocumentManagementAPIView(StaffRequiredMixin, View):
             })
 
         except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error starting re-embedding: {str(e)}")
-            return JsonResponse({'error': 'Failed to start re-embedding'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error starting re-embedding: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to start re-embedding',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def _handle_publish(self, request, document: AuthoritativeKnowledge):
         """Publish document after two-person approval (SECURITY CRITICAL)"""
@@ -506,8 +569,17 @@ class DocumentManagementAPIView(StaffRequiredMixin, View):
             })
 
         except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-            logger.error(f"Error publishing document: {str(e)}")
-            return JsonResponse({'error': 'Failed to publish document'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error publishing document: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to publish document',
+                'correlation_id': correlation_id
+            }, status=500)
 
 
 # =============================================================================
@@ -612,8 +684,17 @@ class KnowledgeSearchAPIView(StaffRequiredMixin, View):
             })
 
         except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error in knowledge search: {str(e)}")
-            return JsonResponse({'error': 'Search failed'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error in knowledge search: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Search failed',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def _apply_additional_filters(self, results: List[Dict], filters: Dict[str, Any]) -> List[Dict]:
         """Apply additional filters to search results"""
@@ -720,8 +801,17 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
             })
 
         except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error in review GET: {str(e)}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error in review GET: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Internal server error',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def post(self, request):
         """Submit document review (first or second review)"""
@@ -806,8 +896,17 @@ class DocumentReviewAPIView(StaffRequiredMixin, View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except (AttributeError, ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, TypeError, ValueError) as e:
-            logger.error(f"Error submitting review: {str(e)}")
-            return JsonResponse({'error': 'Failed to submit review'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error submitting review: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to submit review',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def _serialize_review(self, review: KnowledgeReview) -> Dict[str, Any]:
         """Serialize review for API response (two-person approval)"""
@@ -879,8 +978,17 @@ class KnowledgeStatsAPIView(StaffRequiredMixin, View):
             })
 
         except (AttributeError, ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error getting knowledge stats: {str(e)}")
-            return JsonResponse({'error': 'Failed to get statistics'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error getting knowledge stats: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Failed to get statistics',
+                'correlation_id': correlation_id
+            }, status=500)
 
     def _get_source_breakdown(self) -> Dict[str, Any]:
         """Get breakdown by source type and status"""

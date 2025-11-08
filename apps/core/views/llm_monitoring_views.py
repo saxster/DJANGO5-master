@@ -21,6 +21,8 @@ from django.db.models import Sum, Avg, Count
 from django.utils import timezone
 from apps.core.models import LLMUsageLog, LLMQuota
 from apps.core_onboarding.services.llm.circuit_breaker import CircuitBreaker
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +100,7 @@ class LLMUsageAPIView(PermissionRequiredMixin, View):
                 'generated_at': datetime.now().isoformat()
             })
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error getting LLM usage stats: {e}")
             return JsonResponse({'error': 'Failed to get statistics'}, status=500)
 
@@ -126,6 +128,6 @@ class CircuitBreakerStatusView(PermissionRequiredMixin, View):
                 'checked_at': datetime.now().isoformat()
             })
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error getting circuit breaker status: {e}")
             return JsonResponse({'error': 'Failed to get status'}, status=500)

@@ -138,6 +138,25 @@ from .cache_ttl import (
     COLD_CACHE_TTL,
 )
 
+# Re-export from status_constants module
+from .status_constants import (
+    HTTP_200_OK,
+    HTTP_201_CREATED,
+    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+    IMAGE_MAX_DIMENSION,
+    IMAGE_QUALITY_DEFAULT,
+    JPEG_QUALITY_MAXIMUM,
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    DEFAULT_BATCH_SIZE,
+    MAX_BATCH_SIZE,
+)
+
 # Re-export from retry module
 from .retry import (
     MAX_RETRIES_MINIMAL,

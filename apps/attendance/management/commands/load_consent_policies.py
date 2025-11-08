@@ -12,6 +12,8 @@ from django.utils import timezone
 from apps.attendance.models.consent import ConsentPolicy
 from pathlib import Path
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS, DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +86,7 @@ class Command(BaseCommand):
                     created_count += 1
                     self.stdout.write(self.style.SUCCESS(f"  ✓ Created: {policy}"))
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 self.stdout.write(self.style.ERROR(f"  ✗ Failed to load policy: {e}"))
                 logger.error(f"Failed to load policy: {e}", exc_info=True)
 
@@ -159,6 +161,6 @@ class Command(BaseCommand):
                 return template_path.read_text()
             else:
                 return f'<p>Policy template not found: {template_path}</p>'
-        except Exception as e:
-            logger.error(f"Failed to load template {template_path}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to load template {template_path}: {e}", exc_info=True)
             return f'<p>Error loading policy template</p>'

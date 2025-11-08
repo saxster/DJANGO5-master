@@ -23,6 +23,8 @@ from datetime import datetime, timedelta
 from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +261,7 @@ class RedisMemoryManager:
             logger.info(f"Redis memory optimization completed: {results}")
             return results
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Error during memory optimization: {e}")
             return {'status': 'error', 'message': str(e)}
 
@@ -308,7 +310,7 @@ class RedisMemoryManager:
 
             return 0
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Error cleaning pattern {pattern}: {e}")
             return 0
 

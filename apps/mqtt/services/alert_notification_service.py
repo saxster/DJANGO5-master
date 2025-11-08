@@ -33,6 +33,8 @@ from django.core.cache import cache
 from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
 from apps.core.tasks.base import TaskMetrics
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger('mqtt.alert_notifications')
 
@@ -271,7 +273,7 @@ class AlertNotificationService:
                 latency_ms=latency_ms
             )
 
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             latency_ms = (time.time() - start_time) * 1000
             logger.error(f"Failed to send email: {e}", exc_info=True)
 

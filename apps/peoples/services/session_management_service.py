@@ -22,11 +22,13 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Q, Count
 from django.contrib.sessions.models import Session
 
 from apps.peoples.models import UserSession, SessionActivityLog
 from apps.core.services import BaseService, monitor_service_performance
+from apps.core.utils_new.db_utils import get_current_db_name
 from apps.ontology.decorators import ontology
 
 logger = logging.getLogger('security.sessions')
@@ -116,9 +118,9 @@ class SessionInfo:
 # List all active sessions for a user
 sessions = session_management_service.get_user_sessions(user, include_revoked=False)
 for session in sessions:
-    print(f"{session.device_name} - Last active: {session.last_activity}")
+    logger.debug(f"{session.device_name} - Last active: {session.last_activity}")
     if session.is_suspicious:
-        print(f"  ⚠️  Suspicious: {session.suspicious_reason}")
+        logger.debug(f"  ⚠️  Suspicious: {session.suspicious_reason}")
 """,
         "revoke_session": """
 # Revoke a specific session (user clicking "Log out device")
@@ -265,31 +267,33 @@ class SessionManagementService(BaseService):
             if session.revoked:
                 return False, "Session already revoked"
 
-            # Revoke session
-            session.revoke(revoked_by=revoked_by, reason=reason)
+            # Atomic transaction: Revoke session + create audit log
+            with transaction.atomic(using=get_current_db_name()):
+                # Revoke session
+                session.revoke(revoked_by=revoked_by, reason=reason)
 
-            # Log activity
-            SessionActivityLog.objects.create(
-                session=session,
-                activity_type='logout',
-                description=f'Session revoked by {revoked_by.loginid}: {reason}',
-                ip_address='0.0.0.0',  # Not from active session
-                metadata={
-                    'revoked_by': revoked_by.loginid,
-                    'reason': reason
-                }
-            )
+                # Log activity
+                SessionActivityLog.objects.create(
+                    session=session,
+                    activity_type='logout',
+                    description=f'Session revoked by {revoked_by.loginid}: {reason}',
+                    ip_address='0.0.0.0',  # Not from active session
+                    metadata={
+                        'revoked_by': revoked_by.loginid,
+                        'reason': reason
+                    }
+                )
 
-            logger.info(
-                f'Session revoked: {session.user.loginid} by {revoked_by.loginid}',
-                extra={
-                    'user_id': session.user.id,
-                    'session_id': session_id,
-                    'revoked_by': revoked_by.id,
-                    'reason': reason,
-                    'security_event': 'session_revoked'
-                }
-            )
+                logger.info(
+                    f'Session revoked: {session.user.loginid} by {revoked_by.loginid}',
+                    extra={
+                        'user_id': session.user.id,
+                        'session_id': session_id,
+                        'revoked_by': revoked_by.id,
+                        'reason': reason,
+                        'security_event': 'session_revoked'
+                    }
+                )
 
             return True, "Session revoked successfully"
 
@@ -341,29 +345,31 @@ class SessionManagementService(BaseService):
             sessions = list(query)
             count = len(sessions)
 
-            # Revoke all sessions
-            for session in sessions:
-                session.revoke(revoked_by=user, reason=reason)
+            # Atomic transaction: Revoke all sessions + create audit logs
+            with transaction.atomic(using=get_current_db_name()):
+                # Revoke all sessions
+                for session in sessions:
+                    session.revoke(revoked_by=user, reason=reason)
 
-                # Log activity
-                SessionActivityLog.objects.create(
-                    session=session,
-                    activity_type='logout',
-                    description=f'Session revoked (bulk action): {reason}',
-                    ip_address='0.0.0.0',
-                    metadata={'bulk_revoke': True, 'reason': reason}
+                    # Log activity
+                    SessionActivityLog.objects.create(
+                        session=session,
+                        activity_type='logout',
+                        description=f'Session revoked (bulk action): {reason}',
+                        ip_address='0.0.0.0',
+                        metadata={'bulk_revoke': True, 'reason': reason}
+                    )
+
+                logger.info(
+                    f'All sessions revoked for user: {user.loginid} (count: {count})',
+                    extra={
+                        'user_id': user.id,
+                        'session_count': count,
+                        'except_current': except_current,
+                        'reason': reason,
+                        'security_event': 'bulk_session_revoke'
+                    }
                 )
-
-            logger.info(
-                f'All sessions revoked for user: {user.loginid} (count: {count})',
-                extra={
-                    'user_id': user.id,
-                    'session_count': count,
-                    'except_current': except_current,
-                    'reason': reason,
-                    'security_event': 'bulk_session_revoke'
-                }
-            )
 
             message = f"Revoked {count} session(s) successfully"
             if except_current:
@@ -442,23 +448,25 @@ class SessionManagementService(BaseService):
 
             count = expired_sessions.count()
 
-            # Revoke expired sessions
-            for session in expired_sessions:
-                session.revoke(revoked_by=None, reason='expired')
+            # Atomic transaction: Revoke expired sessions + delete Django sessions
+            with transaction.atomic(using=get_current_db_name()):
+                # Revoke expired sessions
+                for session in expired_sessions:
+                    session.revoke(revoked_by=None, reason='expired')
 
-                # Delete Django session if it still exists
-                try:
-                    session.session.delete()
-                except Session.DoesNotExist:
-                    pass
+                    # Delete Django session if it still exists
+                    try:
+                        session.session.delete()
+                    except Session.DoesNotExist:
+                        pass
 
-            logger.info(
-                f'Cleaned up {count} expired sessions',
-                extra={
-                    'session_count': count,
-                    'security_event': 'expired_session_cleanup'
-                }
-            )
+                logger.info(
+                    f'Cleaned up {count} expired sessions',
+                    extra={
+                        'session_count': count,
+                        'security_event': 'expired_session_cleanup'
+                    }
+                )
 
             return count
 

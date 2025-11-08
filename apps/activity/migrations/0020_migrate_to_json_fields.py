@@ -18,6 +18,8 @@ Following .claude/rules.md Rule #17: Transaction management
 
 from django.db import migrations
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +71,7 @@ def migrate_questions_to_json(apps, schema_editor):
                 question.save(update_fields=['options_json', 'alert_config'])
                 stats['questions_migrated'] += 1
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             stats['questions_failed'] += 1
             error_msg = f"Question ID {question.id}: {str(e)}"
             stats['errors'].append(error_msg)
@@ -102,7 +104,7 @@ def migrate_questions_to_json(apps, schema_editor):
                 belonging.save(update_fields=['options_json', 'alert_config'])
                 stats['belongings_migrated'] += 1
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             stats['belongings_failed'] += 1
             error_msg = f"QuestionSetBelonging ID {belonging.id}: {str(e)}"
             stats['errors'].append(error_msg)

@@ -11,6 +11,8 @@ import html
 import urllib.parse
 from typing import List, Dict, Any
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from django.shortcuts import render
 from django.views import View
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -23,6 +25,7 @@ from apps.client_onboarding.models import Bt
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(permission_required('peoples.view_pgbelonging', raise_exception=True), name='dispatch')
 class SiteGroup(LoginRequiredMixin, View):
     """
     Refactored site group view using SiteGroupManagementService.

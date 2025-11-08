@@ -73,7 +73,7 @@ class AuditEscalationService:
 
             return ticket
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Error escalating finding {finding.id} to ticket: {e}",
                 exc_info=True

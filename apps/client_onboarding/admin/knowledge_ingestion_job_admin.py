@@ -19,12 +19,15 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from apps.core_onboarding.models import KnowledgeIngestionJob
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
 
 @admin.register(KnowledgeIngestionJob)
 class KnowledgeIngestionJobAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for Knowledge Ingestion Jobs.
 
@@ -123,7 +126,7 @@ class KnowledgeIngestionJobAdmin(admin.ModelAdmin):
             try:
                 retry_ingestion_job.delay(str(job.job_id))
                 retried += 1
-            except Exception as e:
+            except CELERY_EXCEPTIONS as e:
                 logger.error(f"Error retrying job {job.job_id}: {e}")
 
         self.message_user(request, f"Retrying {retried} failed jobs.")

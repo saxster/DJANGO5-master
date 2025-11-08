@@ -20,6 +20,12 @@ Checks:
 import sys
 import os
 import django
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -42,12 +48,12 @@ class Colors:
 def print_check(message, passed):
     """Print check result with color."""
     status = f"{Colors.GREEN}✓{Colors.END}" if passed else f"{Colors.RED}✗{Colors.END}"
-    print(f"{status} {message}")
+    logger.debug(f"{status} {message}")
 
 
 def check_database_tables():
     """Check if all help_center tables exist."""
-    print(f"\n{Colors.BLUE}Checking Database Tables...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking Database Tables...{Colors.END}")
 
     expected_tables = [
         'help_center_tag',
@@ -81,7 +87,7 @@ def check_database_tables():
 
 def check_models():
     """Check if models can be imported."""
-    print(f"\n{Colors.BLUE}Checking Models...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking Models...{Colors.END}")
 
     try:
         from apps.help_center.models import (
@@ -103,7 +109,7 @@ def check_models():
 
 def check_services():
     """Check if services can be imported."""
-    print(f"\n{Colors.BLUE}Checking Services...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking Services...{Colors.END}")
 
     try:
         from apps.help_center.services import (
@@ -122,7 +128,7 @@ def check_services():
 
 def check_api_views():
     """Check if API views are registered."""
-    print(f"\n{Colors.BLUE}Checking API Views...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking API Views...{Colors.END}")
 
     try:
         from apps.help_center.views import (
@@ -144,7 +150,7 @@ def check_api_views():
 
 def check_websocket():
     """Check WebSocket consumer."""
-    print(f"\n{Colors.BLUE}Checking WebSocket Consumer...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking WebSocket Consumer...{Colors.END}")
 
     try:
         from apps.help_center.consumers import HelpChatConsumer
@@ -158,7 +164,7 @@ def check_websocket():
 
 def check_static_files():
     """Check if static files exist."""
-    print(f"\n{Colors.BLUE}Checking Static Files...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking Static Files...{Colors.END}")
 
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     static_dir = os.path.join(base_dir, 'apps', 'help_center', 'static', 'help_center')
@@ -184,7 +190,7 @@ def check_static_files():
 
 def check_tests():
     """Check if test files exist."""
-    print(f"\n{Colors.BLUE}Checking Test Files...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking Test Files...{Colors.END}")
 
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     test_dir = os.path.join(base_dir, 'apps', 'help_center', 'tests')
@@ -210,7 +216,7 @@ def check_tests():
 
 def check_pgvector():
     """Check if pgvector extension is enabled."""
-    print(f"\n{Colors.BLUE}Checking pgvector Extension...{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}Checking pgvector Extension...{Colors.END}")
 
     try:
         with connection.cursor() as cursor:
@@ -221,20 +227,20 @@ def check_pgvector():
         print_check("pgvector extension enabled", exists)
 
         if not exists:
-            print(f"{Colors.YELLOW}  Run: psql -U postgres -d YOUR_DB -c 'CREATE EXTENSION vector;'{Colors.END}")
+            logger.debug(f"{Colors.YELLOW}  Run: psql -U postgres -d YOUR_DB -c 'CREATE EXTENSION vector;'{Colors.END}")
 
         return exists
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         print_check(f"pgvector check failed: {e}", False)
         return False
 
 
 def main():
     """Run all verification checks."""
-    print(f"{Colors.BLUE}{'='*60}{Colors.END}")
-    print(f"{Colors.BLUE}Help Center Deployment Verification{Colors.END}")
-    print(f"{Colors.BLUE}{'='*60}{Colors.END}")
+    logger.debug(f"{Colors.BLUE}{'='*60}{Colors.END}")
+    logger.debug(f"{Colors.BLUE}Help Center Deployment Verification{Colors.END}")
+    logger.debug(f"{Colors.BLUE}{'='*60}{Colors.END}")
 
     checks = [
         ("Database Tables", check_database_tables),
@@ -252,26 +258,26 @@ def main():
         try:
             passed = check_func()
             results.append((name, passed))
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             print_check(f"{name} check error: {e}", False)
             results.append((name, False))
 
     # Summary
-    print(f"\n{Colors.BLUE}{'='*60}{Colors.END}")
-    print(f"{Colors.BLUE}Summary{Colors.END}")
-    print(f"{Colors.BLUE}{'='*60}{Colors.END}")
+    logger.debug(f"\n{Colors.BLUE}{'='*60}{Colors.END}")
+    logger.debug(f"{Colors.BLUE}Summary{Colors.END}")
+    logger.debug(f"{Colors.BLUE}{'='*60}{Colors.END}")
 
     passed_count = sum(1 for _, passed in results if passed)
     total_count = len(results)
     percentage = (passed_count / total_count * 100) if total_count > 0 else 0
 
-    print(f"Passed: {passed_count}/{total_count} ({percentage:.1f}%)")
+    logger.debug(f"Passed: {passed_count}/{total_count} ({percentage:.1f}%)")
 
     if passed_count == total_count:
-        print(f"\n{Colors.GREEN}✓ All checks passed! System is ready.{Colors.END}")
+        logger.debug(f"\n{Colors.GREEN}✓ All checks passed! System is ready.{Colors.END}")
         return 0
     else:
-        print(f"\n{Colors.YELLOW}⚠ Some checks failed. Review output above.{Colors.END}")
+        logger.error(f"\n{Colors.YELLOW}⚠ Some checks failed. Review output above.{Colors.END}")
         return 1
 
 

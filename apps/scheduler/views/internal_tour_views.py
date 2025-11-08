@@ -120,16 +120,26 @@ class Schd_I_TourFormJob(LoginRequiredMixin, View):
                 "url": f"/operations/tours/update/{job.id}/",
             }, status=200)
 
-        except (ValidationError, EnhancedValidationException):
-            return JsonResponse({"errors": "Form validation failed"}, status=400)
-        except (IntegrityError, DatabaseException):
-            return JsonResponse({"errors": "Database error occurred"}, status=500)
-        except SchedulingException:
-            return JsonResponse({"errors": "Scheduling conflict detected"}, status=400)
-        except PermissionDenied:
-            return JsonResponse({"errors": "Access denied"}, status=403)
-        except SystemException:
-            return JsonResponse({"errors": "System error occurred"}, status=500)
+        except (ValidationError, EnhancedValidationException) as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_I_TourFormJob'}, level='warning')
+            return ErrorHandler.create_error_response("Form validation failed", error_code="VALIDATION_ERROR", status_code=400, correlation_id=correlation_id)
+        except (IntegrityError, DatabaseException) as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_I_TourFormJob'})
+            return ErrorHandler.create_error_response("Database error occurred", error_code="DATABASE_ERROR", correlation_id=correlation_id)
+        except SchedulingException as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_I_TourFormJob'}, level='warning')
+            return ErrorHandler.create_error_response("Scheduling conflict detected", error_code="SCHEDULING_ERROR", status_code=400, correlation_id=correlation_id)
+        except PermissionDenied as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_I_TourFormJob'}, level='warning')
+            return ErrorHandler.create_error_response("Access denied", error_code="PERMISSION_DENIED", status_code=403, correlation_id=correlation_id)
+        except SystemException as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_I_TourFormJob'})
+            return ErrorHandler.create_error_response("System error occurred", error_code="SYSTEM_ERROR", correlation_id=correlation_id)
 
     @staticmethod
     def _handle_invalid_form(form):
@@ -294,8 +304,10 @@ def add_cp_internal_tour(request):
 
     except ValidationError as e:
         return JsonResponse({"errors": str(e)}, status=400)
-    except (DatabaseException, SystemException):
-        return JsonResponse({"errors": "System error occurred"}, status=500)
+    except (DatabaseException, SystemException) as e:
+        from apps.core.error_handling import ErrorHandler
+        correlation_id = ErrorHandler.handle_exception(e, context={'view': 'save_assigned_site'})
+        return ErrorHandler.create_error_response("System error occurred", error_code="SYSTEM_ERROR", correlation_id=correlation_id)
 
 
 @login_required
@@ -314,5 +326,7 @@ def delete_checkpoint(request):
 
     except ValidationError as e:
         return JsonResponse({"errors": str(e)}, status=400)
-    except (DatabaseException, SystemException):
-        return JsonResponse({"errors": "System error occurred"}, status=500)
+    except (DatabaseException, SystemException) as e:
+        from apps.core.error_handling import ErrorHandler
+        correlation_id = ErrorHandler.handle_exception(e, context={'view': 'delete_checkpoint'})
+        return ErrorHandler.create_error_response("System error occurred", error_code="SYSTEM_ERROR", correlation_id=correlation_id)

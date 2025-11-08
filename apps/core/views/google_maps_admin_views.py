@@ -48,7 +48,7 @@ class GoogleMapsAdminDashboard(View):
             return render(request, 'core/admin/google_maps_dashboard.html', context)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to load Google Maps dashboard: {str(e, exc_info=True)}")
+            logger.error(f"Failed to load Google Maps dashboard: {str(e)}", exc_info=True)
             return render(request, 'core/admin/google_maps_dashboard_error.html', {
                 'error_message': str(e)
             })
@@ -66,7 +66,7 @@ def google_maps_stats_api(request):
             'timestamp': datetime.now().isoformat()
         })
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Failed to get Google Maps stats: {str(e, exc_info=True)}")
+        logger.error(f"Failed to get Google Maps stats: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': str(e)
@@ -88,7 +88,7 @@ def google_maps_metrics_api(request):
             'timestamp': datetime.now().isoformat()
         })
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Failed to get Google Maps metrics: {str(e, exc_info=True)}")
+        logger.error(f"Failed to get Google Maps metrics: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': str(e)
@@ -114,7 +114,7 @@ def google_maps_clear_cache_api(request):
             'timestamp': datetime.now().isoformat()
         })
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Failed to clear Google Maps cache: {str(e, exc_info=True)}")
+        logger.error(f"Failed to clear Google Maps cache: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': str(e)
@@ -155,7 +155,7 @@ def google_maps_test_connection(request):
             }, status=500)
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Google Maps connection test failed: {str(e, exc_info=True)}")
+        logger.error(f"Google Maps connection test failed: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': f'Connection test failed: {str(e)}'
@@ -187,7 +187,7 @@ def google_maps_export_metrics(request):
             return response
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Failed to export Google Maps metrics: {str(e, exc_info=True)}")
+        logger.error(f"Failed to export Google Maps metrics: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': str(e)
@@ -273,7 +273,7 @@ def google_maps_health_check(request):
             return JsonResponse(health_status, status=200)
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Google Maps health check failed: {str(e, exc_info=True)}")
+        logger.error(f"Google Maps health check failed: {str(e)}", exc_info=True)
         return JsonResponse({
             'timestamp': datetime.now().isoformat(),
             'overall_status': 'error',
@@ -310,7 +310,7 @@ def google_maps_config_info(request):
         })
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Failed to get Google Maps config info: {str(e, exc_info=True)}")
+        logger.error(f"Failed to get Google Maps config info: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': str(e)

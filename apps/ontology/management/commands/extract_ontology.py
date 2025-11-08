@@ -133,10 +133,16 @@ class Command(BaseCommand):
                             )
                         )
 
-                except Exception as e:
+                except (OSError, IOError, PermissionError) as e:
                     self.stdout.write(
-                        self.style.ERROR(f"Error scanning {app_path}: {e}")
+                        self.style.ERROR(f"Error accessing {app_path}: {e}")
                     )
+                    logger.error(f"Error accessing {app_path}: {e}", exc_info=True)
+                except (ValueError, TypeError, AttributeError) as e:
+                    self.stdout.write(
+                        self.style.ERROR(f"Error processing {app_path}: {e}")
+                    )
+                    logger.error(f"Error processing {app_path}: {e}", exc_info=True)
 
         # Display statistics
         stats = OntologyRegistry.get_statistics()
@@ -159,7 +165,11 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f"\nData exported to: {output_path}")
             )
-        except Exception as e:
+        except (OSError, IOError, PermissionError) as e:
+            logger.error(f"Failed to write export file: {e}", exc_info=True)
+            raise CommandError(f"Failed to export data: {e}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"Failed to serialize export data: {e}", exc_info=True)
             raise CommandError(f"Failed to export data: {e}")
 
     def _get_apps_to_scan(self, specified_apps):

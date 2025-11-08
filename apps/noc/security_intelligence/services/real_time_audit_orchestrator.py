@@ -127,7 +127,7 @@ class RealTimeAuditOrchestrator:
                     signals=signals,
                     window_minutes=window_minutes
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Signal correlation failed: {e}")
 
             signal_count = signals.get(f'{signal_type}_count', 0)
@@ -255,7 +255,7 @@ class RealTimeAuditOrchestrator:
             # Broadcast finding to WebSocket clients
             try:
                 NOCWebSocketService.broadcast_finding(finding)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Failed to broadcast finding {finding.id}: {e}")
 
             # Escalate high-severity findings to tickets
@@ -263,13 +263,13 @@ class RealTimeAuditOrchestrator:
                 ticket = AuditEscalationService.escalate_finding_to_ticket(finding)
                 if ticket:
                     logger.info(f"Finding {finding.id} escalated to ticket {ticket.id}")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Failed to escalate finding {finding.id}: {e}")
 
             # Execute matching playbooks (Enhancement #2: Automated Playbook Execution)
             try:
                 self._execute_matching_playbooks(finding)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Failed to execute playbooks for finding {finding.id}: {e}")
 
             return finding

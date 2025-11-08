@@ -37,6 +37,8 @@ task_logger = logging.getLogger("celery.task")
 @shared_task(
     bind=True,
     name='process_conversation_step',
+    soft_time_limit=600,   # 10 minutes - LLM processing
+    time_limit=900,         # 15 minutes hard limit
     **llm_api_task_config()  # Apply LLM API retry config with exponential backoff
 )
 def process_conversation_step(self, conversation_id: str, user_input: str, context: Dict[str, Any], task_id: str):
@@ -564,7 +566,12 @@ def cleanup_old_sessions(self, days_old: int = 30):
         }
 
 
-@shared_task(bind=True, name='cleanup_failed_tasks')
+@shared_task(
+    bind=True,
+    name='cleanup_failed_tasks',
+    soft_time_limit=180,  # 3 minutes - cleanup
+    time_limit=360         # 6 minutes hard limit
+)
 def cleanup_failed_tasks(self):
     """
     Clean up failed conversation tasks and reset session states

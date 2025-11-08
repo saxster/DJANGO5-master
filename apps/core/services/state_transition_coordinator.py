@@ -21,6 +21,8 @@ Key Features:
 Usage:
     from apps.core.services.state_transition_coordinator import StateTransitionCoordinator
     from apps.activity.state_machines.task_state_machine import TaskStateMachine
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
     # Single transition with automatic locking
     result = StateTransitionCoordinator.execute_transition(
@@ -199,6 +201,8 @@ class StateTransitionCoordinator:
                             'max_retries': max_retries
                         }
                     )
+                    # SAFE: time.sleep() acceptable in Celery task context for lock retry
+                    # This is NOT in request path - state transitions run as background tasks
                     time.sleep(backoff_ms / MILLISECONDS_IN_SECOND)
                     continue
                 else:
@@ -327,7 +331,7 @@ class StateTransitionCoordinator:
                 extra={'entity_type': entity_type, 'entity_id': entity_id}
             )
 
-        except Exception as audit_error:
+        except DATABASE_EXCEPTIONS as audit_error:
             # Don't fail transition if audit fails, but log it
             logger.error(
                 f"Failed to create audit record for {entity_type}:{entity_id}: {audit_error}",

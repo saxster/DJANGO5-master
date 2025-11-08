@@ -1,0 +1,706 @@
+{% comment %}
+AI Mentor Widget - Floating AI Assistant for Admin Panel
+
+Provides contextual help, suggestions, and tutorials to administrators.
+Appears on all admin pages with intelligent, proactive guidance.
+{% endcomment %}
+
+<div id="ai-mentor-widget">
+    <!-- Floating AI Assistant Avatar -->
+    <div id="mentor-avatar" class="mentor-avatar" onclick="toggleMentor()">
+        <div class="avatar-icon">🤖</div>
+        <div class="pulse-ring"></div>
+        <span class="notification-badge" id="mentor-badge" style="display:none;">0</span>
+    </div>
+    
+    <!-- Suggestion Panel -->
+    <div id="mentor-panel" class="mentor-panel" style="display: none;">
+        <div class="mentor-header">
+            <h3>💡 Your AI Assistant</h3>
+            <button class="close-btn" onclick="closeMentor()" aria-label="Close">✕</button>
+        </div>
+        
+        <div class="mentor-content">
+            <!-- Personalized greeting -->
+            <div class="mentor-greeting">
+                <p>Hi {{ user.first_name|default:user.username }}! 👋</p>
+                <p class="subtext" id="context-message">Here's how I can help:</p>
+            </div>
+            
+            <!-- Smart Suggestions -->
+            <div id="mentor-suggestions" class="mentor-suggestions">
+                <div class="loading">🤔 Loading suggestions...</div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="mentor-quick-actions">
+                <button class="action-btn" onclick="startTutorial('welcome')">
+                    🎓 Take a Tour
+                </button>
+                <button class="action-btn" onclick="showShortcuts()">
+                    ⌨️ Keyboard Shortcuts
+                </button>
+                <button class="action-btn" onclick="showEfficiencyReport()">
+                    📊 My Efficiency Report
+                </button>
+            </div>
+            
+            <!-- Ask Questions -->
+            <div class="mentor-ask">
+                <input type="text" 
+                       id="mentor-question" 
+                       placeholder="Ask me anything..."
+                       onkeypress="handleMentorQuestion(event)"
+                       aria-label="Ask a question">
+                <button class="ask-btn" onclick="askMentor()">Ask</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Floating Avatar */
+.mentor-avatar {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    z-index: 1001;
+    transition: transform 0.3s ease;
+}
+
+.mentor-avatar:hover {
+    transform: scale(1.1);
+}
+
+.mentor-avatar.attention {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.avatar-icon {
+    font-size: 28px;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.pulse-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 3px solid #667eea;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ef4444;
+    color: white;
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Mentor Panel */
+.mentor-panel {
+    position: fixed;
+    bottom: 160px;
+    right: 20px;
+    width: 450px;
+    max-height: 700px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+    z-index: 1000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.mentor-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mentor-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 1;
+}
+
+.mentor-content {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.mentor-greeting p {
+    margin: 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.mentor-greeting .subtext {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+/* Suggestions */
+.mentor-suggestions {
+    margin: 20px 0;
+}
+
+.suggestion-card {
+    padding: 16px;
+    margin: 12px 0;
+    border-left: 4px solid #667eea;
+    background: #f8f9ff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.suggestion-card:hover {
+    background: #f0f2ff;
+    transform: translateX(4px);
+}
+
+.suggestion-card.warning {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+}
+
+.suggestion-card.warning:hover {
+    background: #fee2e2;
+}
+
+.suggestion-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.suggestion-icon {
+    font-size: 24px;
+    margin-right: 12px;
+}
+
+.suggestion-header strong {
+    flex: 1;
+    font-size: 15px;
+    color: #111827;
+}
+
+.time-saved-badge {
+    background: #10b981;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.urgency-badge {
+    background: #ef4444;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.suggestion-card p {
+    margin: 8px 0;
+    color: #4b5563;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.suggestion-card button {
+    margin-top: 8px;
+    padding: 8px 16px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.suggestion-card button:hover {
+    background: #5568d3;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #6b7280;
+}
+
+/* Quick Actions */
+.mentor-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 20px 0;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.action-btn {
+    padding: 10px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: #e5e7eb;
+    transform: translateY(-2px);
+}
+
+/* Ask Input */
+.mentor-ask {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.mentor-ask input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.mentor-ask input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.ask-btn {
+    padding: 10px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ask-btn:hover {
+    background: #5568d3;
+}
+
+/* Answer Display */
+.mentor-answer {
+    background: #f0fdf4;
+    border-left: 4px solid #10b981;
+    padding: 16px;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+.mentor-answer h4 {
+    margin: 0 0 8px 0;
+    color: #065f46;
+}
+
+.mentor-answer p {
+    margin: 8px 0;
+    color: #047857;
+    line-height: 1.6;
+}
+
+.related {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #d1fae5;
+}
+
+.related h5 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #065f46;
+}
+
+.related ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.related li {
+    margin: 4px 0;
+}
+
+.related a {
+    color: #059669;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.related a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .mentor-panel {
+        width: 90%;
+        right: 5%;
+        left: 5%;
+    }
+    
+    .mentor-quick-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// Global mentor state
+let mentorVisible = false;
+let currentContext = {};
+
+// Toggle mentor panel
+function toggleMentor() {
+    const panel = document.getElementById('mentor-panel');
+    mentorVisible = !mentorVisible;
+    panel.style.display = mentorVisible ? 'flex' : 'none';
+    
+    if (mentorVisible) {
+        loadMentorSuggestions();
+    }
+}
+
+function closeMentor() {
+    mentorVisible = false;
+    document.getElementById('mentor-panel').style.display = 'none';
+}
+
+// Load contextual suggestions
+async function loadMentorSuggestions() {
+    const currentUrl = window.location.pathname;
+    const context = gatherPageContext();
+    
+    try {
+        const response = await fetch('/api/v2/admin/mentor/suggestions/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                url: currentUrl,
+                context: context
+            })
+        });
+        
+        if (!response.ok) throw new Error('Failed to load suggestions');
+        
+        const suggestions = await response.json();
+        renderSuggestions(suggestions);
+    } catch (error) {
+        console.error('Error loading mentor suggestions:', error);
+        document.getElementById('mentor-suggestions').innerHTML = 
+            '<p class="loading">Unable to load suggestions. Please try again.</p>';
+    }
+}
+
+// Render suggestions
+function renderSuggestions(suggestions) {
+    const container = document.getElementById('mentor-suggestions');
+    
+    if (suggestions.length === 0) {
+        container.innerHTML = '<p class="loading">You\'re doing great! No suggestions right now. 🎉</p>';
+        return;
+    }
+    
+    container.innerHTML = suggestions.map(s => {
+        const cardClass = s.type === 'WARNING' ? 'suggestion-card warning' : 'suggestion-card';
+        const badge = s.time_saved 
+            ? `<span class="time-saved-badge">Save ${s.time_saved}</span>` 
+            : (s.urgency === 'HIGH' ? '<span class="urgency-badge">URGENT</span>' : '');
+        
+        return `
+            <div class="${cardClass}" onclick="handleSuggestion('${s.id}', '${s.action_function || ''}', '${s.action_url || ''}')">
+                <div class="suggestion-header">
+                    <span class="suggestion-icon">${s.icon}</span>
+                    <strong>${s.title}</strong>
+                    ${badge}
+                </div>
+                <p>${s.message}</p>
+                ${s.action ? `<button>${s.action}</button>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// Handle suggestion click
+async function handleSuggestion(id, actionFunction, actionUrl) {
+    // Track that user followed suggestion
+    await trackSuggestionFollowed(id);
+    
+    // Execute the action
+    if (actionFunction) {
+        try {
+            eval(actionFunction);
+        } catch (e) {
+            console.error('Error executing action:', e);
+        }
+    } else if (actionUrl) {
+        window.location.href = actionUrl;
+    }
+}
+
+// Track suggestion followed
+async function trackSuggestionFollowed(suggestionId) {
+    try {
+        await fetch('/api/v2/admin/mentor/track-suggestion/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ suggestion_id: suggestionId })
+        });
+    } catch (error) {
+        console.error('Error tracking suggestion:', error);
+    }
+}
+
+// Ask mentor a question
+async function askMentor() {
+    const question = document.getElementById('mentor-question').value.trim();
+    if (!question) return;
+    
+    // Show loading
+    const container = document.getElementById('mentor-suggestions');
+    container.innerHTML = '<div class="loading">🤔 Thinking...</div>';
+    
+    try {
+        // Query AI
+        const response = await fetch('/api/v2/admin/mentor/ask/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ question })
+        });
+        
+        if (!response.ok) throw new Error('Failed to get answer');
+        
+        const answer = await response.json();
+        
+        // Show answer
+        const relatedHtml = answer.related_articles?.length ? `
+            <div class="related">
+                <h5>Related articles:</h5>
+                <ul>
+                    ${answer.related_articles.map(a => 
+                        `<li><a href="${a.url}">${a.title}</a></li>`
+                    ).join('')}
+                </ul>
+            </div>
+        ` : '';
+        
+        container.innerHTML = `
+            <div class="mentor-answer">
+                <h4>💡 ${answer.title}</h4>
+                <p>${answer.answer}</p>
+                ${relatedHtml}
+            </div>
+        `;
+        
+        // Clear input
+        document.getElementById('mentor-question').value = '';
+    } catch (error) {
+        console.error('Error asking mentor:', error);
+        container.innerHTML = '<p class="loading">Sorry, I encountered an error. Please try again.</p>';
+    }
+}
+
+// Handle Enter key in question input
+function handleMentorQuestion(event) {
+    if (event.key === 'Enter') {
+        askMentor();
+    }
+}
+
+// Show mentor notification
+function showMentorNotification(count) {
+    const badge = document.getElementById('mentor-badge');
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'block' : 'none';
+    
+    // Pulse avatar to get attention
+    const avatar = document.getElementById('mentor-avatar');
+    avatar.classList.add('attention');
+    setTimeout(() => avatar.classList.remove('attention'), 3000);
+}
+
+// Gather page context for intelligent suggestions
+function gatherPageContext() {
+    const context = {
+        session_duration_minutes: 0
+    };
+    
+    // Check for ticket counts
+    const unassignedEl = document.querySelector('[data-unassigned-count]');
+    if (unassignedEl) {
+        context.unassigned_count = parseInt(unassignedEl.dataset.unassignedCount);
+    }
+    
+    const highPriorityEl = document.querySelector('[data-high-priority-count]');
+    if (highPriorityEl) {
+        context.high_priority_count = parseInt(highPriorityEl.dataset.highPriorityCount);
+    }
+    
+    const overdueEl = document.querySelector('[data-overdue-count]');
+    if (overdueEl) {
+        context.overdue_count = parseInt(overdueEl.dataset.overdueCount);
+    }
+    
+    // Get session duration from localStorage
+    const sessionStart = localStorage.getItem('adminSessionStart');
+    if (sessionStart) {
+        const minutes = Math.floor((Date.now() - parseInt(sessionStart)) / 60000);
+        context.session_duration_minutes = minutes;
+    } else {
+        localStorage.setItem('adminSessionStart', Date.now().toString());
+    }
+    
+    return context;
+}
+
+// Check for important suggestions on page load
+async function checkForImportantSuggestions() {
+    const currentUrl = window.location.pathname;
+    const context = gatherPageContext();
+    
+    try {
+        const response = await fetch('/api/v2/admin/mentor/suggestions/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ url: currentUrl, context })
+        });
+        
+        if (response.ok) {
+            const suggestions = await response.json();
+            const important = suggestions.filter(s => s.priority >= 9 || s.urgency === 'HIGH');
+            return important;
+        }
+    } catch (error) {
+        console.error('Error checking suggestions:', error);
+    }
+    
+    return [];
+}
+
+// Utility: Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Start tutorial
+function startTutorial(tutorialId) {
+    window.location.href = `/admin/tutorial/${tutorialId}/`;
+}
+
+// Show shortcuts
+function showShortcuts() {
+    window.location.href = '/admin/help/shortcuts/';
+}
+
+// Show efficiency report
+function showEfficiencyReport() {
+    window.location.href = '/admin/reports/efficiency/';
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    const suggestions = await checkForImportantSuggestions();
+    if (suggestions.length > 0) {
+        showMentorNotification(suggestions.length);
+    }
+});
+</script>

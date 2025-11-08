@@ -79,6 +79,8 @@ class AttendanceAccessLogAdmin(admin.ModelAdmin):
         }),
     )
 
+    list_per_page = 50
+
     def user_link(self, obj):
         """Link to user"""
         if obj.user:
@@ -169,6 +171,8 @@ class ConsentPolicyAdmin(admin.ModelAdmin):
 
     readonly_fields = ['uuid']
 
+    list_per_page = 50
+
     def active_badge(self, obj):
         """Badge for active status"""
         if obj.is_active:
@@ -224,6 +228,8 @@ class EmployeeConsentLogAdmin(admin.ModelAdmin):
             'fields': ('notes',)
         }),
     )
+
+    list_per_page = 50
 
     def employee_link(self, obj):
         """Link to employee"""
@@ -313,6 +319,8 @@ class AttendancePhotoAdmin(admin.ModelAdmin):
         }),
     )
 
+    list_per_page = 50
+
     def employee_link(self, obj):
         """Link to employee"""
         url = reverse('admin:peoples_people_change', args=[obj.employee.id])
@@ -371,6 +379,7 @@ class AttendancePhotoAdmin(admin.ModelAdmin):
 
 @admin.register(UserBehaviorProfile)
 class UserBehaviorProfileAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin for user behavior profiles (fraud detection)"""
 
     list_display = [
@@ -436,6 +445,8 @@ class UserBehaviorProfileAdmin(admin.ModelAdmin):
 
     actions = ['retrain_baseline']
 
+    list_per_page = 50
+
     def retrain_baseline(self, request, queryset):
         """Action to retrain baselines for selected employees"""
         from apps.attendance.ml_models import BehavioralAnomalyDetector
@@ -452,6 +463,7 @@ class UserBehaviorProfileAdmin(admin.ModelAdmin):
 
 @admin.register(FraudAlert)
 class FraudAlertAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin for fraud alerts"""
 
     list_display = [
@@ -553,6 +565,8 @@ class FraudAlertAdmin(admin.ModelAdmin):
 
     actions = ['assign_to_me', 'mark_as_investigating', 'mark_as_false_positive']
 
+    list_per_page = 50
+
     def assign_to_me(self, request, queryset):
         """Assign selected alerts to current user"""
         updated = queryset.filter(status='PENDING').update(
@@ -590,6 +604,7 @@ class FraudAlertAdmin(admin.ModelAdmin):
 
 @admin.register(SyncConflict)
 class SyncConflictAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin for mobile sync conflicts"""
 
     list_display = [
@@ -604,6 +619,8 @@ class SyncConflictAdmin(admin.ModelAdmin):
         'uuid', 'detected_at', 'resolved_at',
         'client_version', 'server_version', 'device_id', 'app_version'
     ]
+
+    list_per_page = 50
 
     def employee_link(self, obj):
         """Link to employee"""

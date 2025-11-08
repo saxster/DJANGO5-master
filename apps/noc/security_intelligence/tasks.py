@@ -13,6 +13,8 @@ import logging
 from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.security_intelligence')
 
@@ -280,7 +282,7 @@ def _train_models_for_tenant(tenant):
                 profile = BehavioralProfiler.create_or_update_profile(guard, days=90)
                 if profile:
                     profiles_updated += 1
-            except Exception as e:
+            except FILE_EXCEPTIONS as e:
                 logger.error(f"Profile update failed for {guard.peoplename}: {e}")
 
         logger.info(f"Updated {profiles_updated} behavioral profiles for {tenant.schema_name}")
@@ -304,7 +306,7 @@ def _train_models_for_tenant(tenant):
                 try:
                     trainer.handle(tenant=tenant.id, days=180, test_size=0.2, verbose=False)
                     logger.info(f"✅ XGBoost training completed for {tenant.schema_name}")
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     logger.error(f"❌ XGBoost training failed for {tenant.schema_name}: {e}")
             else:
                 logger.warning(

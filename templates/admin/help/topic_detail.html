@@ -1,0 +1,324 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ topic.feature_name }} - Help{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .help-detail-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    
+    .help-breadcrumbs {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
+    }
+    
+    .help-breadcrumbs a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    
+    .help-breadcrumbs a:hover {
+        text-decoration: underline;
+    }
+    
+    .help-detail-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    
+    .help-lead {
+        font-size: 18px;
+        color: #666;
+        margin-bottom: 25px;
+        line-height: 1.6;
+    }
+    
+    .help-meta {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #eee;
+    }
+    
+    .meta-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .difficulty-beginner {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .difficulty-intermediate {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .difficulty-advanced {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .category-badge {
+        background: #e7f3ff;
+        color: #0056b3;
+    }
+    
+    .help-section {
+        margin-bottom: 40px;
+    }
+    
+    .help-section h2 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #333;
+        border-left: 4px solid #667eea;
+        padding-left: 15px;
+    }
+    
+    .help-section p {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #555;
+        margin-bottom: 15px;
+    }
+    
+    .advantages-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .advantages-list li {
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        background: #f8f9ff;
+        border-left: 3px solid #667eea;
+        border-radius: 4px;
+        font-size: 16px;
+        color: #333;
+    }
+    
+    .example-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .example-card h4 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #667eea;
+    }
+    
+    .example-card p {
+        font-size: 15px;
+        color: #555;
+        margin: 0;
+    }
+    
+    .how-to-steps {
+        background: #f9f9f9;
+        padding: 25px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .how-to-steps p {
+        white-space: pre-line;
+        font-size: 15px;
+        line-height: 1.8;
+    }
+    
+    .video-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 25px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .video-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .help-feedback {
+        background: #f8f9ff;
+        padding: 25px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 40px;
+    }
+    
+    .help-feedback p {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    
+    .feedback-button {
+        background: white;
+        border: 2px solid #667eea;
+        color: #667eea;
+        padding: 10px 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 0 10px;
+        transition: all 0.3s;
+    }
+    
+    .feedback-button:hover {
+        background: #667eea;
+        color: white;
+    }
+    
+    .feedback-button.positive {
+        border-color: #28a745;
+        color: #28a745;
+    }
+    
+    .feedback-button.positive:hover {
+        background: #28a745;
+        color: white;
+    }
+    
+    .feedback-button.negative {
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+    
+    .feedback-button.negative:hover {
+        background: #dc3545;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="help-detail-container">
+    <div class="help-breadcrumbs">
+        <a href="{% url 'admin:index' %}">Home</a> › 
+        <a href="{% url 'admin:core_adminhelptopic_changelist' %}">Help Topics</a> › 
+        {{ topic.feature_name }}
+    </div>
+    
+    <h1 class="help-detail-title">{{ topic.feature_name }}</h1>
+    <p class="help-lead">{{ topic.short_description }}</p>
+    
+    <div class="help-meta">
+        <span class="meta-badge difficulty-{{ topic.difficulty_level }}">
+            {{ topic.get_difficulty_level_display }}
+        </span>
+        <span class="meta-badge category-badge">
+            {{ topic.get_category_display }}
+        </span>
+    </div>
+    
+    <div class="help-section">
+        <h2>📖 What is this?</h2>
+        <p>{{ topic.detailed_explanation|linebreaks }}</p>
+    </div>
+    
+    {% if topic.advantages %}
+    <div class="help-section">
+        <h2>⭐ Why use it?</h2>
+        <ul class="advantages-list">
+            {% for advantage in topic.advantages %}
+            <li>✅ {{ advantage }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% if topic.use_cases %}
+    <div class="help-section">
+        <h2>💡 Examples</h2>
+        {% for use_case in topic.use_cases %}
+        <div class="example-card">
+            <h4>Example {{ forloop.counter }}</h4>
+            <p>{{ use_case }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <div class="help-section">
+        <h2>🚀 How to use it</h2>
+        <div class="how-to-steps">
+            <p>{{ topic.how_to_use }}</p>
+        </div>
+    </div>
+    
+    {% if topic.video_url %}
+    <div class="help-section">
+        <h2>📹 Video Tutorial</h2>
+        <a href="{{ topic.video_url }}" target="_blank" class="video-button">
+            ▶️ Watch Tutorial
+        </a>
+    </div>
+    {% endif %}
+    
+    <div class="help-feedback">
+        <p>Was this helpful?</p>
+        <button class="feedback-button positive" onclick="markHelpful({{ topic.id }}, true)">
+            👍 Yes, this helped!
+        </button>
+        <button class="feedback-button negative" onclick="markHelpful({{ topic.id }}, false)">
+            👎 Not really
+        </button>
+    </div>
+</div>
+
+<script>
+function markHelpful(topicId, isHelpful) {
+    const action = isHelpful ? 'helpful' : 'not_helpful';
+    
+    fetch(`/api/admin-help/${topicId}/view/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `action=${action}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Thank you for your feedback!');
+            // Disable buttons after feedback
+            document.querySelectorAll('.feedback-button').forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to submit feedback. Please try again.');
+    });
+}
+</script>
+{% endblock %}

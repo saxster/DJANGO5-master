@@ -418,8 +418,8 @@ def suggest_optimizations(model_or_queryset) -> Dict[str, Any]:
 # Example usage and testing
 if __name__ == "__main__":
     # Example of how to use the query optimizer
-    print("Query Optimization Tools loaded successfully")
-    print("Use the following decorators and utilities:")
-    print("  @detect_n_plus_one")
-    print("  QueryAnalyzer() context manager")
-    print("  suggest_optimizations(Model)")
+    logger.debug("Query Optimization Tools loaded successfully")
+    logger.debug("Use the following decorators and utilities:")
+    logger.debug("  @detect_n_plus_one")
+    logger.debug("  QueryAnalyzer() context manager")
+    logger.debug("  suggest_optimizations(Model)")

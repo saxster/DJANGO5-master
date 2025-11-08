@@ -45,9 +45,9 @@ class DesignReport(LoginRequiredMixin, View):
             data = Bt.objects.get_sample_data()
             return self.render_excelfile(data)
         # defalult weasyprint
-        return self.render_using_weasyprint(html_string)
+        return self.render_using_weasylogger.info(html_string)
 
-    def render_using_weasyprint(self, html_string):
+    def render_using_weasylogger.info(self, html_string):
         html = HTML(string=html_string)
         # Specify the path to your local CSS file
         css = CSS(filename="frontend/static/assets/css/local/reports.css")

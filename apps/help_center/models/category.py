@@ -18,6 +18,7 @@ Created: 2025-11-04 (Split from god file)
 
 from django.db import models
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 
 
 class HelpCategory(TenantAwareModel):
@@ -60,6 +61,8 @@ class HelpCategory(TenantAwareModel):
 
     display_order = models.IntegerField(default=0, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
+
+    objects = TenantAwareManager()
 
     class Meta:
         db_table = 'help_center_category'

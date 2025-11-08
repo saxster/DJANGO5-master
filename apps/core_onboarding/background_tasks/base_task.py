@@ -27,6 +27,8 @@ from django.utils import timezone
 
 # Resilience imports
 from apps.core_onboarding.background_tasks.retry_strategies import (
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
     DATABASE_EXCEPTIONS,
     NETWORK_EXCEPTIONS,
     LLM_API_EXCEPTIONS,
@@ -57,7 +59,7 @@ class OnboardingBaseTask(Task):
                 # Task logic here
                 result = do_work(arg1, arg2)
                 return self.task_success(result, correlation_id)
-            except Exception as e:
+            except CELERY_EXCEPTIONS as e:
                 return self.handle_task_error(
                     e,
                     correlation_id=correlation_id,
@@ -307,7 +309,7 @@ class OnboardingBaseTask(Task):
                 correlation_id=correlation_id
             )
 
-        except Exception as dlq_error:
+        except CELERY_EXCEPTIONS as dlq_error:
             task_logger.error(
                 f"Failed to send task to DLQ: {str(dlq_error)}",
                 extra={'correlation_id': correlation_id},
@@ -358,7 +360,7 @@ class OnboardingBaseTask(Task):
         try:
             result = func(*args, **kwargs)
             return result, None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             if log_error:
                 task_logger.warning(
                     f"Safe execution failed: {str(e)}",
@@ -409,7 +411,7 @@ def with_dlq_integration(task_func):
             result = task_func(self, *args, **kwargs)
             return result
 
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             # Check if final retry
             if hasattr(self, 'request') and self.request.retries >= self.max_retries:
                 # Send to DLQ

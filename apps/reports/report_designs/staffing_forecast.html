@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Weekly Staffing Forecast - {{ forecast.site }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .meta { color: #7f8c8d; font-size: 0.9em; margin-bottom: 20px; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th { background: #3498db; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; }
+        tr:hover { background: #f8f9fa; }
+        .delta-positive { color: #27ae60; font-weight: bold; }
+        .delta-negative { color: #c0392b; font-weight: bold; }
+        .delta-neutral { color: #95a5a6; }
+        .summary-box { background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .recommendation { background: #fff3cd; padding: 10px; margin: 5px 0; border-left: 4px solid #ffc107; }
+        .warning { background: #f8d7da; border-left-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>Weekly Staffing Forecast</h1>
+    <div class="meta">
+        Site: <strong>{{ forecast.site }}</strong><br>
+        Generated: {{ forecast.forecast_date }}<br>
+        Analysis Period: {{ forecast.shifts.0.days_analyzed|default:"90" }} days
+    </div>
+
+    <div class="summary-box">
+        <h2>Weekly Summary</h2>
+        <p><strong>Total Guards Needed:</strong> {{ forecast.weekly_summary.total_guards_needed_weekly }}</p>
+        <p><strong>Average Per Shift:</strong> {{ forecast.weekly_summary.avg_per_shift }}</p>
+        <p><strong>Shifts Analyzed:</strong> {{ forecast.weekly_summary.shifts_analyzed }}</p>
+    </div>
+
+    <h2>Shift-by-Shift Forecast</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Shift ID</th>
+                <th>Day of Week</th>
+                <th>Base Headcount</th>
+                <th>Recommended</th>
+                <th>Delta</th>
+                <th>On-Time Rate</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for shift in forecast.shifts %}
+            <tr>
+                <td>{{ shift.shift_id }}</td>
+                <td>{{ shift.day_of_week }}</td>
+                <td>{{ shift.base_headcount }}</td>
+                <td>{{ shift.recommended_headcount }}</td>
+                <td class="{% if shift.delta > 0 %}delta-positive{% elif shift.delta < 0 %}delta-negative{% else %}delta-neutral{% endif %}">
+                    {% if shift.delta > 0 %}+{% endif %}{{ shift.delta }}
+                </td>
+                <td>{{ shift.on_time_rate }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Recommendations</h2>
+    {% for rec in forecast.recommendations %}
+    <div class="recommendation {% if 'High incident' in rec %}warning{% endif %}">
+        {{ rec }}
+    </div>
+    {% endfor %}
+
+    <div class="meta" style="margin-top: 40px; border-top: 1px solid #ddd; padding-top: 10px;">
+        <em>This forecast uses historical attendance and incident data. Review with operational context.</em>
+    </div>
+</body>
+</html>

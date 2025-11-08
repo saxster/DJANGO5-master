@@ -32,7 +32,7 @@ class Schd_I_TourJobForm(CachedDropdownMixin, JobForm):
     # Configure cached dropdown fields - this replaces expensive set_options_for_dropdowns calls
     cached_dropdown_fields = {
         'ticketcategory': {
-            'model': ob.TypeAssist,
+            'model': TypeAssist,
             'filter_method': 'filter_for_dd_notifycategory_field',
             'sitewise': True,
             'version': '1.0'

@@ -110,6 +110,8 @@ class TaskFailureRecordAdmin(admin.ModelAdmin):
         'abandon_selected_tasks',
         'export_to_csv',
     ]
+
+    list_per_page = 50
     
     # ========================================================================
     # Custom Display Methods

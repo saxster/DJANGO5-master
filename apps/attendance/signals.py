@@ -22,6 +22,8 @@ import json
 from background_tasks.tasks import publish_mqtt
 
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,7 @@ def notify_worker_of_assignment(sender, instance, created, **kwargs):
                 f"Notification queued for worker {instance.worker.id} "
                 f"for assignment {instance.id}"
             )
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Failed to notify worker: {e}", exc_info=True)
 
 
@@ -130,7 +132,7 @@ def update_assignment_on_attendance(sender, instance, created, **kwargs):
 
                 assignment.save(update_fields=['checked_out_at', 'status', 'hours_worked'])
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Failed to update assignment: {e}", exc_info=True)
 
 

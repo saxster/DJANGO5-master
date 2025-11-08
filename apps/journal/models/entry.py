@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 import uuid
 from .enums import JournalEntryType, JournalPrivacyScope, JournalSyncStatus
 
@@ -257,6 +258,8 @@ class JournalEntry(TenantAwareModel):
         help_text="Flexible additional data and context"
     )
 
+    objects = TenantAwareManager()
+
     class Meta:
         verbose_name = "Journal Entry"
         verbose_name_plural = "Journal Entries"
@@ -273,6 +276,8 @@ class JournalEntry(TenantAwareModel):
             models.Index(fields=['tenant', 'timestamp']),
             models.Index(fields=['created_at']),
             models.Index(fields=['tags']),  # GIN index for JSON field (PostgreSQL specific)
+            models.Index(fields=['timestamp', 'is_deleted']),  # Performance: MQTT health queries (Nov 5, 2025)
+            models.Index(fields=['user', 'timestamp', 'is_deleted']),  # Performance: User timeline with deleted filter
         ]
 
         constraints = [

@@ -10,6 +10,10 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from datetime import datetime, timedelta
 from .circuit_breaker import CircuitBreaker
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +117,7 @@ class RateLimiter:
             limit_info['current_usage'] = current_daily
             return True, limit_info
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             # Record failure and use fallback
             correlation_id = self.circuit_breaker.record_failure()
             logger.error(
@@ -148,7 +152,7 @@ class RateLimiter:
 
             return True
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             correlation_id = str(uuid.uuid4())
             logger.warning(
                 f"Failed to increment usage counter - using fallback",
@@ -171,7 +175,7 @@ class RateLimiter:
                 'source': 'primary_cache'
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Failed to get usage stats: {str(e)}")
             return {
                 'resource_type': resource_type,

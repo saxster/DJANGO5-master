@@ -1,193 +1,58 @@
 """
-API Deprecation Headers Middleware
-Implements RFC 9745 (Deprecation) and RFC 8594 (Sunset) standards.
+API Deprecation Middleware
 
-Compliance with .claude/rules.md:
-- Rule #6: Module < 200 lines
-- Rule #11: Specific exception handling
-- Rule #15: No sensitive data logging
+Adds deprecation headers to v1 API endpoints to inform clients
+of the migration path to v2.
+
+Ontology: middleware=True, api_versioning=True
+Category: middleware, api, deprecation
+Domain: api_versioning
+Responsibility: Add deprecation headers to v1 responses
+Dependencies: django
 """
 
-import re
-import logging
-from django.utils.deprecation import MiddlewareMixin
-from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.cache import cache
-from django.db import DatabaseError
-
-logger = logging.getLogger('api.deprecation')
+from datetime import datetime, timedelta
 
 
-class APIDeprecationMiddleware(MiddlewareMixin):
+class APIDeprecationMiddleware:
     """
-    Adds deprecation headers to API responses per RFC 9745 and RFC 8594.
-
+    Middleware to add deprecation headers to v1 API responses.
+    
     Headers added:
-    - Deprecation: Unix timestamp when endpoint was deprecated (RFC 9745)
-    - Sunset: HTTP date when endpoint will be removed (RFC 8594)
-    - Warning: 299 code with deprecation message (RFC 7234)
-    - Link: URL to migration documentation (RFC 8288)
-    - X-API-Version: Current API version
+    - Deprecation: true
+    - Sunset: Date when v1 will be EOL
+    - Link: URL to migration documentation
     """
-
-    def __init__(self, get_response=None):
-        super().__init__(get_response)
-        self.cache_timeout = 3600
-        self.api_paths = ['/api/']
-
-    def process_response(self, request, response):
-        """Add deprecation headers if endpoint is deprecated."""
-        if not self._is_api_request(request):
-            return response
-
-        try:
-            deprecation = self._get_deprecation_info(request)
-            if deprecation:
-                self._add_deprecation_headers(response, deprecation)
-                self._log_usage(request, deprecation)
-
-        except ObjectDoesNotExist:
-            pass
-        except DatabaseError as e:
-            logger.error(
-                "Database error checking deprecation status",
-                extra={'path': request.path, 'error': str(e)}
-            )
-        except (ValueError, TypeError) as e:
-            logger.warning(
-                "Invalid deprecation data",
-                extra={'path': request.path, 'error': str(e)}
-            )
-
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        # v1 sunset date: 90 days from now (Jan 31, 2026)
+        self.sunset_date = datetime(2026, 1, 31)
+    
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Check if this is a v1 API endpoint
+        if self.is_v1_endpoint(request.path):
+            self.add_deprecation_headers(response)
+        
         return response
-
-    def _is_api_request(self, request):
-        """Check if request is to an API endpoint."""
-        return any(request.path.startswith(path) for path in self.api_paths)
-
-    def _get_deprecation_info(self, request):
-        """Get deprecation info from cache or database."""
-        cache_key = f"api_deprecation:{self._normalize_path(request.path)}"
-        cached = cache.get(cache_key)
-
-        if cached is not None:
-            return cached if cached != 'NOT_DEPRECATED' else None
-
-        try:
-            from apps.core.models.api_deprecation import APIDeprecation
-
-            deprecation = APIDeprecation.objects.filter(
-                endpoint_pattern=self._normalize_path(request.path),
-                status__in=['deprecated', 'sunset_warning']
-            ).first()
-
-            if deprecation:
-                deprecation.update_status()
-                cache.set(cache_key, deprecation, self.cache_timeout)
-            else:
-                cache.set(cache_key, 'NOT_DEPRECATED', self.cache_timeout)
-
-            return deprecation
-
-        except DatabaseError:
-            raise
-        except (ValueError, ImportError) as e:
-            logger.warning(f"Failed to load deprecation info: {e}")
-            return None
-
-    def _normalize_path(self, path):
-        """
-        Normalize API path to match deprecation registry patterns.
-        /api/v1/people/123/ -> /api/v1/people/
-        """
-        path = re.sub(r'/\d+/', '/{id}/', path)
-        path = re.sub(r'/[0-9a-f-]{36}/', '/{uuid}/', path)
-
-        if not path.endswith('/'):
-            path += '/'
-
-        return path
-
-    def _add_deprecation_headers(self, response, deprecation):
-        """Add RFC-compliant deprecation headers."""
-        if deprecation.deprecated_date:
-            response['Deprecation'] = deprecation.get_deprecation_header()
-
-        if deprecation.sunset_date:
-            response['Sunset'] = deprecation.get_sunset_header()
-
-        warning = deprecation.get_warning_header()
-        if warning:
-            response['Warning'] = warning
-
-        link = deprecation.get_link_header()
-        if link:
-            response['Link'] = link
-
-        response['X-Deprecated-Replacement'] = deprecation.replacement_endpoint or ''
-        response['X-Deprecated-Version'] = deprecation.version_deprecated
-
-    def _log_usage(self, request, deprecation):
-        """Log deprecated endpoint usage for analytics."""
-        if not deprecation.notify_on_usage:
-            return
-
-        try:
-            from apps.core.models.api_deprecation import APIDeprecationUsage
-
-            client_version = self._extract_client_version(request)
-            user_id = request.user.id if request.user.is_authenticated else None
-
-            APIDeprecationUsage.objects.create(
-                deprecation=deprecation,
-                user_id=user_id,
-                client_version=client_version,
-                ip_address=self._get_client_ip(request),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            )
-
-            logger.warning(
-                f"Deprecated API usage detected",
-                extra={
-                    'endpoint': deprecation.endpoint_pattern,
-                    'user_id': user_id,
-                    'client_version': client_version,
-                    'days_until_sunset': (deprecation.sunset_date - timezone.now()).days if deprecation.sunset_date else None,
-                }
-            )
-
-        except DatabaseError as e:
-            logger.error(f"Failed to log deprecation usage: {e}")
-        except (ValueError, TypeError) as e:
-            logger.warning(f"Invalid usage data: {e}")
-
-    def _extract_client_version(self, request):
-        """Extract client version from headers or user agent."""
-        version_header = request.META.get('HTTP_X_CLIENT_VERSION')
-        if version_header:
-            return version_header
-
-        user_agent = request.META.get('HTTP_USER_AGENT', '')
-
-        match = re.search(r'IntelliWiz/(\d+\.\d+\.\d+)', user_agent)
-        if match:
-            return match.group(1)
-
-        match = re.search(r'Version/(\d+\.\d+)', user_agent)
-        if match:
-            return match.group(1)
-
-        return 'unknown'
-
-    def _get_client_ip(self, request):
-        """Get client IP address from request."""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', '')
-
-
-from django.utils import timezone
-
-__all__ = ['APIDeprecationMiddleware']
+    
+    def is_v1_endpoint(self, path: str) -> bool:
+        """Check if the path is a v1 API endpoint."""
+        v1_patterns = [
+            '/api/v1/',
+            '/api/operations/',  # Legacy operations
+            '/api/attendance/',  # Legacy attendance
+        ]
+        return any(pattern in path for pattern in v1_patterns)
+    
+    def add_deprecation_headers(self, response):
+        """Add deprecation headers to the response."""
+        response['Deprecation'] = 'true'
+        response['Sunset'] = self.sunset_date.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        response['Link'] = '</docs/kotlin-frontend/API_VERSION_RESOLUTION_STRATEGY.md>; rel="deprecation"'
+        response['X-API-Version'] = 'v1'
+        response['X-Upgrade-Available'] = 'v2'
+        
+        return response

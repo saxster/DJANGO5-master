@@ -92,7 +92,15 @@ class DeviceEventlog(BaseModel, models.Model):
 
     class Meta(BaseModel.Meta):
         db_table = "deviceeventlog"
+        verbose_name = "Device Event Log"
+        verbose_name_plural = "Device Event Logs"
+        ordering = ['-receivedon', 'deviceid']
         get_latest_by = ["mdtz", "cdtz"]
+        indexes = [
+            models.Index(fields=['deviceid', 'receivedon']),
+            models.Index(fields=['eventvalue', 'receivedon']),
+            models.Index(fields=['people', 'receivedon']),
+        ]
 
     def __str__(self) -> str:
         return f"{self.deviceid} {self.eventvalue}"

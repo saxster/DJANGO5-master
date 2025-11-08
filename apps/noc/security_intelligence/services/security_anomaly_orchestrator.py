@@ -14,6 +14,8 @@ Follows .claude/rules.md:
 import logging
 from django.db import transaction
 from django.utils import timezone
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.security_intelligence')
 
@@ -103,7 +105,7 @@ class SecurityAnomalyOrchestrator:
                                 config=config
                             )
 
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     logger.warning(f"ML prediction failed for {attendance_event.people.peoplename}: {e}")
                     # Continue with heuristic fraud detection
 

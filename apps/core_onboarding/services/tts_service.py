@@ -20,6 +20,8 @@ import hashlib
 from typing import Dict, Any, Optional
 from django.conf import settings
 from django.core.cache import cache
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,7 @@ class TTSService:
         except ImportError:
             logger.warning("google-cloud-texttospeech not installed, TTS disabled")
             self.tts_client = None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to initialize TTS client: {str(e)}")
             self.tts_client = None
 
@@ -176,7 +178,7 @@ class TTSService:
         except (IOError, ValueError) as e:
             logger.error(f"Error in TTS generation: {str(e)}")
             result['error'] = f"TTS failed: {str(e)}"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Unexpected error in TTS: {str(e)}", exc_info=True)
             result['error'] = f"TTS failed: {str(e)}"
 
@@ -269,7 +271,7 @@ class TTSService:
 
             return response.audio_content
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in Google TTS generation: {str(e)}", exc_info=True)
             return None
 

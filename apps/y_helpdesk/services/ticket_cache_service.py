@@ -182,11 +182,10 @@ class TicketCacheService:
 
         except LockAcquisitionError:
             # Another request is rebuilding cache
-            # Wait briefly and retry reading from cache
-            import time
-            time.sleep(0.05)  # 50ms wait
+            # Return stale data or database query instead of blocking
+            # REMOVED: time.sleep(0.05) - blocking I/O violates Rule #14
 
-            # Try reading from cache again
+            # Try reading from cache again (may get stale data)
             redis_data = cls._get_from_redis_cache(cache_key, config)
             if redis_data is not None:
                 logger.debug(f"L2 cache hit after wait: {cache_key}")

@@ -56,6 +56,10 @@ class PeopleSyncViewSet(viewsets.GenericViewSet):
     pagination_class = MobileSyncCursorPagination
     queryset = People.objects.all()
 
+    def get_queryset(self):
+        """Optimize queryset with select_related to avoid N+1 queries."""
+        return super().get_queryset().select_related('profile', 'organizational')
+
     @action(detail=False, methods=['get'], url_path='modified-after')
     def modified_after(self, request):
         """

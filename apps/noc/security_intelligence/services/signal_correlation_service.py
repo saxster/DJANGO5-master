@@ -15,6 +15,8 @@ from django.db.models import Q
 
 from apps.noc.models import NOCAlertEvent, CorrelatedIncident
 from apps.noc.security_intelligence.services.activity_signal_collector import ActivitySignalCollector
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ class SignalCorrelationService:
 
             return incident
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Error correlating signals for {person.peoplename}: {e}",
                 exc_info=True
@@ -271,6 +273,6 @@ class SignalCorrelationService:
         except CorrelatedIncident.DoesNotExist:
             logger.error(f"Incident {incident_id} not found")
             return False
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error marking incident investigated: {e}", exc_info=True)
             return False

@@ -26,6 +26,8 @@ import hashlib
 from apps.attendance.models import Post, PostAssignment, PostOrderAcknowledgement
 
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -341,5 +343,5 @@ class PostCacheService:
 
             logger.info(f"Warmed cache for site {site_id}: {posts.count()} posts cached")
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to warm cache for site {site_id}: {e}", exc_info=True)

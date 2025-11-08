@@ -1,0 +1,74 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Bulk Import Help Topics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>📤 Bulk Import Help Topics</h1>
+            <p class="text-muted">Upload a CSV file to import multiple help topics at once</p>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="csv_file" class="form-label">Choose CSV File</label>
+                            <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                            <div class="form-text">
+                                File must be in CSV format with required columns
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            📤 Upload and Import
+                        </button>
+                        <a href="{% url 'admin:core_adminhelptopic_changelist' %}" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>CSV Format Requirements</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Required Columns:</h6>
+                    <ul>
+                        <li><code>category</code> - One of: command_center, workflows, approvals, views, reports, notifications, scheduling, team, settings</li>
+                        <li><code>feature_name</code> - User-friendly name for the feature</li>
+                        <li><code>short_description</code> - 1-2 sentence summary</li>
+                        <li><code>detailed_explanation</code> - Full explanation in plain English</li>
+                    </ul>
+                    
+                    <h6 class="mt-3">Optional Columns:</h6>
+                    <ul>
+                        <li><code>use_cases</code> - Multiple use cases separated by <code>|</code></li>
+                        <li><code>advantages</code> - Multiple advantages separated by <code>|</code></li>
+                        <li><code>how_to_use</code> - Step-by-step instructions</li>
+                        <li><code>video_url</code> - URL to tutorial video</li>
+                        <li><code>keywords</code> - Search keywords separated by <code>,</code></li>
+                        <li><code>difficulty_level</code> - One of: beginner, intermediate, advanced (default: beginner)</li>
+                    </ul>
+                    
+                    <h6 class="mt-3">Example CSV:</h6>
+                    <pre class="bg-light p-3"><code>category,feature_name,short_description,detailed_explanation,use_cases,advantages
+command_center,Quick Actions,One-click shortcuts,Quick Actions let you...,Use case 1|Use case 2,Advantage 1|Advantage 2</code></pre>
+                    
+                    <a href="{% static 'examples/admin_help_import_template.csv' %}" class="btn btn-outline-primary btn-sm mt-2" download>
+                        📥 Download Template CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

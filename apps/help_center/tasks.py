@@ -93,7 +93,7 @@ def generate_article_embedding(self, article_id):
         logger.error(f"Database error generating embedding for article {article_id}: {e}")
         return {'success': False, 'error': 'Database error'}
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error generating embedding for article {article_id}: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}
 
@@ -159,7 +159,7 @@ def analyze_ticket_content_gap(self, correlation_id):
         logger.error(f"Database error analyzing correlation {correlation_id}: {e}")
         raise self.retry(exc=e)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Unexpected error analyzing correlation {correlation_id}: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}
 
@@ -221,6 +221,6 @@ def generate_help_analytics(self, tenant_id):
         logger.error(f"Database error generating analytics for tenant {tenant_id}: {e}")
         raise self.retry(exc=e)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Unexpected error generating analytics for tenant {tenant_id}: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}

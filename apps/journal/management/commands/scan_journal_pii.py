@@ -89,7 +89,7 @@ class Command(BaseCommand):
                 days_back=days,
                 max_entries=max_entries
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             raise CommandError(f'Scan failed: {e}')
 
         # Display summary

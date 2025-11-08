@@ -57,6 +57,7 @@ class LoginAttemptLogAdmin(admin.ModelAdmin):
 
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
+    list_per_page = 50
 
     # Disable add/edit/delete (audit logs are immutable)
     def has_add_permission(self, request):
@@ -85,6 +86,7 @@ class LoginAttemptLogAdmin(admin.ModelAdmin):
 
 @admin.register(AccountLockout)
 class AccountLockoutAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for account lockouts.
 
@@ -134,6 +136,8 @@ class AccountLockoutAdmin(admin.ModelAdmin):
     ordering = ['-locked_at']
 
     actions = ['unlock_selected_accounts']
+
+    list_per_page = 50
 
     def has_add_permission(self, request):
         """Prevent manual creation of lockouts."""

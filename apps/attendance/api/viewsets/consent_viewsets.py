@@ -45,6 +45,8 @@ from apps.attendance.services.consent_service import (
 from apps.core.permissions import TenantIsolationPermission
 from apps.attendance.exceptions import AttendanceValidationError, AttendancePermissionError
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +96,7 @@ class EmployeeConsentViewSet(viewsets.ReadOnlyModelViewSet):
 
             return Response({'pending_consents': response_data})
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to get pending consents: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve pending consents'},
@@ -160,7 +162,7 @@ class EmployeeConsentViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': 'Policy not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to grant consent: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to grant consent'},
@@ -210,7 +212,7 @@ class EmployeeConsentViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': 'Consent not found or does not belong to you'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to revoke consent: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to revoke consent'},
@@ -236,7 +238,7 @@ class EmployeeConsentViewSet(viewsets.ReadOnlyModelViewSet):
                 'has_all_required_consents': can_clock_in,
             })
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to check consent status: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to check consent status'},
@@ -361,7 +363,7 @@ class ConsentAdminViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to request consent: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to request consent'},
@@ -425,7 +427,7 @@ class ConsentAdminViewSet(viewsets.ModelViewSet):
                 'compliance_rate': (granted_count / total_employees * 100) if total_employees > 0 else 0,
             })
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to generate compliance report: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to generate compliance report'},
@@ -451,7 +453,7 @@ class ConsentAdminViewSet(viewsets.ModelViewSet):
                 EmployeeConsentLogSerializer(expiring, many=True).data
             )
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to get expiring consents: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve expiring consents'},
@@ -470,7 +472,7 @@ class ConsentAdminViewSet(viewsets.ModelViewSet):
             sent = ConsentManagementService.send_expiration_reminders()
             return Response({'reminders_sent': sent})
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to send reminders: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to send reminders'},

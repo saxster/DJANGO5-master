@@ -25,6 +25,8 @@ import sys
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from intelliwiz_config.settings.validation import SettingsValidator, SettingsValidationError
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -104,7 +106,7 @@ class Command(BaseCommand):
             # Exit with error code
             sys.exit(1)
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             # Unexpected error
             self.stdout.write(self.style.ERROR(
                 f"\n❌ Unexpected error during validation:\n{str(e)}\n"
@@ -184,7 +186,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f"\n📄 Report generated: {report_file}"
             ))
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             self.stdout.write(self.style.ERROR(
                 f"\n❌ Failed to generate report: {e}"
             ))

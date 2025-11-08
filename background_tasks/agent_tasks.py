@@ -173,7 +173,9 @@ def auto_execute_critical_actions() -> Dict[str, Any]:
 @shared_task(
     name='dashboard.cleanup_expired_recommendations',
     queue='maintenance',
-    priority=3
+    priority=3,
+    soft_time_limit=300,  # 5 minutes - cleanup
+    time_limit=600         # 10 minutes hard limit
 )
 def cleanup_expired_recommendations() -> int:
     """

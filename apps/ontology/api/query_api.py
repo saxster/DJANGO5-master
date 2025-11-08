@@ -35,7 +35,7 @@ class OntologyQueryAPI:
         Example:
             >>> results = OntologyQueryAPI.find_by_purpose("user login")
             >>> for item in results:
-            ...     print(f"{item['name']}: {item['purpose']}")
+            ...     logger.info(f"{item['name']}: {item['purpose']}")
         """
         results = OntologyRegistry.search(query, fields=["purpose", "docstring", "name"])
         return results[:limit]
@@ -69,7 +69,7 @@ class OntologyQueryAPI:
 
         Example:
             >>> related = OntologyQueryAPI.find_related("apps.peoples.models.People")
-            >>> print(f"Used by: {related['dependents']}")
+            >>> logger.info(f"Used by: {related['dependents']}")
         """
         component = OntologyRegistry.get(qualified_name)
 
@@ -103,7 +103,7 @@ class OntologyQueryAPI:
 
         Example:
             >>> details = OntologyQueryAPI.get_component_details("apps.core.utils.format_date")
-            >>> print(details['purpose'])
+            >>> logger.info(details['purpose'])
         """
         return OntologyRegistry.get(qualified_name)
 
@@ -118,7 +118,7 @@ class OntologyQueryAPI:
         Example:
             >>> sensitive = OntologyQueryAPI.find_security_sensitive()
             >>> for item in sensitive:
-            ...     print(f"{item['name']}: {item.get('security_notes')}")
+            ...     logger.info(f"{item['name']}: {item.get('security_notes')}")
         """
         return OntologyRegistry.get_by_tag("security")
 
@@ -133,7 +133,7 @@ class OntologyQueryAPI:
         Example:
             >>> deprecated = OntologyQueryAPI.find_deprecated()
             >>> for item in deprecated:
-            ...     print(f"{item['name']} -> use {item.get('replacement')}")
+            ...     logger.info(f"{item['name']} -> use {item.get('replacement')}")
         """
         return OntologyRegistry.get_deprecated()
 
@@ -148,7 +148,7 @@ class OntologyQueryAPI:
         Example:
             >>> endpoints = OntologyQueryAPI.get_api_endpoints()
             >>> for ep in endpoints:
-            ...     print(f"{ep['name']}: {ep.get('http_methods')}")
+            ...     logger.info(f"{ep['name']}: {ep.get('http_methods')}")
         """
         viewsets = OntologyRegistry.get_by_type("viewset")
         apiviews = OntologyRegistry.get_by_type("apiview")
@@ -165,7 +165,7 @@ class OntologyQueryAPI:
         Example:
             >>> models = OntologyQueryAPI.get_models()
             >>> for model in models:
-            ...     print(f"{model['name']}: {len(model.get('fields', []))} fields")
+            ...     logger.info(f"{model['name']}: {len(model.get('fields', []))} fields")
         """
         return OntologyRegistry.get_by_type("model")
 
@@ -180,7 +180,7 @@ class OntologyQueryAPI:
         Example:
             >>> tasks = OntologyQueryAPI.get_background_tasks()
             >>> for task in tasks:
-            ...     print(f"{task['name']}: {task.get('task_queue')}")
+            ...     logger.info(f"{task['name']}: {task.get('task_queue')}")
         """
         return OntologyRegistry.get_by_type("celery_task")
 
@@ -194,8 +194,8 @@ class OntologyQueryAPI:
 
         Example:
             >>> stats = OntologyQueryAPI.get_statistics()
-            >>> print(f"Total: {stats['total_components']}")
-            >>> print(f"Domains: {', '.join(stats['domains'])}")
+            >>> logger.info(f"Total: {stats['total_components']}")
+            >>> logger.info(f"Domains: {', '.join(stats['domains'])}")
         """
         return OntologyRegistry.get_statistics()
 
@@ -219,7 +219,7 @@ class OntologyQueryAPI:
             ...     "implement user password reset"
             ... )
             >>> for item in suggestions:
-            ...     print(f"{item['name']}: {item['purpose']}")
+            ...     logger.info(f"{item['name']}: {item['purpose']}")
         """
         # Simple keyword-based matching (can be enhanced with embeddings)
         keywords = task_description.lower().split()
@@ -253,8 +253,8 @@ class OntologyQueryAPI:
 
         Example:
             >>> summary = OntologyQueryAPI.get_domain_summary("authentication")
-            >>> print(f"Components: {summary['count']}")
-            >>> print(f"Key components: {summary['key_components']}")
+            >>> logger.info(f"Components: {summary['count']}")
+            >>> logger.info(f"Key components: {summary['key_components']}")
         """
         components = OntologyRegistry.get_by_domain(domain)
 
@@ -303,7 +303,7 @@ class OntologyQueryAPI:
             ...     "apps.peoples.models.People",
             ...     include_related=True
             ... )
-            >>> print(context)
+            >>> logger.info(context)
         """
         component = OntologyRegistry.get(qualified_name)
 

@@ -1,3 +1,7 @@
+
+import logging
+logger = logging.getLogger(__name__)
+
 """
 NOC Natural Language Query Examples.
 
@@ -281,14 +285,12 @@ def get_all_categories() -> list:
 def print_examples():
     """Print all example queries grouped by category."""
     for category in get_all_categories():
-        print(f"\n{'=' * 60}")
-        print(f"{category} Queries")
-        print('=' * 60)
+        logger.debug(f"\n{'=' * 60}")
+        logger.debug(f"{category} Queries")
+        logger.debug('=' * 60)
 
         examples = get_examples_by_category(category)
         for i, example in enumerate(examples, 1):
-            print(f"\n{i}. {example['query']}")
-            print(f"   Description: {example['description']}")
 
 
 if __name__ == '__main__':

@@ -20,6 +20,8 @@ from django.contrib.auth import get_user_model
 
 from apps.activity.models import Attachment
 from apps.tenants.models import Tenant
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 People = get_user_model()
 
@@ -287,7 +289,7 @@ class Command(BaseCommand):
                             )
                         )
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 self.stdout.write(
                     self.style.ERROR(
                         f'  Error fixing ID {attachment.id}: {str(e)}'

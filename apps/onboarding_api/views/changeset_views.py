@@ -19,6 +19,8 @@ from ..permissions import CanApproveAIRecommendations
 from apps.client_onboarding.models import Bt, Shift
 from apps.core_onboarding.models import AIChangeSet, TypeAssist
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +88,7 @@ class ChangeSetRollbackView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Changeset rollback error: {str(e)}")
             return Response(
                 {"error": "Rollback operation failed"},
@@ -204,7 +206,7 @@ class ChangeSetDiffPreviewView(APIView):
                 diff_preview['summary']['total_changes'] += 1
                 diff_preview['summary']['fields_modified'] += len(diff_entry['fields_changed'])
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error generating diff preview: {str(e)}")
             return Response(
                 {"error": f"Failed to generate preview: {str(e)}"},

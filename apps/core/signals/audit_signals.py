@@ -19,6 +19,8 @@ Usage:
     # In your app's apps.py:
     def ready(self):
         from apps.core.signals import audit_signals
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 """
 
 import logging
@@ -179,7 +181,7 @@ def log_entity_save(sender, instance, created, **kwargs):
                 'created': created,
             }
         )
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         # Catch any other unexpected errors
         logger.error(
             f"Unexpected error in audit logging: {e}",
@@ -230,7 +232,7 @@ def log_entity_delete(sender, instance, **kwargs):
                 'instance_pk': instance.pk,
             }
         )
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(
             f"Unexpected error in delete audit logging: {e}",
             exc_info=True,
@@ -274,7 +276,7 @@ def log_state_transition(sender, instance, from_state, to_state, comments, **kwa
                 'to_state': to_state,
             }
         )
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(
             f"Unexpected error in state transition audit logging: {e}",
             exc_info=True

@@ -19,6 +19,10 @@ from django.utils import timezone
 
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validators import validate_tenant_access, validate_user_permissions
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +82,7 @@ class CacheServiceMixin:
             else:
                 logger.debug(f"Cache miss for key: {cache_key}")
             return result
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Cache retrieval failed for {cache_key}: {e}")
             return default
 
@@ -103,7 +107,7 @@ class CacheServiceMixin:
             cache.set(cache_key, value, ttl)
             logger.debug(f"Cache set for key: {cache_key}")
             return True
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Cache set failed for {cache_key}: {e}")
             return False
 
@@ -123,7 +127,7 @@ class CacheServiceMixin:
             cache.delete_many([pattern])
             logger.debug(f"Cache pattern invalidated: {pattern}")
             return 1
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Cache invalidation failed for pattern {pattern}: {e}")
             return 0
 
@@ -188,7 +192,7 @@ class ValidationServiceMixin:
             try:
                 if not rule_func(data):
                     raise ValidationError(f"Business rule violation: {rule_name}")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Business rule validation error for {rule_name}: {e}")
                 raise ValidationError(f"Business rule validation failed: {rule_name}") from e
 
@@ -252,7 +256,7 @@ class TransactionServiceMixin:
                 result = operation(*args, **kwargs)
                 logger.debug("Transaction completed successfully")
                 return result
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Transaction failed: {e}", exc_info=True)
             raise
 
@@ -289,7 +293,7 @@ class TransactionServiceMixin:
                     batch_results = [operation(item) for item in batch]
                     results.extend(batch_results)
                     logger.debug(f"Processed batch {i//batch_size + 1} ({len(batch)} items)")
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(f"Batch operation failed for batch {i//batch_size + 1}: {e}")
                 raise
 

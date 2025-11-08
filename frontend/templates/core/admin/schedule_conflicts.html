@@ -111,7 +111,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
 <script>
 // Load Distribution Chart
-const chartData = {{ chart_data|safe }};
+const chartData = {{ chart_data|escapejs }};
 const ctx = document.getElementById('loadDistributionChart');
 if (ctx && chartData) {
   new Chart(ctx, {

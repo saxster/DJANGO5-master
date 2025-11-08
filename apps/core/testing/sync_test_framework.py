@@ -23,7 +23,11 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from apps.api.v1.services.sync_operation_interface import SyncRequest, sync_operation_interface
+import logging
+logger = logging.getLogger(__name__)
+
+
+from apps.core.services.sync.sync_operation_interface import SyncRequest, sync_operation_interface
 
 User = get_user_model()
 
@@ -172,7 +176,7 @@ class MockSyncClient:
 
             return result
 
-        except Exception as e:
+        except Exception as e:  # OK: Test framework - catch all exceptions for reporting
             self.error_count += 1
             return {'error': str(e), 'synced_items': 0, 'failed_items': len(data)}
 
@@ -232,10 +236,10 @@ class SyncTestFramework:
         scenario = self.scenarios[scenario_name]
         start_time = time.time()
 
-        print(f"Running scenario: {scenario.name}")
-        print(f"Description: {scenario.description}")
-        print(f"Devices: {len(scenario.devices)}")
-        print(f"Duration: {scenario.duration_seconds}s")
+        logger.debug(f"Running scenario: {scenario.name}")
+        logger.debug(f"Description: {scenario.description}")
+        logger.debug(f"Devices: {len(scenario.devices)}")
+        logger.debug(f"Duration: {scenario.duration_seconds}s")
 
         if parallel:
             results = self._run_parallel_sync_test(scenario)
@@ -274,7 +278,7 @@ class SyncTestFramework:
                 try:
                     device_result = future.result()
                     results.append(device_result)
-                except Exception as e:
+                except Exception as e:  # OK: Test framework - catch all exceptions for reporting
                     results.append({
                         'device_id': device.device_id,
                         'error': str(e),
@@ -291,7 +295,7 @@ class SyncTestFramework:
             try:
                 device_result = self._simulate_device_sync(device, scenario)
                 results.append(device_result)
-            except Exception as e:
+            except Exception as e:  # OK: Test framework - catch all exceptions for reporting
                 results.append({
                     'device_id': device.device_id,
                     'error': str(e),
@@ -359,8 +363,8 @@ class SyncTestFramework:
                 if not assertion(results):
                     return False
             return True
-        except Exception as e:
-            print(f"Assertion error: {e}")
+        except Exception as e:  # OK: Test framework - catch all exceptions for reporting
+            logger.error(f"Assertion error: {e}")
             return False
 
     def create_default_scenarios(self, users: List[User]) -> None:

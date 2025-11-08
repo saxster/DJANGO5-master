@@ -14,6 +14,8 @@ from typing import Dict, Any, List, Tuple
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 from apps.scheduler.services.base_services import (
     BaseSchedulingService,
     BaseTourService,
@@ -103,8 +105,14 @@ class InternalTourService(BaseTourService):
             logger.info(f"Internal tour '{job.jobname}' created successfully")
             return job, True
 
-        except Exception as e:
-            logger.error(f"Error creating internal tour: {e}")
+        except ValidationError:
+            # Re-raise validation errors without modification
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error creating internal tour: {e}", exc_info=True)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"Unexpected error creating internal tour: {e}", exc_info=True)
             raise
 
     @with_transaction
@@ -144,8 +152,14 @@ class InternalTourService(BaseTourService):
             logger.info(f"Internal tour '{job.jobname}' updated successfully")
             return job, True
 
-        except Exception as e:
-            logger.error(f"Error updating internal tour: {e}")
+        except ValidationError:
+            # Re-raise validation errors without modification
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error updating internal tour: {e}", exc_info=True)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"Unexpected error updating internal tour: {e}", exc_info=True)
             raise
 
     def get_tour_with_checkpoints(self, tour_id: int) -> Tuple[Job, QuerySet]:
@@ -232,8 +246,14 @@ class ExternalTourService(BaseTourService):
             logger.info(f"External tour '{job.jobname}' created successfully")
             return job, True
 
-        except Exception as e:
-            logger.error(f"Error creating external tour: {e}")
+        except ValidationError:
+            # Re-raise validation errors without modification
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error creating external tour: {e}", exc_info=True)
+            raise
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"Unexpected error creating external tour: {e}", exc_info=True)
             raise
 
     @with_transaction
@@ -290,9 +310,15 @@ class ExternalTourService(BaseTourService):
                 'tour_name': jobneed.job.jobname
             }
 
-        except Exception as e:
-            logger.error(f"Error getting site checkpoints: {e}")
+        except Jobneed.DoesNotExist as e:
+            logger.warning(f"Jobneed not found: {jobneed_id}")
             raise ValidationError("Jobneed not found")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error getting site checkpoints: {e}", exc_info=True)
+            raise ValidationError("Failed to retrieve site checkpoints")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Unexpected error getting site checkpoints: {e}", exc_info=True)
+            raise ValidationError("Failed to retrieve site checkpoints")
 
     def _get_tour_related_data(self, job: Job):
         """Get external tour sites."""
@@ -331,11 +357,17 @@ class ExternalTourService(BaseTourService):
 
             logger.info(f"Successfully assigned {len(sites)} sites")
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             correlation_id = ErrorHandler.handle_exception(
-                e, "Error assigning sites to tour"
+                e, "Database error assigning sites to tour"
             )
-            logger.error(f"Site assignment error - {correlation_id}")
+            logger.error(f"Site assignment database error - {correlation_id}", exc_info=True)
+            raise ValidationError("Failed to assign sites")
+        except DATABASE_EXCEPTIONS as e:
+            correlation_id = ErrorHandler.handle_exception(
+                e, "Unexpected error assigning sites to tour"
+            )
+            logger.error(f"Site assignment error - {correlation_id}", exc_info=True)
             raise ValidationError("Failed to assign sites")
 
     def _update_sites_for_tour(

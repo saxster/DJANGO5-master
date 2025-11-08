@@ -131,6 +131,8 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
 
     try:
         import redis.sentinel
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
         sentinel_settings = get_sentinel_settings()
 
@@ -155,7 +157,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
                 'connected': True
             }
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             validation_results['errors'].append(f"Master connection failed: {e}")
             validation_results['valid'] = False
 
@@ -177,7 +179,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
                     'status': 'connected'
                 })
 
-            except Exception as e:
+            except SETTINGS_EXCEPTIONS as e:
                 validation_results['sentinel_nodes'].append({
                     'node': i,
                     'host': host,
@@ -196,7 +198,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
     except ImportError:
         validation_results['errors'].append("redis-py sentinel support not available")
         validation_results['valid'] = False
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         validation_results['errors'].append(f"Sentinel validation failed: {e}")
         validation_results['valid'] = False
 

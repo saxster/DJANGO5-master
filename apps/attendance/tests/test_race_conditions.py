@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Comprehensive race condition tests for attendance system
 
 Tests verify that concurrent operations do not corrupt data or lose updates.
@@ -473,7 +475,7 @@ class TestPerformanceUnderLoad(TransactionTestCase):
         self.assertTrue(success, "Update failed")
         self.assertLess(elapsed_ms, 100, f"Update took {elapsed_ms:.2f}ms (threshold: 100ms)")
 
-        print(f"Update latency: {elapsed_ms:.2f}ms")
+        logger.info(f"Update latency: {elapsed_ms:.2f}ms")
 
 
 @pytest.mark.django_db

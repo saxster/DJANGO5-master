@@ -1,0 +1,230 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .timeline-container {
+        padding: 20px;
+        background: #f5f5f5;
+    }
+    
+    .timeline-header {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+        color: #333;
+    }
+    
+    .filters {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .filters form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .filters input[type="date"] {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .filters button,
+    .filters .btn {
+        padding: 8px 16px;
+        background: #417690;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .filters button:hover,
+    .filters .btn:hover {
+        background: #2c5266;
+    }
+    
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 30px;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, #9c27b0, #6a1b9a);
+    }
+    
+    .timeline-event {
+        position: relative;
+        padding-left: 80px;
+        margin-bottom: 30px;
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .event-marker {
+        position: absolute;
+        left: 16px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        z-index: 1;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    
+    .event-marker.purple { background: #9c27b0; }
+    .event-marker.orange { background: #ff9800; }
+    
+    .event-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .event-content:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .event-time {
+        font-size: 13px;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .event-source {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+    
+    .event-content h4 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        color: #333;
+    }
+    
+    .event-content h4 a {
+        color: #7b1fa2;
+        text-decoration: none;
+    }
+    
+    .event-content h4 a:hover {
+        text-decoration: underline;
+    }
+    
+    .event-content p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .no-events {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-size: 16px;
+    }
+    
+    .stats-summary {
+        background: #f3e5f5;
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        font-size: 14px;
+        color: #7b1fa2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <div class="timeline-header">
+        <h1>🔧 Asset Timeline: {{ asset.name }}</h1>
+        <p style="margin: 0; color: #666;">Complete maintenance and alert history for this asset</p>
+    </div>
+    
+    <div class="filters">
+        <form method="get">
+            <input type="date" name="start_date" value="{{ start_date }}" placeholder="From date">
+            <input type="date" name="end_date" value="{{ end_date }}" placeholder="To date">
+            <button type="submit">🔍 Filter</button>
+            <a href="{% url 'admin:asset_timeline' asset.id %}" class="btn">🔄 Reset</a>
+        </form>
+    </div>
+    
+    {% if total_events > 0 %}
+    <div class="stats-summary">
+        📊 Showing <strong>{{ total_events }}</strong> event{{ total_events|pluralize }}
+    </div>
+    {% endif %}
+    
+    <div class="timeline">
+        {% for event in events %}
+        <div class="timeline-event" data-type="{{ event.type }}">
+            <div class="event-marker {{ event.color }}">
+                <span class="icon">{{ event.icon }}</span>
+            </div>
+            <div class="event-content">
+                <div class="event-header">
+                    <span class="event-time">
+                        {{ event.timestamp|date:"M d, Y g:i A" }}
+                    </span>
+                    <span class="event-source badge">{{ event.source }}</span>
+                </div>
+                <h4>
+                    <a href="{{ event.url }}">{{ event.title }}</a>
+                </h4>
+                <p>{{ event.description }}</p>
+            </div>
+        </div>
+        {% empty %}
+        <p class="no-events">No events found for this asset. Try adjusting your filters.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

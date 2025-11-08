@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Executive Scorecard - {{ data.client }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            font-size: 11pt;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24pt;
+        }
+        
+        .header .period {
+            color: #7f8c8d;
+            font-size: 14pt;
+            margin-top: 5px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+        
+        .metric-label {
+            font-size: 10pt;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .metric-value.good {
+            color: #27ae60;
+        }
+        
+        .metric-value.warning {
+            color: #f39c12;
+        }
+        
+        .metric-value.critical {
+            color: #e74c3c;
+        }
+        
+        .checkmark {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .warning-icon {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        
+        .trend-up {
+            color: #27ae60;
+        }
+        
+        .trend-down {
+            color: #e74c3c;
+        }
+        
+        .risk-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+        }
+        
+        .risk-item.critical {
+            background: #f8d7da;
+            border-left-color: #e74c3c;
+        }
+        
+        .risk-item.ok {
+            background: #d4edda;
+            border-left-color: #27ae60;
+        }
+        
+        .trend-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .trend-table th {
+            background: #34495e;
+            color: white;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .trend-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 9pt;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>📊 Monthly Executive Scorecard</h1>
+        <div class="period">{{ data.period }}</div>
+        <div class="period">{{ data.client }}</div>
+    </div>
+
+    <!-- Operational Excellence -->
+    <div class="section">
+        <div class="section-title">📊 Operational Excellence</div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Attendance Compliance</div>
+                <div class="metric-value {% if data.operational_excellence.attendance_compliance >= 95 %}good{% elif data.operational_excellence.attendance_compliance >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.attendance_compliance }}%
+                </div>
+                <div class="metric-label">
+                    {% if data.operational_excellence.attendance_compliance >= 95 %}
+                    <span class="checkmark">✓</span> On-time arrivals
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Tour Coverage</div>
+                <div class="metric-value {% if data.operational_excellence.tour_coverage >= 95 %}good{% elif data.operational_excellence.tour_coverage >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.tour_coverage }}%
+                </div>
+                <div class="metric-label">
+                    {% if data.operational_excellence.tour_coverage >= 95 %}
+                    <span class="checkmark">✓</span> Checkpoints completed
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">SLA Performance</div>
+                <div class="metric-value {% if data.operational_excellence.sla_performance >= 95 %}good{% elif data.operational_excellence.sla_performance >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.sla_performance }}%
+                </div>
+                <div class="metric-label">
+                    {% if data.operational_excellence.sla_performance >= 95 %}
+                    <span class="checkmark">✓</span> On-time resolution
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Work Order Backlog</div>
+                <div class="metric-value {% if data.operational_excellence.work_order_backlog <= 10 %}good{% elif data.operational_excellence.work_order_backlog <= 25 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.work_order_backlog }}
+                </div>
+                <div class="metric-label">Open work orders</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quality Metrics -->
+    <div class="section">
+        <div class="section-title">🎯 Quality Metrics</div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Helpdesk Sentiment</div>
+                <div class="metric-value {% if data.quality_metrics.helpdesk_sentiment >= 4.0 %}good{% elif data.quality_metrics.helpdesk_sentiment >= 3.0 %}warning{% else %}critical{% endif %}">
+                    {{ data.quality_metrics.helpdesk_sentiment }}/5.0
+                </div>
+                <div class="metric-label">
+                    {% if data.quality_metrics.helpdesk_sentiment >= 4.0 %}
+                    <span class="checkmark">✓</span> Positive feedback
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">NOC Auto-Resolution</div>
+                <div class="metric-value good">
+                    {{ data.quality_metrics.noc_auto_resolution }}%
+                </div>
+                <div class="metric-label">
+                    {% if data.trends.auto_resolution_trend == 'up' %}
+                    <span class="trend-up">↗ +{{ data.trends.auto_resolution_change }} vs last month</span>
+                    {% else %}
+                    <span class="trend-down">↘ {{ data.trends.auto_resolution_change }} vs last month</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Device Uptime</div>
+                <div class="metric-value {% if data.quality_metrics.device_uptime >= 95 %}good{% elif data.quality_metrics.device_uptime >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.quality_metrics.device_uptime }}%
+                </div>
+                <div class="metric-label">IoT device availability</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Incident Response</div>
+                <div class="metric-value {% if data.quality_metrics.incident_response_minutes <= 10 %}good{% elif data.quality_metrics.incident_response_minutes <= 30 %}warning{% else %}critical{% endif %}">
+                    {{ data.quality_metrics.incident_response_minutes|floatformat:1 }} min
+                </div>
+                <div class="metric-label">Average response time</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Indicators -->
+    <div class="section">
+        <div class="section-title">🔍 Risk Indicators</div>
+        
+        <div class="{% if data.risk_indicators.geofence_violations > 5 %}risk-item critical{% elif data.risk_indicators.geofence_violations > 0 %}risk-item{% else %}risk-item ok{% endif %}">
+            {% if data.risk_indicators.geofence_violations > 0 %}
+            <span class="warning-icon">⚠</span> {{ data.risk_indicators.geofence_violations }} geofence violation(s) - investigate attendance patterns
+            {% else %}
+            <span class="checkmark">✓</span> 0 geofence violations - excellent compliance
+            {% endif %}
+        </div>
+        
+        <div class="{% if data.risk_indicators.sla_at_risk_tickets > 3 %}risk-item critical{% elif data.risk_indicators.sla_at_risk_tickets > 0 %}risk-item{% else %}risk-item ok{% endif %}">
+            {% if data.risk_indicators.sla_at_risk_tickets > 0 %}
+            <span class="warning-icon">⚠</span> {{ data.risk_indicators.sla_at_risk_tickets }} SLA at-risk ticket(s) - escalated for priority handling
+            {% else %}
+            <span class="checkmark">✓</span> 0 SLA at-risk tickets
+            {% endif %}
+        </div>
+        
+        <div class="{% if data.risk_indicators.critical_security_events > 0 %}risk-item critical{% else %}risk-item ok{% endif %}">
+            {% if data.risk_indicators.critical_security_events > 0 %}
+            <span class="warning-icon">⚠</span> {{ data.risk_indicators.critical_security_events }} critical security event(s) - reviewed and addressed
+            {% else %}
+            <span class="checkmark">✓</span> 0 critical security events
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Trends -->
+    <div class="section">
+        <div class="section-title">📈 Trends (vs Last Month)</div>
+        <table class="trend-table">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Direction</th>
+                    <th>Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Attendance Compliance</td>
+                    <td>
+                        {% if data.trends.attendance_trend == 'up' %}
+                        <span class="trend-up">↗ Improving</span>
+                        {% else %}
+                        <span class="trend-down">↘ Declining</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ data.trends.attendance_compliance_change|stringformat:"+d" }} incidents</td>
+                </tr>
+                <tr>
+                    <td>Auto-Resolution Rate</td>
+                    <td>
+                        {% if data.trends.auto_resolution_trend == 'up' %}
+                        <span class="trend-up">↗ Improving</span>
+                        {% else %}
+                        <span class="trend-down">↘ Declining</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ data.trends.auto_resolution_change|stringformat:"+d" }} alerts</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Generated: {{ data.generated_at }}</p>
+        <p>This report is confidential and intended for executive review only.</p>
+    </div>
+</body>
+</html>

@@ -19,6 +19,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from .enums import WellnessContentLevel
 import logging
 
@@ -138,6 +139,8 @@ class WellnessUserProgress(TenantAwareModel):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
 
     class Meta:
         verbose_name = "User Wellness Progress"

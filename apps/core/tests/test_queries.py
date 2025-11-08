@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Comprehensive test suite for the new Django ORM queries.
 
 This test suite validates that the new ORM-based queries produce
@@ -462,7 +464,7 @@ def create_test_data():
         parent=root_cap, cfor='WEB', enable=True
     )
     
-    print("Test data created successfully!")
+    logger.info("Test data created successfully!")
     return {
         'client': client,
         'bu': bu1,

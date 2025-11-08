@@ -51,7 +51,15 @@ class Attachment(BaseModel, TenantAwareModel):
 
     class Meta(BaseModel.Meta):
         db_table = "attachment"
+        verbose_name = "Attachment"
+        verbose_name_plural = "Attachments"
+        ordering = ['-datetime', 'filename']
         get_latest_by = ["mdtz", "cdtz"]
+        indexes = [
+            models.Index(fields=['owner']),
+            models.Index(fields=['attachmenttype', 'datetime']),
+            models.Index(fields=['bu', 'datetime']),
+        ]
 
     def __str__(self):
         return self.filename.name

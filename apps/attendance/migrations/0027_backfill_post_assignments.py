@@ -176,7 +176,7 @@ def backfill_post_assignments_from_jobneed(apps, schema_editor):
                 if assignments_created % 100 == 0:
                     print(f"Progress: {assignments_created} assignments created...")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 error_msg = f"Error processing Jobneed {jobneed.id}: {str(e)}"
                 errors.append(error_msg)
                 continue
@@ -189,7 +189,7 @@ def backfill_post_assignments_from_jobneed(apps, schema_editor):
             for error in errors[:10]:
                 print(f"    {error}")
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         print(f"Critical error during backfill: {str(e)}")
         raise
 

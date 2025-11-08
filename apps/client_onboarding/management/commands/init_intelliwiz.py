@@ -16,6 +16,10 @@ import uuid
 import secrets
 import os
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 log = logging.getLogger(__name__)
 
 MAX_RETRY = 5
@@ -181,12 +185,12 @@ def create_superuser(client, site):
         # SECURITY: Display password only on console (never in logs)
         if not env_password:
             # Only print to stdout in non-production (when password is generated)
-            print("\n" + "=" * 80)
-            print("SUPERUSER CREATED - SAVE THIS PASSWORD (shown only once):")
-            print(f"Username: superadmin")
-            print(f"Password: {temp_password}")
-            print(f"Email: superadmin@youtility.in")
-            print("=" * 80 + "\n")
+            logger.debug("\n" + "=" * 80)
+            logger.debug("SUPERUSER CREATED - SAVE THIS PASSWORD (shown only once):")
+            logger.debug(f"Username: superadmin")
+            logger.debug(f"Password: {temp_password}")
+            logger.debug(f"Email: superadmin@youtility.in")
+            logger.debug("=" * 80 + "\n")
 
         # Log correlation ID only (never password in production logs)
         correlation_id = str(uuid.uuid4())

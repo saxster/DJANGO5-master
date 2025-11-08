@@ -17,42 +17,46 @@ import time
 from django.utils import timezone
 from django.core.cache import cache
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 # Import the new query modules
 try:
     from apps.core.raw_queries import get_query as raw_get_query
 except ImportError as e:
-    print(f"Import error: {e}")
-    print("Make sure you're running this from Django shell or manage.py")
+    logger.error(f"Import error: {e}")
+    logger.debug("Make sure you're running this from Django shell or manage.py")
     sys.exit(1)
 
 def print_section(title):
     """Print a formatted section header."""
-    print(f"\n{'='*60}")
-    print(f"  {title}")
-    print(f"{'='*60}")
+    logger.debug(f"\n{'='*60}")
+    logger.debug(f"  {title}")
+    logger.debug(f"{'='*60}")
 
 def print_result(query_name, result, execution_time=None):
     """Print query results in a formatted way."""
-    print(f"\nQuery: {query_name}")
+    logger.debug(f"\nQuery: {query_name}")
     if execution_time:
-        print(f"Execution time: {execution_time:.3f}s")
+        logger.debug(f"Execution time: {execution_time:.3f}s")
     
     if isinstance(result, list):
-        print(f"Results: {len(result)} records")
+        logger.debug(f"Results: {len(result)} records")
         if result and len(result) > 0:
-            print("Sample record:")
+            logger.debug("Sample record:")
             sample = result[0]
             if isinstance(sample, dict):
                 for key, value in list(sample.items())[:5]:  # Show first 5 fields
-                    print(f"  {key}: {value}")
+                    logger.debug(f"  {key}: {value}")
                 if len(sample) > 5:
-                    print(f"  ... and {len(sample) - 5} more fields")
+                    logger.debug(f"  ... and {len(sample) - 5} more fields")
     elif isinstance(result, dict):
-        print("Result (dict):")
+        logger.debug("Result (dict):")
         for key, value in result.items():
-            print(f"  {key}: {value}")
+            logger.debug(f"  {key}: {value}")
     else:
-        print(f"Result: {result}")
+        logger.debug(f"Result: {result}")
 
 def validate_tree_traversal():
     """Validate tree traversal functionality."""
@@ -66,7 +70,7 @@ def validate_tree_traversal():
         {'id': 4, 'code': 'GRANDCHILD', 'parent_id': 2, 'name': 'Grandchild'},
     ]
     
-    print("Testing TreeTraversal.build_tree()...")
+    logger.debug("Testing TreeTraversal.build_tree()...")
     start_time = time.time()
     result = TreeTraversal.build_tree(test_nodes, root_id=1, code_field='code')
     execution_time = time.time() - start_time
@@ -77,18 +81,18 @@ def validate_tree_traversal():
     if result:
         root_node = result[0]
         if root_node.get('depth') == 1 and root_node.get('path') == 'ROOT':
-            print("✓ Tree structure is correct")
+            logger.debug("✓ Tree structure is correct")
         else:
-            print("✗ Tree structure validation failed")
+            logger.error("✗ Tree structure validation failed")
     else:
-        print("✗ No results returned from tree traversal")
+        logger.debug("✗ No results returned from tree traversal")
 
 def validate_capabilities():
     """Validate capabilities query."""
     print_section("Capabilities Query Validation")
     
     try:
-        print("Testing get_web_caps_for_client()...")
+        logger.debug("Testing get_web_caps_for_client()...")
         
         # Clear cache first
         cache.clear()
@@ -105,19 +109,19 @@ def validate_capabilities():
         cached_result = get_query('get_web_caps_for_client')
         cached_time = time.time() - start_time
         
-        print(f"Cached query time: {cached_time:.3f}s")
+        logger.debug(f"Cached query time: {cached_time:.3f}s")
         if cached_time < new_time * 0.5:
-            print("✓ Caching is working effectively")
+            logger.debug("✓ Caching is working effectively")
         else:
-            print("? Caching may not be optimal")
+            logger.debug("? Caching may not be optimal")
             
         if new_result == cached_result:
-            print("✓ Cached results match original")
+            logger.debug("✓ Cached results match original")
         else:
-            print("✗ Cached results don't match")
+            logger.debug("✗ Cached results don't match")
             
     except (TypeError, ValidationError, ValueError) as e:
-        print(f"✗ Error testing capabilities: {e}")
+        logger.error(f"✗ Error testing capabilities: {e}")
 
 def validate_business_units():
     """Validate business unit hierarchy query."""
@@ -125,7 +129,7 @@ def validate_business_units():
     
     try:
         # Test with a common root BU (assuming ID 1 exists)
-        print("Testing get_childrens_of_bt(1)...")
+        logger.debug("Testing get_childrens_of_bt(1)...")
         
         start_time = time.time()
         result = get_query('get_childrens_of_bt', bt_id=1)
@@ -134,12 +138,12 @@ def validate_business_units():
         print_result("Business Unit Children", result, execution_time)
         
         if result:
-            print("✓ Business unit hierarchy query working")
+            logger.debug("✓ Business unit hierarchy query working")
         else:
-            print("? No business units found (may be expected if no data)")
+            logger.debug("? No business units found (may be expected if no data)")
             
     except (TypeError, ValidationError, ValueError) as e:
-        print(f"✗ Error testing business units: {e}")
+        logger.error(f"✗ Error testing business units: {e}")
 
 def validate_reports():
     """Validate report queries."""
@@ -150,7 +154,7 @@ def validate_reports():
     start_date = end_date - timedelta(days=30)
     
     try:
-        print("Testing sitereportlist...")
+        logger.debug("Testing sitereportlist...")
         
         # Use a common BU ID (assuming 1 exists)
         result = get_query(
@@ -161,7 +165,7 @@ def validate_reports():
         )
         print_result("Site Report List", result)
         
-        print("Testing incidentreportlist...")
+        logger.debug("Testing incidentreportlist...")
         result = get_query(
             'incidentreportlist',
             bu_ids=[1],
@@ -170,17 +174,17 @@ def validate_reports():
         )
         print_result("Incident Report List", result)
         
-        print("✓ Report queries working")
+        logger.debug("✓ Report queries working")
         
     except (TypeError, ValidationError, ValueError) as e:
-        print(f"✗ Error testing reports: {e}")
+        logger.error(f"✗ Error testing reports: {e}")
 
 def validate_tickets():
     """Validate ticket-related queries."""
     print_section("Ticket Queries Validation")
     
     try:
-        print("Testing get_ticketlist_for_escalation...")
+        logger.debug("Testing get_ticketlist_for_escalation...")
         
         start_time = time.time()
         result = get_query('get_ticketlist_for_escalation')
@@ -192,21 +196,21 @@ def validate_tickets():
         if result and isinstance(result, list) and len(result) > 0:
             ticket_id = result[0].get('id')
             if ticket_id:
-                print(f"Testing ticketmail for ticket {ticket_id}...")
+                logger.debug(f"Testing ticketmail for ticket {ticket_id}...")
                 mail_result = get_query('ticketmail', ticket_id=ticket_id)
                 print_result("Ticket Mail Details", mail_result)
         
-        print("✓ Ticket queries working")
+        logger.debug("✓ Ticket queries working")
         
     except (TypeError, ValidationError, ValueError) as e:
-        print(f"✗ Error testing tickets: {e}")
+        logger.error(f"✗ Error testing tickets: {e}")
 
 def validate_task_summary():
     """Validate task summary query."""
     print_section("Task Summary Validation")
     
     try:
-        print("Testing tasksummary...")
+        logger.debug("Testing tasksummary...")
         
         # Test with date range
         end_date = timezone.now().date()
@@ -221,17 +225,17 @@ def validate_task_summary():
         )
         print_result("Task Summary", result)
         
-        print("✓ Task summary query working")
+        logger.debug("✓ Task summary query working")
         
     except (TypeError, ValidationError, ValueError) as e:
-        print(f"✗ Error testing task summary: {e}")
+        logger.error(f"✗ Error testing task summary: {e}")
 
 def validate_assets():
     """Validate asset-related queries."""
     print_section("Asset Queries Validation")
     
     try:
-        print("Testing all_asset_status_duration...")
+        logger.debug("Testing all_asset_status_duration...")
         
         result = get_query(
             'all_asset_status_duration',
@@ -240,7 +244,7 @@ def validate_assets():
         )
         print_result("Asset Status Duration", result)
         
-        print("Testing all_asset_status_duration_count...")
+        logger.debug("Testing all_asset_status_duration_count...")
         count = get_query(
             'all_asset_status_duration_count',
             client_id=1,
@@ -248,10 +252,10 @@ def validate_assets():
         )
         print_result("Asset Status Duration Count", count)
         
-        print("✓ Asset queries working")
+        logger.debug("✓ Asset queries working")
         
     except (TypeError, ValidationError, ValueError) as e:
-        print(f"✗ Error testing assets: {e}")
+        logger.error(f"✗ Error testing assets: {e}")
 
 def performance_comparison():
     """Compare performance between old and new implementations."""
@@ -264,7 +268,7 @@ def performance_comparison():
     
     for query_name, kwargs in queries_to_test:
         try:
-            print(f"\nTesting {query_name}...")
+            logger.debug(f"\nTesting {query_name}...")
             
             # Clear cache for fair comparison
             cache.clear()
@@ -280,29 +284,29 @@ def performance_comparison():
                 old_result = raw_get_query(query_name)
                 old_time = time.time() - start_time
                 
-                print(f"  New ORM: {new_time:.3f}s ({len(new_result) if isinstance(new_result, list) else 1} results)")
-                print(f"  Old SQL: {old_time:.3f}s")
-                print(f"  Ratio: {new_time/old_time:.2f}x")
+                logger.debug(f"  New ORM: {new_time:.3f}s ({len(new_result) if isinstance(new_result, list) else 1} results)")
+                logger.debug(f"  Old SQL: {old_time:.3f}s")
+                logger.debug(f"  Ratio: {new_time/old_time:.2f}x")
                 
                 if new_time < old_time:
-                    print("  ✓ New implementation is faster")
+                    logger.debug("  ✓ New implementation is faster")
                 elif new_time < old_time * 2:
-                    print("  ≈ Performance is comparable")
+                    logger.debug("  ≈ Performance is comparable")
                 else:
-                    print("  ? New implementation is slower")
+                    logger.debug("  ? New implementation is slower")
                     
             except (ValueError, TypeError) as e:
-                print(f"  Could not test old implementation: {e}")
-                print(f"  New ORM: {new_time:.3f}s")
+                logger.debug(f"  Could not test old implementation: {e}")
+                logger.debug(f"  New ORM: {new_time:.3f}s")
                 
         except (ValueError, TypeError) as e:
-            print(f"  ✗ Error testing {query_name}: {e}")
+            logger.error(f"  ✗ Error testing {query_name}: {e}")
 
 def main():
     """Main validation function."""
-    print("Django ORM Query Validation")
-    print("=" * 60)
-    print(f"Started at: {timezone.now()}")
+    logger.debug("Django ORM Query Validation")
+    logger.debug("=" * 60)
+    logger.debug(f"Started at: {timezone.now()}")
     
     validation_functions = [
         validate_tree_traversal,
@@ -323,20 +327,20 @@ def main():
             validate_func()
             passed += 1
         except (TypeError, ValidationError, ValueError) as e:
-            print(f"\n✗ Validation function {validate_func.__name__} failed: {e}")
+            logger.error(f"\n✗ Validation function {validate_func.__name__} failed: {e}")
     
     print_section("Validation Summary")
-    print(f"Completed: {passed}/{total} validation functions")
-    print(f"Success rate: {(passed/total)*100:.1f}%")
+    logger.info(f"Completed: {passed}/{total} validation functions")
+    logger.info(f"Success rate: {(passed/total)*100:.1f}%")
     
     if passed == total:
-        print("🎉 All validations passed!")
+        logger.debug("🎉 All validations passed!")
     elif passed >= total * 0.8:
-        print("✓ Most validations passed - ready for testing")
+        logger.debug("✓ Most validations passed - ready for testing")
     else:
-        print("⚠️  Many validations failed - needs investigation")
+        logger.error("⚠️  Many validations failed - needs investigation")
     
-    print(f"\nFinished at: {timezone.now()}")
+    logger.debug(f"\nFinished at: {timezone.now()}")
 
 if __name__ == '__main__':
     main()

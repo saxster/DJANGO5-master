@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.fields import empty
 from apps.core.utils_new.permission_helpers import user_has_permission
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 
 class FrontendResponseMixin:
@@ -152,7 +154,7 @@ class MetadataSerializerMixin:
             for field_name, method in self.get_metadata_fields().items():
                 try:
                     metadata[field_name] = method(instance)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     # Log error but don't break serialization
                     metadata[field_name] = None
 
@@ -463,7 +465,7 @@ class BaseFrontendSerializer(
         try:
             instance = super().create(validated_data)
             return instance
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self.add_creation_error(e)
             raise
 
@@ -474,7 +476,7 @@ class BaseFrontendSerializer(
         try:
             instance = super().update(instance, validated_data)
             return instance
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self.add_update_error(e, instance)
             raise
 

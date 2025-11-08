@@ -20,6 +20,8 @@ from django.contrib.gis.geos import Point
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
 from apps.core.models import ImageMetadata, PhotoAuthenticityLog
 from apps.core.constants.spatial_constants import METERS_PER_DEGREE_LAT
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.security_intelligence')
 
@@ -520,5 +522,5 @@ class LocationFraudDetector:
                     validation_notes=f"Comprehensive photo validation: {len(fraud_indicators)} fraud indicators detected"
                 )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Failed to log photo validation: {e}")

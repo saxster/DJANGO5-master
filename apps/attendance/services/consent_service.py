@@ -39,6 +39,7 @@ from apps.attendance.models.consent import (
     ConsentRequirement
 )
 from apps.attendance.exceptions import AttendancePermissionError
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -172,8 +173,11 @@ class ConsentValidationService:
             # Check if consent is still active (not expired)
             return consent.is_active()
 
-        except Exception as e:
-            logger.error(f"Error checking consent for user {user.id}: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error checking consent for user {user.id}: {e}", exc_info=True)
+            return False
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Data error checking consent for user {user.id}: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -364,8 +368,10 @@ class ConsentManagementService:
                 consent.reminder_sent_at = timezone.now()
                 consent.save()
                 sent += 1
-            except Exception as e:
-                logger.error(f"Failed to send expiration reminder for consent {consent.id}: {e}")
+            except NETWORK_EXCEPTIONS as e:
+                logger.error(f"Network error sending expiration reminder for consent {consent.id}: {e}", exc_info=True)
+            except (AttributeError, TypeError, ValueError) as e:
+                logger.error(f"Data error sending expiration reminder for consent {consent.id}: {e}", exc_info=True)
 
         logger.info(f"Sent {sent} consent expiration reminders")
         return sent
@@ -441,8 +447,11 @@ class ConsentNotificationService:
             logger.info(f"Sent consent request to {consent.employee.email}")
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to send consent request: {e}", exc_info=True)
+        except NETWORK_EXCEPTIONS as e:
+            logger.error(f"Network error sending consent request: {e}", exc_info=True)
+            return False
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.error(f"Data error sending consent request: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -472,8 +481,11 @@ class ConsentNotificationService:
             logger.info(f"Sent consent confirmation to {consent.employee.email}")
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to send consent confirmation: {e}", exc_info=True)
+        except NETWORK_EXCEPTIONS as e:
+            logger.error(f"Network error sending consent confirmation: {e}", exc_info=True)
+            return False
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.error(f"Data error sending consent confirmation: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -504,8 +516,11 @@ class ConsentNotificationService:
             logger.info(f"Sent revocation confirmation to {consent.employee.email}")
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to send revocation confirmation: {e}", exc_info=True)
+        except NETWORK_EXCEPTIONS as e:
+            logger.error(f"Network error sending revocation confirmation: {e}", exc_info=True)
+            return False
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.error(f"Data error sending revocation confirmation: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -539,8 +554,11 @@ class ConsentNotificationService:
             logger.info(f"Sent expiration reminder to {consent.employee.email}")
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to send expiration reminder: {e}", exc_info=True)
+        except NETWORK_EXCEPTIONS as e:
+            logger.error(f"Network error sending expiration reminder: {e}", exc_info=True)
+            return False
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.error(f"Data error sending expiration reminder: {e}", exc_info=True)
             return False
 
     @staticmethod

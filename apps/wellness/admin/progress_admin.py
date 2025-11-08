@@ -193,6 +193,8 @@ class WellnessUserProgressAdmin(WellnessBaseModelAdmin):
 
     actions = ['reset_streak', 'award_bonus_points', 'send_engagement_reminder']
 
+    list_per_page = 50
+
     def reset_streak(self, request, queryset):
         """Reset user streaks"""
         queryset.update(current_streak=0)

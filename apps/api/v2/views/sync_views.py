@@ -22,11 +22,12 @@ from django.utils import timezone
 import logging
 import uuid
 
-from apps.api.v1.services.sync_engine_service import sync_engine
+from apps.core.services.sync.sync_engine_service import sync_engine
 from apps.ml.services.conflict_predictor import conflict_predictor
 from apps.core.services.cross_device_sync_service import cross_device_sync_service
 
 # Import type-safe serializers
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, SERIALIZATION_EXCEPTIONS
 from apps.api.v2.serializers import (
     VoiceSyncRequestSerializer,
     VoiceSyncResponseSerializer,
@@ -136,7 +137,7 @@ class SyncVoiceView(APIView):
                     response_serializer.data,
                     status=status.HTTP_409_CONFLICT
                 )
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.warning(f"ML conflict prediction failed: {e}", exc_info=True)
             # Continue with sync if ML predictor fails
 
@@ -165,7 +166,7 @@ class SyncVoiceView(APIView):
                 entity_id=entity_id,
                 data=sync_metadata
             )
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Cross-device sync failed: {e}", exc_info=True)
             # Continue even if cross-device sync fails
 

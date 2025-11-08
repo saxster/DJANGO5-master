@@ -45,8 +45,10 @@ def get_address(lat, lon):
                     f"Geocoding retry attempt {attempt + 2}/{max_retries} after {delay:.2f}s",
                     extra={'error': str(e)}
                 )
-                # NOTE: This time.sleep is acceptable for geocoding API retries
-                # due to synchronous operation requirement and short total duration
+                # SAFE: time.sleep() acceptable for geocoding API retries (external API constraint)
+                # - Not in hot request path (geocoding is optional background enhancement)
+                # - Short duration with exponential backoff (max 4.0s total)
+                # - Required by Google Maps API rate limiting
                 import time
                 time.sleep(delay)
             else:

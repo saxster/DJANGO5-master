@@ -18,6 +18,8 @@ from django.core.cache import cache
 
 from apps.ml_training.models import TrainingExample, TrainingDataset, LabelingTask
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +121,7 @@ class TrainingDataMetrics:
 
             return result
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error calculating capture rate metrics: {e}", exc_info=True)
             return {
                 'error': str(e),
@@ -204,7 +206,7 @@ class TrainingDataMetrics:
 
             return result
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error calculating labeling backlog: {e}", exc_info=True)
             return {
                 'error': str(e)
@@ -276,7 +278,7 @@ class TrainingDataMetrics:
                 'period_days': days_back
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error calculating quality metrics: {e}", exc_info=True)
             return {
                 'error': str(e)
@@ -323,7 +325,7 @@ class TrainingDataMetrics:
                 'high_value_examples': high_value
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error calculating active learning metrics: {e}", exc_info=True)
             return {
                 'error': str(e)

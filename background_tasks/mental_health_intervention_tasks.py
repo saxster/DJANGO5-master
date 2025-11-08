@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count, Avg
+from django.core.exceptions import ObjectDoesNotExist
 from datetime import timedelta, datetime
 import logging
 import json
@@ -27,6 +28,15 @@ from apps.wellness.models import (
     InterventionDeliveryLog,
     MentalHealthInterventionType,
     WellnessContentInteraction
+)
+from apps.wellness.constants import (
+    CRISIS_ESCALATION_THRESHOLD,
+    INTENSIVE_ESCALATION_THRESHOLD,
+    HIGH_URGENCY_THRESHOLD,
+    CRISIS_FOLLOWUP_DELAY,
+    INTENSIVE_FOLLOWUP_DELAY,
+    PROFESSIONAL_ESCALATION_DELAY,
+    ESCALATION_CHECK_INTERVALS,
 )
 from apps.wellness.services.intervention_selection_engine import InterventionSelectionEngine
 from apps.wellness.services.evidence_based_delivery import EvidenceBasedDeliveryService
@@ -39,6 +49,14 @@ from apps.core.tasks.base import (
 )
 from apps.core.tasks.utils import task_retry_policy
 
+# Import exception patterns
+from apps.core.exceptions.patterns import (
+    DATABASE_EXCEPTIONS,
+    BUSINESS_LOGIC_EXCEPTIONS,
+    NETWORK_EXCEPTIONS,
+    API_EXCEPTIONS,
+)
+
 User = get_user_model()
 logger = logging.getLogger('mental_health_tasks')
 
@@ -48,6 +66,8 @@ logger = logging.getLogger('mental_health_tasks')
     bind=True,
     queue='critical',
     priority=10,
+    soft_time_limit=300,  # 5 minutes - crisis response
+    time_limit=600,        # 10 minutes hard limit
     **task_retry_policy('default')
 )
 def process_crisis_mental_health_intervention(self, user_id, crisis_analysis, journal_entry_id=None):
@@ -93,7 +113,7 @@ def process_crisis_mental_health_intervention(self, user_id, crisis_analysis, jo
 
             # Immediate crisis support interventions
             for intervention in escalation_result['selected_interventions']:
-                if intervention.crisis_escalation_level >= 6:
+                if intervention.crisis_escalation_level >= CRISIS_ESCALATION_THRESHOLD:
                     # Schedule immediate delivery
                     delivery_result = _schedule_immediate_intervention_delivery.apply_async(
                         args=[user_id, intervention.id, 'crisis_response'],
@@ -111,12 +131,12 @@ def process_crisis_mental_health_intervention(self, user_id, crisis_analysis, jo
                     })
 
             # Trigger professional escalation if needed
-            if escalation_result['recommended_escalation_level'] >= 4:
+            if escalation_result['recommended_escalation_level'] >= INTENSIVE_ESCALATION_THRESHOLD:
                 professional_escalation_result = trigger_professional_escalation.apply_async(
                     args=[user_id, crisis_analysis, escalation_result],
                     queue='email',
                     priority=9,
-                    countdown=300  # 5 minutes to allow immediate interventions first
+                    countdown=PROFESSIONAL_ESCALATION_DELAY  # 5 minutes to allow immediate interventions first
                 )
 
                 crisis_interventions.append({
@@ -128,7 +148,7 @@ def process_crisis_mental_health_intervention(self, user_id, crisis_analysis, jo
             monitor_result = schedule_crisis_follow_up_monitoring.apply_async(
                 args=[user_id, crisis_analysis],
                 queue='high_priority',
-                countdown=3600  # 1 hour follow-up
+                countdown=CRISIS_FOLLOWUP_DELAY  # 1 hour follow-up
             )
 
             result = {
@@ -147,8 +167,16 @@ def process_crisis_mental_health_intervention(self, user_id, crisis_analysis, jo
 
             return result
 
-        except Exception as e:
-            logger.error(f"Crisis intervention processing failed for user {user_id}: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User {user_id} not found for crisis intervention: {e}", exc_info=True)
+            TaskMetrics.increment_counter('crisis_mental_health_intervention_failed')
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in crisis intervention for user {user_id}: {e}", exc_info=True)
+            TaskMetrics.increment_counter('crisis_mental_health_intervention_failed')
+            raise
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Business logic error in crisis intervention for user {user_id}: {e}", exc_info=True)
             TaskMetrics.increment_counter('crisis_mental_health_intervention_failed')
             raise
 
@@ -158,6 +186,8 @@ def process_crisis_mental_health_intervention(self, user_id, crisis_analysis, jo
     bind=True,
     queue='high_priority',
     priority=8,
+    soft_time_limit=120,  # 2 minutes - scheduling
+    time_limit=240,        # 4 minutes hard limit
     **task_retry_policy('default')
 )
 def _schedule_immediate_intervention_delivery(self, user_id, intervention_id, delivery_context, urgency_score=0):
@@ -206,8 +236,11 @@ def _schedule_immediate_intervention_delivery(self, user_id, intervention_id, de
                 'scheduled_for': 'immediate'
             }
 
-        except Exception as e:
-            logger.error(f"Immediate intervention scheduling failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User or intervention not found for immediate scheduling: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in immediate intervention scheduling: {e}", exc_info=True)
             raise
 
 
@@ -216,6 +249,8 @@ def _schedule_immediate_intervention_delivery(self, user_id, intervention_id, de
     bind=True,
     queue='high_priority',
     priority=8,
+    soft_time_limit=180,  # 3 minutes - content delivery
+    time_limit=360,        # 6 minutes hard limit
     **task_retry_policy('default')
 )
 def _deliver_intervention_content(self, delivery_log_id):
@@ -270,12 +305,18 @@ def _deliver_intervention_content(self, delivery_log_id):
                         'details': result
                     })
 
-                except Exception as e:
-                    logger.error(f"Delivery failed for channel {channel}: {e}")
+                except (NETWORK_EXCEPTIONS + DATABASE_EXCEPTIONS + BUSINESS_LOGIC_EXCEPTIONS) as e:
+                    # Multi-channel delivery with fault tolerance: Log and continue to next channel
+                    logger.error(
+                        f"Delivery failed for channel {channel}: {type(e).__name__}: {e}",
+                        exc_info=True,
+                        extra={'channel': channel, 'user_id': user.id, 'intervention_id': intervention.id}
+                    )
                     delivery_results.append({
                         'channel': channel,
                         'success': False,
-                        'error': str(e)
+                        'error': str(e),
+                        'error_type': type(e).__name__
                     })
 
             # Update delivery log
@@ -303,8 +344,11 @@ def _deliver_intervention_content(self, delivery_log_id):
                 'follow_up_scheduled': True
             }
 
-        except Exception as e:
-            logger.error(f"Intervention content delivery failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"Delivery log not found for content delivery: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in intervention content delivery: {e}", exc_info=True)
             raise
 
 
@@ -313,6 +357,8 @@ def _deliver_intervention_content(self, delivery_log_id):
     bind=True,
     queue='reports',
     priority=6,
+    soft_time_limit=1800,  # 30 minutes - batch processing
+    time_limit=2400,        # 40 minutes hard limit
     **task_retry_policy('default')
 )
 def schedule_weekly_positive_psychology_interventions(self):
@@ -382,8 +428,11 @@ def schedule_weekly_positive_psychology_interventions(self):
                             scheduled_count += 1
                             logger.debug(f"Scheduled {intervention.intervention_type} for user {user.id}")
 
-            except Exception as e:
-                logger.error(f"Failed to schedule positive intervention for user {user.id}: {e}")
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error scheduling positive intervention for user {user.id}: {e}", exc_info=True)
+                continue
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Business logic error scheduling positive intervention for user {user.id}: {e}", exc_info=True)
                 continue
 
         result = {
@@ -407,6 +456,8 @@ def schedule_weekly_positive_psychology_interventions(self):
     bind=True,
     queue='high_priority',
     priority=8,
+    soft_time_limit=120,  # 2 minutes - scheduling
+    time_limit=240,        # 4 minutes hard limit
     **task_retry_policy('default')
 )
 def _schedule_intervention_delivery(self, user_id, intervention_id, delivery_context, scheduled_time=None):
@@ -470,8 +521,11 @@ def _schedule_intervention_delivery(self, user_id, intervention_id, delivery_con
                     'next_available': scheduling_result.get('next_available_time')
                 }
 
-        except Exception as e:
-            logger.error(f"Intervention scheduling failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User or intervention not found for scheduling: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in intervention scheduling: {e}", exc_info=True)
             raise
 
 
@@ -480,6 +534,8 @@ def _schedule_intervention_delivery(self, user_id, intervention_id, delivery_con
     bind=True,
     queue='reports',
     priority=6,
+    soft_time_limit=300,  # 5 minutes - analytics
+    time_limit=600,        # 10 minutes hard limit
     **task_retry_policy('default')
 )
 def track_intervention_effectiveness(self, delivery_log_id):
@@ -543,8 +599,11 @@ def track_intervention_effectiveness(self, delivery_log_id):
 
             return result
 
-        except Exception as e:
-            logger.error(f"Effectiveness tracking failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"Delivery log not found for effectiveness tracking: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in effectiveness tracking: {e}", exc_info=True)
             raise
 
 
@@ -553,6 +612,8 @@ def track_intervention_effectiveness(self, delivery_log_id):
     bind=True,
     queue='email',
     priority=9,
+    soft_time_limit=300,  # 5 minutes - email notifications
+    time_limit=600,        # 10 minutes hard limit
     **task_retry_policy('email')
 )
 def trigger_professional_escalation(self, user_id, crisis_analysis, escalation_result):
@@ -625,8 +686,11 @@ def trigger_professional_escalation(self, user_id, crisis_analysis, escalation_r
                 'escalation_details': escalation_notifications
             }
 
-        except Exception as e:
-            logger.error(f"Professional escalation failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User not found for professional escalation: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in professional escalation: {e}", exc_info=True)
             raise
 
 
@@ -635,6 +699,8 @@ def trigger_professional_escalation(self, user_id, crisis_analysis, escalation_r
     bind=True,
     queue='high_priority',
     priority=7,
+    soft_time_limit=180,  # 3 minutes - status check
+    time_limit=360,        # 6 minutes hard limit
     **task_retry_policy('default')
 )
 def schedule_crisis_follow_up_monitoring(self, user_id, crisis_analysis):
@@ -676,16 +742,16 @@ def schedule_crisis_follow_up_monitoring(self, user_id, crisis_analysis):
                 schedule_crisis_follow_up_monitoring.apply_async(
                     args=[user_id, crisis_analysis],
                     queue='high_priority',
-                    countdown=3600 * 4  # Check again in 4 hours
+                    countdown=INTENSIVE_FOLLOWUP_DELAY  # Check again in 4 hours
                 )
 
                 # Consider additional escalation
                 if _should_escalate_further(crisis_analysis, current_status):
                     trigger_professional_escalation.apply_async(
-                        args=[user_id, crisis_analysis, {'recommended_escalation_level': 4}],
+                        args=[user_id, crisis_analysis, {'recommended_escalation_level': INTENSIVE_ESCALATION_THRESHOLD}],
                         queue='email',
                         priority=9,
-                        countdown=300  # 5 minutes
+                        countdown=PROFESSIONAL_ESCALATION_DELAY  # 5 minutes
                     )
 
             return {
@@ -695,8 +761,11 @@ def schedule_crisis_follow_up_monitoring(self, user_id, crisis_analysis):
                 'further_escalation_triggered': False  # Would be True if escalated
             }
 
-        except Exception as e:
-            logger.error(f"Crisis follow-up monitoring failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User not found for crisis follow-up monitoring: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in crisis follow-up monitoring: {e}", exc_info=True)
             raise
 
 
@@ -705,6 +774,8 @@ def schedule_crisis_follow_up_monitoring(self, user_id, crisis_analysis):
     bind=True,
     queue='high_priority',
     priority=7,
+    soft_time_limit=180,  # 3 minutes - review process
+    time_limit=360,        # 6 minutes hard limit
     **task_retry_policy('default')
 )
 def review_escalation_level(self, user_id, effectiveness_analysis):
@@ -751,8 +822,11 @@ def review_escalation_level(self, user_id, effectiveness_analysis):
                     'next_review_date': current_escalation['next_review_date']
                 }
 
-        except Exception as e:
-            logger.error(f"Escalation level review failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User not found for escalation level review: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in escalation level review: {e}", exc_info=True)
             raise
 
 
@@ -761,6 +835,8 @@ def review_escalation_level(self, user_id, effectiveness_analysis):
     bind=True,
     queue='reports',
     priority=6,
+    soft_time_limit=300,  # 5 minutes - monitoring
+    time_limit=600,        # 10 minutes hard limit
     **task_retry_policy('default')
 )
 def monitor_user_wellness_status(self, user_id):
@@ -803,7 +879,7 @@ def monitor_user_wellness_status(self, user_id):
                     )
 
                 # Schedule next monitoring based on escalation level
-                next_check_hours = {1: 168, 2: 72, 3: 24, 4: 4}.get(current_level, 168)  # hours
+                next_check_hours = ESCALATION_CHECK_INTERVALS.get(current_level, 168)  # hours
 
                 monitor_user_wellness_status.apply_async(
                     args=[user_id],
@@ -831,8 +907,11 @@ def monitor_user_wellness_status(self, user_id):
                     'next_monitoring_hours': 168  # 1 week
                 }
 
-        except Exception as e:
-            logger.error(f"Wellness status monitoring failed: {e}")
+        except ObjectDoesNotExist as e:
+            logger.error(f"User not found for wellness status monitoring: {e}", exc_info=True)
+            raise
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error in wellness status monitoring: {e}", exc_info=True)
             raise
 
 
@@ -875,7 +954,7 @@ def _determine_delivery_channels(user, intervention, delivery_log):
     channels = []
 
     # Crisis interventions always get multiple channels
-    if intervention.crisis_escalation_level >= 6:
+    if intervention.crisis_escalation_level >= CRISIS_ESCALATION_THRESHOLD:
         channels = ['in_app_notification', 'email', 'mqtt_push']
     else:
         # Regular interventions use preferred channels
@@ -1012,14 +1091,14 @@ def _determine_escalation_recipients(user, escalation_level, urgency_score):
     """Determine who should be notified for professional escalation"""
     recipients = []
 
-    if escalation_level >= 4 or urgency_score >= 8:
+    if escalation_level >= INTENSIVE_ESCALATION_THRESHOLD or urgency_score >= HIGH_URGENCY_THRESHOLD:
         # Crisis level - notify all relevant parties
         recipients.extend([
             {'type': 'hr_wellness', 'urgency': 'immediate'},
             {'type': 'employee_assistance', 'urgency': 'immediate'},
             {'type': 'manager', 'urgency': 'immediate'}  # If user has opted in
         ])
-    elif escalation_level >= 3:
+    elif escalation_level >= 3:  # Moderate support level
         # Intensive level - notify wellness team
         recipients.extend([
             {'type': 'hr_wellness', 'urgency': 'high'},

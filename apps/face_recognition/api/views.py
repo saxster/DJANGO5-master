@@ -22,11 +22,16 @@ from apps.ontology.decorators import ontology
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
-from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+from apps.core.exceptions.patterns import (
+    FILE_EXCEPTIONS,
+    BUSINESS_LOGIC_EXCEPTIONS
+)
 
 from apps.face_recognition.models import FaceEmbedding, BiometricConsentLog
 from apps.face_recognition.services import (
@@ -74,6 +79,7 @@ logger = logging.getLogger(__name__)
         "curl -X POST https://api.example.com/api/v1/biometrics/face/verify/ -H 'Authorization: Bearer <token>' -F 'image=@face.jpg' -F 'user_id=123' -F 'enable_liveness=true'"
     ]
 )
+@method_decorator(permission_required('face_recognition.add_faceembedding', raise_exception=True), name='dispatch')
 class FaceEnrollmentView(APIView):
     """
     Face Enrollment API Endpoint.
@@ -214,8 +220,8 @@ class FaceEnrollmentView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        except Exception as e:
-            logger.error(f"Unexpected error during face enrollment: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Unexpected error during face enrollment: {e}", exc_info=True)
             # Clean up temp file if it exists
             try:
                 if 'image_path' in locals():
@@ -229,6 +235,7 @@ class FaceEnrollmentView(APIView):
             )
 
 
+@method_decorator(permission_required('face_recognition.view_faceembedding', raise_exception=True), name='dispatch')
 class FaceVerificationView(APIView):
     """
     Face Verification API Endpoint.
@@ -366,8 +373,8 @@ class FaceVerificationView(APIView):
             response_serializer = FaceVerificationResponseSerializer(response_data)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Unexpected error during face verification: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Unexpected error during face verification: {e}", exc_info=True)
             # Clean up temp file
             try:
                 if 'image_path' in locals():
@@ -381,6 +388,7 @@ class FaceVerificationView(APIView):
             )
 
 
+@method_decorator(permission_required('face_recognition.view_faceembedding', raise_exception=True), name='dispatch')
 class FaceQualityView(APIView):
     """
     Face Image Quality Assessment API Endpoint.
@@ -435,8 +443,8 @@ class FaceQualityView(APIView):
             response_serializer = FaceQualityAssessmentResponseSerializer(quality_result)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Error assessing face image quality: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error assessing face image quality: {e}", exc_info=True)
             # Clean up temp file
             try:
                 if 'image_path' in locals():
@@ -450,6 +458,7 @@ class FaceQualityView(APIView):
             )
 
 
+@method_decorator(permission_required('face_recognition.view_faceembedding', raise_exception=True), name='dispatch')
 class FaceLivenessView(APIView):
     """
     Face Liveness Detection API Endpoint.
@@ -515,8 +524,8 @@ class FaceLivenessView(APIView):
             response_serializer = LivenessDetectionResponseSerializer(liveness_result)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Error in liveness detection: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error in liveness detection: {e}", exc_info=True)
             # Clean up temp file
             try:
                 if 'image_path' in locals():

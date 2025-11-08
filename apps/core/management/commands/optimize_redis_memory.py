@@ -138,7 +138,7 @@ class Command(BaseCommand):
             else:
                 self._display_formatted_output(results, verbosity)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             if json_output:
                 error_result = {
                     'timestamp': timezone.now().isoformat(),

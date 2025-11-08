@@ -11,6 +11,9 @@ Service Classes:
 - ExternalTourService: External tour business logic
 - TaskService: Task management business logic
 - JobneedManagementService: Generic jobneed CRUD operations
+
+Phase 3 AI & Intelligence Features:
+- PMOptimizerService: Adaptive PM scheduling using device health predictions
 """
 
 from apps.scheduler.services.scheduling_service import (
@@ -33,6 +36,7 @@ from apps.scheduler.services.task_service import (
     TaskJobneedService
 )
 from apps.scheduler.services.jobneed_management_service import JobneedManagementService
+from apps.scheduler.services.pm_optimizer_service import PMOptimizerService
 
 __all__ = [
     'SchedulingService',
@@ -47,4 +51,5 @@ __all__ = [
     'TaskService',
     'TaskJobneedService',
     'JobneedManagementService',
+    'PMOptimizerService',
 ]

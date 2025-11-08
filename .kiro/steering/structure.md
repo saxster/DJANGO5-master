@@ -55,13 +55,12 @@ YOUTILITY5/
 ### Technical Apps
 
 #### `apps/service/` - API Layer
-- **Purpose**: GraphQL API for mobile applications
+- **Purpose**: REST API services for mobile and web applications
 - **Structure**:
-  - `queries/` - GraphQL query resolvers
-  - `mutations.py` - GraphQL mutations
-  - `types.py` - GraphQL type definitions
   - `pydantic_schemas/` - Data validation schemas
-- **Endpoints**: `/graphql/` main API, `/api/` REST endpoints
+  - `serializers/` - DRF serializers
+  - `views/` - API view implementations
+- **Endpoints**: `/api/v1/` and `/api/v2/` REST APIs
 
 #### `apps/core/` - Shared Utilities
 - **Purpose**: Cross-cutting concerns, middleware, utilities
@@ -186,9 +185,9 @@ tests/
 - **Type Hints**: Use type hints for better code clarity
 
 ### API Documentation
-- **GraphQL**: Self-documenting via GraphQL introspection
-- **REST**: Use DRF's built-in documentation features
+- **REST**: Use DRF's built-in documentation features and OpenAPI schemas
 - **Examples**: Provide usage examples in docstrings
+- **Versioning**: `/api/v1/` and `/api/v2/` for backward compatibility
 
 ## Development Workflow
 

@@ -86,10 +86,14 @@ class Schd_E_TourFormJob(LoginRequiredMixin, View):
                 "url": f"/operations/tours/external/update/{job.id}/",
             }, status=200)
 
-        except ValidationError:
-            return JsonResponse({"errors": "Validation failed"}, status=400)
-        except DatabaseException:
-            return JsonResponse({"errors": "Database error"}, status=500)
+        except ValidationError as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_E_TourFormJob'}, level='warning')
+            return ErrorHandler.create_error_response("Validation failed", error_code="VALIDATION_ERROR", status_code=400, correlation_id=correlation_id)
+        except DatabaseException as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'Create_E_TourFormJob'})
+            return ErrorHandler.create_error_response("Database error", error_code="DATABASE_ERROR", correlation_id=correlation_id)
 
 
 class Update_E_TourFormJob(LoginRequiredMixin, View):
@@ -181,8 +185,10 @@ class ExternalTourTracking(LoginRequiredMixin, View):
 
         except ValidationError as e:
             return JsonResponse({"errors": str(e)}, status=404)
-        except DatabaseException:
-            return JsonResponse({"errors": "Database error"}, status=500)
+        except DatabaseException as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'get_sites_locations_exttour'})
+            return ErrorHandler.create_error_response("Database error", error_code="DATABASE_ERROR", correlation_id=correlation_id)
 
 
 @login_required
@@ -212,5 +218,7 @@ def save_assigned_sites_for_externaltour(request):
 
     except ValidationError as e:
         return JsonResponse({"errors": str(e)}, status=400)
-    except DatabaseException:
-        return JsonResponse({"errors": "Database error"}, status=500)
+    except DatabaseException as e:
+        from apps.core.error_handling import ErrorHandler
+        correlation_id = ErrorHandler.handle_exception(e, context={'view': 'save_assigned_sites_for_externaltour'})
+        return ErrorHandler.create_error_response("Database error", error_code="DATABASE_ERROR", correlation_id=correlation_id)

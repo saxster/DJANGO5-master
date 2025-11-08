@@ -18,6 +18,8 @@ from apps.y_helpdesk.security.ticket_security_service import TicketSecurityServi
 from apps.y_helpdesk.services.ticket_audit_service import TicketAuditService
 from apps.y_helpdesk.models import Ticket
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -340,7 +342,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f"Report exported to {filename}")
             )
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             self.stdout.write(
                 self.style.ERROR(f"Export failed: {e}")
             )

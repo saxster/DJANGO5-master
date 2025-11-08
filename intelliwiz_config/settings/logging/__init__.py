@@ -26,7 +26,7 @@ def setup_logging(environment='development', logger_path=None):
     try:
         config = get_logging_config(environment, logger_path)
         logging.config.dictConfig(config)
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         # Fallback to basic logging
         import logging
         logging.basicConfig(
@@ -74,6 +74,8 @@ def _get_loggers(environment):
     sanitize_available = False
     try:
         from django.apps import apps
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
         sanitize_available = apps.apps_ready
     except (ImportError, RuntimeError):
         pass

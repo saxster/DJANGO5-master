@@ -81,8 +81,8 @@ class GeofenceManagerMixin:
             from apps.attendance.services.geospatial_service import GeospatialService
             lon, lat = GeospatialService.extract_coordinates(location)
             return [lon, lat]
-        except Exception as e:
-            logger.error(f"Failed to extract coordinates from {location}: {str(e)}")
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"Failed to extract coordinates from {location}: {str(e)}", exc_info=True)
             return [0.0, 0.0]  # Return default coordinates on failure
 
     def is_point_in_geofence(self, lat, lon, geofence):
@@ -104,6 +104,6 @@ class GeofenceManagerMixin:
             return GeospatialService.is_point_in_geofence(
                 lat, lon, geofence, use_hysteresis=True
             )
-        except Exception as e:
-            logger.error(f"Geofence validation failed for ({lat}, {lon}): {str(e)}")
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"Geofence validation failed for ({lat}, {lon}): {str(e)}", exc_info=True)
             return False

@@ -344,7 +344,7 @@ class TelemetryTransport(
     private suspend fun sendViaHttp(batch: StreamEventBatch) {
         try {
             val httpEndpoint = config.endpoint.replace("ws://", "http://").replace("wss://", "https://")
-            val url = "$httpEndpoint/api/v1/stream-events/batch"
+            val url = "$httpEndpoint/api/v2/telemetry/stream-events/batch"
 
             val response = httpClient.post(url) {
                 contentType(ContentType.Application.Json)

@@ -947,12 +947,67 @@ function generateRecentTrendData() {
 }
 
 function loadDashboardData() {
-  // TODO: Fetch real data from API endpoints
-  // /api/v1/journal/analytics_summary/
-  // /api/v1/wellness/progress/
-  // /api/v1/wellness/daily-tip/
+  // Fetch real data from V2 API endpoints
+  // V2 Migration: Updated from /api/v1/ to /api/v2/
 
-  console.log('Loading dashboard data...');
+  $.ajax({
+    url: '/api/v2/wellness/analytics/',
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + getJWTToken()
+    },
+    success: function(response) {
+      if (response.success && response.data) {
+        updateDashboardWithAnalytics(response.data);
+      }
+    },
+    error: function(xhr, status, error) {
+      console.error('[WellnessDashboard] Error loading analytics:', error);
+    }
+  });
+
+  // Load wellness content (daily tip)
+  $.ajax({
+    url: '/api/v2/wellness/content/',
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + getJWTToken()
+    },
+    success: function(response) {
+      if (response.success && response.data) {
+        updateDailyTip(response.data);
+      }
+    },
+    error: function(xhr, status, error) {
+      console.error('[WellnessDashboard] Error loading content:', error);
+    }
+  });
+
+  console.log('Loading dashboard data from V2 APIs...');
+}
+
+function updateDashboardWithAnalytics(data) {
+  // Update today's stats
+  if (data.mood_trend) {
+    $('#todayMood').text(data.mood_trend);
+  }
+  if (data.stress_level) {
+    $('#todayStress').text(data.stress_level);
+  }
+  if (data.entries_this_week) {
+    // Update entries count
+  }
+}
+
+function updateDailyTip(data) {
+  if (data.daily_tip) {
+    $('#tipContent').text(data.daily_tip);
+  }
+}
+
+function getJWTToken() {
+  // Get JWT token from localStorage or sessionStorage
+  return localStorage.getItem('jwt_access_token') || '';
 }
 
 function quickMoodCheck() {

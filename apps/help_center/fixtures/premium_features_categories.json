@@ -1,0 +1,145 @@
+[
+  {
+    "model": "help_center.helpcategory",
+    "pk": 100,
+    "fields": {
+      "name": "SOAR Automation",
+      "slug": "soar-automation",
+      "description": "Automated remediation playbooks that auto-resolve 30-60% of alerts without human intervention",
+      "icon": "automation",
+      "color": "#6366f1",
+      "order": 1,
+      "is_active": true,
+      "meta_keywords": "soar, automation, playbook, remediation, auto-resolve",
+      "other_data": {
+        "is_premium": true,
+        "tier": "gold",
+        "revenue_impact": "+$50-100/month per site",
+        "feature_status": "production-ready"
+      }
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 101,
+    "fields": {
+      "name": "SLA Breach Prevention",
+      "slug": "sla-prevention",
+      "description": "Predictive alerts that prevent SLA violations 2 hours in advance using ML",
+      "icon": "shield-check",
+      "color": "#10b981",
+      "order": 2,
+      "is_active": true,
+      "meta_keywords": "sla, breach, prevention, prediction, auto-escalation",
+      "other_data": {
+        "is_premium": true,
+        "tier": "silver",
+        "revenue_impact": "+$75-150/month per site",
+        "roi": "13-66x",
+        "feature_status": "production-ready"
+      }
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 102,
+    "fields": {
+      "name": "Device Health Monitoring",
+      "slug": "device-health",
+      "description": "IoT device health scoring and failure prediction for proactive maintenance",
+      "icon": "heart-pulse",
+      "color": "#3b82f6",
+      "order": 3,
+      "is_active": true,
+      "meta_keywords": "device, health, iot, telemetry, failure prediction, battery, signal",
+      "other_data": {
+        "is_premium": true,
+        "tier": "silver",
+        "revenue_impact": "+$2-5/device/month",
+        "feature_status": "production-ready"
+      }
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 103,
+    "fields": {
+      "name": "Executive Scorecards",
+      "slug": "executive-scorecards",
+      "description": "Automated monthly board-ready compliance and operations scorecards",
+      "icon": "chart-bar",
+      "color": "#8b5cf6",
+      "order": 4,
+      "is_active": true,
+      "meta_keywords": "executive, scorecard, kpi, reporting, compliance, board",
+      "other_data": {
+        "is_premium": true,
+        "tier": "bronze",
+        "revenue_impact": "+$200-500/month per client",
+        "feature_status": "production-ready"
+      }
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 104,
+    "fields": {
+      "name": "Shift Compliance",
+      "slug": "shift-compliance",
+      "description": "Zero no-show enforcement with real-time detection and supervisor alerts",
+      "icon": "user-check",
+      "color": "#ef4444",
+      "order": 5,
+      "is_active": true,
+      "meta_keywords": "shift, compliance, no-show, attendance, late, wrong-site",
+      "other_data": {
+        "is_premium": true,
+        "tier": "silver",
+        "revenue_impact": "+$100-200/month per site",
+        "roi": "5-12x",
+        "feature_status": "production-ready"
+      }
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 105,
+    "fields": {
+      "name": "AI Alert Triage",
+      "slug": "ai-alert-triage",
+      "description": "ML-powered alert scoring and auto-routing to specialists for 30-40% efficiency boost",
+      "icon": "sparkles",
+      "color": "#f59e0b",
+      "order": 6,
+      "is_active": true,
+      "meta_keywords": "ai, alert, triage, priority, scoring, routing, ml",
+      "other_data": {
+        "is_premium": true,
+        "tier": "bronze",
+        "revenue_impact": "+$150/month per site",
+        "feature_status": "production-ready"
+      }
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 106,
+    "fields": {
+      "name": "Vendor Performance",
+      "slug": "vendor-performance",
+      "description": "Vendor quality scoring and SLA compliance tracking for accountability",
+      "icon": "building-office",
+      "color": "#06b6d4",
+      "order": 7,
+      "is_active": true,
+      "meta_keywords": "vendor, performance, quality, sla, score, accountability",
+      "other_data": {
+        "is_premium": true,
+        "tier": "silver",
+        "revenue_impact": "+$50/month per site",
+        "roi": "4x",
+        "feature_status": "production-ready"
+      }
+    }
+  }
+]

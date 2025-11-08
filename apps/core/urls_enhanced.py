@@ -13,6 +13,10 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.decorators import login_required
 
 from apps.core.utils_new.url import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
     UrlOptimizer,
     URLAnalytics,
     LegacyURLRedirector
@@ -225,7 +229,7 @@ def track_page_view(request):
                 'tracked': True,
                 'analytics_id': analytics_data.get('id')
             })
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             return JsonResponse({
                 'success': False,
                 'error': 'Failed to track page view'
@@ -255,7 +259,7 @@ def track_url_error(request):
                 'success': True,
                 'tracked': True
             })
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return JsonResponse({
                 'success': False,
                 'error': 'Failed to track URL error'

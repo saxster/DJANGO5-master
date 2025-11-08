@@ -77,9 +77,18 @@ class Location(BaseModel, TenantAwareModel):
 
     class Meta(BaseModel.Meta):
         db_table = "location"
+        verbose_name = "Location"
+        verbose_name_plural = "Locations"
+        ordering = ['locname', 'loccode']
         get_latest_by = ["mdtz", "cdtz"]
         constraints = [
             models.UniqueConstraint(
                 fields=["loccode", "bu", "client"], name="loccode_bu_client_uk"
             ),
+        ]
+        indexes = [
+            models.Index(fields=['locname']),
+            models.Index(fields=['loccode']),
+            models.Index(fields=['client', 'bu']),
+            models.Index(fields=['locstatus']),
         ]

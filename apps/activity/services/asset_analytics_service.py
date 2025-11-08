@@ -19,6 +19,8 @@ from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
 
 from apps.activity.models import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     Asset,
     AssetHealthScore,
     AssetUtilizationMetric,
@@ -129,7 +131,7 @@ class AssetAnalyticsService:
             logger.error(f"Asset not found: {asset_id}")
             return 0.0
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error calculating health score: {e}")
             return 0.0
 
@@ -200,7 +202,7 @@ class AssetAnalyticsService:
                 'summary_date': timezone.now().date().isoformat()
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error getting analytics summary: {e}")
             return {
                 'total_assets': 0,
@@ -258,7 +260,7 @@ class AssetAnalyticsService:
                 'period_end': timezone.now().date().isoformat()
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error analyzing maintenance costs: {e}")
             return {
                 'total_cost': 0.0,

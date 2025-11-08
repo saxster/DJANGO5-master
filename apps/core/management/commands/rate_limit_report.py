@@ -19,6 +19,10 @@ from django.utils import timezone
 from django.db.models import Count
 from datetime import timedelta
 from apps.core.models.rate_limiting import (
+
+import logging
+logger = logging.getLogger(__name__)
+
     RateLimitBlockedIP,
     RateLimitTrustedIP,
     RateLimitViolationLog
@@ -191,4 +195,4 @@ class Command(BaseCommand):
 
     def _export_json(self, data):
         """Export report as JSON."""
-        print(json.dumps(data, indent=2, default=str))
+        logger.debug(json.dumps(data, indent=2, default=str))

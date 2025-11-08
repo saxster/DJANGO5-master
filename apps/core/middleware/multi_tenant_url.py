@@ -34,6 +34,7 @@ from django.http import HttpRequest, Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from apps.core.cache.tenant_aware import tenant_cache as cache
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -256,8 +257,12 @@ class MultiTenantURLMiddleware:
 
             return TenantContext(**context_data)
 
-        except Exception as e:
-            logger.error(f"Error fetching tenant by slug '{slug}': {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(
+                f"Database error fetching tenant by slug '{slug}': {e}",
+                exc_info=True,
+                extra={'slug': slug, 'cache_key': cache_key}
+            )
             return None
 
     def _get_tenant_by_id(self, tenant_id: str) -> Optional[TenantContext]:
@@ -287,8 +292,12 @@ class MultiTenantURLMiddleware:
 
             return TenantContext(**context_data)
 
-        except Exception as e:
-            logger.error(f"Error fetching tenant by ID '{tenant_id}': {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(
+                f"Database error fetching tenant by ID '{tenant_id}': {e}",
+                exc_info=True,
+                extra={'tenant_id': tenant_id, 'cache_key': cache_key}
+            )
             return None
 
     def _get_default_tenant(self) -> Optional[TenantContext]:
@@ -367,7 +376,7 @@ def get_current_tenant(request: HttpRequest) -> Optional[TenantContext]:
     Usage:
         tenant = get_current_tenant(request)
         if tenant:
-            print(f"Current tenant: {tenant.tenant_name}")
+            logger.debug(f"Current tenant: {tenant.tenant_name}")
 
     Args:
         request: HttpRequest object

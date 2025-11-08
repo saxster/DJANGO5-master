@@ -25,7 +25,7 @@ from apps.attendance.models import Post, PostAssignment
 from apps.peoples.models import People
 from apps.onboarding.models import Shift, Bt
 from apps.attendance.services.post_cache_service import PostCacheService
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 
 import logging
 
@@ -80,7 +80,8 @@ class BulkRosterService:
             post_ids = {d['post_id'] for d in assignments_data}
             shift_ids = {d['shift_id'] for d in assignments_data}
 
-            workers = {w.id: w for w in People.objects.filter(id__in=worker_ids)}
+            # Optimize: select_related for People to avoid N+1 on profile/organizational access
+            workers = {w.id: w for w in People.objects.filter(id__in=worker_ids).select_related('profile', 'organizational')}
             posts = {p.id: p for p in Post.objects.filter(id__in=post_ids).select_related('site', 'shift')}
             shifts = {s.id: s for s in Shift.objects.filter(id__in=shift_ids)}
 
@@ -158,10 +159,14 @@ class BulkRosterService:
 
                         assignments_to_create.append(assignment)
 
-                    except Exception as e:
-                        stats['errors'].append(f"Error processing assignment: {str(e)}")
+                    except VALIDATION_EXCEPTIONS as e:
+                        stats['errors'].append(f"Validation error processing assignment: {str(e)}")
                         stats['skipped'] += 1
-                        logger.error(f"Error in bulk assignment: {e}", exc_info=True)
+                        logger.warning(f"Assignment validation failed: {e}", exc_info=True)
+                    except (AttributeError, TypeError, KeyError) as e:
+                        stats['errors'].append(f"Data error processing assignment: {str(e)}")
+                        stats['skipped'] += 1
+                        logger.error(f"Assignment data error: {e}", exc_info=True)
 
                 # Bulk create batch with transaction batching (PERF-004)
                 # Split large batches to prevent PostgreSQL timeout
@@ -177,8 +182,8 @@ class BulkRosterService:
 
                     logger.info(f"Bulk created {len(assignments_to_create)} assignments in batch {i // batch_size + 1}")
 
-                        # Invalidate relevant caches
-                        for assignment in assignments_to_create:
+                    # Invalidate relevant caches
+                    for assignment in assignments_to_create:
                             PostCacheService.invalidate_worker_assignments(
                                 assignment.worker.id,
                                 assignment.assignment_date
@@ -195,8 +200,11 @@ class BulkRosterService:
 
             return stats
 
-        except Exception as e:
-            logger.error(f"Bulk assignment creation failed: {e}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error during bulk assignment creation: {e}", exc_info=True)
+            stats['errors'].append(f"Database error: {str(e)}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Unexpected error during bulk assignment creation: {e}", exc_info=True)
             stats['errors'].append(f"Critical error: {str(e)}")
             return stats
 
@@ -262,8 +270,15 @@ class BulkRosterService:
 
             return result
 
-        except Exception as e:
-            logger.error(f"Roster template copy failed: {e}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error during roster template copy: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': f'Database error: {str(e)}',
+                'created': 0
+            }
+        except (AttributeError, TypeError, KeyError) as e:
+            logger.error(f"Data error during roster template copy: {e}", exc_info=True)
             return {
                 'status': 'error',
                 'message': str(e),
@@ -302,8 +317,11 @@ class BulkRosterService:
 
                 return updated
 
-        except Exception as e:
-            logger.error(f"Bulk status update failed: {e}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error during bulk status update: {e}", exc_info=True)
+            return 0
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.error(f"Validation error during bulk status update: {e}", exc_info=True)
             return 0
 
     @classmethod
@@ -375,7 +393,8 @@ class BulkRosterService:
                     'created': 0
                 }
 
-            available_workers = People.objects.filter(id__in=available_worker_ids)
+            # Optimize: select_related to avoid N+1 on worker properties
+            available_workers = People.objects.filter(id__in=available_worker_ids).select_related('profile', 'organizational')
 
             # Create assignments (simple round-robin for now)
             assignments_data = []
@@ -408,7 +427,7 @@ class BulkRosterService:
 
             return result
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Auto-assignment failed: {e}", exc_info=True)
             return {
                 'status': 'error',

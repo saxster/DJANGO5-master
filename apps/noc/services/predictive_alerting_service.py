@@ -38,6 +38,8 @@ from ..models import NOCAlertEvent, PredictiveAlertTracking
 from ..ml.predictive_models.sla_breach_predictor import SLABreachPredictor
 from ..ml.predictive_models.device_failure_predictor import DeviceFailurePredictor
 from ..ml.predictive_models.staffing_gap_predictor import StaffingGapPredictor
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.predictive_alerting')
 
@@ -155,7 +157,7 @@ class PredictiveAlertingService:
                 except ValueError as e:
                     logger.error(f"Error predicting device failure for device {device.id}: {e}")
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Device model not available or error accessing: {e}")
 
         logger.info(f"Created {len(predictions)} device failure predictions")
@@ -220,7 +222,7 @@ class PredictiveAlertingService:
                     except ValueError as e:
                         logger.error(f"Error predicting staffing gap for shift {shift.id}: {e}")
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Schedule model not available or error accessing: {e}")
 
         logger.info(f"Created {len(predictions)} staffing gap predictions")

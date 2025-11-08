@@ -18,7 +18,10 @@ from django.core.cache import cache
 from django.db import connection
 from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor
-from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
+from apps.core.exceptions.patterns import (
+    PARSING_EXCEPTIONS,
+    BUSINESS_LOGIC_EXCEPTIONS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +71,8 @@ class BiometricPerformanceOptimizer:
             logger.debug(f"Cached embedding for user {user_id}, model {model_name}")
             return True
 
-        except Exception as e:
-            logger.error(f"Error caching embedding: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error caching embedding: {e}", exc_info=True)
             return False
 
     def get_cached_embedding(
@@ -98,8 +101,8 @@ class BiometricPerformanceOptimizer:
                 logger.debug(f"Cache miss for user {user_id}, model {model_name}")
                 return None
 
-        except Exception as e:
-            logger.error(f"Error retrieving cached embedding: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error retrieving cached embedding: {e}", exc_info=True)
             return None
 
     def invalidate_user_cache(self, user_id: int):
@@ -118,8 +121,8 @@ class BiometricPerformanceOptimizer:
 
             logger.info(f"Invalidated all caches for user {user_id}")
 
-        except Exception as e:
-            logger.error(f"Error invalidating user cache: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error invalidating user cache: {e}", exc_info=True)
 
     def batch_extract_embeddings(
         self,
@@ -148,8 +151,8 @@ class BiometricPerformanceOptimizer:
             logger.info(f"Batch extracted {len(embeddings)} embeddings")
             return embeddings
 
-        except Exception as e:
-            logger.error(f"Error in batch embedding extraction: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error in batch embedding extraction: {e}", exc_info=True)
             return [None] * len(image_paths)
 
     def optimize_embedding_queries(self, user_ids: List[int], model_name: str):
@@ -177,8 +180,8 @@ class BiometricPerformanceOptimizer:
 
             return embeddings
 
-        except Exception as e:
-            logger.error(f"Error optimizing embedding queries: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error optimizing embedding queries: {e}", exc_info=True)
             return []
 
     def warm_cache_for_users(
@@ -220,8 +223,8 @@ class BiometricPerformanceOptimizer:
             logger.info(f"Cache warmed: {cached_count} embeddings for {len(user_ids)} users")
             return cached_count
 
-        except Exception as e:
-            logger.error(f"Error warming cache: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error warming cache: {e}", exc_info=True)
             return 0
 
     def get_performance_stats(self) -> Dict[str, Any]:
@@ -252,6 +255,6 @@ class BiometricPerformanceOptimizer:
                 'timestamp': timezone.now().isoformat()
             }
 
-        except Exception as e:
-            logger.error(f"Error getting performance stats: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error getting performance stats: {e}", exc_info=True)
             return {}

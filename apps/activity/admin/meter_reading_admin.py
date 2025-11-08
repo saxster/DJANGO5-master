@@ -117,6 +117,8 @@ class MeterReadingAdmin(IntelliWizModelAdmin):
         'mark_as_rejected',
     ]
 
+    list_per_page = 50
+
     @admin.display(description="Reading", ordering="reading_value")
     def reading_value_with_unit(self, obj):
         """Display reading value with unit."""

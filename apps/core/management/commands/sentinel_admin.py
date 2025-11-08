@@ -13,6 +13,8 @@ import json
 import time
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -105,7 +107,7 @@ class Command(BaseCommand):
             else:
                 self._display_formatted_result(result, verbosity)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             if json_output:
                 error_result = {
                     'status': 'error',
@@ -190,7 +192,7 @@ class Command(BaseCommand):
                 ]
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             raise CommandError(f"Failed to get masters info: {e}")
 
     def _get_replicas_info(self, options):
@@ -231,7 +233,7 @@ class Command(BaseCommand):
                 ]
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             raise CommandError(f"Failed to get replicas info: {e}")
 
     def _test_failover_capability(self, options):

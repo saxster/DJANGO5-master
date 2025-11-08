@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Unit and Integration Tests for AlertClusteringService.
 
 Tests ML-based alert clustering for 70-90% noise reduction.
@@ -535,12 +537,12 @@ class TestAlertClusteringIntegration:
         # Should have some auto-suppressed alerts (highly similar ones)
         assert suppressed_count > 0, "Expected some alerts to be auto-suppressed"
 
-        print(f"\n=== Clustering Results ===")
-        print(f"Total Alerts: {total_alerts}")
-        print(f"Total Clusters: {total_clusters}")
-        print(f"Clustering Ratio: {clustering_ratio:.1f}:1")
-        print(f"Auto-suppressed Alerts: {suppressed_count}")
-        print(f"Noise Reduction: {(suppressed_count / total_alerts * 100):.1f}%")
+        logger.info(f"\n=== Clustering Results ===")
+        logger.info(f"Total Alerts: {total_alerts}")
+        logger.info(f"Total Clusters: {total_clusters}")
+        logger.info(f"Clustering Ratio: {clustering_ratio:.1f}:1")
+        logger.info(f"Auto-suppressed Alerts: {suppressed_count}")
+        logger.info(f"Noise Reduction: {(suppressed_count / total_alerts * 100):.1f}%")
 
     def test_auto_suppression_rate(self, tenant, client_bt, site_bt):
         """Test that auto-suppression achieves expected rates."""

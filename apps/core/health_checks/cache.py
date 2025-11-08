@@ -9,6 +9,8 @@ from typing import Dict, Any
 from django.core.cache import cache, caches
 from django.utils import timezone
 from .utils import timeout_check, format_check_result
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -309,7 +311,7 @@ def check_redis_memory_health() -> Dict[str, Any]:
             duration_ms=(time.time() - start_time) * 1000,
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Redis memory health check error: {e}")
         return format_check_result(
@@ -393,7 +395,7 @@ def check_redis_performance() -> Dict[str, Any]:
             duration_ms=duration,
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Redis performance check error: {e}")
         return format_check_result(
@@ -425,7 +427,7 @@ def check_celery_redis_health() -> Dict[str, Any]:
             with current_app.connection() as conn:
                 conn.ensure_connection(max_retries=3)
                 broker_status = "healthy"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             broker_status = f"error: {str(e)}"
 
         # Check result backend
@@ -434,7 +436,7 @@ def check_celery_redis_health() -> Dict[str, Any]:
             if hasattr(result_backend, 'client'):
                 result_backend.client.ping()
                 result_backend_status = "healthy"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             result_backend_status = f"error: {str(e)}"
 
         # Get queue information
@@ -472,7 +474,7 @@ def check_celery_redis_health() -> Dict[str, Any]:
             duration_ms=duration,
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Celery Redis health check error: {e}")
         return format_check_result(
@@ -538,7 +540,7 @@ def check_channels_redis_health() -> Dict[str, Any]:
                     status = "error"
                     message = "Channels message test failed"
 
-        except Exception as test_error:
+        except CACHE_EXCEPTIONS as test_error:
             status = "error"
             message = f"Channels functionality test failed: {str(test_error)}"
 
@@ -554,7 +556,7 @@ def check_channels_redis_health() -> Dict[str, Any]:
             duration_ms=duration,
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Channels Redis health check error: {e}")
         return format_check_result(

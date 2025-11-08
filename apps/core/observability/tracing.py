@@ -72,7 +72,7 @@ class TracingService:
                 f"Tracing initialized: Jaeger at {jaeger_host}:{jaeger_port}"
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to initialize tracing: {e}", exc_info=True)
 
     @classmethod

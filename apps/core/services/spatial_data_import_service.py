@@ -29,6 +29,10 @@ from django.contrib.gis.geos import Point, Polygon, LineString
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
 from django.conf import settings
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +176,7 @@ class SpatialDataImportService:
             result.errors.append(error_msg)
             logger.error(error_msg)
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             error_msg = f"Import failed: {str(e)}"
             result.errors.append(error_msg)
             logger.error(error_msg, exc_info=True)
@@ -238,7 +242,7 @@ class SpatialDataImportService:
                 if extracted_path != file_path:
                     self._cleanup_temp_files()
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             raise SpatialDataImportError(f"File inspection failed: {str(e)}")
 
     def create_import_mapping_template(self, file_path: Union[str, Path],
@@ -295,7 +299,7 @@ class SpatialDataImportService:
                 ]
             }
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             raise SpatialDataImportError(f"Template creation failed: {str(e)}")
 
     def _validate_file(self, file_path: Path) -> None:
@@ -401,7 +405,7 @@ class SpatialDataImportService:
                     'feature_count': len(mapping.ds[0])
                 }
 
-            except Exception as import_error:
+            except DATABASE_EXCEPTIONS as import_error:
                 error_msg = str(import_error)
                 import_stats['errors'].append(error_msg)
                 if strict_mode:
@@ -409,7 +413,7 @@ class SpatialDataImportService:
 
             return import_stats
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"LayerMapping creation failed: {str(e)}")
             raise SpatialDataImportError(f"LayerMapping failed: {str(e)}")
 
@@ -449,7 +453,7 @@ class SpatialDataImportService:
             try:
                 shutil.rmtree(self.temp_dir)
                 logger.debug(f"Cleaned up temp directory: {self.temp_dir}")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Failed to cleanup temp directory: {e}")
             finally:
                 self.temp_dir = None

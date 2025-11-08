@@ -197,6 +197,13 @@ ATTENDANCE_CELERY_BEAT_SCHEDULE = {
         'task': 'attendance.train_fraud_baselines',
         'schedule': crontab(hour=1, minute=0, day_of_week=0),  # Weekly on Sunday at 1 AM
     },
+    
+    # Shift adherence monitoring
+    'update-shift-adherence': {
+        'task': 'attendance.update_shift_adherence',
+        'schedule': crontab(minute='*/10'),  # Every 10 minutes
+        'options': {'expires': 300},  # Task expires after 5 minutes
+    },
 }
 
 # ============================================================================

@@ -16,6 +16,8 @@ from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
+
 
 from django.contrib.gis.geos import Point, Polygon, GEOSGeometry, GEOSException
 from django.contrib.gis.geos.prepared import PreparedGeometry
@@ -127,7 +129,7 @@ user_lat, user_lon = 13.0827, 80.2707  # Chennai
 distance_km = GeospatialService.haversine_distance(
     office_lat, office_lon, user_lat, user_lon
 )
-print(f"Distance: {distance_km:.2f} km")  # ~287 km
+logger.debug(f"Distance: {distance_km:.2f} km")
 """,
         "geofence_validation": """
 # Validate if attendance punch is within geofence
@@ -162,7 +164,7 @@ results = GeospatialService.validate_points_in_prepared_geofence(
 )
 
 invalid_count = sum(1 for r in results if not r)
-print(f"Geofence violations: {invalid_count}")
+logger.debug(f"Geofence violations: {invalid_count}")
 """,
         "fraud_detection": """
 # Detect impossible travel (GPS spoofing)
@@ -563,7 +565,7 @@ class GeospatialService:
             else:
                 return cls._sequential_geofence_validation(coordinates_list, prepared_geofence)
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             raise GeofenceValidationError(f"Bulk geofence validation failed: {e}")
 
     @classmethod
@@ -601,8 +603,8 @@ class GeospatialService:
                 try:
                     chunk_results = future.result()
                     results.extend(chunk_results)
-                except Exception as e:
-                    logger.error(f"Parallel validation chunk failed: {e}")
+                except BUSINESS_LOGIC_EXCEPTIONS as e:
+                    logger.error(f"Parallel validation chunk failed: {e}", exc_info=True)
                     # Fall back to False for failed chunk
                     chunk = future_to_chunk[future]
                     results.extend([False] * len(chunk))

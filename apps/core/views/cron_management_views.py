@@ -78,7 +78,7 @@ def cron_dashboard(request):
                         'job': job,
                         'health_metrics': health_metrics
                     })
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Failed to get health metrics for job {job.name}: {e}")
 
         context = {
@@ -143,7 +143,7 @@ def cron_job_list(request):
                     'job': job,
                     'health_metrics': health_metrics
                 })
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Failed to get health metrics for job {job.name}: {e}")
                 jobs_with_health.append({
                     'job': job,

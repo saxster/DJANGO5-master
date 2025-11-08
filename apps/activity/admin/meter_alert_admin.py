@@ -89,6 +89,8 @@ class MeterReadingAlertAdmin(IntelliWizModelAdmin):
         'mark_high_priority',
     ]
 
+    list_per_page = 50
+
     @admin.display(description="Severity", ordering="severity")
     def severity_badge(self, obj):
         """Display severity as a colored badge."""

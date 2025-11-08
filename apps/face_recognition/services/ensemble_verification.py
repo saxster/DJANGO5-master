@@ -18,6 +18,10 @@ import os
 import hashlib
 import numpy as np
 from typing import Optional, Dict, Any, List
+from apps.core.exceptions.patterns import (
+    BUSINESS_LOGIC_EXCEPTIONS,
+    FILE_EXCEPTIONS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +98,8 @@ class FaceNetModel:
                 # Fallback to mock implementation for testing
                 return self._extract_features_mock(image_path)
 
-        except Exception as e:
-            logger.error(f"Failed to extract features (FaceNet): {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to extract features (FaceNet): {e}", exc_info=True)
             # Fallback to mock on any error
             return self._extract_features_mock(image_path)
 
@@ -118,8 +122,8 @@ class FaceNetModel:
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
-        except (ValueError, TypeError, AttributeError, OSError) as e:
-            logger.warning(f"Failed to extract mock features (FaceNet): {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Failed to extract mock features (FaceNet): {e}", exc_info=True)
             return None
 
     def _calculate_image_dependent_seed(self, image_path: str) -> int:
@@ -144,8 +148,8 @@ class FaceNetModel:
 
             # Convert first 4 bytes of hash to integer seed
             return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
-        except (OSError, IOError, ValueError, TypeError) as e:
-            logger.warning(f"Failed to calculate image-dependent seed (FaceNet): {e}")
+        except FILE_EXCEPTIONS as e:
+            logger.warning(f"Failed to calculate image-dependent seed (FaceNet): {e}", exc_info=True)
             # Ultimate fallback: use path hash
             return hash(image_path) & 0xFFFFFFFF
 
@@ -203,8 +207,8 @@ class ArcFaceModel:
                 # Fallback to mock implementation
                 return self._extract_features_mock(image_path)
 
-        except Exception as e:
-            logger.error(f"Failed to extract features (ArcFace): {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to extract features (ArcFace): {e}", exc_info=True)
             return self._extract_features_mock(image_path)
 
     def _extract_features_mock(self, image_path: str) -> Optional[np.ndarray]:
@@ -216,8 +220,8 @@ class ArcFaceModel:
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
-        except (ValueError, TypeError, AttributeError, OSError) as e:
-            logger.warning(f"Failed to extract mock features (ArcFace): {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Failed to extract mock features (ArcFace): {e}", exc_info=True)
             return None
 
     def _calculate_image_dependent_seed(self, image_path: str) -> int:
@@ -230,8 +234,8 @@ class ArcFaceModel:
             else:
                 hash_obj = hashlib.sha256(image_path.encode())
             return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
-        except (OSError, IOError, ValueError, TypeError) as e:
-            logger.warning(f"Failed to calculate image-dependent seed (ArcFace): {e}")
+        except FILE_EXCEPTIONS as e:
+            logger.warning(f"Failed to calculate image-dependent seed (ArcFace): {e}", exc_info=True)
             return hash(image_path) & 0xFFFFFFFF
 
 
@@ -288,8 +292,8 @@ class InsightFaceModel:
                 # Fallback to mock implementation
                 return self._extract_features_mock(image_path)
 
-        except Exception as e:
-            logger.error(f"Failed to extract features (InsightFace): {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to extract features (InsightFace): {e}", exc_info=True)
             return self._extract_features_mock(image_path)
 
     def _extract_features_mock(self, image_path: str) -> Optional[np.ndarray]:
@@ -301,8 +305,8 @@ class InsightFaceModel:
             features = np.random.normal(0, 1, 512)
             features = features / np.linalg.norm(features)
             return features
-        except (ValueError, TypeError, AttributeError, OSError) as e:
-            logger.warning(f"Failed to extract mock features (InsightFace): {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Failed to extract mock features (InsightFace): {e}", exc_info=True)
             return None
 
     def _calculate_image_dependent_seed(self, image_path: str) -> int:
@@ -315,8 +319,8 @@ class InsightFaceModel:
             else:
                 hash_obj = hashlib.sha256(image_path.encode())
             return int.from_bytes(hash_obj.digest()[:4], byteorder='big')
-        except (OSError, IOError, ValueError, TypeError) as e:
-            logger.warning(f"Failed to calculate image-dependent seed (InsightFace): {e}")
+        except FILE_EXCEPTIONS as e:
+            logger.warning(f"Failed to calculate image-dependent seed (InsightFace): {e}", exc_info=True)
             return hash(image_path) & 0xFFFFFFFF
 
 
@@ -395,6 +399,6 @@ class EnsembleVerificationService:
 
             return float(normalized_similarity)
 
-        except (ValueError, TypeError, AttributeError) as e:
-            logger.error(f"Error calculating cosine similarity: {str(e)}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error calculating cosine similarity: {str(e)}", exc_info=True)
             return 0.0

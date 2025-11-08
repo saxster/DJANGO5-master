@@ -95,6 +95,7 @@ class ShiftResource(resources.ModelResource):
 
 @admin.register(om.Shift)
 class ShiftAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     """Django admin for Shift model with import/export functionality"""
     resource_class = ShiftResource
     form = ShiftForm

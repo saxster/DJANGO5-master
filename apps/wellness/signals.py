@@ -43,7 +43,7 @@ def create_wellness_user_progress(sender, instance, created, **kwargs):
             )
             logger.info(f"Created wellness progress tracking for user {instance.peoplename}")
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Failed to create wellness progress for user {instance.id}: {e}")
+            logger.error(f"Failed to create wellness progress for user {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=WellnessContentInteraction)
@@ -57,14 +57,14 @@ def handle_wellness_interaction_created(sender, instance, created, **kwargs):
         try:
             check_wellness_milestones(instance.user)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Failed to check wellness milestones for user {instance.user.id}: {e}")
+            logger.error(f"Failed to check wellness milestones for user {instance.user.id}: {e}", exc_info=True)
 
         # Schedule follow-up content if user showed high engagement
         try:
             if instance.engagement_score >= 4:
                 schedule_follow_up_content(instance)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Failed to schedule follow-up content: {e}")
+            logger.error(f"Failed to schedule follow-up content: {e}", exc_info=True)
 
 
 def check_wellness_milestones(user):
@@ -73,7 +73,7 @@ def check_wellness_milestones(user):
     try:
         progress = user.wellness_progress
     except WellnessUserProgress.DoesNotExist:
-        logger.warning(f"No wellness progress found for user {user.id}")
+        logger.warning(f"No wellness progress found for user {user.id}", exc_info=True)
         return
 
     # Check for new achievements
@@ -181,7 +181,7 @@ def schedule_daily_wellness_tip(user):
         # schedule_daily_tips(user, progress.preferred_delivery_time)
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-        logger.error(f"Failed to schedule daily wellness tip for user {user.id}: {e}")
+        logger.error(f"Failed to schedule daily wellness tip for user {user.id}: {e}", exc_info=True)
 
 
 def reschedule_daily_wellness_content(user):
@@ -191,7 +191,7 @@ def reschedule_daily_wellness_content(user):
         logger.debug(f"Rescheduling wellness content for user {user.peoplename}")
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-        logger.error(f"Failed to reschedule wellness content: {e}")
+        logger.error(f"Failed to reschedule wellness content: {e}", exc_info=True)
 
 
 # Analytics and effectiveness tracking
@@ -318,7 +318,7 @@ def trigger_crisis_wellness_content(sender, instance, created, **kwargs):
         logger.debug(f"Legacy crisis wellness content check for entry {instance.id} - handled by new system")
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-        logger.error(f"Failed to trigger crisis wellness content: {e}")
+        logger.error(f"Failed to trigger crisis wellness content: {e}", exc_info=True)
 
 
 # Streak maintenance and engagement
@@ -342,7 +342,7 @@ def maintain_user_streaks():
             logger.info(f"Reset streak for {progress.user.peoplename} (was {old_streak} days)")
 
     except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
-        logger.error(f"Failed to maintain user streaks: {e}")
+        logger.error(f"Failed to maintain user streaks: {e}", exc_info=True)
 
 
 # Helper functions for mental health intervention signals
@@ -474,7 +474,7 @@ def trigger_wisdom_conversation_generation(sender, instance, created, **kwargs):
 
         except ImportError:
             # Fallback to synchronous generation if Celery not available
-            logger.warning("Celery not available, generating conversation synchronously")
+            logger.warning("Celery not available, generating conversation synchronously", exc_info=True)
             generator = AutomaticConversationGenerator()
             conversation = generator.process_intervention_delivery(instance)
 

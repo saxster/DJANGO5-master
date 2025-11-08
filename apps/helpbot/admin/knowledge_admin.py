@@ -12,6 +12,7 @@ from apps.helpbot.models import HelpBotKnowledge
 
 @admin.register(HelpBotKnowledge)
 class HelpBotKnowledgeAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for HelpBot knowledge base."""
 
     list_display = [

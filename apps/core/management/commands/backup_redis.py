@@ -15,6 +15,8 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from apps.core.services.redis_backup_service import redis_backup_service
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -114,7 +116,7 @@ class Command(BaseCommand):
             else:
                 self._display_formatted_result(result, verbosity)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             if json_output:
                 error_result = {
                     'status': 'error',

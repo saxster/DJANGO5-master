@@ -25,6 +25,10 @@ from .base import (
     send_email_notification_for_vendor_and_security_after_approval,
     send_email_notification_for_workpermit_approval,
 )
+from apps.work_order_management.services.work_order_security_service import (
+    WorkOrderSecurityService
+)
+from django.core.exceptions import PermissionDenied
 from apps.work_order_management import utils as wom_utils
 from apps.reports.report_designs.service_level_agreement import ServiceLevelAgreement
 
@@ -168,13 +172,16 @@ class VerifierReplyWorkPermit(View):
     External verifier replies to work permits via email.
 
     Public view (no LoginRequiredMixin) for email-based workflows.
+    Uses approver validation to prevent unauthorized access.
 
     GET:
-        - action=accepted&womid=<id>&peopleid=<id>: Approve work permit (verifier)
-        - action=rejected&womid=<id>&peopleid=<id>: Reject work permit (verifier)
+        - action=accepted&womid=<id>&peopleid=<id>&token=<token>: Approve work permit (verifier)
+        - action=rejected&womid=<id>&peopleid=<id>&token=<token>: Reject work permit (verifier)
 
     POST:
-        - Save rejection remarks
+        - Save rejection remarks (with token validation)
+    
+    Security: Validates that peopleid is authorized verifier for the work permit.
     """
 
     P = {
@@ -185,9 +192,15 @@ class VerifierReplyWorkPermit(View):
     def get(self, request, *args, **kwargs):
         R, P = request.GET, self.P
 
-        # Verifier accepts work permit
-        if R.get("action") == "accepted" and R.get("womid") and R.get("peopleid"):
-            wom = Wom.objects.get(id=R["womid"])
+        try:
+            # Validate token (optional but recommended for email workflows)
+            token = R.get("token")
+
+            # Verifier accepts work permit (with authorization check)
+            if R.get("action") == "accepted" and R.get("womid") and R.get("peopleid"):
+                wom, verifier = WorkOrderSecurityService.validate_approver_access(
+                    int(R["womid"]), int(R["peopleid"]), token
+                )
 
             if wom.workpermit != "REJECTED":
                 wp = Wom.objects.filter(id=R["womid"]).first()

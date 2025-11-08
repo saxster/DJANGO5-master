@@ -48,6 +48,8 @@ from django.conf import settings
 from apps.core.models.sync_idempotency import SyncIdempotencyRecord
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 from apps.ontology.decorators import ontology
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 # Prometheus metrics integration
 try:
@@ -530,7 +532,7 @@ class UniversalIdempotencyService:
                 f"Recorded Prometheus dedupe metric: task={task_name}, result={result}, source={source}"
             )
 
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             # Don't fail task execution if metrics fail
             logger.warning(f"Failed to record Prometheus dedupe metric: {e}")
 
@@ -547,7 +549,7 @@ class UniversalIdempotencyService:
 
         Usage:
             metrics = UniversalIdempotencyService.get_metrics()
-            print(f"Duplicates: {metrics['duplicate_detected']}")
+            logger.debug(f"Duplicates: {metrics['duplicate_detected']}")
         """
         try:
             return {
@@ -631,7 +633,7 @@ def with_idempotency(
 
                 return result
 
-            except Exception as exc:
+            except CELERY_EXCEPTIONS as exc:
                 # Cache error to prevent retry storms
                 service.store_result(
                     idempotency_key,

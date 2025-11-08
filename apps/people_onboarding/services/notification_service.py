@@ -42,7 +42,7 @@ class NotificationService:
                 fail_silently=False
             )
             logger.info(f"Approval notification sent to {approval_workflow.approver.email}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to send approval notification: {str(e)}")
 
     @staticmethod

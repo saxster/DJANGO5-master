@@ -15,6 +15,8 @@ from .query_parser import QueryParser
 from .query_executor import QueryExecutor
 from .result_formatter import ResultFormatter
 from .query_cache import QueryCache
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 __all__ = ['NLQueryService']
 
@@ -170,7 +172,7 @@ class NLQueryService:
             )
             raise ValueError(f"Query execution failed: {e}")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(
                 f"Unexpected error processing query: {e}",
                 extra={'user_id': user.id},
@@ -223,7 +225,7 @@ class NLQueryService:
         """
         try:
             return QueryCache.get(query_text, user.id, user.tenant.id)
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Cache check failed: {e}")
             return None
 
@@ -240,7 +242,7 @@ class NLQueryService:
         try:
             # Cache for 5 minutes
             QueryCache.set(query_text, user.id, user.tenant.id, result, ttl=300)
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.warning(f"Cache storage failed: {e}")
             # Don't fail the request if caching fails
 
@@ -267,7 +269,7 @@ class NLQueryService:
         """
         try:
             return QueryCache.invalidate_tenant(user.tenant.id)
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Cache invalidation failed: {e}")
             return False
 

@@ -4,6 +4,7 @@ Usage: {% include 'components/badge.html' with text='Active' type='success' %}
 {% endcomment %}
 
 {% with variant=type|default:'neutral' size=size|default:'medium' %}
+{# SECURITY: |safe intentional - attrs contains developer-defined HTML attributes (data-*, aria-*, etc.) #}
 <span class="yt-badge yt-badge--{{ variant }} yt-badge--{{ size }} {{ class|default:'' }}" {{ attrs|default:''|safe }}>
   {% if icon %}<i class="material-icons yt-badge__icon" aria-hidden="true">{{ icon }}</i>{% endif %}
   <span class="yt-badge__text">{{ text }}</span>

@@ -63,9 +63,11 @@ if not BIOMETRIC_ENCRYPTION_KEY:
 # Validate key format
 try:
     from cryptography.fernet import Fernet
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
     # Test if key is valid by creating a Fernet instance
     Fernet(BIOMETRIC_ENCRYPTION_KEY.encode() if isinstance(BIOMETRIC_ENCRYPTION_KEY, str) else BIOMETRIC_ENCRYPTION_KEY)
-except Exception as e:
+except SETTINGS_EXCEPTIONS as e:
     raise ImproperlyConfigured(
         f"Invalid BIOMETRIC_ENCRYPTION_KEY format: {e}. "
         f"Generate a valid key using: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
@@ -96,4 +98,4 @@ BIOMETRIC_ENCRYPTION_KEY_BACKUP = os.environ.get('BIOMETRIC_ENCRYPTION_KEY_BACKU
 if ENCRYPT_BIOMETRIC_TEMPLATES:
     logger.info("Biometric template encryption: ENABLED")
 else:
-    logger.warning("Biometric template encryption: DISABLED (insecure for production)")
+    logger.warning("Biometric template encryption: DISABLED (insecure for production)", exc_info=True)

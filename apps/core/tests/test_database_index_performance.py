@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Database Index Performance Tests
 
 Addresses Issue #18: Missing Database Indexes
@@ -160,7 +162,7 @@ class IndexPerformanceTestCase(TransactionTestCase):
                 )
 
         except (ValueError, TypeError, AttributeError, KeyError) as e:
-            print(f"Test data setup failed: {type(e).__name__}: {str(e)}")
+            logger.error(f"Test data setup failed: {type(e).__name__}: {str(e)}")
 
     def test_status_filter_performance(self):
         """Test that status filtering uses index efficiently."""

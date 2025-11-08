@@ -184,8 +184,8 @@ class LocationAnomalyDetector:
                     'speed_kmh': round(required_speed_kmh, 1),
                 }
 
-        except Exception as e:
-            logger.error(f"Error checking impossible travel: {e}")
+        except PARSING_EXCEPTIONS as e:
+            logger.error(f"Error checking impossible travel: {e}", exc_info=True)
 
         return None
 

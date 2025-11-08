@@ -7,6 +7,10 @@ Migrated from apps/onboarding/admin.py
 Date: 2025-09-30
 """
 from .base import (
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
     BaseResource,
     BaseFieldSet2,
     admin,
@@ -43,6 +47,7 @@ from .base import (
 
 @admin.register(om.ConversationSession)
 class ConversationSessionAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Django admin for ConversationSession model with progress tracking and export functionality"""
     list_display = ('session_id', 'user', 'client', 'current_state', 'conversation_type', 'progress_percentage', 'cdtz', 'mdtz')
     list_filter = ('current_state', 'conversation_type', 'language', 'cdtz')
@@ -79,7 +84,7 @@ class ConversationSessionAdmin(admin.ModelAdmin):
         except AttributeError as e:
             logger.warning(f"Progress calculation method not available: {e}")
             return "N/A"
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.exception(f"Unexpected error calculating progress for {obj}: {e}")
             return "N/A"
     progress_percentage.short_description = "Progress"
@@ -101,7 +106,7 @@ class ConversationSessionAdmin(admin.ModelAdmin):
         except AttributeError as e:
             logger.warning(f"Object missing context_data attribute (obj={obj}): {e}")
             return "N/A"
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.exception(f"Unexpected error formatting context data for {obj}: {e}")
             return str(obj.context_data)
     pretty_context_data.short_description = "Context Data (Pretty)"
@@ -123,7 +128,7 @@ class ConversationSessionAdmin(admin.ModelAdmin):
         except AttributeError as e:
             logger.warning(f"Object missing collected_data attribute (obj={obj}): {e}")
             return "N/A"
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.exception(f"Unexpected error formatting collected data for {obj}: {e}")
             return str(obj.collected_data)
     pretty_collected_data.short_description = "Collected Data (Pretty)"
@@ -174,6 +179,7 @@ class ConversationSessionAdmin(admin.ModelAdmin):
 
 @admin.register(om.LLMRecommendation)
 class LLMRecommendationAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Django admin for LLMRecommendation model with approval workflows and export functionality"""
     list_display = ('recommendation_id', 'session', 'status', 'user_decision', 'confidence_score', 'cdtz')
     list_filter = ('status', 'user_decision', 'confidence_score', 'cdtz')
@@ -218,7 +224,7 @@ class LLMRecommendationAdmin(admin.ModelAdmin):
         except AttributeError as e:
             logger.warning(f"Object missing consensus attribute (obj={obj}): {e}")
             return "N/A"
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.exception(f"Unexpected error formatting consensus for {obj}: {e}")
             return str(obj.consensus)
     pretty_consensus.short_description = "Consensus (Pretty)"
@@ -240,7 +246,7 @@ class LLMRecommendationAdmin(admin.ModelAdmin):
         except AttributeError as e:
             logger.warning(f"Object missing maker_output attribute (obj={obj}): {e}")
             return "N/A"
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.exception(f"Unexpected error formatting maker output for {obj}: {e}")
             return str(obj.maker_output)
     pretty_maker_output.short_description = "Maker Output (Pretty)"
@@ -262,7 +268,7 @@ class LLMRecommendationAdmin(admin.ModelAdmin):
         except AttributeError as e:
             logger.warning(f"Object missing checker_output attribute (obj={obj}): {e}")
             return "N/A"
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.exception(f"Unexpected error formatting checker output for {obj}: {e}")
             return str(obj.checker_output)
     pretty_checker_output.short_description = "Checker Output (Pretty)"

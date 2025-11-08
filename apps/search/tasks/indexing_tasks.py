@@ -21,6 +21,7 @@ from django.core.cache import cache
 from apps.core.tasks.base import BaseIdempotentTask
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 from apps.search.services.unified_semantic_search_service import UnifiedSemanticSearchService
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ def search_index_tickets(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error indexing tickets: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error indexing tickets: {e}", exc_info=True)
         return {
             'success': False,
@@ -118,7 +119,7 @@ def search_index_work_orders(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error indexing work orders: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error indexing work orders: {e}", exc_info=True)
         return {
             'success': False,
@@ -169,7 +170,7 @@ def search_index_assets(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error indexing assets: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error indexing assets: {e}", exc_info=True)
         return {
             'success': False,
@@ -220,7 +221,7 @@ def search_index_people(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error indexing people: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error indexing people: {e}", exc_info=True)
         return {
             'success': False,
@@ -276,7 +277,7 @@ def search_rebuild_unified_index(
                 'timestamp': datetime.now(dt_timezone.utc).isoformat(),
             }
         else:
-            logger.error("Failed to rebuild unified search index")
+            logger.error("Failed to rebuild unified search index", exc_info=True)
             return {
                 'success': False,
                 'operation': 'full_rebuild',
@@ -286,7 +287,7 @@ def search_rebuild_unified_index(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error rebuilding index: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=300)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error rebuilding index: {e}", exc_info=True)
         return {
             'success': False,
@@ -370,7 +371,7 @@ def search_incremental_index_update(
             'timestamp': datetime.now(dt_timezone.utc).isoformat(),
         }
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
         logger.error(f"Error in incremental index update: {e}", exc_info=True)
         return {
             'success': False,

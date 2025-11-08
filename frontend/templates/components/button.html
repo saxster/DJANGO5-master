@@ -107,6 +107,7 @@ ACCESSIBILITY:
     href="{{ href }}"
     class="{{ all_classes }}"
     {% if is_disabled %}aria-disabled="true" tabindex="-1"{% endif %}
+    {# SECURITY: |safe intentional - attrs contains developer-defined HTML attributes (data-*, aria-*, etc.) #}
     {% if attrs %}{{ attrs|safe }}{% endif %}
     role="button">
 
@@ -129,6 +130,7 @@ ACCESSIBILITY:
     type="{{ button_type|default:'button' }}"
     class="{{ all_classes }}"
     {% if is_disabled %}disabled{% endif %}
+    {# SECURITY: |safe intentional - attrs contains developer-defined HTML attributes (data-*, aria-*, etc.) #}
     {% if attrs %}{{ attrs|safe }}{% endif %}>
 
     {% if icon and not is_loading %}

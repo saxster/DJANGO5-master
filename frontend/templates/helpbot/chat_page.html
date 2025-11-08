@@ -299,7 +299,7 @@ class FullScreenHelpBot {
         try {
             document.getElementById('session-status').textContent = 'Connecting...';
 
-            const response = await fetch('/api/v1/helpbot/api/v1/chat/', {
+            const response = await fetch('/api/v2/helpbot/chat/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -360,7 +360,7 @@ class FullScreenHelpBot {
         this.showTypingIndicator();
 
         try {
-            const response = await fetch('/api/v1/helpbot/api/v1/chat/', {
+            const response = await fetch('/api/v2/helpbot/chat/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

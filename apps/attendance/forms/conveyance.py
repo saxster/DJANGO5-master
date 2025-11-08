@@ -10,6 +10,8 @@ from django.core.exceptions import ValidationError
 import django_select2.forms as s2forms
 import json
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS, JSON_EXCEPTIONS, PARSING_EXCEPTIONS
+
 
 from apps.attendance import models as atdm
 from apps.core import utils
@@ -102,8 +104,8 @@ class ConveyanceForm(forms.ModelForm):
                 logger.warning(f"Unexpected transport modes format: {type(transport_data)}")
                 self.fields['transportmodes'].initial = []
 
-        except Exception as e:
-            logger.error(f"Error initializing transport modes for conveyance {self.instance.id}: {e}")
+        except JSON_EXCEPTIONS as e:
+            logger.error(f"Error initializing transport modes for conveyance {self.instance.id}: {e}", exc_info=True)
             self.fields['transportmodes'].initial = []
 
     def _initialize_location_fields(self):
@@ -119,8 +121,8 @@ class ConveyanceForm(forms.ModelForm):
                 if location_display and location_display != "Invalid coordinates":
                     self.initial['endlocation'] = location_display
 
-        except Exception as e:
-            logger.warning(f"Error initializing location fields: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Error initializing location fields: {e}", exc_info=True)
 
     def _configure_field_requirements(self):
         """Configure field requirements and validation"""
@@ -182,8 +184,8 @@ class ConveyanceForm(forms.ModelForm):
                     cleaned_data['distance'] = round(calculated_distance, 2)
                     logger.info(f"Auto-calculated distance: {calculated_distance:.2f}km")
 
-            except Exception as e:
-                logger.warning(f"Failed to validate locations: {e}")
+            except PARSING_EXCEPTIONS as e:
+                logger.warning(f"Failed to validate locations: {e}", exc_info=True)
 
         expamt = cleaned_data.get('expamt')
         distance = cleaned_data.get('distance')

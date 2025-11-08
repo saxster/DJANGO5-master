@@ -1,0 +1,1821 @@
+{
+  "total_components": 82,
+  "by_domain": {
+    "security.idor": 16,
+    "security.file": 12,
+    "security.authentication": 10,
+    "security.testing": 12,
+    "security.documentation": 8,
+    "security.multi-tenant": 8,
+    "security.rate-limiting": 8,
+    "security.upload": 4,
+    "security.download": 3,
+    "security.csp": 1
+  },
+  "by_criticality": {
+    "high": 67,
+    "medium": 15
+  },
+  "components": [
+    {
+      "qualified_name": "apps.client_onboarding.views.hp003_idor_fix",
+      "type": "fix",
+      "domain": "security.idor",
+      "purpose": "Client onboarding IDOR vulnerability fix (HP-003)",
+      "tags": [
+        "security",
+        "idor",
+        "fix",
+        "onboarding"
+      ],
+      "criticality": "high",
+      "security_notes": "Added tenant validation for client onboarding endpoints",
+      "documentation": [
+        "apps/client_onboarding/views.py:329"
+      ]
+    },
+    {
+      "qualified_name": "apps.activity.views.attachment_views.attachment_download",
+      "type": "view",
+      "domain": "security.file",
+      "purpose": "Activity attachment download with security validation",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "activity"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/activity/views/attachment_views.py:88",
+        "apps/activity/views/attachment_views.py:314"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.api.session_views.SessionRevokeAllView",
+      "type": "view",
+      "domain": "security.authentication",
+      "purpose": "CSRF protected bulk session revocation with rate limiting",
+      "tags": [
+        "security",
+        "authentication",
+        "session",
+        "api",
+        "rate-limiting"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/peoples/api/session_views.py"
+      ]
+    },
+    {
+      "qualified_name": "apps.work_order_management.views.work_order_views.token_validation",
+      "type": "pattern",
+      "domain": "security.idor",
+      "purpose": "Email token validation pattern for preventing IDOR in guest workflows",
+      "tags": [
+        "security",
+        "idor",
+        "pattern",
+        "token-validation"
+      ],
+      "criticality": "high",
+      "security_notes": "All guest actions require valid token from email link to prevent IDOR",
+      "examples": [
+        "# Validate token for all actions (prevent IDOR)",
+        "token = request.GET.get('token')",
+        "if not validate_work_order_token(work_order_id, token):",
+        "    return HttpResponseForbidden('Invalid or expired link')"
+      ],
+      "documentation": [
+        "apps/work_order_management/views/work_order_views.py:264"
+      ]
+    },
+    {
+      "qualified_name": "apps.activity.tests.test_idor_security.ActivityIDORTestCase",
+      "type": "test",
+      "domain": "security.idor",
+      "purpose": "Test suite for activity/job/task IDOR vulnerabilities",
+      "tags": [
+        "security",
+        "idor",
+        "testing",
+        "activity",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Validates tenant-scoped job/task access, modification, deletion",
+      "business_value": "Ensures activity data isolation between tenants",
+      "examples": [
+        "pytest -m idor apps/activity/tests/test_idor_security.py"
+      ],
+      "documentation": [
+        "IDOR_TEST_COVERAGE_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.services.session_management_service.SessionManagementService",
+      "type": "service",
+      "domain": "security.authentication",
+      "purpose": "Centralized session management with atomic operations",
+      "tags": [
+        "security",
+        "authentication",
+        "session",
+        "service"
+      ],
+      "criticality": "high",
+      "security_notes": "Provides: revoke_session, revoke_all_sessions with transaction safety",
+      "documentation": [
+        "apps/peoples/services/session_management_service.py"
+      ]
+    },
+    {
+      "qualified_name": "security.documentation.run_security_tests_script",
+      "type": "script",
+      "domain": "security.testing",
+      "purpose": "Automated security test execution script",
+      "tags": [
+        "security",
+        "testing",
+        "automation",
+        "script"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "RUN_SECURITY_TESTS.sh"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.SECURITY_FIX_4_SSO_RATE_LIMITING_COMPLETE.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "SSO rate limiting implementation and deployment guide",
+      "tags": [
+        "security",
+        "documentation",
+        "rate-limiting",
+        "sso"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "SECURITY_FIX_4_SSO_RATE_LIMITING_COMPLETE.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.monitoring.views.PrometheusExporterView",
+      "type": "view",
+      "domain": "security.authentication",
+      "purpose": "API key protected Prometheus metrics exporter",
+      "tags": [
+        "security",
+        "authentication",
+        "api-key",
+        "monitoring"
+      ],
+      "criticality": "high",
+      "security_notes": "Validates X-API-KEY header against PROMETHEUS_API_KEY setting",
+      "documentation": [
+        "apps/monitoring/views.py"
+      ]
+    },
+    {
+      "qualified_name": "tests.multi_tenant.cross_tenant_suite",
+      "type": "test",
+      "domain": "security.multi-tenant",
+      "purpose": "Comprehensive cross-tenant access test suite",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "testing",
+        "integration"
+      ],
+      "criticality": "high",
+      "security_notes": "Tests: peoples, work orders, activity, reports cross-tenant isolation",
+      "examples": [
+        "pytest -m idor  # Run all IDOR/cross-tenant tests"
+      ],
+      "documentation": [
+        "IDOR_VULNERABILITY_AUDIT_REPORT.md",
+        "MULTI_TENANCY_SECURITY_AUDIT_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.idor.audit_logging",
+      "type": "pattern",
+      "domain": "security.idor",
+      "purpose": "Pattern: Log all security violations with correlation IDs for audit trails",
+      "tags": [
+        "security",
+        "idor",
+        "pattern",
+        "audit-log",
+        "best-practice"
+      ],
+      "criticality": "high",
+      "security_notes": "Security events must be logged for forensics and compliance",
+      "examples": [
+        "logger.warning(",
+        "    f'IDOR attempt: User {user.id} tried to access '",
+        "    f'work order {work_order_id} (tenant mismatch)',",
+        "    extra={'correlation_id': correlation_id, 'user_id': user.id}",
+        ")"
+      ],
+      "documentation": [
+        "docs/configuration/SETTINGS_AND_CONFIG.md#logging"
+      ]
+    },
+    {
+      "qualified_name": "pattern.authentication.csrf_protection",
+      "type": "pattern",
+      "domain": "security.authentication",
+      "purpose": "Pattern: CSRF protection for all state-changing endpoints",
+      "tags": [
+        "security",
+        "authentication",
+        "csrf",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "ALL POST/PUT/DELETE endpoints MUST be CSRF protected",
+      "examples": [
+        "from django.views.decorators.csrf import csrf_protect",
+        "from django.utils.decorators import method_decorator",
+        "",
+        "@method_decorator(csrf_protect, name='dispatch')",
+        "class MyView(APIView):",
+        "    def post(self, request):",
+        "        # State-changing operation"
+      ],
+      "documentation": [
+        "CLAUDE.md#critical-rules",
+        ".claude/rules.md#csrf-protection"
+      ]
+    },
+    {
+      "qualified_name": "tests.security.test_secure_file_download.test_non_owner_cannot_download_file",
+      "type": "test",
+      "domain": "security.testing",
+      "purpose": "IDOR prevention test for file downloads",
+      "tags": [
+        "security",
+        "testing",
+        "idor"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "tests/security/test_secure_file_download.py"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.api.session_views.SessionRevokeView",
+      "type": "view",
+      "domain": "security.authentication",
+      "purpose": "CSRF protected single session revocation API",
+      "tags": [
+        "security",
+        "authentication",
+        "session",
+        "api"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/peoples/api/session_views.py"
+      ]
+    },
+    {
+      "qualified_name": "pattern.file_security.streaming_response",
+      "type": "pattern",
+      "domain": "security.file",
+      "purpose": "Pattern: Stream large files efficiently without loading into memory",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "streaming",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "security_notes": "Prevents memory exhaustion DoS attacks",
+      "examples": [
+        "from django.http import FileResponse",
+        "",
+        "# Streaming response for large files",
+        "response = FileResponse(",
+        "    open(file_path, 'rb'),",
+        "    as_attachment=True,",
+        "    filename=filename",
+        ")",
+        "response['Content-Type'] = 'application/octet-stream'",
+        "response['Content-Length'] = file_path.stat().st_size",
+        "return response"
+      ],
+      "documentation": [
+        "apps/core/services/secure_file_download_service.py"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.CLAUDE.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "Security standards and patterns for AI-assisted development",
+      "tags": [
+        "security",
+        "documentation",
+        "standards",
+        "ai"
+      ],
+      "criticality": "high",
+      "security_notes": "Primary reference for security rules and forbidden patterns",
+      "documentation": [
+        "CLAUDE.md#critical-rules",
+        "CLAUDE.md#secure-file-access-standards"
+      ]
+    },
+    {
+      "qualified_name": "pattern.multi_tenant.testing_multi_tenant_scenarios",
+      "type": "pattern",
+      "domain": "security.multi-tenant",
+      "purpose": "Pattern: Test cross-tenant access attempts in all test suites",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "testing",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Every test suite should include cross-tenant access tests",
+      "examples": [
+        "def test_cross_tenant_access_blocked():",
+        "    # Create two tenants",
+        "    tenant_a = Client.objects.create(name='Tenant A')",
+        "    tenant_b = Client.objects.create(name='Tenant B')",
+        "    ",
+        "    # Create user in Tenant A",
+        "    user_a = People.objects.create(client=tenant_a)",
+        "    ",
+        "    # Create resource in Tenant B",
+        "    resource_b = Resource.objects.create(tenant=tenant_b)",
+        "    ",
+        "    # Attempt access (should fail)",
+        "    with self.assertRaises(PermissionDenied):",
+        "        SecurityService.validate_access(resource_b, user_a)"
+      ],
+      "documentation": [
+        "IDOR_TEST_COVERAGE_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.activity.managers.location_manager.idor_008_fix",
+      "type": "fix",
+      "domain": "security.idor",
+      "purpose": "Location manager parameter validation (IDOR-008)",
+      "tags": [
+        "security",
+        "idor",
+        "fix",
+        "parameter-validation"
+      ],
+      "criticality": "medium",
+      "security_notes": "Validates params parameter in location manager queries",
+      "documentation": [
+        "apps/activity/managers/location_manager.py:14"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.ULTRATHINK_SECURITY_REMEDIATION_PLAYBOOK.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "Complete security remediation playbook with implementation patterns",
+      "tags": [
+        "security",
+        "documentation",
+        "playbook",
+        "remediation"
+      ],
+      "criticality": "high",
+      "security_notes": "Covers: IDOR prevention, rate limiting, file security, testing patterns",
+      "documentation": [
+        "ULTRATHINK_SECURITY_REMEDIATION_PLAYBOOK.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.authentication.password_requirements",
+      "type": "pattern",
+      "domain": "security.authentication",
+      "purpose": "Pattern: Enforce strong password requirements",
+      "tags": [
+        "security",
+        "authentication",
+        "password",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Minimum: 8 chars, uppercase, lowercase, number, special char",
+      "examples": [
+        "from django.core.validators import RegexValidator",
+        "",
+        "password_validator = RegexValidator(",
+        "    regex=r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$',",
+        "    message='Password must be 8+ chars with upper, lower, number, special char'",
+        ")"
+      ],
+      "documentation": [
+        "docs/configuration/SETTINGS_AND_CONFIG.md#authentication"
+      ]
+    },
+    {
+      "qualified_name": "pattern.rate_limiting.response_handling",
+      "type": "pattern",
+      "domain": "security.rate-limiting",
+      "purpose": "Pattern: Return 429 Too Many Requests with Retry-After header",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "http-response",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "security_notes": "Standard HTTP 429 response informs clients when to retry",
+      "examples": [
+        "from django.http import JsonResponse",
+        "",
+        "if getattr(request, 'limited', False):",
+        "    return JsonResponse(",
+        "        {'error': 'Rate limit exceeded'},",
+        "        status=429,",
+        "        headers={'Retry-After': '60'}",
+        "    )"
+      ],
+      "documentation": [
+        "SECURITY_FIX_4_CHECKLIST.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.authentication.api_key_rotation",
+      "type": "pattern",
+      "domain": "security.authentication",
+      "purpose": "Pattern: API key rotation for service-to-service authentication",
+      "tags": [
+        "security",
+        "authentication",
+        "api-key",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "security_notes": "Rotate API keys every 90 days minimum",
+      "examples": [
+        "# Validate API key from request header",
+        "api_key = request.META.get('HTTP_X_API_KEY')",
+        "if not api_key or api_key != settings.PROMETHEUS_API_KEY:",
+        "    return JsonResponse({'error': 'Unauthorized'}, status=401)"
+      ],
+      "documentation": [
+        "apps/monitoring/views.py"
+      ]
+    },
+    {
+      "qualified_name": "pattern.authentication.token_expiration",
+      "type": "pattern",
+      "domain": "security.authentication",
+      "purpose": "Pattern: Short-lived JWT tokens with refresh token rotation",
+      "tags": [
+        "security",
+        "authentication",
+        "jwt",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Access token: 15min, Refresh token: 7 days with rotation",
+      "examples": [
+        "# JWT configuration",
+        "SIMPLE_JWT = {",
+        "    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),",
+        "    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),",
+        "    'ROTATE_REFRESH_TOKENS': True,",
+        "    'BLACKLIST_AFTER_ROTATION': True,",
+        "}"
+      ],
+      "documentation": [
+        "docs/configuration/SETTINGS_AND_CONFIG.md#jwt"
+      ]
+    },
+    {
+      "qualified_name": "pattern.idor.validation_service",
+      "type": "pattern",
+      "domain": "security.idor",
+      "purpose": "Pattern: Centralize authorization logic in dedicated security services",
+      "tags": [
+        "security",
+        "idor",
+        "pattern",
+        "service-layer",
+        "best-practice"
+      ],
+      "criticality": "high",
+      "security_notes": "Single source of truth for authorization prevents bypass vulnerabilities",
+      "examples": [
+        "# \u2705 CORRECT: Centralized security service",
+        "work_order = WorkOrderSecurityService.validate_access(",
+        "    work_order_id=pk,",
+        "    user=request.user",
+        ")",
+        "",
+        "# \u274c INCORRECT: Inline authorization (inconsistent, error-prone)",
+        "if work_order.tenant != request.user.client:",
+        "    raise PermissionDenied()"
+      ],
+      "documentation": [
+        "docs/architecture/adr/003-service-layer-organization.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.activity.utils.idor_004_fix",
+      "type": "fix",
+      "domain": "security.idor",
+      "purpose": "Datatable parameter validation and sanitization (IDOR-004)",
+      "tags": [
+        "security",
+        "idor",
+        "fix",
+        "input-validation"
+      ],
+      "criticality": "medium",
+      "security_notes": "Validates and sanitizes datatable parameters to prevent IDOR",
+      "documentation": [
+        "apps/activity/utils.py:260"
+      ]
+    },
+    {
+      "qualified_name": "apps.activity.managers.asset_manager.idor_009_fix",
+      "type": "fix",
+      "domain": "security.idor",
+      "purpose": "Asset manager parameter validation (IDOR-009)",
+      "tags": [
+        "security",
+        "idor",
+        "fix",
+        "parameter-validation"
+      ],
+      "criticality": "medium",
+      "security_notes": "Validates params and id parameters in asset manager",
+      "documentation": [
+        "apps/activity/managers/asset_manager.py:121"
+      ]
+    },
+    {
+      "qualified_name": "apps.tenants.models.tenant_aware_warning",
+      "type": "documentation",
+      "domain": "security.multi-tenant",
+      "purpose": "Inline code warning about IDOR vulnerabilities in multi-tenant models",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "documentation",
+        "idor"
+      ],
+      "criticality": "high",
+      "security_notes": "Warning comment in tenants/models.py about filtering by tenant",
+      "documentation": [
+        "apps/tenants/models.py:155"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.api.upload_views.CompleteUploadView",
+      "type": "view",
+      "domain": "security.upload",
+      "purpose": "CSRF protected upload completion and file assembly",
+      "tags": [
+        "security",
+        "csrf",
+        "upload",
+        "api"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "apps.peoples.api.upload_views.CancelUploadView",
+      "type": "view",
+      "domain": "security.upload",
+      "purpose": "CSRF protected upload cancellation and cleanup",
+      "tags": [
+        "security",
+        "csrf",
+        "upload",
+        "api"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "pattern.testing.test_data_isolation",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Isolate test data to prevent cross-contamination",
+      "tags": [
+        "security",
+        "testing",
+        "isolation",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "security_notes": "Use database transactions or fixtures for test isolation",
+      "examples": [
+        "import pytest",
+        "from django.test import TransactionTestCase",
+        "",
+        "@pytest.mark.django_db(transaction=True)",
+        "def test_with_transaction_isolation():",
+        "    # Test runs in transaction, rolled back after",
+        "",
+        "class MySecurityTest(TransactionTestCase):",
+        "    def setUp(self):",
+        "        # Fresh database state for each test"
+      ],
+      "documentation": [
+        "docs/testing/TESTING_AND_QUALITY_GUIDE.md#test-isolation"
+      ]
+    },
+    {
+      "qualified_name": "apps.people_onboarding.tests.test_serializer_security",
+      "type": "test",
+      "domain": "security.testing",
+      "purpose": "PII exposure and IDOR testing for serializers",
+      "tags": [
+        "security",
+        "testing",
+        "pii",
+        "idor",
+        "serializers"
+      ],
+      "criticality": "high",
+      "security_notes": "Tests: file path exposure, user ID exposure, sensitive data leakage",
+      "documentation": [
+        "apps/people_onboarding/tests/test_serializer_security.py:132",
+        "apps/people_onboarding/tests/test_serializer_security.py:230"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.SECURE_FILE_DOWNLOAD_REMEDIATION_COMPLETE.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "File download security remediation report",
+      "tags": [
+        "security",
+        "documentation",
+        "file-security"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "SECURE_FILE_DOWNLOAD_REMEDIATION_COMPLETE.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.testing.security_markers",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Use pytest markers to organize security tests",
+      "tags": [
+        "security",
+        "testing",
+        "pytest",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "security_notes": "Markers: @pytest.mark.security, @pytest.mark.idor, @pytest.mark.integration",
+      "examples": [
+        "import pytest",
+        "",
+        "@pytest.mark.security",
+        "@pytest.mark.idor",
+        "def test_cross_tenant_access():",
+        "    # Test implementation",
+        "",
+        "# Run all security tests",
+        "pytest -m security",
+        "",
+        "# Run only IDOR tests",
+        "pytest -m idor"
+      ],
+      "documentation": [
+        "pytest.ini",
+        "docs/testing/TESTING_AND_QUALITY_GUIDE.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.reports.views.ReportDownloadView",
+      "type": "view",
+      "domain": "security.download",
+      "purpose": "Secure report download with tenant isolation and permission checks",
+      "tags": [
+        "security",
+        "reports",
+        "download",
+        "multi-tenant"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "pattern.testing.security_test_structure",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Organize security tests by attack type and component",
+      "tags": [
+        "security",
+        "testing",
+        "organization",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "examples": [
+        "tests/security/",
+        "\u251c\u2500\u2500 test_secure_file_download.py      # Path traversal, IDOR",
+        "\u251c\u2500\u2500 test_csrf_protection.py           # CSRF bypass attempts",
+        "\u251c\u2500\u2500 test_rate_limiting.py             # DoS attacks",
+        "\u2514\u2500\u2500 test_authentication.py            # Auth bypass, session hijacking",
+        "",
+        "apps/{app}/tests/",
+        "\u251c\u2500\u2500 test_idor_security.py            # App-specific IDOR tests",
+        "\u2514\u2500\u2500 test_serializer_security.py      # PII exposure tests"
+      ],
+      "documentation": [
+        "SECURITY_TEST_SUITE_SUMMARY.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.file_security.chunked_upload",
+      "type": "pattern",
+      "domain": "security.file",
+      "purpose": "Pattern: Secure chunked file upload with CSRF protection and validation",
+      "tags": [
+        "security",
+        "file",
+        "upload",
+        "chunked",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "All chunk upload endpoints must be CSRF protected",
+      "examples": [
+        "# InitUploadView - CSRF protected",
+        "@method_decorator(csrf_protect, name='dispatch')",
+        "class InitUploadView(APIView):",
+        "    def post(self, request):",
+        "        # Initialize upload session",
+        "",
+        "# UploadChunkView - CSRF protected",
+        "@method_decorator(csrf_protect, name='dispatch')",
+        "class UploadChunkView(APIView):",
+        "    def post(self, request):",
+        "        # Validate chunk, session, reassemble"
+      ],
+      "documentation": [
+        "apps/peoples/api/upload_views.py",
+        "apps/ontology/registrations/november_2025_improvements.py"
+      ]
+    },
+    {
+      "qualified_name": "pattern.multi_tenant.deployment_verification",
+      "type": "pattern",
+      "domain": "security.multi-tenant",
+      "purpose": "Pattern: Verify tenant isolation before deploying to production",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "deployment",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Pre-deployment checklist includes IDOR test execution",
+      "examples": [
+        "# Pre-deployment security verification",
+        "pytest -m idor --tb=short -v",
+        "pytest tests/security/ --tb=short -v"
+      ],
+      "documentation": [
+        "DEPLOYMENT_CHECKLIST_MULTI_TENANCY.md",
+        "PRE_DEPLOYMENT_CHECKLIST.md"
+      ]
+    },
+    {
+      "qualified_name": "tests.security.test_secure_file_download.test_path_traversal_blocked",
+      "type": "test",
+      "domain": "security.testing",
+      "purpose": "Path traversal attack prevention test",
+      "tags": [
+        "security",
+        "testing",
+        "path-traversal"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "tests/security/test_secure_file_download.py"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.SECURITY_TEST_SUITE_SUMMARY.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "Security test suite documentation and execution guide",
+      "tags": [
+        "security",
+        "documentation",
+        "testing"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "SECURITY_TEST_SUITE_SUMMARY.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.reports.views.export_views.ReportDownloadView",
+      "type": "view",
+      "domain": "security.file",
+      "purpose": "Secure report download with tenant isolation",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "reports"
+      ],
+      "criticality": "high",
+      "security_notes": "Integrates SecureFileDownloadService for authorization",
+      "documentation": [
+        "apps/reports/views/export_views.py:138"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.api.upload_views.UploadChunkView",
+      "type": "view",
+      "domain": "security.upload",
+      "purpose": "CSRF protected file chunk upload handler",
+      "tags": [
+        "security",
+        "csrf",
+        "upload",
+        "api"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "docs.security.MULTI_TENANCY_SECURITY_AUDIT_REPORT.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "Multi-tenancy security audit and hardening report",
+      "tags": [
+        "security",
+        "documentation",
+        "multi-tenant",
+        "audit"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "MULTI_TENANCY_SECURITY_AUDIT_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.tests.test_idor_security.PeoplesIDORTestCase",
+      "type": "test",
+      "domain": "security.idor",
+      "purpose": "Test suite for IDOR vulnerabilities in peoples app (cross-tenant access)",
+      "tags": [
+        "security",
+        "idor",
+        "testing",
+        "cross-tenant",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Validates tenant isolation for user profiles, modifications, deletions, listings",
+      "business_value": "Ensures multi-tenant security boundaries are enforced",
+      "examples": [
+        "pytest -m idor apps/peoples/tests/test_idor_security.py"
+      ],
+      "documentation": [
+        "IDOR_VULNERABILITY_AUDIT_REPORT.md",
+        "IDOR_TEST_COVERAGE_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.work_order_management.services.work_order_security_service.WorkOrderSecurityService",
+      "type": "service",
+      "domain": "security.idor",
+      "purpose": "Centralized IDOR protection for work orders with tenant isolation and ownership validation",
+      "tags": [
+        "security",
+        "idor",
+        "authorization",
+        "multi-tenant",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Validates: tenant isolation, ownership, permissions before any work order access",
+      "business_value": "Prevents cross-tenant data access vulnerabilities",
+      "examples": [
+        "WorkOrderSecurityService.validate_access(work_order, user)",
+        "# Returns work order or raises PermissionDenied"
+      ],
+      "depends_on": [
+        "apps.work_order_management.models",
+        "apps.peoples.models"
+      ],
+      "documentation": [
+        "CLAUDE.md#secure-file-access-standards",
+        "ULTRATHINK_SECURITY_REMEDIATION_PLAYBOOK.md#idor-prevention"
+      ]
+    },
+    {
+      "qualified_name": "pattern.testing.pre_deployment_security_suite",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Run comprehensive security test suite before deployments",
+      "tags": [
+        "security",
+        "testing",
+        "deployment",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Security test suite is MANDATORY before production deployment",
+      "examples": [
+        "#!/bin/bash",
+        "# Pre-deployment security verification",
+        "",
+        "echo 'Running security test suite...'",
+        "pytest -m security --tb=short -v || exit 1",
+        "",
+        "echo 'Running IDOR tests...'",
+        "pytest -m idor --tb=short -v || exit 1",
+        "",
+        "echo 'Running file security tests...'",
+        "pytest tests/security/test_secure_file_download.py -v || exit 1",
+        "",
+        "echo '\u2705 All security tests passed'"
+      ],
+      "documentation": [
+        "RUN_SECURITY_TESTS.sh",
+        "PRE_DEPLOYMENT_CHECKLIST.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.rate_limiting.monitoring",
+      "type": "pattern",
+      "domain": "security.rate-limiting",
+      "purpose": "Pattern: Monitor rate limit violations for attack detection",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "monitoring",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "security_notes": "High rate limit violation count indicates potential attack",
+      "examples": [
+        "import logging",
+        "logger = logging.getLogger('security.rate_limit')",
+        "",
+        "if getattr(request, 'limited', False):",
+        "    logger.warning(",
+        "        f'Rate limit exceeded: {request.path}',",
+        "        extra={'ip': get_client_ip(request), 'user_agent': request.META.get('HTTP_USER_AGENT')}",
+        "    )"
+      ],
+      "documentation": [
+        "docs/configuration/SETTINGS_AND_CONFIG.md#logging"
+      ]
+    },
+    {
+      "qualified_name": "pattern.rate_limiting.testing",
+      "type": "pattern",
+      "domain": "security.rate-limiting",
+      "purpose": "Pattern: Test rate limiting with rapid successive requests",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "testing",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "examples": [
+        "def test_rate_limiting():",
+        "    # Make requests until rate limit hit",
+        "    for i in range(15):  # Limit is 10/min",
+        "        response = client.post('/api/sso/login', data={})",
+        "    ",
+        "    # 11th request should be rate limited",
+        "    assert response.status_code == 429",
+        "    assert 'Retry-After' in response.headers"
+      ],
+      "documentation": [
+        "SECURITY_FIX_4_CHECKLIST.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.multi_tenant.tenant_isolation",
+      "type": "pattern",
+      "domain": "security.multi-tenant",
+      "purpose": "Pattern: Enforce tenant isolation at database query level",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "isolation",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "ALWAYS filter by tenant before accessing data",
+      "examples": [
+        "# \u2705 CORRECT: Tenant-scoped query",
+        "queryset = Model.objects.filter(tenant=request.user.client)",
+        "",
+        "# \u274c INCORRECT: No tenant filter (CROSS-TENANT ACCESS)",
+        "queryset = Model.objects.all()"
+      ],
+      "documentation": [
+        "MULTI_TENANCY_SECURITY_AUDIT_REPORT.md",
+        "apps/tenants/models.py:155"
+      ]
+    },
+    {
+      "qualified_name": "pattern.authentication.session_revocation",
+      "type": "pattern",
+      "domain": "security.authentication",
+      "purpose": "Pattern: Atomic session revocation with transaction safety",
+      "tags": [
+        "security",
+        "authentication",
+        "session",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Use transaction.atomic() for session state changes",
+      "examples": [
+        "from django.db import transaction",
+        "",
+        "@transaction.atomic",
+        "def revoke_session(session_key: str, user_id: int):",
+        "    Session.objects.filter(",
+        "        session_key=session_key,",
+        "        user_id=user_id",
+        "    ).delete()",
+        "    # Log revocation"
+      ],
+      "documentation": [
+        "apps/peoples/services/session_management_service.py"
+      ]
+    },
+    {
+      "qualified_name": "pattern.file_security.path_traversal_prevention",
+      "type": "pattern",
+      "domain": "security.file",
+      "purpose": "Pattern: Validate file paths stay within MEDIA_ROOT boundary",
+      "tags": [
+        "security",
+        "file",
+        "path-traversal",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Always resolve paths and check they start with MEDIA_ROOT",
+      "examples": [
+        "from pathlib import Path",
+        "from django.conf import settings",
+        "",
+        "# Resolve absolute path",
+        "file_path = Path(filepath).resolve()",
+        "media_root = Path(settings.MEDIA_ROOT).resolve()",
+        "",
+        "# Validate path is within MEDIA_ROOT",
+        "if not str(file_path).startswith(str(media_root)):",
+        "    raise SecurityError('Path traversal attempt detected')"
+      ],
+      "documentation": [
+        "SECURE_FILE_DOWNLOAD_REMEDIATION_COMPLETE.md#path-traversal"
+      ]
+    },
+    {
+      "qualified_name": "pattern.testing.security_coverage_metrics",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Track security test coverage separately from general coverage",
+      "tags": [
+        "security",
+        "testing",
+        "coverage",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "examples": [
+        "# Run security tests with coverage",
+        "pytest -m security --cov=apps --cov-report=html:coverage_security/",
+        "",
+        "# Target coverage for security-critical modules",
+        "pytest apps/core/services/secure_file_download_service.py \\",
+        "    --cov=apps/core/services/secure_file_download_service \\",
+        "    --cov-fail-under=90"
+      ],
+      "documentation": [
+        "docs/testing/TESTING_AND_QUALITY_GUIDE.md#coverage-requirements",
+        "docs/architecture/adr/004-test-coverage-requirements.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.rate_limiting.api_endpoints",
+      "type": "pattern",
+      "domain": "security.rate-limiting",
+      "purpose": "Pattern: Apply different rate limits based on endpoint criticality",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "api",
+        "tiered-limits",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Authentication: 10/min, CSP reports: 100/hour, Sessions: 20/min",
+      "examples": [
+        "# High security endpoints",
+        "@ratelimit(key='ip', rate='10/m', method='POST')  # Auth",
+        "",
+        "# Medium security endpoints",
+        "@ratelimit(key='ip', rate='20/m', method='POST')  # Sessions",
+        "",
+        "# Bulk operations",
+        "@ratelimit(key='ip', rate='100/h', method='POST')  # CSP reports"
+      ],
+      "documentation": [
+        "apps/peoples/api/session_views.py",
+        "apps/core/api/csp_views.py"
+      ]
+    },
+    {
+      "qualified_name": "apps.core.api.csp_views.CSPReportView.rate_limiting",
+      "type": "implementation",
+      "domain": "security.rate-limiting",
+      "purpose": "CSP violation report rate limiting (100 reports/hour per IP)",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "csp",
+        "implementation"
+      ],
+      "criticality": "medium",
+      "security_notes": "Prevents CSP report endpoint DoS",
+      "documentation": [
+        "apps/core/api/csp_views.py"
+      ]
+    },
+    {
+      "qualified_name": "pattern.file_security.download_authorization",
+      "type": "pattern",
+      "domain": "security.file",
+      "purpose": "Pattern: Multi-layer authorization for file downloads",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "authorization",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "4 layers: authentication, ownership, tenant, permissions",
+      "examples": [
+        "# Layer 1: Authentication",
+        "if not request.user.is_authenticated:",
+        "    raise PermissionDenied('Authentication required')",
+        "",
+        "# Layer 2: Ownership",
+        "if attachment.owner != request.user.id:",
+        "    # Layer 3: Explicit permissions",
+        "    if not has_permission(request.user, attachment):",
+        "        raise PermissionDenied('Access denied')",
+        "",
+        "# Layer 4: Tenant isolation",
+        "if attachment.tenant != request.user.client:",
+        "    raise PermissionDenied('Cross-tenant access denied')"
+      ],
+      "documentation": [
+        "CLAUDE.md#secure-file-access-standards"
+      ]
+    },
+    {
+      "qualified_name": "apps.reports.services.report_export_service.secure_file_download",
+      "type": "function",
+      "domain": "security.file",
+      "purpose": "Report export service secure file download helper",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "service"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/reports/services/report_export_service.py:400"
+      ]
+    },
+    {
+      "qualified_name": "pattern.authentication.mfa_enforcement",
+      "type": "pattern",
+      "domain": "security.authentication",
+      "purpose": "Pattern: Multi-factor authentication for privileged accounts",
+      "tags": [
+        "security",
+        "authentication",
+        "mfa",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Require MFA for: superusers, admin panel access, sensitive operations",
+      "documentation": [
+        "docs/configuration/SETTINGS_AND_CONFIG.md#mfa"
+      ]
+    },
+    {
+      "qualified_name": "apps.reports.api.viewsets.report_file_download",
+      "type": "view",
+      "domain": "security.file",
+      "purpose": "API endpoint for secure report file downloads",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "api"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/reports/api/viewsets.py:29"
+      ]
+    },
+    {
+      "qualified_name": "apps.core.api.csp_views.CSPReportView",
+      "type": "view",
+      "domain": "security.csp",
+      "purpose": "Rate limited Content Security Policy violation reporter",
+      "tags": [
+        "security",
+        "csp",
+        "rate-limit",
+        "api"
+      ],
+      "criticality": "medium"
+    },
+    {
+      "qualified_name": "pattern.testing.security_assertions",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Use specific assertions for security test failures",
+      "tags": [
+        "security",
+        "testing",
+        "assertions",
+        "pattern"
+      ],
+      "criticality": "medium",
+      "examples": [
+        "# Assert HTTP status codes",
+        "assert response.status_code == 403  # Forbidden",
+        "assert response.status_code == 401  # Unauthorized",
+        "assert response.status_code == 429  # Rate limited",
+        "",
+        "# Assert exception raised",
+        "with pytest.raises(PermissionDenied):",
+        "    SecurityService.validate_access(resource, attacker)",
+        "",
+        "# Assert security headers present",
+        "assert 'X-Content-Type-Options' in response.headers",
+        "assert response.headers['X-Frame-Options'] == 'DENY'"
+      ],
+      "documentation": [
+        "SECURITY_TEST_SUITE_SUMMARY.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.idor.ownership_validation",
+      "type": "pattern",
+      "domain": "security.idor",
+      "purpose": "Pattern: Validate ownership before allowing file/resource access",
+      "tags": [
+        "security",
+        "idor",
+        "pattern",
+        "ownership",
+        "best-practice"
+      ],
+      "criticality": "high",
+      "security_notes": "Verify user owns resource OR has explicit permission to access",
+      "examples": [
+        "# \u2705 CORRECT: Ownership validation",
+        "if attachment.owner != request.user.id:",
+        "    if not has_permission(request.user, attachment):",
+        "        raise PermissionDenied('Access denied')",
+        "",
+        "# \u274c INCORRECT: No ownership check",
+        "attachment = Attachment.objects.get(id=request.GET['id'])",
+        "return FileResponse(open(attachment.path, 'rb'))"
+      ],
+      "documentation": [
+        "SECURE_FILE_DOWNLOAD_REMEDIATION_COMPLETE.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.idor.query_filtering",
+      "type": "pattern",
+      "domain": "security.idor",
+      "purpose": "Pattern: Always filter querysets by user tenant before object access",
+      "tags": [
+        "security",
+        "idor",
+        "pattern",
+        "queryset",
+        "best-practice"
+      ],
+      "criticality": "high",
+      "security_notes": "Default deny: filter by tenant BEFORE accessing objects",
+      "examples": [
+        "# \u2705 CORRECT: Tenant-filtered query",
+        "work_order = WorkOrder.objects.filter(",
+        "    tenant=request.user.client,",
+        "    id=work_order_id",
+        ").first()",
+        "",
+        "# \u274c INCORRECT: No tenant filter (IDOR vulnerability)",
+        "work_order = WorkOrder.objects.get(id=work_order_id)"
+      ],
+      "documentation": [
+        "CLAUDE.md#idor-prevention-patterns",
+        ".claude/rules.md#security-violations"
+      ]
+    },
+    {
+      "qualified_name": "pattern.testing.negative_tests",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Test security controls by attempting to bypass them",
+      "tags": [
+        "security",
+        "testing",
+        "negative-testing",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Security tests should focus on what attackers CANNOT do",
+      "examples": [
+        "# Positive test (valid access)",
+        "def test_owner_can_access_resource():",
+        "    assert response.status_code == 200",
+        "",
+        "# Negative tests (attack attempts)",
+        "def test_non_owner_cannot_access_resource():",
+        "    assert response.status_code == 403",
+        "",
+        "def test_cross_tenant_access_blocked():",
+        "    assert response.status_code == 403",
+        "",
+        "def test_unauthenticated_access_blocked():",
+        "    assert response.status_code == 401"
+      ],
+      "documentation": [
+        "IDOR_TEST_COVERAGE_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.api.v1.file_views.FileDownloadView",
+      "type": "view",
+      "domain": "security.file",
+      "purpose": "Generic API file download with SecureFileDownloadService",
+      "tags": [
+        "security",
+        "file",
+        "download",
+        "api"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/api/v1/file_views.py:33"
+      ]
+    },
+    {
+      "qualified_name": "apps.core.services.secure_file_download_service.SecureFileDownloadService.validate_attachment_access",
+      "type": "function",
+      "domain": "security.idor",
+      "purpose": "Multi-layer validation for file attachment access (ownership, tenant, permissions)",
+      "tags": [
+        "security",
+        "idor",
+        "file-access",
+        "validation",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "4-layer security: existence check, ownership validation, tenant isolation, permission check",
+      "business_value": "Prevents unauthorized file access across tenant boundaries",
+      "examples": [
+        "attachment = SecureFileDownloadService.validate_attachment_access(",
+        "    attachment_id=request.GET['id'],",
+        "    user=request.user",
+        ")"
+      ],
+      "side_effects": [
+        "Logs security violations with correlation IDs"
+      ],
+      "documentation": [
+        "SECURE_FILE_DOWNLOAD_REMEDIATION_COMPLETE.md",
+        "apps/core/services/secure_file_download_service.py"
+      ]
+    },
+    {
+      "qualified_name": "pattern.testing.attack_simulation",
+      "type": "pattern",
+      "domain": "security.testing",
+      "purpose": "Pattern: Simulate real attack scenarios in security tests",
+      "tags": [
+        "security",
+        "testing",
+        "attack-simulation",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Tests should simulate actual attacker behavior",
+      "examples": [
+        "def test_idor_attack_simulation():",
+        "    # Setup: Create attacker and victim in different tenants",
+        "    attacker = create_user(tenant='evil-corp')",
+        "    victim = create_user(tenant='good-corp')",
+        "    victim_resource = create_resource(owner=victim)",
+        "    ",
+        "    # Attack: Attacker tries to access victim's resource",
+        "    client.force_authenticate(user=attacker)",
+        "    response = client.get(f'/api/resources/{victim_resource.id}/')",
+        "    ",
+        "    # Assert: Access denied",
+        "    assert response.status_code == 403",
+        "    assert 'Access denied' in response.json()['error']"
+      ],
+      "documentation": [
+        "apps/work_order_management/tests/test_security_service.py:357"
+      ]
+    },
+    {
+      "qualified_name": "pattern.file_security.upload_validation",
+      "type": "pattern",
+      "domain": "security.file",
+      "purpose": "Pattern: Validate file type, size, and content before accepting uploads",
+      "tags": [
+        "security",
+        "file",
+        "upload",
+        "validation",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Validate: MIME type, file extension, magic bytes, size limits",
+      "examples": [
+        "import magic",
+        "",
+        "# Validate file extension",
+        "allowed_extensions = ['.pdf', '.jpg', '.png']",
+        "if not file.name.lower().endswith(tuple(allowed_extensions)):",
+        "    raise ValidationError('Invalid file type')",
+        "",
+        "# Validate MIME type (magic bytes)",
+        "mime = magic.from_buffer(file.read(2048), mime=True)",
+        "if mime not in ['application/pdf', 'image/jpeg', 'image/png']:",
+        "    raise ValidationError('Invalid file content')",
+        "",
+        "# Validate file size",
+        "if file.size > 10 * 1024 * 1024:  # 10 MB",
+        "    raise ValidationError('File too large')"
+      ],
+      "documentation": [
+        "apps/peoples/api/upload_views.py"
+      ]
+    },
+    {
+      "qualified_name": "apps.core.api.file_views.FileDownloadView",
+      "type": "view",
+      "domain": "security.download",
+      "purpose": "Secure API file download with ownership validation",
+      "tags": [
+        "security",
+        "api",
+        "download",
+        "idor"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "pattern.multi_tenant.default_filtering",
+      "type": "pattern",
+      "domain": "security.multi-tenant",
+      "purpose": "Pattern: Use custom managers for automatic tenant filtering",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "manager",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Custom manager with get_queryset() enforces tenant filter by default",
+      "examples": [
+        "class TenantAwareManager(models.Manager):",
+        "    def get_queryset(self):",
+        "        qs = super().get_queryset()",
+        "        # Get current tenant from thread-local or middleware",
+        "        tenant = get_current_tenant()",
+        "        if tenant:",
+        "            qs = qs.filter(tenant=tenant)",
+        "        return qs",
+        "",
+        "class MyModel(models.Model):",
+        "    tenant = models.ForeignKey(Client, on_delete=models.CASCADE)",
+        "    objects = TenantAwareManager()"
+      ],
+      "documentation": [
+        "docs/architecture/SYSTEM_ARCHITECTURE.md#multi-tenancy"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.api.session_views.SessionRevokeAllView.rate_limiting",
+      "type": "implementation",
+      "domain": "security.rate-limiting",
+      "purpose": "Bulk session revocation rate limiting (20 requests/minute per IP)",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "session",
+        "implementation"
+      ],
+      "criticality": "high",
+      "security_notes": "Prevents DoS via bulk session revocation endpoint",
+      "documentation": [
+        "apps/peoples/api/session_views.py"
+      ]
+    },
+    {
+      "qualified_name": "apps.reports.tests.test_secure_file_download",
+      "type": "test",
+      "domain": "security.file",
+      "purpose": "Report file download security tests",
+      "tags": [
+        "security",
+        "file",
+        "testing",
+        "reports"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "apps/reports/tests/test_secure_file_download.py"
+      ]
+    },
+    {
+      "qualified_name": "apps.core.services.secure_file_download_service.SecureFileDownloadService.validate_and_serve_file",
+      "type": "function",
+      "domain": "security.idor",
+      "purpose": "Secure file serving with path traversal prevention and permission validation",
+      "tags": [
+        "security",
+        "idor",
+        "path-traversal",
+        "file-serving",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Enforces MEDIA_ROOT boundary, validates permissions, prevents directory traversal",
+      "business_value": "Prevents path traversal attacks and unauthorized file access",
+      "examples": [
+        "response = SecureFileDownloadService.validate_and_serve_file(",
+        "    filepath=attachment.filepath,",
+        "    filename=attachment.filename,",
+        "    user=request.user,",
+        "    owner_id=attachment.owner",
+        ")"
+      ],
+      "side_effects": [
+        "Audit logs all file access attempts"
+      ],
+      "documentation": [
+        "SECURE_FILE_DOWNLOAD_SUMMARY.md",
+        "tests/security/test_secure_file_download.py"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.IDOR_VULNERABILITY_AUDIT_REPORT.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "IDOR vulnerability audit and remediation report",
+      "tags": [
+        "security",
+        "documentation",
+        "idor",
+        "audit"
+      ],
+      "criticality": "high",
+      "documentation": [
+        "IDOR_VULNERABILITY_AUDIT_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.work_order_management.tests.test_security_service.TestIDORProtection",
+      "type": "test",
+      "domain": "security.idor",
+      "purpose": "Comprehensive IDOR attack simulation tests",
+      "tags": [
+        "security",
+        "idor",
+        "testing",
+        "attack-simulation"
+      ],
+      "criticality": "high",
+      "security_notes": "Simulates cross-tenant IDOR attacks and validates blocking",
+      "examples": [
+        "test_idor_attack_blocked - Verifies User B cannot access User A's work order"
+      ],
+      "documentation": [
+        "apps/work_order_management/tests/test_security_service.py:300"
+      ]
+    },
+    {
+      "qualified_name": "pattern.multi_tenant.admin_filtering",
+      "type": "pattern",
+      "domain": "security.multi-tenant",
+      "purpose": "Pattern: Scope Django Admin to user's tenant",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "admin",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Override get_queryset in ModelAdmin to filter by tenant",
+      "examples": [
+        "class MyModelAdmin(admin.ModelAdmin):",
+        "    def get_queryset(self, request):",
+        "        qs = super().get_queryset(request)",
+        "        if request.user.is_superuser:",
+        "            return qs  # Superusers see all",
+        "        return qs.filter(tenant=request.user.client)"
+      ],
+      "documentation": [
+        "MULTI_TENANCY_ULTRATHINK_FINAL_REPORT.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.peoples.api.upload_views.InitUploadView",
+      "type": "view",
+      "domain": "security.upload",
+      "purpose": "CSRF protected chunked upload initialization",
+      "tags": [
+        "security",
+        "csrf",
+        "upload",
+        "api"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "apps.core.services.secure_file_download_service.SecureFileDownloadService",
+      "type": "service",
+      "domain": "security.download",
+      "purpose": "Token-based file serving with permission validation and path traversal prevention",
+      "tags": [
+        "security",
+        "idor",
+        "path-traversal",
+        "download"
+      ],
+      "criticality": "high"
+    },
+    {
+      "qualified_name": "tests.security.test_secure_file_download",
+      "type": "test",
+      "domain": "security.file",
+      "purpose": "Comprehensive file download security test suite",
+      "tags": [
+        "security",
+        "file",
+        "testing",
+        "path-traversal",
+        "idor"
+      ],
+      "criticality": "high",
+      "security_notes": "Tests: path traversal, IDOR, cross-tenant access, permissions",
+      "examples": [
+        "pytest tests/security/test_secure_file_download.py -v"
+      ],
+      "documentation": [
+        "SECURITY_TEST_SUITE_SUMMARY.md#secure-file-download",
+        "tests/security/test_secure_file_download.py"
+      ]
+    },
+    {
+      "qualified_name": "docs.security.rules.md",
+      "type": "documentation",
+      "domain": "security.documentation",
+      "purpose": "Comprehensive security rules and violation patterns",
+      "tags": [
+        "security",
+        "documentation",
+        "rules"
+      ],
+      "criticality": "high",
+      "documentation": [
+        ".claude/rules.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.multi_tenant.cross_tenant_validation",
+      "type": "pattern",
+      "domain": "security.multi-tenant",
+      "purpose": "Pattern: Validate tenant consistency across related objects",
+      "tags": [
+        "security",
+        "multi-tenant",
+        "validation",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Check all foreign keys reference same tenant",
+      "examples": [
+        "# Validate work order and vendor belong to same tenant",
+        "if work_order.tenant != vendor.tenant:",
+        "    raise ValidationError('Cross-tenant relationship not allowed')",
+        "",
+        "# Validate assignment tenant consistency",
+        "if user.client != work_order.tenant:",
+        "    raise PermissionDenied('User cannot be assigned to work order from different tenant')"
+      ],
+      "documentation": [
+        "MULTI_TENANCY_HARDENING_IMPLEMENTATION_GUIDE.md"
+      ]
+    },
+    {
+      "qualified_name": "apps.work_order_management.tests.test_idor_security.WorkOrderIDORTestCase",
+      "type": "test",
+      "domain": "security.idor",
+      "purpose": "Test suite for work order IDOR vulnerabilities (tenant isolation, ownership)",
+      "tags": [
+        "security",
+        "idor",
+        "testing",
+        "work-orders",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Tests cross-tenant access, ownership validation, vendor isolation",
+      "business_value": "Prevents unauthorized work order access",
+      "examples": [
+        "pytest -m idor apps/work_order_management/tests/test_idor_security.py"
+      ],
+      "documentation": [
+        "WORK_ORDER_SECURITY_FIX_COMPLETE.md"
+      ]
+    },
+    {
+      "qualified_name": "pattern.rate_limiting.sso_protection",
+      "type": "pattern",
+      "domain": "security.rate-limiting",
+      "purpose": "Pattern: Rate limit SSO endpoints to prevent brute force and DoS attacks",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "sso",
+        "dos-prevention",
+        "pattern"
+      ],
+      "criticality": "high",
+      "security_notes": "Limit authentication attempts per IP: 10 attempts/minute for SSO",
+      "examples": [
+        "from django_ratelimit.decorators import ratelimit",
+        "",
+        "@ratelimit(key='ip', rate='10/m', method='POST')",
+        "def sso_login(request):",
+        "    # SSO authentication logic"
+      ],
+      "documentation": [
+        "SECURITY_FIX_4_SSO_RATE_LIMITING_COMPLETE.md",
+        "SECURITY_FIX_4_SUMMARY.md"
+      ]
+    },
+    {
+      "qualified_name": "security.deployment.rate_limiting_configuration",
+      "type": "deployment",
+      "domain": "security.rate-limiting",
+      "purpose": "Production rate limiting configuration checklist",
+      "tags": [
+        "security",
+        "rate-limiting",
+        "deployment",
+        "configuration"
+      ],
+      "criticality": "high",
+      "security_notes": "Redis backend required for distributed rate limiting",
+      "examples": [
+        "# settings/production.py",
+        "RATELIMIT_USE_CACHE = 'default'  # Redis cache",
+        "RATELIMIT_FAIL_OPEN = False  # Reject requests if Redis unavailable"
+      ],
+      "documentation": [
+        "SECURITY_FIX_4_SUMMARY.md#deployment-checklist"
+      ]
+    }
+  ]
+}

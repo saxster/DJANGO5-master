@@ -18,6 +18,8 @@ from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
 from apps.core.constants.spatial_constants import SECONDS_IN_DAY
+from apps.core.exceptions.patterns import TEMPLATE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 error_logger = logging.getLogger("error_logger")
@@ -98,7 +100,7 @@ class GeofenceAuditService:
             error_logger.error(
                 f"Database error logging geofence audit: {str(e)}"
             )
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             error_logger.error(
                 f"Unexpected error logging geofence audit: {str(e)}",
                 exc_info=True
@@ -164,7 +166,7 @@ class GeofenceAuditService:
             error_logger.error(
                 f"Database error logging geofence violation: {str(e)}"
             )
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             error_logger.error(
                 f"Unexpected error logging geofence violation: {str(e)}",
                 exc_info=True
@@ -203,7 +205,7 @@ class GeofenceAuditService:
             # Return only the most recent violations
             return violations[:self.MAX_VIOLATIONS_RETURNED]
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             error_logger.error(
                 f"Error retrieving recent violations: {str(e)}",
                 exc_info=True
@@ -248,7 +250,7 @@ class GeofenceAuditService:
 
             return audit_entries
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             error_logger.error(
                 f"Error retrieving audit history for geofence {geofence_id}: {str(e)}",
                 exc_info=True

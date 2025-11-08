@@ -97,7 +97,7 @@ class MultilingualEmbeddingGenerator:
 
             return embedding
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error generating multilingual embedding: {e}")
             # Fallback to English model
             embedding = np.random.normal(0, 1, 384)

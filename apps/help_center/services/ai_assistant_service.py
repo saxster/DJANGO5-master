@@ -14,6 +14,8 @@ Following CLAUDE.md:
 
 import logging
 from apps.help_center.services.search_service import SearchService
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,7 @@ Guidelines:
                     'type': 'chunk',
                     'content': f"I found {len(retrieved_context['articles'])} relevant articles about '{query}'. Please review the articles below for detailed information."
                 }
-            except Exception as e:
+            except NETWORK_EXCEPTIONS as e:
                 logger.error(f"LLM generation error: {e}", exc_info=True)
                 yield {
                     'type': 'chunk',
@@ -124,7 +126,7 @@ Guidelines:
                 extra={'query': query, 'articles_used': len(article_ids), 'user': user.username}
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"AI assistant error: {e}", exc_info=True)
             yield {
                 'type': 'error',

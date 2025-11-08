@@ -528,7 +528,7 @@ class QuestionSetBelonging(BaseModel, TenantAwareModel):
                 raise ValidationError({
                     'display_conditions': f"Invalid conditional logic: {str(e)}"
                 }) from e
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(

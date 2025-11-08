@@ -13,12 +13,16 @@ class SearchIndexAdmin(admin.ModelAdmin):
     search_fields = ['title', 'subtitle', 'entity_id']
     readonly_fields = ['last_indexed_at']
 
+    list_per_page = 50
+
 
 @admin.register(SavedSearch)
 class SavedSearchAdmin(admin.ModelAdmin):
     list_display = ['name', 'user', 'tenant', 'is_alert_enabled', 'alert_frequency']
     list_filter = ['is_alert_enabled', 'alert_frequency', 'tenant']
     search_fields = ['name', 'query', 'user__peoplename']
+
+    list_per_page = 50
 
 
 @admin.register(SearchAnalytics)
@@ -27,3 +31,5 @@ class SearchAnalyticsAdmin(admin.ModelAdmin):
     list_filter = ['tenant', 'timestamp']
     search_fields = ['query', 'correlation_id']
     readonly_fields = ['timestamp', 'correlation_id']
+
+    list_per_page = 50

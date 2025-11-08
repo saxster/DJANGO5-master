@@ -18,6 +18,7 @@ Status: Production-ready integration
 import logging
 from typing import Dict, Any
 from pathlib import Path
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ class BiometricPhotoAuthenticationService:
             manipulation_analysis = exif_data.get('manipulation_analysis', {})
 
             # Generate camera fingerprint
-            camera_fingerprint = self._generate_camera_fingerprint(camera_info)
+            camera_fingerprint = self._generate_camera_fingerlogger.info(camera_info)
 
             # Check for fraud indicators
             fraud_indicators = []
@@ -151,8 +152,8 @@ class BiometricPhotoAuthenticationService:
                 'exif_completeness': exif_data.get('completeness_score', 0.0)
             }
 
-        except Exception as e:
-            logger.error(f"Error authenticating biometric photo: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error authenticating biometric photo: {e}", exc_info=True)
             return {
                 'authenticated': False,
                 'authenticity_score': 0.0,
@@ -161,7 +162,7 @@ class BiometricPhotoAuthenticationService:
                 'fraud_indicators': ['AUTHENTICATION_ERROR']
             }
 
-    def _generate_camera_fingerprint(self, camera_info: Dict[str, Any]) -> str:
+    def _generate_camera_fingerlogger.info(self, camera_info: Dict[str, Any]) -> str:
         """
         Generate camera device fingerprint from EXIF data.
 
@@ -169,7 +170,7 @@ class BiometricPhotoAuthenticationService:
             camera_info: Camera information from EXIF
 
         Returns:
-            Camera fingerprint (hash)
+            Camera fingerlogger.info(hash)
         """
         try:
             import hashlib
@@ -186,8 +187,8 @@ class BiometricPhotoAuthenticationService:
             else:
                 return "UNKNOWN"
 
-        except Exception as e:
-            logger.warning(f"Error generating camera fingerprint: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Error generating camera fingerprint: {e}", exc_info=True)
             return "ERROR"
 
     def _authenticate_fallback(self, image_path: str) -> Dict[str, Any]:
@@ -277,8 +278,8 @@ class BiometricPhotoAuthenticationService:
                 'authenticity_score': gps_data.get('authenticity_score', 1.0)
             }
 
-        except Exception as e:
-            logger.error(f"Error validating GPS coordinates: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error validating GPS coordinates: {e}", exc_info=True)
             return {
                 'valid': False,
                 'error': str(e)

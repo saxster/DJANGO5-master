@@ -106,3 +106,4 @@ class TenantAdmin(ImportExportModelAdmin):
     list_display_links = ("tenantname", "subdomain_prefix", "created_at")
     search_fields = ("tenantname", "subdomain_prefix")
     readonly_fields = ("created_at",)
+    list_per_page = 50

@@ -22,12 +22,14 @@ Usage: {% include 'components/modal.html' with id='confirm-delete' title='Confir
 
       {# Body #}
       <div class="yt-modal__body">
+        {# SECURITY: |safe intentional - body contains pre-rendered HTML from component caller #}
         {{ caller() if caller else body|default:''|safe }}
       </div>
 
       {# Footer #}
       {% if footer or footer_buttons %}
         <div class="yt-modal__footer">
+          {# SECURITY: |safe intentional - footer contains pre-rendered HTML from component caller #}
           {{ footer|default:''|safe }}
           {% if footer_buttons %}
             <div class="yt-modal__footer-actions">

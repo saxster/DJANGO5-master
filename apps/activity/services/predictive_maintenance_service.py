@@ -20,6 +20,8 @@ from datetime import timedelta, date
 from typing import Dict, Any, List, Optional
 from django.utils import timezone
 from django.db.models import Count, Avg
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +128,7 @@ class PredictiveMaintenanceService:
                 'factors': features
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error predicting failure risk: {e}")
             return {
                 'risk_score': 0.5,
@@ -209,7 +211,7 @@ class PredictiveMaintenanceService:
             logger.error(f"Asset not found: {asset_id}")
             return None
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error extracting asset features: {e}")
             return None
 
@@ -319,7 +321,7 @@ class PredictiveMaintenanceService:
 
             return alerts
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error generating maintenance alerts: {e}")
             return []
 

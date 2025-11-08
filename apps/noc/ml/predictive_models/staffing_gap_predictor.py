@@ -32,6 +32,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Count, Avg
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, FILE_EXCEPTIONS
 
 logger = logging.getLogger('noc.predictive.staffing_gap')
 
@@ -147,8 +148,8 @@ class StaffingGapPredictor:
                 end_time__gte=start_time
             ).values('people').distinct().count()
             return scheduled
-        except Exception as e:
-            logger.warning(f"Error counting scheduled guards: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.warning(f"Error counting scheduled guards: {e}", exc_info=True)
             return 0
 
     @classmethod
@@ -178,8 +179,8 @@ class StaffingGapPredictor:
 
             return (attended_count / scheduled_count) * 100.0
 
-        except Exception as e:
-            logger.warning(f"Error calculating attendance rate: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.warning(f"Error calculating attendance rate: {e}", exc_info=True)
             return 85.0  # Default to 85%
 
     @classmethod
@@ -270,8 +271,8 @@ class StaffingGapPredictor:
             no_shows = total_shifts - len(attended)
             return (no_shows / total_shifts) if total_shifts > 0 else 0.15
 
-        except Exception as e:
-            logger.warning(f"Error calculating no-show rate: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.warning(f"Error calculating no-show rate: {e}", exc_info=True)
             return 0.15  # Default
 
     @classmethod

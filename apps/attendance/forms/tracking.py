@@ -46,7 +46,7 @@ def clean_geometry(val):
         raise forms.ValidationError(
             f"Invalid geometry format. Expected coordinates or WKT geometry. Error: {str(e)}"
         ) from e
-    except Exception as e:
+    except (AttributeError, KeyError) as e:
         raise forms.ValidationError(
             f"Failed to process geometry data: {str(e)}"
         ) from e

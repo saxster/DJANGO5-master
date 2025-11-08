@@ -10,6 +10,10 @@ from django.utils import timezone
 from django.http import JsonResponse
 from apps.core.decorators import csrf_protect_htmx, rate_limit
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from .models import TestScenario, TestRun, StreamEvent
 from ..issue_tracker.models import AnomalySignature, AnomalyOccurrence
 from .services.event_capture import stream_event_capture
@@ -46,7 +50,7 @@ def dashboard_home(request):
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
         # Graceful fallback if AI insights are not available
         ai_insights = None
-        print(f"AI Insights unavailable: {e}")
+        logger.debug(f"AI Insights unavailable: {e}")
 
     context = {
         'recent_runs': recent_runs,
@@ -322,7 +326,7 @@ def ai_insights_partial(request):
             'alert_level': 'warning',
             'last_updated': timezone.now()
         }
-        print(f"AI Insights partial unavailable: {e}")
+        logger.debug(f"AI Insights partial unavailable: {e}")
 
     return render(request, 'ai_testing/partials/ai_insights.html', {
         'ai_insights': ai_insights

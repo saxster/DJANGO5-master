@@ -24,6 +24,10 @@ from django.core.mail import send_mail
 from django.conf import settings
 from sklearn.ensemble import IsolationForest
 from scipy import stats as scipy_stats
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger('ml.drift_detection')
 
@@ -123,7 +127,7 @@ class DriftDetector:
                 'contamination': self.contamination
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error training drift detector: {e}", exc_info=True)
             raise
 
@@ -188,7 +192,7 @@ class DriftDetector:
                 'baseline_samples': len(baseline_metrics)
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error detecting prediction drift: {e}", exc_info=True)
             return None
 
@@ -235,7 +239,7 @@ class DriftDetector:
                 'sample_count': len(predictions)
             }
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Error detecting infrastructure drift: {e}", exc_info=True)
             return None
 
@@ -312,5 +316,5 @@ Action Required: Review model performance and consider retraining.
                 fail_silently=True
             )
             logger.info(f"Drift alert sent for {model_type}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to send drift alert: {e}")

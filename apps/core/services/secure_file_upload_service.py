@@ -19,6 +19,10 @@ from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import FileValidationException
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
 from apps.core.models import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
     ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
 )
 
@@ -680,7 +684,7 @@ class SecureFileUploadService:
                     exif_metadata, upload_context, correlation_id
                 )
                 exif_metadata['database_id'] = image_metadata.id
-            except Exception as db_error:
+            except FILE_EXCEPTIONS as db_error:
                 logger.warning(f"Failed to create ImageMetadata record: {db_error}")
                 exif_metadata['database_error'] = str(db_error)
 
@@ -703,11 +707,9 @@ class SecureFileUploadService:
 
             # Process camera fingerprint
             if exif_metadata.get('security_analysis', {}).get('camera_fingerprint'):
-                cls._process_camera_fingerprint(
-                    exif_metadata['security_analysis']['camera_fingerprint'],
+                cls._process_camera_fingerlogger.info(exif_metadata['security_analysis']['camera_fingerprint'],
                     exif_metadata,
-                    people_id
-                )
+                    people_id)
 
             return exif_metadata
 
@@ -768,7 +770,7 @@ class SecureFileUploadService:
 
             return image_metadata
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to create ImageMetadata record: {e}")
             raise
 
@@ -805,16 +807,14 @@ class SecureFileUploadService:
                 recommendations=[]  # Could be enhanced with specific recommendations
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Failed to create quality assessment record: {e}")
 
     @classmethod
-    def _process_camera_fingerprint(
-        cls,
+    def _process_camera_fingerlogger.info(cls,
         fingerprint_hash: str,
         exif_metadata: dict,
-        people_id: int
-    ):
+        people_id: int):
         """Process and update camera fingerprint tracking."""
         try:
             security_analysis = exif_metadata.get('security_analysis', {})
@@ -845,7 +845,7 @@ class SecureFileUploadService:
                     fingerprint.trust_level = 'suspicious'
                 fingerprint.save()
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Camera fingerprint processing failed: {e}")
 
     @classmethod
@@ -872,7 +872,7 @@ class SecureFileUploadService:
                 follow_up_required=(validation_result in ['failed', 'flagged'])
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Failed to log authenticity event: {e}")
 
     @classmethod
@@ -937,7 +937,7 @@ class SecureFileUploadService:
 
             return security_result
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Enhanced security validation failed: {e}")
             return {
                 'validation_passed': True,
@@ -995,7 +995,7 @@ class SecureFileUploadService:
                 'requires_manual_review': (risk_level == 'high')
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Authenticity assessment failed: {e}")
             return {
                 'authenticity_score': 0.5,

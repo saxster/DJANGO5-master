@@ -106,6 +106,8 @@ class TrainingDatasetAdmin(admin.ModelAdmin):
         'update_statistics',
     ]
 
+    list_per_page = 50
+
     def status_badge(self, obj):
         """Display status as a colored badge."""
         color_map = {
@@ -289,6 +291,8 @@ class TrainingExampleAdmin(admin.ModelAdmin):
         'mark_as_high_priority',
         'mark_for_review',
     ]
+
+    list_per_page = 50
 
     def dataset_name(self, obj):
         """Display dataset name with link."""
@@ -488,6 +492,8 @@ class LabelingTaskAdmin(admin.ModelAdmin):
         'assign_to_me',
         'set_high_priority',
     ]
+
+    list_per_page = 50
 
     def dataset_name(self, obj):
         """Display dataset name with link."""

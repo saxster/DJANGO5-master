@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 from apps.core.decorators import require_monitoring_api_key
 from django.core.cache import cache
-from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger('noc.monitoring')
 
@@ -53,8 +53,8 @@ def noc_health_check(request):
 
         return JsonResponse(health_data, status=200 if overall_health else 503)
 
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
         return JsonResponse({
             'status': 'unhealthy',
             'error': str(e)
@@ -129,7 +129,8 @@ def _check_database():
         from apps.noc.models import NOCAlertEvent
         NOCAlertEvent.objects.exists()
         return {'healthy': True, 'message': 'Database accessible'}
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database health check failed: {e}", exc_info=True)
         return {'healthy': False, 'message': f'Database error: {str(e)}'}
 
 
@@ -140,7 +141,8 @@ def _check_cache():
         cache.set(test_key, 'ok', 10)
         result = cache.get(test_key)
         return {'healthy': result == 'ok', 'message': 'Cache operational'}
-    except Exception as e:
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Cache health check failed: {e}", exc_info=True)
         return {'healthy': False, 'message': f'Cache error: {str(e)}'}
 
 
@@ -150,7 +152,8 @@ def _check_websocket():
         from channels.layers import get_channel_layer
         layer = get_channel_layer()
         return {'healthy': layer is not None, 'message': 'WebSocket ready'}
-    except Exception as e:
+    except (ImportError, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"WebSocket health check failed: {e}", exc_info=True)
         return {'healthy': False, 'message': f'WebSocket error: {str(e)}'}
 
 

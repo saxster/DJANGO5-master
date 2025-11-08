@@ -18,6 +18,8 @@ from django.core.exceptions import ValidationError
 from apps.tenants.models import Tenant
 from apps.peoples.models import People
 from apps.help_center.services.knowledge_service import KnowledgeService
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +103,7 @@ class Command(BaseCommand):
             except ValidationError as e:
                 self.stdout.write(self.style.ERROR(f'Import failed: {e}'))
 
-            except Exception as e:
+            except FILE_EXCEPTIONS as e:
                 logger.error(f'Unexpected import error: {e}', exc_info=True)
                 self.stdout.write(self.style.ERROR(f'Unexpected error: {e}'))
 

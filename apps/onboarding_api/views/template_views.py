@@ -15,6 +15,8 @@ from rest_framework.views import APIView
 
 from ..utils.security import require_tenant_scope, with_idempotency
 import logging
+from apps.core.exceptions.patterns import TEMPLATE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +136,7 @@ class ConfigurationTemplateDetailView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Template application error: {str(e)}")
             return Response(
                 {'error': 'Template application failed'},
@@ -178,7 +180,7 @@ class QuickStartRecommendationsView(APIView):
 
             return Response(recommendations)
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Quick-start recommendations error: {str(e)}")
             return Response(
                 {"error": "Failed to generate recommendations"},
@@ -238,7 +240,7 @@ class OneClickDeploymentView(APIView):
 
             return Response(response_data)
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Template deployment error: {str(e)}")
             return Response(
                 {"error": "Template deployment failed"},
@@ -274,7 +276,7 @@ class TemplateAnalyticsView(APIView):
                 }
             })
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Template analytics error: {str(e)}")
             return Response(
                 {"error": "Failed to retrieve analytics"},

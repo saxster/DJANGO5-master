@@ -49,8 +49,13 @@ class APIExtractor(ASTExtractor):
         except SyntaxError as e:
             self.add_error(file_path, f"Syntax error: {e}", e.lineno)
             return []
-        except Exception as e:
+        except (OSError, IOError, UnicodeDecodeError) as e:
+            self.add_error(file_path, f"Error reading file: {e}")
+            logger.error(f"Failed to read {file_path}: {e}", exc_info=True)
+            return []
+        except (ValueError, TypeError, AttributeError) as e:
             self.add_error(file_path, f"Error parsing file: {e}")
+            logger.error(f"Failed to parse {file_path}: {e}", exc_info=True)
             return []
 
 

@@ -304,7 +304,7 @@ def sanitize_journal_logs(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             # Sanitize exception messages before re-raising
             sanitized_msg = sanitize_journal_log_message(str(e))
             logger.error(f"Error in {func.__name__}: {sanitized_msg}")

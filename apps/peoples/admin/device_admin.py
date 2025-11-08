@@ -38,6 +38,7 @@ class DeviceRiskEventInline(admin.TabularInline):
 
 @admin.register(DeviceRegistration)
 class DeviceRegistrationAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for Device Trust Registry.
 
@@ -168,6 +169,7 @@ class DeviceRegistrationAdmin(admin.ModelAdmin):
 
 @admin.register(DeviceRiskEvent)
 class DeviceRiskEventAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for Device Security Events.
 

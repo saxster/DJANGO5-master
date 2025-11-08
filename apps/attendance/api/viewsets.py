@@ -15,6 +15,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from apps.attendance.models import PeopleEventlog, Geofence
 from apps.attendance.api.serializers import (
     AttendanceSerializer,
@@ -64,6 +66,7 @@ logger = logging.getLogger(__name__)
         "curl -X POST https://api.example.com/api/v1/attendance/clock-in/ -H 'Authorization: Bearer <token>' -d '{\"lat\":28.6139,\"lng\":77.2090,\"accuracy\":15,\"device_id\":\"device-123\"}'"
     ]
 )
+@method_decorator(permission_required('attendance.view_peopleeventlog', raise_exception=True), name='dispatch')
 class AttendanceViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Attendance tracking.
@@ -439,7 +442,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             #         priority='HIGH'
             #     )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to notify supervisors of mismatch: {e}", exc_info=True)
 
     @action(detail=False, methods=['post'])
@@ -540,6 +543,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         "curl -X POST https://api.example.com/api/v1/assets/geofences/validate/ -H 'Authorization: Bearer <token>' -d '{\"lat\":28.6139,\"lng\":77.2090,\"person_id\":123}'"
     ]
 )
+@method_decorator(permission_required('attendance.view_geofence', raise_exception=True), name='dispatch')
 class GeofenceViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Geofence management.
@@ -633,6 +637,7 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         "curl -X GET https://api.example.com/api/v1/attendance/fraud-alerts/ -H 'Authorization: Bearer <admin-token>'"
     ]
 )
+@method_decorator(permission_required('attendance.view_fraudalert', raise_exception=True), name='dispatch')
 class FraudDetectionView(APIView):
     """
     API endpoint for fraud detection alerts.

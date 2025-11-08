@@ -9,6 +9,8 @@ This migration:
 
 from django.db import migrations
 import logging
+# Migration-specific exceptions
+ENCRYPTION_EXCEPTIONS = (ValueError, TypeError, UnicodeDecodeError, UnicodeEncodeError, AttributeError)
 
 logger = logging.getLogger('migrations')
 
@@ -50,7 +52,7 @@ def migrate_to_encrypted_fields(apps, schema_editor):
                 migrated_batch.append(entry)
                 total_migrated += 1
 
-            except Exception as e:
+            except ENCRYPTION_EXCEPTIONS as e:
                 logger.error(
                     f"Error migrating intervention delivery log {entry.id}: {str(e)}",
                     exc_info=True
@@ -84,7 +86,7 @@ def reverse_migration(apps, schema_editor):
     """
     InterventionDeliveryLog = apps.get_model('wellness', 'InterventionDeliveryLog')
 
-    logger.warning("Reversing encryption migration - data will be unencrypted!")
+    logger.warning("Reversing encryption migration - data will be unencrypted!", exc_info=True)
 
     entries = InterventionDeliveryLog.objects.filter(is_encrypted=True)
 
@@ -97,8 +99,8 @@ def reverse_migration(apps, schema_editor):
             entry.is_encrypted = False
             entry.save()
 
-        except Exception as e:
-            logger.error(f"Error reversing migration for entry {entry.id}: {str(e)}")
+        except ENCRYPTION_EXCEPTIONS as e:
+            logger.error(f"Error reversing migration for entry {entry.id}: {str(e)}", exc_info=True)
 
 
 class Migration(migrations.Migration):

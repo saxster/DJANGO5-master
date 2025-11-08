@@ -68,6 +68,10 @@ class PostAdmin(GISModelAdmin):
     - Inline viewing of assignments and acknowledgements
     - Bulk actions for activation/deactivation
     - Color-coded risk levels
+    
+    N+1 Query Optimization:
+    - select_related: site, shift, zone, geofence, created_by, modified_by
+    - prefetch_related: required_certifications
     """
 
     list_display = (
@@ -82,6 +86,10 @@ class PostAdmin(GISModelAdmin):
         'current_assignments_count',
         'post_orders_version',
     )
+    
+    # N+1 query optimization
+    list_select_related = ['site', 'shift', 'zone', 'geofence', 'created_by', 'modified_by']
+    list_prefetch_related = ['required_certifications']
 
     list_filter = (
         'active',
@@ -165,6 +173,8 @@ class PostAdmin(GISModelAdmin):
     inlines = [PostAssignmentInline, PostOrderAcknowledgementInline]
 
     actions = ['activate_posts', 'deactivate_posts', 'mark_coverage_required', 'mark_coverage_optional']
+
+    list_per_page = 50
 
     def risk_level_colored(self, obj):
         """Display risk level with color coding"""
@@ -280,6 +290,18 @@ class PostAdmin(GISModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
 
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'site',
+            'zone',
+            'shift',
+            'geofence',
+            'created_by',
+            'modified_by'
+        ).prefetch_related('required_certifications')
+
 
 # ==================== POST ASSIGNMENT ADMIN ====================
 
@@ -394,6 +416,8 @@ class PostAssignmentAdmin(admin.ModelAdmin):
         'send_reminders',
     ]
 
+    list_per_page = 50
+
     def assignment_id(self, obj):
         """Short ID for display"""
         return f"PA-{obj.id}"
@@ -500,6 +524,21 @@ class PostAssignmentAdmin(admin.ModelAdmin):
         if not change:
             obj.assigned_by = request.user
         super().save_model(request, obj, form, change)
+
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'worker',
+            'post',
+            'post__site',
+            'site',
+            'shift',
+            'attendance_record',
+            'assigned_by',
+            'approved_by',
+            'replaced_assignment'
+        )
 
 
 # ==================== POST ORDER ACKNOWLEDGEMENT ADMIN ====================
@@ -614,6 +653,8 @@ class PostOrderAcknowledgementAdmin(admin.ModelAdmin):
 
     actions = ['verify_acknowledgements', 'invalidate_acknowledgements']
 
+    list_per_page = 50
+
     def acknowledgement_id(self, obj):
         """Short ID for display"""
         return f"ACK-{obj.id}"
@@ -712,6 +753,17 @@ class PostOrderAcknowledgementAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} acknowledgements invalidated')
     invalidate_acknowledgements.short_description = 'Invalidate acknowledgements'
 
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'worker',
+            'post',
+            'post__site',
+            'post_assignment',
+            'verified_by'
+        )
+
 
 # ==================== PEOPLE EVENT LOG ADMIN (ENHANCED) ====================
 
@@ -752,6 +804,8 @@ class PeopleEventlogAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at', 'cdtz')
 
     date_hierarchy = 'datefor'
+
+    list_per_page = 50
 
     def worker_name(self, obj):
         """Display worker name"""
@@ -798,6 +852,17 @@ class PeopleEventlogAdmin(admin.ModelAdmin):
             return format_html('<span style="color: red;">✗ Failed</span>')
     validation_status.short_description = 'Validation'
 
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'people',
+            'bu',
+            'shift',
+            'post',
+            'post__site'
+        )
+
 
 # ==================== GEOFENCE ADMIN ====================
 
@@ -808,9 +873,15 @@ class GeofenceAdmin(GISModelAdmin):
     list_display = ('name', 'geofence_type', 'bu', 'is_active', 'posts_count')
     list_filter = ('geofence_type', 'is_active', 'bu')
     search_fields = ('name', 'bu__buname')
+    list_per_page = 50
 
     def posts_count(self, obj):
         """Count of posts using this geofence"""
         count = obj.posts.count()
         return format_html('<span>{}</span>', count)
     posts_count.short_description = 'Posts Using'
+
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related('bu')

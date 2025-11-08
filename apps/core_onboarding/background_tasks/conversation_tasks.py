@@ -24,6 +24,8 @@ from apps.core_onboarding.models import ConversationSession, LLMRecommendation, 
 from apps.core_onboarding.services.llm import get_llm_service, get_checker_service, get_consensus_engine
 from apps.core_onboarding.services.knowledge import get_knowledge_service, get_embedding_generator
 from apps.core_onboarding.services.translation import get_conversation_translator
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger("django")
 task_logger = logging.getLogger("celery.task")
@@ -73,7 +75,7 @@ def validate_document_url(url: str) -> bool:
     # Parse URL
     try:
         parsed = urlparse(url)
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         raise ValidationError(f"Invalid URL format: {str(e)}")
 
     # Check scheme
@@ -827,7 +829,7 @@ def ingest_document(self, job_id: str):
             fetch_result['content'] = sanitized_content
             fetch_result['metadata']['sanitization_report'] = sanitization_report
 
-        except Exception as sanitize_error:
+        except NETWORK_EXCEPTIONS as sanitize_error:
             task_logger.error(f"Content sanitization failed: {str(sanitize_error)}")
             job.update_status(KnowledgeIngestionJob.StatusChoices.FAILED, str(sanitize_error))
             job.source.fetch_error_count += 1

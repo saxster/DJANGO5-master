@@ -389,6 +389,6 @@ if __name__ == '__main__':
     # Command-line validation
     import json
 
-    print("Validating logging configuration...")
+    logger.debug("Validating logging configuration...")
     health = get_logging_health_status()
-    print(json.dumps(health, indent=2, default=str))
+    logger.debug(json.dumps(health, indent=2, default=str))

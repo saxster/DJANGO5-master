@@ -370,6 +370,14 @@ class EventRetention(models.Model):
     days_to_keep = models.IntegerField(validators=[MinValueValidator(0)])
     last_cleanup_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        verbose_name = "Event Retention Policy"
+        verbose_name_plural = "Event Retention Policies"
+        ordering = ['retention_type']
+        indexes = [
+            models.Index(fields=['retention_type']),
+        ]
+
     def __str__(self):
         return f"{self.retention_type} - {self.days_to_keep} days"
 
@@ -392,6 +400,8 @@ class StreamEventArchive(models.Model):
     expires_at = models.DateTimeField(help_text="When this archive will be deleted")
 
     class Meta:
+        verbose_name = "Stream Event Archive"
+        verbose_name_plural = "Stream Event Archives"
         ordering = ['-archive_date']
         indexes = [
             models.Index(fields=['archive_date']),

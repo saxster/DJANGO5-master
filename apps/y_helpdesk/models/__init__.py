@@ -494,6 +494,9 @@ from .audit_log import TicketAuditLog
 # Import Ticket Attachment (Nov 3, 2025 - Security Enhancement)
 from .ticket_attachment import TicketAttachment
 
+# Import SLA Prediction (Nov 7, 2025 - Priority Alerts)
+from .sla_prediction import SLAPrediction
+
 
 # =============================================================================
 # EXPORTS
@@ -506,5 +509,6 @@ __all__ = [
     'SLAPolicy',
     'TicketAuditLog',
     'TicketAttachment',
+    'SLAPrediction',
     'ticket_defaults',
 ]

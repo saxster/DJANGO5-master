@@ -23,6 +23,7 @@ USAGE:
   </div>
 
   <div class="yt-approval__body">
+    {# SECURITY: |safe intentional - content contains pre-rendered HTML from component caller #}
     {{ caller() if caller else content|default:''|safe }}
   </div>
 

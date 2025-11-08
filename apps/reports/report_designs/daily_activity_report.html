@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Activity Report - {{ site.name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 20pt;
+        }
+
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 11pt;
+            margin-top: 5px;
+        }
+
+        .logo {
+            max-height: 60px;
+            margin-bottom: 10px;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+
+        .meta-info .col {
+            flex: 1;
+        }
+
+        .meta-info strong {
+            color: #2c3e50;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            background: #3498db;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-radius: 3px;
+        }
+
+        .section-title.warning {
+            background: #e74c3c;
+        }
+
+        .section-title.success {
+            background: #27ae60;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            border: 1px solid #bdc3c7;
+            padding: 12px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-box .value {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 5px 0;
+        }
+
+        .stat-box .label {
+            color: #7f8c8d;
+            font-size: 9pt;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 9pt;
+        }
+
+        table th {
+            background: #34495e;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .severity-HIGH,
+        .severity-CRITICAL {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .severity-MEDIUM {
+            color: #f39c12;
+        }
+
+        .severity-LOW {
+            color: #95a5a6;
+        }
+
+        .status-OPEN {
+            color: #e74c3c;
+        }
+
+        .status-COMPLETED,
+        .status-RESOLVED {
+            color: #27ae60;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #95a5a6;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .supervisor-notes {
+            border-left: 4px solid #3498db;
+            background: #ecf0f1;
+            padding: 15px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #bdc3c7;
+            text-align: center;
+            font-size: 8pt;
+            color: #95a5a6;
+        }
+
+        .signature-block {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 40px;
+            page-break-inside: avoid;
+        }
+
+        .signature {
+            text-align: center;
+            flex: 1;
+        }
+
+        .signature-line {
+            border-top: 1px solid #2c3e50;
+            margin: 40px 20px 5px 20px;
+        }
+
+        .progress-bar {
+            background: #ecf0f1;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: #27ae60;
+            height: 100%;
+            line-height: 20px;
+            color: white;
+            text-align: center;
+            font-size: 8pt;
+            font-weight: bold;
+        }
+
+        .progress-fill.low {
+            background: #e74c3c;
+        }
+
+        .progress-fill.medium {
+            background: #f39c12;
+        }
+
+        @media print {
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    {% if site.client_logo %}
+    <img src="{{ site.client_logo }}" alt="Logo" class="logo">
+    {% endif %}
+    <h1>Daily Activity Report</h1>
+    <div class="subtitle">{{ site.name }} - {{ site.client_name }}</div>
+</div>
+
+<!-- Meta Information -->
+<div class="meta-info">
+    <div class="col">
+        <strong>Shift Date:</strong> {{ shift_date|date:"F d, Y" }}<br>
+        <strong>Shift Type:</strong> {{ shift_type|upper }}<br>
+        <strong>Shift Hours:</strong> {{ shift_start|date:"H:i" }} - {{ shift_end|date:"H:i" }}
+    </div>
+    <div class="col">
+        <strong>Site:</strong> {{ site.name }}<br>
+        <strong>Address:</strong> {{ site.address }}<br>
+        <strong>Client:</strong> {{ site.client_name }}
+    </div>
+    <div class="col">
+        <strong>Generated:</strong> {{ generated_at|date:"Y-m-d H:i" }}<br>
+        <strong>Report ID:</strong> DAR-{{ site.id }}-{{ shift_date|date:"Ymd" }}
+    </div>
+</div>
+
+<!-- Shift Summary -->
+<div class="section">
+    <div class="section-title success">📊 Shift Summary</div>
+    <div class="summary-grid">
+        <div class="stat-box">
+            <div class="label">Guards Present</div>
+            <div class="value">{{ summary.guards_present }} / {{ summary.guards_assigned }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">Total Hours Worked</div>
+            <div class="value">{{ summary.total_hours_worked }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="label">Coverage</div>
+            <div class="value">{{ summary.coverage_percentage }}%</div>
+        </div>
+    </div>
+
+    <!-- Coverage Progress Bar -->
+    <div class="progress-bar">
+        <div class="progress-fill {% if summary.coverage_percentage < 70 %}low{% elif summary.coverage_percentage < 90 %}medium{% endif %}"
+             style="width: {{ summary.coverage_percentage }}%">
+            {{ summary.coverage_percentage }}% Coverage
+        </div>
+    </div>
+</div>
+
+<!-- Incidents -->
+<div class="section">
+    <div class="section-title {% if incidents %}warning{% endif %}">🚨 Incidents & Events</div>
+    {% if incidents %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Description</th>
+                <th>Reported By</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for incident in incidents %}
+            <tr>
+                <td>{{ incident.timestamp|date:"H:i" }}</td>
+                <td>{{ incident.type }}</td>
+                <td class="severity-{{ incident.severity }}">{{ incident.severity }}</td>
+                <td>{{ incident.description }}</td>
+                <td>{{ incident.reported_by }}</td>
+                <td class="status-{{ incident.status }}">{{ incident.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data">✓ No incidents reported during this shift</div>
+    {% endif %}
+</div>
+
+<!-- Tours Completed -->
+<div class="section">
+    <div class="section-title success">🚶 Tours & Patrols Completed</div>
+    {% if tours %}
+    <table>
+        <thead>
+            <tr>
+                <th>Tour Name</th>
+                <th>Assigned To</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Duration</th>
+                <th>Checkpoints</th>
+                <th>Completion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tour in tours %}
+            <tr>
+                <td>{{ tour.tour_name }}</td>
+                <td>{{ tour.assigned_to }}</td>
+                <td>{{ tour.start_time|date:"H:i" }}</td>
+                <td>{{ tour.end_time|date:"H:i" }}</td>
+                <td>{{ tour.duration_minutes|floatformat:0 }} min</td>
+                <td>{{ tour.checkpoints_scanned }} / {{ tour.checkpoints_total }}</td>
+                <td>
+                    <div class="progress-bar" style="height: 15px;">
+                        <div class="progress-fill {% if tour.completion_rate < 70 %}low{% elif tour.completion_rate < 90 %}medium{% endif %}"
+                             style="width: {{ tour.completion_rate }}%; font-size: 7pt;">
+                            {{ tour.completion_rate|floatformat:0 }}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data">No tours scheduled for this shift</div>
+    {% endif %}
+</div>
+
+<!-- SOS Alerts -->
+{% if sos_alerts %}
+<div class="section">
+    <div class="section-title warning">🆘 SOS Alerts</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Guard Name</th>
+                <th>Location</th>
+                <th>Response Time</th>
+                <th>Status</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sos in sos_alerts %}
+            <tr>
+                <td>{{ sos.timestamp|date:"H:i:s" }}</td>
+                <td>{{ sos.guard_name }}</td>
+                <td>{{ sos.location }}</td>
+                <td>
+                    {% if sos.response_time_minutes %}
+                        {{ sos.response_time_minutes|floatformat:1 }} min
+                    {% else %}
+                        <span class="status-OPEN">Pending</span>
+                    {% endif %}
+                </td>
+                <td class="status-{{ sos.status }}">{{ sos.status }}</td>
+                <td>{{ sos.notes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Device Events -->
+<div class="section">
+    <div class="section-title">📱 Device Events</div>
+    {% if device_events %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Device ID</th>
+                <th>Event Type</th>
+                <th>Description</th>
+                <th>Severity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in device_events %}
+            <tr>
+                <td>{{ event.timestamp|date:"H:i" }}</td>
+                <td>{{ event.device_id }}</td>
+                <td>{{ event.event_type }}</td>
+                <td>{{ event.description }}</td>
+                <td class="severity-{{ event.severity }}">{{ event.severity }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data">✓ All devices operating normally</div>
+    {% endif %}
+</div>
+
+<!-- Attendance Exceptions -->
+{% if exceptions %}
+<div class="section">
+    <div class="section-title warning">⚠️ Attendance Exceptions</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Guard Name</th>
+                <th>Scheduled</th>
+                <th>Actual</th>
+                <th>Variance</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exception in exceptions %}
+            <tr>
+                <td>{{ exception.type|replace:"_":" " }}</td>
+                <td>{{ exception.guard_name }}</td>
+                <td>{{ exception.scheduled_time|date:"H:i" }}</td>
+                <td>{{ exception.actual_time|date:"H:i" }}</td>
+                <td>
+                    {% if exception.minutes_late %}
+                        {{ exception.minutes_late }} min late
+                    {% elif exception.minutes_early %}
+                        {{ exception.minutes_early }} min early
+                    {% endif %}
+                </td>
+                <td>{{ exception.reason }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Supervisor Notes -->
+{% if supervisor_notes %}
+<div class="section">
+    <div class="section-title">📝 Supervisor Notes</div>
+    <div class="supervisor-notes">
+        {{ supervisor_notes }}
+    </div>
+</div>
+{% endif %}
+
+<!-- Signature Block -->
+<div class="signature-block">
+    <div class="signature">
+        <div class="signature-line"></div>
+        <strong>Shift Supervisor</strong><br>
+        Date: __________________
+    </div>
+    <div class="signature">
+        <div class="signature-line"></div>
+        <strong>Site Manager</strong><br>
+        Date: __________________
+    </div>
+    <div class="signature">
+        <div class="signature-line"></div>
+        <strong>Client Representative</strong><br>
+        Date: __________________
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <p>This report is confidential and intended solely for authorized personnel.</p>
+    <p>Generated by YOUTILITY5 Facility Management System | {{ generated_at|date:"Y-m-d H:i:s" }}</p>
+</div>
+
+</body>
+</html>

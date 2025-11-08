@@ -119,9 +119,9 @@ class GeofenceValidationService:
                 exc_info=True
             )
             return False
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             error_logger.error(
-                f"Unexpected error in point-in-geofence check: {str(e)}",
+                f"Data validation error in point-in-geofence check: {str(e)}",
                 exc_info=True
             )
             return False
@@ -194,7 +194,7 @@ class GeofenceValidationService:
             )
             return results
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_logger.error(
                 f"Error in batch point checking: {str(e)}",
                 exc_info=True
@@ -259,12 +259,14 @@ class GeofenceValidationService:
 
         except GEOSException as e:
             error_logger.error(
-                f"GEOS error calculating distance to boundary: {str(e)}"
+                f"GEOS error calculating distance to boundary: {str(e)}",
+                exc_info=True
             )
             return 0.0
-        except Exception as e:
+        except (ValueError, TypeError, ArithmeticError) as e:
             error_logger.error(
-                f"Error calculating distance to boundary: {str(e)}"
+                f"Error calculating distance to boundary: {str(e)}",
+                exc_info=True
             )
             return 0.0
 

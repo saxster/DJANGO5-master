@@ -160,7 +160,7 @@ def backfill_posts_from_zones(apps, schema_editor):
                     posts_created += 1
                     print(f"Created post: {post_code} - {post_name}")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 error_msg = f"Error processing zone {zone.zone_name}: {str(e)}"
                 print(error_msg)
                 errors.append(error_msg)
@@ -172,7 +172,7 @@ def backfill_posts_from_zones(apps, schema_editor):
             for error in errors[:10]:  # Show first 10 errors
                 print(f"  - {error}")
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         print(f"Critical error during backfill: {str(e)}")
         raise
 

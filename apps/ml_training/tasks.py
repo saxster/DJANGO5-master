@@ -38,6 +38,8 @@ from django.conf import settings
 from apps.core.tasks.websocket_broadcast import WebSocketBroadcastTask
 from apps.core.tasks.base import TaskMetrics
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger("ml_training.tasks")
 
@@ -143,7 +145,7 @@ def train_model(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error during model training: {e}", exc_info=True)
         raise self.retry(exc=e)
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error training model: {e}", exc_info=True)
         if user_id:
             self.broadcast_task_progress(
@@ -219,7 +221,7 @@ def active_learning_loop(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error in active learning loop: {e}", exc_info=True)
         raise self.retry(exc=e)
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.error(f"Error in active learning loop: {e}", exc_info=True)
         raise
 
@@ -304,7 +306,7 @@ def dataset_labeling(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error during dataset labeling: {e}", exc_info=True)
         raise self.retry(exc=e)
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.error(f"Error labeling dataset: {e}", exc_info=True)
         if user_id:
             self.broadcast_task_progress(
@@ -388,6 +390,6 @@ def evaluate_model(
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error during model evaluation: {e}", exc_info=True)
         raise self.retry(exc=e)
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.error(f"Error evaluating model: {e}", exc_info=True)
         raise

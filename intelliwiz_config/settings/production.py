@@ -84,7 +84,7 @@ except SecretValidationError as e:
     sys.stderr.write(f"📋 Review secure logs: /var/log/youtility4/security.log\n")
     sys.stderr.write(f"🚨 Production startup aborted for security\n\n")
     sys.exit(1)
-except Exception as e:
+except SETTINGS_EXCEPTIONS as e:
     import sys
     import uuid
     correlation_id = str(uuid.uuid4())
@@ -187,6 +187,8 @@ LANGUAGE_COOKIE_SECURE = True  # Protect language preference cookie over HTTPS
 
 # Template performance optimization (disable auto-reload in production)
 from copy import deepcopy
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 TEMPLATES = deepcopy(TEMPLATES)
 if len(TEMPLATES) > 1:  # Jinja2 template config
     TEMPLATES[1]['OPTIONS']['auto_reload'] = False

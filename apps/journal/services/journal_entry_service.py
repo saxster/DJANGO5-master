@@ -56,8 +56,8 @@ class JournalEntryService:
             # Trigger basic pattern analysis
             try:
                 self._trigger_pattern_analysis(journal_entry)
-            except Exception as e:
-                logger.error(f"Pattern analysis failed: {e}")
+            except (ImportError, AttributeError, TypeError) as e:
+                logger.error(f"Pattern analysis failed: {e}", exc_info=True)
 
             return {
                 'success': True,

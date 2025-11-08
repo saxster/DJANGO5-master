@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 class TicketListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for ticket list views."""
+    """
+    Lightweight serializer for ticket list views.
+    
+    N+1 Optimization: Use with queryset optimized via:
+        Ticket.objects.select_related('assignedtopeople', 'assignedtogroup', 
+                                       'ticketcategory', 'bu', 'client')
+    """
 
     assigned_to_name = serializers.CharField(
         source='assigned_to.get_full_name',
@@ -46,6 +52,11 @@ class TicketDetailSerializer(serializers.ModelSerializer):
 
     Performance note: is_overdue now uses database annotation from ViewSet.get_queryset()
     instead of SerializerMethodField to eliminate N+1 queries (30-40% faster serialization).
+    
+    N+1 Optimization: Use with queryset optimized via:
+        Ticket.objects.select_related('assignedtopeople', 'assignedtogroup', 
+                                       'ticketcategory', 'bu', 'client')
+                      .prefetch_related('attachments', 'tags')
     """
 
     assigned_to_name = serializers.CharField(

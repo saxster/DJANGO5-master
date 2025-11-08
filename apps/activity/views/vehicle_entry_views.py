@@ -118,7 +118,7 @@ class VehicleEntryUploadAPIView(APIView):
                 )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Unexpected error in vehicle upload API: {str(e), exc_info=True}", exc_info=True)
+            logger.error(f"Unexpected error in vehicle upload API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -171,7 +171,7 @@ class VehicleExitAPIView(APIView):
                 )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error in vehicle exit API: {str(e), exc_info=True}")
+            logger.error(f"Error in vehicle exit API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -219,7 +219,7 @@ class VehicleHistoryAPIView(APIView):
             })
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error fetching vehicle history: {str(e), exc_info=True}")
+            logger.error(f"Error fetching vehicle history: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to fetch history'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -267,7 +267,7 @@ class ActiveVehiclesAPIView(APIView):
             })
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error fetching active vehicles: {str(e), exc_info=True}")
+            logger.error(f"Error fetching active vehicles: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to fetch active vehicles'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -317,7 +317,7 @@ class VehicleEntryDashboard(LoginRequiredMixin, View):
             return render(request, 'activity/vehicle_entry_dashboard.html', context)
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error loading vehicle dashboard: {str(e), exc_info=True}")
+            logger.error(f"Error loading vehicle dashboard: {str(e)}", exc_info=True)
             messages.error(request, "Error loading dashboard")
             return render(request, 'activity/vehicle_entry_dashboard.html', {})
 
@@ -397,7 +397,7 @@ class VehicleEntryCapture(LoginRequiredMixin, View):
                 messages.error(request, f"Failed to process vehicle: {result['error']}")
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error processing vehicle entry: {str(e), exc_info=True}")
+            logger.error(f"Error processing vehicle entry: {str(e)}", exc_info=True)
             messages.error(request, "Error processing vehicle entry")
 
         return self.get(request)
@@ -464,7 +464,7 @@ class VehicleEntryApproval(LoginRequiredMixin, View):
                 messages.error(request, "Approval failed")
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error processing approval: {str(e), exc_info=True}")
+            logger.error(f"Error processing approval: {str(e)}", exc_info=True)
             messages.error(request, "Error processing approval")
 
         return self.get(request)
@@ -531,7 +531,7 @@ class VehicleSecurityAlerts(LoginRequiredMixin, View):
         except VehicleSecurityAlert.DoesNotExist:
             messages.error(request, "Alert not found")
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error acknowledging alert: {str(e), exc_info=True}")
+            logger.error(f"Error acknowledging alert: {str(e)}", exc_info=True)
             messages.error(request, "Error acknowledging alert")
 
         return self.get(request)

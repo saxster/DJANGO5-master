@@ -1,3 +1,7 @@
+
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Help Desk Natural Language Query Examples.
 
@@ -443,12 +447,9 @@ TOTAL_EXAMPLES = sum(len(examples) for examples in HELPDESK_QUERY_EXAMPLES.value
 CATEGORIES = list(HELPDESK_QUERY_EXAMPLES.keys())
 
 if __name__ == '__main__':
-    print(f"Help Desk NL Query Examples")
-    print(f"Total Examples: {TOTAL_EXAMPLES}")
-    print(f"Categories: {', '.join(CATEGORIES)}")
-    print(f"\nSample queries:")
+    logger.debug(f"Categories: {', '.join(CATEGORIES)}")
+    logger.debug(f"\nSample queries:")
     for category in CATEGORIES[:3]:
         examples = HELPDESK_QUERY_EXAMPLES[category]
-        print(f"\n{category.upper()}:")
+        logger.debug(f"\n{category.upper()}:")
         for example in examples[:2]:
-            print(f"  - {example['query']}")

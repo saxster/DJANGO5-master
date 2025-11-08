@@ -11,6 +11,8 @@ from django.utils import timezone
 from django.core.mail import mail_admins
 from django.conf import settings
 from apps.core.services.redis_memory_manager import redis_memory_manager
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +90,7 @@ def monitor_redis_memory(self):
         logger.info(f"Redis memory monitoring completed: {result}")
         return result
 
-    except Exception as exc:
+    except (ValueError, TypeError, AttributeError) as exc:
         logger.error(f"Redis memory monitoring failed: {exc}")
         # Retry with exponential backoff
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
@@ -162,7 +164,7 @@ def optimize_redis_memory(self, force=False, alert_threshold=85.0):
 
         return result
 
-    except Exception as exc:
+    except (ValueError, TypeError, AttributeError) as exc:
         logger.error(f"Redis memory optimization failed: {exc}")
         # Limited retries for optimization tasks
         if self.request.retries < self.max_retries:
@@ -230,7 +232,7 @@ def generate_redis_memory_report():
         logger.info("Redis memory report generated successfully")
         return report
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to generate Redis memory report: {e}")
         return {'status': 'error', 'message': str(e)}
 
@@ -267,7 +269,7 @@ def _send_memory_alert_email(alerts, stats):
         mail_admins(subject, message, fail_silently=False)
         logger.info("Redis memory alert email sent successfully")
 
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(f"Failed to send Redis memory alert email: {e}")
 
 
@@ -290,7 +292,7 @@ Generated at: {timezone.now()}
         mail_admins(subject, message, fail_silently=False)
         logger.info("Redis optimization failure email sent successfully")
 
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(f"Failed to send optimization failure email: {e}")
 
 

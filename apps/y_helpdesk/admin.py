@@ -15,12 +15,53 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.core.exceptions import ObjectDoesNotExist
 
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.y_helpdesk.models.sla_policy import SLAPolicy
 from apps.y_helpdesk.models.ticket_workflow import TicketWorkflow
 from apps.y_helpdesk.models.ticket_attachment import TicketAttachment
 from apps.y_helpdesk.models.audit_log import TicketAuditLog
+from apps.y_helpdesk.models.sla_prediction import SLAPrediction
+from apps.y_helpdesk.services.priority_alert_service import PriorityAlertService
+from apps.core.services.smart_assignment_service import SmartAssignmentService
+from apps.peoples.models import AgentSkill
+
+
+class PriorityAlertFilter(admin.SimpleListFilter):
+    """Filter tickets by priority alert level."""
+    title = 'Priority Level'
+    parameter_name = 'alert'
+    
+    def lookups(self, request, model_admin):
+        return [
+            ('urgent', '🔴 Urgent (need attention now)'),
+            ('soon', '🟠 Soon (check on these)'),
+            ('ok', '🟢 On Track'),
+        ]
+    
+    def queryset(self, request, queryset):
+        if self.value() == 'urgent':
+            return queryset.filter(
+                id__in=SLAPrediction.objects.filter(
+                    item_type='Ticket',
+                    risk_level='high'
+                ).values_list('item_id', flat=True)
+            )
+        elif self.value() == 'soon':
+            return queryset.filter(
+                id__in=SLAPrediction.objects.filter(
+                    item_type='Ticket',
+                    risk_level='medium'
+                ).values_list('item_id', flat=True)
+            )
+        elif self.value() == 'ok':
+            return queryset.filter(
+                id__in=SLAPrediction.objects.filter(
+                    item_type='Ticket',
+                    risk_level='low'
+                ).values_list('item_id', flat=True)
+            )
 
 
 @admin.register(Ticket)
@@ -33,10 +74,15 @@ class TicketAdmin(admin.ModelAdmin):
     - Sentiment indicators
     - SLA overdue warnings
     - Quick filters for triage
+    
+    N+1 Query Optimization:
+    - select_related: assignedtopeople, bu, createdbypeople, ticketcategory, ticketsubcategory
+    - prefetch_related: workflow_history, attachments
     """
 
     list_display = (
         'ticketno',
+        'priority_alert_badge',
         'status_badge',
         'priority_badge',
         'sentiment_indicator',
@@ -45,10 +91,18 @@ class TicketAdmin(admin.ModelAdmin):
         'created_display',
         'sla_indicator'
     )
+    
+    # N+1 query optimization
+    list_select_related = [
+        'assignedtopeople', 'bu', 'createdbypeople', 
+        'ticketcategory', 'ticketsubcategory'
+    ]
+    list_prefetch_related = ['workflow_history', 'attachments']
 
     list_filter = (
         'status',
         'priority',
+        PriorityAlertFilter,
         'ticketsource',
         'sentiment_label',
         'ticketcategory',
@@ -191,6 +245,39 @@ class TicketAdmin(admin.ModelAdmin):
     created_display.short_description = 'Created'
     created_display.admin_order_field = 'cdtz'
 
+    def priority_alert_badge(self, obj):
+        """Show friendly risk badge."""
+        try:
+            # Get related prediction
+            prediction = SLAPrediction.objects.filter(
+                item_type='Ticket',
+                item_id=obj.id
+            ).first()
+            
+            if prediction:
+                colors = {
+                    'high': '#dc3545',
+                    'medium': '#ffc107',
+                    'low': '#28a745',
+                }
+                icons = {
+                    'high': '🔴',
+                    'medium': '🟠',
+                    'low': '🟢',
+                }
+                return format_html(
+                    '<span style="background: {}; padding: 3px 8px; border-radius: 3px; '
+                    'color: white; font-weight: bold;">{} {}</span>',
+                    colors.get(prediction.risk_level, '#6c757d'),
+                    icons.get(prediction.risk_level, '⚪'),
+                    prediction.get_risk_level_display().replace('🟢 ', '').replace('🟠 ', '').replace('🔴 ', '')
+                )
+            return '—'
+        except (AttributeError, ObjectDoesNotExist):  # Security: Specific exceptions instead of bare Exception
+            return '—'
+    priority_alert_badge.short_description = 'Alert'
+    priority_alert_badge.admin_order_field = 'sla_prediction__risk_level'
+
     def sla_indicator(self, obj):
         """SLA status indicator."""
         try:
@@ -200,7 +287,7 @@ class TicketAdmin(admin.ModelAdmin):
                     '<span style="color: #dc3545; font-weight: bold;">⚠ ESC L{}</span>',
                     workflow.escalation_level
                 )
-        except:
+        except (AttributeError, ObjectDoesNotExist):
             pass
         return format_html('<span style="color: #28a745;">✓ OK</span>')
     sla_indicator.short_description = 'SLA'
@@ -219,6 +306,40 @@ class TicketAdmin(admin.ModelAdmin):
             'cuser',
             'muser'
         ).prefetch_related('workflow')
+    
+    def change_view(self, request, object_id, **kwargs):
+        """Show priority alert info and smart assignment suggestions."""
+        extra_context = kwargs.get('extra_context', {})
+        
+        ticket = self.get_object(request, object_id)
+        if ticket:
+            service = PriorityAlertService()
+            risk = service.check_ticket_risk(ticket)
+            extra_context['priority_alert'] = risk
+            
+            if not ticket.assignedtopeople:
+                suggestions = SmartAssignmentService.suggest_assignee(ticket)
+                extra_context['assignment_suggestions'] = suggestions
+        
+        kwargs['extra_context'] = extra_context
+        return super().change_view(request, object_id, **kwargs)
+    
+    @admin.action(description='🤖 Auto-assign to best person')
+    def smart_assign(self, request, queryset):
+        """Automatically assign tickets using smart assignment."""
+        assigned = 0
+        
+        for ticket in queryset.filter(assignedtopeople__isnull=True):
+            result = SmartAssignmentService.auto_assign(ticket)
+            if result:
+                assigned += 1
+        
+        self.message_user(
+            request,
+            f"✅ Assigned {assigned} tickets using smart assignment"
+        )
+    
+    actions = ['smart_assign']
 
 
 @admin.register(EscalationMatrix)
@@ -238,6 +359,7 @@ class EscalationMatrixAdmin(admin.ModelAdmin):
 
     list_filter = ('frequency', 'notify')
     search_fields = ('job__jobname', 'task__taskname')
+    list_per_page = 50
 
     fieldsets = (
         ('Trigger Conditions', {
@@ -247,6 +369,16 @@ class EscalationMatrixAdmin(admin.ModelAdmin):
             'fields': ('notify', 'assignperson', 'assigngroup')
         }),
     )
+
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'job',
+            'task',
+            'assignperson',
+            'assigngroup'
+        )
 
 
 @admin.register(SLAPolicy)
@@ -265,6 +397,7 @@ class SLAPolicyAdmin(admin.ModelAdmin):
 
     list_filter = ('priority', 'is_active', 'business_hours_only')
     search_fields = ('client__btname',)
+    list_per_page = 50
 
     fieldsets = (
         ('Policy Details', {
@@ -295,6 +428,11 @@ class SLAPolicyAdmin(admin.ModelAdmin):
         return f"{hours:.1f}h"
     resolution_time_display.short_description = 'Resolution Time'
 
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related('client')
+
 
 @admin.register(TicketWorkflow)
 class TicketWorkflowAdmin(admin.ModelAdmin):
@@ -311,6 +449,7 @@ class TicketWorkflowAdmin(admin.ModelAdmin):
 
     list_filter = ('workflow_status', 'is_escalated')
     search_fields = ('ticket__ticketno',)
+    list_per_page = 50
 
     readonly_fields = (
         'ticket',
@@ -348,6 +487,11 @@ class TicketWorkflowAdmin(admin.ModelAdmin):
         return "—"
     last_activity_display.short_description = 'Last Activity'
 
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related('ticket')
+
 
 @admin.register(TicketAttachment)
 class TicketAttachmentAdmin(admin.ModelAdmin):
@@ -366,6 +510,7 @@ class TicketAttachmentAdmin(admin.ModelAdmin):
 
     list_filter = ('scan_status', 'content_type', 'uploaded_at')
     search_fields = ('filename', 'ticket__ticketno', 'uploaded_by__peoplename')
+    list_per_page = 50
 
     readonly_fields = (
         'uuid',
@@ -432,6 +577,11 @@ class TicketAttachmentAdmin(admin.ModelAdmin):
         """Only superusers can delete attachments."""
         return request.user.is_superuser
 
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related('ticket', 'uploaded_by')
+
 
 @admin.register(TicketAuditLog)
 class TicketAuditLogAdmin(admin.ModelAdmin):
@@ -449,6 +599,7 @@ class TicketAuditLogAdmin(admin.ModelAdmin):
 
     list_filter = ('event_category', 'severity_level', 'timestamp')
     search_fields = ('event_id', 'ticket__ticketno', 'user__peoplename', 'event_type')
+    list_per_page = 50
 
     readonly_fields = (
         'event_id',
@@ -510,6 +661,129 @@ class TicketAuditLogAdmin(admin.ModelAdmin):
             if is_valid:
                 return format_html('<span style="color: #28a745;">✓ Valid</span>')
             return format_html('<span style="color: #dc3545;">⚠ Tampered</span>')
-        except:
+        except (AttributeError, ValueError, TypeError):
             return format_html('<span style="color: #6c757d;">? Unknown</span>')
     integrity_status.short_description = 'Integrity'
+
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries."""
+        qs = super().get_queryset(request)
+        return qs.select_related('ticket', 'user', 'tenant')
+
+
+@admin.register(SLAPrediction)
+class SLAPredictionAdmin(admin.ModelAdmin):
+    """Admin interface for Priority Alerts."""
+    
+    list_display = (
+        'id',
+        'item_display',
+        'risk_badge',
+        'confidence',
+        'is_acknowledged',
+        'acknowledged_by',
+        'last_checked',
+    )
+    
+    list_filter = (
+        'risk_level',
+        'is_acknowledged',
+        'item_type',
+    )
+    
+    search_fields = (
+        'item_id',
+    )
+    
+    readonly_fields = (
+        'item_type',
+        'item_id',
+        'risk_factors_display',
+        'suggested_actions_display',
+        'last_checked',
+        'alert_sent_at',
+    )
+    
+    fieldsets = (
+        ('Item Information', {
+            'fields': ('item_type', 'item_id')
+        }),
+        ('Risk Assessment', {
+            'fields': (
+                'risk_level',
+                'confidence',
+                'risk_factors_display',
+                'suggested_actions_display',
+                'last_checked'
+            )
+        }),
+        ('User Interaction', {
+            'fields': (
+                'is_acknowledged',
+                'acknowledged_by',
+                'acknowledged_at',
+                'alert_sent_at'
+            )
+        }),
+    )
+    
+    list_per_page = 50
+    date_hierarchy = 'last_checked'
+    
+    def item_display(self, obj):
+        """Show item type and ID."""
+        return f"{obj.item_type} #{obj.item_id}"
+    item_display.short_description = 'Item'
+    
+    def risk_badge(self, obj):
+        """Show friendly risk badge."""
+        colors = {
+            'high': '#dc3545',
+            'medium': '#ffc107',
+            'low': '#28a745',
+        }
+        return format_html(
+            '<span style="background: {}; padding: 3px 8px; border-radius: 3px; '
+            'color: white; font-weight: bold;">{}</span>',
+            colors.get(obj.risk_level, '#6c757d'),
+            obj.get_risk_level_display()
+        )
+    risk_badge.short_description = 'Risk Level'
+    risk_badge.admin_order_field = 'risk_level'
+    
+    def risk_factors_display(self, obj):
+        """Display risk factors in readable format."""
+        if not obj.risk_factors:
+            return "No factors recorded"
+        
+        html = '<ul style="margin: 0; padding-left: 20px;">'
+        for factor in obj.risk_factors:
+            severity_color = {
+                'high': '#dc3545',
+                'medium': '#ffc107',
+                'low': '#28a745',
+            }.get(factor.get('severity', 'low'), '#6c757d')
+            
+            html += f'<li style="color: {severity_color};">'
+            html += f'{factor.get("icon", "")} {factor.get("message", "")}'
+            html += '</li>'
+        html += '</ul>'
+        return mark_safe(html)
+    risk_factors_display.short_description = 'Risk Factors'
+    
+    def suggested_actions_display(self, obj):
+        """Display suggested actions in readable format."""
+        if not obj.suggested_actions:
+            return "No suggestions"
+        
+        html = '<ol style="margin: 0; padding-left: 20px;">'
+        for action in sorted(obj.suggested_actions, key=lambda x: x.get('priority', 99)):
+            html += f'<li>{action.get("icon", "")} {action.get("text", "")}</li>'
+        html += '</ol>'
+        return mark_safe(html)
+    suggested_actions_display.short_description = 'Suggested Actions'
+    
+    def get_queryset(self, request):
+        """Optimize queryset."""
+        qs = super().get_queryset(request)
+        return qs.select_related('acknowledged_by')

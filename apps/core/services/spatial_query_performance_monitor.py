@@ -218,7 +218,7 @@ class SpatialQueryPerformanceMonitor:
             if self.alert_callback:
                 try:
                     self.alert_callback(slow_query_info)
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     logger.error(f"Alert callback failed: {e}")
 
         except (DatabaseError, ValueError, TypeError) as e:

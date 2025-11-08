@@ -236,6 +236,7 @@ class TaResourceUpdate(resources.ModelResource):
 
 @admin.register(om.TypeAssist)
 class TaAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     """Django admin for TypeAssist model with import/export functionality"""
     resource_class = TaResource
     list_display = (

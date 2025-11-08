@@ -236,7 +236,7 @@ def retrain_conflict_model_weekly_task():
             'cleanup_files_deleted': cleanup_count
         }
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(
             f"Weekly retraining failed: {e}",
             exc_info=True

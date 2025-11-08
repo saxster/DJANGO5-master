@@ -22,6 +22,10 @@ from django.utils import timezone
 from django.core.cache import cache
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger('sync.push')
 
@@ -185,7 +189,7 @@ class SyncPushService:
             logger.info(f"Broadcast to tenant {tenant_id}: {success_count} users")
             return success_count
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Broadcast failed for tenant {tenant_id}: {e}", exc_info=True)
             return 0
 
@@ -238,7 +242,7 @@ class SyncPushService:
             logger.debug(f"Queued offline message for {device_id}")
             return True
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Failed to queue offline message: {e}", exc_info=True)
             return False
 

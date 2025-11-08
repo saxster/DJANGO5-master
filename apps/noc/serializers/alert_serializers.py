@@ -21,7 +21,12 @@ __all__ = [
 
 
 class NOCAlertEventListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for alert list views."""
+    """
+    Lightweight serializer for alert list views.
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        NOCAlertEvent.objects.select_related('client', 'bu')
+    """
 
     client_name = serializers.CharField(source='client.buname', read_only=True)
     site_name = serializers.CharField(source='bu.buname', read_only=True, allow_null=True)
@@ -39,7 +44,14 @@ class NOCAlertEventListSerializer(serializers.ModelSerializer):
 
 
 class NOCAlertEventSerializer(serializers.ModelSerializer):
-    """Detailed serializer for alert detail views with PII masking."""
+    """
+    Detailed serializer for alert detail views with PII masking.
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        NOCAlertEvent.objects.select_related('client', 'bu', 'acknowledged_by', 
+                                             'assigned_to', 'escalated_to', 
+                                             'resolved_by', 'parent_alert')
+    """
 
     client_name = serializers.CharField(source='client.buname', read_only=True)
     site_name = serializers.CharField(source='bu.buname', read_only=True, allow_null=True)
@@ -49,8 +61,8 @@ class NOCAlertEventSerializer(serializers.ModelSerializer):
     resolved_by_name = serializers.SerializerMethodField()
     severity_display = serializers.CharField(source='get_severity_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    time_to_ack_display = serializers.SerializerMethodField()
-    time_to_resolve_display = serializers.SerializerMethodField()
+    time_to_ack_display = serializers.CharField(source='time_to_ack', read_only=True, allow_null=True)
+    time_to_resolve_display = serializers.CharField(source='time_to_resolve', read_only=True, allow_null=True)
 
     class Meta:
         model = NOCAlertEvent
@@ -66,33 +78,43 @@ class NOCAlertEventSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_acknowledged_by_name(self, obj):
+        """
+        Get acknowledged_by name with PII masking.
+        
+        Performance: No additional query if select_related('acknowledged_by') used in queryset.
+        """
         if obj.acknowledged_by:
             return NOCPrivacyService.mask_pii({'name': obj.acknowledged_by.peoplename}, self.context.get('user', None)).get('name')
         return None
 
     def get_assigned_to_name(self, obj):
+        """
+        Get assigned_to name with PII masking.
+        
+        Performance: No additional query if select_related('assigned_to') used in queryset.
+        """
         if obj.assigned_to:
             return NOCPrivacyService.mask_pii({'name': obj.assigned_to.peoplename}, self.context.get('user', None)).get('name')
         return None
 
     def get_escalated_to_name(self, obj):
+        """
+        Get escalated_to name with PII masking.
+        
+        Performance: No additional query if select_related('escalated_to') used in queryset.
+        """
         if obj.escalated_to:
             return NOCPrivacyService.mask_pii({'name': obj.escalated_to.peoplename}, self.context.get('user', None)).get('name')
         return None
 
     def get_resolved_by_name(self, obj):
+        """
+        Get resolved_by name with PII masking.
+        
+        Performance: No additional query if select_related('resolved_by') used in queryset.
+        """
         if obj.resolved_by:
             return NOCPrivacyService.mask_pii({'name': obj.resolved_by.peoplename}, self.context.get('user', None)).get('name')
-        return None
-
-    def get_time_to_ack_display(self, obj):
-        if obj.time_to_ack:
-            return str(obj.time_to_ack)
-        return None
-
-    def get_time_to_resolve_display(self, obj):
-        if obj.time_to_resolve:
-            return str(obj.time_to_resolve)
         return None
 
 

@@ -32,6 +32,12 @@ from .enhanced_base_model import (
     BaseModelCompat
 )
 
+# Admin help system
+from .admin_help import AdminHelpTopic
+
+# Admin mentor system
+from .admin_mentor import AdminMentorSession, AdminMentorTip
+
 # Cron job management
 from .cron_job_definition import CronJobDefinition
 from .cron_job_execution import CronJobExecution
@@ -183,6 +189,15 @@ from .dashboard_saved_view import DashboardSavedView
 # Quality metrics tracking (Phase 7)
 from .quality_metrics import QualityMetric
 
+# Quick Actions (Runbooks/Playbooks)
+from .quick_action import QuickAction, QuickActionExecution, QuickActionChecklist
+
+# Admin Panel Enhancements
+from .admin_runbook import Runbook, RunbookExecution
+from .admin_approval import ApprovalRequest, ApprovalAction
+from .operations_queue import OperationsQueueItem
+from .sla_prediction import SLAPrediction
+
 # Explicit __all__ for clarity and documentation
 __all__ = [
     # Enhanced base models and mixins
@@ -289,4 +304,15 @@ __all__ = [
     "DashboardSavedView",
     # Quality metrics (Phase 7)
     "QualityMetric",
+    # Quick Actions (Runbooks/Playbooks)
+    "QuickAction",
+    "QuickActionExecution",
+    "QuickActionChecklist",
+    # Admin Panel Enhancements
+    "Runbook",
+    "RunbookExecution",
+    "ApprovalRequest",
+    "ApprovalAction",
+    "OperationsQueueItem",
+    "SLAPrediction",
 ]

@@ -425,7 +425,7 @@ class CeleryHealthCheckView(View):
         """Check Redis/broker connection"""
         try:
             from django.core.cache import cache
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
+            from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
             # Simple connectivity test
             cache.set('celery_health_test', 'ok', timeout=60)
             result = cache.get('celery_health_test')

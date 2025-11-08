@@ -11,6 +11,8 @@ from django.utils import timezone
 from django.core.mail import mail_admins
 from django.conf import settings
 from apps.core.services.redis_backup_service import redis_backup_service
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ def create_scheduled_redis_backup(self, backup_type='full', compression=True):
         logger.info(f"Scheduled Redis backup completed: {backup_info.backup_id}")
         return result
 
-    except Exception as exc:
+    except CACHE_EXCEPTIONS as exc:
         error_msg = f"Scheduled Redis backup failed: {str(exc)}"
         logger.error(error_msg)
 
@@ -125,7 +127,7 @@ def cleanup_old_redis_backups(self, retention_days=None):
 
         return result
 
-    except Exception as exc:
+    except CACHE_EXCEPTIONS as exc:
         error_msg = f"Redis backup cleanup failed: {str(exc)}"
         logger.error(error_msg)
 
@@ -186,7 +188,7 @@ def verify_redis_backups(self, days_back=7):
                         f"{backup_info.backup_id}: {backup_info.verification_status}"
                     )
 
-            except Exception as e:
+            except CACHE_EXCEPTIONS as e:
                 verification_results['errors'].append(f"{backup_info.backup_id}: {str(e)}")
 
         # Send alert if significant failures
@@ -213,7 +215,7 @@ def verify_redis_backups(self, days_back=7):
             'timestamp': timezone.now().isoformat()
         }
 
-    except Exception as exc:
+    except (ValueError, TypeError, AttributeError) as exc:
         error_msg = f"Backup verification failed: {str(exc)}"
         logger.error(error_msg)
 
@@ -291,7 +293,7 @@ def restore_redis_from_backup(self, backup_id, create_pre_restore_backup=True):
 
         return result
 
-    except Exception as exc:
+    except (ValueError, TypeError, AttributeError) as exc:
         error_msg = f"Redis restore operation failed: {str(exc)}"
         logger.critical(error_msg)
 
@@ -372,7 +374,7 @@ def generate_backup_status_report():
         logger.info(f"Backup status report generated: {stats['total_backups']} total backups")
         return report
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to generate backup status report: {e}")
         return {
             'status': 'error',
@@ -388,7 +390,7 @@ def _send_backup_alert(subject, message):
             full_subject = f"[Redis Backup] {subject}"
             mail_admins(full_subject, message, fail_silently=False)
             logger.info(f"Backup alert sent: {subject}")
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(f"Failed to send backup alert: {e}")
 
 

@@ -17,6 +17,7 @@ from apps.core.models import UserScope, DashboardSavedView
 
 @admin.register(UserScope)
 class UserScopeAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for managing user scopes.
     """
@@ -90,6 +91,7 @@ class UserScopeAdmin(admin.ModelAdmin):
 
 @admin.register(DashboardSavedView)
 class DashboardSavedViewAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for managing saved dashboard views.
     """

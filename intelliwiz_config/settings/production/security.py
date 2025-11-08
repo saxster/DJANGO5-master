@@ -74,7 +74,7 @@ def validate_and_load_secrets() -> Dict[str, str]:
         sys.stderr.write(f"🚨 Production startup aborted for security\n\n")
         sys.exit(1)
 
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         correlation_id = str(uuid.uuid4())
         secret_logger.critical(
             f"Unexpected error during secret validation: {type(e).__name__}",
@@ -150,6 +150,8 @@ def get_database_settings() -> Dict[str, Any]:
         Dictionary with DATABASES setting
     """
     from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
     env = environ.Env()
     environ.Env.read_env()

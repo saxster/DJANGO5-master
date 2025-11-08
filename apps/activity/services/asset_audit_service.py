@@ -19,6 +19,8 @@ from django.db import transaction, DatabaseError, IntegrityError
 from django.utils import timezone
 
 from apps.activity.models import Asset, AssetFieldHistory, AssetLifecycleStage
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +170,7 @@ class AssetAuditService:
                 for record in history
             ]
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error retrieving field history: {e}")
             return []
 
@@ -265,6 +267,6 @@ class AssetAuditService:
                 for stage in stages
             ]
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error retrieving lifecycle history: {e}")
             return []

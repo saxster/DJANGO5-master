@@ -24,6 +24,12 @@ import json
 
 from apps.journal.models import JournalEntry, JournalPrivacySettings
 from apps.wellness.models import WellnessContent, WellnessUserProgress, WellnessContentInteraction
+from apps.wellness.constants import (
+    MINIMUM_ANALYTICS_ENTRIES,
+    LOW_WELLBEING_THRESHOLD,
+    CRISIS_MOOD_THRESHOLD,
+    ESCALATION_CHECK_INTERVALS,
+)
 from apps.journal.ml.analytics_engine import WellbeingAnalyticsEngine
 from apps.journal.services.pattern_analyzer import JournalPatternAnalyzer
 from apps.wellness.services.content_delivery import WellnessTipSelector, UserProfileBuilder
@@ -44,6 +50,8 @@ logger = logging.getLogger('background_tasks')
     bind=True,
     queue='critical',
     priority=10,
+    soft_time_limit=300,  # 5 minutes - crisis intervention
+    time_limit=600,        # 10 minutes hard limit
     **task_retry_policy('default')
 )
 def process_crisis_intervention_alert(self, user_id, alert_data, severity_level='high'):
@@ -166,6 +174,8 @@ def process_crisis_intervention_alert(self, user_id, alert_data, severity_level=
     bind=True,
     queue='email',
     priority=9,
+    soft_time_limit=180,  # 3 minutes - support notification
+    time_limit=360,        # 6 minutes hard limit
     **task_retry_policy('email')
 )
 def notify_support_team(self, user_id, alert_data, urgent=False, crisis_mode=False):
@@ -284,7 +294,9 @@ def notify_support_team(self, user_id, alert_data, urgent=False, crisis_mode=Fal
     retry_backoff_max=600,
     retry_jitter=True,
     queue='reports',
-    priority=6
+    priority=6,
+    soft_time_limit=600,  # 10 minutes - analytics computation
+    time_limit=900         # 15 minutes hard limit
 )
 def update_user_analytics(self, user_id, trigger_entry_id=None):
     """
@@ -332,8 +344,8 @@ def update_user_analytics(self, user_id, trigger_entry_id=None):
             is_deleted=False
         ).order_by('timestamp'))
 
-        if len(journal_entries) < 3:
-            logger.debug(f"Insufficient data for analytics - user {user_id} has {len(journal_entries)} entries")
+        if len(journal_entries) < MINIMUM_ANALYTICS_ENTRIES:
+            logger.debug(f"Insufficient data for analytics - user {user_id} has {len(journal_entries)} entries (minimum: {MINIMUM_ANALYTICS_ENTRIES})")
             return {
                 'success': True,
                 'skipped': True,
@@ -389,7 +401,7 @@ def update_user_analytics(self, user_id, trigger_entry_id=None):
         logger.info(f"Analytics updated for user {user_id}: wellbeing_score={wellbeing_score['overall_score']}")
 
         # Schedule wellness content delivery if patterns indicate need
-        if wellbeing_score['overall_score'] < 6.0:
+        if wellbeing_score['overall_score'] < LOW_WELLBEING_THRESHOLD:
             schedule_wellness_content_delivery.delay(user_id, 'low_wellbeing_score')
 
         return {
@@ -428,7 +440,9 @@ def update_user_analytics(self, user_id, trigger_entry_id=None):
     max_retries=2,
     autoretry_for=(ConnectionError, DatabaseError, IntegrityError),
     retry_backoff=True,
-    retry_backoff_max=300
+    retry_backoff_max=300,
+    soft_time_limit=180,  # 3 minutes - content scheduling
+    time_limit=360         # 6 minutes hard limit
 )
 def schedule_wellness_content_delivery(self, user_id, trigger_reason='daily_schedule'):
     """
@@ -576,7 +590,11 @@ def schedule_wellness_content_delivery(self, user_id, trigger_reason='daily_sche
         }
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    soft_time_limit=120,  # 2 minutes - milestone check
+    time_limit=240         # 4 minutes hard limit
+)
 def check_wellness_milestones(self, user_id):
     """
     Check and award wellness milestones and achievements
@@ -653,7 +671,9 @@ def check_wellness_milestones(self, user_id):
     bind=True,
     priority=9,  # High priority for crisis situations
     max_retries=1,  # Only retry once for crisis situations
-    autoretry_for=(ConnectionError, DatabaseError)
+    autoretry_for=(ConnectionError, DatabaseError),
+    soft_time_limit=300,  # 5 minutes - crisis intervention
+    time_limit=600         # 10 minutes hard limit
 )
 def process_crisis_intervention(self, user_id, journal_entry_id, crisis_indicators):
     """
@@ -758,7 +778,11 @@ def process_crisis_intervention(self, user_id, journal_entry_id, crisis_indicato
         }
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    soft_time_limit=120,  # 2 minutes - followup scheduling
+    time_limit=240         # 4 minutes hard limit
+)
 def schedule_crisis_followup_content(self, user_id, journal_entry_id):
     """Schedule follow-up wellness content for crisis situations"""
 
@@ -801,7 +825,11 @@ def schedule_crisis_followup_content(self, user_id, journal_entry_id):
         raise
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    soft_time_limit=60,  # 1 minute - content delivery
+    time_limit=120        # 2 minutes hard limit
+)
 def schedule_specific_content_delivery(self, user_id, content_id, delivery_context):
     """Deliver specific wellness content to user"""
 
@@ -834,7 +862,11 @@ def schedule_specific_content_delivery(self, user_id, content_id, delivery_conte
         raise
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    soft_time_limit=60,  # 1 minute - notification
+    time_limit=120        # 2 minutes hard limit
+)
 def send_milestone_notification(self, user_id, achievements):
     """Send notification for wellness milestones"""
 
@@ -871,7 +903,9 @@ def send_milestone_notification(self, user_id, achievements):
     bind=True,
     max_retries=3,
     autoretry_for=(ConnectionError, DatabaseError, IntegrityError),
-    retry_backoff=True
+    retry_backoff=True,
+    soft_time_limit=1800,  # 30 minutes - daily batch processing
+    time_limit=2400         # 40 minutes hard limit
 )
 def daily_wellness_content_scheduling(self):
     """
@@ -954,7 +988,10 @@ def daily_wellness_content_scheduling(self):
         }
 
 
-@shared_task
+@shared_task(
+    soft_time_limit=600,  # 10 minutes - streak updates
+    time_limit=900         # 15 minutes hard limit
+)
 def update_all_user_streaks():
     """Update wellness engagement streaks for all users"""
 
@@ -1000,7 +1037,10 @@ def update_all_user_streaks():
         raise
 
 
-@shared_task
+@shared_task(
+    soft_time_limit=300,  # 5 minutes - cleanup
+    time_limit=600         # 10 minutes hard limit
+)
 def cleanup_old_wellness_interactions():
     """Clean up old wellness interaction records for performance"""
 
@@ -1030,7 +1070,10 @@ def cleanup_old_wellness_interactions():
         raise
 
 
-@shared_task
+@shared_task(
+    soft_time_limit=1800,  # 30 minutes - retention enforcement
+    time_limit=2400         # 40 minutes hard limit
+)
 def enforce_data_retention_policies():
     """
     Enforce data retention policies for all users
@@ -1080,7 +1123,12 @@ def enforce_data_retention_policies():
         raise
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(
+    bind=True,
+    max_retries=3,
+    soft_time_limit=180,  # 3 minutes - effectiveness metrics
+    time_limit=360         # 6 minutes hard limit
+)
 def update_content_effectiveness_metrics(self, content_id):
     """
     Update effectiveness metrics for wellness content
@@ -1176,7 +1224,10 @@ def update_content_effectiveness_metrics(self, content_id):
         raise self.retry(exc=e, countdown=300)
 
 
-@shared_task
+@shared_task(
+    soft_time_limit=3600,  # 1 hour - comprehensive analytics
+    time_limit=4800         # 80 minutes hard limit
+)
 def generate_wellness_analytics_reports():
     """
     Generate comprehensive wellness analytics reports
@@ -1319,7 +1370,10 @@ def generate_content_effectiveness_report():
 
 # Periodic maintenance tasks
 
-@shared_task
+@shared_task(
+    soft_time_limit=600,  # 10 minutes - search indexing
+    time_limit=900         # 15 minutes hard limit
+)
 def maintain_journal_search_index():
     """Maintain Elasticsearch search indexes"""
     logger.info("Maintaining journal search indexes")
@@ -1350,7 +1404,10 @@ def maintain_journal_search_index():
         raise
 
 
-@shared_task
+@shared_task(
+    soft_time_limit=1800,  # 30 minutes - weekly summaries
+    time_limit=2400         # 40 minutes hard limit
+)
 def weekly_wellness_summary():
     """Generate weekly wellness summary for all users"""
     logger.info("Generating weekly wellness summaries")

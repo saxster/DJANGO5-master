@@ -127,8 +127,8 @@ class JournalSearchService:
         try:
             # TODO: Implement search analytics tracking
             logger.debug(f"Search interaction by {user.peoplename}: {search_params['query']}")
-        except Exception as e:
-            logger.error(f"Failed to track search interaction: {e}")
+        except (AttributeError, TypeError, KeyError) as e:
+            logger.error(f"Failed to track search interaction: {e}", exc_info=True)
 
     def build_privacy_aware_queryset(self, user, base_queryset):
         """

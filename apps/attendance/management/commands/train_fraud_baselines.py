@@ -18,6 +18,8 @@ from django.contrib.auth import get_user_model
 from apps.attendance.services.fraud_detection_orchestrator import FraudDetectionOrchestrator
 from apps.attendance.models.user_behavior_profile import UserBehaviorProfile
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -92,7 +94,7 @@ class Command(BaseCommand):
 
         except User.DoesNotExist:
             raise CommandError(f"Employee with ID {employee_id} not found")
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self.stdout.write(self.style.ERROR(f"✗ Training failed: {e}"))
             raise
 

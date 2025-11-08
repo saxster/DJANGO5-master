@@ -16,7 +16,7 @@ Usage:
 
     analyzer = KeyStrengthAnalyzer(secret_key)
     result = analyzer.analyze()
-    print(result['strength_score'])
+    logger.debug(result['strength_score'])
 """
 
 import math
@@ -402,12 +402,12 @@ def analyze_secret_key_strength() -> None:
     """
     result = KeyStrengthAnalyzer.validate_django_secret_key()
 
-    print("="*70)
-    print("SECRET_KEY STRENGTH ANALYSIS")
-    print("="*70)
+    logger.debug("="*70)
+    logger.debug("SECRET_KEY STRENGTH ANALYSIS")
+    logger.debug("="*70)
 
     if not result.get('valid'):
-        print(f"❌ INVALID: {result.get('error', 'Unknown error')}")
+        logger.error(f"❌ INVALID: {result.get('error', 'Unknown error')}")
         return
 
     score = result['strength_score']
@@ -415,26 +415,26 @@ def analyze_secret_key_strength() -> None:
 
     status_icon = '✅' if score >= 75 else '⚠️' if score >= 60 else '❌'
 
-    print(f"{status_icon} Strength Score: {score}/100")
-    print(f"{status_icon} Strength Level: {level}")
-    print("")
+    logger.debug(f"{status_icon} Strength Score: {score}/100")
+    logger.debug(f"{status_icon} Strength Level: {level}")
+    logger.debug("")
 
-    print("COMPLIANCE STATUS:")
+    logger.debug("COMPLIANCE STATUS:")
     for standard, checks in result['compliance'].items():
         compliant = checks.get('compliant', False)
         icon = '✅' if compliant else '❌'
-        print(f"  {icon} {standard}: {'COMPLIANT' if compliant else 'NON-COMPLIANT'}")
+        logger.debug(f"  {icon} {standard}: {'COMPLIANT' if compliant else 'NON-COMPLIANT'}")
 
     if result.get('vulnerabilities'):
-        print("")
-        print("VULNERABILITIES:")
+        logger.debug("")
+        logger.debug("VULNERABILITIES:")
         for vuln in result['vulnerabilities']:
-            print(f"  ❌ {vuln}")
+            logger.debug(f"  ❌ {vuln}")
 
     if result.get('recommendations'):
-        print("")
-        print("RECOMMENDATIONS:")
+        logger.debug("")
+        logger.debug("RECOMMENDATIONS:")
         for rec in result['recommendations']:
-            print(f"  💡 {rec}")
+            logger.debug(f"  💡 {rec}")
 
-    print("="*70)
+    logger.debug("="*70)

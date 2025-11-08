@@ -270,6 +270,7 @@
         </script>
 
         <!-- Load Google Maps API securely -->
+        {# SECURITY: |safe intentional - script_tag contains sanitized Google Maps API script from template tag #}
         {{ script_tag|safe }}
 
     {% else %}

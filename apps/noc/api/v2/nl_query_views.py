@@ -17,6 +17,8 @@ from rest_framework import status
 from rest_framework.throttling import UserRateThrottle
 
 from apps.noc.services.nl_query_service import NLQueryService
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 __all__ = ['natural_language_query_view', 'query_cache_stats_view']
 
@@ -181,7 +183,7 @@ def natural_language_query_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(
             f"Unexpected error processing NL query: {e}",
             extra={'user_id': request.user.id},
@@ -238,7 +240,7 @@ def query_cache_stats_view(request):
             status=status.HTTP_200_OK
         )
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(
             f"Error retrieving cache stats: {e}",
             extra={'user_id': request.user.id},

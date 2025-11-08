@@ -941,13 +941,13 @@ class PenetrationTestSummary(TestCase):
             "All attack vectors should be tested"
         )
 
-        print("\n" + "="*70)
-        print("PENETRATION TEST COVERAGE SUMMARY")
-        print("="*70)
+        logger.info("\n" + "="*70)
+        logger.info("PENETRATION TEST COVERAGE SUMMARY")
+        logger.info("="*70)
         for vector, tested in attack_vectors_tested.items():
             status = '✅' if tested else '❌'
-            print(f"{status} {vector}")
-        print("="*70)
-        print(f"Total Attack Vectors: {len(attack_vectors_tested)}")
-        print(f"Coverage: {sum(attack_vectors_tested.values())}/{len(attack_vectors_tested)}")
-        print("="*70)
+            logger.info(f"{status} {vector}")
+        logger.info("="*70)
+        logger.info(f"Total Attack Vectors: {len(attack_vectors_tested)}")
+        logger.info(f"Coverage: {sum(attack_vectors_tested.values())}/{len(attack_vectors_tested)}")
+        logger.info("="*70)

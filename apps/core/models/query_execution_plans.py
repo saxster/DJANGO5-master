@@ -238,7 +238,7 @@ class QueryExecutionPlan(models.Model):
 
             return " | ".join(summary_parts)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return f"Error generating summary: {str(e)}"
 
     @property

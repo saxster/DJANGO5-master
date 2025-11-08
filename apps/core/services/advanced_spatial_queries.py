@@ -22,6 +22,10 @@ from datetime import datetime, date
 
 from django.contrib.gis.db.models import Extent, Union as GISUnion, Collect
 from django.contrib.gis.db.models.functions import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     Distance, Area, Length, Perimeter, Centroid, PointOnSurface,
     Transform, AsGeoJSON, AsKML, AsWKT, MakeValid,
     Intersection, Difference, SymDifference, Union as GeomUnion
@@ -135,7 +139,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Within polygon query failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,
@@ -210,7 +214,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Intersecting buffer query failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,
@@ -323,7 +327,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Spatial clustering analysis failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,
@@ -383,7 +387,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Coordinate transformation failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,
@@ -475,7 +479,7 @@ class AdvancedSpatialQueryService:
                                 ) * 100 if total_coverage_area > 0 else 0
                             }
 
-                except Exception as merge_error:
+                except NETWORK_EXCEPTIONS as merge_error:
                     logger.warning(f"Coverage merging failed: {merge_error}")
 
             return SpatialQueryResult(
@@ -496,7 +500,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Coverage area calculation failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,
@@ -615,7 +619,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Spatial join failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,
@@ -662,7 +666,7 @@ class AdvancedSpatialQueryService:
                 }
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Nearest assets query failed: {str(e)}")
             return SpatialQueryResult(
                 success=False,

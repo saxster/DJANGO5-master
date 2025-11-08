@@ -44,7 +44,7 @@ class CoreConfig(AppConfig):
             logger.info("OTEL distributed tracing initialized successfully")
         except ImportError as e:
             logger.warning(f"Could not import OTEL tracing module: {e}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to initialize OTEL tracing: {e}", exc_info=True)
 
         # Run security validation checks (skip during tests and migrations)
@@ -67,7 +67,7 @@ class CoreConfig(AppConfig):
                 from apps.core.startup_checks import run_startup_validation
                 logger.info("Running security configuration validation...")
                 run_startup_validation()
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Security validation error: {e}", exc_info=True)
                 # Let the application continue but log the error
                 # Production validation will catch this via startup_checks.py
@@ -76,7 +76,7 @@ class CoreConfig(AppConfig):
             try:
                 from apps.core.middleware.validator import validate_middleware_on_startup
                 validate_middleware_on_startup(settings.MIDDLEWARE)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Middleware validation error: {e}", exc_info=True)
 
         # Register dashboards in central registry
@@ -84,5 +84,5 @@ class CoreConfig(AppConfig):
             from apps.core.registry import register_core_dashboards
             register_core_dashboards()
             logger.info("Dashboard registry initialized successfully")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to register dashboards: {e}", exc_info=True)

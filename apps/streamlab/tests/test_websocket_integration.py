@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 WebSocket Integration Tests for Stream Testbench
 """
 
@@ -399,7 +401,7 @@ class TestWebSocketPerformance(TransactionTestCase):
         duration = end_time - start_time
         throughput = message_count / duration
 
-        print(f"WebSocket throughput: {throughput:.1f} messages/second")
+        logger.info(f"WebSocket throughput: {throughput:.1f} messages/second")
 
         # Should handle at least 10 messages per second
         self.assertGreater(throughput, 10)

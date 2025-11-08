@@ -521,7 +521,10 @@ class TicketSecurityService:
             is_valid = False
             denial_reason = 'ticket_not_found'
 
-        # Add random jitter (0-10ms) to mask timing differences
+        # SAFE: time.sleep() required for timing attack protection (security feature)
+        # - Adds random jitter (0-10ms) to mask timing differences
+        # - Prevents attackers from inferring ticket existence via response time
+        # - Minimal duration (max 10ms) with security benefit
         time.sleep(secrets.randbelow(11) / 1000.0)
 
         # Handle result after constant-time validation

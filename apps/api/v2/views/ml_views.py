@@ -122,7 +122,7 @@ class OCRCorrectionView(APIView):
                 'correction_id': source_id
             }, status=http_status.HTTP_200_OK)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error processing OCR correction: {str(e)}", exc_info=True)
             return Response(
                 {'error': f'Failed to record correction: {str(e)}'},

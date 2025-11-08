@@ -360,8 +360,8 @@
 
         try {
             const url = checkDate
-                ? `/helpbot/api/v1/scorecard/?check_date=${checkDate}`
-                : '/helpbot/api/v1/scorecard/';
+                ? `/api/v2/helpbot/scorecard/?check_date=${checkDate}`
+                : '/api/v2/helpbot/scorecard/';
 
             const response = await fetch(url, {
                 method: 'GET',

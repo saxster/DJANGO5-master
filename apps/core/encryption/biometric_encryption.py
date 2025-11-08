@@ -22,6 +22,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 from cryptography.hazmat.backends import default_backend
 import base64
 import json
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ class BiometricEncryptionService:
         if not key:
             raise ImproperlyConfigured(
                 "BIOMETRIC_ENCRYPTION_KEY not configured. "
-                "Generate a key using: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+                "Generate a key using: python -c 'from cryptography.fernet import Fernet; logger.info(Fernet.generate_key().decode())'"
             )
 
         return key
@@ -121,7 +123,7 @@ class BiometricEncryptionService:
         except (TypeError, ValueError) as e:
             logger.error(f"Failed to serialize biometric data: {e}")
             raise ValueError(f"Cannot serialize biometric data: {e}")
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Encryption failed: {e}", exc_info=True)
             raise EncryptionError(f"Failed to encrypt biometric data: {e}")
 
@@ -157,7 +159,7 @@ class BiometricEncryptionService:
         except json.JSONDecodeError as e:
             logger.error(f"Failed to deserialize decrypted data: {e}")
             raise DecryptionError(f"Corrupted biometric data: {e}")
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Decryption failed: {e}", exc_info=True)
             raise DecryptionError(f"Failed to decrypt biometric data: {e}")
 
@@ -197,7 +199,7 @@ class BiometricEncryptionService:
         except InvalidToken:
             logger.error("Key rotation failed: old key is invalid")
             raise DecryptionError("Old encryption key is invalid")
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Key rotation failed: {e}", exc_info=True)
             raise EncryptionError(f"Key rotation failed: {e}")
 

@@ -21,6 +21,8 @@ from django.utils import timezone
 from typing import TypedDict, List, Optional
 import copy
 import logging
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
+
 from concurrency.fields import VersionField
 
 logger = logging.getLogger(__name__)
@@ -280,7 +282,7 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
             except (ValueError, TypeError) as e:
                 logger.warning(f"Invalid coordinate data for attendance {self.id}: {e}")
                 return "Invalid coordinates"
-            except Exception as e:
+            except PARSING_EXCEPTIONS as e:
                 logger.exception(f"Unexpected error formatting start location for attendance {self.id}: {e}")
                 return "Invalid coordinates"
         return ""
@@ -303,7 +305,7 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
             except (ValueError, TypeError) as e:
                 logger.warning(f"Invalid coordinate data for attendance {self.id}: {e}")
                 return "Invalid coordinates"
-            except Exception as e:
+            except PARSING_EXCEPTIONS as e:
                 logger.exception(f"Unexpected error formatting end location for attendance {self.id}: {e}")
                 return "Invalid coordinates"
         return ""

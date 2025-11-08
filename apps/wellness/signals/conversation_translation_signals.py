@@ -50,7 +50,7 @@ def auto_translate_new_conversation(sender, instance: WisdomConversation, create
         max_translations_per_hour = getattr(settings, 'WELLNESS_MAX_AUTO_TRANSLATIONS_PER_HOUR', 50)
 
         if current_count >= max_translations_per_hour:
-            logger.warning(f"Rate limit reached for tenant {instance.tenant.id}, skipping auto-translation")
+            logger.warning(f"Rate limit reached for tenant {instance.tenant.id}, skipping auto-translation", exc_info=True)
             return
 
         # Get all users in the tenant with non-English language preferences
@@ -104,7 +104,7 @@ def auto_translate_new_conversation(sender, instance: WisdomConversation, create
                 f"to languages: {', '.join(queued_languages)}"
             )
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error in auto-translation signal for conversation {instance.id}: {e}", exc_info=True)
 
 
@@ -125,7 +125,7 @@ def cleanup_conversation_translations(sender, instance: WisdomConversation, **kw
         if deleted_count > 0:
             logger.info(f"Cleaned up {deleted_count} translations for deleted conversation {instance.id}")
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error cleaning up translations for conversation {instance.id}: {e}", exc_info=True)
 
 
@@ -188,7 +188,7 @@ def handle_user_language_preference_change(sender, instance, created, **kwargs):
                 f"due to user {instance.id} language preference change"
             )
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error handling language preference change for user {instance.id}: {e}", exc_info=True)
 
 
@@ -207,7 +207,7 @@ def invalidate_translation_cache(sender, instance: WisdomConversationTranslation
 
         logger.debug(f"Invalidated cache for translation {instance.id}")
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Error invalidating translation cache: {e}", exc_info=True)
 
 
@@ -255,4 +255,5 @@ def track_model_changes(sender, **kwargs):
 
 # Connect the tracking signal
 from django.db.models.signals import pre_save
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 pre_save.connect(track_model_changes, sender='peoples.People')

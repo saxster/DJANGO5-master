@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Tests for Real-Time Streaming Anomaly Detection
 
 Tests the complete streaming anomaly detection pipeline from event
@@ -466,5 +468,5 @@ class TestEndToEndLatency:
         # Log improvement
         batch_latency = 10 * 60  # 10 minutes average
         improvement_factor = batch_latency / total_latency_seconds
-        print(f"\nLatency improvement: {improvement_factor:.1f}x faster than batch processing")
-        print(f"Streaming: {total_latency_seconds:.3f}s vs Batch: {batch_latency}s")
+        logger.info(f"\nLatency improvement: {improvement_factor:.1f}x faster than batch processing")
+        logger.info(f"Streaming: {total_latency_seconds:.3f}s vs Batch: {batch_latency}s")

@@ -63,7 +63,7 @@ class TokenBindingValidator:
 
         try:
             # Generate fingerprint from current connection
-            current_fingerprint = generate_device_fingerprint(scope)
+            current_fingerprint = generate_device_fingerlogger.info(scope)
 
             # Get stored fingerprint for this token
             cache_key = f"ws_token_binding:{self._hash_token(token)}"
@@ -75,7 +75,7 @@ class TokenBindingValidator:
                 logger.info(
                     "WebSocket token binding established",
                     extra={
-                        'fingerprint_hash': self._hash_fingerprint(current_fingerprint),
+                        'fingerprint_hash': self._hash_fingerlogger.info(current_fingerprint),
                         'path': scope.get('path')
                     }
                 )
@@ -87,12 +87,12 @@ class TokenBindingValidator:
 
             # In non-strict mode, allow minor changes (e.g., IP change)
             if not self.strict_mode:
-                if self._is_similar_fingerprint(stored_fingerprint, current_fingerprint):
+                if self._is_similar_fingerlogger.info(stored_fingerprint, current_fingerprint):
                     logger.warning(
                         "WebSocket token binding mismatch (non-strict mode, allowing)",
                         extra={
-                            'stored_hash': self._hash_fingerprint(stored_fingerprint),
-                            'current_hash': self._hash_fingerprint(current_fingerprint)
+                            'stored_hash': self._hash_fingerlogger.info(stored_fingerprint),
+                            'current_hash': self._hash_fingerlogger.info(current_fingerprint)
                         }
                     )
                     return True
@@ -101,8 +101,8 @@ class TokenBindingValidator:
             logger.error(
                 "WebSocket token binding validation failed - possible token theft",
                 extra={
-                    'stored_hash': self._hash_fingerprint(stored_fingerprint),
-                    'current_hash': self._hash_fingerprint(current_fingerprint),
+                    'stored_hash': self._hash_fingerlogger.info(stored_fingerprint),
+                    'current_hash': self._hash_fingerlogger.info(current_fingerprint),
                     'path': scope.get('path')
                 }
             )
@@ -117,11 +117,11 @@ class TokenBindingValidator:
         """Create hash of token for cache key (don't store token itself)."""
         return hashlib.sha256(token[:64].encode()).hexdigest()[:32]
 
-    def _hash_fingerprint(self, fingerprint: str) -> str:
+    def _hash_fingerlogger.info(self, fingerprint: str) -> str:
         """Create hash of fingerprint for logging (don't log fingerprint itself)."""
         return hashlib.sha256(fingerprint.encode()).hexdigest()[:16]
 
-    def _is_similar_fingerprint(self, stored: str, current: str) -> bool:
+    def _is_similar_fingerlogger.info(self, stored: str, current: str) -> bool:
         """
         Check if fingerprints are similar enough (for non-strict mode).
 
@@ -147,7 +147,7 @@ class TokenBindingValidator:
         return True
 
 
-def generate_device_fingerprint(scope: Dict[str, Any]) -> str:
+def generate_device_fingerlogger.info(scope: Dict[str, Any]) -> str:
     """
     Generate device fingerprint from connection context.
 

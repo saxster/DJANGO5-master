@@ -217,8 +217,11 @@ class WorkOrderService(BaseService):
             WorkOrderResult with operation status
         """
         try:
-            # Get existing work order
-            work_order = Wom.objects.get(id=work_order_id)
+            # Get existing work order with related objects (N+1 optimization)
+            work_order = Wom.objects.select_related(
+                'asset', 'location', 'qset', 'vendor', 'parent',
+                'ticketcategory', 'bu', 'client', 'cuser', 'muser', 'performedby'
+            ).get(id=work_order_id)
 
             # Validate update permissions
             self._validate_update_permissions(work_order, user)
@@ -286,7 +289,10 @@ class WorkOrderService(BaseService):
             WorkOrderResult with operation status
         """
         try:
-            work_order = Wom.objects.get(id=work_order_id)
+            # Get work order with related objects for status display (N+1 optimization)
+            work_order = Wom.objects.select_related(
+                'asset', 'vendor', 'performedby', 'bu', 'client'
+            ).get(id=work_order_id)
 
             # Validate status transition
             self._validate_status_transition(work_order.workstatus, new_status)
@@ -368,7 +374,10 @@ class WorkOrderService(BaseService):
             WorkOrderResult with operation status
         """
         try:
-            work_order = Wom.objects.get(id=work_order_id)
+            # Get work order with vendor information (N+1 optimization)
+            work_order = Wom.objects.select_related(
+                'vendor', 'performedby', 'bu', 'client'
+            ).get(id=work_order_id)
 
             # Validate work order can be responded to
             if work_order.workstatus == WorkOrderStatus.COMPLETED.value:
@@ -451,7 +460,10 @@ class WorkOrderService(BaseService):
             WorkOrderResult with operation status
         """
         try:
-            work_order = Wom.objects.get(id=work_order_id)
+            # Get work order with related objects for approval workflow (N+1 optimization)
+            work_order = Wom.objects.select_related(
+                'vendor', 'parent', 'cuser', 'muser', 'bu', 'client'
+            ).get(id=work_order_id)
 
             # Save approval data
             self._save_approval_data(work_order, approval_data)
@@ -505,7 +517,8 @@ class WorkOrderService(BaseService):
             WorkOrderMetrics with analytics data
         """
         try:
-            queryset = Wom.objects.all()
+            # Optimize queryset with vendor relations for metrics (N+1 optimization)
+            queryset = Wom.objects.select_related('vendor', 'performedby', 'bu', 'client').all()
 
             if date_range:
                 start_date, end_date = date_range

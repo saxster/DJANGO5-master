@@ -12,10 +12,12 @@ Features:
 
 Usage:
     from apps.core.tasks.failure_taxonomy import FailureTaxonomy
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
     try:
         task_logic()
-    except Exception as exc:
+    except CELERY_EXCEPTIONS as exc:
         failure_info = FailureTaxonomy.classify(exc, task_context)
         # Use failure_info for intelligent retry/alerting
 
@@ -288,7 +290,7 @@ class FailureTaxonomy:
         Example:
             try:
                 result = risky_operation()
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError) as exc:
                 classification = FailureTaxonomy.classify(
                     exc,
                     {'task_name': 'process_data', 'retry_count': 2}

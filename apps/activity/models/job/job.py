@@ -113,6 +113,7 @@ class Job(BaseModel, TenantAwareModel):
             models.Index(fields=['tenant', 'cdtz'], name='job_tenant_cdtz_idx'),
             models.Index(fields=['tenant', 'identifier'], name='job_tenant_identifier_idx'),
             models.Index(fields=['tenant', 'enable'], name='job_tenant_enable_idx'),
+            models.Index(fields=['people', 'identifier'], name='job_people_identifier_idx'),  # Performance: Geofence queries (Nov 5, 2025)
         ]
 
     def __str__(self):

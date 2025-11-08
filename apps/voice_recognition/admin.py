@@ -88,6 +88,8 @@ class EnrollmentPolicyAdmin(admin.ModelAdmin):
 
     readonly_fields = ['cdtz', 'mdtz']
 
+    list_per_page = 50
+
     def save_model(self, request, obj, form, change):
         """Validate policy before saving."""
         obj.full_clean()  # Trigger model validation
@@ -121,6 +123,8 @@ class VoiceEmbeddingAdmin(admin.ModelAdmin):
         'source_audio_hash',
         'validation_score'
     ]
+
+    list_per_page = 50
 
     def has_add_permission(self, request):
         """Prevent manual creation (should be via enrollment API)."""
@@ -156,6 +160,8 @@ class VoiceVerificationLogAdmin(admin.ModelAdmin):
         'liveness_score',
         'fraud_risk_score'
     ]
+
+    list_per_page = 50
 
     def has_add_permission(self, request):
         """Prevent manual creation (auto-generated)."""

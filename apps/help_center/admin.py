@@ -37,6 +37,7 @@ class HelpTagAdmin(admin.ModelAdmin):
     search_fields = ['name', 'slug']
     list_filter = ['tenant']
     prepopulated_fields = {'slug': ('name',)}
+    list_per_page = 50
 
 
 @admin.register(HelpCategory)
@@ -58,6 +59,8 @@ class HelpCategoryAdmin(admin.ModelAdmin):
             'fields': ('icon', 'color', 'display_order', 'is_active')
         }),
     )
+
+    list_per_page = 50
 
     def article_count_display(self, obj):
         """Show count of published articles."""
@@ -151,6 +154,8 @@ class HelpArticleAdmin(admin.ModelAdmin):
     )
 
     actions = ['publish_articles', 'archive_articles', 'mark_for_review']
+
+    list_per_page = 50
 
     def status_badge(self, obj):
         """Display status as colored badge."""
@@ -261,6 +266,7 @@ class HelpSearchHistoryAdmin(admin.ModelAdmin):
 
     search_fields = ['query', 'user__username']
     date_hierarchy = 'timestamp'
+    list_per_page = 50
 
     readonly_fields = [
         'query',
@@ -320,6 +326,7 @@ class HelpArticleInteractionAdmin(admin.ModelAdmin):
 
     search_fields = ['user__username', 'article__title', 'feedback_comment']
     date_hierarchy = 'timestamp'
+    list_per_page = 50
 
     readonly_fields = [
         'article',
@@ -377,6 +384,7 @@ class HelpTicketCorrelationAdmin(admin.ModelAdmin):
     ]
 
     search_fields = ['ticket__title', 'search_queries']
+    list_per_page = 50
     readonly_fields = [
         'ticket',
         'help_attempted',

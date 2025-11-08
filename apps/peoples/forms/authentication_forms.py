@@ -1,13 +1,62 @@
-"""Authentication forms for login and password management."""
-
 from django import forms
+from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db.models import Q
-from django.urls import reverse
 from django.utils.html import format_html
+from django.urls import reverse
+import logging
+import zlib
+import binascii
 
-import apps.peoples.models as pm
+import apps.peoples.models as pm  # people-models
+from apps.activity.models.location_model import Location
+from apps.activity.models.question_model import QuestionSet
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
+from django_select2 import forms as s2forms
+from apps.core.utils_new.business_logic import (
+    apply_error_classes,
+    initailize_form_fields,
+)
+import re
+from apps.peoples.utils import create_caps_choices_for_peopleform
+
+from apps.core.utils_new.code_validators import (
+    PEOPLECODE_VALIDATOR,
+    LOGINID_VALIDATOR,
+    MOBILE_NUMBER_VALIDATOR,
+    NAME_VALIDATOR,
+    validate_peoplecode,
+    validate_loginid,
+    validate_mobile_number,
+    validate_name,
+)
+
+# Security form utilities
 from apps.core.validation import SecureFormMixin, SecureCharField
-from apps.core.utils_new.business_logic import apply_error_classes
+
+
+apply_error_classes,
+    initailize_form_fields,
+)
+import re
+from apps.peoples.utils import create_caps_choices_for_peopleform
+
+from apps.core.utils_new.code_validators import (
+    PEOPLECODE_VALIDATOR,
+    LOGINID_VALIDATOR,
+    MOBILE_NUMBER_VALIDATOR,
+    NAME_VALIDATOR,
+    validate_peoplecode,
+    validate_loginid,
+    validate_mobile_number,
+    validate_name,
+)
+
+# Security form utilities
+from apps.core.validation import SecureFormMixin, SecureCharField
+
+# ============= BEGIN LOGIN FORM ====================#
 
 
 class LoginForm(SecureFormMixin, forms.Form):
@@ -48,6 +97,8 @@ class LoginForm(SecureFormMixin, forms.Form):
             self.check_user_hassite(user)
 
     def clean_username(self):
+        import re
+
         if val := self.cleaned_data.get("username"):
             return val
 
@@ -89,3 +140,4 @@ class LoginForm(SecureFormMixin, forms.Form):
             raise forms.ValidationError(
                 "Login credentials incorrect. Please check the Username or Password"
             ) from e
+

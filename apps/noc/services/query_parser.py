@@ -259,7 +259,7 @@ class QueryParser:
         except anthropic.APIError as e:
             logger.error(f"Anthropic API error: {e}", exc_info=True)
             raise ValueError(f"Claude API error: {e}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Unexpected error parsing query: {e}", exc_info=True)
             raise ValueError(f"Failed to parse query: {e}")
 

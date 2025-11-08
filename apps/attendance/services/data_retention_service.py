@@ -176,8 +176,8 @@ class DataRetentionService:
                 try:
                     photo.hard_delete()
                     deleted_count += 1
-                except Exception as e:
-                    logger.error(f"Failed to delete photo {photo.id}: {e}")
+                except BUSINESS_LOGIC_EXCEPTIONS as e:
+                    logger.error(f"Failed to delete photo {photo.id}: {e}", exc_info=True)
                     failed_count += 1
 
         logger.info(f"Photo deletion complete: deleted={deleted_count}, failed={failed_count}")
@@ -244,6 +244,6 @@ class DataRetentionService:
         except User.DoesNotExist:
             logger.error(f"Employee {employee_id} not found")
             return {'deleted': False, 'reason': 'Employee not found'}
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to delete terminated employee data: {e}", exc_info=True)
             return {'deleted': False, 'reason': str(e)}

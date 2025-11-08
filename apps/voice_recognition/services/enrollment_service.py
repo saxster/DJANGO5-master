@@ -604,11 +604,9 @@ class VoiceEnrollmentService:
     # PHASE 3: VOICEPRINT GENERATION
     # ========================================
 
-    def generate_voiceprint(
-        self,
+    def generate_voicelogger.info(self,
         user,
-        voice_samples: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        voice_samples: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate voiceprint from multiple voice samples.
 
@@ -649,7 +647,7 @@ class VoiceEnrollmentService:
                     f"Voice samples too inconsistent: {consistency_score:.2f} < {self.MIN_VOICE_CONSISTENCY}"
                 )
 
-            # Generate primary voiceprint (mean embedding)
+            # Generate primary voicelogger.info(mean embedding)
             primary_voiceprint = np.mean(embeddings, axis=0)
             primary_voiceprint = primary_voiceprint / np.linalg.norm(primary_voiceprint)
 
@@ -721,7 +719,7 @@ class VoiceEnrollmentService:
 
         Args:
             user: User object
-            voiceprint_result: Result from generate_voiceprint()
+            voiceprint_result: Result from generate_voicelogger.info()
             voice_samples: Original voice sample results
 
         Returns:

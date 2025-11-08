@@ -24,6 +24,8 @@ from django.utils import timezone
 from django.conf import settings
 from apps.noc.ml.predictive_models.predictive_model_trainer import PredictiveModelTrainer
 import logging
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.management')
 
@@ -62,7 +64,7 @@ class SLABreachTrainer(PredictiveModelTrainer):
                 features.append(feature_vector)
                 labels.append(label)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Error extracting features for ticket {ticket.id}: {e}")
 
         logger.info(f"Extracted {len(features)} training samples")
@@ -129,7 +131,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'Training failed: {e}'))
             return
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             self.stdout.write(self.style.ERROR(f'Unexpected error: {e}'))
             import traceback
             traceback.print_exc()

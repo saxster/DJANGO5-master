@@ -170,7 +170,7 @@ class EmergencyAssignmentService:
 
                 return (assignment, None, "Emergency assignment created successfully")
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error creating emergency assignment: {e}", exc_info=True)
             return (None, None, f"Error: {str(e)}")
 
@@ -218,11 +218,12 @@ class EmergencyAssignmentService:
                 return (None, 0.0)
 
             # 3. Get worker details with location if available
+            # Optimize: select_related to avoid N+1 when accessing worker properties
             available_workers = People.objects.filter(
                 id__in=available_worker_ids,
                 enable=True,
                 is_active=True
-            )
+            ).select_related('profile', 'organizational', 'organizational__location')
 
             # 4. Score each worker
             worker_scores = []
@@ -244,7 +245,7 @@ class EmergencyAssignmentService:
 
             return (None, 0.0)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error finding available worker: {e}", exc_info=True)
             return (None, 0.0)
 
@@ -355,7 +356,7 @@ class EmergencyAssignmentService:
 
             return max(0.0, min(100.0, score))  # Clamp to 0-100
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error calculating worker score: {e}", exc_info=True)
             return 50.0  # Return base score on error
 
@@ -492,7 +493,7 @@ class EmergencyAssignmentService:
             assignment.worker_notified_at = timezone.now()
             assignment.save(update_fields=['worker_notified', 'worker_notified_at'])
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error sending emergency notification: {e}", exc_info=True)
 
     @classmethod
@@ -541,6 +542,6 @@ class EmergencyAssignmentService:
 
             return expired_count
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error expiring temporary assignments: {e}", exc_info=True)
             return 0

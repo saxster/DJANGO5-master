@@ -43,6 +43,7 @@ from .capability_model import Capability
 from .device_registry import DeviceRegistration, DeviceRiskEvent
 from .user_session import UserSession
 from .session_activity import SessionActivityLog
+from .agent_skill import AgentSkill
 
 __all__ = [
     # Base classes
@@ -68,4 +69,7 @@ __all__ = [
     # Session Management
     'UserSession',
     'SessionActivityLog',
+    
+    # Smart Assignment
+    'AgentSkill',
 ]

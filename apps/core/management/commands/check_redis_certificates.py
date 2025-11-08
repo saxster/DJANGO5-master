@@ -25,6 +25,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from django.utils import timezone
 from django.core.mail import mail_admins
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +243,7 @@ class Command(BaseCommand):
         except subprocess.TimeoutExpired:
             cert_info['status'] = 'error'
             cert_info['message'] = 'Certificate check timed out'
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             cert_info['status'] = 'error'
             cert_info['message'] = f'Certificate check failed: {str(e)}'
 
@@ -367,7 +369,7 @@ class Command(BaseCommand):
             mail_admins(subject, message, fail_silently=False)
             self.stdout.write(self.style.SUCCESS('Email alert sent to administrators'))
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             self.stdout.write(
                 self.style.ERROR(f'Failed to send email alert: {e}')
             )
@@ -395,6 +397,6 @@ class Command(BaseCommand):
             else:
                 return False
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f'Redis TLS connectivity test failed: {e}')
             return False

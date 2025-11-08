@@ -117,6 +117,7 @@ class ShiftComplianceService:
     def build_schedule_cache(self, tenant, start_date, end_date):
         """
         Build schedule cache for date range.
+        Materializes shift schedules for next 14 days.
 
         Args:
             tenant: Tenant instance
@@ -127,6 +128,9 @@ class ShiftComplianceService:
             int: Number of cache entries created
         """
         from apps.noc.security_intelligence.models import ShiftScheduleCache
+        from apps.scheduler.models import Schedule
+        from apps.onboarding.models import Shift
+        from datetime import datetime, timedelta
 
         try:
             cache_valid_until = timezone.now() + timedelta(days=7)
@@ -134,6 +138,52 @@ class ShiftComplianceService:
 
             logger.info(f"Building schedule cache for {tenant.name} from {start_date} to {end_date}")
 
+            # Get all active schedules for tenant
+            schedules = Schedule.objects.filter(
+                tenant=tenant,
+                is_active=True
+            ).select_related('assigned_to', 'site')
+
+            # Process each schedule
+            current_date = start_date
+            while current_date <= end_date:
+                for schedule in schedules:
+                    # Check if schedule applies to this date
+                    if schedule.start_date and schedule.start_date > current_date.date():
+                        continue
+                    if schedule.end_date and schedule.end_date < current_date.date():
+                        continue
+
+                    # Get shift details
+                    shift = None
+                    if hasattr(schedule, 'shift'):
+                        shift = schedule.shift
+
+                    # Create cache entry
+                    ShiftScheduleCache.objects.update_or_create(
+                        tenant=tenant,
+                        person=schedule.assigned_to,
+                        site=schedule.site,
+                        shift_date=current_date.date(),
+                        defaults={
+                            'shift': shift,
+                            'scheduled_start': datetime.combine(
+                                current_date.date(),
+                                shift.start_time if shift and shift.start_time else datetime.min.time()
+                            ),
+                            'scheduled_end': datetime.combine(
+                                current_date.date(),
+                                shift.end_time if shift and shift.end_time else datetime.max.time()
+                            ),
+                            'is_substitute': False,
+                            'cache_valid_until': cache_valid_until
+                        }
+                    )
+                    count += 1
+
+                current_date += timedelta(days=1)
+
+            logger.info(f"Created {count} schedule cache entries")
             return count
 
         except (ValueError, AttributeError) as e:

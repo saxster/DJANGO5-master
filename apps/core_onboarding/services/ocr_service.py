@@ -23,6 +23,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from django.core.files.uploadedfile import UploadedFile
 from apps.core_onboarding.services.pii_integration import get_pii_service
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ class OCRService:
         except ImportError:
             logger.warning("google-cloud-vision not installed, OCR will return mock data")
             self.vision_client = None
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to initialize Vision API client: {str(e)}")
             self.vision_client = None
 
@@ -149,7 +151,7 @@ class OCRService:
         except ValueError as e:
             logger.error(f"Value error during OCR: {str(e)}")
             result['error'] = f"Processing error: {str(e)}"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Unexpected error in register extraction: {str(e)}", exc_info=True)
             result['error'] = f"OCR failed: {str(e)}"
 
@@ -271,7 +273,7 @@ class OCRService:
         except (ValueError, InvalidOperation) as e:
             logger.error(f"Value processing error: {str(e)}")
             result['error'] = f"Processing error: {str(e)}"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Unexpected error in meter reading: {str(e)}", exc_info=True)
             result['error'] = f"OCR failed: {str(e)}"
 

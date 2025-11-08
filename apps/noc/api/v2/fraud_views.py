@@ -26,6 +26,8 @@ from django.db import models
 from apps.peoples.models import People
 from apps.client_onboarding.models import Bt
 from apps.noc.security_intelligence.models import (
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
     FraudPredictionLog,
     FraudDetectionModel
 )
@@ -128,7 +130,7 @@ def fraud_scores_live_view(request):
             'status': 'error',
             'message': f'Invalid parameter: {e}'
         }, status=400)
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error fetching live fraud scores: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -227,7 +229,7 @@ def fraud_scores_history_view(request, person_id):
             'status': 'error',
             'message': f'Person {person_id} not found'
         }, status=404)
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error fetching fraud history: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -324,7 +326,7 @@ def fraud_scores_heatmap_view(request):
             'status': 'error',
             'message': f'Invalid parameter: {e}'
         }, status=400)
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error fetching fraud heatmap: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -394,7 +396,7 @@ def ml_model_performance_view(request):
             'cached': False
         })
 
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(f"Error fetching model performance: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',

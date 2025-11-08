@@ -12,6 +12,8 @@ from django.utils import timezone
 from django.db import connection
 from django.db import OperationalError, ProgrammingError, DatabaseError
 import threading
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 
 class ProductionMonitor:
@@ -58,7 +60,7 @@ class ProductionMonitor:
         except DatabaseError as e:
             logger.error(f"Database error getting active sessions: {e}")
             active_sessions = 0
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.exception(f"Unexpected error getting active sessions: {e}")
             active_sessions = 0
 
@@ -373,11 +375,15 @@ def start_metrics_logging():
         while True:
             try:
                 log_system_metrics()
+                # SAFE: time.sleep() acceptable in background daemon thread
+                # - Runs in separate daemon thread (not request path)
+                # - Part of monitoring infrastructure
                 time.sleep(300)  # Log every 5 minutes
             except (TypeError, ValueError, json.JSONDecodeError) as e:
                 logging.getLogger("production.metrics").error(
                     f"Metrics logging failed: {e}"
                 )
+                # SAFE: time.sleep() acceptable in background daemon thread
                 time.sleep(60)  # Retry after 1 minute
 
     metrics_thread = threading.Thread(target=log_metrics_periodically, daemon=True)

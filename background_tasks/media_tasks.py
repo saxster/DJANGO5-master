@@ -101,6 +101,8 @@ import uuid
     bind=True,
     default_retry_delay=300,
     max_retries=5,
+    soft_time_limit=180,  # 3 minutes - face recognition processing
+    time_limit=360,        # 6 minutes hard limit
     name="perform_facerecognition_bgt",
 )
 def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
@@ -234,7 +236,11 @@ def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
     return result
 
 
-@shared_task(name="move_media_to_cloud_storage")
+@shared_task(
+    name="move_media_to_cloud_storage",
+    soft_time_limit=1800,  # 30 minutes - file operations
+    time_limit=2400         # 40 minutes hard limit
+)
 def move_media_to_cloud_storage():
     resp = {}
     try:
@@ -259,7 +265,14 @@ def move_media_to_cloud_storage():
     return resp
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, name="process_audio_transcript")
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    soft_time_limit=600,   # 10 minutes - audio transcription
+    time_limit=900,         # 15 minutes hard limit
+    name="process_audio_transcript"
+)
 def process_audio_transcript(self, jobneed_detail_id):
     """
     Background task to process audio transcription for JobneedDetails

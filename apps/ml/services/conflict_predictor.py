@@ -14,6 +14,8 @@ import joblib
 from typing import Dict, Any, Optional
 from django.core.cache import cache
 from django.utils import timezone
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger('ml.predictor')
 
@@ -111,7 +113,7 @@ class ConflictPredictor:
 
                 return float(probability), model_version
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(
                     f"Model prediction failed: {e}, "
                     f"falling back to heuristics",
@@ -195,7 +197,7 @@ class ConflictPredictor:
 
             return model, active_model.version
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to load model: {e}", exc_info=True)
             return None, None
 

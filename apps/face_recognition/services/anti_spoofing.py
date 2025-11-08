@@ -18,6 +18,7 @@ import numpy as np
 import cv2
 from typing import Dict, Any
 from pathlib import Path
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +92,8 @@ class TextureBasedAntiSpoofingModel:
                 }
             }
 
-        except Exception as e:
-            logger.error(f"Error in texture-based spoof detection: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error in texture-based spoof detection: {e}", exc_info=True)
             return {
                 'spoof_detected': False,
                 'spoof_score': 0.0,
@@ -148,8 +149,8 @@ class TextureBasedAntiSpoofingModel:
             else:
                 return 0.2  # Likely real
 
-        except Exception as e:
-            logger.warning(f"LBP analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"LBP analysis failed: {e}", exc_info=True)
             return 0.0
 
     def _analyze_frequency_content(self, gray_image: np.ndarray) -> float:
@@ -195,8 +196,8 @@ class TextureBasedAntiSpoofingModel:
             else:
                 return 0.1  # Likely real (rich high-freq)
 
-        except Exception as e:
-            logger.warning(f"Frequency analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Frequency analysis failed: {e}", exc_info=True)
             return 0.0
 
     def _analyze_color_depth(self, color_image: np.ndarray) -> float:
@@ -230,8 +231,8 @@ class TextureBasedAntiSpoofingModel:
             else:
                 return 0.1  # Likely real
 
-        except Exception as e:
-            logger.warning(f"Color depth analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Color depth analysis failed: {e}", exc_info=True)
             return 0.0
 
 
@@ -296,8 +297,8 @@ class MotionBasedAntiSpoofingModel:
                 }
             }
 
-        except Exception as e:
-            logger.error(f"Error in motion-based spoof detection: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error in motion-based spoof detection: {e}", exc_info=True)
             return {
                 'spoof_detected': False,
                 'spoof_score': 0.0,
@@ -340,8 +341,8 @@ class MotionBasedAntiSpoofingModel:
             else:
                 return 0.2  # Likely real
 
-        except Exception as e:
-            logger.warning(f"Edge sharpness analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Edge sharpness analysis failed: {e}", exc_info=True)
             return 0.0
 
     def _analyze_gradient_consistency(self, gray_image: np.ndarray) -> float:
@@ -388,8 +389,8 @@ class MotionBasedAntiSpoofingModel:
             else:
                 return 0.1  # Likely real
 
-        except Exception as e:
-            logger.warning(f"Gradient consistency analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Gradient consistency analysis failed: {e}", exc_info=True)
             return 0.0
 
 

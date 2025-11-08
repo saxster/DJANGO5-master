@@ -18,6 +18,8 @@ from apps.core_onboarding.models import ConversationSession
 from ..services.llm import get_llm_service
 from ..utils.security import require_tenant_scope
 import logging
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +133,7 @@ class ConversationVoiceInputView(APIView):
                 "voice_interaction_count": session.voice_interaction_count
             }, status=status.HTTP_200_OK)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(
                 f"Error processing voice input through LLM: {str(e)}",
                 exc_info=True,

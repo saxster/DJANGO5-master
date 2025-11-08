@@ -92,17 +92,17 @@ class UnifiedSemanticSearchService:
                 try:
                     self.embeddings.load(str(index_file))
                     logger.info(f"Loaded existing search index from {index_file}")
-                except Exception as e:
-                    logger.warning(f"Could not load existing index: {e}")
+                except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
+                    logger.warning(f"Could not load existing index: {e}", exc_info=True)
                     self.embeddings = None
             else:
                 logger.info("No existing index found, will create on first build")
 
         except ImportError as e:
-            logger.error(f"txtai not available: {e}")
+            logger.error(f"txtai not available: {e}", exc_info=True)
             self.embeddings = None
-        except Exception as e:
-            logger.error(f"Failed to initialize txtai: {e}")
+        except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
+            logger.error(f"Failed to initialize txtai: {e}", exc_info=True)
             self.embeddings = None
 
     def search(
@@ -196,7 +196,7 @@ class UnifiedSemanticSearchService:
         except DATABASE_EXCEPTIONS as e:
             logger.error(f"Database error in unified search: {e}", exc_info=True)
             return self._empty_result(f"Database error: {str(e)}")
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
             logger.error(f"Unexpected error in unified search: {e}", exc_info=True)
             return self._empty_result(f"Search error: {str(e)}")
 
@@ -262,7 +262,7 @@ class UnifiedSemanticSearchService:
             return results
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error searching tickets: {e}")
+            logger.error(f"Error searching tickets: {e}", exc_info=True)
             return []
 
     def _search_work_orders(
@@ -321,7 +321,7 @@ class UnifiedSemanticSearchService:
             return results
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error searching work orders: {e}")
+            logger.error(f"Error searching work orders: {e}", exc_info=True)
             return []
 
     def _search_assets(
@@ -382,7 +382,7 @@ class UnifiedSemanticSearchService:
             return results
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error searching assets: {e}")
+            logger.error(f"Error searching assets: {e}", exc_info=True)
             return []
 
     def _search_people(
@@ -446,7 +446,7 @@ class UnifiedSemanticSearchService:
             return results
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error searching people: {e}")
+            logger.error(f"Error searching people: {e}", exc_info=True)
             return []
 
     def _search_knowledge_base(
@@ -510,7 +510,7 @@ class UnifiedSemanticSearchService:
             return results
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error searching knowledge base: {e}")
+            logger.error(f"Error searching knowledge base: {e}", exc_info=True)
             return []
 
     def _rank_results(
@@ -702,7 +702,7 @@ class UnifiedSemanticSearchService:
         This is called by Celery tasks for incremental or full reindexing.
         """
         if not self.embeddings:
-            logger.error("txtai embeddings not initialized, cannot build index")
+            logger.error("txtai embeddings not initialized, cannot build index", exc_info=True)
             return False
 
         try:
@@ -742,10 +742,10 @@ class UnifiedSemanticSearchService:
                 logger.info(f"Successfully built unified search index with {len(documents)} documents")
                 return True
             else:
-                logger.warning("No documents to index")
+                logger.warning("No documents to index", exc_info=True)
                 return False
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
             logger.error(f"Error building unified search index: {e}", exc_info=True)
             return False
 
@@ -778,7 +778,7 @@ class UnifiedSemanticSearchService:
             return documents
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error indexing tickets: {e}")
+            logger.error(f"Error indexing tickets: {e}", exc_info=True)
             return []
 
     def _index_work_orders(self, tenant_id: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -807,7 +807,7 @@ class UnifiedSemanticSearchService:
             return documents
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error indexing work orders: {e}")
+            logger.error(f"Error indexing work orders: {e}", exc_info=True)
             return []
 
     def _index_assets(self, tenant_id: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -836,7 +836,7 @@ class UnifiedSemanticSearchService:
             return documents
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error indexing assets: {e}")
+            logger.error(f"Error indexing assets: {e}", exc_info=True)
             return []
 
     def _index_people(self, tenant_id: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -865,5 +865,5 @@ class UnifiedSemanticSearchService:
             return documents
 
         except DATABASE_EXCEPTIONS as e:
-            logger.error(f"Error indexing people: {e}")
+            logger.error(f"Error indexing people: {e}", exc_info=True)
             return []

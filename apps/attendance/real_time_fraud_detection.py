@@ -569,7 +569,7 @@ class RealTimeFraudDetector:
             device_info = context_data.get('device_data', {})
             
             # Check for device fingerprint changes
-            current_fingerprint = self._generate_device_fingerprint(device_info)
+            current_fingerprint = self._generate_device_fingerlogger.info(device_info)
             known_fingerprints = await self._get_known_device_fingerprints(user_id)
             
             if known_fingerprints and current_fingerprint not in known_fingerprints:

@@ -165,7 +165,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const dashboardData = {{ dashboard_data|safe|escapejs }};
+    const dashboardData = {{ dashboard_data|escapejs }};
 
     if (dashboardData.upload_stats && dashboardData.upload_stats.daily_trends) {
         const trendsData = dashboardData.upload_stats.daily_trends;

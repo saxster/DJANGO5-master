@@ -20,6 +20,7 @@ from .question_create import QuestionResource
 
 
 class QuestionAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     """
     Admin interface for Question model with import/export functionality.
 

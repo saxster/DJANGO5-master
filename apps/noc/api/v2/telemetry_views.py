@@ -19,6 +19,8 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 from apps.peoples.models import People
 from apps.client_onboarding.models import Bt
@@ -108,7 +110,7 @@ def person_signals_view(request, person_id):
             'status': 'error',
             'message': f'Person {person_id} not found'
         }, status=404)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         logger.error(f"Error fetching person signals: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -207,7 +209,7 @@ def site_signals_view(request, site_id):
             'status': 'error',
             'message': f'Site {site_id} not found'
         }, status=404)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         logger.error(f"Error fetching site signals: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -307,7 +309,7 @@ def correlations_view(request):
             'status': 'error',
             'message': f'Invalid parameter: {e}'
         }, status=400)
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         logger.error(f"Error fetching correlations: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',

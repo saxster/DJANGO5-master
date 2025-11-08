@@ -106,11 +106,11 @@ summary = PeopleEventLog.objects.get_spatial_attendance_summary(
     bu_ids=[10, 20, 30]
 )
 
-print(f"Total records: {summary['total_records']}")
-print(f"Spatial extent: {summary['spatial_extent']}")
-print(f"Avg distance: {summary['distance_stats']['avg']:.2f} km")
+logger.debug(f"Total records: {summary['total_records']}")
+logger.debug(f"Spatial extent: {summary['spatial_extent']}")
+logger.debug(f"Avg distance: {summary['distance_stats']['avg']:.2f} km")
 for bu in summary['bu_distance_distribution']:
-    print(f"{bu['bu__buname']}: {bu['avg_distance']:.2f} km avg")
+    logger.debug(f"{bu['bu__buname']}: {bu['avg_distance']:.2f} km avg")
 """,
         "radius_query": """
 # Find all attendance records within 5km of office
@@ -127,7 +127,7 @@ records = PeopleEventLog.objects.get_attendance_within_radius(
 )
 
 for record in records:
-    print(f"{record['people__peoplename']}: {record['distance_from_center']/1000:.2f} km away")
+    logger.debug(f"{record['people__peoplename']}: {record['distance_from_center']/1000:.2f} km away")
 """,
         "geofence_compliance": """
 # Analyze geofence compliance rates
@@ -139,9 +139,9 @@ analytics = PeopleEventLog.objects.get_geofence_compliance_analytics(
     date_to=date(2025, 10, 31)
 )
 
-print(f"Overall compliance: {analytics['overall_compliance_rate']:.1f}%")
+logger.debug(f"Overall compliance: {analytics['overall_compliance_rate']:.1f}%")
 for bu_id, data in analytics['bu_compliance'].items():
-    print(f"{data['name']}: {data['start_compliance_rate']:.1f}% compliance")
+    logger.debug(f"{data['name']}: {data['start_compliance_rate']:.1f}% compliance")
 """,
         "heatmap": """
 # Generate attendance density heatmap
@@ -156,7 +156,7 @@ heatmap = PeopleEventLog.objects.get_attendance_heatmap_data(
 
 # Top 10 hotspots
 for point in heatmap[:10]:
-    print(f"({point['lat']:.4f}, {point['lon']:.4f}): {point['count']} records, "
+    logger.debug(f"({point['lat']:.4f}, {point['lon']:.4f})
           f"{point['unique_people_count']} people")
 """
     }
@@ -219,12 +219,14 @@ class PELManager(TenantAwareManager):
 
         DEPRECATED: Use GeospatialService.extract_coordinates() directly.
         """
+        from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
+        
         try:
             from apps.attendance.services.geospatial_service import GeospatialService
             lon, lat = GeospatialService.extract_coordinates(location)
             return [lon, lat]
-        except Exception as e:
-            logger.error(f"Failed to extract coordinates from {location}: {str(e)}")
+        except PARSING_EXCEPTIONS as e:
+            logger.error(f"Failed to extract coordinates from {location}: {str(e)}", exc_info=True)
             return [0.0, 0.0]  # Return default coordinates on failure
 
     def is_point_in_geofence(self, lat, lon, geofence):
@@ -241,13 +243,15 @@ class PELManager(TenantAwareManager):
         Returns:
             bool: True if the point is inside the geofence, False otherwise.
         """
+        from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
+        
         try:
             from apps.attendance.services.geospatial_service import GeospatialService
             return GeospatialService.is_point_in_geofence(
                 lat, lon, geofence, use_hysteresis=True
             )
-        except Exception as e:
-            logger.error(f"Geofence validation failed for ({lat}, {lon}): {str(e)}")
+        except PARSING_EXCEPTIONS as e:
+            logger.error(f"Geofence validation failed for ({lat}, {lon}): {str(e)}", exc_info=True)
             return False
 
     def update_fr_results(self, result, uuid, peopleid, db):

@@ -101,7 +101,9 @@ import uuid
     bind=True,
     name="auto_close_jobs",
     idempotency_scope='global',
-    idempotency_ttl=14400  # 4 hours (from SECONDS_IN_HOUR * 4)
+    idempotency_ttl=14400,  # 4 hours (from SECONDS_IN_HOUR * 4)
+    soft_time_limit=600,     # 10 minutes - batch job closing
+    time_limit=900            # 15 minutes hard limit
 )
 def autoclose_job(self, jobneedid=None):
     from django.template.loader import render_to_string
@@ -207,7 +209,12 @@ def autoclose_job(self, jobneedid=None):
     return resp
 
 
-@shared_task(name="create_ppm_job")
+@shared_task(
+    name="create_ppm_job",
+    soft_time_limit=1800,  # 30 minutes soft limit (processes multiple jobs)
+    time_limit=2400,        # 40 minutes hard limit
+    max_retries=2
+)
 def create_ppm_job(jobid=None):
     F, d = {}, []
     # resp = {'story':"", 'traceback':""}
@@ -308,7 +315,12 @@ def create_ppm_job(jobid=None):
     return resp, F, d, result
 
 
-@shared_task(bind=True, name="task_every_min")
+@shared_task(
+    bind=True,
+    name="task_every_min",
+    soft_time_limit=30,  # 30 seconds - health check
+    time_limit=60         # 1 minute hard limit
+)
 def task_every_min(self):
     from django.utils import timezone
 

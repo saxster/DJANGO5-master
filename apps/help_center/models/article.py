@@ -18,6 +18,7 @@ from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.peoples.models import People
 
 
@@ -112,6 +113,8 @@ class HelpArticle(TenantAwareModel):
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantAwareManager()
 
     class Meta:
         db_table = 'help_center_article'

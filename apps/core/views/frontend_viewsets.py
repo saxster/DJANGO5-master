@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from apps.core.serializers.frontend_serializers import FrontendPagination, FrontendResponseMixin
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 
 class FrontendViewMixin(FrontendResponseMixin):
@@ -402,7 +404,7 @@ class BulkActionsMixin:
 
                 success_count += 1
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 error_count += 1
                 errors.append({
                     'object_id': obj.id,

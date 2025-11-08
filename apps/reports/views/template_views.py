@@ -5,6 +5,7 @@ Views for managing and retrieving report templates.
 
 Migrated from apps/reports/views.py
 Date: 2025-09-30
+Performance optimizations added: November 5, 2025
 """
 from .base import (
     LoginRequiredMixin,
@@ -26,13 +27,19 @@ from .base import (
     json,
     ValidationError,
 )
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
+from apps.core.constants.cache_ttl import CACHE_TTL_MEDIUM, CACHE_TTL_SHORT
 import tempfile
 import requests
 
 
+@method_decorator(cache_page(CACHE_TTL_MEDIUM), name='get')
 class RetriveSiteReports(LoginRequiredMixin, View):
     """
     Retrieve and list site reports with optimized service layer
+
+    Performance: Cached for CACHE_TTL_MEDIUM (5 minutes) - Added Nov 5, 2025
     """
     model = Jobneed
     template_path = "reports/sitereport_list.html"
@@ -58,7 +65,7 @@ class RetriveSiteReports(LoginRequiredMixin, View):
                     status=200,
                     encoder=utils.CustomJsonEncoderWithDistance,
                 )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             log.critical("Unexpected error in site reports view", exc_info=True)
             messages.error(request, "Something went wrong", "alert alert-danger")
             response = redirect("/dashboard")
@@ -66,9 +73,12 @@ class RetriveSiteReports(LoginRequiredMixin, View):
         return response
 
 
+@method_decorator(cache_page(CACHE_TTL_MEDIUM), name='get')
 class RetriveIncidentReports(LoginRequiredMixin, View):
     """
     Retrieve and list incident reports with optimized service layer
+
+    Performance: Cached for CACHE_TTL_MEDIUM (5 minutes) - Added Nov 5, 2025
     """
     model = Jobneed
     template_path = "reports/incidentreport_list.html"
@@ -92,7 +102,7 @@ class RetriveIncidentReports(LoginRequiredMixin, View):
                 response = rp.JsonResponse(
                     {"data": reports_data, "atts": attachments_data}, status=200
                 )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             log.critical("Unexpected error in incident reports view", exc_info=True)
             messages.error(request, "Something went wrong", "alert alert-danger")
             response = redirect("/dashboard")
@@ -100,9 +110,12 @@ class RetriveIncidentReports(LoginRequiredMixin, View):
         return response
 
 
+@method_decorator(cache_page(CACHE_TTL_MEDIUM), name='get')
 class MasterReportTemplateList(LoginRequiredMixin, View):
     """
     Base class for listing report templates with pagination
+
+    Performance: Cached for CACHE_TTL_MEDIUM (5 minutes) - Added Nov 5, 2025
     """
     model = QuestionSet
     template_path = None

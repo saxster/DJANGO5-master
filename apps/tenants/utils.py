@@ -203,7 +203,7 @@ def get_tenant_by_slug(tenant_slug: str, include_inactive: bool = False) -> Opti
     Example:
         >>> tenant = get_tenant_by_slug("intelliwiz-django")
         >>> if tenant:
-        ...     print(tenant.tenantname)
+        ...     logger.info(tenant.tenantname)
         >>> # For admin operations
         >>> tenant = get_tenant_by_slug("intelliwiz-django", include_inactive=True)
     """

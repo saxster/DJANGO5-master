@@ -199,7 +199,7 @@ $(document).ready(function() {
     {% if edit %}
         // Set transport modes
         {% if transport_modes_initial %}
-            var initialModes = {{ transport_modes_initial|safe }};
+            var initialModes = {{ transport_modes_initial|escapejs }};
             if (initialModes && initialModes.length > 0) {
                 $('#id_transportmodes').val(initialModes).trigger('change');
             }
@@ -207,10 +207,10 @@ $(document).ready(function() {
         
         // Set location fields
         {% if startlocation_initial %}
-            $('#id_startlocation').val("{{ startlocation_initial|replace('\"', '\\\"')|safe }}");
+            $('#id_startlocation').val("{{ startlocation_initial|replace('\"', '\\\"') }}");
         {% endif %}
         {% if endlocation_initial %}
-            $('#id_endlocation').val("{{ endlocation_initial|replace('\"', '\\\"')|safe }}");
+            $('#id_endlocation').val("{{ endlocation_initial|replace('\"', '\\\"') }}");
         {% endif %}
     {% endif %}
     

@@ -35,6 +35,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.onboarding.models import (
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
     OnboardingSite,
     OnboardingZone,
     ConversationSession
@@ -231,7 +233,7 @@ class SiteAuditStatusView(APIView):
                 {'error': 'Audit session not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.error(f"Error getting audit status: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to get audit status'},

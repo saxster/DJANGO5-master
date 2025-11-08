@@ -58,6 +58,10 @@ Observability Enhancement (2025-10-01):
 
 Usage:
     from apps.core.tasks.base import BaseTask, EmailTask, ExternalServiceTask
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
     @shared_task(base=BaseTask)
     def my_task(data):
@@ -391,7 +395,7 @@ class BaseTask(Task):
 
         try:
             yield context
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError) as exc:
             # Handle specific exception types
             if isinstance(exc, (DatabaseError, IntegrityError)):
                 logger.error(f"Database error in task {self.name}: {exc}")
@@ -471,7 +475,7 @@ class ExternalServiceTask(BaseTask):
             duration_ms = (time.time() - start_time) * 1000
             TaskMetrics.record_timing('external_service_call', duration_ms, {'service': service_name, 'status': 'success'})
 
-        except Exception as exc:
+        except CELERY_EXCEPTIONS as exc:
             # Record failure
             self.circuit_breaker.record_failure(service_name)
             duration_ms = (time.time() - start_time) * 1000
@@ -498,7 +502,7 @@ class ReportTask(BaseTask):
                 if os.path.exists(file_path):
                     os.remove(file_path)
                     logger.info(f"Cleaned up temp file: {file_path}")
-            except Exception as exc:
+            except FILE_EXCEPTIONS as exc:
                 logger.warning(f"Failed to clean up temp file {file_path}: {exc}")
 
 
@@ -531,7 +535,7 @@ class MaintenanceTask(BaseTask):
                         try:
                             process_func(item)
                             processed += 1
-                        except Exception as exc:
+                        except (ValueError, TypeError, AttributeError) as exc:
                             failed += 1
                             logger.warning(f"Failed to process item {item}: {exc}")
 
@@ -540,7 +544,7 @@ class MaintenanceTask(BaseTask):
                     progress = (i + len(batch)) / total_items * 100
                     logger.info(f"Batch processing progress: {progress:.1f}% ({processed} processed, {failed} failed)")
 
-            except Exception as exc:
+            except DATABASE_EXCEPTIONS as exc:
                 logger.error(f"Batch processing failed for batch starting at index {i}: {exc}")
                 failed += len(batch)
 
@@ -688,7 +692,7 @@ class IdempotentTask(BaseTask):
 
             return result
 
-        except Exception as exc:
+        except CELERY_EXCEPTIONS as exc:
             # Cache error with shorter TTL to allow retries
             error_ttl = min(self.idempotency_ttl, SECONDS_IN_HOUR)
 

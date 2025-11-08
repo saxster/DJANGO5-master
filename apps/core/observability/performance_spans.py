@@ -17,6 +17,12 @@ Compliance:
 
 Usage:
     from apps.core.observability.performance_spans import PerformanceSpanInstrumentor
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     PerformanceSpanInstrumentor.instrument_all()
 
 MIGRATION NOTE (Oct 2025): Legacy query spans removed - use REST API tracing
@@ -80,7 +86,7 @@ class PerformanceSpanInstrumentor:
         except ImportError as e:
             logger.error(f"OTel not installed: {e}")
             return False
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Failed to instrument performance spans: {e}", exc_info=True)
             return False
 
@@ -151,7 +157,7 @@ def trace_celery_task(task_name: Optional[str] = None):
                 ):
                     return func(*args, **kwargs)
 
-            except Exception as e:
+            except CELERY_EXCEPTIONS as e:
                 logger.error(f"Error in Celery task span: {e}", exc_info=True)
                 return func(*args, **kwargs)
 
@@ -190,7 +196,7 @@ def trace_external_api_call(api_name: str, endpoint: str):
                 ):
                     return func(*args, **kwargs)
 
-            except Exception as e:
+            except NETWORK_EXCEPTIONS as e:
                 logger.error(f"Error in external API span: {e}", exc_info=True)
                 return func(*args, **kwargs)
 
@@ -231,7 +237,7 @@ def trace_database_query(query_name: str):
                 ):
                     return func(*args, **kwargs)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Error in database query span: {e}", exc_info=True)
                 return func(*args, **kwargs)
 

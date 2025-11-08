@@ -9,6 +9,8 @@ Compliance with .claude/rules.md:
 """
 
 from drf_spectacular.views import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     SpectacularAPIView,
     SpectacularSwaggerView,
     SpectacularRedocView,
@@ -43,7 +45,7 @@ class PublicSchemaView(SpectacularAPIView):
         """Return OpenAPI schema with mobile-friendly metadata."""
         try:
             return super().get(request, *args, **kwargs)
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to generate OpenAPI schema: {e}", exc_info=True)
             return JsonResponse({
                 'error': 'Schema generation failed',

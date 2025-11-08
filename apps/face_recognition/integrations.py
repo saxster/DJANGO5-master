@@ -8,6 +8,10 @@ from django.utils import timezone
 from django.core.signals import Signal
 from django.dispatch import receiver
 from celery import shared_task
+from apps.core.exceptions.patterns import (
+    DATABASE_EXCEPTIONS,
+    BUSINESS_LOGIC_EXCEPTIONS
+)
 
 # Import enhanced base classes and utilities
 from apps.core.tasks.base import (
@@ -363,7 +367,7 @@ class AIAttendanceIntegration:
                 }
 
         except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
-            logger.error(f"Error updating behavioral profile: {str(e)}")
+            logger.error(f"Error updating behavioral profile: {str(e)}", exc_info=True)
             return {'error': str(e)}
     
     def _calculate_attendance_regularity(self, user_id: int) -> Optional[float]:
@@ -399,7 +403,7 @@ class AIAttendanceIntegration:
             return regularity_score
             
         except (AttributeError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
-            logger.error(f"Error calculating attendance regularity: {str(e)}")
+            logger.error(f"Error calculating attendance regularity: {str(e)}", exc_info=True)
             return None
     
     def _calculate_overall_risk_score(self, results: Dict[str, Any]) -> float:
@@ -416,7 +420,7 @@ class AIAttendanceIntegration:
             return min(1.0, total_risk)
             
         except (AttributeError, DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
-            logger.error(f"Error calculating overall risk score: {str(e)}")
+            logger.error(f"Error calculating overall risk score: {str(e)}", exc_info=True)
             return 0.0
     
     def _generate_integration_recommendations(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -486,8 +490,8 @@ class AIAttendanceIntegration:
                 })
             
         except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-            logger.error(f"Error generating recommendations: {str(e)}")
-        
+            logger.error(f"Error generating recommendations: {str(e)}", exc_info=True)
+
         return recommendations
     
     def _store_processing_results(self, attendance: PeopleEventlog, results: Dict[str, Any]):
@@ -585,8 +589,8 @@ def process_attendance_async(self, attendance_id: int, image_path: Optional[str]
                 'attendance_id': attendance_id
             }
 
-        except Exception as exc:
-            logger.error(f"Biometric processing failed for attendance {attendance_id}: {exc}")
+        except BUSINESS_LOGIC_EXCEPTIONS as exc:
+            logger.error(f"Biometric processing failed for attendance {attendance_id}: {exc}", exc_info=True)
             TaskMetrics.increment_counter('biometric_processing_error', {'error': 'processing_failed'})
             raise  # Let ExternalServiceTask handle circuit breaker and retries
 
@@ -604,7 +608,7 @@ def handle_attendance_verification(sender, attendance, verification_result, **kw
             pass
             
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-        logger.error(f"Error handling attendance verification: {str(e)}")
+        logger.error(f"Error handling attendance verification: {str(e)}", exc_info=True)
 
 
 @receiver(fraud_detected)
@@ -624,7 +628,7 @@ def handle_fraud_detection(sender, attendance, fraud_result, **kwargs):
             # Log security incident
             
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-        logger.error(f"Error handling fraud detection: {str(e)}")
+        logger.error(f"Error handling fraud detection: {str(e)}", exc_info=True)
 
 
 @receiver(anomaly_detected)
@@ -641,7 +645,7 @@ def handle_anomaly_detection(sender, attendance, anomaly_result, **kwargs):
             logger.warning(f"High-confidence anomaly: {confidence:.2%}")
             
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-        logger.error(f"Error handling anomaly detection: {str(e)}")
+        logger.error(f"Error handling anomaly detection: {str(e)}", exc_info=True)
 
 
 @receiver(behavioral_pattern_updated)
@@ -656,4 +660,4 @@ def handle_behavioral_update(sender, user_id, profile, updates, **kwargs):
             # Implement enhanced monitoring
             
     except (AttributeError, ConnectionError, DatabaseError, IntegrationException, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as e:
-        logger.error(f"Error handling behavioral update: {str(e)}")
+        logger.error(f"Error handling behavioral update: {str(e)}", exc_info=True)

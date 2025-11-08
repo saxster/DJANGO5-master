@@ -148,7 +148,7 @@ class SecurityStartupValidator:
                 )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating Jinja2 autoescape: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating Jinja2 autoescape: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="Jinja2 Autoescape",
@@ -194,7 +194,7 @@ class SecurityStartupValidator:
             )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating JWT expiration: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating JWT expiration: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="JWT Token Expiration",
@@ -239,7 +239,7 @@ class SecurityStartupValidator:
                 )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating language cookie security: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating language cookie security: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="Language Cookie Security",
@@ -299,7 +299,7 @@ class SecurityStartupValidator:
                 )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating Jinja2 auto-reload: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating Jinja2 auto-reload: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="Jinja2 Auto-Reload",
@@ -331,7 +331,7 @@ class SecurityStartupValidator:
             )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating CSRF protection: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating CSRF protection: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="CSRF/Session Cookie Security",
@@ -381,7 +381,7 @@ class SecurityStartupValidator:
             )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating SECRET_KEY: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating SECRET_KEY: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="SECRET_KEY Configuration",
@@ -411,7 +411,7 @@ class SecurityStartupValidator:
             )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating DEBUG setting: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating DEBUG setting: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="DEBUG Setting",
@@ -442,7 +442,7 @@ class SecurityStartupValidator:
             )
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Error validating ALLOWED_HOSTS: {e}", exc_info=True), exc_info=True
+            logger.error(f"Error validating ALLOWED_HOSTS: {e}", exc_info=True)
             return ValidationResult(
                 passed=False,
                 check_name="ALLOWED_HOSTS Configuration",

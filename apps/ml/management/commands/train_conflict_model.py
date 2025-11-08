@@ -9,6 +9,8 @@ import os
 from datetime import datetime
 from django.core.management.base import BaseCommand
 from apps.ml.services.training.conflict_model_trainer import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     ConflictModelTrainer
 )
 from apps.ml.models.ml_models import ConflictPredictionModel
@@ -87,7 +89,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'Training failed: {e}')
             )
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self.stdout.write(
                 self.style.ERROR(
                     f'Unexpected error during training: {e}'

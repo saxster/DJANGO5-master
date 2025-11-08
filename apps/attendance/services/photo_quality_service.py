@@ -184,7 +184,7 @@ class PhotoQualityService:
 
             return results['is_valid'], results
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, OSError, IOError) as e:
             logger.error(f"Photo validation failed: {e}", exc_info=True)
             results['is_valid'] = False
             results['errors'] = [f"Validation error: {str(e)}"]
@@ -263,8 +263,8 @@ class PhotoQualityService:
         except ImportError:
             logger.warning("OpenCV not available, skipping blur detection")
             return False, 0.0
-        except Exception as e:
-            logger.error(f"Blur detection failed: {e}")
+        except (ValueError, TypeError, OSError, IOError) as e:
+            logger.error(f"Blur detection failed: {e}", exc_info=True)
             return False, 0.0
 
     @staticmethod
@@ -298,8 +298,8 @@ class PhotoQualityService:
         except ImportError:
             logger.warning("face_recognition library not available, skipping face detection")
             return True, 1, 1.0  # Assume valid if lib not available
-        except Exception as e:
-            logger.error(f"Face detection failed: {e}")
+        except (ValueError, TypeError, OSError, IOError) as e:
+            logger.error(f"Face detection failed: {e}", exc_info=True)
             return False, 0, 0.0
 
     @staticmethod
@@ -384,7 +384,7 @@ class PhotoQualityService:
             logger.debug(f"Compressed image to {len(output.getvalue()) / 1024:.1f}KB (quality: {current_quality})")
             return output
 
-        except Exception as e:
+        except (ValueError, TypeError, OSError, IOError) as e:
             logger.error(f"Image compression failed: {e}", exc_info=True)
             raise AttendanceValidationError(f"Failed to compress image: {e}")
 
@@ -415,7 +415,7 @@ class PhotoQualityService:
             logger.debug(f"Generated {size[0]}x{size[1]} thumbnail")
             return output
 
-        except Exception as e:
+        except (ValueError, TypeError, OSError, IOError) as e:
             logger.error(f"Thumbnail generation failed: {e}", exc_info=True)
             return None
 
@@ -476,7 +476,7 @@ class PhotoQualityService:
         except ImportError:
             logger.warning("face_recognition library not available")
             return True, 1.0  # Assume match if library not available
-        except Exception as e:
+        except (ValueError, TypeError, OSError, IOError, AttributeError) as e:
             logger.error(f"Face matching failed: {e}", exc_info=True)
             return False, 0.0
 

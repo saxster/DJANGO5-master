@@ -61,7 +61,7 @@ class DocumentSubmissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DocumentSubmission
-        fields = '__all__'
+        exclude = ['ssn_document', 'background_check_details', 'internal_notes']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = ['uuid', 'cdby', 'cdtz', 'upby', 'uptz', 'verified_by', 'verified_at']
 
     def get_file_url(self, obj):
@@ -108,7 +108,7 @@ class ApprovalWorkflowSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApprovalWorkflow
-        fields = '__all__'
+        exclude = ['internal_notes', 'reviewer_comments_internal', 'salary_details']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = ['uuid', 'decision_date', 'decision_ip_address']
 
     def get_sla_hours_remaining(self, obj):
@@ -149,7 +149,7 @@ class OnboardingTaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OnboardingTask
-        fields = '__all__'
+        exclude = ['internal_notes', 'sensitive_data']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = ['uuid', 'completed_date', 'cdby', 'cdtz', 'upby', 'uptz']
 
     def get_progress_percentage(self, obj):
@@ -187,7 +187,7 @@ class OnboardingRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OnboardingRequest
-        fields = '__all__'
+        exclude = ['internal_notes', 'ssn', 'salary_details']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = ['uuid', 'request_number', 'people', 'cdby', 'cdtz', 'upby', 'uptz']
 
     def get_days_in_process(self, obj):
@@ -262,7 +262,7 @@ class BackgroundCheckSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BackgroundCheck
-        fields = '__all__'
+        exclude = ['ssn', 'background_check_result', 'criminal_record', 'internal_notes']  # Security: CRITICAL - Background check data is highly sensitive
         read_only_fields = ['uuid', 'cdby', 'cdtz', 'upby', 'uptz']
 
 
@@ -285,7 +285,7 @@ class AccessProvisioningSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AccessProvisioning
-        fields = '__all__'
+        exclude = ['internal_notes', 'credentials', 'api_keys']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = ['uuid', 'provisioned_date', 'cdby', 'cdtz', 'upby', 'uptz']
 
 
@@ -304,5 +304,5 @@ class TrainingAssignmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TrainingAssignment
-        fields = '__all__'
+        exclude = ['internal_notes', 'assessment_results']  # Security: Explicit exclusion instead of '__all__'
         read_only_fields = ['uuid', 'completion_date', 'cdby', 'cdtz', 'upby', 'uptz']

@@ -25,6 +25,8 @@ from apps.attendance.models import PeopleEventlog
 from apps.core.encryption import BiometricEncryptionService, EncryptionError
 import json
 import logging
+from apps.core.exceptions.patterns import JSON_EXCEPTIONS
+
 from typing import Dict, Any
 from datetime import datetime
 
@@ -147,11 +149,11 @@ class Command(BaseCommand):
                                 if encrypted % 100 == 0:
                                     self.stdout.write(f"  Encrypted {encrypted} records...")
 
-                            except Exception as e:
-                                logger.error(f"Failed to encrypt record {record_id}: {e}")
+                            except JSON_EXCEPTIONS as e:
+                                logger.error(f"Failed to encrypt record {record_id}: {e}", exc_info=True)
                                 failed += 1
 
-                except Exception as e:
+                except (IntegrityError, OperationalError, DataError, DatabaseError) as e:
                     self.stdout.write(
                         self.style.ERROR(f"Batch {batch_num} failed: {e}")
                     )
@@ -255,7 +257,7 @@ class Command(BaseCommand):
                     )
                     failures += 1
 
-            except Exception as e:
+            except JSON_EXCEPTIONS as e:
                 self.stdout.write(
                     self.style.ERROR(f"Verification failed for record {record_id}: {e}")
                 )

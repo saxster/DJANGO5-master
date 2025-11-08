@@ -9,6 +9,8 @@ from typing import Dict, Any, List
 from django.conf import settings
 from django.core.cache import cache
 from datetime import datetime
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +126,7 @@ class LicenseValidator:
                 'attribution_required': True
             })
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Error validating license: {str(e)}")
             validation_result['warnings'].append({
                 'type': 'validation_error',
@@ -178,7 +180,7 @@ class LicenseValidator:
             if validation['license_restrictions']:
                 validation['risk_assessment'] = 'medium' if validation['redistribution_allowed'] else 'high'
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Error validating redistribution rights: {str(e)}")
             validation.update({
                 'redistribution_allowed': False,

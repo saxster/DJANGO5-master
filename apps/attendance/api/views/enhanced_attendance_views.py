@@ -38,12 +38,15 @@ from apps.attendance.services.fraud_detection_orchestrator import FraudDetection
 from apps.attendance.services.gps_spoofing_detector import GPSSpoofingDetector
 from apps.attendance.services.geospatial_service import GeospatialService
 from apps.attendance.services.expense_calculation_service import ExpenseCalculationService
+from apps.attendance.services.clock_in_service import ClockInService
 from apps.attendance.exceptions import (
     AttendancePermissionError,
     AttendanceValidationError,
 )
 
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -80,303 +83,49 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def clock_in(self, request):
-        """
-        Clock in with comprehensive validation.
-
-        Request Body:
-        {
-            "lat": 37.7749,
-            "lng": -122.4194,
-            "accuracy": 15.0,
-            "device_id": "device-abc-123",
-            "transport_mode": "CAR",
-            "photo": "<base64_or_multipart_file>",  # Recommended
-            "shift_id": 42,  # Optional
-            "notes": "Starting shift at warehouse"  # Optional
-        }
-
-        Response:
-        {
-            "id": 12345,
-            "status": "success",
-            "message": "Clocked in successfully",
-            "timestamp": "2025-11-03T14:30:00Z",
-            "fraud_analysis": {
-                "score": 0.15,
-                "risk_level": "LOW",
-                "anomalies": []
-            },
-            "photo_captured": true,
-            "location_validated": true
-        }
-
-        Error Responses:
-        - 403: Missing required consents
-        - 400: GPS validation failed (spoofing detected)
-        - 400: Photo validation failed
-        - 403: Fraud score too high (auto-blocked)
-        """
+        """Clock in with comprehensive validation"""
         try:
-            # ================================================================
-            # STEP 1: CONSENT VALIDATION (Biometric Only - GPS is core functionality)
-            # ================================================================
-            # NOTE: GPS consent checking REMOVED - GPS is inherent to app usage.
-            # Users who don't want GPS tracking can choose not to use the app.
-            #
-            # We ONLY check for biometric consent (required by IL BIPA, TX CUBI, WA laws)
-            # This only matters if face recognition or photo capture is enabled.
-
-            # Check if biometric features are being used
-            using_biometric = 'photo' in request.FILES or request.data.get('use_face_recognition', False)
-
-            if using_biometric:
-                can_use_biometric, missing_consents = ConsentValidationService.can_user_use_biometric_features(
-                    request.user
-                )
-
-                if not can_use_biometric:
-                    logger.warning(
-                        f"Biometric features blocked for {request.user.username}: missing biometric consents",
-                        extra={'missing_consents': missing_consents}
-                    )
-
-                    return Response({
-                        'error': 'MISSING_BIOMETRIC_CONSENT',
-                        'message': 'Biometric consent required for face recognition and photo capture',
-                        'missing_consents': missing_consents,
-                        'action_required': 'Accept biometric consent policy at /attendance/consent/',
-                        'note': 'GPS tracking is core app functionality and does not require consent'
-                    }, status=status.HTTP_403_FORBIDDEN)
-
-            # ================================================================
-            # STEP 2: GPS VALIDATION (Spoofing detection)
-            # ================================================================
+            # Parse request data
             lat = float(request.data.get('lat'))
             lng = float(request.data.get('lng'))
             accuracy = float(request.data.get('accuracy', 20.0))
             transport_mode = request.data.get('transport_mode', 'NONE')
-
-            # Get previous attendance for velocity check
-            previous_attendance = PeopleEventlog.objects.filter(
-                people=request.user,
-                punchouttime__isnull=False
-            ).order_by('-punchouttime').first()
-
-            # Validate GPS with spoofing detection
-            is_valid_gps, gps_validation_results = GPSSpoofingDetector.validate_gps_location(
-                latitude=lat,
-                longitude=lng,
-                accuracy=accuracy,
-                previous_record=previous_attendance,
-                transport_mode=transport_mode
-            )
-
-            if not is_valid_gps:
-                logger.warning(
-                    f"GPS validation failed for {request.user.username}",
-                    extra=gps_validation_results
-                )
-
-                return Response({
-                    'error': 'GPS_VALIDATION_FAILED',
-                    'message': 'Your location could not be verified',
-                    'details': gps_validation_results['spoofing_indicators'],
-                    'suggestions': [
-                        'Ensure GPS is enabled on your device',
-                        'Move to an area with better GPS signal',
-                        'Disable any location spoofing apps',
-                        'Contact your manager if this persists'
-                    ]
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # ================================================================
-            # STEP 3: PHOTO VALIDATION (Buddy punching prevention)
-            # ================================================================
-            photo_instance = None
             client_id = request.user.client_id if hasattr(request.user, 'client_id') else None
-
-            # Check if photo is required for this client
+            using_biometric = 'photo' in request.FILES or request.data.get('use_face_recognition', False)
+            photo_file = request.FILES.get('photo')
             photo_required = self._is_photo_required(client_id, photo_type='CLOCK_IN')
-
-            if 'photo' in request.FILES or photo_required:
-                if 'photo' not in request.FILES and photo_required:
-                    return Response({
-                        'error': 'PHOTO_REQUIRED',
-                        'message': 'Photo is required for clock-in at your location',
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-                # Will process photo after creating attendance record (need record ID)
-                # Just validate here
-                photo_file = request.FILES.get('photo')
-                if photo_file:
-                    # Quick validation (detailed validation after record creation)
-                    if photo_file.size > 5 * 1024 * 1024:  # 5MB max
-                        return Response({
-                            'error': 'PHOTO_TOO_LARGE',
-                            'message': 'Photo must be smaller than 5MB',
-                        }, status=status.HTTP_400_BAD_REQUEST)
-
-            # ================================================================
-            # STEP 4: CREATE ATTENDANCE RECORD
-            # ================================================================
-            with transaction.atomic():
-                # Create GPS point
-                gps_point = GeospatialService.create_point(lng, lat)
-
-                # Create attendance record
-                attendance = PeopleEventlog.objects.create(
-                    people=request.user,
-                    punchintime=timezone.now(),
-                    datefor=timezone.now().date(),
-                    startlocation=gps_point,
-                    accuracy=accuracy,
-                    deviceid=request.data.get('device_id'),
-                    transportmodes=[transport_mode] if transport_mode and transport_mode != 'NONE' else [],
-                    tenant=client_id or 'default',
-                    client_id=client_id,
-                    shift_id=request.data.get('shift_id'),
-                    remarks=request.data.get('notes', ''),
-                    facerecognitionin=True if 'photo' in request.FILES else False,
-                )
-
-                logger.info(f"Created attendance record {attendance.id} for {request.user.username}")
-
-                # ================================================================
-                # STEP 5: PROCESS PHOTO (if provided)
-                # ================================================================
-                if 'photo' in request.FILES:
-                    try:
-                        photo_instance = PhotoQualityService.process_attendance_photo(
-                            image_file=request.FILES['photo'],
-                            attendance_record=attendance,
-                            employee=request.user,
-                            photo_type=AttendancePhoto.PhotoType.CLOCK_IN,
-                            client_id=client_id
-                        )
-
-                        # Link photo to attendance
-                        attendance.checkin_photo = photo_instance
-                        attendance.save(update_fields=['checkin_photo'])
-
-                        logger.info(f"Processed clock-in photo for attendance {attendance.id}")
-
-                    except AttendanceValidationError as e:
-                        # Photo failed validation
-                        logger.error(f"Photo validation failed: {e}")
-
-                        # If photo is required, fail the clock-in
-                        if photo_required:
-                            attendance.delete()  # Rollback
-                            return Response({
-                                'error': 'PHOTO_VALIDATION_FAILED',
-                                'message': str(e),
-                                'context': e.context if hasattr(e, 'context') else {}
-                            }, status=status.HTTP_400_BAD_REQUEST)
-
-                        # Otherwise, log warning and continue
-                        logger.warning(f"Photo validation failed but not required: {e}")
-
-                # ================================================================
-                # STEP 6: FRAUD DETECTION ANALYSIS
-                # ================================================================
-                try:
-                    orchestrator = FraudDetectionOrchestrator(request.user)
-                    fraud_result = orchestrator.analyze_attendance(attendance)
-
-                    # Save fraud detection results
-                    attendance.fraud_score = fraud_result['analysis']['composite_score']
-                    attendance.fraud_risk_level = fraud_result['analysis']['risk_level']
-                    attendance.fraud_anomalies = fraud_result['anomalies']
-                    attendance.fraud_analyzed_at = timezone.now()
-                    attendance.save(update_fields=[
-                        'fraud_score',
-                        'fraud_risk_level',
-                        'fraud_anomalies',
-                        'fraud_analyzed_at'
-                    ])
-
-                    logger.info(
-                        f"Fraud analysis complete for attendance {attendance.id}: "
-                        f"score={fraud_result['analysis']['composite_score']:.3f}, "
-                        f"risk={fraud_result['analysis']['risk_level']}"
-                    )
-
-                    # ================================================================
-                    # STEP 7: HANDLE HIGH-RISK FRAUD
-                    # ================================================================
-                    if fraud_result['analysis']['should_block']:
-                        # Create fraud alert
-                        alert = FraudAlert.objects.create(
-                            employee=request.user,
-                            attendance_record=attendance,
-                            alert_type=FraudAlert.AlertType.HIGH_RISK_BEHAVIOR,
-                            severity=FraudAlert.Severity.CRITICAL,
-                            fraud_score=fraud_result['analysis']['composite_score'],
-                            risk_score=int(fraud_result['analysis']['composite_score'] * 100),
-                            evidence=fraud_result['detector_details'],
-                            anomalies_detected=fraud_result['anomalies'],
-                            auto_blocked=True,
-                            tenant=client_id or 'default'
-                        )
-
-                        # TODO: Send alert to manager (Phase 2.4 integration)
-                        # from apps.attendance.services.alert_notification_service import send_fraud_alert
-                        # send_fraud_alert(alert)
-
-                        logger.critical(
-                            f"FRAUD DETECTED: Auto-blocked clock-in for {request.user.username}, "
-                            f"alert_id={alert.id}, score={fraud_result['analysis']['composite_score']:.3f}"
-                        )
-
-                        return Response({
-                            'error': 'ATTENDANCE_BLOCKED',
-                            'message': 'Your check-in has been flagged for manager review due to unusual activity',
-                            'fraud_score': fraud_result['analysis']['composite_score'],
-                            'risk_level': fraud_result['analysis']['risk_level'],
-                            'anomalies': [a['description'] for a in fraud_result['anomalies']],
-                            'action_required': 'Please contact your manager for manual verification',
-                            'alert_id': str(alert.uuid)
-                        }, status=status.HTTP_403_FORBIDDEN)
-
-                    # Check for MEDIUM/HIGH risk (flag but don't block)
-                    elif fraud_result['analysis']['composite_score'] >= 0.5:
-                        # Create alert for manager review (don't block)
-                        alert = FraudAlert.objects.create(
-                            employee=request.user,
-                            attendance_record=attendance,
-                            alert_type=FraudAlert.AlertType.UNUSUAL_PATTERN,
-                            severity=FraudAlert.Severity.HIGH if fraud_result['analysis']['composite_score'] >= 0.6 else FraudAlert.Severity.MEDIUM,
-                            fraud_score=fraud_result['analysis']['composite_score'],
-                            risk_score=int(fraud_result['analysis']['composite_score'] * 100),
-                            evidence=fraud_result['detector_details'],
-                            anomalies_detected=fraud_result['anomalies'],
-                            auto_blocked=False,
-                            tenant=client_id or 'default'
-                        )
-
-                        logger.warning(
-                            f"Suspicious activity detected for {request.user.username}: "
-                            f"score={fraud_result['analysis']['composite_score']:.3f}, alert_id={alert.id}"
-                        )
-
-                except Exception as e:
-                    # Don't fail clock-in if fraud detection fails
-                    logger.error(f"Fraud detection failed for attendance {attendance.id}: {e}", exc_info=True)
-                    fraud_result = {'analysis': {'composite_score': 0.0, 'risk_level': 'UNKNOWN', 'should_block': False}, 'anomalies': []}
-
-            # ================================================================
-            # STEP 8: RETURN SUCCESS RESPONSE
-            # ================================================================
-            response_data = {
+            
+            # Validate consents
+            ClockInService.validate_biometric_consent(request.user, using_biometric)
+            
+            # Validate GPS location
+            ClockInService.validate_gps_location(lat, lng, accuracy, transport_mode, request.user)
+            
+            # Validate photo requirements
+            ClockInService.validate_photo_requirements(photo_file, photo_required)
+            
+            # Perform clock-in
+            attendance, photo_instance, fraud_result = ClockInService.perform_clock_in(
+                user=request.user,
+                lat=lat,
+                lng=lng,
+                accuracy=accuracy,
+                device_id=request.data.get('device_id'),
+                transport_mode=transport_mode,
+                photo_file=photo_file,
+                shift_id=request.data.get('shift_id'),
+                notes=request.data.get('notes', ''),
+                client_id=client_id,
+                photo_required=photo_required
+            )
+            
+            # Return success response
+            return Response({
                 'id': attendance.id,
                 'status': 'success',
                 'message': 'Clocked in successfully',
                 'timestamp': attendance.punchintime.isoformat(),
-                'location': {
-                    'lat': lat,
-                    'lng': lng,
-                    'accuracy': accuracy,
-                },
+                'location': {'lat': lat, 'lng': lng, 'accuracy': accuracy},
                 'fraud_analysis': {
                     'score': round(fraud_result['analysis']['composite_score'], 3),
                     'risk_level': fraud_result['analysis']['risk_level'],
@@ -385,10 +134,8 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
                 },
                 'photo_captured': photo_instance is not None,
                 'photo_quality': photo_instance.quality_rating if photo_instance else None,
-            }
-
-            return Response(response_data, status=status.HTTP_201_CREATED)
-
+            }, status=status.HTTP_201_CREATED)
+            
         except AttendancePermissionError as e:
             logger.warning(f"Permission denied for clock-in: {e}")
             return Response({
@@ -396,7 +143,6 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
                 'message': str(e),
                 'context': e.context if hasattr(e, 'context') else {}
             }, status=status.HTTP_403_FORBIDDEN)
-
         except AttendanceValidationError as e:
             logger.warning(f"Validation failed for clock-in: {e}")
             return Response({
@@ -404,14 +150,20 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
                 'message': str(e),
                 'context': e.context if hasattr(e, 'context') else {}
             }, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            logger.error(f"Clock-in failed for {request.user.username}: {e}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error during clock-in for {request.user.username}: {e}", exc_info=True)
             return Response({
                 'error': 'CLOCK_IN_FAILED',
-                'message': 'An unexpected error occurred. Please try again or contact support.',
+                'message': 'Database error occurred. Please try again or contact support.',
                 'support_id': getattr(request, 'correlation_id', 'N/A')
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Data validation error during clock-in for {request.user.username}: {e}", exc_info=True)
+            return Response({
+                'error': 'INVALID_DATA',
+                'message': 'Invalid request data. Please check your inputs.',
+                'support_id': getattr(request, 'correlation_id', 'N/A')
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'])
     def clock_out(self, request):
@@ -538,7 +290,7 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
                             f"Calculated expense for attendance {attendance.id}: ${expense} "
                             f"({attendance.distance}km)"
                         )
-                    except Exception as e:
+                    except DATABASE_EXCEPTIONS as e:
                         logger.error(f"Expense calculation failed: {e}", exc_info=True)
 
                 # ================================================================
@@ -573,7 +325,7 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
                             tenant=client_id or 'default'
                         )
 
-                except Exception as e:
+                except (ValueError, TypeError, KeyError, AttributeError) as e:
                     logger.error(f"Fraud detection failed for clock-out: {e}", exc_info=True)
 
             # ================================================================
@@ -596,11 +348,19 @@ class EnhancedAttendanceViewSet(viewsets.ModelViewSet):
                 'message': 'No open attendance found',
             }, status=status.HTTP_404_NOT_FOUND)
 
-        except Exception as e:
-            logger.error(f"Clock-out failed: {e}", exc_info=True)
+        except (IntegrityError, OperationalError, DatabaseError) as e:
+            logger.error(f"Database error during clock-out: {e}", exc_info=True)
             return Response({
                 'error': 'CLOCK_OUT_FAILED',
-                'message': 'An unexpected error occurred',
+                'message': 'Database error occurred. Please try again.',
+                'support_id': getattr(request, 'correlation_id', 'N/A')
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Data validation error during clock-out: {e}", exc_info=True)
+            return Response({
+                'error': 'INVALID_DATA',
+                'message': 'Invalid request data',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _is_photo_required(self, client_id: Optional[int], photo_type: str) -> bool:

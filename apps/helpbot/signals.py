@@ -34,7 +34,7 @@ def handle_session_save(sender, instance, created, **kwargs):
             logger.debug(f"Recorded analytics for completed session: {instance.session_id}")
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in session save signal: {e}"), exc_info=True
+        logger.error(f"Error in session save signal: {e}", exc_info=True)
 
 
 @receiver(pre_save, sender=HelpBotSession)
@@ -55,7 +55,7 @@ def handle_session_pre_save(sender, instance, **kwargs):
                 pass
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in session pre_save signal: {e}"), exc_info=True
+        logger.error(f"Error in session pre_save signal: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=HelpBotMessage)
@@ -92,7 +92,7 @@ def handle_message_save(sender, instance, created, **kwargs):
                         )
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in message save signal: {e}"), exc_info=True
+        logger.error(f"Error in message save signal: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=HelpBotFeedback)
@@ -120,7 +120,7 @@ def handle_feedback_save(sender, instance, created, **kwargs):
                         )
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in feedback save signal: {e}"), exc_info=True
+        logger.error(f"Error in feedback save signal: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=HelpBotKnowledge)
@@ -148,7 +148,7 @@ def handle_knowledge_save(sender, instance, created, **kwargs):
             logger.debug(f"Knowledge article updated: {instance.knowledge_id}")
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in knowledge save signal: {e}"), exc_info=True
+        logger.error(f"Error in knowledge save signal: {e}", exc_info=True)
 
 
 @receiver(post_delete, sender=HelpBotKnowledge)
@@ -161,7 +161,7 @@ def handle_knowledge_delete(sender, instance, **kwargs):
         # This would integrate with the existing txtai infrastructure
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in knowledge delete signal: {e}"), exc_info=True
+        logger.error(f"Error in knowledge delete signal: {e}", exc_info=True)
 
 
 # Optional: Handle other model signals for comprehensive tracking
@@ -184,14 +184,14 @@ def handle_user_activity(sender, instance, created, **kwargs):
                 # Could trigger context refresh here
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error in user activity signal: {e}"), exc_info=True
+        logger.error(f"Error in user activity signal: {e}", exc_info=True)
 
 
 # Error handling for signal failures
 def handle_signal_error(sender, **kwargs):
     """Generic error handler for signal failures."""
     exception = kwargs.get('exception')
-    logger.error(f"Signal error in {sender}: {exception}"), exc_info=True
+    logger.error(f"Signal error in {sender}: {exception}", exc_info=True)
 
 
 # Optional: Connect to Django's got_request_exception for error tracking
@@ -217,4 +217,4 @@ def handle_request_exception(sender, request, **kwargs):
                 }
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-        logger.error(f"Error handling request exception signal: {e}"), exc_info=True
+        logger.error(f"Error handling request exception signal: {e}", exc_info=True)

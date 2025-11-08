@@ -17,6 +17,8 @@ from typing import Dict, Any, Optional
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Avg, Count, Q
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.priority')
 
@@ -81,7 +83,7 @@ class AlertPriorityScorer:
             else:
                 logger.debug("ML model not found, using heuristic scoring")
                 priority_score = cls._heuristic_score(features)
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.warning(f"Error in ML prediction, using heuristic: {e}")
             priority_score = cls._heuristic_score(features)
 

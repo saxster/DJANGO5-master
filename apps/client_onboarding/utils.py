@@ -300,7 +300,7 @@ def get_file_metadata(file_id):
 
 def check_if_name_is_correct(image_name):
     image_name = image_name.split(".")[0]
-    regex = re.compile("^[a-zA-Z0-9_#\-\(\)]*$")
+    regex = re.compile(r"^[a-zA-Z0-9_#\-\(\)]*$")
     val = re.match(regex, image_name)
     if val:
         return [True, " "]

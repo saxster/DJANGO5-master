@@ -96,7 +96,7 @@ class PredictSLABreachesTask(IdempotentTask):
                 results[tenant.id] = len(predictions)
                 logger.info(f"Tenant {tenant.tenantname}: {len(predictions)} SLA breach predictions")
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(f"Error predicting SLA breaches for tenant {tenant.id}: {e}", exc_info=True)
                 results[tenant.id] = {'error': str(e)}
 
@@ -148,7 +148,7 @@ class PredictDeviceFailuresTask(IdempotentTask):
                 results[tenant.id] = len(predictions)
                 logger.info(f"Tenant {tenant.tenantname}: {len(predictions)} device failure predictions")
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(f"Error predicting device failures for tenant {tenant.id}: {e}", exc_info=True)
                 results[tenant.id] = {'error': str(e)}
 
@@ -200,7 +200,7 @@ class PredictStaffingGapsTask(IdempotentTask):
                 results[tenant.id] = len(predictions)
                 logger.info(f"Tenant {tenant.tenantname}: {len(predictions)} staffing gap predictions")
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(f"Error predicting staffing gaps for tenant {tenant.id}: {e}", exc_info=True)
                 results[tenant.id] = {'error': str(e)}
 
@@ -265,7 +265,7 @@ class ValidatePredictiveAlertsTask(IdempotentTask):
                 if preventive_action:
                     stats[pred_type]['prevented'] += 1
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(f"Error validating prediction {prediction.prediction_id}: {e}", exc_info=True)
 
         # Calculate accuracy rates

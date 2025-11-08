@@ -8,6 +8,8 @@ Migrated from apps/onboarding/admin.py
 Date: 2025-09-30
 """
 from .base import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     BaseResource,
     BaseFieldSet2,
     admin,
@@ -263,7 +265,7 @@ class BtResource(resources.ModelResource):
                         logger.warning(f"Database error looking up parent BU '{row.get('Belongs To*', 'N/A')}': {e}")
                     except (KeyError, AttributeError) as e:
                         logger.warning(f"Data access error looking up parent BU: {e}")
-                    except Exception as e:
+                    except DATABASE_EXCEPTIONS as e:
                         logger.exception(f"Unexpected error looking up parent BU '{row.get('Belongs To*', 'N/A')}': {e}")
 
             # Clear cache for all affected parent BUs
@@ -477,6 +479,7 @@ class BtResourceUpdate(resources.ModelResource):
 
 @admin.register(om.Bt)
 class BtAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     """Django admin for Business Unit model with import/export functionality"""
     resource_class = BtResource
     fields = (

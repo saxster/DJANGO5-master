@@ -57,6 +57,8 @@ from django.utils import timezone
 from celery.schedules import crontab
 
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE, SECONDS_IN_HOUR
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 # Import exceptions that might be needed for retry policies
 try:
@@ -314,7 +316,7 @@ def task_performance_decorator(metric_name: str):
 
                 return result
 
-            except Exception as exc:
+            except CELERY_EXCEPTIONS as exc:
                 # Record failure
                 TaskMetrics.increment_counter(f'{metric_name}_failure')
                 duration = (timezone.now() - start_time).total_seconds() * 1000
@@ -359,7 +361,7 @@ def batch_task_processor(
             try:
                 process_function(item)
                 processed += 1
-            except Exception as exc:
+            except (ValueError, TypeError, AttributeError) as exc:
                 failed += 1
                 logger.error(f"Failed to process item: {exc}")
 
@@ -475,6 +477,6 @@ def get_task_queue_stats() -> Dict[str, Any]:
 
         return stats
 
-    except Exception as exc:
+    except CELERY_EXCEPTIONS as exc:
         logger.error(f"Failed to get task queue stats: {exc}")
         return {'error': str(exc)}

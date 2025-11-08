@@ -31,6 +31,8 @@ from django.db import connection
 
 from apps.core.health_checks import global_health_manager
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, CACHE_EXCEPTIONS
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +155,7 @@ def readyz(request: HttpRequest) -> JsonResponse:
         result = global_health_manager.run_check('task_queue')
         critical_checks['task_queue'] = result.get('status') == 'healthy'
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.warning(f"Readiness probe task queue check failed: {e}")
         critical_checks['task_queue'] = False
 

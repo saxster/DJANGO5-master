@@ -5,6 +5,9 @@ import logging
 from typing import Dict, Any
 from pathlib import Path
 
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
+
 logger = logging.getLogger(__name__)
 
 class SettingsHealthCheck:
@@ -49,7 +52,7 @@ class SettingsHealthCheck:
                 self.errors.append(f"Missing required environment variables: {', '.join(missing_vars)}")
 
             self.checks.append(f"Environment Setup: {'✓' if not missing_vars else '✗'}")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.errors.append(f"Environment Setup validation failed: {e}")
 
     def _validate_security_configuration(self, environment: str):
@@ -62,7 +65,7 @@ class SettingsHealthCheck:
             if result['warnings']:
                 self.warnings.extend(result['warnings'])
             self.checks.append(f"Security Configuration: {'✓' if result['secure'] else '✗'}")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.errors.append(f"Security Configuration validation failed: {e}")
 
     def _validate_database_configuration(self):
@@ -78,11 +81,11 @@ class SettingsHealthCheck:
             try:
                 from django.db import connection
                 connection.ensure_connection()
-            except Exception as e:
+            except SETTINGS_EXCEPTIONS as e:
                 self.warnings.append(f"Database connection test failed: {e}")
 
             self.checks.append(f"Database Configuration: {'✓' if not missing_params else '✗'}")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.errors.append(f"Database Configuration validation failed: {e}")
 
     def _validate_cache_configuration(self):
@@ -96,7 +99,7 @@ class SettingsHealthCheck:
             else:
                 cache.delete(test_key)
             self.checks.append("Cache Configuration: ✓")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.warnings.append(f"Cache test failed: {e}")
             self.checks.append("Cache Configuration: ⚠")
 
@@ -120,7 +123,7 @@ class SettingsHealthCheck:
                 except (OSError, PermissionError) as e:
                     self.warnings.append(f"Log directory not writable: {e}")
             self.checks.append(f"Logging Configuration: {'✓' if not missing_sections else '✗'}")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.errors.append(f"Logging Configuration validation failed: {e}")
 
     def _validate_integration_services(self):
@@ -130,7 +133,7 @@ class SettingsHealthCheck:
             try:
                 import redis
                 redis.Redis.from_url('redis://127.0.0.1:6379/1').ping()
-            except Exception as e:
+            except SETTINGS_EXCEPTIONS as e:
                 self.warnings.append(f"Redis connection failed: {e}")
 
             # Check missing configurations
@@ -145,7 +148,7 @@ class SettingsHealthCheck:
                 self.warnings.append(f"Missing MQTT config: {', '.join(missing_mqtt)}")
 
             self.checks.append("Integration Services: ✓")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.warnings.append(f"Integration services check failed: {e}")
             self.checks.append("Integration Services: ⚠")
 
@@ -160,7 +163,7 @@ class SettingsHealthCheck:
             if conflicts:
                 self.warnings.extend([f"Feature flag conflict: {conflict}" for conflict in conflicts])
             self.checks.append(f"Feature Flags: {'✓' if not conflicts else '⚠'}")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.errors.append(f"Feature Flags validation failed: {e}")
 
     def _validate_file_permissions(self):
@@ -173,7 +176,7 @@ class SettingsHealthCheck:
             if not os.access(static_root, os.W_OK):
                 self.warnings.append(f"Static root {static_root} not writable")
             self.checks.append("File Permissions: ✓")
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.warnings.append(f"File permissions check failed: {e}")
             self.checks.append("File Permissions: ⚠")
 

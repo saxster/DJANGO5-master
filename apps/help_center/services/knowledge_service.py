@@ -257,7 +257,7 @@ class KnowledgeService:
                 except (IOError, OSError) as e:
                     logger.error(f"File error importing {filename}: {e}")
                     continue
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     logger.error(f"Unexpected error importing {filename}: {e}")
                     continue
 

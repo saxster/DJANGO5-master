@@ -7,6 +7,7 @@ and profile information separate from authentication data.
 Compliant with Rule #7 from .claude/rules.md (< 150 lines).
 """
 
+import logging
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -15,6 +16,8 @@ from ..constants import peoplejson, GENDER_CHOICES, DEFAULT_PROFILE_IMAGE
 from ..services.file_upload_service import SecureFileUploadService
 
 from apps.ontology.decorators import ontology
+
+logger = logging.getLogger(__name__)
 
 
 @ontology(
@@ -261,7 +264,7 @@ from apps.ontology.decorators import ontology
         "    profile.clean()  # Raises ValidationError if invalid\n"
         "    profile.save()\n"
         "except ValidationError as e:\n"
-        "    print(f'Validation error: {e}')\n"
+        "    logger.error(f'Validation error: {e}')\n"
         "    # e.g., 'Date of birth cannot be in the future'\n",
     ],
 )

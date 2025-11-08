@@ -183,7 +183,7 @@ class OnboardingSpeechService:
         except (ValueError, TypeError) as e:
             logger.error(f"Data error during transcription: {str(e)}", exc_info=True)
             result['error'] = f"Data error: {str(e)}"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             # Catch-all for unexpected errors (but log specifically)
             logger.error(
                 f"Unexpected error during voice transcription: {str(e)}",

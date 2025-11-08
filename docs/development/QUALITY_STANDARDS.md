@@ -320,9 +320,8 @@ python scripts/check_circular_deps.py --graph deps.svg
 - **Artifacts**: coverage_reports/, coverage.json
 
 #### 4. Pattern Enforcement
-- GraphQL security bypass check
 - Generic exception handling (`except Exception`)
-- CSRF exempt on GraphQL
+- CSRF exempt on API endpoints without alternative protection
 - Sensitive data in logs
 - **Failure Mode**: Hard fail on any critical pattern
 

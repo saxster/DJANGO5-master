@@ -19,6 +19,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
 from django.urls import reverse
+from apps.core.exceptions.patterns import TEMPLATE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +55,13 @@ class UserFriendlyErrorMiddleware(MiddlewareMixin):
             else:
                 return self.create_html_error_response(request, exception, error_context)
 
-        except Exception as middleware_error:
+        except (ValueError, TypeError, AttributeError) as middleware_error:
             # Fallback if middleware itself fails
-            logger.critical(f"Error middleware failed: {middleware_error}", exc_info=True)
+            logger.critical(
+                f"Error middleware failed: {middleware_error}",
+                exc_info=True,
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
             return self.create_fallback_response(request)
 
     def log_error(self, request, exception):
@@ -311,8 +316,12 @@ class UserFriendlyErrorMiddleware(MiddlewareMixin):
                 context=context,
                 status=context['status_code']
             )
-        except Exception as template_error:
-            logger.error(f"Error template rendering failed: {template_error}")
+        except TEMPLATE_EXCEPTIONS as template_error:
+            logger.error(
+                f"Error template rendering failed: {template_error}",
+                exc_info=True,
+                extra={'template': template, 'status_code': context.get('status_code')}
+            )
             return self.create_fallback_response(request)
 
     def create_fallback_response(self, request):

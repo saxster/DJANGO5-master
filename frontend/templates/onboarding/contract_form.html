@@ -462,7 +462,7 @@ Contract Details
 
 		if ('{{buform.instance.id}}' != 'None') {
 			try {
-				const savedDesignationData = {{ buform.instance.bupreferences.get('contract_designcount', '{}')|safe }};
+				const savedDesignationData = {{ buform.instance.bupreferences.get('contract_designcount', '{}')|escapejs }};
 				initializeDesignationFields(savedDesignationData);
 			} catch (e) {
 				console.error('Error initializing designation fields:', e);

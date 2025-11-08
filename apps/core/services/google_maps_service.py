@@ -12,7 +12,10 @@ from django.utils.safestring import mark_safe
 import googlemaps
 import hashlib
 import time
+import json
+import requests
 from datetime import datetime, timedelta
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -159,9 +162,27 @@ class GoogleMapsService:
 
                     return geocode_data
 
-            except Exception as e:
-                logger.error(f"Geocoding failed for {address}: {str(e)}")
+            except NETWORK_EXCEPTIONS as e:
+                logger.error(
+                    f"Network error during geocoding: {e}",
+                    exc_info=True,
+                    extra={'address': address[:100]}
+                )
                 raise  # Let the monitor context handle the exception
+            except (ValueError, KeyError, TypeError) as e:
+                logger.error(
+                    f"Data parsing error during geocoding: {e}",
+                    exc_info=True,
+                    extra={'address': address[:100]}
+                )
+                raise
+            except json.JSONDecodeError as e:
+                logger.error(
+                    f"JSON decode error during geocoding: {e}",
+                    exc_info=True,
+                    extra={'address': address[:100]}
+                )
+                raise
 
         return None
 
@@ -209,8 +230,24 @@ class GoogleMapsService:
 
                 return reverse_data
 
-        except Exception as e:
-            logger.error(f"Reverse geocoding failed for {coord_key}: {str(e)}")
+        except NETWORK_EXCEPTIONS as e:
+            logger.error(
+                f"Network error during reverse geocoding: {e}",
+                exc_info=True,
+                extra={'coordinates': coord_key}
+            )
+        except (ValueError, KeyError, TypeError) as e:
+            logger.error(
+                f"Data parsing error during reverse geocoding: {e}",
+                exc_info=True,
+                extra={'coordinates': coord_key}
+            )
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"JSON decode error during reverse geocoding: {e}",
+                exc_info=True,
+                extra={'coordinates': coord_key}
+            )
 
         return None
 
@@ -281,8 +318,24 @@ class GoogleMapsService:
 
                 return route_data
 
-        except Exception as e:
-            logger.error(f"Route optimization failed: {str(e)}")
+        except NETWORK_EXCEPTIONS as e:
+            logger.error(
+                f"Network error during route optimization: {e}",
+                exc_info=True,
+                extra={'waypoint_count': len(waypoints)}
+            )
+        except (ValueError, KeyError, TypeError) as e:
+            logger.error(
+                f"Data error during route optimization: {e}",
+                exc_info=True,
+                extra={'waypoint_count': len(waypoints)}
+            )
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"JSON decode error during route optimization: {e}",
+                exc_info=True,
+                extra={'waypoint_count': len(waypoints)}
+            )
 
         return None
 
@@ -337,8 +390,12 @@ class GoogleMapsService:
 
             return processed_data
 
-        except Exception as e:
-            logger.error(f"Failed to prepare markers for clustering: {str(e)}")
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            logger.error(
+                f"Data error preparing markers for clustering: {e}",
+                exc_info=True,
+                extra={'view_type': view_type}
+            )
             return {
                 'markers': [],
                 'clustering': {'enabled': False},
@@ -417,8 +474,11 @@ class GoogleMapsService:
 
             return metadata
 
-        except Exception as e:
-            logger.warning(f"Failed to extract marker metadata: {str(e)}")
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning(
+                f"Data error extracting marker metadata: {e}",
+                extra={'object_type': type(obj).__name__}
+            )
             return {'extraction_error': str(e)}
 
     def get_clustering_javascript(self, view_type: str = 'default') -> str:

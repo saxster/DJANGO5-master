@@ -6,6 +6,8 @@ Uses Fernet symmetric encryption (AES-128-CBC with HMAC authentication).
 
 Usage:
     from apps.core.fields.encrypted_json_field import EncryptedJSONField
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
 
     class MyModel(models.Model):
         sensitive_data = EncryptedJSONField(default=dict)
@@ -118,7 +120,7 @@ class EncryptedJSONField(models.TextField):
             logger.debug(f"Encrypted JSON data for database storage ({len(json_string)} bytes)")
             return encrypted_string
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to encrypt JSON data: {e}", exc_info=True)
             raise ValidationError(f"Encryption failed: {e}")
 
@@ -159,7 +161,7 @@ class EncryptedJSONField(models.TextField):
             logger.debug(f"Decrypted and deserialized JSON data from database")
             return python_object
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to decrypt JSON data: {e}", exc_info=True)
             # Return empty dict as fallback to prevent crashes
             return {}

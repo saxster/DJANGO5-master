@@ -26,6 +26,8 @@ from apps.peoples.models import BaseModel
 from typing import Optional, Dict, Any
 import uuid
 import logging
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -289,8 +291,8 @@ class AttendancePhoto(BaseModel, TenantAwareModel):
 
             return ""
 
-        except Exception as e:
-            logger.error(f"Failed to generate signed URL for photo {self.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to generate signed URL for photo {self.id}: {e}", exc_info=True)
             return ""
 
     def soft_delete(self) -> None:

@@ -770,7 +770,7 @@ class SecretValidator:
             raise SecretValidationError(
                 secret_name,
                 f"{secret_name} is empty or not provided",
-                "Generate a new SECRET_KEY using: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+                "Generate a new SECRET_KEY using: python -c \"from django.core.management.utils import get_random_secret_key; logger.info(get_random_secret_key())\""
             )
 
         # Check minimum length
@@ -778,7 +778,7 @@ class SecretValidator:
             raise SecretValidationError(
                 secret_name,
                 f"{secret_name} is too short ({len(secret_value)} chars). Must be at least 50 characters",
-                "Generate a new SECRET_KEY using: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+                "Generate a new SECRET_KEY using: python -c \"from django.core.management.utils import get_random_secret_key; logger.info(get_random_secret_key())\""
             )
 
         # Check entropy
@@ -858,7 +858,7 @@ class SecretValidator:
             raise SecretValidationError(
                 secret_name,
                 f"{secret_name} is empty or not provided",
-                "Generate a new encryption key using: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+                "Generate a new encryption key using: python -c \"from cryptography.fernet import Fernet; logger.info(Fernet.generate_key().decode())\""
             )
 
         # Check base64 validity and length

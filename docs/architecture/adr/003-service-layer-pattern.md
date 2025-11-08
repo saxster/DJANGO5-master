@@ -138,7 +138,7 @@ The codebase had extensive business logic embedded directly in Django views, vio
 
 3. **Reusability:**
    - ✅ Use from views, tasks, commands
-   - ✅ Share logic between REST and GraphQL
+   - ✅ Share logic across REST API endpoints
    - ✅ Consistent behavior across interfaces
    - ✅ Easy to create new interfaces
 

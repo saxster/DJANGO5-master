@@ -2,6 +2,8 @@ from django.shortcuts import render
 from django.db.utils import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from apps.core_onboarding.models import TypeAssist
 from .models import EscalationMatrix, Ticket
 from .forms import TicketForm, EscalationForm
@@ -25,6 +27,7 @@ from .serializers.unified_ticket_serializer import (
 
 
 # Create your views here.
+@method_decorator(permission_required('y_helpdesk.view_escalationmatrix', raise_exception=True), name='dispatch')
 class EscalationMatrixView(LoginRequiredMixin, View):
     P = {
         "model": EscalationMatrix,
@@ -113,6 +116,7 @@ class EscalationMatrixView(LoginRequiredMixin, View):
             return rp.JsonResponse(data, status=200, safe=False)
 
 
+@method_decorator(permission_required('y_helpdesk.view_ticket', raise_exception=True), name='dispatch')
 class TicketView(LoginRequiredMixin, View):
     params = {
         "model": Ticket,
@@ -245,69 +249,95 @@ class TicketView(LoginRequiredMixin, View):
 
     def handle_valid_form(self, form, request):
         """
-        Handle valid ticket form submission with retry logic for unique constraint violations.
+        Handle valid ticket form submission with non-blocking retry logic.
 
-        NOTE: Uses exponential backoff with very short delays (10-200ms) for database
-        constraint retries. This is acceptable because:
-        1. Delays are minimal (< 200ms total across all retries)
-        2. IntegrityErrors on ticketno are rare (only during high concurrency)
-        3. Ticket creation requires synchronous feedback to user
-        4. Alternative solutions (background tasks) would break user experience
+        Uses cache-based retry coordination to eliminate blocking time.sleep().
+        Returns 429 status with Retry-After header if operation needs retry.
 
-        TODO: Consider moving to database-level sequence generator for ticketno
-        to eliminate the need for retries entirely.
+        Fixed: Eliminated blocking time.sleep() per .claude/rules.md Rule #14
         """
-        from apps.core.utils_new.retry_mechanism import exponential_backoff
+        from apps.core.utils_new.async_retry_mechanism import AsyncRetryCoordinator
         import logging
 
         logger = logging.getLogger(__name__)
         max_retries = 3
 
-        for attempt in range(max_retries):
-            try:
-                with transaction.atomic(using=get_current_db_name()):
-                    ticket = form.save(commit=False)
-                    ticket.uuid = request.POST.get("uuid")
-                    bu = ticket.bu_id if request.POST.get("pk") else None
-                    ticket = putils.save_userinfo(ticket, request.user, request.session, bu=bu)
-                    utils.store_ticket_history(ticket, request)
+        # Generate retry coordination key
+        operation_id = f"ticket_create:{request.user.id}"
+        context = {'path': request.path, 'user_id': request.user.id}
+        retry_key = AsyncRetryCoordinator.generate_retry_key(operation_id, context)
 
-                    return rp.JsonResponse({"pk": ticket.id}, status=200)
+        # Check if we should retry (non-blocking)
+        should_retry, attempt = AsyncRetryCoordinator.should_retry(
+            retry_key,
+            max_retries,
+            backoff_seconds=0.05  # 50ms base backoff
+        )
 
-            except IntegrityError as e:
-                if "ticketno" in str(e) and attempt < max_retries - 1:
-                    # Calculate exponential backoff delay with jitter
-                    delay = exponential_backoff(
-                        attempt=attempt,
-                        initial_delay=0.01,  # 10ms initial delay
-                        backoff_factor=2.0,
-                        max_delay=0.2,  # 200ms max delay
-                        jitter=True
-                    )
+        if not should_retry and attempt > 1:
+            # Backoff period not elapsed - return 429
+            backoff_time = AsyncRetryCoordinator._calculate_backoff(attempt, 0.05)
+            return rp.JsonResponse(
+                {
+                    'error': 'Ticket number conflict - please retry',
+                    'retry_after_ms': int(backoff_time * 1000),
+                    'attempt': attempt
+                },
+                status=429,
+                headers={'Retry-After': str(int(backoff_time))}
+            )
 
-                    logger.warning(
-                        f"IntegrityError on ticketno, retrying (attempt {attempt + 2}/{max_retries})",
-                        extra={
-                            'delay_ms': delay * 1000,
-                            'user': request.user.loginid if hasattr(request.user, 'loginid') else 'unknown'
-                        }
-                    )
+        try:
+            with transaction.atomic(using=get_current_db_name()):
+                ticket = form.save(commit=False)
+                ticket.uuid = request.POST.get("uuid")
+                bu = ticket.bu_id if request.POST.get("pk") else None
+                ticket = putils.save_userinfo(ticket, request.user, request.session, bu=bu)
+                utils.store_ticket_history(ticket, request)
 
-                    # NOTE: This time.sleep is acceptable here due to:
-                    # 1. Very short duration (10-200ms)
-                    # 2. Rare occurrence (only on ticket number collision)
-                    # 3. Synchronous operation requirement
-                    import time
-                    time.sleep(delay)
-                    continue
-                else:
+                # Success - clear retry state
+                AsyncRetryCoordinator.clear_retry_state(retry_key)
+                return rp.JsonResponse({"pk": ticket.id}, status=200)
+
+        except IntegrityError as e:
+            if "ticketno" in str(e):
+                logger.warning(
+                    f"IntegrityError on ticketno, attempt {attempt}/{max_retries}",
+                    extra={
+                        'attempt': attempt,
+                        'user': request.user.loginid if hasattr(request.user, 'loginid') else 'unknown'
+                    }
+                )
+
+                if attempt >= max_retries:
+                    # Max retries exhausted
+                    AsyncRetryCoordinator.clear_retry_state(retry_key)
                     logger.error(
                         f"Failed to create ticket after {max_retries} attempts",
                         extra={'error': str(e)},
                         exc_info=True
                     )
                     return utils.handle_intergrity_error("Ticket")
-    
+
+                # Return 429 - client should retry after backoff
+                backoff_time = AsyncRetryCoordinator._calculate_backoff(attempt + 1, 0.05)
+                return rp.JsonResponse(
+                    {
+                        'error': 'Ticket number conflict - please retry',
+                        'retry_after_ms': int(backoff_time * 1000),
+                        'attempt': attempt,
+                        'max_retries': max_retries
+                    },
+                    status=429,
+                    headers={'Retry-After': str(int(backoff_time))}
+                )
+            else:
+                # Different IntegrityError - don't retry
+                logger.error(f"IntegrityError (not ticketno): {e}", exc_info=True)
+                return utils.handle_intergrity_error("Ticket")
+
+
+@method_decorator(permission_required('activity.view_job', raise_exception=True), name='dispatch')
 class PostingOrderView(LoginRequiredMixin, View):
 
     params = {
@@ -326,6 +356,7 @@ class PostingOrderView(LoginRequiredMixin, View):
             return rp.JsonResponse({"data": objs}, status=200)
 
 
+@method_decorator(permission_required('y_helpdesk.view_uniform', raise_exception=True), name='dispatch')
 class UniformView(LoginRequiredMixin, View):
     params = {
         "template_list": "y_helpdesk/uniform_list.html",

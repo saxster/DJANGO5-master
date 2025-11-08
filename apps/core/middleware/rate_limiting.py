@@ -539,7 +539,7 @@ def get_rate_limit_stats(request: HttpRequest, operation: str) -> dict:
 
     Example:
         stats = get_rate_limit_stats(request, 'geocoding')
-        print(f"Remaining calls: {stats['remaining']}")
+        logger.debug(f"Remaining calls: {stats['remaining']}")
     """
     identifier = get_client_identifier(request)
     identifier_with_op = f"{identifier}:{operation}"

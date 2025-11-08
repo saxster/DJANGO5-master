@@ -14,6 +14,7 @@ Created: 2025-11-04 (Split from god file)
 
 from django.db import models
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 
 
 class HelpTicketCorrelation(TenantAwareModel):
@@ -88,6 +89,8 @@ class HelpTicketCorrelation(TenantAwareModel):
         blank=True,
         help_text="When correlation analysis was performed"
     )
+
+    objects = TenantAwareManager()
 
     class Meta:
         db_table = 'help_center_ticket_correlation'

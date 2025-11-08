@@ -112,6 +112,8 @@ class PeopleConversationalOnboardingAdmin(admin.ModelAdmin):
         'export_capability_report'
     ]
 
+    list_per_page = 50
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('client')
 
@@ -311,6 +313,8 @@ class TenantConversationalOnboardingAdmin(admin.ModelAdmin):
         'start_pilot_program',
         'full_rollout'
     ]
+
+    list_per_page = 50
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(

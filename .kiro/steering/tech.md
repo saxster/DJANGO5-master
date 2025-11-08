@@ -7,7 +7,7 @@
 - **PostgreSQL 12+ with PostGIS** - Primary database with spatial extensions
 - **Redis 6+** - Caching, sessions, and message broker
 - **Celery** - Background task processing and scheduling
-- **Django REST Framework** - Primary API surface for mobile and web clients
+- **Django REST Framework** - REST API at `/api/v1/` and `/api/v2/` for mobile and web clients
 
 ### AI & Machine Learning
 - **TensorFlow/PyTorch** - AI model training and inference

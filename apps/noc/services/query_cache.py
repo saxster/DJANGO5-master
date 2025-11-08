@@ -133,7 +133,7 @@ class QueryCache:
             return True
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Cache storage error: {e}", exc_info=True), exc_info=True
+            logger.error(f"Cache storage error: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -157,7 +157,7 @@ class QueryCache:
             return True
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Cache invalidation error: {e}"), exc_info=True
+            logger.error(f"Cache invalidation error: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -201,7 +201,7 @@ class QueryCache:
             return True
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Tenant cache invalidation error: {e}", exc_info=True), exc_info=True
+            logger.error(f"Tenant cache invalidation error: {e}", exc_info=True)
             return False
 
     @staticmethod
@@ -276,4 +276,4 @@ class QueryCache:
             cache.delete(f"{QueryCache.CACHE_PREFIX}:stats:misses")
             logger.info("Cache statistics reset")
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Failed to reset cache stats: {e}"), exc_info=True
+            logger.error(f"Failed to reset cache stats: {e}", exc_info=True)

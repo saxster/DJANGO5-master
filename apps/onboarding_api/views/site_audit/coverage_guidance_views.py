@@ -32,6 +32,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.onboarding.models import (
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     ConversationSession,
     OnboardingSite,
 )
@@ -231,7 +233,7 @@ def speak_text(request, session_id):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"TTS error: {str(e)}", exc_info=True)
         return Response(
             {'error': 'Speech synthesis failed'},

@@ -30,6 +30,7 @@ try:
     from resemblyzer.audio import sampling_rate
     import librosa
     import soundfile as sf
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, FILE_IO_EXCEPTIONS
     RESEMBLYZER_AVAILABLE = True
     logger.info("Resemblyzer successfully imported - using real speaker recognition")
 except ImportError as e:
@@ -87,9 +88,9 @@ class ResemblyzerVoiceService:
                     self._encoder_initialized = True
                     logger.info("VoiceEncoder initialized successfully")
                 else:
-                    logger.warning("VoiceEncoder not available - using mock")
-            except Exception as e:
-                logger.error(f"Failed to initialize VoiceEncoder: {e}")
+                    logger.warning("VoiceEncoder not available - using mock", exc_info=True)
+            except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+                logger.error(f"Failed to initialize VoiceEncoder: {e}", exc_info=True)
                 self._encoder = None
 
         return self._encoder
@@ -112,7 +113,7 @@ class ResemblyzerVoiceService:
             # Load and preprocess audio
             wav = self._load_audio(audio_path)
             if wav is None:
-                logger.error(f"Failed to load audio file: {audio_path}")
+                logger.error(f"Failed to load audio file: {audio_path}", exc_info=True)
                 return None
 
             # Extract embedding using Resemblyzer
@@ -125,8 +126,8 @@ class ResemblyzerVoiceService:
             logger.info(f"Extracted voice embedding from {audio_path}: shape={embedding.shape}")
             return embedding
 
-        except Exception as e:
-            logger.error(f"Failed to extract voice embedding: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to extract voice embedding: {e}", exc_info=True)
             return self._extract_embedding_mock(audio_path)
 
     def _load_audio(self, audio_path: str) -> Optional[np.ndarray]:
@@ -151,8 +152,8 @@ class ResemblyzerVoiceService:
 
             return wav
 
-        except Exception as e:
-            logger.error(f"Failed to load audio: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to load audio: {e}", exc_info=True)
             return None
 
     def verify_voice(
@@ -226,8 +227,8 @@ class ResemblyzerVoiceService:
                 'avg_similarity': avg_similarity
             }
 
-        except Exception as e:
-            logger.error(f"Failed to verify voice: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to verify voice: {e}", exc_info=True)
             return {
                 'verified': False,
                 'similarity': 0.0,
@@ -296,8 +297,8 @@ class ResemblyzerVoiceService:
                 'recommendations': self._generate_quality_recommendations(quality_issues)
             }
 
-        except Exception as e:
-            logger.error(f"Failed to assess audio quality: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to assess audio quality: {e}", exc_info=True)
             return {
                 'overall_quality': 0.0,
                 'acceptable': False,
@@ -344,7 +345,7 @@ class ResemblyzerVoiceService:
                 return 0.0
 
             if vec1.shape != vec2.shape:
-                logger.warning(f"Embedding shape mismatch: {vec1.shape} vs {vec2.shape}")
+                logger.warning(f"Embedding shape mismatch: {vec1.shape} vs {vec2.shape}", exc_info=True)
                 return 0.0
 
             # Calculate cosine similarity
@@ -361,8 +362,8 @@ class ResemblyzerVoiceService:
 
             return float(normalized_similarity)
 
-        except Exception as e:
-            logger.error(f"Failed to calculate cosine similarity: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to calculate cosine similarity: {e}", exc_info=True)
             return 0.0
 
     def _extract_embedding_mock(self, audio_path: str) -> Optional[np.ndarray]:
@@ -388,8 +389,8 @@ class ResemblyzerVoiceService:
             logger.debug(f"Generated mock voice embedding for {audio_path}")
             return embedding
 
-        except Exception as e:
-            logger.error(f"Failed to generate mock embedding: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to generate mock embedding: {e}", exc_info=True)
             return None
 
     def batch_extract_embeddings(self, audio_paths: List[str]) -> List[Optional[np.ndarray]]:

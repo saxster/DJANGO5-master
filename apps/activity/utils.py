@@ -330,7 +330,7 @@ def sendTicketMail(ticketid, oper):
     """Send notification emails for a ticket."""
     try:
         ticketdata = Ticket.objects.send_ticket_mail(ticketid)
-        # print("ticketdata", ticketdata)
+        logger.debug("ticketdata: %s", ticketdata)
         records = [
             {
                 "cdtz": record.createdon,

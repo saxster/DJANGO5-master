@@ -15,6 +15,10 @@ import uuid
 from decimal import Decimal
 from typing import Dict, Any
 from .base import BaseIVRProvider
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.security_intelligence.ivr')
 
@@ -46,7 +50,7 @@ class SMSProvider(BaseIVRProvider):
         except ImportError:
             logger.warning("twilio package not installed")
             self.client = None
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"SMS initialization error: {e}", exc_info=True)
             self.client = None
 
@@ -84,7 +88,7 @@ class SMSProvider(BaseIVRProvider):
                 'error': None
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"SMS send error: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
@@ -114,7 +118,7 @@ class SMSProvider(BaseIVRProvider):
                 'cost': Decimal('0.50'),
             }
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"SMS status error: {e}", exc_info=True)
             return {'status': 'ERROR', 'error': str(e)}
 

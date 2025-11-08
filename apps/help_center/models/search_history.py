@@ -15,6 +15,7 @@ Created: 2025-11-04 (Split from god file)
 import uuid
 from django.db import models
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.peoples.models import People
 
 
@@ -67,6 +68,8 @@ class HelpSearchHistory(TenantAwareModel):
     )
 
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    objects = TenantAwareManager()
 
     class Meta:
         db_table = 'help_center_search_history'

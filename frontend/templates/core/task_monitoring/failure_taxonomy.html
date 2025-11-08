@@ -146,7 +146,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
 <script>
 // Failure Type Distribution Chart
-const failureData = {{ failure_distribution|safe }};
+const failureData = {{ failure_distribution|escapejs }};
 const ctx = document.getElementById('failureTypeChart');
 if (ctx && failureData && failureData.length > 0) {
   new Chart(ctx, {

@@ -68,6 +68,8 @@ class ConflictPredictionModelAdmin(admin.ModelAdmin):
         }),
     )
 
+    list_per_page = 50
+
     def accuracy_display(self, obj):
         """Display accuracy with color coding."""
         accuracy = obj.accuracy
@@ -168,6 +170,8 @@ class PredictionLogAdmin(admin.ModelAdmin):
             )
         }),
     )
+
+    list_per_page = 50
 
     def predicted_status(self, obj):
         """Display predicted conflict status."""

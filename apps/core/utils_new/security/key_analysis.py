@@ -8,7 +8,7 @@ Usage:
 
     analyzer = KeyStrengthAnalyzer(secret_key)
     result = analyzer.analyze()
-    print(result['strength_score'])
+    logger.debug(result['strength_score'])
 """
 
 import logging

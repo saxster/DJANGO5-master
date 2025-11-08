@@ -148,7 +148,7 @@ def execute_raw_query(
         ... )
         >>> if result.success:
         ...     for row in result.data:
-        ...         print(row['email'])
+        ...         logger.info(row['email'])
     """
     import time
 
@@ -235,7 +235,7 @@ def execute_raw_query(
             execution_time_ms=execution_time
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         execution_time = (time.time() - start_time) * 1000
         logger.error(f"Unexpected error executing raw query: {str(e)}", exc_info=True)
         return QueryResult(

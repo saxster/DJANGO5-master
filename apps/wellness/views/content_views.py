@@ -11,6 +11,8 @@ Provides:
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 
 from apps.wellness.models import WellnessContent
 from apps.wellness.serializers import (
@@ -24,6 +26,7 @@ from .permissions import WellnessPermission
 logger = get_wellness_logger(__name__)
 
 
+@method_decorator(permission_required('wellness.view_wellnesscontent', raise_exception=True), name='dispatch')
 class WellnessContentViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for wellness content with filtering and analytics"""
 

@@ -56,6 +56,8 @@ class DeviceTelemetryAdmin(admin.ModelAdmin):
 
     date_hierarchy = 'timestamp'
 
+    list_per_page = 50
+
     def has_add_permission(self, request):
         """Telemetry is auto-generated from MQTT, not manually added."""
         return False
@@ -163,6 +165,8 @@ class GuardLocationAdmin(admin.ModelAdmin):
 
     date_hierarchy = 'timestamp'
 
+    list_per_page = 50
+
     def has_add_permission(self, request):
         """GPS data is auto-generated from MQTT, not manually added."""
         return False
@@ -246,6 +250,8 @@ class SensorReadingAdmin(admin.ModelAdmin):
     ]
 
     date_hierarchy = 'timestamp'
+
+    list_per_page = 50
 
     def has_add_permission(self, request):
         """Sensor data is auto-generated from MQTT, not manually added."""
@@ -381,6 +387,8 @@ class DeviceAlertAdmin(admin.ModelAdmin):
     ]
 
     date_hierarchy = 'timestamp'
+
+    list_per_page = 50
 
     def alert_type_badge(self, obj):
         """Display alert type with icon."""
