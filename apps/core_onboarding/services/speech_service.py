@@ -128,7 +128,7 @@ class OnboardingSpeechService:
                 extra={'session_id': session_id, 'duration': duration}
             )
 
-            transcript = self.speech_service._transcribe_short_audio(
+            transcription_result = self.speech_service._transcribe_short_audio(
                 wav_path,
                 language_code
             )
@@ -136,7 +136,11 @@ class OnboardingSpeechService:
             processing_time = int((time.time() - start_time) * 1000)
             result['processing_time_ms'] = processing_time
 
-            if transcript:
+            if transcription_result:
+                # Extract transcript and confidence from API response
+                transcript = transcription_result['transcript']
+                confidence = transcription_result['confidence']
+
                 # CRITICAL: Apply PII redaction before storing/logging (Rule #15 compliance)
                 pii_result = self.pii_service.sanitize_voice_transcript(
                     transcript=transcript,
@@ -153,7 +157,7 @@ class OnboardingSpeechService:
 
                 result['success'] = True
                 result['transcript'] = sanitized_transcript
-                result['confidence'] = 0.90  # TODO: Extract actual confidence from API response
+                result['confidence'] = confidence  # Real confidence from Google Speech API
                 result['pii_redacted'] = pii_result['redaction_metadata']['redactions_count'] > 0
                 result['safe_for_llm'] = pii_result['safe_for_llm']
 

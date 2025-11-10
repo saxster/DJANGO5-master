@@ -135,7 +135,8 @@ class SpeechToTextService:
 
                 if duration <= 60:
                     # Short audio - use synchronous recognition
-                    transcript = self._transcribe_short_audio(wav_path, language_code)
+                    result = self._transcribe_short_audio(wav_path, language_code)
+                    transcript = result['transcript'] if result else None
                 else:
                     # Long audio - split into chunks and process
                     transcript = self._transcribe_long_audio(wav_path, language_code)
@@ -288,8 +289,13 @@ class SpeechToTextService:
         except (DatabaseError, IntegrityError, ObjectDoesNotExist):
             return self.DEFAULT_LANGUAGE
 
-    def _transcribe_short_audio(self, wav_path: str, language_code: str) -> Optional[str]:
-        """Transcribe short audio file (<= 60 seconds) using synchronous recognition"""
+    def _transcribe_short_audio(self, wav_path: str, language_code: str) -> Optional[Dict[str, Any]]:
+        """
+        Transcribe short audio file (<= 60 seconds) using synchronous recognition.
+
+        Returns:
+            Dict with 'transcript' (str) and 'confidence' (float 0.0-1.0), or None if failed
+        """
         try:
             # Read audio file
             with open(wav_path, "rb") as audio_file:
@@ -310,17 +316,32 @@ class SpeechToTextService:
             logger.info(f"Starting synchronous transcription with language: {language_code}")
             response = self.client.recognize(config=config, audio=audio)
 
-            # Combine all transcript results
+            # Combine all transcript results and collect confidence scores
             transcript_parts = []
+            confidence_scores = []
+
             for result in response.results:
                 if result.alternatives:
                     transcript_parts.append(result.alternatives[0].transcript)
-                    logger.info(f"Transcription confidence: {result.alternatives[0].confidence:.2%}")
+                    confidence = result.alternatives[0].confidence
+                    confidence_scores.append(confidence)
+                    logger.info(f"Transcription confidence: {confidence:.2%}")
 
             if transcript_parts:
                 full_transcript = " ".join(transcript_parts)
-                logger.info(f"Transcription completed successfully, length: {len(full_transcript)} chars")
-                return full_transcript
+                # Calculate average confidence (weighted by transcript length would be more accurate,
+                # but simple average is good enough for most use cases)
+                avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+
+                logger.info(
+                    f"Transcription completed successfully, length: {len(full_transcript)} chars, "
+                    f"avg confidence: {avg_confidence:.2%}"
+                )
+
+                return {
+                    'transcript': full_transcript,
+                    'confidence': avg_confidence
+                }
             else:
                 logger.warning("No transcription results returned")
                 return None
@@ -348,9 +369,9 @@ class SpeechToTextService:
                 for i, chunk_file in enumerate(chunk_files):
                     logger.info(f"Processing chunk {i+1}/{len(chunk_files)}: {chunk_file}")
 
-                    transcript = self._transcribe_short_audio(chunk_file, language_code)
-                    if transcript:
-                        all_transcripts.append(transcript)
+                    result = self._transcribe_short_audio(chunk_file, language_code)
+                    if result:
+                        all_transcripts.append(result['transcript'])
                     else:
                         logger.warning(f"No transcript for chunk {i+1}")
 
