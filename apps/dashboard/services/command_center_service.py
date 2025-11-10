@@ -146,24 +146,40 @@ class CommandCenterService:
         """
         Get devices with health score <70.
 
-        Health scores computed by DeviceHealthService (Phase 2.3).
-        For now, check recent telemetry for offline devices.
+        Health scores computed by DeviceHealthService.
         """
         from apps.mqtt.models import DeviceTelemetry
+        from apps.monitoring.services.device_health_service import DeviceHealthService
 
         try:
-            # Get devices with recent telemetry
-            one_hour_ago = timezone.now() - timedelta(hours=1)
-            
-            # Devices offline (no telemetry in last hour)
+            # Get devices with recent telemetry (last 24 hours)
+            twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
+
             recent_devices = DeviceTelemetry.objects.filter(
                 tenant_id=tenant_id,
-                timestamp__gte=one_hour_ago
+                timestamp__gte=twenty_four_hours_ago
             ).values('device_id').distinct()
 
-            # TODO: Replace with DeviceHealthService.get_devices_below_threshold(70)
-            # For now, return placeholder
-            return []
+            # Compute health scores and filter devices below threshold
+            devices_at_risk = []
+
+            for device_data in recent_devices:
+                device_id = device_data['device_id']
+                health_result = DeviceHealthService.compute_health_score(
+                    device_id=device_id,
+                    tenant_id=tenant_id
+                )
+
+                # Only include devices with health score below warning threshold
+                if health_result['health_score'] < DeviceHealthService.HEALTH_WARNING:
+                    devices_at_risk.append({
+                        'device_id': device_id,
+                        'health_score': health_result['health_score'],
+                        'status': health_result['status'],
+                        'components': health_result.get('components', {})
+                    })
+
+            return devices_at_risk
 
         except DATABASE_EXCEPTIONS as e:
             logger.warning(
