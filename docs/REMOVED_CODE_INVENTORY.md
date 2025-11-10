@@ -48,6 +48,30 @@ grep -r "client_onboarding.views" apps/
 
 ---
 
+### 2025-11-11: Face Recognition Backup File Removal
+
+**Files Removed:**
+- `apps/face_recognition/services/challenge_response_service.py.bak` (376 lines, 13KB)
+
+**Reason**:
+- Git-tracked backup file (violates git hygiene)
+- Contains inferior code (uses `except Exception` instead of specific exceptions)
+- Current file properly uses DATABASE_EXCEPTIONS and BUSINESS_LOGIC_EXCEPTIONS
+- Backup likely created before exception handling remediation work
+
+**Impact**: None - current version is superior and fully functional
+
+**Verification**:
+```bash
+diff challenge_response_service.py challenge_response_service.py.bak
+# Shows 7 locations where current file uses specific exceptions
+# while backup uses generic `except Exception`
+```
+
+**Commit**: [TBD - add commit hash]
+
+---
+
 ## Guidelines for This File
 
 ### When to Add Entries
