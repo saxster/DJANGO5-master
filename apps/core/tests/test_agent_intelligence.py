@@ -44,9 +44,11 @@ class TestAgentOrchestrator:
         orchestrator = AgentOrchestrator(tenant_id=1)
 
         assert orchestrator.tenant_id == 1
-        assert len(orchestrator.agents) == 5
+        assert len(orchestrator.agents) == 7
         assert 'taskbot' in orchestrator.agents
         assert 'tourbot' in orchestrator.agents
+        assert 'routebot' in orchestrator.agents
+        assert 'incidentbot' in orchestrator.agents
 
     @patch('apps.core.services.agents.task_agent_service.Jobneed.objects')
     def test_parallel_agent_execution(self, mock_jobneed, time_range_fixture):

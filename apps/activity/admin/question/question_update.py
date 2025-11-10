@@ -61,7 +61,7 @@ class QuestionResourceUpdate(resources.ModelResource):
     Unit = fields.Field(
         column_name="Unit",
         attribute="unit",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -69,7 +69,7 @@ class QuestionResourceUpdate(resources.ModelResource):
     Category = fields.Field(
         column_name="Category",
         attribute="category",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -77,8 +77,8 @@ class QuestionResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
-        default=lambda: om.Bt.objects.get_or_create(bucode="NONE")[0],
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
+        default=lambda: Bt.objects.get_or_create(bucode="NONE")[0],
     )
 
     ID = fields.Field(attribute="id", column_name="ID*")

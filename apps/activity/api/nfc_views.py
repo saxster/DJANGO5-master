@@ -22,8 +22,6 @@ from django.db import DatabaseError, IntegrityError
 
 from apps.activity.services.nfc_service import NFCService
 from .nfc_serializers import (
-from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
-
     NFCTagBindSerializer,
     NFCTagBindResponseSerializer,
     NFCScanSerializer,
@@ -31,8 +29,9 @@ from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
     NFCScanHistorySerializer,
     NFCScanHistoryResponseSerializer,
     NFCTagStatusUpdateSerializer,
-    NFCTagStatusUpdateResponseSerializer
+    NFCTagStatusUpdateResponseSerializer,
 )
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 

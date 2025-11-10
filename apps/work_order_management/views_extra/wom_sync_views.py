@@ -18,7 +18,7 @@ from django.db import DatabaseError
 
 from apps.work_order_management.services.wom_sync_service import WOMSyncService
 from apps.work_order_management.serializers_extra.wom_sync_serializers import WOMSyncSerializer
-from apps.api.v1.serializers.sync_base_serializers import (
+from apps.core.serializers.sync_base_serializers import (
     SyncRequestSerializer,
     DeltaSyncRequestSerializer,
 )

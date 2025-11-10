@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db.models import Count, Q
 from apps.help_center.models import HelpArticle, HelpCategory, HelpArticleInteraction
 from apps.help_center.serializers import (
     HelpTagSerializer,
@@ -75,7 +76,6 @@ class HelpArticleViewSet(viewsets.ReadOnlyModelViewSet):
         ).prefetch_related('tags')
 
         user_roles = list(user.groups.values_list('name', flat=True))
-        from django.db.models import Q
         qs = qs.filter(
             Q(target_roles__contains=user_roles) |
             Q(target_roles__contains=['all'])
@@ -191,15 +191,48 @@ class HelpArticleViewSet(viewsets.ReadOnlyModelViewSet):
         GET /api/v2/help-center/contextual/?url=/work-orders/create/
         """
         url_path = request.query_params.get('url', '')
-
-        articles = self.get_queryset()[:5]
+        articles = self._get_contextual_articles(request.user, url_path)
         serializer = HelpArticleListSerializer(articles, many=True)
 
         return Response({
             'url': url_path,
             'articles': serializer.data,
-            'message': 'Contextual help for this page'
+            'message': 'Contextual help suggestions'
         }, status=status.HTTP_200_OK)
+
+    def _get_contextual_articles(self, user, url_path: str):
+        from urllib.parse import urlparse
+        from apps.help_center.models import HelpArticleInteraction
+
+        parsed_path = urlparse(url_path).path or '/'
+        segments = [segment for segment in parsed_path.split('/') if segment]
+
+        interaction_ids = list(
+            HelpArticleInteraction.objects.filter(
+                tenant=user.tenant,
+                referrer_url__icontains=parsed_path
+            )
+            .values('article')
+            .annotate(total=Count('id'))
+            .order_by('-total')
+            .values_list('article', flat=True)[:5]
+        )
+
+        queryset = self.get_queryset()
+        if interaction_ids:
+            articles = list(queryset.filter(id__in=interaction_ids))
+            articles.sort(key=lambda article: interaction_ids.index(article.id))
+            return articles
+
+        if segments:
+            query = Q()
+            for segment in segments:
+                query |= Q(slug__icontains=segment) | Q(title__icontains=segment) | Q(summary__icontains=segment)
+            articles = list(queryset.filter(query)[:5])
+            if articles:
+                return articles
+
+        return list(queryset[:5])
 
 
 class HelpCategoryViewSet(viewsets.ReadOnlyModelViewSet):

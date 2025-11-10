@@ -54,7 +54,7 @@ class DocumentSubmission(EnhancedTenantModel):
     onboarding_request = models.ForeignKey(
         'people_onboarding.OnboardingRequest',
         on_delete=models.CASCADE,
-        related_name='documents'
+        related_name='submitted_documents'
     )
 
     # Document details

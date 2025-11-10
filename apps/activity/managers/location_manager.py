@@ -5,9 +5,10 @@ from django.db import models
 from django.db.models import CharField, F, Q
 from django.db.models import Value as V
 from django.db.models.functions import Concat
+from apps.tenants.managers import TenantAwareManager
 
 
-class LocationManager(models.Manager):
+class LocationManager(TenantAwareManager):
     use_in_migrations = True
 
     def get_locationlistview(self, related, fields, request):

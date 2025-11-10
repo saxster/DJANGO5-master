@@ -18,6 +18,7 @@ Security:
 """
 
 from django.db import models
+from django.contrib.gis.db import models as gis_models
 from django.conf import settings
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -203,7 +204,7 @@ class AttendancePhoto(BaseModel, TenantAwareModel):
         help_text="Device information (model, OS, camera specs)"
     )
 
-    gps_location = models.PointField(
+    gps_location = gis_models.PointField(
         geography=True,
         srid=4326,
         null=True,
@@ -354,7 +355,7 @@ class PhotoQualityThreshold(models.Model):
     """
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='photo_quality_thresholds',
         help_text="Client this threshold applies to"

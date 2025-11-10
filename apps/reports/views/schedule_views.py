@@ -9,16 +9,29 @@ Date: 2025-10-10
 from .base import (
     rp,
     render,
+    render_to_string,
+    HTML,
+    CSS,
+    FontConfiguration,
+    HttpResponse,
     JsonResponse,
     json,
     ValidationError,
     utils,
+    rutils,
     log,
     debug_log,
     IntegrationException,
     MasterReportForm,
     LoginRequiredMixin,
     View,
+    rp_forms,
+    messages,
+    redirect,
+    IntegrityError,
+    DatabaseError,
+    ObjectDoesNotExist,
+    asyncio,
 )
 import pandas as pd
 
@@ -45,9 +58,9 @@ class DesignReport(LoginRequiredMixin, View):
             data = Bt.objects.get_sample_data()
             return self.render_excelfile(data)
         # defalult weasyprint
-        return self.render_using_weasylogger.info(html_string)
+        return self.render_using_weasyprint(html_string)
 
-    def render_using_weasylogger.info(self, html_string):
+    def render_using_weasyprint(self, html_string):
         html = HTML(string=html_string)
         # Specify the path to your local CSS file
         css = CSS(filename="frontend/static/assets/css/local/reports.css")
@@ -235,7 +248,7 @@ class ScheduleEmailReport(LoginRequiredMixin, View):
                 cxt = {"errors": form.errors}
                 return utils.handle_invalid_form(request, self.P, cxt)
         except IntegrityError as e:
-            error_log.error(f"Integrity error occured {e}")
+            log.error(f"Integrity error occured {e}")
             cxt = {"errors": "Scheduled report with these criteria is already exist"}
             return utils.handle_invalid_form(request, self.P, cxt)
 

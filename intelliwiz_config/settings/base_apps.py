@@ -60,13 +60,10 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_cleanup.apps.CleanupConfig",
 
-    # Multi-Factor Authentication (MFA) Support
-    "django_otp",
-    "django_otp.plugins.otp_totp",
-
     # ========================================================================
     # Local Applications
     # ========================================================================
+    "apps.onboarding.apps.OnboardingLegacyConfig",
     "apps.core",
     "apps.ontology",
     "apps.peoples",
@@ -93,12 +90,15 @@ INSTALLED_APPS = [
     "apps.ai_testing",
     "apps.search",
     "apps.api",
+    "apps.calendar_view",
     "apps.noc",
+    "apps.noc.security_intelligence",
     "apps.ml_training",
     "apps.helpbot",
     "apps.help_center",
     "apps.performance_analytics",
     "apps.report_generation",
+    "apps.threat_intelligence",
     "monitoring",
 ]
 

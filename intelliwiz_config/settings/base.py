@@ -205,6 +205,7 @@ from .attendance import ATTENDANCE_CELERY_BEAT_SCHEDULE
 from .premium_features_beat_schedule import PREMIUM_FEATURES_BEAT_SCHEDULE
 from .performance_analytics_schedule import PERFORMANCE_ANALYTICS_CELERY_BEAT_SCHEDULE
 from .priority_alerts_schedule import PRIORITY_ALERTS_CELERY_BEAT_SCHEDULE
+from .threat_intelligence_schedule import THREAT_INTELLIGENCE_CELERY_BEAT_SCHEDULE
 
 # Merge all beat schedules
 CELERY_BEAT_SCHEDULE = {
@@ -212,6 +213,7 @@ CELERY_BEAT_SCHEDULE = {
     **PREMIUM_FEATURES_BEAT_SCHEDULE,       # SLA, device health, shift compliance, scorecards
     **PERFORMANCE_ANALYTICS_CELERY_BEAT_SCHEDULE,  # Performance analytics
     **PRIORITY_ALERTS_CELERY_BEAT_SCHEDULE,  # Priority alerts
+    **THREAT_INTELLIGENCE_CELERY_BEAT_SCHEDULE,  # Threat intelligence fetching & ML updates
 }
 
 # ============================================================================

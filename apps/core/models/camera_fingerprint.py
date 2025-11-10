@@ -1,6 +1,4 @@
 """
-import logging
-logger = logging.getLogger(__name__)
 Camera Fingerprinting Model
 
 Device fingerprinting for camera identification and fraud tracking.
@@ -8,13 +6,15 @@ Device fingerprinting for camera identification and fraud tracking.
 Complies with .claude/rules.md Rule #7: Model classes < 150 lines
 """
 
+import logging
 from django.db import models
 from django.db.models import JSONField
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
 
+logger = logging.getLogger(__name__)
 
-class CameraFingerlogger.info(TenantAwareModel):
+class CameraFingerprint(TenantAwareModel):
     """
     Device fingerprinting for camera identification and fraud tracking.
 

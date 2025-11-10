@@ -63,16 +63,10 @@ from .pdf_views import (
     highlight_text_in_pdf,
 )
 
-# Frappe integration views and helpers
+# ERP-specific helpers
 from .frappe_integration_views import (
     GenerateAttendance,
     get_data,
-    getClient,
-    getCustomer,
-    getPeriod,
-    getCustomersSites,
-    getAllUAN,
-    get_frappe_data,
 )
 
 # Explicit __all__ for clarity and documentation
@@ -100,17 +94,11 @@ __all__ = [
     "ScheduleEmailReport",
     "GeneratePdf",
     "GenerateLetter",
-    "GenerateAttendance",
     "GenerateDecalartionForm",
+    "GenerateAttendance",
     # Generation - Helper Functions
     "return_status_of_report",
     "get_data",
-    "getClient",
-    "getCustomer",
-    "getPeriod",
-    "getCustomersSites",
-    "getAllUAN",
     "highlight_text_in_pdf",
-    "get_frappe_data",
     "upload_pdf",
 ]

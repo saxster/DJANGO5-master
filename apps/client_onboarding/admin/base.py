@@ -18,7 +18,7 @@ from apps.client_onboarding.forms import (
     ShiftForm,
 )
 from apps.client_onboarding.models import Bt, Shift
-from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster
 from apps.core.utils_new.db_utils import (
     get_or_create_none_typeassist,
     get_or_create_none_bv,
@@ -52,7 +52,6 @@ __all__ = [
     'Shift',
     'TypeAssist',
     'GeofenceMaster',
-    'Bu',
     'get_or_create_none_typeassist',
     'get_or_create_none_bv',
     'get_or_create_none_people',
@@ -74,13 +73,13 @@ class BaseResource(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default="NONE",
     )
     BV = fields.Field(
         column_name="BV*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default="NONE",
     )
@@ -105,13 +104,13 @@ class BaseFieldSet2:
     client = fields.Field(
         column_name="client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default="NONE",
     )
     bu = fields.Field(
         column_name="bu",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default="NONE",
     )

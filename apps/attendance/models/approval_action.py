@@ -46,7 +46,7 @@ class ApprovalAction(BaseModel, TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='approval_actions',
+        related_name='attendance_approval_actions',
         help_text=_("Person who took this action")
     )
 

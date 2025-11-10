@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 from apps.core.models import BaseModel, TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 import logging
@@ -83,7 +84,7 @@ class PostAssignment(BaseModel, TenantAwareModel):
     )
 
     shift = models.ForeignKey(
-        'onboarding.Shift',
+        'client_onboarding.Shift',
         on_delete=models.CASCADE,
         related_name='post_assignments',
         db_index=True,
@@ -91,7 +92,7 @@ class PostAssignment(BaseModel, TenantAwareModel):
     )
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='post_assignments',
         db_index=True,
@@ -230,7 +231,7 @@ class PostAssignment(BaseModel, TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='post_assignment',
+        related_name='primary_post_assignment_links',
         help_text=_("Link to actual attendance check-in/out record")
     )
 
@@ -509,3 +510,4 @@ class PostAssignment(BaseModel, TenantAwareModel):
             'on_time_checkin': self.on_time_checkin,
             'hours_worked': float(self.hours_worked) if self.hours_worked else None,
         }
+    objects = TenantAwareManager()

@@ -25,7 +25,6 @@ from .base import (
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -52,13 +51,13 @@ class GeofenceResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -80,7 +79,7 @@ class GeofenceResource(resources.ModelResource):
     Enable = fields.Field(attribute="enable", column_name="Enable", default=True)
 
     class Meta:
-        model = om.GeofenceMaster
+        model = GeofenceMaster
         skip_unchanged = True
         # import_id_fields = ['ID']
         report_skipped = True
@@ -154,7 +153,7 @@ class GeofenceResource(resources.ModelResource):
                 "Please enter valid text avoid any special characters except [_, -]"
             )
 
-        get_geofence = om.Bt.objects.filter(bucode=row["Site*"]).values("gpslocation")
+        get_geofence = Bt.objects.filter(bucode=row["Site*"]).values("gpslocation")
 
         get_final_geofence = bulk_create_geofence(
             get_geofence[0]["gpslocation"], row["Radius*"]
@@ -162,7 +161,7 @@ class GeofenceResource(resources.ModelResource):
 
         self._geofence = get_final_geofence
         if (
-            om.GeofenceMaster.objects.select_related()
+            GeofenceMaster.objects.select_related()
             .filter(gfcode=row["Code*"], client__bucode=row["Client*"])
             .exists()
         ):
@@ -189,20 +188,20 @@ class GeofencePeopleResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
     Code = fields.Field(
         column_name="Code*",
         attribute="geofence",
-        widget=wg.ForeignKeyWidget(om.GeofenceMaster, "gfcode"),
+        widget=wg.ForeignKeyWidget(GeofenceMaster, "gfcode"),
     )
     PeopleCode = fields.Field(
         column_name="People Code*",
@@ -318,7 +317,7 @@ class GeofencePeopleResource(resources.ModelResource):
         if not get_people:
             raise ValidationError("Invalid People Code* for the given Client*")
 
-        get_geofence_name = om.GeofenceMaster.objects.filter(
+        get_geofence_name = GeofenceMaster.objects.filter(
             gfcode=row["Code*"], client__bucode=row["Client*"]
         ).values("gfname")
         if not get_people:

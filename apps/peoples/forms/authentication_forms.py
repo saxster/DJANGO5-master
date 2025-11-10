@@ -35,27 +35,6 @@ from apps.core.utils_new.code_validators import (
 # Security form utilities
 from apps.core.validation import SecureFormMixin, SecureCharField
 
-
-apply_error_classes,
-    initailize_form_fields,
-)
-import re
-from apps.peoples.utils import create_caps_choices_for_peopleform
-
-from apps.core.utils_new.code_validators import (
-    PEOPLECODE_VALIDATOR,
-    LOGINID_VALIDATOR,
-    MOBILE_NUMBER_VALIDATOR,
-    NAME_VALIDATOR,
-    validate_peoplecode,
-    validate_loginid,
-    validate_mobile_number,
-    validate_name,
-)
-
-# Security form utilities
-from apps.core.validation import SecureFormMixin, SecureCharField
-
 # ============= BEGIN LOGIN FORM ====================#
 
 
@@ -140,4 +119,3 @@ class LoginForm(SecureFormMixin, forms.Form):
             raise forms.ValidationError(
                 "Login credentials incorrect. Please check the Username or Password"
             ) from e
-

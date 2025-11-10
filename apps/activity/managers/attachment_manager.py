@@ -8,13 +8,14 @@ from django.db.models import CharField, F, Q
 from django.db.models import Value as V
 from django.db.models.functions import Cast, Concat
 from apps.core import utils
+from apps.tenants.managers import TenantAwareManager
 
 from django.conf import settings
 
 log = logging.getLogger("django")
 
 
-class AttachmentManager(models.Manager):
+class AttachmentManager(TenantAwareManager):
     use_in_migrations = True
 
     def get_people_pic(self, ownerid, db):

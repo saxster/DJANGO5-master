@@ -44,10 +44,10 @@ class Approver(BaseModel, TenantAwareModel):
         null=True,
     )
     bu = models.ForeignKey(
-        "onboarding.Bt", verbose_name=_(""), on_delete=models.RESTRICT, null=True
+        "client_onboarding.Bt", verbose_name=_(""), on_delete=models.RESTRICT, null=True
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         on_delete=models.RESTRICT,
         null=True,
         related_name="approver_clients",

@@ -24,7 +24,6 @@ from .base import (
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -39,6 +38,7 @@ from .base import (
     bulk_create_geofence,
     Job,
 )
+from apps.core_onboarding import models as om
 
 
 class ShiftResource(resources.ModelResource):
@@ -46,13 +46,13 @@ class ShiftResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default="NONE",
     )
     BV = fields.Field(
         column_name="BV",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default="NONE",
     )
@@ -76,7 +76,7 @@ class ShiftResource(resources.ModelResource):
     Enable = fields.Field(attribute="enable", widget=wg.BooleanWidget())
 
     class Meta:
-        model = om.Shift
+        model = Shift
         skip_unchanged = True
         # import_id_fields = ('ID',)
         report_skipped = True
@@ -93,7 +93,7 @@ class ShiftResource(resources.ModelResource):
         )
 
 
-@admin.register(om.Shift)
+@admin.register(Shift)
 class ShiftAdmin(ImportExportModelAdmin):
     list_per_page = 50
     """Django admin for Shift model with import/export functionality"""

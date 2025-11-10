@@ -198,6 +198,9 @@ LOGIN_URL = "login"
 SITE_ID = 1
 TEST_RUNNER = "apps.core.test_runner.TenantAwareTestRunner"
 
+# Agent communication defaults (per-tenant tone overrides)
+AGENT_TONE_PROFILE_OVERRIDES = {}
+
 # ============================================================================
 # DEVELOPER TOOLS
 # ============================================================================
@@ -227,6 +230,9 @@ CACHE_TTL = 60 * 1
 # ============================================================================
 
 from .api_migration_flags import API_MIGRATION_FEATURE_FLAGS
+
+# Feature flags
+ENABLE_ACTIVITY_STREAMING = os.environ.get('ENABLE_ACTIVITY_STREAMING', 'true').lower() not in {'false', '0', 'no'}
 
 __all__ = [
     'BASE_DIR',

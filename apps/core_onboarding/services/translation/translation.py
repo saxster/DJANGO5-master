@@ -7,6 +7,11 @@ from django.conf import settings
 from datetime import datetime
 import logging
 
+from apps.wellness.services.conversation_translation_service import (
+    GoogleTranslateBackend,
+    LocalRuleBasedBackend,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,37 +69,50 @@ class NoOpTranslationService(TranslationService):
 
 
 class GoogleTranslateService(TranslationService):
-    """
-    Google Translate integration (stubbed for future implementation)
-    Will be implemented in later phases when Vertex AI is integrated
-    """
+    """Production-ready translation service with Google API + local fallback."""
 
     def __init__(self):
-        self.client = None  # Will initialize Google Translate client
-        logger.info("Google Translate service initialized (stubbed for MVP)")
+        api_key = getattr(settings, 'GOOGLE_TRANSLATE_API_KEY', None) or getattr(settings, 'GOOGLE_API_KEY', None)
+        backend = GoogleTranslateBackend(api_key=api_key)
+        if not backend.is_available():
+            logger.warning('Google Translate API key missing; falling back to local rule-based translator')
+            backend = LocalRuleBasedBackend()
+        self.backend = backend
 
     def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> str:
-        """Stub implementation - will use Google Translate API"""
-        # For MVP, fall back to no-op
-        logger.info(f"Google Translate called (stubbed): {text[:50]}... -> {target_language}")
-        return text
+        source = source_language or 'en'
+        result = self.backend.translate(text, target_language, source)
+        if result.get('error'):
+            logger.error('Translation failed (%s) - returning original text', result['error'])
+            return text
+        return result['text']
 
     def translate_dict(self, data: Dict, target_language: str, source_language: Optional[str] = None) -> Dict:
-        """Stub implementation - will translate dict recursively"""
-        logger.info(f"Google Translate dict called (stubbed): {len(data)} items -> {target_language}")
-        return data
+        translated = {}
+        for key, value in data.items():
+            if isinstance(value, str):
+                translated[key] = self.translate_text(value, target_language, source_language)
+            elif isinstance(value, dict):
+                translated[key] = self.translate_dict(value, target_language, source_language)
+            elif isinstance(value, list):
+                translated[key] = [
+                    self.translate_dict(item, target_language, source_language)
+                    if isinstance(item, dict)
+                    else self.translate_text(item, target_language, source_language)
+                    if isinstance(item, str)
+                    else item
+                    for item in value
+                ]
+            else:
+                translated[key] = value
+        return translated
 
     def detect_language(self, text: str) -> str:
-        """Stub implementation - will detect language"""
-        logger.info(f"Language detection called (stubbed): {text[:30]}...")
-        return 'en'  # Default to English for MVP
+        result = self.backend.translate(text, target_language='en', source_language=None)
+        return result.get('detected_language', 'en')
 
     def get_supported_languages(self) -> List[str]:
-        """Return common languages that will be supported"""
-        return [
-            'en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh',
-            'ar', 'hi', 'th', 'vi', 'id', 'ms', 'tl', 'nl', 'sv', 'no'
-        ]
+        return self.backend.get_supported_languages()
 
 
 # =============================================================================

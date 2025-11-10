@@ -13,15 +13,18 @@ Features:
 - Rate limiting and cost optimization
 """
 
+import hashlib
 import logging
 import time
-import hashlib
-from typing import Dict, List, Optional, Tuple, Any
+import uuid
 from datetime import datetime, timedelta
-from django.core.cache import cache
+from typing import Any, Dict, List, Optional, Tuple
+
+import requests
 from django.conf import settings
-from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.utils import timezone
 
 from ..models.wisdom_conversations import WisdomConversation
 from ..models.conversation_translation import WisdomConversationTranslation, TranslationQualityFeedback
@@ -61,22 +64,39 @@ class GoogleTranslateBackend(TranslationBackend):
     """Google Translate API backend"""
 
     def translate(self, text: str, target_language: str, source_language: str = 'en') -> Dict:
+        if not self.api_key:
+            return {'error': 'Google Translate API key missing', 'backend': 'google'}
+
+        payload = {
+            'q': text,
+            'target': target_language,
+            'format': 'text',
+        }
+        if source_language:
+            payload['source'] = source_language
+
         try:
-            # This would integrate with Google Translate API
-            # For now, return a mock response
-            # NOTE: time.sleep() removed - mock translation returns immediately
-
+            response = requests.post(
+                'https://translation.googleapis.com/language/translate/v2',
+                params={'key': self.api_key},
+                data=payload,
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+            translation = data['data']['translations'][0]
+            translated_text = translation['translatedText']
+            detected_language = translation.get('detectedSourceLanguage', source_language)
             return {
-                'text': f"[GOOGLE TRANSLATED to {target_language}] {text}",
+                'text': translated_text,
                 'confidence': 0.95,
-                'detected_language': source_language,
+                'detected_language': detected_language,
                 'backend': 'google',
-                'cost_estimate': len(text) * 0.00002  # $20 per 1M characters
+                'cost_estimate': len(text) * 0.00002,
             }
-
-        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Google Translate API error: {e}", exc_info=True)
-            return {'error': str(e), 'backend': 'google'}
+        except requests.RequestException as exc:
+            logger.error('Google Translate request failed: %s', exc, exc_info=True)
+            return {'error': str(exc), 'backend': 'google'}
 
     def get_supported_languages(self) -> List[str]:
         return ['hi', 'te', 'es', 'fr', 'ar', 'zh', 'de', 'it', 'pt', 'ru', 'ja', 'ko']
@@ -85,23 +105,51 @@ class GoogleTranslateBackend(TranslationBackend):
 class AzureTranslatorBackend(TranslationBackend):
     """Azure Translator API backend"""
 
+    def __init__(self, api_key: str = None, region: str = None, endpoint: str = None):
+        super().__init__(api_key)
+        self.region = region or getattr(settings, 'AZURE_TRANSLATOR_REGION', None)
+        self.endpoint = (endpoint or getattr(
+            settings,
+            'AZURE_TRANSLATOR_ENDPOINT',
+            'https://api.cognitive.microsofttranslator.com'
+        )).rstrip('/')
+
+    def is_available(self) -> bool:
+        return bool(self.api_key and self.region)
+
     def translate(self, text: str, target_language: str, source_language: str = 'en') -> Dict:
+        if not self.is_available():
+            return {'error': 'Azure Translator credentials missing', 'backend': 'azure'}
+
+        url = f"{self.endpoint}/translate?api-version=3.0"
+        params = {'to': target_language}
+        if source_language:
+            params['from'] = source_language
+
+        headers = {
+            'Ocp-Apim-Subscription-Key': self.api_key,
+            'Ocp-Apim-Subscription-Region': self.region,
+            'Content-type': 'application/json',
+            'X-ClientTraceId': str(uuid.uuid4()),
+        }
+
+        body = [{'text': text}]
+
         try:
-            # This would integrate with Azure Translator API
-            # For now, return a mock response
-            # NOTE: time.sleep() removed - mock translation returns immediately
-
+            response = requests.post(url, params=params, headers=headers, json=body, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            translation = data[0]['translations'][0]
             return {
-                'text': f"[AZURE TRANSLATED to {target_language}] {text}",
-                'confidence': 0.92,
-                'detected_language': source_language,
+                'text': translation['text'],
+                'confidence': 0.9,
+                'detected_language': data[0].get('detectedLanguage', {}).get('language', source_language),
                 'backend': 'azure',
-                'cost_estimate': len(text) * 0.00001  # $10 per 1M characters
+                'cost_estimate': len(text) * 0.00001,
             }
-
-        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"Azure Translator API error: {e}", exc_info=True)
-            return {'error': str(e), 'backend': 'azure'}
+        except requests.RequestException as exc:
+            logger.error('Azure Translator request failed: %s', exc, exc_info=True)
+            return {'error': str(exc), 'backend': 'azure'}
 
     def get_supported_languages(self) -> List[str]:
         return ['hi', 'te', 'es', 'fr', 'ar', 'zh', 'de', 'it', 'pt', 'ru', 'ja', 'ko']
@@ -110,36 +158,181 @@ class AzureTranslatorBackend(TranslationBackend):
 class OpenAITranslationBackend(TranslationBackend):
     """OpenAI-based translation backend for high-quality cultural adaptation"""
 
+    def __init__(self, api_key: str = None, model: Optional[str] = None):
+        super().__init__(api_key)
+        self.model = model or getattr(settings, 'OPENAI_TRANSLATION_MODEL', 'gpt-4o-mini')
+
     def translate(self, text: str, target_language: str, source_language: str = 'en') -> Dict:
+        if not self.api_key:
+            return {'error': 'OpenAI API key missing', 'backend': 'openai'}
+
+        system_prompt = (
+            'You are a professional translator. Translate the provided text '
+            f'from {source_language} to {target_language} while preserving tone, '
+            'intent, and cultural nuances. Respond with translation only.'
+        )
+
+        payload = {
+            'model': self.model,
+            'temperature': 0.2,
+            'messages': [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': text},
+            ],
+        }
+
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json',
+        }
+
         try:
-            # This would integrate with OpenAI API for culturally-aware translation
-            # For now, return a mock response
-            # NOTE: time.sleep() removed - mock translation returns immediately
-
-            language_names = {
-                'hi': 'Hindi',
-                'te': 'Telugu',
-                'es': 'Spanish',
-                'fr': 'French',
-                'ar': 'Arabic',
-                'zh': 'Chinese'
-            }
-
+            response = requests.post(
+                'https://api.openai.com/v1/chat/completions',
+                json=payload,
+                headers=headers,
+                timeout=20,
+            )
+            response.raise_for_status()
+            data = response.json()
+            translated = data['choices'][0]['message']['content'].strip()
             return {
-                'text': f"[OPENAI CULTURALLY ADAPTED to {language_names.get(target_language, target_language)}] {text}",
+                'text': translated,
                 'confidence': 0.98,
                 'detected_language': source_language,
                 'backend': 'openai',
-                'cost_estimate': len(text) * 0.00006,  # Higher cost but better quality
-                'cultural_adaptation': True
+                'cost_estimate': len(text) * 0.00006,
+                'cultural_adaptation': True,
             }
-
-        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
-            logger.error(f"OpenAI Translation API error: {e}", exc_info=True)
-            return {'error': str(e), 'backend': 'openai'}
+        except requests.RequestException as exc:
+            logger.error('OpenAI Translation API error: %s', exc, exc_info=True)
+            return {'error': str(exc), 'backend': 'openai'}
 
     def get_supported_languages(self) -> List[str]:
         return ['hi', 'te', 'es', 'fr', 'ar', 'zh']
+
+
+class LocalRuleBasedBackend(TranslationBackend):
+    """Deterministic fallback translator for offline/test environments."""
+
+    def __init__(self, language_maps: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None):
+        super().__init__(api_key='local')
+        self.language_maps = language_maps or self._build_default_maps()
+
+    def is_available(self) -> bool:
+        return True
+
+    def translate(self, text: str, target_language: str, source_language: str = 'en') -> Dict:
+        source_language = source_language or 'en'
+        detected_language = self._detect_language(text)
+
+        if source_language == target_language:
+            return {
+                'text': text,
+                'confidence': 0.99,
+                'detected_language': detected_language,
+                'backend': 'local',
+            }
+
+        mapping = self.language_maps.get(source_language, {}).get(target_language)
+        if not mapping:
+            # When we have no mapping, fall back to returning original text tagged
+            return {
+                'text': f'[{target_language}] {text}',
+                'confidence': 0.4,
+                'detected_language': detected_language,
+                'backend': 'local',
+            }
+
+        translated_tokens = []
+        for token in text.split():
+            normalized = token.strip().lower().strip('.,!?:;')
+            translated = mapping.get(normalized)
+            if translated:
+                # Preserve trailing punctuation/case approximately
+                suffix = ''
+                if token[-1:] in '.,!?:;':
+                    suffix = token[-1]
+                translated_tokens.append(translated + suffix)
+            else:
+                translated_tokens.append(token)
+
+        return {
+            'text': ' '.join(translated_tokens),
+            'confidence': 0.55,
+            'detected_language': detected_language,
+            'backend': 'local',
+        }
+
+    def get_supported_languages(self) -> List[str]:
+        languages = set()
+        for source, targets in self.language_maps.items():
+            languages.add(source)
+            languages.update(targets.keys())
+        return sorted(languages)
+
+    def _build_default_maps(self) -> Dict[str, Dict[str, Dict[str, str]]]:
+        # Minimal dictionaries focused on support use-cases
+        en_hi = {
+            'server': 'सर्वर',
+            'down': 'डाउन',
+            'database': 'डेटाबेस',
+            'connection': 'कनेक्शन',
+            'failed': 'विफल',
+            'please': 'कृपया',
+            'help': 'मदद',
+            'immediately': 'तुरंत',
+        }
+
+        en_te = {
+            'server': 'సర్వర్',
+            'down': 'డౌన్',
+            'database': 'డేటాబేస్',
+            'connection': 'కనెక్షన్',
+            'failed': 'విఫలమైంది',
+            'please': 'దయచేసి',
+            'help': 'సాయం',
+            'immediately': 'వెంటనే',
+        }
+
+        en_es = {
+            'server': 'servidor',
+            'down': 'caído',
+            'database': 'base de datos',
+            'connection': 'conexión',
+            'failed': 'falló',
+            'please': 'por favor',
+            'help': 'ayuda',
+            'immediately': 'inmediatamente',
+        }
+
+        base_map = {
+            'en': {
+                'hi': en_hi,
+                'te': en_te,
+                'es': en_es,
+            }
+        }
+
+        # Provide basic reverse mappings for returning to English
+        for target_lang, mapping in [('hi', en_hi), ('te', en_te), ('es', en_es)]:
+            reverse = {v: k for k, v in mapping.items()}
+            base_map.setdefault(target_lang, {})['en'] = reverse
+
+        return base_map
+
+    @staticmethod
+    def _detect_language(text: str) -> str:
+        for character in text:
+            code_point = ord(character)
+            if 0x0900 <= code_point <= 0x097F:
+                return 'hi'
+            if 0x0C00 <= code_point <= 0x0C7F:
+                return 'te'
+        # Very naive detection for Spanish (presence of ñ or á etc.)
+        if any(ch in text for ch in 'ñáéíóúü'):
+            return 'es'
+        return 'en'
 
 
 class ConversationTranslationService:
@@ -151,15 +344,22 @@ class ConversationTranslationService:
         # Initialize translation backends in priority order
         self.backends = {
             'openai': OpenAITranslationBackend(
-                api_key=getattr(settings, 'OPENAI_API_KEY', None)
+                api_key=getattr(settings, 'OPENAI_API_KEY', None),
+                model=getattr(settings, 'OPENAI_TRANSLATION_MODEL', None),
             ),
             'google': GoogleTranslateBackend(
                 api_key=getattr(settings, 'GOOGLE_TRANSLATE_API_KEY', None)
+                or getattr(settings, 'GOOGLE_API_KEY', None)
             ),
             'azure': AzureTranslatorBackend(
-                api_key=getattr(settings, 'AZURE_TRANSLATOR_API_KEY', None)
+                api_key=getattr(settings, 'AZURE_TRANSLATOR_API_KEY', None),
+                region=getattr(settings, 'AZURE_TRANSLATOR_REGION', None),
+                endpoint=getattr(settings, 'AZURE_TRANSLATOR_ENDPOINT', None),
             ),
+            'local': LocalRuleBasedBackend(),
         }
+
+        self.test_mode = getattr(settings, 'TRANSLATION_TEST_MODE', False)
 
         # Translation settings
         self.cache_timeout = 86400 * 7  # 7 days
@@ -333,11 +533,15 @@ class ConversationTranslationService:
         # If user has preference and it's available, use it first
         if preference and preference in self.backends and self.backends[preference].is_available():
             backends = [preference]
-            backends.extend([b for b in ['openai', 'google', 'azure'] if b != preference])
+            backends.extend([b for b in ['openai', 'google', 'azure', 'local'] if b not in backends])
             return backends
 
-        # Default priority: OpenAI (best quality) -> Google -> Azure
-        return ['openai', 'google', 'azure']
+        if getattr(self, 'test_mode', False):
+            return ['local', 'google', 'azure', 'openai']
+
+        # Default priority: highest quality providers first, deterministic local fallback last
+        order = ['openai', 'google', 'azure', 'local']
+        return order
 
     def _is_language_supported(self, language_code: str) -> bool:
         """Check if language is supported by any backend"""

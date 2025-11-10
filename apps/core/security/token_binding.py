@@ -41,14 +41,14 @@ class TokenBindingMiddleware(MiddlewareMixin):
             return None
 
         # Generate client fingerprint
-        fingerprint = self._generate_fingerlogger.info(request)
+        fingerprint = self._generate_fingerprint(request)
 
         # Get stored fingerprint for token
-        stored_fingerprint = self._get_stored_fingerlogger.info(token)
+        stored_fingerprint = self._get_stored_fingerprint(token)
 
         if stored_fingerprint is None:
             # First time seeing this token, store fingerprint
-            self._store_fingerlogger.info(token, fingerprint)
+            self._store_fingerprint(token, fingerprint)
 
         elif stored_fingerprint != fingerprint:
             # Token stolen or client changed
@@ -86,7 +86,7 @@ class TokenBindingMiddleware(MiddlewareMixin):
 
         return None
 
-    def _generate_fingerlogger.info(self, request: HttpRequest) -> str:
+    def _generate_fingerprint(self, request: HttpRequest) -> str:
         """Generate client fingerprint from request attributes."""
         components = [
             self._get_client_ip(request),
@@ -115,7 +115,7 @@ class TokenBindingMiddleware(MiddlewareMixin):
         user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')
         return hashlib.md5(user_agent.encode('utf-8')).hexdigest()
 
-    def _get_stored_fingerlogger.info(self, token: str) -> Optional[str]:
+    def _get_stored_fingerprint(self, token: str) -> Optional[str]:
         """Retrieve stored fingerprint for token."""
         try:
             cache_key = f"token_binding:{hashlib.sha256(token.encode()).hexdigest()}"
@@ -125,7 +125,7 @@ class TokenBindingMiddleware(MiddlewareMixin):
             logger.warning(f"Cache error getting fingerprint: {e}")
             return None
 
-    def _store_fingerlogger.info(self, token: str, fingerprint: str):
+    def _store_fingerprint(self, token: str, fingerprint: str):
         """Store fingerprint for token."""
         try:
             cache_key = f"token_binding:{hashlib.sha256(token.encode()).hexdigest()}"

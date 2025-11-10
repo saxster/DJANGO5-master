@@ -206,7 +206,7 @@ class TrainingExampleAdmin(admin.ModelAdmin):
         'is_labeled',
         'selected_for_labeling',
         'source_system',
-        'created_at',
+        'cdtz',
     ]
 
     search_fields = [

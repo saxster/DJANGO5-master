@@ -22,7 +22,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
 from apps.peoples.models import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import uuid
 import logging
 
@@ -47,7 +47,7 @@ class UserBehaviorProfile(BaseModel, TenantAwareModel):
     employee = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='behavior_profile',
+        related_name='attendance_behavior_profile',
         help_text="Employee this profile belongs to"
     )
 

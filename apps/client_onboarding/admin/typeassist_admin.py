@@ -24,7 +24,6 @@ from .base import (
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -39,6 +38,7 @@ from .base import (
     bulk_create_geofence,
     Job,
 )
+from apps.core_onboarding import models as om
 
 
 def clean_nan(value):
@@ -60,7 +60,7 @@ class TaResource(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default="NONE",
     )
 
@@ -151,7 +151,7 @@ class TaResourceUpdate(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default="NONE",
     )
 

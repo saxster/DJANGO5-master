@@ -482,9 +482,9 @@ class TestTokenBinding:
         result2 = await validator.validate_binding(token, scope_device2)
         assert result2 is True
 
-    def test_generate_device_fingerlogger.info(self, scope_device1):
+    def test_generate_device_fingerprint(self, scope_device1):
         """Test device fingerprint generation."""
-        fingerprint = generate_device_fingerlogger.info(scope_device1)
+        fingerprint = generate_device_fingerprint(scope_device1)
 
         # Should have format: device_id|ua_hash|ip_subnet
         parts = fingerprint.split('|')

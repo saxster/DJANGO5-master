@@ -41,7 +41,7 @@ class WorkerDocument(EnhancedTenantModel):
     onboarding_request = models.ForeignKey(
         'people_onboarding.OnboardingRequest',
         on_delete=models.CASCADE,
-        related_name='documents'
+        related_name='worker_documents'
     )
     media = models.OneToOneField(
         'core_onboarding.OnboardingMedia',
@@ -82,7 +82,7 @@ class WorkerDocument(EnhancedTenantModel):
     rejection_reason = models.TextField(blank=True)
 
     class Meta:
-        db_table = 'people_onboarding_document'
+        db_table = 'people_onboarding_worker_document'
         verbose_name = 'Worker Document'
         verbose_name_plural = 'Worker Documents'
         indexes = [

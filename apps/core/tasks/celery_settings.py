@@ -51,6 +51,11 @@ CELERY_QUEUES = [
     # AI and ML queues
     Queue('ai_processing', Exchange('ai_processing', type='direct'), routing_key='ai_processing'),
     Queue('ml_training', Exchange('ml_training', type='direct'), routing_key='ml_training'),
+    
+    # Threat Intelligence queues
+    Queue('intelligence', Exchange('intelligence', type='direct'), routing_key='intelligence'),
+    Queue('alerts', Exchange('alerts', type='direct'), routing_key='alerts'),
+    Queue('ml', Exchange('ml', type='direct'), routing_key='ml'),
 ]
 
 
@@ -182,6 +187,15 @@ CELERY_TASK_ROUTES = {
     'apps.ml_training.tasks.train_model': {'queue': 'ml_training', 'priority': 0},
     'apps.ml_training.tasks.active_learning_loop': {'queue': 'ai_processing', 'priority': 1},
     'apps.ml_training.tasks.dataset_labeling': {'queue': 'ai_processing', 'priority': 1},
+    
+    # ========================================================================
+    # THREAT INTELLIGENCE - Geospatial alerts & intelligence (Queue: intelligence/alerts/ml, Priority: 5-7)
+    # ========================================================================
+    'threat_intelligence.fetch_intelligence_from_sources': {'queue': 'intelligence', 'priority': 5},
+    'threat_intelligence.fetch_from_source': {'queue': 'intelligence', 'priority': 5},
+    'threat_intelligence.process_threat_event': {'queue': 'intelligence', 'priority': 6},
+    'threat_intelligence.distribute_alert': {'queue': 'alerts', 'priority': 7},
+    'threat_intelligence.update_learning_profiles': {'queue': 'ml', 'priority': 3},
 }
 
 
@@ -199,11 +213,14 @@ def get_queue_priorities():
     return {
         'critical': 10,
         'high_priority': 8,
+        'alerts': 7,
         'email': 7,
         'reports': 6,
+        'intelligence': 5,
         'default': 5,
         'analytics': 4,
         'external_api': 4,
+        'ml': 3,
         'maintenance': 3,
         'batch_processing': 2,
         'heavy_compute': 1,

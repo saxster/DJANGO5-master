@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from django.conf import settings
 from apps.activity.models.asset_model import AssetLog, Asset
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.location_model import Location
@@ -23,7 +24,13 @@ import datetime
 # Import directly from integration_tasks to avoid circular import via tasks.py
 from background_tasks.integration_tasks import publish_mqtt
 
-TOPIC = "redmine_to_noc"
+TOPIC = getattr(settings, "MQTT_ACTIVITY_SYNC_TOPIC", "redmine_to_noc")
+
+
+def _should_stream(instance):
+    if not getattr(settings, "ENABLE_ACTIVITY_STREAMING", True):
+        return False
+    return not getattr(instance, "_skip_streaming_signals", False)
 
 
 def convert_dates(obj):
@@ -106,35 +113,47 @@ def build_payload(instance, model_name, created):
 
 @receiver(post_save, sender=Attachment)
 def attachment_post_save(sender, instance, created, **kwargs):
+    if not _should_stream(instance):
+        return
     payload = build_payload(instance, "Attachment", created)
     publish_mqtt.delay(TOPIC, payload)
 
 
 @receiver(post_save, sender=Asset)
 def asset_post_save(sender, instance, created, **kwargs):
+    if not _should_stream(instance):
+        return
     payload = build_payload(instance, "Asset", created)
     publish_mqtt.delay(TOPIC, payload)
 
 
 @receiver(post_save, sender=Location)
 def location_post_save(sender, instance, created, **kwargs):
+    if not _should_stream(instance):
+        return
     payload = build_payload(instance, "Location", created)
     publish_mqtt.delay(TOPIC, payload)
 
 
 @receiver(post_save, sender=Question)
 def question_post_save(sender, instance, created, **kwargs):
+    if not _should_stream(instance):
+        return
     payload = build_payload(instance, "Question", created)
     publish_mqtt.delay(TOPIC, payload)
 
 
 @receiver(post_save, sender=QuestionSet)
 def questionset_post_save(sender, instance, created, **kwargs):
+    if not _should_stream(instance):
+        return
     payload = build_payload(instance, "QuestionSet", created)
     publish_mqtt.delay(TOPIC, payload)
 
 
 @receiver(post_save, sender=QuestionSetBelonging)
 def questionsetbelonging_post_save(sender, instance, created, **kwargs):
+    if not _should_stream(instance):
+        return
     payload = build_payload(instance, "QuestionSetBelonging", created)
     publish_mqtt.delay(TOPIC, payload)

@@ -1,63 +1,149 @@
 from django.core.management.base import BaseCommand
+from django.db import connections
 from django.db.utils import IntegrityError, DatabaseError
 from apps.core.utils_new import db_utils as utils
+from apps.core.utils_new.db.none_objects import (
+    get_or_create_none_tenant,
+    get_or_create_none_bv,
+)
 from apps.core.exceptions import patterns as excp
 from django.core.exceptions import ObjectDoesNotExist
 from apps.client_onboarding.models import Bt
 from apps.core_onboarding.models import TypeAssist
+from apps.peoples import models as pm
 from apps.peoples.models import People
 from apps.client_onboarding.admin import TaResource
 from apps.peoples.admin import CapabilityResource
 from django.conf import settings
 from tablib import Dataset
 import logging
-import psycopg2
 import uuid
 import secrets
 import os
 
-import logging
 logger = logging.getLogger(__name__)
-
-
-log = logging.getLogger(__name__)
+log = logger
 
 MAX_RETRY = 5
 # SECURITY FIX (2025-10-11): Hardcoded password removed (CVSS 9.1)
 # Password generation moved to create_superuser() function using secrets module
 
+
+def _sanitize_sql(function: str) -> str:
+    """Remove unsupported OWNER clauses for local Postgres roles."""
+    cleaned_lines = [
+        line for line in function.splitlines()
+        if 'OWNER TO' not in line.upper()
+    ]
+    return '\n'.join(cleaned_lines)
+
+
+def ensure_default_typeassist():
+    """Ensure baseline TypeAssist hierarchy exists."""
+    tenant = get_or_create_none_tenant()
+    client = get_or_create_none_bv()
+    root, _ = TypeAssist.objects.get_or_create(
+        tacode='BVIDENTIFIER',
+        defaults={'taname': 'Business Identifier', 'tenant': tenant, 'client': client},
+    )
+    seeds = [
+        ('CLIENT', 'Client'),
+        ('SITE', 'Site'),
+        ('DEPARTMENT', 'Department'),
+        ('DESIGNATION', 'Designation'),
+        ('EMPLOYEE_TYPE', 'Employee Type'),
+        ('WORK_TYPE', 'Work Type'),
+    ]
+    created = {}
+    for code, name in seeds:
+        obj, _ = TypeAssist.objects.get_or_create(
+            tacode=code,
+            defaults={
+                'taname': name,
+                'tatype': root,
+                'tenant': tenant,
+                'client': client,
+            },
+        )
+        created[code] = obj
+    return created['CLIENT'], created['SITE']
+
+
+def seed_default_capabilities():
+    """Create minimal capability hierarchy if import files are missing."""
+    tenant = get_or_create_none_tenant()
+    client = get_or_create_none_bv()
+    Capability = pm.Capability
+    seeds = [
+        ('CORE_ROOT', 'Core Capability Root', 'WEB', None),
+        ('CORE_DASHBOARD_VIEW', 'Dashboard View', 'WEB', 'CORE_ROOT'),
+        ('REPORT_VIEWER', 'Reports Viewer', 'REPORT', 'CORE_ROOT'),
+        ('MOBILE_SYNC', 'Mobile Sync Access', 'MOB', 'CORE_ROOT'),
+    ]
+
+    cache: dict[str, pm.Capability] = {}
+    for code, name, cfor, parent_code in seeds:
+        parent = None
+        if parent_code:
+            parent = cache.get(parent_code) or Capability.objects.filter(
+                capscode=parent_code
+            ).first()
+            if not parent:
+                parent, _ = Capability.objects.get_or_create(
+                    capscode=parent_code,
+                    defaults={
+                        'capsname': parent_code.replace('_', ' ').title(),
+                        'cfor': 'WEB',
+                        'tenant': tenant,
+                        'client': client,
+                    },
+                )
+            cache[parent_code] = parent
+
+        obj, _ = Capability.objects.get_or_create(
+            capscode=code,
+            defaults={
+                'capsname': name,
+                'cfor': cfor,
+                'parent': parent,
+                'tenant': tenant,
+                'client': client,
+            },
+        )
+        cache[code] = obj
+
+
 def create_dummy_client_and_site():
-    try:
-        client_type = TypeAssist.objects.get(tatype__tacode = 'BVIDENTIFIER', tacode='CLIENT')
-        site_type = TypeAssist.objects.get(tatype__tacode = 'BVIDENTIFIER', tacode='SITE')
-    except TypeAssist.DoesNotExist:
-        log.warning("Required TypeAssist entries for CLIENT/SITE not found, skipping client/site creation")
-        return None, None
+    client_type, site_type = ensure_default_typeassist()
+    tenant = client_type.tenant
 
     # Get the NONE Bt as parent for client
     try:
         parent_bt = Bt.objects.get(bucode='NONE')
     except Bt.DoesNotExist:
-        parent_bt = None
+        parent_bt = get_or_create_none_bv()
     
-    client, created = Bt.objects.get_or_create(
-        bucode='SPS', 
-        defaults={
-            'buname': "Security Personnel Services", 
-            'enable': True, 
-            'identifier': client_type, 
-            'parent': parent_bt  # Use the parent object instead of parent_id
-        }
-    )
+    client_defaults = {
+        'buname': "Security Personnel Services",
+        'enable': True,
+        'identifier': client_type,
+        'parent': parent_bt,
+        'tenant': tenant,
+    }
+    client, created = Bt.objects.get_or_create(bucode='SPS', defaults=client_defaults)
     if created:
         log.info("Created dummy client: SPS")
     else:
         log.info("Client SPS already exists")
 
-    site, created = Bt.objects.get_or_create(
-        bucode='YTPL', 
-        defaults={'buname': 'Youtility Technologies Pvt Ltd', 'enable': True, 'identifier':site_type, 'parent_id':client.id}
-    )
+    site_defaults = {
+        'buname': 'Youtility Technologies Pvt Ltd',
+        'enable': True,
+        'identifier': site_type,
+        'parent': client,
+        'tenant': tenant,
+    }
+    site, created = Bt.objects.get_or_create(bucode='YTPL', defaults=site_defaults)
     if created:
         log.info("Created dummy site: YTPL")
     else:
@@ -65,31 +151,22 @@ def create_dummy_client_and_site():
     
     return client, site
 
-def create_sql_functions(db):
-    from apps.core.raw_sql_functions import get_sqlfunctions
-    sql_functions_list = get_sqlfunctions().values()
-    # Connect to the database
-    DBINFO = settings.DATABASES[db]
-    conn = psycopg2.connect(
-        database=DBINFO['NAME'],
-        user=DBINFO['USER'],
-        password=DBINFO['PASSWORD'],
-        host=DBINFO['HOST'],
-        port=DBINFO['PORT'])
-    
-    # Create a new cursor object
-    cur = conn.cursor()
-    
-    for function in sql_functions_list:
-        cur.execute(function)
-        conn.commit()
-    
-    # Close the cursor and connection
-    cur.close()
-    conn.close()
 
-    
-    
+def create_sql_functions(db):
+    """Create required SQL functions using Django-managed connections."""
+    from apps.core.raw_sql_functions import get_sqlfunctions
+    if os.environ.get('SKIP_SQL_FUNCTIONS', 'true').lower() in {'true', '1', 'yes'}:
+        log.info("SKIP_SQL_FUNCTIONS enabled; skipping raw SQL bootstrap")
+        return
+    sql_functions_list = get_sqlfunctions().values()
+    connection = connections[db]
+
+    with connection.cursor() as cursor:
+        for function in sql_functions_list:
+            try:
+                cursor.execute(_sanitize_sql(function))
+            except DatabaseError as exc:
+                logger.warning("Skipping SQL function due to database error: %s", exc)
 
 def insert_default_entries(skip_existing=False):
     BASE_DIR = settings.BASE_DIR
@@ -99,27 +176,40 @@ def insert_default_entries(skip_existing=False):
     }
 
     for filepath, Resource in filepaths_and_resources.items():
-        with open(filepath, 'rb') as f:
-            default_types = Dataset().load(f)
-            resource = Resource(is_superuser=True)
-            try:
-                # Try to import with skip_unchanged to handle existing records
-                result = resource.import_data(
-                    default_types, 
-                    dry_run=False, 
-                    use_transactions=True, 
-                    raise_errors=not skip_existing  # Don't raise errors if skip_existing is True
-                )
-                if result.has_errors() and not skip_existing:
-                    log.error(f"Import errors from {filepath}: {result.errors}")
-                    raise Exception(f"Import failed with errors: {result.errors}")
-                else:
-                    log.info(f"Successfully imported data from {filepath}")
-            except (DatabaseError, FileNotFoundError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
-                if skip_existing and "already exist" in str(e):
-                    log.info(f"Skipping existing records from {filepath}")
-                else:
-                    raise
+        dataset = None
+        if not os.path.exists(filepath):
+            if Resource is TaResource:
+                log.info("Default TypeAssist data not found on disk; seeding minimal dataset programmatically.")
+                continue  # ensure_default_typeassist already seeds required entries
+            if Resource is CapabilityResource:
+                log.info("Default capability data not found on disk; seeding minimal dataset programmatically.")
+                seed_default_capabilities()
+                continue
+            log.info(f"Default import file missing, skipping: {filepath}")
+            continue
+        else:
+            with open(filepath, 'rb') as f:
+                dataset = Dataset().load(f)
+
+        resource = Resource(is_superuser=True)
+        try:
+            # Try to import with skip_unchanged to handle existing records
+            result = resource.import_data(
+                dataset,
+                dry_run=False,
+                use_transactions=True,
+                raise_errors=not skip_existing  # Don't raise errors if skip_existing is True
+            )
+            if result.has_errors() and not skip_existing:
+                log.error(f"Import errors from {filepath}: {result.errors}")
+                raise Exception(f"Import failed with errors: {result.errors}")
+            else:
+                log.info(f"Successfully imported data from {filepath}")
+        except (DatabaseError, IOError, IntegrityError, OSError, ObjectDoesNotExist, PermissionError) as e:
+            if skip_existing and "already exist" in str(e):
+                log.info(f"Skipping existing records from {filepath}")
+            else:
+                raise
 
 def create_superuser(client, site):
     """
@@ -177,7 +267,7 @@ def create_superuser(client, site):
             dateofbirth='1111-11-11', dateofjoin='1111-11-11',
             email='superadmin@youtility.in', isverified=True,
             is_staff=True, is_superuser=True,
-            isadmin=True, client=client, bu=site
+            isadmin=True, client=client, bu=site, tenant=client.tenant
         )
         user.set_password(temp_password)
         user.save()

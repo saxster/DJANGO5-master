@@ -10,7 +10,7 @@ Anomalies:
 - Inconsistent shift patterns
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from django.utils import timezone
 from datetime import timedelta
 from apps.attendance.models import PeopleEventlog

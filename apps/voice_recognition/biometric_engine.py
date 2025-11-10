@@ -28,9 +28,15 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.cache import cache
 from apps.voice_recognition.models import (
+    VoiceBiometricConfig,
     VoiceEmbedding,
     VoiceVerificationLog,
-    VoiceBiometricConfig,
+)
+from apps.voice_recognition.services.audio_processing import (
+    AudioSample,
+    compute_quality_metrics,
+    detect_audio_spoof,
+    extract_embedding,
 )
 from apps.voice_recognition.services.challenge_generator import ChallengeResponseGenerator
 import numpy as np
@@ -142,7 +148,8 @@ class VoiceBiometricEngine:
 
             # 1. Audio quality assessment
             audio_path = self._save_temp_audio(audio_file, user_id)
-            quality_result = self._assess_audio_quality(audio_path)
+            audio_sample = AudioSample.from_file(audio_path)
+            quality_result = self._assess_audio_quality(audio_sample)
             result['quality_metrics'] = quality_result
 
             if quality_result['quality_score'] < self.MIN_AUDIO_QUALITY:
@@ -153,7 +160,7 @@ class VoiceBiometricEngine:
 
             # 2. Anti-spoofing detection (if enabled)
             if enable_anti_spoofing and self.config.get('enable_anti_spoofing', True):
-                anti_spoof_result = self._detect_spoofing(audio_path, challenge)
+                anti_spoof_result = self._detect_spoofing(audio_sample, challenge)
                 result['anti_spoofing_result'] = anti_spoof_result
 
                 if anti_spoof_result.get('spoof_detected', False):
@@ -185,7 +192,7 @@ class VoiceBiometricEngine:
                 return self._finalize_result(result, start_time, user_id, attendance_record_id)
 
             # 5. Extract voice embedding from input audio
-            input_embedding = self._extract_voice_embedding(audio_path)
+            input_embedding = self._extract_voice_embedding(audio_sample)
             if input_embedding is None:
                 result['verified'] = False
                 result['fraud_indicators'].append('EMBEDDING_EXTRACTION_FAILED')
@@ -222,64 +229,15 @@ class VoiceBiometricEngine:
                 'fraud_indicators': ['VERIFICATION_ERROR']
             }
 
-    def _assess_audio_quality(self, audio_path: str) -> Dict[str, Any]:
-        """
-        Assess audio quality for voice verification.
-
-        Lower requirements than enrollment, but still sufficient for security.
-        """
-        try:
-            # This would integrate with audio analysis library
-            # For now, return mock assessment
-
-            quality_score = 0.75  # Mock
-            snr_db = 16.0  # Mock
-            duration = 4.0  # Mock
-
-            issues = []
-            if snr_db < self.MIN_SNR_DB:
-                issues.append('LOW_SNR')
-            if duration < 2.0:
-                issues.append('TOO_SHORT')
-
-            return {
-                'quality_score': quality_score,
-                'snr_db': snr_db,
-                'duration_seconds': duration,
-                'issues': issues,
-            }
-
-        except (OSError, IOError) as e:
-            logger.error(f"Error assessing audio quality: {e}")
-            return {'quality_score': 0.0, 'error': str(e)}
+    def _assess_audio_quality(self, audio_sample: AudioSample) -> Dict[str, Any]:
+        return compute_quality_metrics(audio_sample)
 
     def _detect_spoofing(
         self,
-        audio_path: str,
+        audio_sample: AudioSample,
         challenge: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """
-        Detect spoofing attempts.
-
-        Integrates with VoiceAntiSpoofingService.
-        """
-        try:
-            # This would integrate with VoiceAntiSpoofingService
-            # For now, return mock result
-
-            return {
-                'spoof_detected': False,
-                'liveness_score': 0.88,
-                'spoof_type': None,
-                'fraud_indicators': [],
-            }
-
-        except (OSError, IOError) as e:
-            logger.error(f"Error in spoofing detection: {e}")
-            return {
-                'spoof_detected': False,
-                'error': str(e)
-            }
+        return detect_audio_spoof(audio_sample, challenge)
 
     def _transcribe_audio(self, audio_path: str) -> str:
         """
@@ -337,21 +295,11 @@ class VoiceBiometricEngine:
         cache.delete(cache_key)
         logger.debug(f"Invalidated voiceprint cache for user {user_id}")
 
-    def _extract_voice_embedding(self, audio_path: str) -> Optional[np.ndarray]:
-        """
-        Extract voice embedding from audio.
-
-        Integrates with Google Cloud Speaker Recognition API.
-        """
+    def _extract_voice_embedding(self, audio_sample: AudioSample) -> Optional[np.ndarray]:
         try:
-            # This would integrate with Google Cloud Speaker Recognition API
-            # For now, return mock embedding
-            embedding = np.random.normal(0, 1, 512)
-            embedding = embedding / np.linalg.norm(embedding)
-            return embedding
-
-        except (OSError, IOError) as e:
-            logger.error(f"Error extracting voice embedding: {e}")
+            return extract_embedding(audio_sample, emb_dim=512)
+        except (ValueError, OSError) as exc:
+            logger.error(f"Error extracting voice embedding: {exc}")
             return None
 
     def _verify_against_voiceprints(

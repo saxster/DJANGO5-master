@@ -14,7 +14,44 @@ Usage in other settings:
     )
 """
 
-# Import and re-export AWS configurations
+# ============================================================================
+# CELERY CONFIGURATION (Task queues, broker)
+# ============================================================================
+
+from ..celery_config import (
+    CELERY_BROKER_URL,
+    CELERY_RESULT_BACKEND,
+    CELERY_TASK_SERIALIZER,
+    CELERY_RESULT_SERIALIZER,
+    CELERY_ACCEPT_CONTENT,
+    CELERY_TASK_REJECT_ON_WORKER_LOST,
+    CELERY_TASK_ACKS_LATE,
+    CELERY_WORKER_PREFETCH_MULTIPLIER,
+    CELERY_WORKER_CONCURRENCY,
+    CELERY_TASK_ALWAYS_EAGER,
+    CELERY_TASK_EAGER_PROPAGATES,
+    CELERY_WORKER_MAX_TASKS_PER_CHILD,
+    CELERY_TASK_SEND_SENT_EVENT,
+    CELERY_WORKER_SEND_TASK_EVENTS,
+    CELERY_BROKER_TRANSPORT_OPTIONS,
+    CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS,
+    CELERY_TASK_QUEUES,
+    CELERY_TASK_ROUTES,
+    CELERY_TASK_DEFAULT_RETRY_DELAY,
+    CELERY_TASK_MAX_RETRIES,
+    CELERY_TASK_RETRY_BACKOFF,
+    CELERY_TASK_RETRY_BACKOFF_MAX,
+    CELERY_TASK_RETRY_JITTER,
+    CELERY_TASK_TRACK_STARTED,
+    CELERY_TASK_TIME_LIMIT,
+    CELERY_TASK_SOFT_TIME_LIMIT,
+    CELERY_RESULT_EXPIRES,
+)
+
+# ============================================================================
+# AWS INTEGRATIONS (Email, S3 Storage)
+# ============================================================================
+
 from .aws import (
     EMAIL_BACKEND,
     EMAIL_HOST,
@@ -70,7 +107,43 @@ from .third_party import (
     NOTIFICATION_ROUTING,
 )
 
+import environ
+from ..redis_optimized import get_optimized_caches_config, get_channel_layers_config
+
+env = environ.Env()
+_django_environment = env('DJANGO_ENVIRONMENT', default='development')
+CACHES = get_optimized_caches_config(_django_environment)
+CHANNEL_LAYERS = get_channel_layers_config(_django_environment)
+
 __all__ = [
+    # Celery
+    'CELERY_BROKER_URL',
+    'CELERY_RESULT_BACKEND',
+    'CELERY_TASK_SERIALIZER',
+    'CELERY_RESULT_SERIALIZER',
+    'CELERY_ACCEPT_CONTENT',
+    'CELERY_TASK_REJECT_ON_WORKER_LOST',
+    'CELERY_TASK_ACKS_LATE',
+    'CELERY_WORKER_PREFETCH_MULTIPLIER',
+    'CELERY_WORKER_CONCURRENCY',
+    'CELERY_TASK_ALWAYS_EAGER',
+    'CELERY_TASK_EAGER_PROPAGATES',
+    'CELERY_WORKER_MAX_TASKS_PER_CHILD',
+    'CELERY_TASK_SEND_SENT_EVENT',
+    'CELERY_WORKER_SEND_TASK_EVENTS',
+    'CELERY_BROKER_TRANSPORT_OPTIONS',
+    'CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS',
+    'CELERY_TASK_QUEUES',
+    'CELERY_TASK_ROUTES',
+    'CELERY_TASK_DEFAULT_RETRY_DELAY',
+    'CELERY_TASK_MAX_RETRIES',
+    'CELERY_TASK_RETRY_BACKOFF',
+    'CELERY_TASK_RETRY_BACKOFF_MAX',
+    'CELERY_TASK_RETRY_JITTER',
+    'CELERY_TASK_TRACK_STARTED',
+    'CELERY_TASK_TIME_LIMIT',
+    'CELERY_TASK_SOFT_TIME_LIMIT',
+    'CELERY_RESULT_EXPIRES',
     # AWS
     'EMAIL_BACKEND',
     'EMAIL_HOST',
@@ -118,6 +191,9 @@ __all__ = [
     'ENABLE_WEBHOOK_NOTIFICATIONS',
     'NOTIFICATION_PROVIDERS',
     'NOTIFICATION_ROUTING',
+    # Redis caches/websockets
+    'CACHES',
+    'CHANNEL_LAYERS',
 ]
 
 # ============================================================================
@@ -126,7 +202,7 @@ __all__ = [
 
 def get_development_integrations():
     """Development-specific integration settings with optimized Redis."""
-    from .redis_optimized import get_optimized_caches_config, get_channel_layers_config, get_celery_redis_config
+    from ..redis_optimized import get_optimized_caches_config, get_channel_layers_config, get_celery_redis_config
 
     celery_config = get_celery_redis_config('development')
 
@@ -143,7 +219,7 @@ def get_development_integrations():
 
 def get_production_integrations():
     """Production-specific integration settings with optimized Redis."""
-    from .redis_optimized import get_optimized_caches_config, get_channel_layers_config, get_celery_redis_config
+    from ..redis_optimized import get_optimized_caches_config, get_channel_layers_config, get_celery_redis_config
 
     celery_config = get_celery_redis_config('production')
 

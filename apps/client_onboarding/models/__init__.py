@@ -23,14 +23,20 @@ from .scheduling import Shift, shiftdata_json
 from .device import Device
 from .subscription import Subscription
 from .downtime import DownTimeHistory
+from apps.core_onboarding.models.classification import TypeAssist
+
+# Backward compatibility alias (legacy naming)
+Bu = Bt
 
 __all__ = [
     # Core Business Models
     'Bt',
+    'Bu',
     'bu_defaults',
     'Shift',
     'shiftdata_json',
     'Device',
     'Subscription',
     'DownTimeHistory',
+    'TypeAssist',
 ]

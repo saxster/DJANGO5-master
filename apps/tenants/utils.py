@@ -17,16 +17,23 @@ Date: 2025-11-03
 """
 
 import logging
+from contextlib import contextmanager
 from typing import Optional
+
 from django.apps import apps as django_apps
+
+from apps.core.utils_new.db_utils import THREAD_LOCAL, get_current_db_name, set_db_for_router
 
 from .constants import (
     DEFAULT_DB_ALIAS,
+    THREAD_LOCAL_DB_ATTR,
     THREAD_LOCAL_TENANT_CACHE_ATTR,
     SECURITY_EVENT_TENANT_NOT_FOUND,
 )
 
 logger = logging.getLogger(__name__)
+
+_MISSING = object()
 
 
 # =============================================================================
@@ -97,9 +104,6 @@ def get_tenant_from_context() -> Optional['Tenant']:
         ...     my_object.tenant = tenant
     """
     try:
-        # Import here to avoid circular dependency
-        from apps.core.utils_new.db_utils import get_current_db_name
-
         # Get current database alias from thread-local
         tenant_db = get_current_db_name()
 
@@ -363,3 +367,32 @@ def cleanup_tenant_context():
 
     except ImportError:
         pass  # Thread-local not available
+
+
+@contextmanager
+def tenant_context(db_alias: Optional[str]):
+    """Context manager to scope work to a specific tenant database (re-entrant safe)."""
+    target_alias = db_alias or DEFAULT_DB_ALIAS
+
+    prev_db = getattr(THREAD_LOCAL, THREAD_LOCAL_DB_ATTR, _MISSING)
+    prev_tenant_cache = getattr(THREAD_LOCAL, THREAD_LOCAL_TENANT_CACHE_ATTR, _MISSING)
+
+    # Clear cached tenant context so new alias re-resolves tenant
+    if hasattr(THREAD_LOCAL, THREAD_LOCAL_TENANT_CACHE_ATTR):
+        delattr(THREAD_LOCAL, THREAD_LOCAL_TENANT_CACHE_ATTR)
+
+    set_db_for_router(target_alias)
+
+    try:
+        yield
+    finally:
+        if prev_db is _MISSING:
+            cleanup_tenant_context()
+        else:
+            set_db_for_router(prev_db)
+
+            if prev_tenant_cache is _MISSING:
+                if hasattr(THREAD_LOCAL, THREAD_LOCAL_TENANT_CACHE_ATTR):
+                    delattr(THREAD_LOCAL, THREAD_LOCAL_TENANT_CACHE_ATTR)
+            else:
+                setattr(THREAD_LOCAL, THREAD_LOCAL_TENANT_CACHE_ATTR, prev_tenant_cache)

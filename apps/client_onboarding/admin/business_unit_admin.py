@@ -8,8 +8,6 @@ Migrated from apps/onboarding/admin.py
 Date: 2025-09-30
 """
 from .base import (
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
-
     BaseResource,
     BaseFieldSet2,
     admin,
@@ -27,7 +25,6 @@ from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -42,6 +39,13 @@ from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
     bulk_create_geofence,
     Job,
 )
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core_onboarding import models as om
+
+
+def default_ta():
+    """Return default TypeAssist for forms/imports."""
+    return get_or_create_none_typeassist()
 
 
 class BtResource(resources.ModelResource):
@@ -55,7 +59,7 @@ class BtResource(resources.ModelResource):
         column_name="Belongs To*",
         default=get_or_create_none_bv,
         attribute="parent",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
     )
 
     BuType = fields.Field(
@@ -102,7 +106,7 @@ class BtResource(resources.ModelResource):
     Enable = fields.Field(attribute="enable", column_name="Enable", default=True)
 
     class Meta:
-        model = om.Bt
+        model = Bt
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ("Code",)
@@ -197,7 +201,7 @@ class BtResource(resources.ModelResource):
 
         # unique record check
         if (
-            om.Bt.objects.select_related()
+            Bt.objects.select_related()
             .filter(
                 bucode=row["Code*"],
                 parent__bucode=row["Belongs To*"],
@@ -232,7 +236,7 @@ class BtResource(resources.ModelResource):
         utils.save_common_stuff(self.request, instance)
 
     def get_queryset(self):
-        return om.Bt.objects.select_related().all()
+        return Bt.objects.select_related().all()
 
     def after_import(self, dataset, result, using_transactions, dry_run, **kwargs):
         """
@@ -258,7 +262,7 @@ class BtResource(resources.ModelResource):
                 if 'Belongs To*' in row and row['Belongs To*']:
                     # Try to find the parent BU
                     try:
-                        parent_bu = om.Bt.objects.filter(bucode=row['Belongs To*']).first()
+                        parent_bu = Bt.objects.filter(bucode=row['Belongs To*']).first()
                         if parent_bu:
                             parent_ids.add(parent_bu.id)
                     except (OperationalError, ProgrammingError, DatabaseError) as e:
@@ -291,7 +295,7 @@ class BtResourceUpdate(resources.ModelResource):
         column_name="Belongs To",
         default=get_or_create_none_bv,
         attribute="parent",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
     )
 
     BuType = fields.Field(
@@ -356,7 +360,7 @@ class BtResourceUpdate(resources.ModelResource):
     )
 
     class Meta:
-        model = om.Bt
+        model = Bt
         skip_unchanged = True
         # import_id_fields = ['ID']
         report_skipped = True
@@ -439,7 +443,7 @@ class BtResourceUpdate(resources.ModelResource):
                 )
 
         # check record exists
-        if not om.Bt.objects.filter(id=row["ID*"]).exists():
+        if not Bt.objects.filter(id=row["ID*"]).exists():
             raise ValidationError(
                 f"Record with these values not exist: ID - {row['ID*']}"
             )
@@ -477,7 +481,7 @@ class BtResourceUpdate(resources.ModelResource):
         utils.save_common_stuff(self.request, instance)
 
 
-@admin.register(om.Bt)
+@admin.register(Bt)
 class BtAdmin(ImportExportModelAdmin):
     list_per_page = 50
     """Django admin for Business Unit model with import/export functionality"""
@@ -511,4 +515,4 @@ class BtAdmin(ImportExportModelAdmin):
         return {"request": request}
 
     def get_queryset(self, request):
-        return om.Bt.objects.select_related("butype", "identifier", "parent").all()
+        return Bt.objects.select_related("butype", "identifier", "parent").all()

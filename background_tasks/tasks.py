@@ -69,6 +69,7 @@ from background_tasks.ticket_tasks import (
 from background_tasks.integration_tasks import (
     external_api_call_async,
     insert_json_records_async,
+    publish_mqtt,
 )
 
 # Report generation tasks
@@ -107,6 +108,7 @@ __all__ = [
     "create_save_report_async",
     "external_api_call_async",
     "insert_json_records_async",
+    "publish_mqtt",
     "move_media_to_cloud_storage",
     # "my_task",  # Removed - doesn't exist
     "perform_facerecognition_bgt",

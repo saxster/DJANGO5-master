@@ -46,7 +46,7 @@ class HelpBotSession(BaseModel, TenantAwareModel):
         verbose_name=_("User")
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         on_delete=models.CASCADE,
         related_name="helpbot_sessions",
         verbose_name=_("Client"),

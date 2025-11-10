@@ -48,6 +48,16 @@ class ApprovalRequest(ApprovalRequestActions, BaseModel, TenantAwareModel):
     - Example: Same site, qualified worker, within 2 hours
     """
 
+    # Explicit tenant FK to avoid reverse accessor clashes with core.ApprovalRequest
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='attendance_approval_requests',
+        null=True,
+        blank=True,
+        help_text=_("Tenant that owns this approval request")
+    )
+
     # ========== Core Request Info ==========
 
     request_type = models.CharField(
@@ -112,7 +122,7 @@ class ApprovalRequest(ApprovalRequestActions, BaseModel, TenantAwareModel):
     # ========== Related Objects ==========
 
     related_site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -130,7 +140,7 @@ class ApprovalRequest(ApprovalRequestActions, BaseModel, TenantAwareModel):
     )
 
     related_shift = models.ForeignKey(
-        'onboarding.Shift',
+        'client_onboarding.Shift',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

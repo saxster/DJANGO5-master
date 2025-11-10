@@ -9,6 +9,7 @@ Date: 2025-10-10
 from .base import (
     rp,
     render,
+    redirect,
     json,
     utils,
     log,
@@ -18,6 +19,20 @@ from .base import (
     ValidationError,
     LoginRequiredMixin,
     View,
+    rp_forms,
+    rutils,
+    on_core,
+    Asset,
+    QuestionSet,
+    messages,
+    IntegrityError,
+    DatabaseError,
+    ObjectDoesNotExist,
+    asyncio,
+    create_save_report_async,
+    AsyncResult,
+    pformat,
+    login_required,
 )
 
 
@@ -39,7 +54,7 @@ class DownloadReports(LoginRequiredMixin, View):
 
         if R.get("action") == "get_site" and R.get("of_site") and R.get("of_type"):
             qset = (
-                on.TypeAssist.objects.filter(
+                on_core.TypeAssist.objects.filter(
                     bu_id=R["of_site"],
                     client_id=S["client_id"],
                     tatype__tacode=R["of_type"],

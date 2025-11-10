@@ -23,6 +23,9 @@ urlpatterns = [
     # Help Desk (V2)
     path('helpdesk/', include('apps.api.v2.helpdesk_urls', namespace='helpdesk')),
 
+    # Calendar (V2)
+    path('calendar/', include('apps.api.v2.calendar_urls', namespace='calendar')),
+
     # Reports (V2)
     path('reports/', include('apps.api.v2.reports_urls', namespace='reports')),
 

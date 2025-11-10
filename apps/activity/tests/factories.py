@@ -40,7 +40,7 @@ class TypeAssistFactory(DjangoModelFactory):
     """Factory for creating TypeAssist entries."""
 
     class Meta:
-        model = "onboarding.TypeAssist"
+        model = "core_onboarding.TypeAssist"
 
     typename = "AssetType"
     typeval = factory.Sequence(lambda n: f"Type {n}")

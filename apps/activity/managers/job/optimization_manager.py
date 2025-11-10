@@ -24,11 +24,8 @@ Usage:
 """
 
 from .base import (
-
-import logging
-logger = logging.getLogger(__name__)
-
-    models, logger,
+    models,
+    logger,
 )
 from django.db.models import Max
 

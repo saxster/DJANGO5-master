@@ -58,7 +58,7 @@ class Pgbelonging(BaseModel, TenantAwareModel):
     )
 
     assignsites = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,
@@ -68,7 +68,7 @@ class Pgbelonging(BaseModel, TenantAwareModel):
     )
 
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,
@@ -78,7 +78,7 @@ class Pgbelonging(BaseModel, TenantAwareModel):
     )
 
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,

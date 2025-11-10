@@ -25,6 +25,7 @@ from .security.rate_limiting import *
 from .security.file_upload import *
 from .security.validation import *
 from .security.encryption import *
+from .security.sso import *
 
 # Security middleware configuration
 SECURITY_MIDDLEWARE = [
@@ -51,7 +52,8 @@ __MODULE_INFO__ = {
         'rate_limiting.py': 16,
         'file_upload.py': 57,
         'validation.py': 21,
-        'encryption.py': 85  # New encryption module
+        'encryption.py': 85,
+        'sso.py': 64,
     },
     'total_security_lines': 348  # Sum of all submodules (updated)
 }

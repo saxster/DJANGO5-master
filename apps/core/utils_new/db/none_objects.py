@@ -43,27 +43,30 @@ def check_nones(none_fields, tablename, cleaned_data, json_format=False):
 def get_or_create_none_people(using=None):
     """Create NONE sentinel People record."""
     from apps.peoples import models as pm
+    tenant = get_or_create_none_tenant()
 
     try:
         return pm.People.objects.get(peoplecode="NONE")
     except pm.People.DoesNotExist:
         pass
 
-    obj = pm.People(
+    fields = dict(
         peoplecode="NONE",
         peoplename="NONE",
         email="none@youtility.in",
         dateofbirth="1111-01-01",
         dateofjoin="1111-01-01",
-        client_id=None,
-        bu_id=None,
         cuser_id=None,
         muser_id=None,
         cdtz=timezone.now().replace(microsecond=0),
         mdtz=timezone.now().replace(microsecond=0),
         ctzoffset=330,
-        loginid="none_user"
+        loginid="none_user",
     )
+    if hasattr(pm.People, 'tenant'):
+        fields['tenant'] = tenant
+
+    obj = pm.People(**fields)
     obj.save_base(raw=True)
     return obj
 
@@ -71,10 +74,11 @@ def get_or_create_none_people(using=None):
 def get_or_create_none_pgroup():
     """Create NONE sentinel Pgroup record."""
     from apps.peoples import models as pm
+    tenant = get_or_create_none_tenant()
 
     obj, _ = pm.Pgroup.objects.get_or_create(
         groupname="NONE",
-        defaults={},
+        defaults={'tenant': tenant} if hasattr(pm.Pgroup, 'tenant') else {},
     )
     return obj
 
@@ -82,9 +86,12 @@ def get_or_create_none_pgroup():
 def get_or_create_none_cap():
     """Create NONE sentinel Capability record."""
     from apps.peoples import models as pm
+    tenant = get_or_create_none_tenant()
 
     obj, _ = pm.Capability.objects.get_or_create(
-        capscode="NONE", capsname="NONE", defaults={}
+        capscode="NONE",
+        capsname="NONE",
+        defaults={"tenant": tenant} if hasattr(pm.Capability, 'tenant') else {},
     )
     return obj
 
@@ -92,9 +99,12 @@ def get_or_create_none_cap():
 def get_or_create_none_typeassist():
     """Create NONE sentinel TypeAssist record."""
     from apps.core_onboarding.models import TypeAssist
+    tenant = get_or_create_none_tenant()
 
     obj, iscreated = TypeAssist.objects.get_or_create(
-        tacode="NONE", taname="NONE", defaults={}
+        tacode="NONE",
+        taname="NONE",
+        defaults={"tenant": tenant},
     )
     return obj, iscreated
 
@@ -112,14 +122,15 @@ def get_none_typeassist():
 
 def get_or_create_none_bv():
     """Create NONE sentinel Business Unit (Bt) record."""
-    from apps.core_onboarding.models import Bt
+    Bt = _get_bt_model()
+    tenant = get_or_create_none_tenant()
 
     try:
         return Bt.objects.get(bucode="NONE")
     except Bt.DoesNotExist:
         pass
 
-    obj = Bt(
+    fields = dict(
         bucode="NONE",
         buname="NONE",
         enable=False,
@@ -128,8 +139,12 @@ def get_or_create_none_bv():
         muser_id=None,
         cdtz=timezone.now().replace(microsecond=0),
         mdtz=timezone.now().replace(microsecond=0),
-        ctzoffset=330
+        ctzoffset=330,
     )
+    if hasattr(Bt, 'tenant'):
+        fields['tenant'] = tenant
+
+    obj = Bt(**fields)
     obj.save_base(raw=True)
     return obj
 
@@ -146,23 +161,28 @@ def get_or_create_none_location():
     """Create NONE sentinel Location record."""
     from apps.activity.models.location_model import Location
     from django.db import transaction
+    tenant = get_or_create_none_tenant()
 
     try:
         obj = Location.objects.get(loccode="NONE", locname="NONE")
         return obj
     except Location.DoesNotExist:
         with transaction.atomic():
+            defaults = {
+                "locstatus": "SCRAPPED",
+                "bu_id": 1,
+                "client_id": 1,
+                "tenant_id": 1,
+                "cuser_id": 1,
+                "muser_id": 1,
+            }
+            if hasattr(Location, 'tenant'):
+                defaults['tenant'] = tenant
+
             obj, created = Location.objects.get_or_create(
                 loccode="NONE",
                 locname="NONE",
-                defaults={
-                    "locstatus": "SCRAPPED",
-                    "bu_id": 1,
-                    "client_id": 1,
-                    "tenant_id": 1,
-                    "cuser_id": 1,
-                    "muser_id": 1,
-                }
+                defaults=defaults,
             )
             return obj
 
@@ -170,18 +190,23 @@ def get_or_create_none_location():
 def get_or_create_none_jobneed():
     """Create NONE sentinel Jobneed record."""
     from apps.activity.models.job_model import Jobneed
+    tenant = get_or_create_none_tenant()
 
     date = datetime(1970, 1, 1, 00, 00, 00).replace(tzinfo=dt_timezone.utc)
+    defaults = {
+        "plandatetime": date,
+        "expirydatetime": date,
+        "gracetime": 0,
+        "receivedonserver": date,
+    }
+    if hasattr(Jobneed, 'tenant'):
+        defaults['tenant'] = tenant
+
     obj, _ = Jobneed.objects.get_or_create(
         jobdesc="NONE",
         scantype="NONE",
         seqno=-1,
-        defaults={
-            "plandatetime": date,
-            "expirydatetime": date,
-            "gracetime": 0,
-            "receivedonserver": date,
-        },
+        defaults=defaults,
     )
     return obj
 
@@ -189,17 +214,22 @@ def get_or_create_none_jobneed():
 def get_or_create_none_wom():
     """Create NONE sentinel Work Order Management record."""
     from apps.work_order_management.models import Wom
+    tenant = get_or_create_none_tenant()
 
     date = datetime(1970, 1, 1, 00, 00, 00).replace(tzinfo=dt_timezone.utc)
+    defaults = {
+        "workpermit": Wom.WorkPermitStatus.NOTNEED,
+        "attachmentcount": 0,
+        "priority": Wom.Priority.LOW,
+    }
+    if hasattr(Wom, 'tenant'):
+        defaults['tenant'] = tenant
+
     obj, _ = Wom.objects.get_or_create(
         description="NONE",
         expirydatetime=date,
         plandatetime=date,
-        defaults={
-            "workpermit": Wom.WorkPermitStatus.NOTNEED,
-            "attachmentcount": 0,
-            "priority": Wom.Priority.LOW,
-        },
+        defaults=defaults,
     )
     return obj
 
@@ -207,31 +237,52 @@ def get_or_create_none_wom():
 def get_or_create_none_qset():
     """Create NONE sentinel QuestionSet record."""
     from apps.activity.models.question_model import QuestionSet
+    tenant = get_or_create_none_tenant()
 
-    obj, _ = QuestionSet.objects.get_or_create(qsetname="NONE", defaults={})
+    defaults = {}
+    if hasattr(QuestionSet, 'tenant'):
+        defaults['tenant'] = tenant
+
+    obj, _ = QuestionSet.objects.get_or_create(
+        qsetname="NONE",
+        defaults=defaults,
+    )
     return obj
 
 
 def get_or_create_none_question():
     """Create NONE sentinel Question record."""
     from apps.activity.models.question_model import Question
+    tenant = get_or_create_none_tenant()
 
-    obj, _ = Question.objects.get_or_create(quesname="NONE", defaults={})
+    defaults = {}
+    if hasattr(Question, 'tenant'):
+        defaults['tenant'] = tenant
+
+    obj, _ = Question.objects.get_or_create(
+        quesname="NONE",
+        defaults=defaults,
+    )
     return obj
 
 
 def get_or_create_none_qsetblng():
     """Create NONE sentinel QuestionSetBelonging record."""
     from apps.activity.models.question_model import QuestionSetBelonging
+    tenant = get_or_create_none_tenant()
+
+    defaults = {
+        "qset": get_or_create_none_qset(),
+        "question": get_or_create_none_question(),
+    }
+    if hasattr(QuestionSetBelonging, 'tenant'):
+        defaults['tenant'] = tenant
 
     obj, _ = QuestionSetBelonging.objects.get_or_create(
         answertype="NONE",
         ismandatory=False,
         seqno=-1,
-        defaults={
-            "qset": get_or_create_none_qset(),
-            "question": get_or_create_none_question(),
-        },
+        defaults=defaults,
     )
     return obj
 
@@ -239,12 +290,17 @@ def get_or_create_none_qsetblng():
 def get_or_create_none_asset():
     """Create NONE sentinel Asset record."""
     from apps.activity.models.asset_model import Asset
+    tenant = get_or_create_none_tenant()
+
+    defaults = {"iscritical": False}
+    if hasattr(Asset, 'tenant'):
+        defaults['tenant'] = tenant
 
     obj, _ = Asset.objects.get_or_create(
         assetcode="NONE",
         assetname="NONE",
         identifier="NONE",
-        defaults={"iscritical": False},
+        defaults=defaults,
     )
     return obj
 
@@ -252,31 +308,40 @@ def get_or_create_none_asset():
 def get_or_create_none_ticket():
     """Create NONE sentinel Ticket record."""
     from apps.y_helpdesk.models import Ticket
+    tenant = get_or_create_none_tenant()
 
-    obj, _ = Ticket.objects.get_or_create(ticketdesc="NONE", defaults={})
+    obj, _ = Ticket.objects.get_or_create(
+        ticketdesc="NONE",
+        defaults={"tenant": tenant},
+    )
     return obj
 
 
 def get_or_create_none_job():
     """Create NONE sentinel Job record."""
     from apps.activity.models.job_model import Job
+    tenant = get_or_create_none_tenant()
 
     date = datetime(1970, 1, 1, 00, 00, 00).replace(tzinfo=dt_timezone.utc)
+    defaults = {
+        "fromdate": date,
+        "uptodate": date,
+        "cron": "no_cron",
+        "lastgeneratedon": date,
+        "planduration": 0,
+        "expirytime": 0,
+        "gracetime": 0,
+        "priority": "LOW",
+        "seqno": -1,
+        "scantype": "SKIP",
+    }
+    if hasattr(Job, 'tenant'):
+        defaults['tenant'] = tenant
+
     obj, _ = Job.objects.get_or_create(
         jobname="NONE",
         jobdesc="NONE",
-        defaults={
-            "fromdate": date,
-            "uptodate": date,
-            "cron": "no_cron",
-            "lastgeneratedon": date,
-            "planduration": 0,
-            "expirytime": 0,
-            "gracetime": 0,
-            "priority": "LOW",
-            "seqno": -1,
-            "scantype": "SKIP",
-        },
+        defaults=defaults,
     )
     return obj
 
@@ -347,3 +412,14 @@ __all__ = [
     'get_or_create_none_gf',
     'create_none_entries',
 ]
+def _get_bt_model():
+    """
+    Resolve the Business Unit model location. The model was moved from
+    apps.core_onboarding to apps.client_onboarding during the onboarding split.
+    """
+    try:
+        from apps.client_onboarding.models import Bt  # type: ignore
+        return Bt
+    except ImportError:
+        from apps.core_onboarding.models import Bt  # Legacy fallback
+        return Bt

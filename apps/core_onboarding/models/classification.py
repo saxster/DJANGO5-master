@@ -27,7 +27,7 @@ from django.core.exceptions import ValidationError
 
 from apps.tenants.models import TenantAwareModel
 from apps.peoples.models import BaseModel
-from ..managers import TypeAssistManager, GeofenceManager
+from apps.client_onboarding.managers import TypeAssistManager, GeofenceManager
 
 
 class TypeAssist(BaseModel, TenantAwareModel):
@@ -57,7 +57,7 @@ class TypeAssist(BaseModel, TenantAwareModel):
         related_name="children",
     )
     bu = models.ForeignKey(
-        "Bt",
+        "client_onboarding.Bt",
         verbose_name="Business Unit",
         null=True,
         blank=True,
@@ -65,7 +65,7 @@ class TypeAssist(BaseModel, TenantAwareModel):
         related_name="ta_bus",
     )
     client = models.ForeignKey(
-        "Bt",
+        "client_onboarding.Bt",
         verbose_name="Client",
         null=True,
         blank=True,
@@ -187,14 +187,14 @@ class GeofenceMaster(BaseModel):
         help_text="Individual to receive geofence alerts"
     )
     client = models.ForeignKey(
-        "Bt",
+        "client_onboarding.Bt",
         null=True,
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         related_name="onboarding_geofence_clients",
     )
     bu = models.ForeignKey(
-        "Bt",
+        "client_onboarding.Bt",
         null=True,
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,

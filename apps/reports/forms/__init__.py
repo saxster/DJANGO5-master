@@ -8,6 +8,11 @@ from .builder_forms import TestForm, ReportBuilderForm
 from .report_forms import ReportForm
 from .email_forms import EmailReportForm
 from .pdf_forms import GeneratePDFForm
+from .template_forms import (
+    MasterReportTemplate,
+    SiteReportTemplate,
+    IncidentReportTemplate,
+)
 
 __all__ = [
     'TestForm',
@@ -15,4 +20,7 @@ __all__ = [
     'ReportForm',
     'EmailReportForm',
     'GeneratePDFForm',
+    'MasterReportTemplate',
+    'SiteReportTemplate',
+    'IncidentReportTemplate',
 ]

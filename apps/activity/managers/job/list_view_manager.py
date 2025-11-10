@@ -29,13 +29,21 @@ Usage:
 """
 
 from .base import (
-
-import logging
-logger = logging.getLogger(__name__)
-
-    models, Q, F, V, Count, Case, When, Concat, Cast,
-    datetime, timedelta, timezone,
-    logger, json, utils,
+    models,
+    Q,
+    F,
+    V,
+    Count,
+    Case,
+    When,
+    Concat,
+    Cast,
+    datetime,
+    timedelta,
+    timezone,
+    logger,
+    json,
+    utils,
 )
 from django.contrib.gis.db.models.functions import AsGeoJSON
 

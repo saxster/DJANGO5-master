@@ -3,6 +3,8 @@
 import os
 import sys
 
+import intelliwiz_config.bootstrap  # noqa: F401  (ensures numpy guard loads)
+
 
 def main():
     """Run administrative tasks."""

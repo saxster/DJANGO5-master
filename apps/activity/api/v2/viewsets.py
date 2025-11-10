@@ -22,6 +22,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from typing import Optional
@@ -34,6 +35,7 @@ from apps.core.api_responses import (
     APIError,
 )
 from apps.api.permissions import TenantIsolationPermission
+from apps.core.services.secure_file_upload_service import SecureFileUploadService
 from apps.activity.models.job import Job
 from apps.activity.models.tour import Tour
 from apps.activity.models.task import Task
@@ -742,6 +744,62 @@ class AnswerBatchSubmissionView(APIView):
         )
 
 
+class AttachmentUploadView(APIView):
+    """
+    Secure attachment upload endpoint leveraging the shared upload service.
+    """
+
+    permission_classes = [IsAuthenticated, TenantIsolationPermission]
+
+    def post(self, request):
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response(
+                create_error_response([
+                    APIError(
+                        field='file',
+                        message='Upload file is required',
+                        code='REQUIRED'
+                    )
+                ]),
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        file_type = request.data.get('file_type', 'image')
+        upload_context = {
+            'user_id': getattr(request.user, 'id', None),
+            'client_id': getattr(request.user, 'client_id', None),
+            'tenant_id': getattr(getattr(request.user, 'tenant', None), 'id', None),
+            'source': 'api.v2.operations.attachments'
+        }
+
+        try:
+            metadata = SecureFileUploadService.validate_and_process_upload(
+                uploaded_file,
+                file_type=file_type,
+                upload_context=upload_context
+            )
+        except ValidationError as exc:
+            return Response(
+                create_error_response([
+                    APIError(
+                        field='file',
+                        message=str(exc),
+                        code='INVALID_FILE'
+                    )
+                ]),
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            create_success_response(
+                data={'file': metadata},
+                meta={'correlation_id': str(uuid.uuid4())}
+            ),
+            status=status.HTTP_201_CREATED
+        )
+
+
 __all__ = [
     'JobViewSetV2',
     'TourViewSetV2',
@@ -750,4 +808,5 @@ __all__ = [
     'QuestionViewSetV2',
     'AnswerSubmissionView',
     'AnswerBatchSubmissionView',
+    'AttachmentUploadView',
 ]

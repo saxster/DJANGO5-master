@@ -76,7 +76,7 @@ class AttendanceAlert(AttendanceAlertActions, BaseModel, TenantAwareModel):
     )
 
     triggered_for_site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

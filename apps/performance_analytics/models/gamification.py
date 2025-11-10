@@ -119,7 +119,7 @@ class Kudos(TenantAwareModel, BaseModel):
         help_text="Related task if applicable"
     )
     related_tour = models.ForeignKey(
-        'scheduler.Tour',
+        'activity.Tour',
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

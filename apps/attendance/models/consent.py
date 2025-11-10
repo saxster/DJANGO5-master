@@ -389,7 +389,7 @@ class ConsentRequirement(BaseModel, TenantAwareModel):
 
     # Scope filters
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         null=True,
         blank=True,
         on_delete=models.CASCADE,
@@ -398,7 +398,7 @@ class ConsentRequirement(BaseModel, TenantAwareModel):
     )
 
     bu = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         null=True,
         blank=True,
         on_delete=models.CASCADE,

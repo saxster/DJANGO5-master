@@ -167,13 +167,16 @@ class SettingsValidator:
                     f"SecurityMiddleware must be first, found: {middleware[0]}"
                 )
 
-            if 'apps.tenants.middlewares.TenantMiddleware' in middleware:
+            unified_middleware = 'apps.tenants.middleware_unified.UnifiedTenantMiddleware'
+            if unified_middleware not in middleware:
+                self.failed_checks.append("UnifiedTenantMiddleware missing from MIDDLEWARE")
+            else:
                 if 'django.contrib.sessions.middleware.SessionMiddleware' in middleware:
                     session_idx = middleware.index('django.contrib.sessions.middleware.SessionMiddleware')
-                    tenant_idx = middleware.index('apps.tenants.middlewares.TenantMiddleware')
+                    tenant_idx = middleware.index(unified_middleware)
                     if tenant_idx < session_idx:
                         self.failed_checks.append(
-                            "TenantMiddleware must come after SessionMiddleware"
+                            "UnifiedTenantMiddleware must come after SessionMiddleware"
                         )
 
         except SETTINGS_EXCEPTIONS as e:

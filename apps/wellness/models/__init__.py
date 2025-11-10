@@ -23,7 +23,7 @@ from .enums import (
 
 from .content import WellnessContent
 
-from .progress import WellnessUserProgress
+from .user_progress import WellnessUserProgress
 
 from .interaction import WellnessContentInteraction
 

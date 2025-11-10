@@ -137,6 +137,28 @@ class BulkRosterService:
                             #     stats['skipped'] += 1
                             #     continue
 
+                        tenant_id = post.tenant_id
+                        if not tenant_id:
+                            stats['errors'].append(
+                                f"Post {post.id} missing tenant association; cannot assign worker {worker.id}"
+                            )
+                            stats['skipped'] += 1
+                            continue
+
+                        if worker.tenant_id != tenant_id:
+                            stats['errors'].append(
+                                f"Worker {worker.id} belongs to tenant {worker.tenant_id} but post {post.id} is tenant {tenant_id}"
+                            )
+                            stats['skipped'] += 1
+                            continue
+
+                        if shift.tenant_id != tenant_id:
+                            stats['errors'].append(
+                                f"Shift {shift.id} belongs to tenant {shift.tenant_id} but post {post.id} is tenant {tenant_id}"
+                            )
+                            stats['skipped'] += 1
+                            continue
+
                         # Create assignment object (not saved yet)
                         assignment = PostAssignment(
                             worker=worker,

@@ -27,7 +27,7 @@ class Reminder(BaseModel):
         FAILED = 'FAILED', _('FAILED')
     
     description    = models.TextField(_('Description'), max_length=500)
-    bu             = models.ForeignKey("onboarding.Bt", verbose_name=_("Site"), on_delete=models.RESTRICT, blank=True)
+    bu             = models.ForeignKey("client_onboarding.Bt", verbose_name=_("Site"), on_delete=models.RESTRICT, blank=True)
     asset          = models.ForeignKey("activity.Asset", verbose_name=_("Asset"), on_delete=models.RESTRICT, blank=True)
     qset           = models.ForeignKey("activity.Questionset", verbose_name=_("Question Set"), on_delete=models.RESTRICT, blank=True)
     people         = models.ForeignKey("peoples.People", verbose_name=_("People"), on_delete=models.RESTRICT, blank=True)

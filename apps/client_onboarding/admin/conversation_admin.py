@@ -7,10 +7,6 @@ Migrated from apps/onboarding/admin.py
 Date: 2025-09-30
 """
 from .base import (
-from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
-
-from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
-
     BaseResource,
     BaseFieldSet2,
     admin,
@@ -28,7 +24,6 @@ from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -43,30 +38,70 @@ from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
     bulk_create_geofence,
     Job,
 )
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, SERIALIZATION_EXCEPTIONS
+from apps.core_onboarding import models as om
 
 
 @admin.register(om.ConversationSession)
 class ConversationSessionAdmin(admin.ModelAdmin):
     list_per_page = 50
     """Django admin for ConversationSession model with progress tracking and export functionality"""
-    list_display = ('session_id', 'user', 'client', 'current_state', 'conversation_type', 'progress_percentage', 'cdtz', 'mdtz')
-    list_filter = ('current_state', 'conversation_type', 'language', 'cdtz')
-    search_fields = ('session_id', 'user__email', 'client__buname', 'client__bucode')
-    readonly_fields = ('session_id', 'cdtz', 'mdtz', 'cuser', 'muser', 'pretty_context_data', 'pretty_collected_data')
-    date_hierarchy = 'cdtz'
+    list_display = (
+        'session_id',
+        'user',
+        'client',
+        'context_type',
+        'conversation_type',
+        'current_state',
+        'progress_percentage',
+        'voice_enabled',
+        'language',
+        'started_at',
+    )
+    list_filter = ('context_type', 'current_state', 'conversation_type', 'language', 'voice_enabled')
+    search_fields = ('session_id', 'user__email', 'user__loginid', 'client__buname', 'client__bucode')
+    readonly_fields = (
+        'session_id',
+        'user',
+        'client',
+        'context_type',
+        'conversation_type',
+        'current_state',
+        'voice_enabled',
+        'language',
+        'started_at',
+        'last_interaction_at',
+        'completed_at',
+        'pretty_context_data',
+        'pretty_collected_data',
+    )
+    date_hierarchy = 'started_at'
     actions = ['export_session_data', 'mark_as_completed', 'cancel_sessions']
 
     fieldsets = (
         ('Basic Information', {
-            'fields': ('session_id', 'user', 'client', 'current_state', 'conversation_type', 'language')
+            'fields': (
+                'session_id',
+                'user',
+                'client',
+                'context_type',
+                'conversation_type',
+                'current_state',
+                'voice_enabled',
+                'language',
+            )
         }),
         ('Data', {
             'fields': ('context_data', 'collected_data', 'error_message')
         }),
-        ('Timestamps', {
-            'fields': ('cdtz', 'mdtz', 'cuser', 'muser'),
+        ('Routing', {
+            'fields': ('handler_class', 'context_object_id'),
             'classes': ('collapse',)
-        })
+        }),
+        ('Timestamps', {
+            'fields': ('started_at', 'last_interaction_at', 'completed_at'),
+            'classes': ('collapse',)
+        }),
     )
 
     def progress_percentage(self, obj):
@@ -142,14 +177,15 @@ class ConversationSessionAdmin(admin.ModelAdmin):
         for session in queryset:
             sessions_data.append({
                 'session_id': str(session.session_id),
-                'user': session.user.email,
-                'client': session.client.buname,
+                'user': getattr(session.user, 'email', None),
+                'client': session.client.buname if session.client else None,
+                'context_type': session.context_type,
                 'state': session.current_state,
                 'type': session.conversation_type,
                 'context_data': session.context_data,
                 'collected_data': session.collected_data,
-                'created': session.cdtz.isoformat(),
-                'modified': session.mdtz.isoformat()
+                'started_at': session.started_at.isoformat() if session.started_at else None,
+                'last_interaction_at': session.last_interaction_at.isoformat() if session.last_interaction_at else None,
             })
 
         response = HttpResponse(

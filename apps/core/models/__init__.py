@@ -18,6 +18,7 @@ Usage:
 """
 
 from django.contrib.auth import get_user_model
+from apps.tenants.models import TenantAwareModel
 
 # Enhanced base models and mixins
 from .enhanced_base_model import (
@@ -29,8 +30,9 @@ from .enhanced_base_model import (
     EnhancedSyncModel,
     EnhancedTenantModel,
     EnhancedTenantSyncModel,
-    BaseModelCompat
+    BaseModelCompat,
 )
+BaseModel = BaseModelCompat
 
 # Admin help system
 from .admin_help import AdminHelpTopic
@@ -201,6 +203,8 @@ from .sla_prediction import SLAPrediction
 # Explicit __all__ for clarity and documentation
 __all__ = [
     # Enhanced base models and mixins
+    "TenantAwareModel",
+    "BaseModel",
     "TimestampMixin",
     "AuditMixin",
     "MobileSyncMixin",

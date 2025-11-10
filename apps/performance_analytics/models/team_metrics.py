@@ -26,7 +26,7 @@ class TeamDailyMetrics(TenantAwareModel, BaseModel):
     # Dimensions
     date = models.DateField(db_index=True)
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='team_metrics'
     )

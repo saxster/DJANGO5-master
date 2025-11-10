@@ -24,6 +24,8 @@ from apps.core.services.agents.tour_agent_service import TourAgentService
 from apps.core.services.agents.alert_agent_service import AlertAgentService
 from apps.core.services.agents.asset_agent_service import AssetAgentService
 from apps.core.services.agents.attendance_agent_service import AttendanceAgentService
+from apps.core.services.agents.route_agent_service import RouteAgentService
+from apps.core.services.agents.incident_agent_service import IncidentAgentService
 from apps.core.services.agents.event_bus import RedisEventBus
 from apps.core.models.agent_recommendation import AgentRecommendation
 
@@ -66,6 +68,8 @@ class AgentOrchestrator:
             'alertbot': AlertAgentService(tenant_id),
             'assetbot': AssetAgentService(tenant_id),
             'attendancebot': AttendanceAgentService(tenant_id),
+            'routebot': RouteAgentService(tenant_id),
+            'incidentbot': IncidentAgentService(tenant_id),
         }
 
         logger.info(f"AgentOrchestrator initialized for tenant {tenant_id} with {len(self.agents)} agents")
@@ -86,7 +90,7 @@ class AgentOrchestrator:
         all_recommendations = []
 
         # Run agents in parallel
-        with ThreadPoolExecutor(max_workers=5, thread_name_prefix='agent-') as executor:
+        with ThreadPoolExecutor(max_workers=len(self.agents), thread_name_prefix='agent-') as executor:
             # Submit all agent analysis tasks
             futures = {
                 executor.submit(agent.analyze, site_id, time_range): name

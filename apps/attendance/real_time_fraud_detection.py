@@ -569,7 +569,7 @@ class RealTimeFraudDetector:
             device_info = context_data.get('device_data', {})
             
             # Check for device fingerprint changes
-            current_fingerprint = self._generate_device_fingerlogger.info(device_info)
+            current_fingerprint = self._generate_device_fingerprint(device_info)
             known_fingerprints = await self._get_known_device_fingerprints(user_id)
             
             if known_fingerprints and current_fingerprint not in known_fingerprints:
@@ -640,45 +640,3 @@ class RealTimeFraudDetector:
             FraudSeverity.CRITICAL: 4
         }
         return levels.get(severity, 1)
-
-
-# Mock implementations for helper classes and methods
-class BehavioralAnomalyDetector:
-    """Behavioral anomaly detection model"""
-    pass
-
-class TemporalAnomalyDetector:
-    """Temporal pattern anomaly detection"""
-    pass
-
-class LocationAnomalyDetector:
-    """Location-based anomaly detection"""
-    pass
-
-class DeviceFingerprintingDetector:
-    """Device fingerprinting for fraud detection"""
-    pass
-
-class PatternAnalysisDetector:
-    """Pattern analysis for fraud detection"""
-    pass
-
-class RiskScoringEngine:
-    """Risk scoring calculation engine"""
-    pass
-
-class EmailNotificationChannel:
-    """Email notification channel"""
-    pass
-
-class SMSNotificationChannel:
-    """SMS notification channel"""
-    pass
-
-class WebhookNotificationChannel:
-    """Webhook notification channel"""
-    pass
-
-class DashboardNotificationChannel:
-    """Real-time dashboard notification channel"""
-    pass

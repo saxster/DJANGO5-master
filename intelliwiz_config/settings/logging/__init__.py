@@ -7,6 +7,17 @@ Provides environment-specific logging setup with secure, optimized configuration
 from .handlers import get_handlers, get_filters
 from .formatters import get_formatters
 
+# Settings-specific exceptions for safe logging fallbacks
+SETTINGS_EXCEPTIONS = (
+    ValueError,
+    TypeError,
+    AttributeError,
+    KeyError,
+    ImportError,
+    OSError,
+    IOError,
+)
+
 __all__ = [
     'get_handlers',
     'get_filters',
@@ -74,8 +85,6 @@ def _get_loggers(environment):
     sanitize_available = False
     try:
         from django.apps import apps
-# Settings-specific exceptions
-SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
         sanitize_available = apps.apps_ready
     except (ImportError, RuntimeError):
         pass

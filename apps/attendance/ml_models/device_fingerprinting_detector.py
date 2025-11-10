@@ -10,7 +10,7 @@ Anomalies:
 - Device spoofing indicators
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta

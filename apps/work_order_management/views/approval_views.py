@@ -192,78 +192,78 @@ class VerifierReplyWorkPermit(View):
     def get(self, request, *args, **kwargs):
         R, P = request.GET, self.P
 
-        try:
-            # Validate token (optional but recommended for email workflows)
-            token = R.get("token")
+        token = R.get("token")
 
-            # Verifier accepts work permit (with authorization check)
+        try:
             if R.get("action") == "accepted" and R.get("womid") and R.get("peopleid"):
                 wom, verifier = WorkOrderSecurityService.validate_approver_access(
                     int(R["womid"]), int(R["peopleid"]), token
                 )
 
-            if wom.workpermit != "REJECTED":
-                wp = Wom.objects.filter(id=R["womid"]).first()
-                p = People.objects.filter(id=R["peopleid"]).first()
-                logger.info("R:%s", R)
+                if wom.workpermit != Wom.WorkPermitStatus.REJECTED:
+                    wp = Wom.objects.filter(id=R["womid"]).first()
+                    p = People.objects.filter(id=R["peopleid"]).first()
+                    logger.info("Verifier approval request: %s", R)
 
-                if is_all_verified := check_all_verified(wp.uuid, p.peoplecode):
-                    if (
-                        Wom.WorkPermitVerifierStatus.APPROVED
-                        != Wom.objects.get(id=R["womid"]).workpermit
-                    ):
-                        Wom.objects.filter(id=R["womid"]).update(
-                            verifiers_status=Wom.WorkPermitVerifierStatus.APPROVED
-                        )
-
-                        if is_all_verified:
-                            # All verifiers approved - send to approvers
-                            wom_id = R["womid"]
-                            wom = Wom.objects.get(id=wom_id)
-                            sitename = Bt.objects.get(id=wom.bu_id).buname
-                            permit_name = wom.other_data["wp_name"]
-                            permit_no = wom.other_data["wp_seqno"]
-                            client_id = wom.client.id
-
-                            report_obj = wom_utils.get_report_object(permit_name)
-                            report = report_obj(
-                                filename=permit_name,
-                                client_id=client_id,
-                                returnfile=True,
-                                formdata={"id": wom_id},
-                                request=None,
-                            )
-                            report_pdf_object = report.execute()
-                            vendor_name = wom_utils.Vendor.objects.get(id=wom.vendor_id).name
-                            pdf_path = wom_utils.save_pdf_to_tmp_location(
-                                report_pdf_object,
-                                report_name=permit_name,
-                                report_number=permit_no,
+                    if is_all_verified := check_all_verified(wp.uuid, p.peoplecode):
+                        if (
+                            Wom.WorkPermitVerifierStatus.APPROVED
+                            != Wom.objects.get(id=R["womid"]).workpermit
+                        ):
+                            Wom.objects.filter(id=R["womid"]).update(
+                                verifiers_status=Wom.WorkPermitVerifierStatus.APPROVED
                             )
 
-                            wp_approvers = wom.other_data["wp_approvers"]
-                            workpermit_status = Wom.WorkPermitStatus.PENDING
-                            approvers_name = [
-                                approver["name"] for approver in wp_approvers
-                            ]
-                            approvers_code = [
-                                approver["peoplecode"] for approver in wp_approvers
-                            ]
+                            if is_all_verified:
+                                wom_id = R["womid"]
+                                wom = Wom.objects.get(id=wom_id)
+                                sitename = Bt.objects.get(id=wom.bu_id).buname
+                                permit_name = wom.other_data["wp_name"]
+                                permit_no = wom.other_data["wp_seqno"]
+                                client_id = wom.client.id
 
-                            logger.info(
-                                f"Sending Email to Approver {approvers_name} to approve the work permit"
-                            )
-                            send_email_notification_for_workpermit_approval.delay(
-                                wom_id,
-                                approvers_name,
-                                approvers_code,
-                                sitename,
-                                workpermit_status,
-                                permit_name,
-                                pdf_path,
-                                vendor_name,
-                                client_id,
-                            )
+                                report_obj = wom_utils.get_report_object(permit_name)
+                                report = report_obj(
+                                    filename=permit_name,
+                                    client_id=client_id,
+                                    returnfile=True,
+                                    formdata={"id": wom_id},
+                                    request=None,
+                                )
+                                report_pdf_object = report.execute()
+                                vendor_name = wom_utils.Vendor.objects.get(
+                                    id=wom.vendor_id
+                                ).name
+                                pdf_path = wom_utils.save_pdf_to_tmp_location(
+                                    report_pdf_object,
+                                    report_name=permit_name,
+                                    report_number=permit_no,
+                                )
+
+                                wp_approvers = wom.other_data["wp_approvers"]
+                                workpermit_status = Wom.WorkPermitStatus.PENDING
+                                approvers_name = [
+                                    approver["name"] for approver in wp_approvers
+                                ]
+                                approvers_code = [
+                                    approver["peoplecode"] for approver in wp_approvers
+                                ]
+
+                                logger.info(
+                                    "Sending Email to Approver %s to approve the work permit",
+                                    approvers_name,
+                                )
+                                send_email_notification_for_workpermit_approval.delay(
+                                    wom_id,
+                                    approvers_name,
+                                    approvers_code,
+                                    sitename,
+                                    workpermit_status,
+                                    permit_name,
+                                    pdf_path,
+                                    vendor_name,
+                                    client_id,
+                                )
                     else:
                         return render(
                             request,
@@ -271,46 +271,67 @@ class VerifierReplyWorkPermit(View):
                             context={"alreadyverified": True},
                         )
 
+                    cxt = {
+                        "status": Wom.WorkPermitVerifierStatus.APPROVED,
+                        "seqno": wp.other_data["wp_seqno"],
+                    }
+                else:
+                    cxt = {"alreadyrejected": True}
+
+                return render(request, P["email_template"], context=cxt)
+
+            elif R.get("action") == "rejected" and R.get("womid") and R.get("peopleid"):
+                logger.info("Verifier rejection request: %s", R)
+                wom = Wom.objects.get(id=R["womid"])
+
+                if wom.workpermit == Wom.WorkPermitStatus.APPROVED:
+                    return render(
+                        request, P["email_template"], context={"alreadyverified": True}
+                    )
+
+                if wom.workpermit == Wom.WorkPermitStatus.REJECTED:
+                    return render(
+                        request, P["email_template"], context={"alreadyrejected": True}
+                    )
+
+                people = People.objects.get(id=R["peopleid"])
+                wom.workpermit = Wom.WorkPermitVerifierStatus.REJECTED.value
+                wom.save()
+                reject_workpermit_verifier(wom.uuid, people.peoplecode)
+
                 cxt = {
-                    "status": Wom.WorkPermitVerifierStatus.APPROVED,
-                    "seqno": wp.other_data["wp_seqno"],
+                    "status": Wom.WorkPermitVerifierStatus.REJECTED,
+                    "action": "rejected",
+                    "action_acknowledged": True,
+                    "seqno": wom.other_data["wp_seqno"],
+                    "wom_id": wom.id,
+                    "people_code": people.peoplecode,
                 }
-            else:
-                cxt = {
-                    "alreadyrejected": True,
-                }
+                return render(request, P["email_template"], context=cxt)
 
-            return render(request, P["email_template"], context=cxt)
+            return render(
+                request,
+                P["email_template"],
+                context={"error": _("Invalid verifier action")},
+                status=400,
+            )
 
-        # Verifier rejects work permit
-        elif R.get("action") == "rejected" and R.get("womid") and R.get("peopleid"):
-            logger.info("Rejected Request:%s", R)
-            wom = Wom.objects.get(id=R["womid"])
-
-            if wom.workpermit == Wom.WorkPermitStatus.APPROVED:
-                return render(
-                    request, P["email_template"], context={"alreadyverified": True}
-                )
-
-            if wom.workpermit == Wom.WorkPermitStatus.REJECTED:
-                return render(
-                    request, P["email_template"], context={"alreadyrejected": True}
-                )
-
-            people = People.objects.get(id=R["peopleid"])
-            wom.workpermit = Wom.WorkPermitVerifierStatus.REJECTED.value
-            wom.save()
-            reject_workpermit_verifier(wom.uuid, people.peoplecode)
-
-            cxt = {
-                "status": Wom.WorkPermitVerifierStatus.REJECTED,
-                "action": "rejected",
-                "action_acknowledged": True,
-                "seqno": wom.other_data["wp_seqno"],
-                "wom_id": wom.id,
-                "people_code": people.peoplecode,
-            }
-            return render(request, P["email_template"], context=cxt)
+        except (Wom.DoesNotExist, People.DoesNotExist):
+            logger.error("Verifier access attempt for missing work order/people: %s", R)
+            return render(
+                request,
+                P["email_template"],
+                context={"error": _("Work permit not found")},
+                status=404,
+            )
+        except PermissionDenied as exc:
+            logger.warning("Verifier access denied: %s", exc)
+            return render(
+                request,
+                P["email_template"],
+                context={"error": str(exc)},
+                status=403,
+            )
 
     def post(self, request, *args, **kwargs):
         """Save verifier rejection remarks."""

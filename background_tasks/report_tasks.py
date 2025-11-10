@@ -4,15 +4,18 @@ reports in background
 """
 from apps.reports.utils import ReportEssentials
 from apps.reports.models import ScheduleReport
-from apps.core.utils_new.db_utils import runrawsql
 from django.conf import settings
 from croniter import croniter
 from datetime import datetime, timedelta, timezone as dt_timezone
 from django.utils import timezone
 from django.core.mail import EmailMessage
 from django.db import DatabaseError, IntegrityError
+from django.db.models import Q
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from apps.core.exceptions import IntegrationException
+from apps.tenants.constants import DEFAULT_DB_ALIAS
+from apps.tenants.models import Tenant
+from apps.tenants.utils import tenant_context, slug_to_db_alias
 from logging import getLogger
 from pprint import pformat
 import json
@@ -28,9 +31,6 @@ from apps.core.tasks.base import IdempotentTask
 # make it false when u deploy
 MOCK = False
 now = timezone.now() if not MOCK else datetime(2023, 8, 19, 12, 2, 0)
-now_insql = (
-    "CURRENT_TIMESTAMP" if not MOCK else "'2023-08-19 12:02:00.419091+00'::timestamp"
-)
 
 log = getLogger("reports")
 DATETIME_FORMAT = "%d-%b-%Y %H-%M-%S"
@@ -71,27 +71,141 @@ def set_state(state_map, reset=False, set=""):
 #     return runrawsql(query)
 
 
-def get_scheduled_reports_fromdb():
-    now_insql = "NOW()"  # or use a parameter if safer
-    query = f"""
-        SELECT *
-        FROM schedule_report
-        WHERE enable = TRUE
-        AND (
-            (fromdatetime IS NULL AND uptodatetime IS NULL)
-            OR (
-                (
-                    (crontype = 'daily' AND lastgeneratedon <= {now_insql} - INTERVAL '1 day')
-                    OR (crontype = 'weekly' AND lastgeneratedon <= {now_insql} - INTERVAL '1 week')
-                    OR (crontype = 'monthly' AND lastgeneratedon <= {now_insql} - INTERVAL '1 month')
-                    OR (crontype = 'workingdays' AND lastgeneratedon <= {now_insql} - INTERVAL '7 days')
-                )
-                AND (fromdatetime <= {now_insql} OR fromdatetime IS NULL)
-                AND (uptodatetime >= {now_insql} OR uptodatetime IS NULL)
-            )
+REPORTS_PER_TENANT_PER_RUN = getattr(settings, "SCHEDULED_REPORTS_PER_RUN", 25)
+REPORT_VALUE_FIELDS = [
+    "id",
+    "report_type",
+    "report_params",
+    "client_id",
+    "report_sendtime",
+    "crontype",
+    "cron",
+    "workingdays",
+    "ctzoffset",
+    "fromdatetime",
+    "uptodatetime",
+    "lastgeneratedon",
+]
+
+
+def _due_frequency_filters(reference_time):
+    """Build Q objects representing each frequency window."""
+
+    def _window(cron_type: str, delta: timedelta) -> Q:
+        return Q(crontype=cron_type) & (
+            Q(lastgeneratedon__lte=reference_time - delta)
+            | Q(lastgeneratedon__isnull=True)
         )
+
+    return (
+        _window("daily", timedelta(days=1))
+        | _window("weekly", timedelta(weeks=1))
+        | _window("monthly", timedelta(days=31))
+        | _window("workingdays", timedelta(days=7))
+    )
+
+
+def get_scheduled_reports_fromdb(limit: int | None = None, reference_time: datetime | None = None):
     """
-    return runrawsql(query)
+    ORM replacement for the legacy raw query that scopes to the current tenant database.
+
+    Args:
+        limit: Optional maximum number of reports to return.
+        reference_time: Override for current time (useful in tests).
+
+    Returns:
+        List of dictionaries describing due schedule_report rows.
+    """
+    reference_time = reference_time or timezone.now()
+
+    open_window = Q(fromdatetime__isnull=True, uptodatetime__isnull=True)
+    active_window = (
+        (Q(fromdatetime__lte=reference_time) | Q(fromdatetime__isnull=True))
+        & (Q(uptodatetime__gte=reference_time) | Q(uptodatetime__isnull=True))
+    )
+
+    qs = (
+        ScheduleReport.objects.filter(enable=True)
+        .filter(open_window | (_due_frequency_filters(reference_time) & active_window))
+        .order_by("lastgeneratedon", "id")
+    )
+
+    if limit:
+        qs = qs[:limit]
+
+    return list(qs.values(*REPORT_VALUE_FIELDS))
+
+
+def _get_db_alias_for_tenant_slug(slug: str | None) -> str:
+    """Map tenant slug to database alias, falling back to default if missing."""
+    if not slug:
+        return DEFAULT_DB_ALIAS
+
+    candidate = slug_to_db_alias(slug)
+    if candidate in settings.DATABASES:
+        return candidate
+
+    log.warning(
+        "Database alias '%s' for tenant slug '%s' not configured. Falling back to default.",
+        candidate,
+        slug,
+    )
+    return DEFAULT_DB_ALIAS
+
+
+def _process_reports_for_tenant(tenant_label: str, db_alias: str, per_tenant_limit: int,
+                                story: dict, state_map: dict) -> dict:
+    """
+    Fetch and generate scheduled reports for a single tenant/database alias.
+    """
+    tenant_summary = story.setdefault('tenants', {})
+
+    try:
+        with tenant_context(db_alias):
+            scheduled_reports = get_scheduled_reports_fromdb(limit=per_tenant_limit)
+            tenant_summary[tenant_label] = {
+                'db_alias': db_alias,
+                'queued': len(scheduled_reports),
+            }
+
+            if not scheduled_reports:
+                log.debug("No scheduled reports due for tenant %s (db=%s)", tenant_label, db_alias)
+                return state_map
+
+            for record in scheduled_reports:
+                try:
+                    state_map = generate_scheduled_report(record, state_map)
+                except (DatabaseError, IntegrityError, ValidationError, ValueError, TypeError) as e:
+                    log.error(
+                        "Error generating report %s for tenant %s: %s",
+                        record.get('id', 'unknown'),
+                        tenant_label,
+                        e,
+                        exc_info=True
+                    )
+                    story['errors'].append({
+                        'tenant': tenant_label,
+                        'report_id': record.get('id'),
+                        'error': str(e),
+                        'traceback': tb.format_exc()
+                    })
+                    state_map['not_generated'] += 1
+
+    except Exception as exc:  # Broad catch to ensure per-tenant isolation
+        log.error(
+            "Failed to process scheduled reports for tenant %s (db=%s): %s",
+            tenant_label,
+            db_alias,
+            exc,
+            exc_info=True
+        )
+        story['errors'].append({
+            'tenant': tenant_label,
+            'error': str(exc),
+            'traceback': tb.format_exc()
+        })
+
+    return state_map
 
 
 def remove_star(li):
@@ -262,7 +376,23 @@ def generate_scheduled_report(record, state_map):
     """
     resp = dict()
     if record:
-        report_params = json.loads(record["report_params"])
+        report_params_raw = record.get("report_params")
+        if isinstance(report_params_raw, str):
+            try:
+                report_params = json.loads(report_params_raw)
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                log.error(
+                    "Invalid report_params payload for schedule_report %s: %s",
+                    record.get("id"),
+                    exc,
+                )
+                set_state(state_map, set="not_generated")
+                return state_map
+        elif isinstance(report_params_raw, dict):
+            report_params = report_params_raw
+        else:
+            report_params = {}
+
         re = ReportEssentials(record["report_type"])
         behaviour = re.behaviour_json
         RE = re.get_report_export_object()
@@ -468,35 +598,45 @@ def create_scheduled_reports(self):
         'skipped': 0,
         'not_generated': 0,
         'errors': [],
-        'end_time': None
+        'end_time': None,
+        'tenants': {},
     }
 
     state_map = {'generated': 0, 'skipped': 0, 'not_generated': 0}
+    per_tenant_limit = REPORTS_PER_TENANT_PER_RUN
 
     try:
-        # Get reports scheduled for generation
-        scheduled_reports = get_scheduled_reports_fromdb()
-        log.info(f"Found {len(scheduled_reports) if scheduled_reports else 0} scheduled reports to process")
+        tenants = list(
+            Tenant.objects.filter(is_active=True).values('id', 'tenantname', 'subdomain_prefix')
+        )
 
-        if scheduled_reports:
-            for record in scheduled_reports:
-                try:
-                    # Generate report and update state
-                    state_map = generate_scheduled_report(record, state_map)
-
-                except (DatabaseError, IntegrityError, ValidationError, ValueError, TypeError) as e:
-                    log.error(f"Error generating report {record.get('id', 'unknown')}: {e}", exc_info=True)
-                    story['errors'].append({
-                        'report_id': record.get('id'),
-                        'error': str(e),
-                        'traceback': tb.format_exc()
-                    })
-                    state_map['not_generated'] += 1
-
-            # Update story with final counts
-            story.update(state_map)
+        if not tenants:
+            log.warning(
+                "No active tenants found; falling back to default database for scheduled reports"
+            )
+            state_map = _process_reports_for_tenant(
+                tenant_label='default',
+                db_alias=DEFAULT_DB_ALIAS,
+                per_tenant_limit=per_tenant_limit,
+                story=story,
+                state_map=state_map,
+            )
         else:
-            log.info("No scheduled reports due for generation at this time")
+            log.info("Processing scheduled reports for %s tenants", len(tenants))
+            for tenant in tenants:
+                tenant_label = tenant.get('subdomain_prefix') or f"tenant-{tenant['id']}"
+                db_alias = _get_db_alias_for_tenant_slug(tenant.get('subdomain_prefix'))
+
+                state_map = _process_reports_for_tenant(
+                    tenant_label=tenant_label,
+                    db_alias=db_alias,
+                    per_tenant_limit=per_tenant_limit,
+                    story=story,
+                    state_map=state_map,
+                )
+
+        # Update story with final counts
+        story.update(state_map)
 
     except (DatabaseError, IntegrityError, ValidationError, ValueError, TypeError) as e:
         error_info = handle_error(e)

@@ -6,6 +6,7 @@ Admin interfaces for AI-generated changeset management with rollback capabilitie
 Migrated from apps/onboarding/admin.py
 Date: 2025-09-30
 """
+import json
 from .base import (
     BaseResource,
     BaseFieldSet2,
@@ -24,7 +25,6 @@ from .base import (
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -39,6 +39,7 @@ from .base import (
     bulk_create_geofence,
     Job,
 )
+from apps.core_onboarding import models as om
 
 
 # Exception for LLM service errors (if not defined elsewhere)

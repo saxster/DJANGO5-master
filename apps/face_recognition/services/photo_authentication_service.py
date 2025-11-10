@@ -106,7 +106,7 @@ class BiometricPhotoAuthenticationService:
             manipulation_analysis = exif_data.get('manipulation_analysis', {})
 
             # Generate camera fingerprint
-            camera_fingerprint = self._generate_camera_fingerlogger.info(camera_info)
+            camera_fingerprint = self._generate_camera_fingerprint(camera_info)
 
             # Check for fraud indicators
             fraud_indicators = []
@@ -162,7 +162,7 @@ class BiometricPhotoAuthenticationService:
                 'fraud_indicators': ['AUTHENTICATION_ERROR']
             }
 
-    def _generate_camera_fingerlogger.info(self, camera_info: Dict[str, Any]) -> str:
+    def _generate_camera_fingerprint(self, camera_info: Dict[str, Any]) -> str:
         """
         Generate camera device fingerprint from EXIF data.
 
@@ -170,7 +170,7 @@ class BiometricPhotoAuthenticationService:
             camera_info: Camera information from EXIF
 
         Returns:
-            Camera fingerlogger.info(hash)
+            Camera fingerprint(hash)
         """
         try:
             import hashlib

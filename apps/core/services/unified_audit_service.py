@@ -28,6 +28,8 @@ from django.db import models, transaction, DatabaseError
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.exceptions import ValidationError
+from django.apps import apps as django_apps
 
 from apps.core.models.audit import (
     AuditLog,
@@ -401,8 +403,16 @@ class EntityAuditService:
             }
 
             # Add tenant if user has tenant
-            if self.user and hasattr(self.user, 'tenant'):
-                audit_data['tenant'] = self.user.tenant
+            tenant = None
+            if self.user and hasattr(self.user, 'tenant') and self.user.tenant_id:
+                tenant = self.user.tenant
+            elif entity and hasattr(entity, 'tenant_id') and getattr(entity, 'tenant_id', None):
+                tenant = getattr(entity, 'tenant', None)
+            if tenant is None:
+                TenantModel = django_apps.get_model('tenants', 'Tenant')
+                tenant = TenantModel.objects.first()
+            if tenant is not None:
+                audit_data['tenant'] = tenant
 
             # Create audit log (sync or async)
             if self.async_logging:

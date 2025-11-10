@@ -310,6 +310,83 @@ class ReportAIInteraction(BaseModel):
         return f"Q{self.iteration}: {self.question_type} - {self.report.title}"
 
 
+class ReportAttachment(BaseModel):
+    """
+    File attachments for generated reports (photos, documents, sensor logs).
+    """
+
+    ATTACHMENT_TYPES = [
+        ('photo', 'Photo'),
+        ('video', 'Video'),
+        ('document', 'Document'),
+        ('sensor', 'Sensor Log'),
+        ('other', 'Other'),
+    ]
+
+    EVIDENCE_CATEGORIES = [
+        ('scene', 'Scene Evidence'),
+        ('damage', 'Damage Photo'),
+        ('before', 'Before Remediation'),
+        ('after', 'After Remediation'),
+        ('equipment', 'Equipment'),
+        ('document', 'Supporting Document'),
+    ]
+
+    report = models.ForeignKey(
+        GeneratedReport,
+        on_delete=models.CASCADE,
+        related_name='attachments'
+    )
+    file = models.FileField(
+        upload_to='reports/attachments/%Y/%m/%d/',
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'pdf', 'mp4'])],
+        max_length=500,
+    )
+    filename = models.CharField(max_length=255)
+    attachment_type = models.CharField(
+        max_length=20,
+        choices=ATTACHMENT_TYPES,
+        default='photo'
+    )
+    evidence_category = models.CharField(
+        max_length=30,
+        choices=EVIDENCE_CATEGORIES,
+        default='scene'
+    )
+    file_size = models.PositiveIntegerField(default=0)
+    mime_type = models.CharField(max_length=100, default='application/octet-stream')
+    metadata = models.JSONField(default=dict, blank=True)
+    caption = models.CharField(max_length=255, blank=True)
+    user_description = models.TextField(blank=True)
+    uploaded_by = models.ForeignKey(
+        People,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='report_attachments_uploaded'
+    )
+    captured_by = models.ForeignKey(
+        People,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='report_attachments_captured'
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'report_attachments'
+        verbose_name = 'Report Attachment'
+        verbose_name_plural = 'Report Attachments'
+        ordering = ['-uploaded_at']
+        indexes = [
+            models.Index(fields=['report', 'attachment_type']),
+            models.Index(fields=['report', 'evidence_category']),
+        ]
+
+    def __str__(self):
+        return f"{self.filename} ({self.attachment_type})"
+
+
 class ReportQualityMetrics(BaseModel):
     """
     Detailed quality analysis of a report.

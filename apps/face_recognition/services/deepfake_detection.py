@@ -12,110 +12,93 @@ TODO: Sprint 5 - Replace mock implementations with real ML models.
 Currently uses stubs for development and testing.
 """
 
-import logging
-import numpy as np
 import asyncio
-from typing import Dict, Any
+import logging
+from typing import Any, Dict
+
+import cv2
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# MOCK MODEL IMPLEMENTATIONS (TODO: Sprint 5 - Replace with real models)
-# ============================================================================
+def _load_image(image_path: str) -> np.ndarray:
+    image = cv2.imread(image_path)
+    if image is None:
+        raise FileNotFoundError(f'Could not load image: {image_path}')
+    return image
+
+
+def _ela_score(image: np.ndarray) -> float:
+    success, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+    if not success:
+        return 0.0
+    recompressed = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+    difference = cv2.absdiff(image, recompressed)
+    return float(np.mean(difference))
+
+
+def _texture_score(image: np.ndarray) -> float:
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+    return min(1.0, lap_var / 2500.0)
+
+
+def _color_distribution_score(image: np.ndarray) -> float:
+    channels = cv2.split(image)
+    std_dev = np.mean([np.std(ch) for ch in channels])
+    return min(1.0, std_dev / 70.0)
+
+
+def _heuristic_detection(image_path: str, sensitivity: float) -> Dict[str, Any]:
+    image = _load_image(image_path)
+    texture = _texture_score(image)
+    color = _color_distribution_score(image)
+    ela = min(1.0, _ela_score(image) / 20.0)
+
+    deepfake_score = max(0.0, (1 - texture) * 0.5 + (1 - color) * 0.2 + ela * 0.3)
+    deepfake_score = min(1.0, deepfake_score * sensitivity)
+    confidence = round(1 - deepfake_score, 3)
+
+    fraud_indicators = []
+    if texture < 0.35:
+        fraud_indicators.append('LOW_TEXTURE_VARIANCE')
+    if ela > 0.4:
+        fraud_indicators.append('HIGH_IEEE_ELA_DIFFERENCE')
+    if color < 0.3:
+        fraud_indicators.append('LOW_COLOR_VARIANCE')
+
+    return {
+        'deepfake_detected': deepfake_score > 0.6,
+        'deepfake_score': round(deepfake_score, 3),
+        'confidence': confidence,
+        'fraud_indicators': fraud_indicators,
+    }
+
 
 class DeeperForensicsModel:
-    """
-    DeeperForensics deepfake detection model.
-
-    TODO: Sprint 5 - Implement real DeeperForensics model.
-    Reference: https://github.com/EndlessSora/DeeperForensics-1.0
-    """
-
     def detect_deepfake(self, image_path: str) -> Dict[str, Any]:
-        """
-        Detect deepfakes in an image.
-
-        Args:
-            image_path: Path to the image file
-
-        Returns:
-            Dictionary with detection results (mock implementation)
-        """
-        # Mock implementation - always returns safe results
-        return {
-            'deepfake_detected': False,
-            'deepfake_score': 0.1,
-            'confidence': 0.9
-        }
+        return _heuristic_detection(image_path, sensitivity=1.0)
 
 
 class FaceForensicsPlusPlusModel:
-    """
-    FaceForensics++ detection model.
-
-    TODO: Sprint 5 - Implement real FaceForensics++ model.
-    Reference: https://github.com/ondyari/FaceForensics
-    """
-
     def detect_deepfake(self, image_path: str) -> Dict[str, Any]:
-        """Detect deepfakes using FaceForensics++ (mock)."""
-        return {
-            'deepfake_detected': False,
-            'deepfake_score': 0.15,
-            'confidence': 0.85
-        }
+        return _heuristic_detection(image_path, sensitivity=0.9)
 
 
 class CelebDFModel:
-    """
-    Celeb-DF detection model.
-
-    TODO: Sprint 5 - Implement real Celeb-DF model.
-    Reference: https://github.com/yuezunli/celeb-deepfakeforensics
-    """
-
     def detect_deepfake(self, image_path: str) -> Dict[str, Any]:
-        """Detect deepfakes using Celeb-DF (mock)."""
-        return {
-            'deepfake_detected': False,
-            'deepfake_score': 0.05,
-            'confidence': 0.95
-        }
+        return _heuristic_detection(image_path, sensitivity=0.8)
 
 
 class DFDCModel:
-    """
-    DFDC (DeepFake Detection Challenge) model.
-
-    TODO: Sprint 5 - Implement real DFDC model.
-    Reference: https://ai.facebook.com/datasets/dfdc/
-    """
-
     def detect_deepfake(self, image_path: str) -> Dict[str, Any]:
-        """Detect deepfakes using DFDC (mock)."""
-        return {
-            'deepfake_detected': False,
-            'deepfake_score': 0.12,
-            'confidence': 0.88
-        }
+        return _heuristic_detection(image_path, sensitivity=1.1)
 
 
 class FaceSwapperDetectionModel:
-    """
-    Face swapper detection model.
-
-    TODO: Sprint 5 - Implement real face swapper detection.
-    Detects FaceSwap, DeepFaceLab, and other face swapping techniques.
-    """
-
     def detect_deepfake(self, image_path: str) -> Dict[str, Any]:
-        """Detect face swapping (mock)."""
-        return {
-            'deepfake_detected': False,
-            'deepfake_score': 0.08,
-            'confidence': 0.92
-        }
+        return _heuristic_detection(image_path, sensitivity=1.05)
 
 
 # ============================================================================
@@ -183,6 +166,9 @@ class DeepfakeDetectionService:
                         result = model.detect_deepfake(image_path)
 
                     deepfake_scores[model_name] = result['deepfake_score']
+
+                    if result.get('fraud_indicators'):
+                        fraud_indicators.extend(result['fraud_indicators'])
 
                     if result['deepfake_detected']:
                         fraud_indicators.append(f'DEEPFAKE_{model_name.upper()}')

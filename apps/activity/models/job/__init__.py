@@ -32,7 +32,7 @@ from .enums import (
     AnswerType,
     AvptType,
 )
-from .job import Job
+from .job import Job, other_info, geojson_jobnjobneed
 from .jobneed import Jobneed
 from .jobneed_details import JobneedDetails
 
@@ -46,6 +46,8 @@ __all__ = [
     'Job',
     'Jobneed',
     'JobneedDetails',
+    'other_info',
+    'geojson_jobnjobneed',
     # Backward compatibility aliases
     'JobNeed',
     'JobNeedDetails',

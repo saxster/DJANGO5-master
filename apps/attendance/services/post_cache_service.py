@@ -24,6 +24,7 @@ import json
 import hashlib
 
 from apps.attendance.models import Post, PostAssignment, PostOrderAcknowledgement
+from apps.core.utils_new.db_utils import get_current_db_name
 
 import logging
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
@@ -38,6 +39,14 @@ class PostCacheService:
 
     Uses Redis for distributed caching across multiple workers.
     """
+
+    @staticmethod
+    def _tenant_scope() -> str:
+        """Return tenant-specific cache namespace."""
+        try:
+            return get_current_db_name() or 'default'
+        except Exception:
+            return 'default'
 
     # Cache key prefixes
     WORKER_ASSIGNMENTS_PREFIX = 'post_assign:worker_assignments'
@@ -56,17 +65,20 @@ class PostCacheService:
     @classmethod
     def get_worker_assignments_key(cls, worker_id, date_obj):
         """Generate cache key for worker's daily assignments"""
-        return f"{cls.WORKER_ASSIGNMENTS_PREFIX}:{worker_id}:{date_obj.isoformat()}"
+        scope = cls._tenant_scope()
+        return f"{cls.WORKER_ASSIGNMENTS_PREFIX}:{scope}:{worker_id}:{date_obj.isoformat()}"
 
     @classmethod
     def get_post_coverage_key(cls, post_id, date_obj):
         """Generate cache key for post coverage status"""
-        return f"{cls.POST_COVERAGE_PREFIX}:{post_id}:{date_obj.isoformat()}"
+        scope = cls._tenant_scope()
+        return f"{cls.POST_COVERAGE_PREFIX}:{scope}:{post_id}:{date_obj.isoformat()}"
 
     @classmethod
     def get_post_details_key(cls, post_id):
         """Generate cache key for post details"""
-        return f"{cls.POST_DETAILS_PREFIX}:{post_id}"
+        scope = cls._tenant_scope()
+        return f"{cls.POST_DETAILS_PREFIX}:{scope}:{post_id}"
 
     @classmethod
     def get_validation_result_key(cls, worker_id, site_id, timestamp):
@@ -74,12 +86,14 @@ class PostCacheService:
         # Hash to create short key
         key_data = f"{worker_id}:{site_id}:{timestamp.date().isoformat()}:{timestamp.hour}:{timestamp.minute}"
         key_hash = hashlib.md5(key_data.encode()).hexdigest()[:16]
-        return f"{cls.VALIDATION_RESULT_PREFIX}:{key_hash}"
+        scope = cls._tenant_scope()
+        return f"{cls.VALIDATION_RESULT_PREFIX}:{scope}:{key_hash}"
 
     @classmethod
     def get_acknowledgement_key(cls, worker_id, post_id, date_obj):
         """Generate cache key for acknowledgement status"""
-        return f"{cls.ACKNOWLEDGEMENT_PREFIX}:{worker_id}:{post_id}:{date_obj.isoformat()}"
+        scope = cls._tenant_scope()
+        return f"{cls.ACKNOWLEDGEMENT_PREFIX}:{scope}:{worker_id}:{post_id}:{date_obj.isoformat()}"
 
     # ==================== WORKER ASSIGNMENTS ====================
 

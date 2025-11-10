@@ -72,7 +72,7 @@ from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
-from django.db import transaction
+from django.db import transaction, DatabaseError
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.templatetags.static import static
@@ -95,6 +95,10 @@ import requests
 import time
 import traceback as tb
 import uuid
+
+from apps.core.exceptions import IntegrationException
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(

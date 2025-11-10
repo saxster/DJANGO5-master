@@ -65,7 +65,7 @@ class Shift(BaseModel, TenantAwareModel):
     shiftname = models.CharField(max_length=50, verbose_name="Name")
     shiftduration = models.IntegerField(null=True, verbose_name="Shift Duration")
     designation = models.ForeignKey(
-        "TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="Designation",
         null=True,
         blank=True,

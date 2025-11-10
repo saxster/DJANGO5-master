@@ -69,7 +69,7 @@ class Pgroup(BaseModel, TenantAwareModel):
     )
 
     identifier = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Group Type"),
         null=True,
         blank=True,
@@ -79,7 +79,7 @@ class Pgroup(BaseModel, TenantAwareModel):
     )
 
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Business Unit"),
         null=True,
         blank=True,
@@ -89,7 +89,7 @@ class Pgroup(BaseModel, TenantAwareModel):
     )
 
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         null=True,
         blank=True,

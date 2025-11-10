@@ -18,7 +18,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 
-from apps.peoples.models import BaseModel, People
+from apps.core.models import BaseModel
+from apps.peoples.models import People
 from apps.tenants.models import TenantAwareModel
 from .enums import DatasetType, DatasetStatus
 

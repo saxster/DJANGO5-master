@@ -204,6 +204,13 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
     # Get TLS/SSL configuration (PCI DSS Level 1 compliance)
     tls_config = get_redis_tls_config(environment)
 
+    # Determine default error-handling behaviour (production should fail fast)
+    ignore_exceptions_default = environment != 'production'
+    ignore_exceptions = env.bool(
+        'DJANGO_REDIS_IGNORE_EXCEPTIONS',
+        default=ignore_exceptions_default,
+    )
+
     # Environment-specific optimizations
     if environment == 'production':
         connection_pool_kwargs = {
@@ -224,7 +231,6 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         # Production performance settings
         serializer = 'django_redis.serializers.json.JSONSerializer'
         compressor = 'django_redis.compressors.zlib.ZlibCompressor'
-        ignore_exceptions = False
 
     elif environment == 'testing':
         connection_pool_kwargs = {
@@ -239,7 +245,6 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         # JSON serializer for consistency across environments (compliance-friendly)
         serializer = 'django_redis.serializers.json.JSONSerializer'
         compressor = None
-        ignore_exceptions = True              # Don't fail tests on cache issues
 
     else:  # development
         connection_pool_kwargs = {
@@ -254,7 +259,6 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         # Development settings - balance performance and debugging
         serializer = 'django_redis.serializers.json.JSONSerializer'
         compressor = None                     # No compression for easier debugging
-        ignore_exceptions = False
 
     # Add TLS configuration to connection pool
     if tls_config:
@@ -283,6 +287,7 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         'SERIALIZER': serializer,
         'IGNORE_EXCEPTIONS': ignore_exceptions,
         'KEY_PREFIX': f'youtility_{environment}',
+        'KEY_FUNCTION': 'apps.core.cache.key_functions.tenant_key',
         'VERSION': 1,
         # Connection pool class for better management
         'CONNECTION_POOL_CLASS': 'redis.connection.BlockingConnectionPool',

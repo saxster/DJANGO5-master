@@ -196,6 +196,7 @@ class AgentRecommendation(models.Model):
             'confidence': self.confidence,
             'severity': self.severity,
             'actions': self.actions,
+            'context_metrics': self.context_metrics,
             'status': self.status,
             'llm_provider': self.llm_provider,
             'created_at': self.created_at.isoformat(),

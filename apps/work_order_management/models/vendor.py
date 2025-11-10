@@ -24,7 +24,7 @@ class Vendor(BaseModel, TenantAwareModel):
     code = models.CharField(_("Code"), max_length=50, null=True, blank=False)
     name = models.CharField(_("Name"), max_length=255, null=True, blank=False)
     type = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Type"),
         null=True,
         on_delete=models.CASCADE,
@@ -39,7 +39,7 @@ class Vendor(BaseModel, TenantAwareModel):
     mobno = models.CharField(_("Mob No"), max_length=15)
     email = models.CharField(_("Email"), max_length=100)
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -47,7 +47,7 @@ class Vendor(BaseModel, TenantAwareModel):
         related_name="vendor_clients",
     )
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,
         null=True,

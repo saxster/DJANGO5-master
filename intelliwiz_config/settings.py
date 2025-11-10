@@ -85,8 +85,8 @@ from .settings import websocket as websocket_settings
 # Runtime validation (only in development/test)
 if DEBUG:
     from .settings.health_checks import validate_settings_compliance
-# Settings-specific exceptions
-SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
+    # Settings-specific exceptions
+    SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
     try:
         compliance_result = validate_settings_compliance()

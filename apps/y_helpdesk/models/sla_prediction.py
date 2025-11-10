@@ -31,6 +31,26 @@ class SLAPrediction(BaseModel, TenantAwareModel):
     Stores risk level and suggested actions to help teams
     prevent deadline misses.
     """
+
+    # Override audit fields to prevent related_name collisions with core app
+    cuser = models.ForeignKey(
+        'peoples.People',
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        related_name='helpdesk_sla_prediction_cusers',
+        verbose_name="Created by",
+        help_text="User who created this prediction"
+    )
+    muser = models.ForeignKey(
+        'peoples.People',
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        related_name='helpdesk_sla_prediction_musers',
+        verbose_name="Modified by",
+        help_text="User who last modified this prediction"
+    )
     
     RISK_LEVEL_CHOICES = [
         ('low', '🟢 On Track'),
@@ -91,7 +111,7 @@ class SLAPrediction(BaseModel, TenantAwareModel):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='acknowledged_alerts',
+        related_name='helpdesk_sla_predictions_acknowledged',
         help_text="Who acknowledged"
     )
     

@@ -24,7 +24,6 @@ from .base import (
     Shift,
     TypeAssist,
     GeofenceMaster,
-    Bu,
     get_or_create_none_typeassist,
     get_or_create_none_bv,
     get_or_create_none_people,
@@ -39,6 +38,7 @@ from .base import (
     bulk_create_geofence,
     Job,
 )
+from apps.core_onboarding import models as om
 
 
 class AuthoritativeKnowledgeChunkInline(admin.TabularInline):

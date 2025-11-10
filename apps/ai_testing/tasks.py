@@ -7,10 +7,13 @@ import logging
 from django.core.management import call_command
 from django.utils import timezone
 from django.conf import settings
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from celery import shared_task
 from datetime import timedelta
 
 from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions import IntegrationException
 
 
 logger = logging.getLogger(__name__)

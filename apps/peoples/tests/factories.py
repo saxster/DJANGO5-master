@@ -47,7 +47,7 @@ class TypeAssistFactory(DjangoModelFactory):
     """Factory for creating TypeAssist entries (departments, designations)."""
 
     class Meta:
-        model = "onboarding.TypeAssist"
+        model = "core_onboarding.TypeAssist"
 
     typename = "Department"
     typeval = factory.Sequence(lambda n: f"Department {n}")

@@ -41,7 +41,7 @@ class WorkerDailyMetrics(TenantAwareModel, BaseModel):
         help_text="Worker being measured"
     )
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='worker_metrics',
         help_text="Primary work site for this day"

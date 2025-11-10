@@ -228,7 +228,7 @@ def register_strategic_features_phase1():
     return len(features)
 
 
-def register_strategic_features_phase2_bluelogger.info():
+def register_strategic_features_phase2_blueprint():
     """
     Blueprint registrations for Phase 2 features (not yet implemented).
 
@@ -437,7 +437,7 @@ def register_all_strategic_features():
     """Register all strategic features (implemented and planned)."""
 
     phase1_count = register_strategic_features_phase1()
-    blueprint_count = register_strategic_features_phase2_bluelogger.info()
+    blueprint_count = register_strategic_features_phase2_blueprint()
     meter_count = register_meter_intelligence_features()
 
     return {

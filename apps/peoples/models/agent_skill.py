@@ -50,7 +50,7 @@ class AgentSkill(BaseModel, TenantAwareModel):
     )
     
     category = models.ForeignKey(
-        'onboarding.TypeAssist',
+        'core_onboarding.TypeAssist',
         on_delete=models.CASCADE,
         help_text=_("What type of task")
     )

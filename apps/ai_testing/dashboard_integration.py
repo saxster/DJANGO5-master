@@ -142,6 +142,7 @@ def _get_pattern_analysis_summary():
         started_at__gte=timezone.now() - timedelta(days=7)
     ).order_by('-started_at')
 
+    # Use exists() to avoid full query if no data
     if not recent_runs.exists():
         return {
             'patterns_detected': 0,
@@ -150,17 +151,35 @@ def _get_pattern_analysis_summary():
             'confidence': 0
         }
 
-    # Analyze test run patterns
-    total_runs = recent_runs.count()
-    failed_runs = recent_runs.filter(status='failed').count()
+    # Analyze test run patterns with optimized queries
+    # Use single aggregation query instead of multiple counts
+    from django.db.models import Count, Q
+    stats = recent_runs.aggregate(
+        total=Count('id'),
+        failed=Count('id', filter=Q(status='failed'))
+    )
+
+    total_runs = stats['total']
+    failed_runs = stats['failed']
     failure_rate = (failed_runs / total_runs * 100) if total_runs > 0 else 0
 
     # Determine trend direction based on recent performance
-    recent_half = recent_runs[:total_runs//2] if total_runs > 4 else recent_runs
-    older_half = recent_runs[total_runs//2:] if total_runs > 4 else recent_runs
+    if total_runs > 4:
+        midpoint = total_runs // 2
+        recent_half = recent_runs[:midpoint]
+        older_half = recent_runs[midpoint:]
 
-    recent_failure_rate = (recent_half.filter(status='failed').count() / len(recent_half) * 100) if recent_half else 0
-    older_failure_rate = (older_half.filter(status='failed').count() / len(older_half) * 100) if older_half else 0
+        # Use .count() instead of len() to avoid loading entire QuerySets
+        recent_total = recent_half.count()
+        recent_failed = recent_half.filter(status='failed').count()
+        older_total = older_half.count()
+        older_failed = older_half.filter(status='failed').count()
+
+        recent_failure_rate = (recent_failed / recent_total * 100) if recent_total > 0 else 0
+        older_failure_rate = (older_failed / older_total * 100) if older_total > 0 else 0
+    else:
+        # Not enough data for trend analysis
+        recent_failure_rate = older_failure_rate = failure_rate
 
     if recent_failure_rate > older_failure_rate + 5:
         trend_direction = 'degrading'

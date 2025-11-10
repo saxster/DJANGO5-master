@@ -30,6 +30,7 @@ Date: 2025-10-27
 import logging
 import traceback
 import uuid
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -196,19 +197,27 @@ class TenantAwareManager(models.Manager):
                 # Filter by tenant
                 return qs.filter(tenant=tenant)
             else:
-                # No tenant context - fail-secure in most cases
-                # Exception: During migrations/management commands, this is OK
-                logger.debug(
-                    "No tenant context - returning unfiltered queryset for management operation",
+                allow_unscoped = getattr(settings, 'TENANT_MANAGER_ALLOW_UNSCOPED', False)
+                if allow_unscoped:
+                    logger.warning(
+                        "No tenant context - returning unfiltered queryset (fail-open override)",
+                        extra={
+                            'correlation_id': str(uuid.uuid4()),
+                            'model': self.model.__name__,
+                            'security_event': SECURITY_EVENT_NO_TENANT_CONTEXT
+                        }
+                    )
+                    return qs
+
+                logger.warning(
+                    "No tenant context - returning empty queryset",
                     extra={
                         'correlation_id': str(uuid.uuid4()),
                         'model': self.model.__name__,
                         'security_event': SECURITY_EVENT_NO_TENANT_CONTEXT
                     }
                 )
-                # Return unfiltered for migrations/management commands
-                # In production requests, thread-local will ALWAYS have context
-                return qs
+                return qs.none()
 
         except ImportError:
             # During app loading - safe to return unfiltered

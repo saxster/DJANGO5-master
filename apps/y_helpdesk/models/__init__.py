@@ -132,10 +132,10 @@ class Ticket(BaseModel, TenantAwareModel):
         default=Identifier.TICKET.value,
     )
     bu = models.ForeignKey(
-        "onboarding.Bt", null=True, blank=True, on_delete=models.RESTRICT
+        "client_onboarding.Bt", null=True, blank=True, on_delete=models.RESTRICT
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,
@@ -145,7 +145,7 @@ class Ticket(BaseModel, TenantAwareModel):
         _("Priority"), max_length=50, choices=Priority.choices, null=True, blank=True
     )
     ticketcategory = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         null=True,
         blank=True,
         related_name="ticketcategory_types",
@@ -435,10 +435,10 @@ class EscalationMatrix(BaseModel, TenantAwareModel):
         related_name="escalation_grps",
     )
     bu = models.ForeignKey(
-        "onboarding.Bt", null=True, blank=True, on_delete=models.RESTRICT
+        "client_onboarding.Bt", null=True, blank=True, on_delete=models.RESTRICT
     )
     escalationtemplate = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         null=True,
         blank=True,
         related_name="esc_types",
@@ -446,7 +446,7 @@ class EscalationMatrix(BaseModel, TenantAwareModel):
     )
     notify = models.EmailField(blank=True, null=True)
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,

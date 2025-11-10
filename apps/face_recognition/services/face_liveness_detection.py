@@ -12,10 +12,13 @@ TODO: Sprint 5 - Replace mock implementations with real ML models.
 Currently uses stubs for development and testing.
 """
 
-import logging
-import numpy as np
 import asyncio
-from typing import Optional, Dict, List, Any
+import logging
+from difflib import SequenceMatcher
+from typing import Any, Dict, List, Optional
+
+import cv2
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -24,99 +27,120 @@ logger = logging.getLogger(__name__)
 # MOCK MODEL IMPLEMENTATIONS (TODO: Sprint 5 - Replace with real models)
 # ============================================================================
 
-class ThreeDLivenessModel:
-    """
-    3D liveness detection using depth analysis.
+def _load_gray(image_path: str) -> np.ndarray:
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise FileNotFoundError(f'Could not load image: {image_path}')
+    return image
 
-    TODO: Sprint 5 - Implement real 3D depth estimation.
-    Use models like MiDaS or DPT for single-image depth estimation.
-    Reference: https://github.com/isl-org/MiDaS
-    """
+
+class ThreeDLivenessModel:
+    """Depth heuristics using gradient magnitude."""
 
     def analyze_depth(self, image_path: str) -> Dict[str, Any]:
-        """
-        Analyze depth to detect 2D printed photos vs. real 3D faces.
-
-        Args:
-            image_path: Path to the image file
-
-        Returns:
-            Dictionary with depth analysis (mock implementation)
-        """
-        # Mock implementation - always returns 3D face detected
+        gray = _load_gray(image_path)
+        sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=5)
+        sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=5)
+        gradient_mag = np.mean(np.sqrt(sobel_x ** 2 + sobel_y ** 2))
+        depth_score = min(1.0, gradient_mag / 40.0)
+        depth_consistency = float(np.std(sobel_x) / 25.0)
+        is_3d = depth_score > 0.45 and depth_consistency > 0.4
         return {
-            'depth_score': 0.8,
-            'depth_consistency': 0.9,
-            'is_3d': True
+            'depth_score': round(depth_score, 3),
+            'depth_consistency': round(depth_consistency, 3),
+            'is_3d': is_3d,
         }
 
 
 class MicroExpressionModel:
-    """
-    Micro-expression analysis for liveness detection.
-
-    TODO: Sprint 5 - Implement real micro-expression detection.
-    Detect involuntary facial movements that indicate a live person.
-    """
+    """Estimate expression diversity via local binary patterns."""
 
     def analyze(self, image_path: str) -> Dict[str, Any]:
-        """Analyze micro-expressions (mock)."""
+        gray = _load_gray(image_path)
+        lbp = cv2.Laplacian(gray, cv2.CV_64F)
+        variance = float(np.var(lbp))
+        liveness_score = min(1.0, variance / 800.0)
+        expressions_detected = ['neutral']
+        if liveness_score > 0.6:
+            expressions_detected.append('micro_movement')
         return {
-            'liveness_score': 0.85,
-            'expressions_detected': ['neutral', 'slight_smile'],
-            'natural_expressions': True
+            'liveness_score': round(liveness_score, 3),
+            'expressions_detected': expressions_detected,
+            'natural_expressions': liveness_score > 0.4,
         }
 
 
 class HeartRateDetectionModel:
-    """
-    Heart rate detection from video using rPPG.
-
-    TODO: Sprint 5 - Implement real rPPG (remote photoplethysmography).
-    Detect pulse from subtle color changes in face due to blood flow.
-    Reference: https://github.com/terbed/Heart-rate-measurement-using-camera
-    """
+    """Simple rPPG estimator using green channel oscillations."""
 
     def detect_heart_rate(self, video_path: str) -> Dict[str, Any]:
-        """Detect heart rate from video (mock)."""
+        capture = cv2.VideoCapture(video_path)
+        if not capture.isOpened():
+            return {'heart_rate_detected': False, 'liveness_score': 0.0, 'heart_rate_bpm': None}
+
+        samples = []
+        frame_count = 0
+        while frame_count < 150:  # ~5 seconds at 30fps
+            ret, frame = capture.read()
+            if not ret:
+                break
+            roi = frame[frame.shape[0] // 3: frame.shape[0] // 2,
+                       frame.shape[1] // 3: frame.shape[1] // 2]
+            samples.append(np.mean(roi[:, :, 1]))  # green channel
+            frame_count += 1
+        capture.release()
+
+        if len(samples) < 30:
+            return {'heart_rate_detected': False, 'liveness_score': 0.0, 'heart_rate_bpm': None}
+
+        signal = np.array(samples) - np.mean(samples)
+        spectrum = np.abs(np.fft.rfft(signal))
+        freqs = np.fft.rfftfreq(len(signal), d=1 / 30.0)
+        mask = (freqs >= 0.8) & (freqs <= 3.0)
+        if not mask.any():
+            return {'heart_rate_detected': False, 'liveness_score': 0.0, 'heart_rate_bpm': None}
+
+        dominant_idx = np.argmax(spectrum[mask])
+        bpm = int(freqs[mask][dominant_idx] * 60)
+        liveness_score = min(1.0, spectrum[mask][dominant_idx] / (np.sum(spectrum[mask]) + 1e-9))
         return {
-            'liveness_score': 0.9,
-            'heart_rate_bpm': 72,
-            'heart_rate_detected': True
+            'heart_rate_detected': True,
+            'heart_rate_bpm': bpm,
+            'liveness_score': round(liveness_score, 3),
         }
 
 
 class ChallengeResponseModel:
-    """
-    Challenge-response liveness verification.
-
-    TODO: Sprint 5 - Implement real challenge-response system.
-    User performs random actions (blink, smile, turn head) to prove liveness.
-    """
+    """Compare expected challenge phrase with provided transcript."""
 
     def verify_response(self, response_data: Dict) -> Dict[str, Any]:
-        """Verify challenge response (mock)."""
+        expected = (response_data or {}).get('expected_phrase', '')
+        spoken = (response_data or {}).get('spoken_text', '')
+        latency = response_data.get('response_time_ms', 1000)
+        match = SequenceMatcher(a=expected.lower(), b=spoken.lower()).ratio() if expected and spoken else 0.0
+        challenge_passed = match > 0.7 and latency < 4000
         return {
-            'liveness_score': 0.95,
-            'challenge_passed': True,
-            'response_time_ms': 1200
+            'liveness_score': round(match, 3),
+            'challenge_passed': challenge_passed,
+            'response_time_ms': latency,
         }
 
 
 class PassiveLivenessModel:
-    """
-    Passive liveness detection using texture and lighting analysis.
-
-    TODO: Sprint 5 - Implement real passive liveness.
-    Analyze texture patterns, reflections, and lighting to detect printed photos.
-    """
+    """Texture/lighting heuristics to detect printed photos."""
 
     def analyze(self, image_path: str) -> Dict[str, Any]:
-        """Passive liveness detection (mock)."""
+        image = cv2.imread(image_path)
+        if image is None:
+            raise FileNotFoundError(f'Could not load image: {image_path}')
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        texture = float(np.std(cv2.Laplacian(gray, cv2.CV_64F)))
+        lighting = float(np.std(image[:, :, 2]))
+        liveness_score = min(1.0, (texture / 40.0 + lighting / 60.0) / 2)
         return {
-            'liveness_score': 0.8,
-            'texture_analysis': 0.85,
-            'lighting_analysis': 0.75
+            'liveness_score': round(liveness_score, 3),
+            'texture_analysis': round(texture / 40.0, 3),
+            'lighting_analysis': round(lighting / 60.0, 3)
         }
 
 

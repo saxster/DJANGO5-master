@@ -161,12 +161,9 @@ class FrappeService:
         frappe_config = getattr(settings, 'FRAPPE_CONFIG', {})
 
         if company.value not in frappe_config:
-            # Fallback to legacy hardcoded values (DEPRECATED - will be removed)
-            logger.warning(
-                f"Using legacy hardcoded Frappe config for {company.value}. "
-                f"Please configure FRAPPE_CONFIG in settings."
+            raise FrappeServiceException(
+                f"FRAPPE_CONFIG missing credentials for {company.value}"
             )
-            return self._get_legacy_config(company)
 
         config_dict = frappe_config[company.value]
         return FrappeConnectionConfig(
@@ -175,36 +172,6 @@ class FrappeService:
             api_secret=config_dict['api_secret'],
             timeout=config_dict.get('timeout', (5, 30))
         )
-
-    def _get_legacy_config(self, company: FrappeCompany) -> FrappeConnectionConfig:
-        """
-        Get legacy hardcoded configuration (DEPRECATED).
-
-        This method provides backward compatibility but should not be used in production.
-        Configure FRAPPE_CONFIG in settings instead.
-        """
-        legacy_configs = {
-            FrappeCompany.SPS: FrappeConnectionConfig(
-                server_url="http://leave.spsindia.com:8007",
-                api_key="3a6bfc7224a228c",
-                api_secret="c7047cc28b4a14e"
-            ),
-            FrappeCompany.SFS: FrappeConnectionConfig(
-                server_url="http://leave.spsindia.com:8008",
-                api_key="ca9b240aa73a9b8",
-                api_secret="8dc1421ac748917"
-            ),
-            FrappeCompany.TARGET: FrappeConnectionConfig(
-                server_url="http://leave.spsindia.com:8002",
-                api_key="",  # Not configured in legacy code
-                api_secret=""
-            ),
-        }
-
-        if company not in legacy_configs:
-            raise FrappeServiceException(f"No configuration found for company: {company.value}")
-
-        return legacy_configs[company]
 
     def get_client(self, company: FrappeCompany) -> Optional[FrappeClient]:
         """

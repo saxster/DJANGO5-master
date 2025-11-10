@@ -20,7 +20,7 @@ from apps.performance_analytics.models import (
     WorkerDailyMetrics,
     TeamDailyMetrics
 )
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 
 

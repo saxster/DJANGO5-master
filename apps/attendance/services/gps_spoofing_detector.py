@@ -13,7 +13,7 @@ Detection Methods:
 Integrates with LocationAnomalyDetector for comprehensive protection.
 """
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from django.utils import timezone
 from datetime import timedelta
 from apps.attendance.models import PeopleEventlog

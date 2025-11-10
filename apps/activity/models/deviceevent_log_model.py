@@ -44,10 +44,10 @@ class DeviceEventlog(BaseModel, models.Model):
     accuracy = models.CharField(max_length=25, default="-")
     altitude = models.CharField(max_length=25, default="-")
     bu = models.ForeignKey(
-        "onboarding.Bt", null=True, blank=True, on_delete=models.RESTRICT
+        "client_onboarding.Bt", null=True, blank=True, on_delete=models.RESTRICT
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,

@@ -34,7 +34,7 @@ class ReimbursementRate(models.Model):
     """
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='reimbursement_rates',
         help_text="Client this rate applies to"

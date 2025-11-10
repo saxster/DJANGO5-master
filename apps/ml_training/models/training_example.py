@@ -161,7 +161,7 @@ class TrainingExample(BaseModel, TenantAwareModel):
 
     class Meta:
         db_table = 'ml_training_example'
-        ordering = ['-labeling_priority', '-created_at']
+        ordering = ['-labeling_priority', '-cdtz']
         indexes = [
             models.Index(fields=['dataset', 'labeling_status']),
             models.Index(fields=['is_labeled', 'quality_score']),

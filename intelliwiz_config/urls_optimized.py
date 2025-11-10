@@ -32,6 +32,8 @@ from apps.core.health_check_views import (
 )
 
 # Main URL patterns with optimized structure
+people_onboarding_urls = ('apps.people_onboarding.urls', 'people_onboarding')
+
 urlpatterns = [
     # ========== AUTHENTICATION ==========
     path('', SignIn.as_view(), name='login'),  # Root redirects to login
@@ -58,7 +60,7 @@ urlpatterns = [
     path('people/', include('apps.core.urls_people')),
 
     # People Onboarding (Employee/Contractor onboarding workflow)
-    path('people-onboarding/', include('apps.people_onboarding.urls')),
+    path('people-onboarding/', include(people_onboarding_urls, namespace='people_onboarding_web')),
 
     # NOC (Network Operations Center)
     path('noc/', include('apps.noc.urls')),
@@ -92,6 +94,7 @@ urlpatterns = [
     path('api/v2/noc/', include(('apps.noc.api.v2.urls', 'noc_api_v2'), namespace='noc_telemetry_api')),  # NOC Telemetry API
     path('api/v2/operations/', include('apps.api.v2.operations_urls')),  # Operations domain (Jobs, Tasks, Tours, PPM)
     path('api/v2/attendance/', include('apps.api.v2.attendance_urls')),  # Attendance domain (Check-in/out, Conveyance)
+    path('api/v2/threat-intelligence/', include('apps.threat_intelligence.v2_api.urls')),  # Threat Intelligence & Geospatial Alerts
 
     # Legacy endpoints (non-versioned, will remain)
     path('api/v1/biometrics/', include('apps.api.biometrics_urls')),  # Biometric Authentication API (Sprint 2)
@@ -108,7 +111,7 @@ urlpatterns = [
     # Bounded Context APIs (Multimodal Onboarding)
     path('api/v2/client-onboarding/', include('apps.client_onboarding.urls')),  # Client onboarding context
     path('api/v2/site-onboarding/', include('apps.site_onboarding.urls')),  # Site survey context
-    path('api/v2/worker-onboarding/', include('apps.people_onboarding.urls')),  # Worker intake context
+    path('api/v2/worker-onboarding/', include(people_onboarding_urls, namespace='people_onboarding_api')),  # Worker intake context
     path('api/v2/conversation/', include('apps.core_onboarding.urls')),  # Conversation session management
 
     # ========== Legacy Schema Removed - October 2025 ==========
@@ -132,6 +135,9 @@ urlpatterns = [
 
     # Cache monitoring and management (Admin-only)
     path('', include('apps.core.urls_cache')),  # Includes /admin/cache/ and /cache/health/ endpoints
+
+    # Calendar View - Temporal timeline with photo integration (Admin-only)
+    path('admin/calendar/', include('apps.calendar_view.urls')),  # Visual timeline across all business domains
 
     # Root-level health endpoints for testing and monitoring
     path('health/', health_check, name='root_health_check'),

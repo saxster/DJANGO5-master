@@ -162,7 +162,7 @@ class AsyncPDFGenerationService(BaseService):
                 return self._save_html_content(task_id, html_content)
 
             # Generate PDF using WeasyPrint
-            return self._generate_pdf_with_weasylogger.info(task_id, html_content, css_files)
+            return self._generate_pdf_with_weasyprint(task_id, html_content, css_files)
 
         except (DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
             error_msg = f"PDF generation failed for task {task_id}: {str(e)}"
@@ -176,7 +176,7 @@ class AsyncPDFGenerationService(BaseService):
                 'task_id': task_id
             }
 
-    def _generate_pdf_with_weasylogger.info(self,
+    def _generate_pdf_with_weasyprint(self,
         task_id: str,
         html_content: str,
         css_files: Optional[list] = None) -> Dict[str, Any]:

@@ -4,7 +4,7 @@ Django management command for importing spatial data using LayerMapping.
 Usage examples:
 python manage.py import_spatial_data assets.shp activity.Asset --mapping='{"assetname": "NAME", "gpslocation": "GEOMETRY"}'
 python manage.py import_spatial_data locations.geojson activity.Location --inspect
-python manage.py import_spatial_data sites.kml onboarding.Bt --template
+python manage.py import_spatial_data sites.kml client_onboarding.Bt --template
 """
 
 import json

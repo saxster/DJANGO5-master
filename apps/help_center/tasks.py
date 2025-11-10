@@ -40,27 +40,20 @@ def generate_article_embedding(self, article_id):
         dict: {'success': bool, 'article_id': int, 'embedding_dim': int}
     """
     try:
-        from apps.help_center.models import HelpArticle
+from apps.help_center.models import HelpArticle
+from apps.help_center.utils.embedding import EMBEDDING_DIM, text_to_embedding
 
         article = HelpArticle.objects.get(id=article_id)
 
         # Generate embedding for semantic search
         try:
-            # Simplified embedding generation
-            # Full implementation would use ProductionEmbeddingsService
             text = f"{article.title} {article.summary} {article.content[:2000]}"
-
-            # For now, mark that embedding was attempted
-            # Real implementation:
-            # from apps.ai.services.production_embeddings_service import ProductionEmbeddingsService
-            # embedding = ProductionEmbeddingsService.generate_embeddings([text], timeout=(5, 30))[0]
-            # article.embedding = embedding
-
-            # Placeholder: Store basic metadata
+            embedding_vector = text_to_embedding(text)
             article.embedding = {
-                'status': 'generated',
-                'text_length': len(text),
-                'generated_at': str(timezone.now())
+                'vector': embedding_vector,
+                'dim': len(embedding_vector),
+                'generated_at': timezone.now().isoformat(),
+                'source': 'hashing_v1',
             }
             article.save(update_fields=['embedding', 'updated_at'])
 
@@ -77,7 +70,7 @@ def generate_article_embedding(self, article_id):
         return {
             'success': True,
             'article_id': article_id,
-            'embedding_dim': 384  # Placeholder
+            'embedding_dim': EMBEDDING_DIM
         }
 
     except ObjectDoesNotExist as e:

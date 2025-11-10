@@ -9,13 +9,14 @@ from django.db import models
 from django.db.models import Count, Prefetch
 from django.utils.translation import gettext_lazy as _
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.peoples.models import BaseModel
 from ..constants import INCIDENT_STATES
 
 __all__ = ['NOCIncident', 'OptimizedIncidentManager']
 
 
-class OptimizedIncidentManager(models.Manager):
+class OptimizedIncidentManager(TenantAwareManager):
     """Manager with optimized querysets for common operations."""
     
     def with_full_details(self):

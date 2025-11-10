@@ -50,7 +50,7 @@ MIDDLEWARE = [
     # Layer 5: Session and Multi-Tenancy
     # ========================================================================
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "apps.tenants.middlewares.TenantMiddleware",  # CRITICAL: Must be after SessionMiddleware
+    "apps.tenants.middleware_unified.UnifiedTenantMiddleware",  # CRITICAL: Must be after SessionMiddleware
     "django.middleware.locale.LocaleMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -109,8 +109,8 @@ CRITICAL MIDDLEWARE ORDERING RULES:
 3. Rate limiting MUST come before origin validation
 4. Origin validation MUST come before SQL injection protection
 5. SQL/XSS protection MUST come before CSRF
-6. SessionMiddleware MUST come before TenantMiddleware
-7. TenantMiddleware MUST come before any DB access
+6. SessionMiddleware MUST come before UnifiedTenantMiddleware
+7. UnifiedTenantMiddleware MUST come before any DB access
 8. CsrfViewMiddleware MUST come before AuthenticationMiddleware
 9. GlobalExceptionMiddleware MUST be last (catch-all error handler)
 

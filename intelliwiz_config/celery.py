@@ -1,6 +1,9 @@
 # mysite/celery.py
 from __future__ import absolute_import, unicode_literals
+
 import os
+
+import intelliwiz_config.bootstrap  # noqa: F401
 from celery import Celery
 from celery.schedules import crontab
 from django.conf import settings
@@ -58,6 +61,12 @@ try:
     setup_celery_otel_tracing()
 except ImportError:
     # Gracefully handle if core app is not installed
+    pass
+
+# Ensure tenant context is applied to all Celery tasks
+try:
+    import apps.tenants.task_context  # noqa: F401
+except ImportError:
     pass
 
 # Register onboarding schedules

@@ -24,13 +24,13 @@ class LocationResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -47,7 +47,7 @@ class LocationResource(resources.ModelResource):
     Type = fields.Field(
         column_name="Type*",
         attribute="type",
-        widget=wg.ForeignKeyWidget(om.TypeAssist, "tacode"),
+        widget=wg.ForeignKeyWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -144,14 +144,14 @@ class LocationResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -167,7 +167,7 @@ class LocationResourceUpdate(resources.ModelResource):
     Type = fields.Field(
         column_name="Type",
         attribute="type",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )

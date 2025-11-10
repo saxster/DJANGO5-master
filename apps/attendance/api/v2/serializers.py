@@ -21,7 +21,7 @@ from apps.attendance.models import (
     AttendancePhoto,
     FraudAlert
 )
-from apps.onboarding.models import Shift, Bt
+from apps.client_onboarding.models import Shift, Bt
 from apps.peoples.models import People
 from apps.attendance.validators import validate_geofence_coordinates
 

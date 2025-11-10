@@ -159,9 +159,7 @@ function createRecommendationCard(recommendation) {
     cardEl.attr('data-recommendation-id', recommendation.id);
     cardEl.find('.recommendation-summary').text(recommendation.summary);
     cardEl.find('.recommendation-details').text(
-        recommendation.details.length > 0
-            ? recommendation.details[0].reason
-            : ''
+        buildDetailText(recommendation.details)
     );
     cardEl.find('.badge-severity')
         .addClass(`badge-${recommendation.severity}`)
@@ -169,6 +167,8 @@ function createRecommendationCard(recommendation) {
     cardEl.find('.confidence-score').text(Math.round(recommendation.confidence * 100));
     cardEl.find('.agent-name').text(recommendation.agent_name);
     cardEl.find('.llm-provider').text(recommendation.llm_provider || 'Gemini');
+
+    renderNarrative(cardEl, recommendation);
 
     // Create action buttons
     const actionsContainer = cardEl.find('.recommendation-actions');
@@ -180,6 +180,55 @@ function createRecommendationCard(recommendation) {
     });
 
     return cardEl;
+}
+
+function buildDetailText(details = []) {
+    if (!details || details.length === 0) {
+        return '';
+    }
+
+    const primary = details
+        .filter(item => item && (item.reason || item.summary || item.description))
+        .map(item => item.reason || item.summary || item.description);
+
+    if (primary.length === 0) {
+        return '';
+    }
+
+    return primary.slice(0, 2).join(' • ');
+}
+
+function renderNarrative(cardEl, recommendation) {
+    const streamEl = cardEl.find('.narrative-stream');
+    const contextMetrics = recommendation.context_metrics || {};
+    const chunks = contextMetrics.narrative_chunks || [];
+
+    if (!streamEl.length) {
+        return;
+    }
+
+    if (!chunks.length) {
+        streamEl.addClass('d-none');
+        return;
+    }
+
+    streamEl.removeClass('d-none');
+    streamEl.empty();
+    streamNarrativeChunks(streamEl, chunks);
+}
+
+function streamNarrativeChunks(streamEl, chunks) {
+    let delay = 0;
+    chunks.forEach(chunk => {
+        delay += 350;
+        setTimeout(() => {
+            const paragraph = $(`<div class="narrative-chunk mb-1">${chunk}</div>`);
+            streamEl.append(paragraph);
+            requestAnimationFrame(() => {
+                paragraph.addClass('show');
+            });
+        }, delay);
+    });
 }
 
 /**

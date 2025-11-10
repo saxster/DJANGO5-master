@@ -5,12 +5,12 @@ from django.db.models.functions import Concat, Cast
 from django.contrib.gis.db.models.functions import AsGeoJSON
 import logging
 
-from apps.core.managers.tenant_manager import TenantQuerySet
+from apps.tenants.managers import TenantAwareManager
 
 log = logging.getLogger("django")
 
 
-class PeopleManager(BaseUserManager):
+class PeopleManager(TenantAwareManager, BaseUserManager):
     """
     Enhanced People Manager with tenant filtering capabilities and query optimization.
 
@@ -47,9 +47,21 @@ class PeopleManager(BaseUserManager):
         "cuser",
     ]
 
-    def get_queryset(self):
-        """Return TenantQuerySet for automatic tenant filtering."""
-        return TenantQuerySet(self.model, using=self._db)
+    def for_client(self, client_id):
+        if client_id is None:
+            return self.none()
+        return self.get_queryset().filter(client_id=client_id)
+
+    def for_business_unit(self, bu_id):
+        if bu_id is None:
+            return self.none()
+        return self.get_queryset().filter(bu_id=bu_id)
+
+    def for_user(self, user):
+        if not user or not hasattr(user, 'client_id'):
+            log.warning("User does not have client_id attribute for tenant filtering")
+            return self.none()
+        return self.for_client(user.client_id)
 
     def with_profile(self):
         """
@@ -376,7 +388,7 @@ class PeopleManager(BaseUserManager):
         return self.filter(people_extras__isemergencycontact=True, bu_id=bu.id).first()
 
 
-class CapabilityManager(models.Manager):
+class CapabilityManager(TenantAwareManager):
     use_in_migrations = True
 
     def get_webparentdata(self):
@@ -463,7 +475,7 @@ class CapabilityManager(models.Manager):
         return result
 
 
-class PgblngManager(models.Manager):
+class PgblngManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",
@@ -626,7 +638,7 @@ class PgblngManager(models.Manager):
         return total_assigned_sites
 
 
-class PgroupManager(models.Manager):
+class PgroupManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",

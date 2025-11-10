@@ -105,14 +105,14 @@ class AlertRule(BaseModel, TenantAwareModel):
     # ========== Scope Filters ==========
 
     applies_to_sites = models.ManyToManyField(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         blank=True,
         related_name='alert_rules',
         help_text=_("Sites this rule applies to (empty = all sites)")
     )
 
     applies_to_shifts = models.ManyToManyField(
-        'onboarding.Shift',
+        'client_onboarding.Shift',
         blank=True,
         related_name='alert_rules',
         help_text=_("Shifts this rule applies to (empty = all shifts)")

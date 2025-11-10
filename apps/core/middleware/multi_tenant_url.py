@@ -35,6 +35,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from apps.core.cache.tenant_aware import tenant_cache as cache
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.tenants.utils import get_tenant_by_slug as resolve_tenant_by_slug, get_tenant_by_pk
 
 logger = logging.getLogger(__name__)
 
@@ -240,23 +241,9 @@ class MultiTenantURLMiddleware:
         if cached:
             return TenantContext(**cached)
 
-        # Query database
+        # Query database via centralized utilities
         try:
-            from apps.tenants.models import Tenant
-            tenant = Tenant.objects.get(slug=slug, is_active=True)
-
-            # Create context
-            context_data = {
-                'tenant_id': str(tenant.id),
-                'tenant_slug': tenant.slug,
-                'tenant_name': tenant.name
-            }
-
-            # Cache for future requests
-            cache.set(cache_key, context_data, self.CACHE_TTL)
-
-            return TenantContext(**context_data)
-
+            tenant = resolve_tenant_by_slug(slug.lower(), include_inactive=False)
         except DATABASE_EXCEPTIONS as e:
             logger.error(
                 f"Database error fetching tenant by slug '{slug}': {e}",
@@ -264,6 +251,19 @@ class MultiTenantURLMiddleware:
                 extra={'slug': slug, 'cache_key': cache_key}
             )
             return None
+
+        if not tenant:
+            return None
+
+        context_data = {
+            'tenant_id': str(tenant.pk),
+            'tenant_slug': tenant.subdomain_prefix,
+            'tenant_name': tenant.tenantname
+        }
+
+        cache.set(cache_key, context_data, self.CACHE_TTL)
+
+        return TenantContext(**context_data)
 
     def _get_tenant_by_id(self, tenant_id: str) -> Optional[TenantContext]:
         """
@@ -275,30 +275,38 @@ class MultiTenantURLMiddleware:
         if cached:
             return TenantContext(**cached)
 
-        # Query database
         try:
-            from apps.tenants.models import Tenant
-            tenant = Tenant.objects.get(id=tenant_id, is_active=True)
+            numeric_id = int(tenant_id)
+        except (TypeError, ValueError):
+            numeric_id = None
 
-            # Create context
-            context_data = {
-                'tenant_id': str(tenant.id),
-                'tenant_slug': tenant.slug,
-                'tenant_name': tenant.name
-            }
+        tenant = None
+        if numeric_id is not None:
+            try:
+                tenant = get_tenant_by_pk(numeric_id, include_inactive=False)
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(
+                    f"Database error fetching tenant by ID '{tenant_id}': {e}",
+                    exc_info=True,
+                    extra={'tenant_id': tenant_id, 'cache_key': cache_key}
+                )
+                return None
 
-            # Cache for future requests
-            cache.set(cache_key, context_data, self.CACHE_TTL)
+        if not tenant and isinstance(tenant_id, str):
+            tenant = resolve_tenant_by_slug(tenant_id.lower(), include_inactive=False)
 
-            return TenantContext(**context_data)
-
-        except DATABASE_EXCEPTIONS as e:
-            logger.error(
-                f"Database error fetching tenant by ID '{tenant_id}': {e}",
-                exc_info=True,
-                extra={'tenant_id': tenant_id, 'cache_key': cache_key}
-            )
+        if not tenant:
             return None
+
+        context_data = {
+            'tenant_id': str(tenant.pk),
+            'tenant_slug': tenant.subdomain_prefix,
+            'tenant_name': tenant.tenantname
+        }
+
+        cache.set(cache_key, context_data, self.CACHE_TTL)
+
+        return TenantContext(**context_data)
 
     def _get_default_tenant(self) -> Optional[TenantContext]:
         """

@@ -10,6 +10,7 @@ from .knowledge_source import KnowledgeSource
 from .ingestion import KnowledgeIngestionJob
 from .review import KnowledgeReview
 from .approved_location import ApprovedLocation
+from apps.client_onboarding.models import Bt as Bu
 
 __all__ = [
     'OnboardingMedia',
@@ -23,6 +24,7 @@ __all__ = [
     'ChangeSetApproval',
     'TypeAssist',
     'GeofenceMaster',
+    'Bu',
     'KnowledgeSource',
     'KnowledgeIngestionJob',
     'KnowledgeReview',

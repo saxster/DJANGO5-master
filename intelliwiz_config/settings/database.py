@@ -86,6 +86,7 @@ CACHES = {
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "IGNORE_EXCEPTIONS": False,  # Raise exceptions for debugging
+            "KEY_FUNCTION": "apps.core.cache.key_functions.tenant_key",
         },
         "KEY_PREFIX": "intelliwiz",
         "TIMEOUT": 300,  # 5 minutes default

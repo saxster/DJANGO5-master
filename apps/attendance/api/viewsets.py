@@ -649,9 +649,9 @@ class FraudDetectionView(APIView):
 
     def get(self, request):
         """Get fraud detection alerts."""
-        from apps.attendance.real_time_fraud_detection import FraudDetectionService
+        from apps.attendance.real_time_fraud_detection import RealTimeFraudDetector
 
-        service = FraudDetectionService()
+        service = RealTimeFraudDetector()
         alerts = service.get_recent_alerts(days=7)
 
         return Response({

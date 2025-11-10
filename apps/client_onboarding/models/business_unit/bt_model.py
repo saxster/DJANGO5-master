@@ -67,7 +67,7 @@ class Bt(BaseModel, TenantAwareModel):
         blank=True,
     )
     identifier = models.ForeignKey(
-        "TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="Identifier",
         null=True,
         blank=True,
@@ -79,7 +79,7 @@ class Bt(BaseModel, TenantAwareModel):
         _("Bu Path"), null=True, blank=True, max_length=300, default=""
     )
     butype = models.ForeignKey(
-        "TypeAssist",
+        "core_onboarding.TypeAssist",
         on_delete=models.RESTRICT,
         null=True,
         blank=True,
@@ -117,7 +117,7 @@ class Bt(BaseModel, TenantAwareModel):
 
     # NOC Module: City/State for geographic aggregation
     city = models.ForeignKey(
-        "TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="City",
         on_delete=models.SET_NULL,
         null=True,
@@ -126,7 +126,7 @@ class Bt(BaseModel, TenantAwareModel):
         help_text="City location for NOC geographic drill-down"
     )
     state = models.ForeignKey(
-        "TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="State",
         on_delete=models.SET_NULL,
         null=True,

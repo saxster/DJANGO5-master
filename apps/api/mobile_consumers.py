@@ -47,6 +47,7 @@ import uuid
 import time
 from typing import Dict, Any, Optional, List
 from urllib.parse import parse_qs
+from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
@@ -929,7 +930,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
                 'last_seen': timezone.now().isoformat(),
                 'connection_type': 'websocket'
             }
-            cache.set(cache_key, device_status, timeout=3600)
+            await sync_to_async(cache.set)(cache_key, device_status, timeout=3600)
 
         except ConnectionError as e:
             logger.warning(f"Cache unavailable for device status update: {str(e)}", extra={'correlation_id': self.correlation_id, 'device_id': self.device_id})
@@ -940,7 +941,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
         """Update device information"""
         try:
             cache_key = f"device_info:{self.user.id}:{self.device_id}"
-            cache.set(cache_key, device_info, timeout=86400)  # 24 hours
+            await sync_to_async(cache.set)(cache_key, device_info, timeout=86400)  # 24 hours
 
         except ConnectionError as e:
             logger.warning(f"Cache unavailable for device info: {str(e)}", extra={'correlation_id': self.correlation_id, 'device_id': self.device_id})
@@ -952,7 +953,7 @@ class MobileSyncConsumer(AsyncWebsocketConsumer):
         try:
             # Store in cache for analytics
             cache_key = f"sync_session:{sync_id}"
-            cache.set(cache_key, session, timeout=86400 * 7)  # 7 days
+            await sync_to_async(cache.set)(cache_key, session, timeout=86400 * 7)  # 7 days
 
         except ConnectionError as e:
             logger.warning(f"Cache unavailable for session storage: {str(e)}", extra={'correlation_id': self.correlation_id, 'sync_id': sync_id})

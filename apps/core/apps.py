@@ -23,6 +23,8 @@ class CoreConfig(AppConfig):
         2. Registers audit logging signals for automatic audit trail
         3. Runs security configuration validation in production
         """
+        self._ensure_versionfield_increment()
+
         # Initialize cache invalidation
         try:
             from apps.core.caching import invalidation
@@ -86,3 +88,25 @@ class CoreConfig(AppConfig):
             logger.info("Dashboard registry initialized successfully")
         except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to register dashboards: {e}", exc_info=True)
+
+    @staticmethod
+    def _ensure_versionfield_increment():
+        """
+        django-concurrency 2.4+ no longer provides a default implementation for
+        VersionField._get_next_version. Legacy models in this project still
+        instantiate VersionField directly, so we provide a safe auto-increment
+        fallback to preserve optimistic locking semantics.
+        """
+        try:
+            from concurrency.fields import VersionField
+        except ImportError:
+            return
+
+        if hasattr(VersionField, "_get_next_version"):
+            return
+
+        def _default_next_version(self, model_instance):
+            current = getattr(model_instance, self.attname, 0) or 0
+            return int(current) + 1
+
+        VersionField._get_next_version = _default_next_version

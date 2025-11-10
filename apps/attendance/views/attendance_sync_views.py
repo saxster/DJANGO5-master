@@ -18,7 +18,7 @@ from django.db import DatabaseError
 
 from apps.attendance.services.attendance_sync_service import AttendanceSyncService
 from apps.attendance.serializers_extra.attendance_sync_serializers import AttendanceSyncSerializer
-from apps.api.v1.serializers.sync_base_serializers import (
+from apps.core.serializers.sync_base_serializers import (
     SyncRequestSerializer,
     DeltaSyncRequestSerializer,
 )

@@ -157,6 +157,34 @@ from .status_constants import (
     MAX_BATCH_SIZE,
 )
 
+# API response helpers (legacy compatibility)
+class ResponseConstants:
+    """Constants for API responses and high-level status helpers."""
+
+    class Success:
+        CREATED = "Record created successfully"
+        UPDATED = "Record updated successfully"
+        DELETED = "Record deleted successfully"
+        OPERATION_SUCCESS = "Operation completed successfully"
+
+    class Error:
+        NOT_FOUND = "Record not found"
+        INVALID_DATA = "Invalid data provided"
+        PERMISSION_DENIED = "Permission denied"
+        OPERATION_FAILED = "Operation failed"
+        DATABASE_ERROR = "Database operation failed"
+        VALIDATION_ERROR = "Data validation failed"
+
+    class StatusCode:
+        OK = 200
+        CREATED = 201
+        BAD_REQUEST = 400
+        UNAUTHORIZED = 401
+        FORBIDDEN = 403
+        NOT_FOUND = 404
+        UNPROCESSABLE_ENTITY = 422
+        INTERNAL_SERVER_ERROR = 500
+
 # Re-export from retry module
 from .retry import (
     MAX_RETRIES_MINIMAL,

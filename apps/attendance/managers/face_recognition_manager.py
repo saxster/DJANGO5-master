@@ -3,7 +3,8 @@ Face recognition verification manager for PeopleEventlog.
 
 Handles photo attachments and verification status queries.
 """
-from django.db.models import CharField, OuterRef, Exists, Cast
+from django.db.models import CharField, OuterRef, Exists
+from django.db.models.functions import Cast
 from apps.activity.models.attachment_model import Attachment
 from itertools import chain
 import logging

@@ -85,7 +85,7 @@ class UserScope(BaseModel, TenantAwareModel):
 
     # Shift context
     shift = models.ForeignKey(
-        "onboarding.Shift",
+        "client_onboarding.Shift",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

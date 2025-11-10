@@ -4,7 +4,7 @@ from django.db.models.query_utils import Q
 from django_select2 import forms as s2forms
 import re
 
-from ..models import TypeAssist
+from ..models import TypeAssist, Shift
 from apps.core_onboarding import models as obm
 from apps.core.utils_new.business_logic import initailize_form_fields
 
@@ -39,7 +39,7 @@ class ShiftForm(forms.ModelForm):
     )
 
     class Meta:
-        model = obm.Shift
+        model = Shift
         fields = [
             "shiftname",
             "starttime",

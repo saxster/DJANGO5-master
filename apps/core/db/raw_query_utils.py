@@ -76,6 +76,24 @@ class TenantRoutingError(Exception):
     pass
 
 
+def _resolve_contextual_tenant_id(explicit_tenant_id: Optional[int]) -> Optional[int]:
+    """
+    Determine the tenant ID for the current execution context.
+    """
+    if explicit_tenant_id:
+        return explicit_tenant_id
+
+    try:
+        from apps.tenants.utils import get_current_tenant_cached  # Lazy import
+        tenant = get_current_tenant_cached()
+        if tenant:
+            return tenant.pk
+    except ImportError:
+        logger.debug("Tenant utilities unavailable while resolving tenant context")
+
+    return None
+
+
 def validate_query_safety(query: str, allow_writes: bool = False) -> Tuple[bool, str]:
     """
     Validate that a raw query follows security best practices.
@@ -282,12 +300,22 @@ def execute_raw_query_with_router(
         ...     use_transaction=True
         ... )
     """
-    # Validate tenant context
-    if hasattr(settings, 'DATABASES') and len(settings.DATABASES) > 1:
-        if tenant_id is None and client_id is None:
-            raise TenantRoutingError(
-                "tenant_id or client_id required for multi-tenant raw queries"
-            )
+    allow_global_queries = getattr(settings, 'ALLOW_GLOBAL_RAW_QUERIES', False)
+
+    resolved_tenant_id = _resolve_contextual_tenant_id(tenant_id)
+
+    # Validate tenant context (always enforced unless explicitly allowlisted)
+    if not allow_global_queries and resolved_tenant_id is None and client_id is None:
+        raise TenantRoutingError(
+            "tenant_id or client_id required for multi-tenant raw queries. "
+            "Set ALLOW_GLOBAL_RAW_QUERIES=True only for trusted management commands."
+        )
+
+    if resolved_tenant_id is not None and 'tenant_id' not in query.lower():
+        logger.warning(
+            "Raw query executed with tenant context but missing explicit tenant_id filter",
+            extra={'tenant_id': resolved_tenant_id, 'query': query[:200]}
+        )
 
     # Add tenant/client validation to query if not present
     if client_id and 'client_id' not in query.lower():

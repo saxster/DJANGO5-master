@@ -17,6 +17,7 @@ from collections import defaultdict
 from django.db.models import Q, F
 from django.contrib.postgres.search import SearchQuery, SearchRank
 from apps.help_center.models import HelpArticle, HelpSearchHistory
+from apps.help_center.utils.embedding import cosine_similarity, text_to_embedding
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
@@ -110,32 +111,35 @@ class SearchService:
         Uses simplified embedding approach for help articles.
         """
         try:
-            # Simplified semantic search using article embeddings
-            # If embeddings infrastructure is not available, gracefully fallback
             articles = HelpArticle.objects.filter(
                 tenant=tenant,
                 status=HelpArticle.Status.PUBLISHED,
-                embedding__isnull=False  # Only articles with embeddings
+                embedding__isnull=False
             )
 
             if role_filter:
                 user_roles = list(user.groups.values_list('name', flat=True))
-                from django.db.models import Q
                 articles = articles.filter(
                     Q(target_roles__contains=user_roles) |
                     Q(target_roles__contains=['all'])
                 )
 
-            # Basic similarity scoring based on embedding presence
-            # Full implementation would use cosine similarity with query embedding
-            # For now, return most viewed articles as fallback
-            articles = articles.order_by('-view_count')[:10]
+            query_embedding = text_to_embedding(query)
+            scored_articles = []
+            for article in articles[:100]:
+                vector = article.embedding.get('vector') if isinstance(article.embedding, dict) else article.embedding
+                if not vector:
+                    continue
+                similarity = cosine_similarity(query_embedding, vector)
+                article.similarity_score = float(similarity)
+                scored_articles.append(article)
 
-            return articles
+            scored_articles.sort(key=lambda art: art.similarity_score, reverse=True)
+            return scored_articles[:10]
 
         except DATABASE_EXCEPTIONS as e:
             logger.error(f"Semantic search failed: {e}", exc_info=True)
-            return HelpArticle.objects.none()
+            return []
 
     @classmethod
     def _rerank_results(cls, keyword_results, semantic_results, limit):

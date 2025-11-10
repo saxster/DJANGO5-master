@@ -36,6 +36,23 @@ Configuration (settings.py):
 import logging
 from typing import Optional
 
+
+def _ensure_force_text_alias() -> None:
+    """Provide django.utils.encoding.force_text for Django 5+ dependencies."""
+    try:
+        from django.utils import encoding as django_encoding
+        from django.utils.encoding import force_str
+    except ImportError:
+        return
+
+    if getattr(django_encoding, "force_text", None):
+        return
+
+    django_encoding.force_text = force_str  # type: ignore[attr-defined]
+
+
+_ensure_force_text_alias()
+
 logger = logging.getLogger('security.encryption')
 
 try:

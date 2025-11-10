@@ -17,14 +17,16 @@ from django.utils import timezone
 
 from apps.core.utils_new.db_utils import get_current_db_name
 from .models import (
-from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
-
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
-
-from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
-
-    OnboardingRequest, CandidateProfile,
-    DocumentSubmission, ApprovalWorkflow, OnboardingTask
+    OnboardingRequest,
+    CandidateProfile,
+    DocumentSubmission,
+    ApprovalWorkflow,
+    OnboardingTask,
+)
+from apps.core.exceptions.patterns import (
+    CELERY_EXCEPTIONS,
+    DATABASE_EXCEPTIONS,
+    NETWORK_EXCEPTIONS,
 )
 from .serializers import (
     OnboardingRequestSerializer, OnboardingRequestListSerializer,

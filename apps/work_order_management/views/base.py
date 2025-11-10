@@ -20,9 +20,18 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 # Third-party imports
-import psycopg2.errors as pg_errs
 import logging
 from dateutil.relativedelta import relativedelta
+
+try:
+    import psycopg2.errors as pg_errs
+except ImportError:  # pragma: no cover - fallback for dev environments without psycopg2
+    class _PostgresErrorShim:
+        class UniqueViolation(DatabaseError):
+            """Fallback UniqueViolation when psycopg2 is unavailable."""
+            pass
+
+    pg_errs = _PostgresErrorShim()
 
 # App imports
 from apps.work_order_management.forms import (

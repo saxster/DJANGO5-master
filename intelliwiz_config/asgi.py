@@ -14,6 +14,8 @@ WebSocket Authentication Stack:
 """
 
 import os
+
+import intelliwiz_config.bootstrap  # noqa: F401
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from django.core.asgi import get_asgi_application
@@ -27,6 +29,7 @@ django_asgi_app = get_asgi_application()
 
 from apps.api.mobile_routing import mobile_websocket_urlpatterns
 from apps.noc.routing import websocket_urlpatterns as noc_websocket_urlpatterns
+from apps.threat_intelligence.routing import websocket_urlpatterns as threat_intelligence_urlpatterns
 from apps.help_center.consumers import HelpChatConsumer
 from django.urls import path
 
@@ -43,6 +46,7 @@ help_center_websocket_urlpatterns = [
 websocket_urlpatterns = (
     mobile_websocket_urlpatterns +
     noc_websocket_urlpatterns +
+    threat_intelligence_urlpatterns +
     help_center_websocket_urlpatterns
 )
 

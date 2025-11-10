@@ -9,8 +9,6 @@ Compliance with .claude/rules.md:
 """
 
 from drf_spectacular.views import (
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
-
     SpectacularAPIView,
     SpectacularSwaggerView,
     SpectacularRedocView,
@@ -19,6 +17,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 import logging
 
 logger = logging.getLogger(__name__)

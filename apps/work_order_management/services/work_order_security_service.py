@@ -20,7 +20,7 @@ from typing import Tuple, Optional
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
-from apps.work_order_management.models.work_order_model import Wom
+from apps.work_order_management.models import Wom
 from apps.peoples.models import People
 from apps.core.exceptions.patterns import SECURITY_EXCEPTIONS
 

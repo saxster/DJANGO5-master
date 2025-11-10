@@ -16,6 +16,9 @@ from .exclusive_tour_forms import Schd_E_TourJobForm
 # Task and ticket forms
 from .task_ticket_forms import SchdTaskFormJob, TicketForm
 
+# Refactored/modernized forms
+from .refactored_forms import InternalTourCheckpointForm
+
 # Utility forms
 from .utility_forms import EditAssignedSiteForm
 
@@ -33,6 +36,8 @@ __all__ = [
     # Task and ticket forms
     'SchdTaskFormJob',
     'TicketForm',
+    # Refactored forms
+    'InternalTourCheckpointForm',
     # Utility forms
     'EditAssignedSiteForm',
 ]

@@ -151,7 +151,7 @@ def document_upload(request, uuid):
         uuid=uuid
     )
 
-    documents = onboarding_request.documents.all().order_by('-cdtz')
+    documents = onboarding_request.submitted_documents.all().order_by('-cdtz')
 
     # Required document types (example list)
     required_documents = [
@@ -248,7 +248,7 @@ def approval_decision(request, uuid):
         form = ApprovalDecisionForm(approval_workflow=approval)
 
     # Get related data
-    documents = approval.onboarding_request.documents.all()
+    documents = approval.onboarding_request.submitted_documents.all()
 
     return render(request, 'people_onboarding/approval_decision.html', {
         'approval': approval,

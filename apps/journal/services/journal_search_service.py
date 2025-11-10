@@ -5,7 +5,9 @@ Handles search and filtering logic for journal entries.
 Extracted from views.py to separate search concerns.
 """
 
-from django.db.models import Q
+import time
+
+from django.db.models import Avg, Count, Q
 from apps.journal.logging import get_journal_logger
 
 logger = get_journal_logger(__name__)
@@ -29,13 +31,13 @@ class JournalSearchService:
         from apps.journal.models import JournalEntry
 
         query_text = search_params['query']
+        start = time.perf_counter()
 
-        # Base queryset with privacy filtering
-        queryset = JournalEntry.objects.filter(
-            user=user,
+        base_queryset = JournalEntry.objects.filter(
             tenant=getattr(user, 'tenant', None),
             is_deleted=False
         )
+        queryset = self.build_privacy_aware_queryset(user, base_queryset)
 
         # Apply text search
         queryset = self._apply_text_search(queryset, query_text)
@@ -43,22 +45,25 @@ class JournalSearchService:
         # Apply filters
         queryset = self._apply_filters(queryset, search_params)
 
+        total_results = queryset.count()
+
         # Apply sorting
         queryset = self._apply_sorting(queryset, search_params.get('sort_by', 'timestamp'))
 
         # Serialize results (limit to 50)
-        results = result_serializer(
-            queryset[:50],
-            many=True,
-            context={'request': None}
-        ).data
+        limited_queryset = list(queryset[:50])
+        results = result_serializer(limited_queryset, many=True, context={'request': None}).data
+
+        facets = self._build_facets(queryset)
+        suggestions = self._build_suggestions(limited_queryset, query_text)
+        search_time_ms = round((time.perf_counter() - start) * 1000, 2)
 
         return {
             'results': results,
-            'total_results': queryset.count(),
-            'search_time_ms': 0,  # Placeholder
-            'facets': {},  # TODO: Implement facets
-            'search_suggestions': []  # TODO: Implement suggestions
+            'total_results': total_results,
+            'search_time_ms': search_time_ms,
+            'facets': facets,
+            'search_suggestions': suggestions
         }
 
     def _apply_text_search(self, queryset, query_text):
@@ -125,10 +130,35 @@ class JournalSearchService:
             search_params: Search parameters
         """
         try:
-            # TODO: Implement search analytics tracking
-            logger.debug(f"Search interaction by {user.peoplename}: {search_params['query']}")
+            logger.info(
+                "journal_search",
+                extra={'user_id': user.id, 'query': search_params['query']}
+            )
         except (AttributeError, TypeError, KeyError) as e:
             logger.error(f"Failed to track search interaction: {e}", exc_info=True)
+
+    def _build_facets(self, queryset):
+        entry_type_counts = list(
+            queryset.values('entry_type').annotate(total=Count('id')).order_by('-total')
+        )
+        mood_stats = queryset.aggregate(
+            average_mood=Avg('mood_rating'),
+            average_stress=Avg('stress_level'),
+        )
+        return {
+            'entry_types': entry_type_counts,
+            'wellbeing': mood_stats,
+        }
+
+    def _build_suggestions(self, entries, original_query):
+        suggestions = set()
+        normalized = (original_query or '').lower()
+        for entry in entries:
+            tags = entry.tags if isinstance(entry.tags, list) else []
+            for tag in tags:
+                if tag and normalized not in tag.lower():
+                    suggestions.add(tag)
+        return list(suggestions)[:5]
 
     def build_privacy_aware_queryset(self, user, base_queryset):
         """

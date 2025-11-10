@@ -4,8 +4,8 @@ Spatial analytics manager for PeopleEventlog.
 Handles advanced PostGIS queries for attendance spatial analysis, heatmaps, and outlier detection.
 """
 from django.db import models
-from django.contrib.gis.db.models.functions import Distance, AsGeoJSON
-from django.contrib.gis.db.models import Extent, Union, Centroid
+from django.contrib.gis.db.models.functions import Distance, AsGeoJSON, Centroid
+from django.contrib.gis.db.models import Extent, Union
 from django.contrib.gis.geos import Point
 from django.db.models import Count, Avg, Max, Min, Sum, F
 from apps.ontology.decorators import ontology

@@ -17,7 +17,7 @@ from django.http.request import QueryDict
 
 from apps.peoples.services import PeopleManagementService
 from apps.peoples.forms import PeopleForm, PeopleExtrasForm
-from apps.core_onboarding.forms import TypeAssistForm
+from apps.client_onboarding.forms import TypeAssistForm
 from apps.core.utils_new.business_logic import get_model_obj
 import apps.peoples.utils as putils
 

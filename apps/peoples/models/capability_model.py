@@ -319,7 +319,7 @@ class Capability(BaseModel, TenantAwareModel):
     )
 
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         null=True,
         blank=True,

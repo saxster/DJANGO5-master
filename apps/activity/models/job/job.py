@@ -72,15 +72,15 @@ class Job(BaseModel, TenantAwareModel):
     people = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name=_("Aggresive auto-assign to People"), on_delete=models.RESTRICT, null=True, blank=True, related_name="job_aaatops")
     pgroup = models.ForeignKey("peoples.Pgroup", verbose_name=_("People Group"), on_delete=models.RESTRICT, null=True, blank=True, related_name="job_pgroup")
     sgroup = models.ForeignKey("peoples.Pgroup", verbose_name=_("Site Group"), on_delete=models.RESTRICT, null=True, blank=True, related_name="job_sgroup")
-    geofence = models.ForeignKey("onboarding.GeofenceMaster", verbose_name=_("Geofence"), on_delete=models.RESTRICT, null=True, blank=True)
+    geofence = models.ForeignKey("core_onboarding.GeofenceMaster", verbose_name=_("Geofence"), on_delete=models.RESTRICT, null=True, blank=True)
     parent = models.ForeignKey("self", verbose_name=_("Belongs to"), on_delete=models.RESTRICT, null=True, blank=True)
     seqno = models.SmallIntegerField(_("Serial No."))
-    client = models.ForeignKey("onboarding.Bt", verbose_name=_("Client"), on_delete=models.RESTRICT, related_name="job_clients", null=True, blank=True)
-    bu = models.ForeignKey("onboarding.Bt", verbose_name=_("Site"), on_delete=models.RESTRICT, related_name="job_bus", null=True, blank=True)
-    shift = models.ForeignKey("onboarding.Shift", verbose_name=_("Shift"), on_delete=models.RESTRICT, null=True, related_name="job_shifts")
+    client = models.ForeignKey("client_onboarding.Bt", verbose_name=_("Client"), on_delete=models.RESTRICT, related_name="job_clients", null=True, blank=True)
+    bu = models.ForeignKey("client_onboarding.Bt", verbose_name=_("Site"), on_delete=models.RESTRICT, related_name="job_bus", null=True, blank=True)
+    shift = models.ForeignKey("client_onboarding.Shift", verbose_name=_("Shift"), on_delete=models.RESTRICT, null=True, related_name="job_shifts")
     starttime = models.TimeField(_("Start time"), auto_now=False, auto_now_add=False, null=True)
     endtime = models.TimeField(_("End time"), auto_now=False, auto_now_add=False, null=True)
-    ticketcategory = models.ForeignKey("onboarding.TypeAssist", verbose_name=_("Notify Category"), on_delete=models.RESTRICT, null=True, blank=True, related_name="job_tktcategories")
+    ticketcategory = models.ForeignKey("core_onboarding.TypeAssist", verbose_name=_("Notify Category"), on_delete=models.RESTRICT, null=True, blank=True, related_name="job_tktcategories")
     scantype = models.CharField(_("Scan Type"), max_length=50, choices=ScanType.choices)
     frequency = models.CharField(verbose_name=_("Frequency type"), null=True, max_length=55, choices=Frequency.choices, default=Frequency.NONE.value)
     other_info = models.JSONField(_("Other info"), default=other_info, blank=True, encoder=DjangoJSONEncoder)
@@ -120,4 +120,4 @@ class Job(BaseModel, TenantAwareModel):
         return self.jobname
 
 
-__all__ = ['Job']
+__all__ = ['Job', 'other_info', 'geojson_jobnjobneed']

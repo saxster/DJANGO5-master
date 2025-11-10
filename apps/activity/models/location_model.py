@@ -39,7 +39,7 @@ class Location(BaseModel, TenantAwareModel):
         _("Running Status"), choices=LocationStatus.choices, max_length=55
     )
     type = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Type"),
         on_delete=models.RESTRICT,
         null=True,
@@ -47,7 +47,7 @@ class Location(BaseModel, TenantAwareModel):
         related_name="location_types",
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -55,7 +55,7 @@ class Location(BaseModel, TenantAwareModel):
         related_name="location_clients",
     )
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,
         null=True,

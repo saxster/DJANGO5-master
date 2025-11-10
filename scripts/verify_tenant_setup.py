@@ -43,6 +43,7 @@ django.setup()
 from django.conf import settings
 from django.apps import apps
 from apps.tenants.models import Tenant, TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 
 # ANSI color codes
 GREEN = '\033[92m'
@@ -82,6 +83,30 @@ class TenantSetupVerifier:
         """Log info message."""
         if self.verbose:
             print(f"{BLUE}ℹ️  INFO:{RESET} {message}")
+
+    def _is_cache_tenant_isolated(self) -> bool:
+        """Check if cache backend enforces tenant-aware key function."""
+        try:
+            caches = getattr(settings, 'CACHES', {})
+        except Exception:
+            return False
+
+        tenant_key_path = 'apps.core.cache.key_functions.tenant_key'
+        for name, config in caches.items():
+            backend = config.get('BACKEND', '')
+            backend_lower = backend.lower()
+
+            # Only enforce for redis-like caches that can span tenants
+            if 'redis' not in backend_lower:
+                continue
+
+            options = config.get('OPTIONS') or {}
+            key_function = options.get('KEY_FUNCTION') or config.get('KEY_FUNCTION')
+            if key_function != tenant_key_path:
+                self.log_info(f"Cache '{name}' missing tenant-aware KEY_FUNCTION")
+                return False
+
+        return True
 
     def check_middleware_configuration(self) -> bool:
         """Check middleware is properly configured."""
@@ -140,9 +165,10 @@ class TenantSetupVerifier:
                 tenant_aware_models.append(model)
 
                 # Check if model has TenantAwareManager
-                manager_class = model._default_manager.__class__.__name__
+                manager = model._default_manager
+                manager_class = manager.__class__.__name__
 
-                if manager_class != 'TenantAwareManager':
+                if not isinstance(manager, TenantAwareManager):
                     missing_manager_models.append({
                         'model': model.__name__,
                         'app': model._meta.app_label,
@@ -179,6 +205,10 @@ class TenantSetupVerifier:
         print(f"\n{BLUE}{'='*80}{RESET}")
         print(f"{BLUE}CHECKING CACHE USAGE{RESET}")
         print(f"{BLUE}{'='*80}{RESET}\n")
+
+        if self._is_cache_tenant_isolated():
+            self.log_pass("Cache backend enforces tenant-aware key function globally")
+            return True
 
         apps_dir = BASE_DIR / 'apps'
         direct_cache_imports = []
@@ -350,7 +380,7 @@ class TenantSetupVerifier:
             for issue, _ in non_critical_issues:
                 print(f"{YELLOW}⚠️ {RESET} {issue}")
 
-        if warnings:
+        if self.warnings:
             print(f"\n{YELLOW}WARNINGS:{RESET}")
             for warning in self.warnings:
                 print(f"  ⚠️  {warning}")

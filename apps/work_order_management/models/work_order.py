@@ -63,9 +63,9 @@ from .enums import (
         "qset: FK to activity.QuestionSet (inspection checklist for verification)",
         "vendor: FK to Vendor (contractor performing work)",
         "parent: Self-referential FK for hierarchical breakdown",
-        "client: FK to onboarding.Bt (contract holder)",
-        "bu: FK to onboarding.Bt (site/business unit)",
-        "ticketcategory: FK to onboarding.TypeAssist (notification category)",
+        "client: FK to client_onboarding.Bt (contract holder)",
+        "bu: FK to client_onboarding.Bt (site/business unit)",
+        "ticketcategory: FK to core_onboarding.TypeAssist (notification category)",
         "WomDetails: 1-to-many (checklist questions/answers per work order)",
         "Approver: M2M via approvers/verifiers ArrayField (people IDs)",
         "Tenant isolation: All queries filtered by TenantAwareModel.tenant",
@@ -357,7 +357,7 @@ class Wom(BaseModel, TenantAwareModel):
     )
     alerts = models.BooleanField(_("Alerts"), default=False, null=True)
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -365,7 +365,7 @@ class Wom(BaseModel, TenantAwareModel):
         related_name="wo_clients",
     )
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,
         null=True,
@@ -373,7 +373,7 @@ class Wom(BaseModel, TenantAwareModel):
         related_name="wo_bus",
     )
     ticketcategory = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Notify Category"),
         null=True,
         blank=True,

@@ -25,6 +25,7 @@ MQTT Telemetry Data Models
 """
 
 import logging
+import uuid
 from typing import Dict, Any
 from datetime import datetime, timezone as dt_timezone
 
@@ -393,7 +394,7 @@ class DeviceAlert(BaseModel, TenantAwareModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='acknowledged_alerts',
+        related_name='mqtt_acknowledged_alerts',
         help_text="Person who acknowledged alert"
     )
 

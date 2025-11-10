@@ -57,7 +57,7 @@ class QueryPerformanceAnalyzer:
                 'description': 'Capability tree traversal queries'
             },
             'bt_hierarchy': {
-                'models': ['onboarding.Bt'],
+                'models': ['client_onboarding.Bt'],
                 'fields': ['parent_id', 'identifier_id', 'bucode'],
                 'description': 'Business unit hierarchy queries'
             },

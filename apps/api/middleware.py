@@ -65,8 +65,20 @@ from apps.core.exceptions import (
     DatabaseException,
     CacheException
 )
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger('api.middleware')
+
+
+def _tenant_scope_from_request(request) -> str:
+    tenant = getattr(request, 'tenant', None)
+    if tenant and getattr(tenant, 'tenant_slug', None):
+        return tenant.tenant_slug
+
+    try:
+        return get_current_db_name() or 'global'
+    except Exception:
+        return 'global'
 
 
 class APIMonitoringMiddleware(MiddlewareMixin):
@@ -272,8 +284,9 @@ class APIRateLimitMiddleware(MiddlewareMixin):
             identifier = f"user:{request.user.id}"
         else:
             identifier = f"ip:{self._get_client_ip(request)}"
-        
-        cache_key = f"rate_limit:{identifier}"
+
+        tenant_scope = _tenant_scope_from_request(request)
+        cache_key = f"rate_limit:{tenant_scope}:{identifier}"
         
         # Check current count
         current_count = cache.get(cache_key, 0)
@@ -436,8 +449,10 @@ class APICacheMiddleware(MiddlewareMixin):
         """
         import hashlib
         
-        # Include path, query params, and user context
+        # Include tenant scope, path, query params, and user context
+        tenant_scope = _tenant_scope_from_request(request)
         key_parts = [
+            tenant_scope,
             request.path,
             request.META.get('QUERY_STRING', ''),
             str(request.user.id) if request.user.is_authenticated else 'anonymous'

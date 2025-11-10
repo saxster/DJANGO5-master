@@ -35,7 +35,19 @@ source venv/bin/activate
 python --version  # Should show: Python 3.11.9
 ```
 
-### Installation (Platform-Specific)
+### Installation
+
+⚠️ **IMPORTANT**: Do NOT use `pip install -r requirements.txt` (this file has been removed to prevent platform conflicts).
+
+**Recommended: Smart Installer (Detects your platform automatically)**
+```bash
+source venv/bin/activate
+python scripts/install_dependencies.py              # Full installation
+python scripts/install_dependencies.py --dry-run    # Preview what will be installed
+python scripts/install_dependencies.py --minimal    # Core dependencies only
+```
+
+**Alternative: Manual Platform-Specific Installation**
 
 **macOS:**
 ```bash
@@ -52,6 +64,12 @@ pip install -r requirements/observability.txt
 pip install -r requirements/encryption.txt
 pip install -r requirements/ai_requirements.txt
 ```
+
+**What's the difference?**
+- **macOS**: Uses Metal Performance Shaders (MPS) for GPU acceleration, NO CUDA packages
+- **Linux**: Includes NVIDIA CUDA 12.1 libraries for GPU acceleration
+
+📖 **See**: [Complete Installation Guide](.github/INSTALL_GUIDE.md) for troubleshooting and platform-specific details
 
 ### Top 10 Commands
 
@@ -211,7 +229,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 **Enterprise facility management platform** for multi-tenant security guarding, facilities, and asset management.
 
 - **Framework**: Django 5.2.1 + PostgreSQL 14.2 with PostGIS
-- **APIs**: REST at `/api/v1/` and `/api/v2/`
+- **APIs**: Primary REST API at `/api/v2/` (type-safe, Pydantic-validated); Legacy endpoints at `/api/v1/` for specialized use cases only
 - **Task Queue**: Celery with PostgreSQL-native session storage
 - **Authentication**: Custom user model (`peoples.People`) with multi-model architecture
 - **Multi-tenancy**: Tenant-aware models with database routing
@@ -245,6 +263,18 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 ```
 
 **Note on Wellness Architecture**: The `journal` and `wellness` apps work together as an **aggregation system**. Journal entries originate from Kotlin mobile frontends with mood/stress/energy ratings. The backend analyzes these entries in real-time (`JournalAnalyticsService`) and delivers contextual, evidence-based wellness content. Site admins view aggregated wellbeing metrics through Django Admin and analytics dashboards. See [Wellness & Journal System](docs/features/DOMAIN_SPECIFIC_SYSTEMS.md#wellness--journal-system) for complete details.
+
+**Note on API Versioning (V1→V2 Migration - Nov 2025)**:
+- **Primary API**: `/api/v2/` - Type-safe REST with Pydantic validation, comprehensive endpoints for all business domains
+- **Legacy V1 Endpoints**: The following V1 endpoints remain active for specialized hardware/legacy client support:
+  - `/api/v1/biometrics/` - Biometric device integrations (face recognition, fingerprint)
+  - `/api/v1/assets/nfc/` - NFC tag scanning for asset management
+  - `/api/v1/journal/` - Mobile journal entry submission (Kotlin app)
+  - `/api/v1/wellness/` - Wellness content delivery (legacy mobile clients)
+  - `/api/v1/search/` - Global search endpoint
+  - `/api/v1/helpbot/` - AI chatbot interactions
+- **Migration Status**: All core REST API functionality migrated to V2 (Nov 7-8, 2025). Generic V1 sync serializers relocated to `apps/core/serializers/sync_base_serializers.py` for backward compatibility.
+- **Deprecation Timeline**: Legacy V1 endpoints will remain active until all specialized clients migrate to V2 equivalents.
 
 **📖 See**: [Complete System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
 
@@ -419,12 +449,19 @@ for user in People.objects.all():
 
 ---
 
-**Last Updated**: November 5, 2025 (Phase 7 Documentation - Complete refactoring playbook, training materials, retrospective)
-**Previous Update**: November 4, 2025 (Phase 1 Documentation - File size validation, refactoring patterns, ADRs)
+**Last Updated**: November 10, 2025 (Smart Dependency Installer - Platform detection and automated installation)
+**Previous Update**: November 5, 2025 (Phase 7 Documentation - Complete refactoring playbook, training materials, retrospective)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
 
-**Recent Changes (Nov 5, 2025) - Phase 7 Complete**:
+**Recent Changes (Nov 10, 2025) - Installation Improvements**:
+- ✅ **Smart Dependency Installer** created (`scripts/install_dependencies.py`) - Automatically detects platform and installs correct dependencies
+- ✅ **Root requirements.txt removed** - Prevented CUDA package conflicts on macOS
+- ✅ **Installation Guide** created (`.github/INSTALL_GUIDE.md`) - Comprehensive platform-specific setup instructions
+- ✅ **CLAUDE.md Updated** - Clear warnings and installation methods
+- 🎯 **Problem Solved**: Users no longer get `nvidia-cublas-cu12` errors on macOS
+
+**Previous Changes (Nov 5, 2025) - Phase 7 Complete**:
 - ✅ **Refactoring Playbook** created (`docs/architecture/REFACTORING_PLAYBOOK.md`) - Complete guide for future refactorings
 - ✅ **Training Materials** created in `docs/training/` (4 comprehensive guides)
   - Quality Standards Training - Architecture limits and quality gates

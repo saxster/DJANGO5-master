@@ -7,13 +7,14 @@ import apps.peoples.models as pm
 from django.db.models.functions import Concat, Cast
 from django.db.models import Value as V
 from apps.core import utils
+from apps.tenants.managers import TenantAwareManager
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 
-class BtManager(models.Manager):
+class BtManager(TenantAwareManager):
     use_in_migrations = True
 
     @staticmethod
@@ -485,7 +486,7 @@ class BtManager(models.Manager):
         return total_count, mod_design_count
 
 
-class TypeAssistManager(models.Manager):
+class TypeAssistManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",
@@ -614,7 +615,7 @@ class TypeAssistManager(models.Manager):
         return qset
 
 
-class GeofenceManager(models.Manager):
+class GeofenceManager(TenantAwareManager):
     use_in_migrations: True
     fields = [
         "id",
@@ -692,7 +693,7 @@ class GeofenceManager(models.Manager):
         return qset or self.none()
 
 
-class ShiftManager(models.Manager):
+class ShiftManager(TenantAwareManager):
     use_in_migrations: True
 
     def shift_listview(self, request, related, fields):
@@ -774,7 +775,7 @@ class ShiftManager(models.Manager):
         return data
 
 
-class DeviceManager(models.Manager):
+class DeviceManager(TenantAwareManager):
     use_in_migrations = True
 
     def get_currently_active_handsets(self, client_id):
@@ -793,7 +794,7 @@ class DeviceManager(models.Manager):
         return qset or self.none()
 
 
-class SubscriptionManger(models.Manager):
+class SubscriptionManger(TenantAwareManager):
     use_in_migrations = True
 
     def handle_subscription_postdata(self, request):

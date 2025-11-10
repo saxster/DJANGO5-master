@@ -100,21 +100,21 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
         verbose_name="People",
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,
         related_name="clients",
     )
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         blank=True,
         on_delete=models.RESTRICT,
         related_name="bus",
     )
     shift = models.ForeignKey(
-        "onboarding.Shift", null=True, blank=True, on_delete=models.RESTRICT
+        "client_onboarding.Shift", null=True, blank=True, on_delete=models.RESTRICT
     )
     verifiedby = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -125,10 +125,10 @@ class PeopleEventlog(BaseModel, TenantAwareModel):
         verbose_name="Verified By",
     )
     geofence = models.ForeignKey(
-        "onboarding.GeofenceMaster", null=True, blank=True, on_delete=models.RESTRICT
+        "core_onboarding.GeofenceMaster", null=True, blank=True, on_delete=models.RESTRICT
     )
     peventtype = models.ForeignKey(
-        "onboarding.TypeAssist", null=True, blank=True, on_delete=models.RESTRICT
+        "core_onboarding.TypeAssist", null=True, blank=True, on_delete=models.RESTRICT
     )
 
     # Phase 2: Post Assignment Tracking

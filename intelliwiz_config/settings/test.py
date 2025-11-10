@@ -102,3 +102,13 @@ for app in TEST_APPS_TO_REMOVE:
 
 import sys
 sys.stderr.write("[TEST SETTINGS] Loaded test settings with optimizations\n")
+
+# Deterministic offline modes for integration tests
+TRANSLATION_TEST_MODE = True
+SAML_SSO['test_mode'] = True
+OIDC_PROVIDER['test_mode'] = True
+OIDC_PROVIDER.setdefault('mock_tokens', {})['test-code'] = {
+    'sub': 'test-oidc-user',
+    'email': 'oidc-test@example.com',
+    'preferred_username': 'oidc-test',
+}

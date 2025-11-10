@@ -40,7 +40,12 @@ assert len(CORS_ALLOWED_ORIGINS) > 0, "CORS_ALLOWED_ORIGINS cannot be empty in d
 # Development-specific apps and middleware
 INSTALLED_APPS += ["debug_toolbar"]
 MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware")
-MIDDLEWARE.append("apps.core.middleware.query_performance_monitoring.QueryPerformanceMonitoringMiddleware")
+# Query performance middleware must run before the global exception handler to
+# honor the security ordering guarantees enforced at startup.
+MIDDLEWARE.insert(
+    len(MIDDLEWARE) - 1,
+    "apps.core.middleware.query_performance_monitoring.QueryPerformanceMonitoringMiddleware",
+)
 
 # Environment variables with security validation
 # CRITICAL: Apply Rule 4 validation - Secure Secret Management
@@ -117,8 +122,11 @@ DEFAULT_FROM_EMAIL = EMAIL_FROM_ADDRESS
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "USER": env("DBUSER"), "NAME": env("DBNAME"), "PASSWORD": env("DBPASS"),
-        "HOST": env("DBHOST"), "PORT": "5432",
+        "USER": env("DBUSER"),
+        "NAME": env("DBNAME"),
+        "PASSWORD": env("DBPASS"),
+        "HOST": env("DBHOST"),
+        "PORT": env("DBPORT", default="5432"),
         # Enable connection pooling for better performance
         "CONN_MAX_AGE": 600,  # 10 minutes - optimal for development
         "CONN_HEALTH_CHECKS": True,  # Enable connection health checks
@@ -128,6 +136,19 @@ DATABASES = {
         },
     }
 }
+
+# Local development frequently runs against a single database. Allow disabling
+# the tenant router only when explicitly requested (default is enabled to avoid
+# safety regressions spotted during audits).
+DISABLE_TENANT_ROUTER = env.bool("DISABLE_TENANT_ROUTER", default=False)
+if DISABLE_TENANT_ROUTER:
+    logging.getLogger(__name__).critical(
+        "DISABLE_TENANT_ROUTER is deprecated and will be ignored. "
+        "Multi-tenant isolation remains enabled for all environments."
+    )
+
+# Streaming and MQTT-heavy signals are disabled by default for local development
+ENABLE_ACTIVITY_STREAMING = env.bool("ENABLE_ACTIVITY_STREAMING", default=True)
 
 # OPTIMIZED Redis Configuration - Connection Pool & Performance Enhancements
 from .redis import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS

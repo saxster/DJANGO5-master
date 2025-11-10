@@ -54,6 +54,18 @@ if TWILIO_ACCOUNT_SID and not TWILIO_AUTH_TOKEN:
     )
 
 # ============================================================================
+# TRANSLATION PROVIDER CONFIGURATION
+# ============================================================================
+
+AZURE_TRANSLATOR_API_KEY = env("AZURE_TRANSLATOR_API_KEY", default="")
+AZURE_TRANSLATOR_REGION = env("AZURE_TRANSLATOR_REGION", default="")
+AZURE_TRANSLATOR_ENDPOINT = env(
+    "AZURE_TRANSLATOR_ENDPOINT",
+    default="https://api.cognitive.microsofttranslator.com"
+)
+TRANSLATION_TEST_MODE = env.bool('TRANSLATION_TEST_MODE', default=False)
+
+# ============================================================================
 # MQTT CONFIGURATION
 # ============================================================================
 
@@ -155,6 +167,10 @@ __all__ = [
     'TWILIO_ACCOUNT_SID',
     'TWILIO_AUTH_TOKEN',
     'TWILIO_FROM_NUMBER',
+    'AZURE_TRANSLATOR_API_KEY',
+    'AZURE_TRANSLATOR_REGION',
+    'AZURE_TRANSLATOR_ENDPOINT',
+    'TRANSLATION_TEST_MODE',
     'MQTT_CONFIG',
     'CLIENT_DOMAINS',
     'ENABLE_WEBHOOK_NOTIFICATIONS',

@@ -349,24 +349,24 @@ class EscalationMatrixAdmin(admin.ModelAdmin):
     list_display = (
         'id',
         'job',
-        'task',
+        'level',
         'frequency',
         'frequencyvalue',
         'notify',
-        'assignperson',
-        'assigngroup',
+        'assignedperson',
+        'assignedgroup',
     )
 
-    list_filter = ('frequency', 'notify')
-    search_fields = ('job__jobname', 'task__taskname')
+    list_filter = ('frequency', 'assignedperson', 'assignedgroup', 'notify')
+    search_fields = ('job__jobname', 'assignedperson__peoplename', 'assignedgroup__groupname')
     list_per_page = 50
 
     fieldsets = (
         ('Trigger Conditions', {
-            'fields': ('job', 'task', 'frequency', 'frequencyvalue')
+            'fields': ('job', 'level', 'frequency', 'frequencyvalue')
         }),
         ('Action Configuration', {
-            'fields': ('notify', 'assignperson', 'assigngroup')
+            'fields': ('notify', 'assignedperson', 'assignedgroup')
         }),
     )
 
@@ -375,9 +375,8 @@ class EscalationMatrixAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.select_related(
             'job',
-            'task',
-            'assignperson',
-            'assigngroup'
+            'assignedperson',
+            'assignedgroup'
         )
 
 
@@ -386,16 +385,18 @@ class SLAPolicyAdmin(admin.ModelAdmin):
     """Admin interface for SLA policies."""
 
     list_display = (
-        'id',
+        'policy_id',
+        'policy_name',
         'priority',
         'client',
         'response_time_display',
         'resolution_time_display',
         'is_active',
-        'business_hours_only',
+        'exclude_weekends',
+        'exclude_holidays',
     )
 
-    list_filter = ('priority', 'is_active', 'business_hours_only')
+    list_filter = ('priority', 'is_active', 'exclude_weekends', 'exclude_holidays')
     search_fields = ('client__btname',)
     list_per_page = 50
 
@@ -411,7 +412,7 @@ class SLAPolicyAdmin(admin.ModelAdmin):
             )
         }),
         ('Business Calendar', {
-            'fields': ('business_hours_only', 'exclude_weekends', 'exclude_holidays'),
+            'fields': ('business_hours_start', 'business_hours_end', 'exclude_weekends', 'exclude_holidays'),
             'classes': ('collapse',)
         }),
     )
@@ -458,7 +459,7 @@ class TicketWorkflowAdmin(admin.ModelAdmin):
         'escalation_level',
         'is_escalated',
         'escalation_count',
-        'escalated_at',
+        'last_escalated_at',
         'response_time_hours',
         'resolution_time_hours',
         'last_activity_at',

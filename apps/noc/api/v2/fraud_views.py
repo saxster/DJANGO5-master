@@ -26,11 +26,10 @@ from django.db import models
 from apps.peoples.models import People
 from apps.client_onboarding.models import Bt
 from apps.noc.security_intelligence.models import (
-from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
-
     FraudPredictionLog,
-    FraudDetectionModel
+    FraudDetectionModel,
 )
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
 from apps.core.decorators import require_capability
 
 logger = logging.getLogger('noc.fraud_api')

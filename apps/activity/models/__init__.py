@@ -9,6 +9,7 @@ from .question_model import Question, QuestionSet, QuestionSetBelonging
 from .nfc_models import NFCTag, NFCDevice, NFCScanLog  # Sprint 4.1
 from .asset_field_history import AssetFieldHistory, AssetLifecycleStage  # Sprint 4.4
 from .asset_analytics import AssetUtilizationMetric, MaintenanceCostTracking, AssetHealthScore  # Sprint 4.5
+from .tour import Tour  # Proxy model exposing tours
 
 # Conditional imports for models that may not exist
 try:
@@ -52,4 +53,5 @@ __all__ = [
     'AssetUtilizationMetric',
     'MaintenanceCostTracking',
     'AssetHealthScore',
+    'Tour',
 ]

@@ -92,7 +92,7 @@ class OnboardingRequest(EnhancedTenantModel):
     )
 
     changeset = models.ForeignKey(
-        'onboarding.AIChangeSet',
+        'core_onboarding.AIChangeSet',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

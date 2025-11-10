@@ -26,6 +26,17 @@ logger = logging.getLogger(__name__)
 class TicketIntegrationService:
     """Correlate help usage with ticket creation."""
 
+    @staticmethod
+    def _resolve_ticket_user(ticket):
+        """Resolve the actor who created the ticket for analytics."""
+        if hasattr(ticket, 'created_by') and ticket.created_by:
+            return ticket.created_by
+        if hasattr(ticket, 'cuser') and ticket.cuser_id:
+            return ticket.cuser
+        if hasattr(ticket, 'user') and ticket.user:
+            return ticket.user
+        return None
+
     @classmethod
     def analyze_ticket_help_usage(cls, ticket):
         """
@@ -38,14 +49,19 @@ class TicketIntegrationService:
         """
         lookback_window = timezone.now() - timedelta(minutes=30)
 
+        user = cls._resolve_ticket_user(ticket)
+        if user is None:
+            logger.info("ticket_help_correlation_skipped_no_user", extra={'ticket_id': ticket.id})
+            return None
+
         recent_views = HelpArticleInteraction.objects.filter(
-            user=ticket.created_by,
+            user=user,
             timestamp__gte=lookback_window,
             interaction_type=HelpArticleInteraction.InteractionType.VIEW
         ).select_related('article')
 
         recent_searches = HelpSearchHistory.objects.filter(
-            user=ticket.created_by,
+            user=user,
             timestamp__gte=lookback_window
         )
 
@@ -61,7 +77,7 @@ class TicketIntegrationService:
             user_help_activity=help_activity
         )
 
-        suggested_article = cls._find_relevant_article(ticket)
+        suggested_article = cls._find_relevant_article(ticket, user)
         if suggested_article:
             correlation.suggested_article = suggested_article
             correlation.relevant_article_exists = True
@@ -82,12 +98,17 @@ class TicketIntegrationService:
         return correlation
 
     @classmethod
-    def _find_relevant_article(cls, ticket):
+    def _find_relevant_article(cls, ticket, user):
         """Search for article matching ticket topic."""
+        query_text = getattr(ticket, 'title', None) or getattr(ticket, 'ticketdesc', '')
+        tenant = getattr(ticket, 'tenant', None)
+        if tenant is None or user is None or not query_text:
+            return None
+
         search_results = SearchService.hybrid_search(
-            tenant=ticket.tenant,
-            user=ticket.created_by,
-            query=ticket.title,
+            tenant=tenant,
+            user=user,
+            query=query_text,
             limit=1,
             role_filter=False
         )

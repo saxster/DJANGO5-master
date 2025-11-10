@@ -23,7 +23,7 @@ class Attachment(BaseModel, TenantAwareModel):
     )
     filename = models.ImageField(null=False, blank=False, default="default.jpg")
     ownername = models.ForeignKey(
-        "onboarding.Typeassist",
+        "core_onboarding.TypeAssist",
         on_delete=models.RESTRICT,
         null=False,
         blank=False,
@@ -31,7 +31,7 @@ class Attachment(BaseModel, TenantAwareModel):
     )
     owner = models.CharField(null=False, max_length=255, default="None")
     bu = models.ForeignKey(
-        "onboarding.Bt", null=True, blank=False, on_delete=models.RESTRICT
+        "client_onboarding.Bt", null=True, blank=False, on_delete=models.RESTRICT
     )
     datetime = models.DateTimeField(editable=True, default=timezone.now)
     attachmenttype = models.CharField(

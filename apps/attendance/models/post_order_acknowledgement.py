@@ -25,6 +25,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 
 from apps.core.models import BaseModel, TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 import hashlib
@@ -406,3 +407,4 @@ class PostOrderAcknowledgement(BaseModel, TenantAwareModel):
             'supervisor_verified': self.supervisor_verified,
             'quiz_passed': self.quiz_passed if self.quiz_taken else None,
         }
+    objects = TenantAwareManager()

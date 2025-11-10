@@ -19,12 +19,12 @@ from apps.core.error_handling import ErrorHandler
 from apps.core.exceptions import FileValidationException
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
 from apps.core.models import (
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
-
-from apps.core.exceptions.patterns import FILE_EXCEPTIONS
-
-    ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
+    ImageMetadata,
+    PhotoAuthenticityLog,
+    CameraFingerprint,
+    ImageQualityAssessment,
 )
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, FILE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -707,9 +707,11 @@ class SecureFileUploadService:
 
             # Process camera fingerprint
             if exif_metadata.get('security_analysis', {}).get('camera_fingerprint'):
-                cls._process_camera_fingerlogger.info(exif_metadata['security_analysis']['camera_fingerprint'],
+                cls._process_camera_fingerprint(
+                    exif_metadata['security_analysis']['camera_fingerprint'],
                     exif_metadata,
-                    people_id)
+                    people_id,
+                )
 
             return exif_metadata
 
@@ -811,10 +813,12 @@ class SecureFileUploadService:
             logger.warning(f"Failed to create quality assessment record: {e}")
 
     @classmethod
-    def _process_camera_fingerlogger.info(cls,
+    def _process_camera_fingerprint(
+        cls,
         fingerprint_hash: str,
         exif_metadata: dict,
-        people_id: int):
+        people_id: int,
+    ):
         """Process and update camera fingerprint tracking."""
         try:
             security_analysis = exif_metadata.get('security_analysis', {})

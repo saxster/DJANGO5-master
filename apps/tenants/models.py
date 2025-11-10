@@ -4,6 +4,8 @@ from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 import logging
 
+from apps.tenants.managers import TenantAwareManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -175,6 +177,11 @@ class TenantAwareModel(models.Model):
         # Explicit tenant filtering
         MyModel.objects.for_tenant(tenant_pk=1)
     """
+    # Ensure every subclass inherits a tenant-aware default manager. Individual
+    # models can still override/extend managers, but they must explicitly
+    # preserve tenant filtering if they do so.
+    objects = TenantAwareManager()
+
     tenant = models.ForeignKey(
         Tenant,
         null=True,  # Keep nullable for now to avoid breaking existing data
@@ -199,6 +206,8 @@ class TenantAwareModel(models.Model):
             ValidationError: If tenant cannot be determined
         """
         # Skip validation for objects loaded from fixtures/migrations
+        skip_tenant_validation = kwargs.pop('skip_tenant_validation', False)
+
         if kwargs.get('force_insert') and not self.tenant_id:
             # During migrations/fixtures, allow NULL temporarily
             # Production save() calls should never use force_insert
@@ -222,8 +231,8 @@ class TenantAwareModel(models.Model):
                 )
 
         # If still no tenant, this is an error (unless explicitly bypassed)
-        if not self.tenant_id and not kwargs.pop('skip_tenant_validation', False):
-            logger.warning(
+        if not self.tenant_id and not skip_tenant_validation:
+            logger.error(
                 f"Saving {self.__class__.__name__} without tenant association",
                 extra={
                     'model': self.__class__.__name__,
@@ -231,7 +240,9 @@ class TenantAwareModel(models.Model):
                     'security_event': 'unscoped_record_save'
                 }
             )
-            # TODO: After data migration, change this to raise ValidationError
-            # raise ValidationError("Tenant is required for all TenantAwareModel instances")
+            raise ValidationError(
+                "Tenant is required for all TenantAwareModel instances. "
+                "Pass skip_tenant_validation=True only for system records."
+            )
 
         super().save(*args, **kwargs)

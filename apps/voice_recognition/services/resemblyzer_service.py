@@ -21,6 +21,7 @@ import logging
 import numpy as np
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, FILE_IO_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,6 @@ try:
     from resemblyzer.audio import sampling_rate
     import librosa
     import soundfile as sf
-from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, FILE_IO_EXCEPTIONS
     RESEMBLYZER_AVAILABLE = True
     logger.info("Resemblyzer successfully imported - using real speaker recognition")
 except ImportError as e:

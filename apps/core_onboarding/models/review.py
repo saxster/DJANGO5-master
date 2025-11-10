@@ -37,7 +37,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
-from apps.core_onboarding.models.knowledge import AuthoritativeKnowledge
+from apps.core_onboarding.models.authoritative_knowledge import AuthoritativeKnowledge
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)

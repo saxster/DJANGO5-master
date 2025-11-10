@@ -6,6 +6,16 @@ Automatic failover handling and configuration validation.
 import logging
 import environ
 from typing import Dict, Any
+
+SETTINGS_EXCEPTIONS = (
+    ValueError,
+    TypeError,
+    AttributeError,
+    KeyError,
+    ImportError,
+    OSError,
+    IOError,
+)
 from django.core.exceptions import ImproperlyConfigured
 from .sentinel import (
     get_sentinel_settings,
@@ -131,8 +141,6 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
 
     try:
         import redis.sentinel
-# Settings-specific exceptions
-SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
         sentinel_settings = get_sentinel_settings()
 

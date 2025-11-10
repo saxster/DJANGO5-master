@@ -80,10 +80,18 @@ class ConversationSession(TenantAwareModel):
     )
 
     # Session details
-    initiated_by = models.ForeignKey(
+    user = models.ForeignKey(
         'peoples.People',
         on_delete=models.CASCADE,
-        related_name='initiated_sessions'
+        related_name='conversation_sessions'
+    )
+    client = models.ForeignKey(
+        'client_onboarding.Bt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='conversation_sessions',
+        help_text=_('Client context for this conversation')
     )
     conversation_type = models.CharField(
         _('Conversation Type'),
@@ -137,10 +145,19 @@ class ConversationSession(TenantAwareModel):
         verbose_name_plural = 'Conversation Sessions'
         indexes = [
             models.Index(fields=['context_type', 'current_state'], name='conv_context_state_idx'),
-            models.Index(fields=['initiated_by'], name='conv_user_idx'),
+            models.Index(fields=['user'], name='conv_user_idx'),
             models.Index(fields=['started_at'], name='conv_started_idx'),
         ]
         ordering = ['-started_at']
 
     def __str__(self):
         return f"{self.get_context_type_display()} - {self.get_current_state_display()}"
+
+    # Backward compatibility aliases
+    @property
+    def initiated_by(self):
+        return self.user
+
+    @initiated_by.setter
+    def initiated_by(self, value):
+        self.user = value

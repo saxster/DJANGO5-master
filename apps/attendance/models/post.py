@@ -20,6 +20,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
 from apps.core.models import BaseModel, TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 
 import logging
 
@@ -97,7 +98,7 @@ class Post(BaseModel, TenantAwareModel):
     # ========== Relationships ==========
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='posts',
         db_index=True,
@@ -105,7 +106,7 @@ class Post(BaseModel, TenantAwareModel):
     )
 
     zone = models.ForeignKey(
-        'onboarding.OnboardingZone',
+        'site_onboarding.OnboardingZone',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -114,7 +115,7 @@ class Post(BaseModel, TenantAwareModel):
     )
 
     shift = models.ForeignKey(
-        'onboarding.Shift',
+        'client_onboarding.Shift',
         on_delete=models.CASCADE,
         related_name='posts',
         db_index=True,
@@ -144,7 +145,7 @@ class Post(BaseModel, TenantAwareModel):
     )
 
     required_certifications = models.ManyToManyField(
-        'onboarding.TypeAssist',
+        'core_onboarding.TypeAssist',
         blank=True,
         related_name='required_for_posts',
         limit_choices_to={'tatype__tacode': 'CERTIFICATION'},
@@ -418,3 +419,4 @@ class Post(BaseModel, TenantAwareModel):
             'emergency_procedures': self.emergency_procedures,
             'reporting_instructions': self.reporting_instructions,
         }
+    objects = TenantAwareManager()
