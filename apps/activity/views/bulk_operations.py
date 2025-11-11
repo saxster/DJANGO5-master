@@ -44,7 +44,40 @@ class TaskBulkTransitionView(APIView):
 
     def post(self, request):
         """Execute bulk task transition"""
-        serializer = BulkTransitionSerializer(data=request.data)
+        # Get target state from request
+        target_state = request.data.get('target_state')
+        if not target_state:
+            return Response(
+                {'error': 'target_state is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delegate to shared method (DRF permissions already checked)
+        return self._perform_bulk_transition(request, target_state)
+
+    def _perform_bulk_transition(self, request, target_state):
+        """
+        Shared bulk transition logic.
+
+        This method contains the actual business logic and is called by
+        both the generic transition endpoint and convenience endpoints
+        (complete, start). By extracting this logic, we ensure that
+        all callers benefit from DRF's permission checking, middleware,
+        and request lifecycle.
+
+        Args:
+            request: DRF Request object (already authenticated)
+            target_state: Target state for transition (e.g., 'COMPLETED')
+
+        Returns:
+            Response: DRF Response with operation result
+        """
+        # Prepare request data with target state
+        request_data = dict(request.data)
+        request_data['target_state'] = target_state
+
+        # Validate request
+        serializer = BulkTransitionSerializer(data=request_data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -91,21 +124,31 @@ class TaskBulkTransitionView(APIView):
             )
 
 
-class TaskBulkCompleteView(APIView):
+class TaskBulkCompleteView(TaskBulkTransitionView):
     """
     POST /api/v1/tasks/bulk/complete
 
     Convenience endpoint for bulk completion (transition to COMPLETED).
+
+    Inherits from TaskBulkTransitionView to access shared transition logic
+    while maintaining proper DRF permission checking.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """Bulk complete tasks"""
-        # Reuse transition endpoint with target_state=COMPLETED
-        request.data['target_state'] = 'COMPLETED'
-        view = TaskBulkTransitionView()
-        return view.post(request)
+        """
+        Bulk complete tasks.
+
+        This method delegates to the parent's _perform_bulk_transition()
+        method instead of instantiating another view, ensuring that:
+        - DRF's permission_classes are checked
+        - Middleware executes properly
+        - Throttling is enforced
+        - Audit logging occurs
+        """
+        # Call shared transition logic (permissions already checked by DRF)
+        return self._perform_bulk_transition(request, 'COMPLETED')
 
 
 class TaskBulkAssignView(APIView):
@@ -155,18 +198,28 @@ class TaskBulkAssignView(APIView):
             )
 
 
-class TaskBulkStartView(APIView):
+class TaskBulkStartView(TaskBulkTransitionView):
     """
     POST /api/v1/tasks/bulk/start
 
     Convenience endpoint for bulk start (transition to INPROGRESS).
+
+    Inherits from TaskBulkTransitionView to access shared transition logic
+    while maintaining proper DRF permission checking.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """Bulk start tasks"""
-        # Reuse transition endpoint with target_state=INPROGRESS
-        request.data['target_state'] = 'INPROGRESS'
-        view = TaskBulkTransitionView()
-        return view.post(request)
+        """
+        Bulk start tasks.
+
+        This method delegates to the parent's _perform_bulk_transition()
+        method instead of instantiating another view, ensuring that:
+        - DRF's permission_classes are checked
+        - Middleware executes properly
+        - Throttling is enforced
+        - Audit logging occurs
+        """
+        # Call shared transition logic (permissions already checked by DRF)
+        return self._perform_bulk_transition(request, 'INPROGRESS')

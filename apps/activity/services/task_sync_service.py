@@ -270,6 +270,10 @@ class TaskSyncService(BaseSyncService):
         }
 
         if current_status not in allowed_transitions:
-            return True
+            logger.error(
+                f"Invalid current_status '{current_status}' in task status transition validation. "
+                f"Attempted transition to '{new_status}'. Rejecting unknown status."
+            )
+            return False  # Reject unknown statuses (SECURITY FIX)
 
         return new_status in allowed_transitions[current_status]
