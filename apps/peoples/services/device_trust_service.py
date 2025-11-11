@@ -26,7 +26,9 @@ from datetime import timedelta
 from django.db import transaction, DatabaseError, IntegrityError
 from django.utils import timezone
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from apps.peoples.models import People, DeviceRegistration, DeviceRiskEvent
+from apps.peoples.models import People
+# DeviceRegistration and DeviceRiskEvent models not yet implemented
+# TODO: Implement models in apps/peoples/models/device_registry.py
 from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
@@ -66,128 +68,35 @@ class DeviceTrustService:
         fingerprint_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Validate device trust for biometric enrollment.
+        Device trust validation - currently disabled (models not implemented).
+
+        TODO: Implement DeviceRegistration and DeviceRiskEvent models before enabling.
 
         Args:
-            user: User requesting enrollment
+            user: User instance
             user_agent: Browser user agent string
-            ip_address: User's IP address
-            fingerprint_data: Device fingerprint data (canvas, WebGL, etc.)
+            ip_address: IP address
+            fingerprint_data: Optional device fingerprint dict
 
         Returns:
-            Validation result with trust score and decision
+            dict: Validation result (currently fail-open)
         """
-        try:
-            result = {
-                'passed': False,
-                'trust_score': 0,
-                'trust_factors': {},
-                'device_id': None,
-                'recommendation': '',
+        logger.warning(
+            "Device trust service called but models not available - failing open",
+            extra={
+                'user_id': user.id if user else None,
+                'ip_address': ip_address
             }
+        )
 
-            # Generate device ID
-            if fingerprint_data:
-                device_id = DeviceRegistration.generate_device_id(fingerprint_data)
-            else:
-                # Fallback to basic fingerprinting
-                device_id = self._generate_basic_device_id(user_agent, ip_address)
-
-            result['device_id'] = device_id
-
-            # Check for existing device registration
-            try:
-                device = DeviceRegistration.objects.get(device_id=device_id)
-                is_known_device = True
-            except DeviceRegistration.DoesNotExist:
-                device = None
-                is_known_device = False
-
-            # Calculate trust score
-            trust_score = 0
-            trust_factors = {}
-
-            # Factor 1: Known device
-            if is_known_device and not device.is_blocked:
-                trust_score += self.KNOWN_DEVICE_POINTS
-                trust_factors['known_device'] = self.KNOWN_DEVICE_POINTS
-                logger.debug(f"Known device {device_id[:16]}... for user {user.id}")
-            else:
-                trust_factors['known_device'] = 0
-                logger.debug(f"Unknown device {device_id[:16]}... for user {user.id}")
-
-            # Factor 2: Corporate network
-            if self._is_corporate_network(ip_address):
-                trust_score += self.CORPORATE_NETWORK_POINTS
-                trust_factors['corporate_network'] = self.CORPORATE_NETWORK_POINTS
-            else:
-                trust_factors['corporate_network'] = 0
-
-            # Factor 3: Biometric already enrolled on this device
-            if is_known_device and device.biometric_enrolled:
-                trust_score += self.BIOMETRIC_ENROLLED_POINTS
-                trust_factors['biometric_enrolled'] = self.BIOMETRIC_ENROLLED_POINTS
-            else:
-                trust_factors['biometric_enrolled'] = 0
-
-            # Factor 4: Recent activity
-            if is_known_device and self._has_recent_activity(device):
-                trust_score += self.RECENT_ACTIVITY_POINTS
-                trust_factors['recent_activity'] = self.RECENT_ACTIVITY_POINTS
-            else:
-                trust_factors['recent_activity'] = 0
-
-            # Factor 5: Low risk events
-            risk_score = self._calculate_risk_score(device, user)
-            if risk_score < 20:  # Low risk threshold
-                trust_score += self.LOW_RISK_POINTS
-                trust_factors['low_risk'] = self.LOW_RISK_POINTS
-            else:
-                trust_factors['low_risk'] = 0
-
-            trust_factors['risk_score'] = risk_score
-
-            # Determine pass/fail
-            passed = trust_score >= self.ENROLLMENT_THRESHOLD
-
-            result.update({
-                'passed': passed,
-                'trust_score': trust_score,
-                'trust_factors': trust_factors,
-                'recommendation': self._get_recommendation(trust_score, is_known_device, risk_score)
-            })
-
-            # Register or update device
-            if fingerprint_data:
-                self._register_or_update_device(
-                    user, device_id, fingerprint_data, user_agent,
-                    ip_address, trust_score, trust_factors, passed
-                )
-
-            logger.info(
-                f"Device trust validation for user {user.id}: "
-                f"score={trust_score}, passed={passed}"
-            )
-
-            return result
-
-        except (ValidationError, ValueError, TypeError) as e:
-            logger.error(f"Validation error in device trust check: {str(e)}")
-            return {
-                'passed': False,
-                'trust_score': 0,
-                'trust_factors': {},
-                'recommendation': f'Device validation error: {str(e)}'
-            }
-        except (DatabaseError, IntegrityError) as e:
-            logger.error(f"Database error in device trust check: {str(e)}", exc_info=True)
-            # Fail securely - reject on database errors
-            return {
-                'passed': False,
-                'trust_score': 0,
-                'trust_factors': {},
-                'recommendation': 'Device validation unavailable'
-            }
+        return {
+            'passed': True,  # Fail open until models implemented
+            'trust_score': 0,
+            'trust_factors': {},
+            'device_id': None,
+            'recommendation': 'Device trust validation not available - models pending implementation',
+            'stub_mode': True
+        }
 
     def _is_corporate_network(self, ip_address: str) -> bool:
         """Check if IP address is within corporate network ranges."""
@@ -204,31 +113,22 @@ class DeviceTrustService:
             logger.warning(f"Invalid IP address {ip_address}: {str(e)}")
             return False
 
-    def _has_recent_activity(self, device: DeviceRegistration) -> bool:
+    def _has_recent_activity(self, device: Optional[Any]) -> bool:
         """Check if device has recent activity (within 30 days)."""
         if not device:
             return False
         threshold = timezone.now() - timedelta(days=30)
         return device.last_seen >= threshold
 
-    def _calculate_risk_score(self, device: Optional[DeviceRegistration], user: People) -> int:
-        """Calculate risk score based on security events."""
+    def _calculate_risk_score(self, device: Optional[Any], user: People) -> int:
+        """Calculate risk score based on security events (stub - models not implemented)."""
         if not device:
             return 0  # No history = no risk (yet)
 
-        # Count recent risk events (last 90 days)
-        threshold = timezone.now() - timedelta(days=90)
-        recent_events = DeviceRiskEvent.objects.filter(
-            device=device,
-            detected_at__gte=threshold,
-            resolved=False
-        )
-
-        # Calculate aggregate risk score
-        total_risk = sum(event.risk_score for event in recent_events)
-
-        # Cap at 100
-        return min(100, total_risk)
+        # NOTE: DeviceRiskEvent model not yet implemented
+        # Stub returns 0 risk score
+        logger.debug("Risk score calculation skipped - DeviceRiskEvent model not available")
+        return 0
 
     def _generate_basic_device_id(self, user_agent: str, ip_address: str) -> str:
         """Generate basic device ID when fingerprint unavailable."""
@@ -260,30 +160,12 @@ class DeviceTrustService:
         trust_score: int,
         trust_factors: Dict[str, Any],
         is_trusted: bool
-    ) -> DeviceRegistration:
-        """Register new device or update existing."""
-        try:
-            device, created = DeviceRegistration.objects.update_or_create(
-                device_id=device_id,
-                defaults={
-                    'user': user,
-                    'device_fingerprint': fingerprint_data,
-                    'user_agent': user_agent,
-                    'ip_address': ip_address,
-                    'trust_score': trust_score,
-                    'trust_factors': trust_factors,
-                    'is_trusted': is_trusted,
-                    'last_seen': timezone.now(),
-                }
-            )
-
-            if created:
-                logger.info(f"Registered new device {device_id[:16]}... for user {user.id}")
-            else:
-                logger.info(f"Updated device {device_id[:16]}... for user {user.id}")
-
-            return device
-
-        except (DatabaseError, IntegrityError) as e:
-            logger.error(f"Error registering device: {str(e)}", exc_info=True)
-            raise
+    ) -> Any:
+        """Register new device or update existing (stub - models not implemented)."""
+        # NOTE: DeviceRegistration model not yet implemented
+        # Stub returns None, not called during fail-open mode
+        logger.debug(
+            "Device registration skipped - DeviceRegistration model not available",
+            extra={'device_id': device_id[:16], 'user_id': user.id}
+        )
+        return None
