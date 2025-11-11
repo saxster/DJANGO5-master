@@ -4,6 +4,11 @@ People Onboarding Serializers
 DRF serializers for API endpoints.
 Complies with Rule #7: < 150 lines per class
 
+Security Note (Nov 11, 2025):
+- Uses 'exclude' pattern for sensitive fields (validated as secure)
+- Alternative 'fields' whitelist approach deprecated (serializers_fixed.py)
+- See DEPRECATED_SERIALIZERS_NOTICE.md for details
+
 Author: Claude Code
 """
 from rest_framework import serializers
