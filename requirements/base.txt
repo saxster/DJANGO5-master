@@ -178,6 +178,7 @@ pytest-cov==6.2.1
 pytest-django==4.11.1
 python-crontab==3.2.0
 python-dateutil==2.9.0.post0
+python-magic==0.4.27  # Content-based MIME detection for security (CVSS 6.1)
 pytz==2025.2
 PyYAML==6.0.2
 qrcode==8.0

@@ -7,6 +7,8 @@ Updated: 2025-10-31 - Removed unused GCS imports (optimization)
 """
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from apps.core.exceptions import IntegrationException
 from .report_tasks import (
     get_scheduled_reports_fromdb,
     generate_scheduled_report,
@@ -94,6 +96,9 @@ import requests
 import time
 import traceback as tb
 import uuid
+
+# Initialize logger for ticket tasks
+logger = logging.getLogger('background_tasks.ticket')
 
 
 @shared_task(

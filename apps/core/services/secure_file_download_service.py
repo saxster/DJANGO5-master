@@ -8,11 +8,13 @@ This service provides comprehensive security for file download operations:
 - Audit logging for compliance
 - Symlink attack prevention
 - Rate limiting to prevent file enumeration attacks
+- Content-based MIME type detection to prevent Content-Type spoofing attacks
 
 Complies with Rule #14 from .claude/rules.md - File Upload Security
 
 CVSS Scores Addressed:
 - 9.8 (Critical) - Arbitrary File Read
+- 6.1 (Medium) - Content-Type Spoofing
 - 5.3 (Medium) - File Enumeration Attack
 """
 
@@ -38,7 +40,8 @@ class SecureFileDownloadService:
     - Symlink attack detection
     - Access control integration hooks
     - Comprehensive audit logging
-    - MIME type validation
+    - MIME type validation from extension and content
+    - Content-based MIME type detection (magic bytes) to prevent Content-Type spoofing
     """
 
     # Allowed base directories for file downloads (relative to MEDIA_ROOT)
@@ -591,9 +594,148 @@ class SecureFileDownloadService:
             raise Http404("Attachment not found")
 
     @classmethod
+    def _detect_mime_from_content(cls, file_path, correlation_id):
+        """
+        Detect MIME type from file content using magic bytes.
+
+        This method provides defense-in-depth against Content-Type spoofing attacks
+        (CVSS 6.1) by validating the actual file content rather than relying solely
+        on file extensions.
+
+        Args:
+            file_path: Path to file
+            correlation_id: Request correlation ID
+
+        Returns:
+            tuple: (content_mime_type, magic_available)
+        """
+        try:
+            import magic
+            # Use magic bytes to detect MIME type from file content
+            mime = magic.Magic(mime=True)
+            content_mime = mime.from_file(str(file_path))
+            logger.debug(
+                "Content-based MIME type detected successfully",
+                extra={
+                    'correlation_id': correlation_id,
+                    'file_path': str(file_path),
+                    'content_mime': content_mime
+                }
+            )
+            return content_mime, True
+        except (ImportError, AttributeError):
+            # Fallback if python-magic not available
+            logger.warning(
+                "python-magic not available, using extension-based MIME detection only",
+                extra={'correlation_id': correlation_id}
+            )
+            return None, False
+        except (OSError, IOError, RuntimeError) as e:
+            logger.warning(
+                "Content-based MIME detection failed, using extension-based detection",
+                extra={
+                    'correlation_id': correlation_id,
+                    'file_path': str(file_path),
+                    'error': str(e)
+                }
+            )
+            return None, False
+
+    @classmethod
+    def _validate_mime_type_match(cls, extension_mime, content_mime, file_path, correlation_id):
+        """
+        Validate that extension MIME type matches content MIME type.
+
+        Security Rules for CVSS 6.1 (Content-Type Spoofing) mitigation:
+        1. If mismatch detected (e.g., .jpg with EXE magic bytes), use content MIME
+        2. If extension MIME is generic (octet-stream), use content MIME if available
+        3. Log all mismatches for security audit
+        4. Dangerous content types override safe extensions
+
+        Args:
+            extension_mime: MIME type from file extension
+            content_mime: MIME type from file content
+            file_path: File path for logging
+            correlation_id: Request correlation ID
+
+        Returns:
+            str: Final MIME type to use (content-based if suspicious)
+        """
+        # If we don't have content-based MIME, use extension-based
+        if not content_mime:
+            return extension_mime
+
+        # Normalize MIME types for comparison
+        ext_mime_base = extension_mime.split(';')[0].lower()
+        content_mime_base = content_mime.split(';')[0].lower()
+
+        # Get file extension for logging
+        filename = file_path.name.lower()
+        file_ext = filename.split('.')[-1] if '.' in filename else 'unknown'
+
+        # List of dangerous content types that indicate spoofing
+        dangerous_content_types = [
+            'application/x-msdownload',      # EXE
+            'application/x-dosexec',         # DOS executable
+            'application/x-executable',      # Generic executable
+            'application/x-mach-binary',     # Mach-O (macOS executable)
+            'application/x-elf',             # ELF (Linux executable)
+            'application/x-sh',              # Shell script
+            'application/x-bash',            # Bash script
+            'application/zip',               # ZIP archive
+            'application/x-rar',             # RAR archive
+            'application/x-7z-compressed',   # 7z archive
+        ]
+
+        # Check if content MIME is dangerous when file appears safe
+        is_suspicious = False
+        if content_mime_base in dangerous_content_types:
+            # If extension claims to be image/text/document but content is executable/archive
+            safe_mime_prefixes = ['image/', 'text/', 'application/pdf', 'application/msword']
+            if any(ext_mime_base.startswith(prefix) for prefix in safe_mime_prefixes):
+                is_suspicious = True
+
+        # Log mismatch
+        if ext_mime_base != content_mime_base or is_suspicious:
+            logger.warning(
+                "MIME type mismatch detected - CVSS 6.1 Content-Type Spoofing attempt",
+                extra={
+                    'correlation_id': correlation_id,
+                    'file_path': str(file_path),
+                    'file_extension': file_ext,
+                    'extension_mime': extension_mime,
+                    'content_mime': content_mime,
+                    'is_suspicious': is_suspicious,
+                    'action': 'using_content_mime_type'
+                }
+            )
+            # Use content-based MIME for suspicious cases
+            return content_mime
+
+        # MIME types match or are compatible
+        logger.debug(
+            "MIME type validation passed",
+            extra={
+                'correlation_id': correlation_id,
+                'file_path': str(file_path),
+                'mime_type': extension_mime,
+                'magic_detection': True
+            }
+        )
+        return extension_mime
+
+    @classmethod
     def _create_secure_response(cls, file_path, original_filename, correlation_id):
         """
         Create secure FileResponse with appropriate headers.
+
+        Security Features:
+        1. Extension-based MIME type detection
+        2. Content-based MIME type detection (magic bytes) - CVSS 6.1 mitigation
+        3. MIME type mismatch validation and spoofing detection
+        4. X-Content-Type-Options: nosniff header to prevent MIME sniffing attacks
+        5. Content-Disposition header with proper inline/attachment handling
+        6. Content-Security-Policy headers to prevent script execution
 
         Args:
             file_path: Validated Path object
@@ -601,15 +743,31 @@ class SecureFileDownloadService:
             correlation_id: Request correlation ID
 
         Returns:
-            FileResponse: Secure file response
+            FileResponse: Secure file response with CVSS 6.1 spoofing protection
+
+        Raises:
+            Http404: If file cannot be opened
         """
         import mimetypes
 
         try:
-            # Guess MIME type from file extension
-            mime_type, _ = mimetypes.guess_type(str(file_path))
-            if not mime_type:
-                mime_type = 'application/octet-stream'
+            # Phase 1: Get MIME type from file extension
+            extension_mime, _ = mimetypes.guess_type(str(file_path))
+            if not extension_mime:
+                extension_mime = 'application/octet-stream'
+
+            # Phase 2: Get MIME type from file content (magic bytes)
+            # This provides defense-in-depth against Content-Type spoofing (CVSS 6.1)
+            content_mime, magic_available = cls._detect_mime_from_content(file_path, correlation_id)
+
+            # Phase 3: Validate MIME type match and resolve differences
+            # Uses content-based MIME if extension appears spoofed
+            mime_type = cls._validate_mime_type_match(
+                extension_mime,
+                content_mime,
+                file_path,
+                correlation_id
+            )
 
             # Open file for streaming
             file_handle = open(file_path, 'rb')
@@ -652,13 +810,17 @@ class SecureFileDownloadService:
             # X-Permitted-Cross-Domain-Policies - Flash security
             response['X-Permitted-Cross-Domain-Policies'] = 'none'
 
-            logger.debug(
-                "Secure response created with CSP headers",
+            logger.info(
+                "Secure response created with MIME validation and CSP headers",
                 extra={
                     'correlation_id': correlation_id,
                     'file_path': str(file_path),
-                    'mime_type': mime_type,
-                    'csp_enabled': True
+                    'final_mime_type': mime_type,
+                    'extension_mime': extension_mime,
+                    'content_mime': content_mime,
+                    'magic_available': magic_available,
+                    'csp_enabled': True,
+                    'nosniff_enabled': True
                 }
             )
 

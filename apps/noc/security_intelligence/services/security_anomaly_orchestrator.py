@@ -311,6 +311,7 @@ class SecurityAnomalyOrchestrator:
             return None
 
     @classmethod
+    @transaction.atomic
     def _create_fraud_ticket(cls, attendance_event, fraud_score_result, alert):
         """
         Create ticket for high fraud score detections.

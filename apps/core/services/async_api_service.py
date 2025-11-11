@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.core.services.base_service import BaseService
@@ -151,7 +153,7 @@ class AsyncExternalAPIService(BaseService):
                 'message': 'API call queued successfully'
             }
 
-        except (DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (DatabaseError, TypeError, ValidationError, ValueError) as e:
             error_msg = f"Failed to initiate API call: {str(e)}"
             logger.error(error_msg, exc_info=True)
             raise ValueError(error_msg)
@@ -221,7 +223,7 @@ class AsyncExternalAPIService(BaseService):
                     'estimated_completion': task_data.get('estimated_completion')
                 }
 
-        except (DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (DatabaseError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Failed to get task status: {str(e)}")
             return {
                 'status': 'error',
@@ -289,7 +291,7 @@ class AsyncExternalAPIService(BaseService):
                 'status': 'queued'
             }
 
-        except (ConnectionError, DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (ConnectionError, DatabaseError, TypeError, ValidationError, ValueError) as e:
             error_msg = f"Failed to initiate bulk API calls: {str(e)}"
             logger.error(error_msg, exc_info=True)
             raise ValueError(error_msg)
@@ -325,7 +327,7 @@ class AsyncExternalAPIService(BaseService):
                 'message': 'Task cancelled successfully'
             }
 
-        except (ConnectionError, DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (ConnectionError, DatabaseError, TypeError, ValidationError, ValueError) as e:
             error_msg = f"Failed to cancel task: {str(e)}"
             logger.error(error_msg)
             return {
@@ -357,7 +359,7 @@ class AsyncExternalAPIService(BaseService):
                 except ValueError:
                     pass  # Not an IP address, likely a domain name
 
-        except (ConnectionError, DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (ConnectionError, DatabaseError, TypeError, ValidationError, ValueError) as e:
             raise ValueError(f"Invalid URL: {str(e)}")
 
     def _sanitize_headers(self, headers: Optional[Dict[str, str]]) -> Dict[str, str]:
@@ -393,7 +395,7 @@ class AsyncExternalAPIService(BaseService):
             cache.set(key, current_count + 1, timeout=3600)
             return True
 
-        except (ConnectionError, DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (ConnectionError, DatabaseError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Rate limit check failed: {str(e)}")
             return True  # Allow on error
 
@@ -406,7 +408,7 @@ class AsyncExternalAPIService(BaseService):
         try:
             cache_key = self._generate_cache_key(url, headers)
             return cache.get(cache_key)
-        except (ConnectionError, DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (ConnectionError, DatabaseError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Cache retrieval failed: {str(e)}")
             return None
 
@@ -422,7 +424,7 @@ class AsyncExternalAPIService(BaseService):
             cache_key = self._generate_cache_key(url, headers)
             cache.set(cache_key, response, timeout=ttl)
             logger.debug(f"Response cached for {url}")
-        except (ConnectionError, DatabaseError, IntegrationException, TypeError, ValidationError, ValueError) as e:
+        except (ConnectionError, DatabaseError, TypeError, ValidationError, ValueError) as e:
             logger.error(f"Cache storage failed: {str(e)}")
 
     def _generate_cache_key(self, url: str, headers: Optional[Dict[str, str]]) -> str:

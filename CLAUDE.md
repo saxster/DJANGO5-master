@@ -12,6 +12,7 @@
 - [Development Best Practices](#development-best-practices)
 - [📚 Complete Documentation](#-complete-documentation)
 - [Support](#support)
+- [Recent Updates](#recent-updates)
 
 ---
 
@@ -116,7 +117,7 @@ python manage.py shell -c "from django.core.cache import cache; cache.client.get
 
 If Redis unavailable, middleware logs warning and operates in **fail-open mode** (allows all requests - less secure but prevents blocking legitimate users).
 
-📖 **See**: [Settings & Configuration](docs/configuration/SETTINGS_AND_CONFIG.md) for complete Redis setup
+📖 **See**: `intelliwiz_config/settings/base.py` for complete Redis configuration
 
 ### Top 10 Commands
 
@@ -149,7 +150,7 @@ python manage.py validate_schedules --verbose
 python manage.py validate_schedules --check-orphaned-tasks
 ```
 
-**📖 See**: [Complete Command Reference](docs/workflows/COMMON_COMMANDS.md)
+📖 **More commands**: Check `scripts/` directory and app-level documentation
 
 ---
 
@@ -309,7 +310,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 /journal/analytics/  # Wellbeing trends dashboard (admin)
 ```
 
-**Note on Wellness Architecture**: The `journal` and `wellness` apps work together as an **aggregation system**. Journal entries originate from Kotlin mobile frontends with mood/stress/energy ratings. The backend analyzes these entries in real-time (`JournalAnalyticsService`) and delivers contextual, evidence-based wellness content. Site admins view aggregated wellbeing metrics through Django Admin and analytics dashboards. See [Wellness & Journal System](docs/features/DOMAIN_SPECIFIC_SYSTEMS.md#wellness--journal-system) for complete details.
+**Note on Wellness Architecture**: The `journal` and `wellness` apps work together as an **aggregation system**. Journal entries originate from Kotlin mobile frontends with mood/stress/energy ratings. The backend analyzes these entries in real-time (`JournalAnalyticsService`) and delivers contextual, evidence-based wellness content. Site admins view aggregated wellbeing metrics through Django Admin and analytics dashboards.
 
 **Note on API Versioning (V1→V2 Migration - Nov 2025)**:
 - **Primary API**: `/api/v2/` - Type-safe REST with Pydantic validation, comprehensive endpoints for all business domains
@@ -323,7 +324,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 - **Migration Status**: All core REST API functionality migrated to V2 (Nov 7-8, 2025). Generic V1 sync serializers relocated to `apps/core/serializers/sync_base_serializers.py` for backward compatibility.
 - **Deprecation Timeline**: Legacy V1 endpoints will remain active until all specialized clients migrate to V2 equivalents.
 
-**📖 See**: [Complete System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
+📖 **See**: [Architecture Decision Records](docs/architecture/adr/) and [Documentation Index](docs/DOCUMENTATION_INDEX.md)
 
 ---
 
@@ -405,60 +406,11 @@ for user in People.objects.all():
 
 ## 📚 Complete Documentation
 
-> **⚠️ DOCUMENTATION NOTICE (Nov 11, 2025):**
-> The comprehensive docs/ structure referenced below was removed during V2 migration (commit 4dc48df). Most documentation exists as completion reports in the root directory. Documentation reorganization is pending.
->
-> **Available Documentation:**
-> - Architecture Decision Records: `docs/architecture/adr/` (active)
-> - Completion Reports: Root directory (see Key Reference Documents below)
-> - App-Level Docs: `apps/*/docs/` and `apps/*/README.md`
+> **Note**: Most documentation removed during V2 migration (Nov 2025) has been archived. See [docs/reference/DEPRECATED_DOCS.md](docs/reference/DEPRECATED_DOCS.md) for removed documentation and replacement resources.
 
-<!-- COMMENTED OUT - Documentation files removed in V2 migration (Nov 8, 2025)
-### Architecture & Design
+### Documentation Index
 
-- **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
-- **[Query Optimization Architecture](docs/architecture/QUERY_OPTIMIZATION_ARCHITECTURE.md)** - N+1 detection vs optimization service, decision tree, performance patterns
-- **[Refactoring Patterns](docs/architecture/REFACTORING_PATTERNS.md)** - God file refactoring patterns with step-by-step guide and examples
-- **[Refactoring Playbook](docs/architecture/REFACTORING_PLAYBOOK.md)** ⚠️ **MANDATORY** - Complete refactoring guide for future work (Phase 1-6 patterns)
-- **[Architecture Decision Records (ADRs)](docs/architecture/adr/)** - Documented architectural decisions with context and consequences
-- **[Project Retrospective](docs/PROJECT_RETROSPECTIVE.md)** - Complete Phase 1-6 refactoring journey with lessons learned
-
-### Workflows & Operations
-
-- **[Common Commands](docs/workflows/COMMON_COMMANDS.md)** - Complete command reference organized by category
-- **[Background Processing](docs/workflows/BACKGROUND_PROCESSING.md)** - Enterprise Celery with specialized queues, monitoring, circuit breakers
-- **[Celery Configuration Guide](docs/workflows/CELERY_CONFIGURATION_GUIDE.md)** ⚠️ **MANDATORY** - Complete Celery standards (decorators, naming, organization, beat schedule)
-- **[Idempotency Framework](docs/workflows/IDEMPOTENCY_FRAMEWORK.md)** - Duplicate task prevention with Redis + PostgreSQL fallback
-
-### Testing & Quality
-
-- **[Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)** - Comprehensive testing docs, code quality validation, pre-commit hooks, quality metrics
-- **[Testing Training](docs/training/TESTING_TRAINING.md)** - Writing effective tests for refactored code
-- **[Exception Handling Quick Reference](docs/quick_reference/EXCEPTION_HANDLING_QUICK_REFERENCE.md)** - Pattern selector, best practices, validation
-
-### API & Integration
-
-- **[Type-Safe API Contracts](docs/api/TYPE_SAFE_CONTRACTS.md)** - REST v1/v2 with Pydantic, WebSocket patterns, Kotlin/Swift codegen, OpenAPI schemas
-
-### Features & Systems
-
-- **[Domain-Specific Systems](docs/features/DOMAIN_SPECIFIC_SYSTEMS.md)** - Security AI Mentor (7 pillars), Stream Testbench, Caching Strategy, Face Recognition, NOC, Reports System
-
-### Configuration & Setup
-
-- **[Settings & Configuration](docs/configuration/SETTINGS_AND_CONFIG.md)** - Environment files, settings structure, database config, logging, Redis, security settings
-
-### Team Training
-
-- **[Quality Standards Training](docs/training/QUALITY_STANDARDS_TRAINING.md)** - Understanding quality gates and architecture limits
-- **[Refactoring Training](docs/training/REFACTORING_TRAINING.md)** - How to split god files using proven patterns
-- **[Service Layer Training](docs/training/SERVICE_LAYER_TRAINING.md)** - Implementing ADR 003 service patterns
-- **[Testing Training](docs/training/TESTING_TRAINING.md)** - Writing effective tests for refactored code
-
-### Troubleshooting
-
-- **[Common Issues](docs/troubleshooting/COMMON_ISSUES.md)** - Solutions to pre-commit hooks, CI/CD, legacy API quirks, idempotency, Celery, Flake8, database, Redis, performance issues
--->
+📖 **[Complete Documentation Catalog](docs/DOCUMENTATION_INDEX.md)** - Comprehensive index of all project documentation with status tracking and navigation.
 
 ### Architecture Decision Records (Active)
 
@@ -497,335 +449,22 @@ for user in People.objects.all():
 ## Support
 
 - **Security issues**: Contact security team immediately
-- **Architecture questions**: Review [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md) and domain guides
-- **Quality violations**: Run validation tools before asking - see [Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)
-- **Common problems**: Check [Troubleshooting Guide](docs/troubleshooting/COMMON_ISSUES.md) first
-- **New features**: Follow architecture limits and refactoring patterns
+- **Architecture questions**: Review [Architecture Decision Records](docs/architecture/adr/) and completion reports
+- **Quality violations**: Run validation tools before asking - see `.claude/rules.md`
+- **Common problems**: Check `KNOWN_RACE_CONDITIONS.md` and GitHub issues
+- **New features**: Follow architecture limits in CLAUDE.md and `.claude/rules.md`
 
 ---
 
-**Last Updated**: November 11, 2025 (Ultrathink Phase 7 - Security & Technical Debt: 4 observations verified, 1 CRITICAL race condition fixed)
-**Previous Update**: November 11, 2025 (Ultrathink Phase 6 - ML Conflict Prediction: 5 verified issues resolved, full ML infrastructure implemented)
+**Last Updated**: November 11, 2025
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
 
-**Recent Changes (Nov 11, 2025) - Ultrathink Remediation Phase 7 (4 Observations - COMPLETE)**:
+## Recent Updates
 
-**HIGH PRIORITY (Sprint 1 - Race Condition Fix)**:
-- ✅ **Issue #1: People Onboarding Race Condition FIXED** (`apps/people_onboarding/views.py:86-89`)
-  - **Problem**: `count() + 1` generates duplicate ONB-YYYY-XXXXX numbers causing IntegrityError crashes
-  - **Fix**: PostgreSQL sequence for atomic counter generation
-  - Implemented `generate_request_number()` utility using database sequence
-  - Extracted workflow validation to `apps/people_onboarding/utils/workflow_validator.py`
-  - Migration: `0003_add_request_number_sequence.py` creates PostgreSQL sequence
-  - Tests: 3 tests added (2 passed, 1 skipped), 100% pass rate
-  - Impact: Eliminates crashes during concurrent onboarding (batch new hires)
-  - Compliance: Rule #7 (model 145 lines, under 150 limit)
+- **Nov 11, 2025**: Ultrathink Phase 7 - Race condition fix + 3 technical debt items ([details](ULTRATHINK_REMEDIATION_PHASE7_COMPLETE.md))
+- **Nov 11, 2025**: Ultrathink Phase 6 - ML conflict prediction infrastructure ([details](ULTRATHINK_REMEDIATION_PHASE6_COMPLETE.md))
+- **Nov 11, 2025**: Ultrathink Phase 5 - 11 security vulnerabilities + critical bugs fixed ([details](ULTRATHINK_REMEDIATION_PHASE5_COMPLETE.md))
+- **Nov 10, 2025**: Installation improvements - Smart dependency installer ([details](.github/INSTALL_GUIDE.md))
 
-**LOW PRIORITY (Sprint 2 - Technical Debt Cleanup)**:
-- ✅ **Issue #2: Orphaned People Services File DELETED** (`apps/peoples/services.py`)
-  - Missing `authenticate()` import (NameError risk if code were executed)
-  - Reality: Dead code (shadowed by `services/` package directory, zero usage)
-  - Archived to `.deprecated/peoples/services_legacy_2025_09_28.py`
-  - Comprehensive deprecation notice created
-  - Superseded by modern `apps/peoples/services/authentication_service.py`
-- ✅ **Issue #3: Site Service Authorization ENHANCED** (`apps/site_onboarding/services/site_service.py`)
-  - Added ownership validation to `add_observation()` method
-  - Validates site ownership, media ownership, tenant isolation
-  - Impact: ZERO currently (service not exposed), CRITICAL when API added (prevents IDOR)
-  - Tests: 4 authorization tests added (100% pass rate)
-- ✅ **Issue #4: OnboardingAPIMiddleware REMOVED** (`intelliwiz_config/settings/middleware.py`)
-  - Orphaned middleware (app not in INSTALLED_APPS, URLs not mounted)
-  - Middleware scope would miss V2 endpoints (rate limiting bypass)
-  - Reality: App is orphaned, middleware has no endpoints to protect
-  - Comprehensive deprecation notice: `apps/onboarding_api/DEPRECATION_NOTICE.md`
-
-**TECHNICAL DEBT DOCUMENTED (Not Fixed)**:
-- ⚠️ **Work Order Management** `count() + 1` (line 328) - MEDIUM priority (duplicate sequence numbers, no crashes)
-- ⚠️ **Report Generation** `count() + 1` (line 217) - LOW priority (iteration numbers, rare scenario)
-- Both documented in `KNOWN_RACE_CONDITIONS.md` for future remediation
-
-📊 **Phase 7 Impact**: 4 observations verified, 1 CRITICAL fix, 3 cleanups, 4 files modified, 10 files created, 1 file deleted, 7 tests added (6 passed, 1 skipped), ~500 lines code, ~1,000 lines documentation, 100% backward compatibility
-
-**Investigation Method**: Parallel agent dispatch (4 concurrent investigations using superpowers:dispatching-parallel-agents skill)
-
-**Documentation**: `ULTRATHINK_REMEDIATION_PHASE7_COMPLETE.md` (complete technical report)
-
----
-
-**Previous Changes (Nov 11, 2025) - Ultrathink Remediation Phase 6 (5 Verified Issues - COMPLETE)**:
-
-**CRITICAL Priority (Phase 1 - 30 minutes)**:
-- ✅ **Issue #1: Help Center Race Condition** (`apps/help_center/gamification_models.py:166-200`) - Data loss prevented
-  - Replaced in-memory increment with atomic F() expressions in `add_points()` method
-  - Prevents lost points when multiple workers award points simultaneously
-  - Tests: 3 comprehensive tests added (single worker, atomic updates, invalid category)
-  - Impact: Fixes race condition affecting gamification accuracy and user trust
-
-**HIGH Priority (Phase 2 - 1.5 hours)**:
-- ✅ **Issue #5: MQTT Missing Imports** (`apps/journal/mqtt_integration.py:12-37`) - Crash prevention
-  - Added missing imports: `DatabaseError`, `IntegrityError`, `ObjectDoesNotExist`
-  - Defined `IntegrationException` custom exception class
-  - Fixed 14 exception handlers that would crash with NameError
-  - Impact: Prevents crashes in crisis intervention alerts and wellness notifications
-- ✅ **Issue #3: DLQ Retrieval Not Implemented** (`apps/integrations/services/webhook_dispatcher.py:498-567`) - Operational visibility
-  - Implemented Redis pattern scanning with `SCAN` command
-  - Added pagination support (default limit: 100 entries)
-  - Returns sorted entries (newest first) with DLQ keys for retry
-  - Tests: 8 comprehensive tests (empty queue, single entry, filtering, pagination, sorting)
-  - Impact: Operators can now inspect and replay failed webhooks
-
-**MEDIUM Priority (Phase 3 - 11 hours - ML Conflict Prediction Infrastructure)**:
-- ✅ **Issue #6: ML Conflict Extractor Stub** (`apps/ml/services/data_extractors/conflict_data_extractor.py`) - Full implementation
-  - Created sync tracking models: `SyncLog` and `ConflictResolution` (apps/core/models/sync_tracking.py)
-  - Implemented `SyncLoggingMiddleware` to capture all sync operations
-  - Created `ConflictDetector` service for real-time concurrent edit detection
-  - Replaced stub feature extraction with real implementation (5 ML features)
-  - Migration: `apps/core/migrations/0004_sync_tracking_models.py` generated
-  - Impact: ML conflict prediction now functional with real training data
-
-**LOW Priority (Phase 4 - 3 hours - ML Training Implementation)**:
-- ✅ **Issue #7: ML Training Stub** (`apps/ml_training/services/training_orchestrator.py:179-295`) - Lightweight training implemented
-  - Replaced stub with sklearn-based training (RandomForest, LogisticRegression)
-  - Added train/test split with stratification
-  - Implemented real metrics: accuracy, precision, recall, F1 score
-  - Added dataset loading helper with fallback for testing
-  - Impact: Dev/test environments can now train models without external platforms
-
-**FALSE POSITIVES (No Action Taken)**:
-- ❌ **Issue #2: Helpbot Semantic Index** - Intentional stub with PostgreSQL FTS fallback (documented)
-- ❌ **Issue #4: Issue Tracker Zero Values** - Correct behavior for anomaly detection domain
-
-📊 **Phase 6 Impact**: 5/7 verified issues resolved (2 false positives), 9 files modified, 4 new files created, 1 migration generated, 11+ tests added, 100% backward compatibility
-
-**New Files Created**:
-- `apps/core/models/sync_tracking.py` - SyncLog and ConflictResolution models (275 lines)
-- `apps/core/middleware/sync_logging_middleware.py` - Sync operation instrumentation (248 lines)
-- `apps/core/services/conflict_detector.py` - Real-time conflict detection (275 lines)
-- `apps/integrations/tests/test_webhook_dispatcher.py` - DLQ retrieval tests (173 lines)
-
-**Files Modified**:
-- `apps/help_center/gamification_models.py` - Atomic F() expressions for points
-- `apps/help_center/tests/test_models.py` - Race condition tests
-- `apps/journal/mqtt_integration.py` - Exception imports
-- `apps/integrations/services/webhook_dispatcher.py` - DLQ retrieval
-- `apps/ml/services/data_extractors/conflict_data_extractor.py` - Real feature extraction
-- `apps/ml_training/services/training_orchestrator.py` - Sklearn training
-- `apps/core/models/__init__.py` - Export sync tracking models
-- `apps/y_helpdesk/managers/__init__.py` - Backward compatibility alias
-- `apps/core/migrations/0004_sync_tracking_models.py` - Database migration (generated)
-
-**Architecture Additions**:
-- **ML Conflict Prediction System**: Complete infrastructure for predicting sync conflicts
-  - 2 new models tracking sync operations and conflicts
-  - Middleware capturing all sync operations from mobile/web clients
-  - Real-time conflict detector service (5-minute window)
-  - 5 ML features: concurrent editors, time since last sync, user conflict rate, entity edit frequency, field overlap
-  - Integration with existing ML training pipeline
-- **Webhook DLQ Inspection**: Operators can now retrieve and analyze failed webhooks
-- **Atomic Points System**: Race-condition-free gamification
-
-**Next Steps**:
-1. Run migration: `python manage.py migrate core`
-2. Add `SyncLoggingMiddleware` to `MIDDLEWARE` in settings (optional - enables ML conflict detection)
-3. Configure sync endpoints in middleware if using custom paths
-4. Monitor conflict detection logs for tuning
-
----
-
-**Recent Changes (Nov 11, 2025) - Ultrathink Remediation Phase 5 (11 Issues - COMPLETE)**:
-
-**CRITICAL Priority (Sprint 1 - 3 Security Vulnerabilities)**:
-- ✅ **Issue #1: SwitchSite Cross-Tenant IDOR** (`apps/client_onboarding/views/site_views.py`) - Horizontal privilege escalation eliminated
-  - Added authorization validation using `Pgbelonging.objects.get_assigned_sites_to_people()`
-  - Returns 403 for unauthorized site access attempts
-  - Refactored to 4 helper methods to meet Rule #8 (30-line limit)
-  - Added comprehensive security logging for audit trail
-  - Tests: 6/6 passing (IDOR detection, enumeration prevention, admin boundaries)
-- ✅ **Issue #2: Dashboard Cache Poisoning** (`apps/dashboard/views.py`) - Cross-tenant data leakage prevented
-  - Removed dangerous `bu_id` fallback (shared across tenants)
-  - Returns only `tenant_id` or None for strict tenant isolation
-  - Both callers return 400 error for misconfigured users
-  - Tests: 5/5 passing (cache isolation, tenant boundary enforcement)
-- ✅ **Issue #3: HTTP Header Injection** (`apps/ai_testing/views.py`) - CWE-113 vulnerability eliminated
-  - Created 7-layer `sanitize_filename()` function (CRLF, control chars, quotes, Unicode, path traversal, whitelist, length limit)
-  - Applied to both preview and download endpoints
-  - Prevents XSS, session hijacking, cache poisoning, Content-Type override
-  - Tests: 9/9 passing (CRLF, quote escaping, path traversal, Unicode, legitimate filenames)
-
-**HIGH Priority (Sprint 2 - 2 Critical Bugs)**:
-- ✅ **Issue #4: Task Sync Invalid Status Acceptance** (`apps/activity/services/task_sync_service.py`) - State machine bypass fixed
-  - Changed fallback from `return True` to `return False` for unknown statuses
-  - Added error logging for rejected statuses (audit trail)
-  - Prevents data corruption from malformed/malicious status values
-  - Tests: 17/17 passing (invalid status rejection, SQL injection prevention, state machine validation)
-- ✅ **Issue #5: DRF Authentication Bypass** (`apps/activity/views/bulk_operations.py`) - Framework security enforced
-  - Refactored from direct view instantiation to inheritance pattern
-  - `TaskBulkCompleteView` and `TaskBulkStartView` now properly inherit from `TaskBulkTransitionView`
-  - All DRF security middleware now enforced (permissions, throttling, auditing)
-  - Extracted shared logic to `_perform_bulk_transition()` method
-  - Tests: Comprehensive security and integration tests added
-
-**MEDIUM Priority (Sprint 3 - 4 Runtime Errors)**:
-- ✅ **Issue #6: Mobile Consumers V1 Import** (`apps/api/mobile_consumers.py`) - Updated to V2 sync engine
-  - Fixed: `from .v1.views.mobile_sync_views import sync_engine` → `from apps.core.services.sync.sync_engine_service import SyncEngine`
-  - Prevents WebSocket connection crashes on mobile sync operations
-- ✅ **Issue #7: Missing AnonymousUser Import** (`apps/core/middleware/file_upload_security_middleware.py`) - Import added
-  - Added: `from django.contrib.auth.models import AnonymousUser`
-  - Prevents NameError crashes in file upload middleware
-- ✅ **Issue #8: Wrong Enum Path** (`apps/core_onboarding/background_tasks/conversation_tasks.py`) - Fixed 6 occurrences
-  - Changed: `StateChoices.ERROR` → `CurrentState.ERROR` (and GENERATING_RECOMMENDATIONS, AWAITING_USER_APPROVAL)
-  - Prevents AttributeError crashes in Celery task state transitions
-- ✅ **Issue #9: Missing Typing Imports** (`apps/face_recognition/integrations.py`) - Typing imports added
-  - Added: `from typing import Optional, Dict, Any, List`
-  - Fixes type checking failures and Python 3.8 compatibility
-
-**EDGE CASES (Sprint 4 - 2 DateTime Issues)**:
-- ✅ **Issue #10: Timezone make_aware Crash** (`apps/attendance/services/emergency_assignment_service.py`) - Conditional check added
-  - Added `timezone.is_naive()` check before calling `timezone.make_aware()`
-  - Handles both naive and aware datetimes correctly
-  - Tests: Comprehensive datetime edge case tests added
-- ✅ **Issue #11: DateTime Z Suffix Rejection** (`apps/calendar_view/services.py`) - ISO8601 compatibility fixed
-  - Added Z-to-+00:00 replacement before `datetime.fromisoformat()`
-  - Mobile apps (Kotlin, Swift) with "Z" suffix now parse correctly
-  - Tests: Zulu time handling tests added
-
-📊 **Phase 5 Impact**: 11/11 issues resolved (100%), 28 files modified, 2,752 lines added, 130 lines removed, 57+ tests added (100% pass rate), 4 git commits, 100% backward compatibility
-
-**Key Files Modified**:
-- Security: `apps/client_onboarding/views/site_views.py`, `apps/dashboard/views.py`, `apps/ai_testing/views.py`
-- High Priority: `apps/activity/services/task_sync_service.py`, `apps/activity/views/bulk_operations.py`
-- Runtime Errors: `apps/api/mobile_consumers.py`, `apps/core/middleware/file_upload_security_middleware.py`, `apps/core_onboarding/background_tasks/conversation_tasks.py`, `apps/face_recognition/integrations.py`
-- Edge Cases: `apps/attendance/services/emergency_assignment_service.py`, `apps/calendar_view/services.py`
-
-**Test Files Created**: 9 new test files with 57+ comprehensive tests (security, integration, edge cases)
-
-**Documentation**: `ULTRATHINK_REMEDIATION_PHASE5_COMPLETE.md` (complete technical report)
-
----
-
-**Previous Changes (Nov 11, 2025) - Ultrathink Remediation Phase 3 (6 Critical Issues)**:
-
-**CRITICAL Priority (Phase 1):**
-- ✅ **Issue #5: Site Onboarding Missing FK Fixed** (`apps/site_onboarding/services/site_service.py`) - IntegrityError prevention
-  - SiteService.create_site() now requires conversation_session FK before creating OnboardingSite
-  - Made conversation_session_id a required parameter (removed default=None)
-  - Removed invalid 'name' field reference (field doesn't exist on model)
-  - Added test_create_site_requires_conversation_session() for FK validation
-  - Prevents 100% crash rate with IntegrityError: NOT NULL constraint failed
-- ✅ **Issue #6: Streamlab Orphaned Async Tasks Fixed** (`apps/streamlab/consumers.py`) - Memory leak elimination
-  - Added task lifecycle management to StreamMetricsConsumer
-  - Store task reference in self.periodic_task, cancel on disconnect()
-  - Proper asyncio.CancelledError handling in send_periodic_updates()
-  - Added test_background_task_cancelled_on_disconnect() lifecycle test
-  - Prevents zombie tasks hammering DB after WebSocket disconnect
-
-**HIGH Priority (Phase 2):**
-- ✅ **Issue #4: Service Auth Module Deprecated** (`apps/service/auth.py`) - Security vulnerability documentation
-  - Added DeprecationWarning to all 4 authentication functions
-  - Created comprehensive apps/service/DEPRECATION_NOTICE.md (250+ lines)
-  - Documented critical bugs: KeyError risk, IP validation bypass (allowAccess reset to True), password logging
-  - Verified zero production usage (legacy GraphQL auth, modern code uses apps.peoples.services.authentication_service)
-  - Scheduled removal: March 2026
-
-**CLEANUP Priority (Phase 3):**
-- ✅ **Issue #1: Scheduler Dead Code Removed** (`apps/scheduler/services.py`) - 94 lines eliminated
-  - Deleted unused TourJobService class with missing imports (Job, DatabaseConstants, DatabaseError, ObjectDoesNotExist)
-  - Fixed duplicate Cast import in apps/scheduler/models/reminder.py
-  - Updated 6 background_tasks files: apps.reminder → apps.scheduler.models.reminder imports
-- ✅ **Issue #2: Search Cache No-op Removed** (`apps/search/services/caching_service.py`) - 42 lines eliminated
-  - Deleted invalidate_entity_cache() method (only logged, never invalidated Redis)
-  - Removed test_cache_invalidation_on_entity_update() (test admitted it didn't work)
-  - Added TODO comment for future cache invalidation implementation
-- ✅ **Issue #3: Security Intelligence Shim Deleted** (`apps/security_intelligence/`) - 32 lines eliminated
-  - Deleted entire orphaned legacy app directory (re-imported apps.noc.security_intelligence)
-  - Never activated (not in INSTALLED_APPS), zero production imports
-  - Real app remains at apps.noc.security_intelligence
-
-📊 **Phase 3 Impact**: 6 issues resolved, 21 files modified, 3 files deleted, 220+ lines dead code removed, 2 critical bugs fixed, 1 security module deprecated, 100% backward compatibility
-
-**Previous Changes (Nov 11, 2025) - Ultrathink Remediation Phase 2 (7 Issues)**:
-
-**HIGH Priority (Phase 1):**
-- ✅ **Issue #6b: Fake PDF Generation Fixed** (`apps/report_generation/tasks.py`) - Replaced placeholder with AsyncPDFGenerationService integration
-  - Real PDF generation using WeasyPrint with proper error handling
-  - Updates GeneratedReport.pdf_file with actual path
-  - Returns success=False on failure (was always True)
-- ✅ **Issue #4: N+1 Query Eliminated** (`apps/performance_analytics/services/team_analytics_service.py`) - Coaching queue optimization
-  - Replaced per-worker COUNT loop with single annotated query
-  - Query count reduced from N+1 to 2 total
-  - 50-70% performance improvement for 50+ worker sites
-
-**MEDIUM Priority (Phase 2):**
-- ✅ **Issue #7: No-Show Detection Implemented** (`apps/reports/services/dar_service.py`) - DAR compliance requirement
-  - Compares scheduled Jobs with Attendance records
-  - 15-minute grace period, excludes cancelled/completed jobs
-  - Supervisors can now identify staffing gaps
-- ✅ **Issue #5: Reminder App Merged** (`apps/scheduler/`) - Architecture cleanup
-  - Moved Reminder model from apps/reminder to apps/scheduler/models/
-  - Removed apps.reminder from INSTALLED_APPS
-  - Backend-only model co-located with only usage point (scheduler/utils.py)
-- ✅ **Issue #1: Ontology Decorator Optimized** (`apps/ontology/decorators.py`) - Import performance
-  - Added @functools.lru_cache for source info loading
-  - Deferred inspect.getsourcelines() to metadata access time
-  - 30-50% faster imports for modules with 100+ decorators
-
-**LOW Priority (Phase 3):**
-- ✅ **Issue #2: Duplicate Serializers Archived** (`apps/people_onboarding/`) - Code cleanup
-  - Moved serializers_fixed.py to .deprecated
-  - Created DEPRECATED_SERIALIZERS_NOTICE.md
-  - Zero functional impact (file had no imports)
-- ✅ **Issue #3: Password Service TODO Removed** (`apps/peoples/services/password_management_service.py`) - Documentation accuracy
-  - Verified @monitor_service_performance decorator is active
-  - Updated docstring to reflect accurate monitoring state
-
-📊 **Phase 1-3 Impact**: 7 technical debt items resolved, 11 files modified, 3 commits, 100% backward compatibility
-
-**Previous Changes (Nov 11, 2025) - Ultrathink Comprehensive Remediation (Phase 1)**:
-- ✅ **MQTT Client Fixed** (`apps/mqtt/client.py`) - Removed `.py` extension from settings module path, fixing ModuleNotFoundError in all environments
-- ✅ **Monitoring Thresholds Corrected** (`apps/monitoring/services/device_health_service.py`) - Fixed duplicate HEALTH_WARNING/HEALTH_GOOD values (70→60/80), proper 3-tier health system
-- ✅ **OpenAPI Schema Modernized** (`apps/onboarding_api/openapi_schemas.py`) - Replaced drf-yasg stub with drf-spectacular (OpenAPI 3.0), working Swagger/ReDoc UI
-- ✅ **WebSocket Metrics Fixed** (`apps/noc/models/websocket_connection.py`) - New WebSocketConnection model tracks actual recipients vs hardcoded `recipient_count=1`
-  - NOC consumers register/unregister connections on connect/disconnect
-  - Broadcast service queries real connection count for accurate monitoring
-  - Fixes invalid SLA reporting and dashboard metrics
-- ✅ **ML Training Blocking I/O Eliminated** (`apps/ml_training/services/training_orchestrator.py`) - Removed 10-second `time.sleep()` loops
-  - New TrainingOrchestrator service supports external ML platforms (non-blocking HTTP triggers)
-  - Replaced fake metrics (0.95 accuracy always) with real training workflow
-  - Progress callbacks via WebSocket instead of blocking loops
-- ✅ **Onboarding Shim Deprecated** (`apps/onboarding/__init__.py`) - Added deprecation warnings with March 2026 removal timeline
-- ✅ **Bonus Fixes**: Calendar admin registration, OSMGeoAdmin→GISModelAdmin (Django 5.x), missing `Any` import
-- 📊 **Impact**: 9 issues fixed, ~530 lines changed, 2 new files, 100% backward compatibility maintained
-
-**Previous Changes (Nov 10, 2025) - Installation Improvements**:
-- ✅ **Smart Dependency Installer** created (`scripts/install_dependencies.py`) - Automatically detects platform and installs correct dependencies
-- ✅ **Root requirements.txt removed** - Prevented CUDA package conflicts on macOS
-- ✅ **Installation Guide** created (`.github/INSTALL_GUIDE.md`) - Comprehensive platform-specific setup instructions
-- ✅ **CLAUDE.md Updated** - Clear warnings and installation methods
-- 🎯 **Problem Solved**: Users no longer get `nvidia-cublas-cu12` errors on macOS
-
-**Previous Changes (Nov 5, 2025) - Phase 7 Complete**:
-- ✅ **Refactoring Playbook** created (`docs/architecture/REFACTORING_PLAYBOOK.md`) - Complete guide for future refactorings
-- ✅ **Training Materials** created in `docs/training/` (4 comprehensive guides)
-  - Quality Standards Training - Architecture limits and quality gates
-  - Refactoring Training - Step-by-step god file splitting
-  - Service Layer Training - ADR 003 implementation patterns
-  - Testing Training - Effective testing strategies
-- ✅ **Project Retrospective** created (`docs/PROJECT_RETROSPECTIVE.md`) - Complete Phase 1-6 journey
-- ✅ **All ADRs Updated** - Added Phase 1-6 implementation references and validation status
-- ✅ **CLAUDE.md Updated** - New commands, updated architecture section, Phase 1-6 results
-- 📊 **Phase 1-6 Results**: 16 apps refactored, 80+ god files eliminated, 100% backward compatibility
-
-**Previous Changes (Nov 4, 2025) - Phase 1**:
-- ✅ File size validation script added (`scripts/check_file_sizes.py`)
-- ✅ Refactoring patterns documented (`docs/architecture/REFACTORING_PATTERNS.md`)
-- ✅ Architecture Decision Records created (5 ADRs covering file limits, dependencies, services, testing, exceptions)
-- ✅ Documentation indexed and linked in CLAUDE.md
-
-**Previous Changes (Nov 1, 2025)**:
-- ✅ INSTALLED_APPS consolidated to single source of truth in base.py (deleted installed_apps.py)
-- ✅ apps.ontology activated (was missing from runtime configuration)
-- ✅ apps.ml_training activated at `/ml-training/` (dataset management, labeling, active learning)
-- ✅ Mentor module fully removed (moved to separate service - API layer orphaned and deleted)
-- ✅ Dead code removed: top-level issue_tracker/, settings_local.py
-- 📋 See REMOVED_CODE_INVENTORY.md for complete details
+**Full History**: See [Detailed Changelog](docs/project-history/CHANGELOG_DETAILED.md) and [docs/project-history/](docs/project-history/)

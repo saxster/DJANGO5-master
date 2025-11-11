@@ -7,6 +7,8 @@ Updated: 2025-10-31 - Removed unused GCS imports (optimization)
 """
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from apps.core.exceptions import IntegrationException
 from .report_tasks import (
     get_scheduled_reports_fromdb,
     generate_scheduled_report,
@@ -97,6 +99,9 @@ import uuid
 
 # Email task idempotency constants
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+
+# Initialize logger for email tasks
+logger = logging.getLogger('background_tasks.email')
 
 
 @shared_task(
