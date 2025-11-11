@@ -1,14 +1,23 @@
 # Documentation Cleanup Summary
 
-> **Date:** November 7, 2025
-> **Duration:** ~2 hours
-> **Status:** ✅ Complete
+> **⚠️ IMPORTANT NOTICE (November 11, 2025):**
+> **This cleanup was ROLLED BACK in commit 4dc48df during V2 migration.**
+> The documentation structure described below does NOT currently exist. Most docs/ files were deleted.
+> See CLAUDE.md for current documentation locations.
 
 ---
 
-## 🎯 Mission Accomplished
+> **Original Date:** November 7, 2025
+> **Duration:** ~2 hours
+> **Original Status:** ✅ Complete (but later rolled back)
+
+---
+
+## 🎯 Mission Accomplished (Rolled Back)
 
 Successfully reorganized 688 markdown files from chaotic root structure to clean, organized documentation hierarchy.
+
+**Note:** This reorganization was subsequently removed during V2 API migration.
 
 ---
 

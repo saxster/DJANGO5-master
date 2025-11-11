@@ -10,6 +10,11 @@
 
 Successfully cleaned up duplicate tenant middleware files by archiving the old implementation and creating a backward-compatible deprecation shim.
 
+> **Update (Jan 2026)**  
+> The temporary archive directory (`.deprecated/tenants/`) has now been removed to
+> reduce repository cruft. The historical implementation remains available via
+> git history (see commit 2025-11-11) if deep dives are ever needed.
+
 ---
 
 ## Problem Statement
@@ -35,18 +40,11 @@ Two tenant middleware files existed, creating code confusion and maintenance bur
 
 ## Changes Made
 
-### 1. Archive Structure Created
+### 1. Archive Structure (Historical)
 
-```
-.deprecated/tenants/
-├── middlewares.py                      # Original implementation (archived)
-└── DEPRECATED_MIDDLEWARE_NOTICE.md     # Comprehensive deprecation documentation
-```
-
-**Archived File**: `/Users/amar/Desktop/MyCode/DJANGO5-master/.deprecated/tenants/middlewares.py`
-- Original 247-line implementation
-- Preserved for historical reference
-- Contains `TenantMiddleware` and `TenantDbRouter` classes
+The original cleanup archived the legacy middleware into `.deprecated/tenants/`
+along with a detailed deprecation notice. That directory was deleted in January
+2026; consult git history if the previous implementation needs to be reviewed.
 
 ### 2. Deprecation Shim Created
 
@@ -78,17 +76,12 @@ from apps.core.utils_new.db_utils import THREAD_LOCAL
 # (includes minimal router for test compatibility)
 ```
 
-### 3. Documentation Created
+### 3. Documentation Created (Now Archived via Git History)
 
-**File**: `.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md`
-
-**Contents**:
-- Complete migration guide
-- Feature comparison (old vs new)
-- Backward compatibility guarantees
-- Test impact analysis
-- Removal timeline
-- Historical context
+The comprehensive migration notice previously lived at
+`.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md`. The file was removed
+along with the archive directory; reference the 2025-11-11 revision if the
+original text is required for audits.
 
 ---
 
@@ -146,13 +139,9 @@ python3 -m py_compile apps/tenants/middlewares.py
 # Result: ✅ Syntax valid
 ```
 
-### ✅ Archive Structure
-```bash
-ls -lh .deprecated/tenants/
-# Result:
-# DEPRECATED_MIDDLEWARE_NOTICE.md (6.5K)
-# middlewares.py (7.7K)
-```
+### ✅ Archive Structure (Historical)
+Originally verified via `ls -lh .deprecated/tenants/` (see Nov 2025 logs). The
+directory has since been removed as part of the 2026 cleanup.
 
 ### ✅ Import Search
 ```bash
@@ -233,7 +222,7 @@ from apps.tenants.middleware_unified import UnifiedTenantMiddleware
 
 ## Files Modified/Created
 
-### Created
+### Created (Nov 2025, removed Jan 2026 for cleanliness)
 1. `.deprecated/tenants/` (directory)
 2. `.deprecated/tenants/middlewares.py` (archived original)
 3. `.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md` (documentation)
@@ -295,9 +284,9 @@ from apps.tenants.middleware_unified import UnifiedTenantMiddleware
 ## References
 
 ### Documentation
-- `.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md` - Complete deprecation guide
+- `.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md` - Complete deprecation guide (available via git history)
 - `apps/tenants/middleware_unified.py` - New implementation
-- `.deprecated/tenants/middlewares.py` - Archived implementation
+- `.deprecated/tenants/middlewares.py` - Archived implementation (available via git history)
 
 ### Settings
 - `intelliwiz_config/settings/database.py` (line 69) - DATABASE_ROUTERS configuration
@@ -315,7 +304,7 @@ from apps.tenants.middleware_unified import UnifiedTenantMiddleware
 
 ---
 
-**Last Updated**: 2025-11-11
+**Last Updated**: 2025-11-11 (reviewed Jan 2026 for archive removal)
 **Status**: ✅ Complete - Ready for Review
 **Impact**: Low (cleanup only, no functional changes)
 **Breaking Changes**: None (backward compatible)

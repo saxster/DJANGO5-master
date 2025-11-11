@@ -896,7 +896,7 @@ def send_email_notification_for_sla_report(self, slaid, sitename):
 def send_reminder_email(self):
     from django.template.loader import render_to_string
     from django.conf import settings
-    from apps.reminder.models import Reminder
+    from apps.scheduler.models.reminder import Reminder  # Fixed: apps.reminder merged into scheduler (Nov 11, 2025)
 
     resp = {"story": "", "traceback": "", "id": []}
     try:
