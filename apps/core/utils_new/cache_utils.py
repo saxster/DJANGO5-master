@@ -25,6 +25,7 @@ from functools import wraps
 from typing import Any, Callable, Optional, Union
 from django.core.cache import cache
 from django.conf import settings
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -153,15 +154,15 @@ def invalidate_cache(func_name: str, *args, prefix: str = '', **kwargs) -> bool:
 def invalidate_pattern(pattern: str) -> int:
     """
     Invalidate all cache keys matching a pattern.
-    
+
     Note: Requires Redis backend with delete_pattern support.
-    
+
     Args:
         pattern: Redis pattern (e.g., 'dashboard_*')
-        
+
     Returns:
         Number of keys deleted
-        
+
     Example:
         invalidate_pattern('user_perms_*')
     """
@@ -173,8 +174,11 @@ def invalidate_pattern(pattern: str) -> int:
         else:
             logger.warning("delete_pattern not supported by cache backend")
             return 0
-    except Exception as e:
-        logger.error(f"Error invalidating cache pattern {pattern}: {e}")
+    except CACHE_EXCEPTIONS as e:
+        logger.error(f"Redis error invalidating cache pattern {pattern}: {e}")
+        return 0
+    except AttributeError as e:
+        logger.warning(f"Cache backend doesn't support delete_pattern: {e}")
         return 0
 
 
@@ -227,14 +231,14 @@ def _increment_cache_stat(stat_type: str) -> None:
 def warm_cache(func: Callable, args_list: list) -> int:
     """
     Warm cache by pre-computing results for given arguments.
-    
+
     Args:
         func: Cached function to warm
         args_list: List of argument tuples to pre-compute
-        
+
     Returns:
         Number of cache entries warmed
-        
+
     Example:
         warm_cache(get_site_statistics, [(1,), (2,), (3,)])
     """
@@ -246,9 +250,15 @@ def warm_cache(func: Callable, args_list: list) -> int:
             else:
                 func(args)
             warmed += 1
-        except Exception as e:
-            logger.error(f"Error warming cache for {func.__name__}{args}: {e}")
-    
+        except ValueError as e:
+            logger.error(f"Invalid value warming cache for {func.__name__}{args}: {e}")
+        except TypeError as e:
+            logger.error(f"Type error warming cache for {func.__name__}{args}: {e}")
+        except KeyError as e:
+            logger.error(f"Key error warming cache for {func.__name__}{args}: {e}")
+        except CACHE_EXCEPTIONS as e:
+            logger.error(f"Cache error warming cache for {func.__name__}{args}: {e}")
+
     logger.info(f"Warmed {warmed} cache entries for {func.__name__}")
     return warmed
 
