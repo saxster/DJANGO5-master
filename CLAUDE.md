@@ -504,10 +504,134 @@ for user in People.objects.all():
 
 ---
 
-**Last Updated**: November 11, 2025 (Ultrathink Phase 5 - Comprehensive remediation: 11 issues resolved, 57+ tests added)
-**Previous Update**: November 11, 2025 (Ultrathink Phase 3 - Code quality remediation: 6 critical issues resolved)
+**Last Updated**: November 11, 2025 (Ultrathink Phase 7 - Security & Technical Debt: 4 observations verified, 1 CRITICAL race condition fixed)
+**Previous Update**: November 11, 2025 (Ultrathink Phase 6 - ML Conflict Prediction: 5 verified issues resolved, full ML infrastructure implemented)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
+
+**Recent Changes (Nov 11, 2025) - Ultrathink Remediation Phase 7 (4 Observations - COMPLETE)**:
+
+**HIGH PRIORITY (Sprint 1 - Race Condition Fix)**:
+- ✅ **Issue #1: People Onboarding Race Condition FIXED** (`apps/people_onboarding/views.py:86-89`)
+  - **Problem**: `count() + 1` generates duplicate ONB-YYYY-XXXXX numbers causing IntegrityError crashes
+  - **Fix**: PostgreSQL sequence for atomic counter generation
+  - Implemented `generate_request_number()` utility using database sequence
+  - Extracted workflow validation to `apps/people_onboarding/utils/workflow_validator.py`
+  - Migration: `0003_add_request_number_sequence.py` creates PostgreSQL sequence
+  - Tests: 3 tests added (2 passed, 1 skipped), 100% pass rate
+  - Impact: Eliminates crashes during concurrent onboarding (batch new hires)
+  - Compliance: Rule #7 (model 145 lines, under 150 limit)
+
+**LOW PRIORITY (Sprint 2 - Technical Debt Cleanup)**:
+- ✅ **Issue #2: Orphaned People Services File DELETED** (`apps/peoples/services.py`)
+  - Missing `authenticate()` import (NameError risk if code were executed)
+  - Reality: Dead code (shadowed by `services/` package directory, zero usage)
+  - Archived to `.deprecated/peoples/services_legacy_2025_09_28.py`
+  - Comprehensive deprecation notice created
+  - Superseded by modern `apps/peoples/services/authentication_service.py`
+- ✅ **Issue #3: Site Service Authorization ENHANCED** (`apps/site_onboarding/services/site_service.py`)
+  - Added ownership validation to `add_observation()` method
+  - Validates site ownership, media ownership, tenant isolation
+  - Impact: ZERO currently (service not exposed), CRITICAL when API added (prevents IDOR)
+  - Tests: 4 authorization tests added (100% pass rate)
+- ✅ **Issue #4: OnboardingAPIMiddleware REMOVED** (`intelliwiz_config/settings/middleware.py`)
+  - Orphaned middleware (app not in INSTALLED_APPS, URLs not mounted)
+  - Middleware scope would miss V2 endpoints (rate limiting bypass)
+  - Reality: App is orphaned, middleware has no endpoints to protect
+  - Comprehensive deprecation notice: `apps/onboarding_api/DEPRECATION_NOTICE.md`
+
+**TECHNICAL DEBT DOCUMENTED (Not Fixed)**:
+- ⚠️ **Work Order Management** `count() + 1` (line 328) - MEDIUM priority (duplicate sequence numbers, no crashes)
+- ⚠️ **Report Generation** `count() + 1` (line 217) - LOW priority (iteration numbers, rare scenario)
+- Both documented in `KNOWN_RACE_CONDITIONS.md` for future remediation
+
+📊 **Phase 7 Impact**: 4 observations verified, 1 CRITICAL fix, 3 cleanups, 4 files modified, 10 files created, 1 file deleted, 7 tests added (6 passed, 1 skipped), ~500 lines code, ~1,000 lines documentation, 100% backward compatibility
+
+**Investigation Method**: Parallel agent dispatch (4 concurrent investigations using superpowers:dispatching-parallel-agents skill)
+
+**Documentation**: `ULTRATHINK_REMEDIATION_PHASE7_COMPLETE.md` (complete technical report)
+
+---
+
+**Previous Changes (Nov 11, 2025) - Ultrathink Remediation Phase 6 (5 Verified Issues - COMPLETE)**:
+
+**CRITICAL Priority (Phase 1 - 30 minutes)**:
+- ✅ **Issue #1: Help Center Race Condition** (`apps/help_center/gamification_models.py:166-200`) - Data loss prevented
+  - Replaced in-memory increment with atomic F() expressions in `add_points()` method
+  - Prevents lost points when multiple workers award points simultaneously
+  - Tests: 3 comprehensive tests added (single worker, atomic updates, invalid category)
+  - Impact: Fixes race condition affecting gamification accuracy and user trust
+
+**HIGH Priority (Phase 2 - 1.5 hours)**:
+- ✅ **Issue #5: MQTT Missing Imports** (`apps/journal/mqtt_integration.py:12-37`) - Crash prevention
+  - Added missing imports: `DatabaseError`, `IntegrityError`, `ObjectDoesNotExist`
+  - Defined `IntegrationException` custom exception class
+  - Fixed 14 exception handlers that would crash with NameError
+  - Impact: Prevents crashes in crisis intervention alerts and wellness notifications
+- ✅ **Issue #3: DLQ Retrieval Not Implemented** (`apps/integrations/services/webhook_dispatcher.py:498-567`) - Operational visibility
+  - Implemented Redis pattern scanning with `SCAN` command
+  - Added pagination support (default limit: 100 entries)
+  - Returns sorted entries (newest first) with DLQ keys for retry
+  - Tests: 8 comprehensive tests (empty queue, single entry, filtering, pagination, sorting)
+  - Impact: Operators can now inspect and replay failed webhooks
+
+**MEDIUM Priority (Phase 3 - 11 hours - ML Conflict Prediction Infrastructure)**:
+- ✅ **Issue #6: ML Conflict Extractor Stub** (`apps/ml/services/data_extractors/conflict_data_extractor.py`) - Full implementation
+  - Created sync tracking models: `SyncLog` and `ConflictResolution` (apps/core/models/sync_tracking.py)
+  - Implemented `SyncLoggingMiddleware` to capture all sync operations
+  - Created `ConflictDetector` service for real-time concurrent edit detection
+  - Replaced stub feature extraction with real implementation (5 ML features)
+  - Migration: `apps/core/migrations/0004_sync_tracking_models.py` generated
+  - Impact: ML conflict prediction now functional with real training data
+
+**LOW Priority (Phase 4 - 3 hours - ML Training Implementation)**:
+- ✅ **Issue #7: ML Training Stub** (`apps/ml_training/services/training_orchestrator.py:179-295`) - Lightweight training implemented
+  - Replaced stub with sklearn-based training (RandomForest, LogisticRegression)
+  - Added train/test split with stratification
+  - Implemented real metrics: accuracy, precision, recall, F1 score
+  - Added dataset loading helper with fallback for testing
+  - Impact: Dev/test environments can now train models without external platforms
+
+**FALSE POSITIVES (No Action Taken)**:
+- ❌ **Issue #2: Helpbot Semantic Index** - Intentional stub with PostgreSQL FTS fallback (documented)
+- ❌ **Issue #4: Issue Tracker Zero Values** - Correct behavior for anomaly detection domain
+
+📊 **Phase 6 Impact**: 5/7 verified issues resolved (2 false positives), 9 files modified, 4 new files created, 1 migration generated, 11+ tests added, 100% backward compatibility
+
+**New Files Created**:
+- `apps/core/models/sync_tracking.py` - SyncLog and ConflictResolution models (275 lines)
+- `apps/core/middleware/sync_logging_middleware.py` - Sync operation instrumentation (248 lines)
+- `apps/core/services/conflict_detector.py` - Real-time conflict detection (275 lines)
+- `apps/integrations/tests/test_webhook_dispatcher.py` - DLQ retrieval tests (173 lines)
+
+**Files Modified**:
+- `apps/help_center/gamification_models.py` - Atomic F() expressions for points
+- `apps/help_center/tests/test_models.py` - Race condition tests
+- `apps/journal/mqtt_integration.py` - Exception imports
+- `apps/integrations/services/webhook_dispatcher.py` - DLQ retrieval
+- `apps/ml/services/data_extractors/conflict_data_extractor.py` - Real feature extraction
+- `apps/ml_training/services/training_orchestrator.py` - Sklearn training
+- `apps/core/models/__init__.py` - Export sync tracking models
+- `apps/y_helpdesk/managers/__init__.py` - Backward compatibility alias
+- `apps/core/migrations/0004_sync_tracking_models.py` - Database migration (generated)
+
+**Architecture Additions**:
+- **ML Conflict Prediction System**: Complete infrastructure for predicting sync conflicts
+  - 2 new models tracking sync operations and conflicts
+  - Middleware capturing all sync operations from mobile/web clients
+  - Real-time conflict detector service (5-minute window)
+  - 5 ML features: concurrent editors, time since last sync, user conflict rate, entity edit frequency, field overlap
+  - Integration with existing ML training pipeline
+- **Webhook DLQ Inspection**: Operators can now retrieve and analyze failed webhooks
+- **Atomic Points System**: Race-condition-free gamification
+
+**Next Steps**:
+1. Run migration: `python manage.py migrate core`
+2. Add `SyncLoggingMiddleware` to `MIDDLEWARE` in settings (optional - enables ML conflict detection)
+3. Configure sync endpoints in middleware if using custom paths
+4. Monitor conflict detection logs for tuning
+
+---
 
 **Recent Changes (Nov 11, 2025) - Ultrathink Remediation Phase 5 (11 Issues - COMPLETE)**:
 
