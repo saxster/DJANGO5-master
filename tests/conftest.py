@@ -11,14 +11,15 @@ import pytest
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings_test")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def configure_django_settings(django_settings) -> Generator[None, None, None]:
-    """Apply global tweaks for the test environment."""
-
-    django_settings.TIME_ZONE = "UTC"
-    django_settings.USE_TZ = True
-
-    yield
+# Temporarily disabled due to scope mismatch with pytest-django settings fixture
+# @pytest.fixture(scope="session", autouse=True)
+# def configure_django_settings(settings) -> Generator[None, None, None]:
+#     """Apply global tweaks for the test environment."""
+#
+#     settings.TIME_ZONE = "UTC"
+#     settings.USE_TZ = True
+#
+#     yield
 
 
 @pytest.fixture

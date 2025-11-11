@@ -43,6 +43,7 @@ MIDDLEWARE = [
     # ========================================================================
     # Layer 4: Input Validation and Attack Prevention
     # ========================================================================
+    "apps.core.middleware.input_sanitization_middleware.InputSanitizationMiddleware",  # XSS/Injection prevention (Nov 2025)
     "apps.core.sql_security.SQLInjectionProtectionMiddleware",
     "apps.core.xss_protection.XSSProtectionMiddleware",
 
