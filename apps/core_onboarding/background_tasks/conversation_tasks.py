@@ -192,7 +192,7 @@ def process_conversation_step_enhanced(
                 session = ConversationSession.objects.select_for_update().get(
                     session_id=conversation_id
                 )
-                session.current_state = ConversationSession.StateChoices.ERROR
+                session.current_state = ConversationSession.CurrentState.ERROR
                 session.error_message = str(e)
                 session.save()
         except (DatabaseError, IntegrityError, TypeError, ValidationError, ValueError) as session_error:
@@ -266,7 +266,7 @@ def maker_generate_task(
         session = ConversationSession.objects.get(session_id=conversation_id)
 
         # Update state
-        session.current_state = ConversationSession.StateChoices.GENERATING_RECOMMENDATIONS
+        session.current_state = ConversationSession.CurrentState.GENERATING_RECOMMENDATIONS
         session.save()
 
         # Get services
@@ -486,11 +486,11 @@ def persist_recommendations_task(
 
             # Update session state
             if decision == 'approve':
-                session.current_state = ConversationSession.StateChoices.AWAITING_USER_APPROVAL
+                session.current_state = ConversationSession.CurrentState.AWAITING_USER_APPROVAL
             elif decision in ['modify', 'needs_review']:
-                session.current_state = ConversationSession.StateChoices.AWAITING_USER_APPROVAL
+                session.current_state = ConversationSession.CurrentState.AWAITING_USER_APPROVAL
             else:  # escalate
-                session.current_state = ConversationSession.StateChoices.ERROR
+                session.current_state = ConversationSession.CurrentState.ERROR
                 session.error_message = "Escalation required based on consensus analysis"
 
             # Update session data
@@ -523,7 +523,7 @@ def persist_recommendations_task(
                 session = ConversationSession.objects.select_for_update().get(
                     session_id=conversation_id
                 )
-                session.current_state = ConversationSession.StateChoices.ERROR
+                session.current_state = ConversationSession.CurrentState.ERROR
                 session.error_message = str(e)
                 session.save()
         except (ConnectionError, DatabaseError, IntegrityError, LLMServiceException, ObjectDoesNotExist, TimeoutError, TypeError, ValidationError, ValueError) as session_error:

@@ -14,6 +14,7 @@ Addresses CVSS 8.1 file upload vulnerability
 
 import time
 import logging
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.conf import settings

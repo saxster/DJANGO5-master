@@ -4,6 +4,7 @@ Connects anomaly detection, behavioral analytics, and face recognition
 """
 
 import logging
+from typing import Optional, Dict, Any, List
 from django.utils import timezone
 from django.core.signals import Signal
 from django.dispatch import receiver

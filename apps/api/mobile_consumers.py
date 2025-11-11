@@ -65,7 +65,10 @@ from apps.core.exceptions import (
 )
 
 from apps.voice_recognition.models import VoiceVerificationLog
-from .v1.views.mobile_sync_views import sync_engine
+from apps.core.services.sync.sync_engine_service import SyncEngine
+
+# Initialize sync engine
+sync_engine = SyncEngine()
 
 # Stream Testbench integration
 from apps.streamlab.services.event_capture import stream_event_capture
