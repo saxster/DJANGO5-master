@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # Base directory
 BASE_DIR = Path(__file__).parent.parent
 APPS_DIR = BASE_DIR / 'apps'
-BACKUP_DIR = BASE_DIR / 'backups' / f'cache_migration_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+BACKUP_DIR = BASE_DIR / 'backups' / f'cache_migration_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
 
 
 # Files to skip (already using tenant_cache or not tenant-scoped)

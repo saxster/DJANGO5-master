@@ -614,8 +614,8 @@ After successful installation:
 
 1. **Read the Documentation**:
    - [CLAUDE.md](../CLAUDE.md) - Quick reference guide
-   - [System Architecture](../docs/architecture/SYSTEM_ARCHITECTURE.md) - Understand the system
-   - [Common Commands](../docs/workflows/COMMON_COMMANDS.md) - Useful commands
+   - [Architecture Decisions](../docs/architecture/adr/) - Understand the system
+   - [Top 10 Commands](../CLAUDE.md#top-10-commands) - Useful commands
 
 2. **Explore the Admin Interface**:
    - Visit http://localhost:8000/admin/
@@ -629,16 +629,16 @@ After successful installation:
 
 4. **Start Development**:
    - Review [Development Best Practices](../CLAUDE.md#development-best-practices)
-   - Check [Architecture Limits](../docs/architecture/adr/001-file-size-limits.md)
-   - Read [Refactoring Patterns](../docs/architecture/REFACTORING_PATTERNS.md)
+   - Check [Architecture Limits](../.claude/rules.md)
+   - Read [Refactoring Guide](../docs/plans/SPRINT_3_FILE_REFACTORING_PLAN.md)
 
 ---
 
 ## Getting Help
 
 - **Installation Issues**: Check this guide's [Troubleshooting](#troubleshooting) section
-- **Runtime Issues**: See [Common Issues](../docs/troubleshooting/COMMON_ISSUES.md)
-- **Architecture Questions**: Review [System Architecture](../docs/architecture/SYSTEM_ARCHITECTURE.md)
+- **Runtime Issues**: See [Known Race Conditions](../KNOWN_RACE_CONDITIONS.md)
+- **Architecture Questions**: Review [Architecture Decisions](../docs/architecture/adr/)
 - **Security Concerns**: Contact security team immediately
 
 ---
