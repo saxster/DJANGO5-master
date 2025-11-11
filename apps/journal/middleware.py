@@ -17,6 +17,9 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError, IntegrityError, ObjectDoesNotExist
+from django.core.cache import cache
 import logging
 
 from .models import JournalEntry, JournalPrivacySettings
@@ -61,8 +64,8 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         self.logger = logging.getLogger('security.journal')
         self.privacy_manager = JournalPrivacyManager()
 
-        # In-memory rate limiting storage (in production, use Redis)
-        self.rate_limit_storage = {}
+        # Rate limiting now uses Redis via Django cache backend
+        # No in-memory storage needed - Redis handles multi-worker coordination
 
     def __call__(self, request):
         """Process request with security checks"""
@@ -157,45 +160,61 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         if not rate_config:
             return {'allowed': True}
 
-        # Generate rate limit key
-        rate_key = f"{request.user.id}:{endpoint}"
+        # Redis-based rate limiting (works across multiple workers)
+        rate_key = f"journal_rate_limit:{request.user.id}:{endpoint}"
         current_time = time.time()
         window_seconds = rate_config['window_minutes'] * 60
 
-        # Get current request count
-        user_requests = self.rate_limit_storage.get(rate_key, [])
+        try:
+            # Try to get Redis client for sorted set operations
+            redis_client = cache.client.get_client()
 
-        # Remove old requests outside window
-        user_requests = [
-            req_time for req_time in user_requests
-            if current_time - req_time < window_seconds
-        ]
+            # Add current request timestamp to sorted set
+            redis_client.zadd(rate_key, {correlation_id: current_time})
 
-        # Check if limit exceeded
-        if len(user_requests) >= rate_config['requests']:
-            self.logger.warning(
-                f"Rate limit exceeded for user {request.user.id} on {endpoint}",
-                extra={
-                    'correlation_id': correlation_id,
-                    'user_id': request.user.id,
-                    'endpoint': endpoint,
-                    'request_count': len(user_requests),
-                    'limit': rate_config['requests']
-                }
+            # Remove old entries outside the window
+            redis_client.zremrangebyscore(
+                rate_key,
+                '-inf',
+                current_time - window_seconds
             )
 
-            return {
-                'allowed': False,
-                'reason': 'rate_limit_exceeded',
-                'status_code': 429,
-                'retry_after': window_seconds
-            }
+            # Count requests in window
+            request_count = redis_client.zcard(rate_key)
 
-        # Add current request
-        user_requests.append(current_time)
-        self.rate_limit_storage[rate_key] = user_requests
+            # Set expiry to window duration (cleanup old keys)
+            redis_client.expire(rate_key, int(window_seconds))
 
-        return {'allowed': True}
+            # Check if limit exceeded
+            if request_count > rate_config['requests']:
+                self.logger.warning(
+                    f"Rate limit exceeded for user {request.user.id} on {endpoint}",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': request.user.id,
+                        'endpoint': endpoint,
+                        'request_count': request_count,
+                        'limit': rate_config['requests']
+                    }
+                )
+
+                return {
+                    'allowed': False,
+                    'reason': 'rate_limit_exceeded',
+                    'status_code': 429,
+                    'retry_after': window_seconds
+                }
+
+            return {'allowed': True}
+
+        except (ConnectionError, AttributeError) as e:
+            # Redis unavailable - log warning and allow request
+            # Better to allow requests than block legitimate users
+            self.logger.warning(
+                f"Rate limiting unavailable (Redis error): {e}. Allowing request.",
+                extra={'correlation_id': correlation_id, 'endpoint': endpoint}
+            )
+            return {'allowed': True}
 
     def _check_tenant_isolation(self, request, correlation_id):
         """Check multi-tenant isolation"""

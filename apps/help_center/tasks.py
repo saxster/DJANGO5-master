@@ -40,8 +40,8 @@ def generate_article_embedding(self, article_id):
         dict: {'success': bool, 'article_id': int, 'embedding_dim': int}
     """
     try:
-from apps.help_center.models import HelpArticle
-from apps.help_center.utils.embedding import EMBEDDING_DIM, text_to_embedding
+        from apps.help_center.models import HelpArticle
+        from apps.help_center.utils.embedding import EMBEDDING_DIM, text_to_embedding
 
         article = HelpArticle.objects.get(id=article_id)
 
@@ -152,7 +152,7 @@ def analyze_ticket_content_gap(self, correlation_id):
         logger.error(f"Database error analyzing correlation {correlation_id}: {e}")
         raise self.retry(exc=e)
 
-    except DATABASE_EXCEPTIONS as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error analyzing correlation {correlation_id}: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}
 
@@ -214,6 +214,6 @@ def generate_help_analytics(self, tenant_id):
         logger.error(f"Database error generating analytics for tenant {tenant_id}: {e}")
         raise self.retry(exc=e)
 
-    except DATABASE_EXCEPTIONS as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Unexpected error generating analytics for tenant {tenant_id}: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}
