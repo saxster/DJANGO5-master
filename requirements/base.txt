@@ -163,6 +163,7 @@ ptyprocess==0.7.0
 pure_eval==0.2.3
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
+pyclamd==0.4.0  # ClamAV integration for virus scanning (CVSS 8.6 malware prevention)
 pycparser==2.22
 pydantic==2.11.5
 pydantic_core==2.33.2

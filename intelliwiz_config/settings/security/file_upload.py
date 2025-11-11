@@ -70,6 +70,18 @@ FILE_UPLOAD_CONTENT_SECURITY = {
     'QUARANTINE_SUSPICIOUS_FILES': True,
 }
 
+# Virus Scanning Configuration (CVSS 8.6 - Malware distribution prevention)
+FILE_UPLOAD_VIRUS_SCANNING = env.bool('FILE_UPLOAD_VIRUS_SCANNING', default=True)
+
+VIRUS_SCANNER_CONFIG = {
+    'ENABLE': FILE_UPLOAD_VIRUS_SCANNING,
+    'ENGINE': 'clamav',  # or 'virustotal', 'aws_s3_scan' (future)
+    'CLAMAV_SOCKET': '/var/run/clamav/clamd.ctl',  # Unix socket path
+    'MAX_FILE_SIZE_MB': 50,  # Files larger than this logged but scanned
+    'QUARANTINE_DIR': env.str('QUARANTINE_DIR', default='/tmp/claude/quarantine/uploads/'),
+    'FAIL_OPEN': True,  # Allow uploads if scanner unavailable (vs FAIL_CLOSED)
+}
+
 CLAMAV_SETTINGS = {
     'ENABLED': env.bool('CLAMAV_ENABLED', default=True),
     'SCAN_TIMEOUT': env.int('CLAMAV_SCAN_TIMEOUT', default=30),

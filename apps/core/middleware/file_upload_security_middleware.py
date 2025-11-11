@@ -7,9 +7,11 @@ Enforces comprehensive file upload security policies including:
 - File size monitoring per user/window
 - Security event logging and alerting
 - Path validation and sanitization
+- Virus scanning (ClamAV integration)
 
 Complies with Rule #14 from .claude/rules.md - File Upload Security
 Addresses CVSS 8.1 file upload vulnerability
+Addresses CVSS 8.6 malware distribution prevention
 """
 
 import time
@@ -23,6 +25,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.middleware.csrf import CsrfViewMiddleware
 from django.utils.deprecation import MiddlewareMixin
 from apps.core.exceptions import SecurityException, CSRFException
+from apps.core.security.virus_scanner import VirusScannerService
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +66,9 @@ class FileUploadSecurityMiddleware(MiddlewareMixin):
         self.enable_logging = self.monitoring_config.get('ENABLE_UPLOAD_LOGGING', True)
         self.enable_alerting = self.monitoring_config.get('ENABLE_SECURITY_ALERTING', True)
 
+        # Virus scanning (CVSS 8.6 - Malware distribution prevention)
+        self.enable_virus_scanning = getattr(settings, 'FILE_UPLOAD_VIRUS_SCANNING', True)
+
     def process_request(self, request):
         """Process incoming file upload requests for security validation."""
         # Check if this is a file upload endpoint
@@ -96,6 +102,30 @@ class FileUploadSecurityMiddleware(MiddlewareMixin):
         size_limit_result = self._check_size_limits(request, user_id)
         if size_limit_result:
             return size_limit_result
+
+        # Virus scanning (CVSS 8.6 - Malware distribution prevention)
+        if self.enable_virus_scanning and hasattr(request, 'FILES'):
+            for field_name, uploaded_file in request.FILES.items():
+                scan_result = VirusScannerService.scan_file(uploaded_file)
+
+                if not scan_result['safe']:
+                    logger.error(
+                        "Malware detected in file upload",
+                        extra={
+                            'user_id': user_id,
+                            'filename': uploaded_file.name,
+                            'threat': scan_result['threat_name'],
+                            'scan_engine': scan_result['engine'],
+                            'ip_address': self._get_client_ip(request),
+                            'path': request.path
+                        }
+                    )
+
+                    return JsonResponse({
+                        'error': 'Security threat detected',
+                        'message': 'File contains potentially malicious content',
+                        'code': 'MALWARE_DETECTED'
+                    }, status=403)
 
         return None
 
