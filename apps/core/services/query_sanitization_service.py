@@ -128,37 +128,52 @@ class QuerySanitizationService:
         else:
             return self._sanitize_general(input_str)
 
-    def sanitize_html_input(self, input_value: str, allow_tags: Optional[List[str]] = None) -> str:
+    def sanitize_html_input(
+        self,
+        input_value: str,
+        allow_tags: Optional[List[str]] = None,
+        allow_attrs: Optional[Dict[str, List[str]]] = None
+    ) -> str:
         """
-        Sanitize HTML input to prevent XSS attacks.
+        Sanitize HTML input using bleach (if available) or fallback to escaping.
 
         Args:
-            input_value: HTML input to sanitize
+            input_value: HTML string to sanitize
             allow_tags: List of allowed HTML tags
+            allow_attrs: Dict of allowed attributes per tag
 
         Returns:
-            Sanitized HTML
+            str: Sanitized HTML
         """
         if not input_value:
             return ''
 
-        # Default allowed tags for rich text
+        # Check if bleach is available
+        if not HAS_BLEACH:
+            logger.warning(
+                "bleach library not installed, falling back to HTML escaping",
+                extra={'fallback_mode': 'escape'}
+            )
+
+            # Fallback to Django's HTML escaping
+            return escape(input_value)
+
+        # Use bleach for proper HTML sanitization
         if allow_tags is None:
             allow_tags = ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li']
 
-        # Allowed attributes for each tag
-        allowed_attributes = {
-            'a': ['href', 'title'],
-            'img': ['src', 'alt', 'width', 'height'],
-            'p': ['class'],
-            'span': ['class'],
-        }
+        if allow_attrs is None:
+            allow_attrs = {
+                'a': ['href', 'title'],
+                'img': ['src', 'alt', 'width', 'height'],
+                'p': ['class'],
+                'span': ['class'],
+            }
 
-        # Use bleach to sanitize HTML
         sanitized = bleach.clean(
             input_value,
             tags=allow_tags,
-            attributes=allowed_attributes,
+            attributes=allow_attrs,
             strip=True
         )
 
