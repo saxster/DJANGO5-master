@@ -5,6 +5,15 @@ Provides reusable test data, mocks, and helper functions.
 """
 
 import pytest
+import os
+import django
+from django.apps import apps
+
+# Ensure Django settings are configured before importing models
+if not apps.ready:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings_test")
+    django.setup()
+
 from django.utils import timezone
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -15,16 +24,27 @@ from apps.wellness.models import (
     InterventionDeliveryLog,
     MentalHealthIntervention,
 )
+from apps.tenants.models import Tenant
 
 
 @pytest.fixture
-def test_user(db):
+def tenant(db):
+    """Create test tenant"""
+    return Tenant.objects.create(
+        tenantname='Test Tenant',
+        subdomain_prefix='test-tenant'
+    )
+
+
+@pytest.fixture
+def test_user(db, tenant):
     """Create test user with wellness profile"""
     user = People.objects.create(
         username='test_wellness_user',
         email='test@example.com',
         peoplename='Test User',
-        isverified=True
+        isverified=True,
+        tenant=tenant
     )
 
     # Create profile
@@ -46,13 +66,14 @@ def test_user(db):
 
 
 @pytest.fixture
-def test_user_no_consent(db):
+def test_user_no_consent(db, tenant):
     """Create test user WITHOUT crisis monitoring consent"""
     user = People.objects.create(
         username='test_no_consent',
         email='test_no_consent@example.com',
         peoplename='Test No Consent',
-        isverified=True
+        isverified=True,
+        tenant=tenant
     )
 
     WellnessUserProgress.objects.create(

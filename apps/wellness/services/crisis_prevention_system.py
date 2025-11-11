@@ -1043,19 +1043,55 @@ class CrisisPreventionSystem:
 
     # Notification methods for professional escalation
 
+    def _sanitize_risk_factors_for_logging(self, risk_factors: list) -> dict:
+        """
+        Sanitize risk factors for safe logging (removes stigmatizing labels).
+
+        Converts detailed risk factor names (which may contain stigmatizing mental
+        health terminology) into safe, aggregated summary statistics for logging.
+        This prevents sensitive information from appearing in application logs while
+        preserving operational metrics.
+
+        Args:
+            risk_factors: List of risk factor dicts with 'factor', 'severity', 'category'
+
+        Returns:
+            dict: Safe summary for logging with only counts and distribution info
+        """
+        severity_counts = {}
+        category_counts = {}
+
+        for factor in risk_factors:
+            severity = factor.get('severity', 'unknown')
+            category = factor.get('category', 'uncategorized')
+
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+            category_counts[category] = category_counts.get(category, 0) + 1
+
+        return {
+            'total_factors': len(risk_factors),
+            'severity_distribution': severity_counts,
+            'category_distribution': category_counts
+            # No specific factor names - just counts
+        }
+
     def _notify_crisis_team(self, user, risk_assessment):
         """Notify crisis response team"""
         try:
             # In production, this would send alerts to crisis response team
             logger.critical(f"CRISIS TEAM NOTIFICATION: User {user.id}, Risk Score: {risk_assessment['crisis_risk_score']}")
 
-            # Create notification content
+            # Create notification content with sanitized risk factors
+            safe_risk_summary = self._sanitize_risk_factors_for_logging(
+                risk_assessment.get('active_risk_factors', [])
+            )
+
             notification_data = {
                 'user_id': user.id,
-                'user_name': user.peoplename,
+                'user_name': '[USER]',  # Redact name to prevent PII exposure
                 'risk_level': risk_assessment['risk_level'],
                 'risk_score': risk_assessment['crisis_risk_score'],
-                'active_risk_factors': risk_assessment['active_risk_factors'],
+                'risk_factors_summary': safe_risk_summary,  # Safe summary only, not detailed factors
                 'immediate_action_required': True,
                 'notification_time': timezone.now().isoformat()
             }
