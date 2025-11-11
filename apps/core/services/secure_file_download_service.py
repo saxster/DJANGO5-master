@@ -7,10 +7,13 @@ This service provides comprehensive security for file download operations:
 - Access control validation
 - Audit logging for compliance
 - Symlink attack prevention
+- Rate limiting to prevent file enumeration attacks
 
 Complies with Rule #14 from .claude/rules.md - File Upload Security
 
-CVSS Score Addressed: 9.8 (Critical) - Arbitrary File Read
+CVSS Scores Addressed:
+- 9.8 (Critical) - Arbitrary File Read
+- 5.3 (Medium) - File Enumeration Attack
 """
 
 import os
@@ -20,6 +23,7 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied, SuspiciousFileOperation
 from django.http import FileResponse, Http404
 from apps.core.error_handling import ErrorHandler
+from apps.core.caching.security import CacheRateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +47,99 @@ class SecureFileDownloadService:
         'master', 'journal_media', 'work_orders'
     }
 
+    # Rate limiting cache key prefix
+    RATE_LIMIT_KEY_PREFIX = 'file_download:ratelimit'
+
     @classmethod
-    def validate_and_serve_file(cls, filepath, filename, user=None, owner_id=None):
+    def _check_download_rate_limit(cls, user, rate_limit=None):
+        """
+        Check if user has exceeded file download rate limit.
+
+        Args:
+            user: Authenticated user making the request
+            rate_limit: Optional override for rate limit config (dict with 'limit' and 'window')
+
+        Raises:
+            PermissionDenied: If user has exceeded rate limit
+        """
+        if not user or not user.is_authenticated:
+            return  # Rate limit only applies to authenticated users
+
+        # Get rate limit configuration from settings
+        default_config = getattr(
+            settings,
+            'FILE_DOWNLOAD_RATE_LIMITS',
+            {'authenticated': 100, 'window_seconds': 3600}
+        )
+
+        # Use provided override or settings
+        if rate_limit:
+            limit = rate_limit.get('limit', default_config.get('authenticated', 100))
+            window = rate_limit.get('window', default_config.get('window_seconds', 3600))
+        else:
+            limit = default_config.get('authenticated', 100)
+            window = default_config.get('window_seconds', 3600)
+
+        # Check if staff users should be exempt
+        if user.is_staff and default_config.get('staff_exempt', False):
+            logger.info(
+                "File download rate limit check skipped - staff user exempt",
+                extra={'user_id': user.id}
+            )
+            return
+
+        # Create unique identifier for rate limit tracking
+        rate_limit_identifier = f"{user.id}"
+
+        try:
+            # Check rate limit using cache-based limiter
+            result = CacheRateLimiter.check_rate_limit(
+                identifier=f"{cls.RATE_LIMIT_KEY_PREFIX}:{rate_limit_identifier}",
+                limit=limit,
+                window=window
+            )
+
+            if not result.get('allowed', True):
+                logger.warning(
+                    "File download rate limit exceeded",
+                    extra={
+                        'user_id': user.id,
+                        'limit': limit,
+                        'window_seconds': window,
+                        'current_count': result.get('current_count'),
+                        'reset_at': result.get('reset_at')
+                    }
+                )
+                raise PermissionDenied(
+                    f"Download rate limit exceeded. Maximum {limit} downloads per {window} seconds. "
+                    f"Reset at: {result.get('reset_at', 'unknown')}"
+                )
+
+            logger.info(
+                "File download rate limit check passed",
+                extra={
+                    'user_id': user.id,
+                    'current_count': result.get('current_count'),
+                    'limit': limit,
+                    'remaining': result.get('remaining', limit - result.get('current_count', 0))
+                }
+            )
+
+        except PermissionDenied:
+            # Re-raise rate limit violations
+            raise
+        except (ConnectionError, Exception) as e:
+            # Fail-safe: Log but allow download if cache is unavailable
+            logger.error(
+                "Rate limit check failed - allowing download (fail-safe)",
+                extra={
+                    'user_id': user.id,
+                    'error': str(e)
+                }
+            )
+
+    @classmethod
+    def validate_and_serve_file(cls, filepath, filename, user=None, owner_id=None, rate_limit=None):
         """
         Validate file path and serve file securely.
 
@@ -53,12 +148,13 @@ class SecureFileDownloadService:
             filename: Requested filename (user input - DO NOT TRUST)
             user: Authenticated user making the request
             owner_id: Optional owner ID for access control validation
+            rate_limit: Optional override for rate limit config (dict with 'limit' and 'window')
 
         Returns:
             FileResponse: Secure file response
 
         Raises:
-            PermissionDenied: If user lacks access
+            PermissionDenied: If user lacks access or exceeds rate limit
             Http404: If file not found or path invalid
             SuspiciousFileOperation: If path traversal detected
         """
@@ -76,6 +172,9 @@ class SecureFileDownloadService:
                     'owner_id': owner_id
                 }
             )
+
+            # Phase 0: Check rate limit (before any file access)
+            cls._check_download_rate_limit(user, rate_limit)
 
             # Phase 1: Validate authentication
             if not user or not user.is_authenticated:
@@ -525,9 +624,43 @@ class SecureFileDownloadService:
             else:
                 response['Content-Disposition'] = f'attachment; filename="{original_filename}"'
 
-            # Security headers
+            # Security headers - prevent MIME sniffing and clickjacking
             response['X-Content-Type-Options'] = 'nosniff'
             response['X-Frame-Options'] = 'DENY'
+
+            # Content-Security-Policy - Prevent XSS in SVG/HTML/XML files (CVSS 5.4)
+            # Uses restrictive policy: disables all scripts, plugins, external resources
+            csp_directives = [
+                "default-src 'none'",           # Block all by default
+                "script-src 'none'",             # Disable all scripts
+                "style-src 'none'",              # Disable styles (prevent data exfil)
+                "img-src 'self'",                # Allow same-origin images only
+                "font-src 'none'",               # Disable fonts
+                "connect-src 'none'",            # Block network requests
+                "media-src 'none'",              # Disable media
+                "object-src 'none'",             # Disable plugins (Flash, etc.)
+                "frame-ancestors 'none'",        # Prevent framing
+                "base-uri 'none'",               # Prevent base tag manipulation
+                "form-action 'none'",            # Prevent form submissions
+                "upgrade-insecure-requests",     # Upgrade HTTP to HTTPS if possible
+            ]
+            response['Content-Security-Policy'] = '; '.join(csp_directives)
+
+            # X-Download-Options - IE legacy header (prevents opening file in browser)
+            response['X-Download-Options'] = 'noopen'
+
+            # X-Permitted-Cross-Domain-Policies - Flash security
+            response['X-Permitted-Cross-Domain-Policies'] = 'none'
+
+            logger.debug(
+                "Secure response created with CSP headers",
+                extra={
+                    'correlation_id': correlation_id,
+                    'file_path': str(file_path),
+                    'mime_type': mime_type,
+                    'csp_enabled': True
+                }
+            )
 
             return response
 

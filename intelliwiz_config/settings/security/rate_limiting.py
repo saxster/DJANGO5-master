@@ -87,3 +87,24 @@ RATE_LIMIT_TRUSTED_IPS = [
 RATE_LIMIT_AUTO_BLOCK_THRESHOLD = 10
 RATE_LIMIT_EXPONENTIAL_BACKOFF = True
 RATE_LIMIT_MAX_BACKOFF_HOURS = 24
+
+# FILE DOWNLOAD RATE LIMITING (CVSS 5.3 - File Enumeration Prevention)
+# Prevents attackers from enumerating files by rapid sequential requests
+FILE_DOWNLOAD_RATE_LIMITS = {
+    'authenticated': 100,      # Max downloads per window for authenticated users
+    'window_seconds': 3600,    # Time window (1 hour)
+    'staff_exempt': False,     # Set to True to exempt staff users from rate limits
+}
+
+__all__ = [
+    'ENABLE_RATE_LIMITING',
+    'RATE_LIMIT_WINDOW_MINUTES',
+    'RATE_LIMIT_MAX_ATTEMPTS',
+    'RATE_LIMIT_PATHS',
+    'RATE_LIMITS',
+    'RATE_LIMIT_TRUSTED_IPS',
+    'RATE_LIMIT_AUTO_BLOCK_THRESHOLD',
+    'RATE_LIMIT_EXPONENTIAL_BACKOFF',
+    'RATE_LIMIT_MAX_BACKOFF_HOURS',
+    'FILE_DOWNLOAD_RATE_LIMITS',
+]
