@@ -13,13 +13,20 @@ Follows .claude/rules.md:
 
 import logging
 from datetime import timedelta
+from typing import Tuple, Optional
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
 from apps.core.models import ImageMetadata, PhotoAuthenticityLog
-from apps.core.constants.spatial_constants import METERS_PER_DEGREE_LAT
+from apps.core.constants.spatial_constants import (
+    METERS_PER_DEGREE_LAT,
+    MIN_LATITUDE,
+    MAX_LATITUDE,
+    MIN_LONGITUDE,
+    MAX_LONGITUDE,
+)
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 
@@ -296,6 +303,57 @@ class LocationFraudDetector:
 
         return None
 
+    def _validate_gps_coordinates(
+        self, latitude: Optional[float], longitude: Optional[float]
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Validate GPS coordinates are within acceptable ranges.
+
+        CRITICAL SECURITY: Prevents GPS spoofing by validating coordinates
+        before Point object creation. This prevents bypass of subsequent checks.
+
+        Args:
+            latitude: Latitude value to validate
+            longitude: Longitude value to validate
+
+        Returns:
+            Tuple of (is_valid, error_code):
+            - is_valid (bool): True if coordinates are valid
+            - error_code (str or None): Error type if invalid
+                - 'INVALID_LATITUDE': Outside -90 to 90 range
+                - 'INVALID_LONGITUDE': Outside -180 to 180 range
+                - 'NULL_ISLAND_DETECTED': Coordinates are exactly (0, 0)
+                - Other: Type conversion or parsing error
+        """
+        try:
+            # Convert string coordinates to float if needed
+            if isinstance(latitude, str):
+                latitude = float(latitude)
+            if isinstance(longitude, str):
+                longitude = float(longitude)
+
+            # Check for None values
+            if latitude is None or longitude is None:
+                return False, 'MISSING_COORDINATES'
+
+            # Validate latitude bounds
+            if latitude < MIN_LATITUDE or latitude > MAX_LATITUDE:
+                return False, 'INVALID_LATITUDE'
+
+            # Validate longitude bounds
+            if longitude < MIN_LONGITUDE or longitude > MAX_LONGITUDE:
+                return False, 'INVALID_LONGITUDE'
+
+            # Detect null island (0, 0) - common spoofing marker
+            if latitude == 0.0 and longitude == 0.0:
+                return False, 'NULL_ISLAND_DETECTED'
+
+            return True, None
+
+        except (TypeError, ValueError) as e:
+            logger.warning(f"GPS coordinate validation error: {e}")
+            return False, 'INVALID_COORDINATE_FORMAT'
+
     def _validate_exif_gps_location(self, gps_data, expected_location):
         """
         Validate EXIF GPS coordinates against expected location.
@@ -316,6 +374,27 @@ class LocationFraudDetector:
 
             if photo_lat is None or photo_lon is None:
                 return None
+
+            # CRITICAL: Validate GPS coordinates before Point creation
+            is_valid, error_code = self._validate_gps_coordinates(photo_lat, photo_lon)
+
+            if not is_valid:
+                # Invalid coordinates = high fraud score
+                fraud_indicators = []
+
+                if error_code == 'NULL_ISLAND_DETECTED':
+                    fraud_indicators.append('NULL_ISLAND_FRAUD_DETECTED')
+                else:
+                    fraud_indicators.append('INVALID_GPS_COORDINATES')
+
+                return {
+                    'fraud_indicators': fraud_indicators,
+                    'fraud_score': 1.0,
+                    'distance_meters': None,
+                    'photo_coordinates': {'lat': photo_lat, 'lon': photo_lon},
+                    'expected_coordinates': {'lat': expected_location.y, 'lon': expected_location.x},
+                    'validation_error': error_code
+                }
 
             photo_location = Point(photo_lon, photo_lat, srid=4326)
             distance_meters = expected_location.distance(photo_location) * METERS_PER_DEGREE_LAT
