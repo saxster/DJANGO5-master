@@ -687,8 +687,10 @@ class HelpBotKnowledgeService:
                 }
             }
 
-            # Here you would update the txtai index with this single document
-            # This requires the txtai engine instance from the existing system
+            # TODO: Integrate with actual txtai engine once infrastructure ready
+            # Currently: Logs operation but doesn't modify index
+            # Actual implementation requires: txtai.Embeddings instance with add() method
+            # See: https://neuml.github.io/txtai/ for txtai API documentation
             logger.info(f"Updated txtai index for knowledge: {knowledge.knowledge_id}")
 
             return True
@@ -716,8 +718,10 @@ class HelpBotKnowledgeService:
             return True  # Nothing to do if txtai disabled
 
         try:
-            # Here you would remove the document from txtai index
-            # This requires the txtai engine instance
+            # TODO: Integrate with actual txtai engine once infrastructure ready
+            # Currently: Logs operation but doesn't modify index
+            # Actual implementation requires: txtai.Embeddings instance with delete() method
+            # See: https://neuml.github.io/txtai/ for txtai API documentation
             logger.info(f"Removed from txtai index: {knowledge_id}")
 
             return True

@@ -20,7 +20,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 import json
 
-from apps.client_onboarding.models.classification import TypeAssist
+from apps.onboarding.models import TypeAssist
 from apps.integrations.models import WebhookConfiguration, WebhookEvent
 from apps.tenants.models import Tenant
 

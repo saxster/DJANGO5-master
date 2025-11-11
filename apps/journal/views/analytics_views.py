@@ -5,6 +5,7 @@ Comprehensive wellbeing analytics with ML-powered insights.
 Refactored from views.py - business logic delegated to JournalAnalyticsService.
 """
 
+from typing import Optional
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView

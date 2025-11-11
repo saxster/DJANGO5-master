@@ -184,6 +184,7 @@ class WebhookDeliveryLog(TenantAwareModel):
             models.Index(fields=['webhook', 'delivered_at']),
             models.Index(fields=['tenant', 'delivered_at']),
             models.Index(fields=['success', 'delivered_at']),
+            models.Index(fields=['delivered_at']),  # For retention cleanup queries
         ]
         ordering = ['-delivered_at']
         verbose_name = 'Webhook Delivery Log'
