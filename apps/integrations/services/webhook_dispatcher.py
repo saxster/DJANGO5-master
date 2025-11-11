@@ -162,7 +162,8 @@ class WebhookDispatcher:
         """
         Get webhook configurations for tenant and event type.
 
-        Retrieves from TypeAssist.other_data where type='webhook_config'.
+        Nov 2025: Supports both new WebhookConfiguration models and legacy
+        TypeAssist.other_data for backward compatibility.
 
         Args:
             tenant_id: Tenant identifier
@@ -171,27 +172,68 @@ class WebhookDispatcher:
         Returns:
             List of webhook configuration dictionaries
         """
-        from apps.onboarding.models import TypeAssist
+        webhooks = []
 
+        # Try new WebhookConfiguration models first (Nov 2025)
         try:
-            # Get webhook configuration from TypeAssist
+            from apps.integrations.models import WebhookConfiguration
+
+            # Query webhooks listening to this event type
+            webhook_configs = WebhookConfiguration.objects.filter(
+                tenant_id=tenant_id,
+                enabled=True,
+                webhook_events__event_type=event_type
+            ).distinct().select_related('tenant').prefetch_related('webhook_events')
+
+            for webhook in webhook_configs:
+                # Convert to dict format expected by dispatcher
+                webhooks.append({
+                    'id': str(webhook.webhook_id),
+                    'name': webhook.name,
+                    'url': webhook.url,
+                    'secret': webhook.secret,
+                    'enabled': webhook.enabled,
+                    'retry_count': webhook.retry_count,
+                    'timeout_seconds': webhook.timeout_seconds,
+                    'events': [e.event_type for e in webhook.webhook_events.all()],
+                    'source': 'webhook_configuration'  # Track source
+                })
+
+            if webhooks:
+                logger.debug(
+                    f"Found {len(webhooks)} webhook(s) from WebhookConfiguration models"
+                )
+                return webhooks
+
+        except Exception as e:
+            # Models might not exist yet (pre-migration)
+            logger.debug(f"WebhookConfiguration models not available: {e}")
+
+        # Fallback to legacy TypeAssist.other_data (DEPRECATED)
+        try:
+            from apps.onboarding.models import TypeAssist
+
             webhook_config = TypeAssist.objects.filter(
                 client_id=tenant_id,
                 type='webhook_config'
             ).first()
 
-            if not webhook_config or not webhook_config.other_data:
-                return []
+            if webhook_config and webhook_config.other_data:
+                all_webhooks = webhook_config.other_data.get('webhooks', [])
 
-            all_webhooks = webhook_config.other_data.get('webhooks', [])
+                # Filter webhooks that are enabled and subscribed to this event type
+                matching_webhooks = [
+                    {**wh, 'source': 'typeassist'}  # Mark as legacy
+                    for wh in all_webhooks
+                    if wh.get('enabled', False) and event_type in wh.get('events', [])
+                ]
 
-            # Filter webhooks that are enabled and subscribed to this event type
-            matching_webhooks = [
-                wh for wh in all_webhooks
-                if wh.get('enabled', False) and event_type in wh.get('events', [])
-            ]
+                if matching_webhooks:
+                    logger.debug(
+                        f"Found {len(matching_webhooks)} webhook(s) from TypeAssist (legacy)"
+                    )
 
-            return matching_webhooks
+                return matching_webhooks
 
         except NETWORK_EXCEPTIONS as e:
             logger.error(
@@ -202,7 +244,8 @@ class WebhookDispatcher:
                 },
                 exc_info=True
             )
-            return []
+
+        return []
 
     @classmethod
     def _build_event_envelope(

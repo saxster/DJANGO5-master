@@ -1,7 +1,23 @@
 """
-Conflict Data Extractor
+Conflict Data Extractor - PHASE 2 FEATURE (NOT YET IMPLEMENTED)
 
-Extracts training data from historical sync events for conflict prediction model.
+⚠️ STATUS: Stub implementation - returns empty DataFrame with correct schema
+
+BLOCKED BY: Missing SyncLog and ConflictResolution models in apps.core.models
+
+IMPLEMENTATION PLAN:
+1. Create models (see below)
+2. Instrument sync operations to populate SyncLog
+3. Implement conflict detection to populate ConflictResolution
+4. Implement feature extraction methods (_count_concurrent_editors, etc.)
+5. Train conflict prediction model
+6. Deploy API endpoint for proactive warnings
+
+REQUIRED MODELS (apps/core/models/sync_tracking.py):
+- SyncLog: Track all sync operations (user, entity, timestamp, operation)
+- ConflictResolution: Track conflict occurrences and resolution strategies
+
+See docs/features/ML_CONFLICT_PREDICTION_PHASE2.md for complete design.
 
 Following .claude/rules.md:
 - Rule #7: Service < 150 lines
