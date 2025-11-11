@@ -20,6 +20,8 @@ Following .claude/rules.md:
 import logging
 from celery import shared_task, chord
 from django.conf import settings
+from django.utils import timezone
+from django.db import DatabaseError, IntegrityError, OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -399,31 +401,116 @@ def analyze_exemplar_patterns_async(category: str, tenant_id: int):
 @shared_task(
     name='report_generation.generate_pdf',
     bind=True,
-    max_retries=2
+    max_retries=2,
+    time_limit=600
 )
 def generate_report_pdf_async(self, report_id: int):
     """
-    Generate PDF for report (placeholder for future implementation).
-    
+    Generate PDF for report using AsyncPDFGenerationService.
+
+    Replaces fake placeholder implementation (Issue #6b - Nov 11, 2025 remediation).
+    Uses existing core PDF service for real PDF generation with WeasyPrint.
+
     Args:
         report_id: Report ID
+
+    Returns:
+        Dict with report_id, pdf_path, success status
     """
     try:
         from apps.report_generation.models import GeneratedReport
-        
-        report = GeneratedReport.objects.get(id=report_id)
-        
-        # TODO: Implement PDF generation using ReportLab or WeasyPrint
-        logger.info(f"PDF generation requested for report {report_id}: {report.title}")
-        
+        from apps.core.services.async_pdf_service import AsyncPDFGenerationService
+        from django.conf import settings
+
+        report = GeneratedReport.objects.select_related('author', 'tenant', 'template').get(id=report_id)
+
+        logger.info(f"PDF generation started for report {report_id}: {report.title}")
+
+        # Initialize PDF service
+        pdf_service = AsyncPDFGenerationService()
+
+        # Prepare template context
+        context_data = {
+            'report': report,
+            'report_data': report.report_data,
+            'title': report.title,
+            'author': report.author,
+            'tenant': report.tenant,
+            'template': report.template,
+            'created_at': report.created_at,
+            'attachments': report.attachments.all(),
+            'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+        }
+
+        # Determine template name based on report type
+        template_name = report.template.pdf_template if hasattr(report.template, 'pdf_template') else 'reports/pdf/default_report.html'
+
+        # Generate unique filename
+        filename = f"report_{report.id}_{report.created_at.strftime('%Y%m%d_%H%M%S')}.pdf"
+
+        # Initiate PDF generation
+        task_data = pdf_service.initiate_pdf_generation(
+            template_name=template_name,
+            context_data=context_data,
+            user_id=report.author.id,
+            filename=filename,
+            output_format='pdf'
+        )
+
+        # Generate PDF content
+        result = pdf_service.generate_pdf_content(
+            task_id=task_data['task_id'],
+            template_name=template_name,
+            context_data=context_data,
+            output_format='pdf'
+        )
+
+        if result['status'] == 'completed':
+            # Update report model with PDF path
+            report.pdf_file = result['file_path']
+            report.pdf_generated_at = timezone.now()
+            report.save(update_fields=['pdf_file', 'pdf_generated_at'])
+
+            logger.info(f"PDF generated successfully for report {report_id}: {result['file_path']}")
+
+            return {
+                'report_id': report_id,
+                'pdf_path': result['file_path'],
+                'file_size': result.get('file_size', 0),
+                'success': True
+            }
+        else:
+            error_msg = result.get('error', 'PDF generation failed')
+            logger.error(f"PDF generation failed for report {report_id}: {error_msg}")
+            return {
+                'report_id': report_id,
+                'pdf_path': None,
+                'success': False,
+                'error': error_msg
+            }
+
+    except GeneratedReport.DoesNotExist:
+        logger.error(f"Report {report_id} not found")
         return {
             'report_id': report_id,
-            'pdf_path': f'/media/reports/report_{report_id}.pdf',
-            'success': True
+            'success': False,
+            'error': 'Report not found'
         }
-        
-    except Exception as e:
-        logger.error(f"Error generating PDF for report {report_id}: {e}", exc_info=True)
+
+    except (DatabaseError, IntegrityError, OperationalError) as e:
+        logger.error(f"Database error generating PDF for report {report_id}: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=60)
+
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
+        logger.error(f"Data error generating PDF for report {report_id}: {e}", exc_info=True)
+        return {
+            'report_id': report_id,
+            'success': False,
+            'error': f'Invalid data: {str(e)}'
+        }
+
+    except (IOError, OSError) as e:
+        logger.error(f"File error generating PDF for report {report_id}: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
 
 

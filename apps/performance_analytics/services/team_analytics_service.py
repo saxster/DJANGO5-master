@@ -159,27 +159,44 @@ class TeamAnalyticsService:
             raise ValueError("threshold must be between 0 and 100")
         
         try:
+            from django.db.models import Count, Q, Max, Prefetch
+
             site = Bt.objects.get(id=site_id)
             recent_date = timezone.now().date() - timedelta(days=7)
-            
-            # Get workers below threshold in last 7 days
+
+            # OPTIMIZED: Single query with annotation (eliminates N+1 query)
+            # Annotate days below threshold count for each worker
             low_performers = WorkerDailyMetrics.objects.filter(
                 site=site,
                 tenant=site.tenant,
                 date__gte=recent_date,
                 balanced_performance_index__lt=threshold
-            ).select_related('worker').order_by('worker', '-date').distinct('worker')
-            
+            ).values('worker').annotate(
+                most_recent_date=Max('date'),
+                days_below_count=Count('id')
+            ).order_by('-days_below_count')
+
+            # Get worker_ids to fetch full metrics efficiently
+            worker_ids = [lp['worker'] for lp in low_performers]
+
+            # Single query to get most recent metrics for each worker
+            recent_metrics = {
+                metric.worker_id: metric
+                for metric in WorkerDailyMetrics.objects.filter(
+                    worker_id__in=worker_ids,
+                    site=site,
+                    tenant=site.tenant
+                ).select_related('worker').order_by('worker', '-date').distinct('worker')
+            }
+
             coaching_queue = []
-            for metric in low_performers:
-                # Count consecutive days below threshold
-                days_below = WorkerDailyMetrics.objects.filter(
-                    worker=metric.worker,
-                    tenant=metric.tenant,
-                    date__lte=metric.date,
-                    balanced_performance_index__lt=threshold
-                ).order_by('-date').count()
-                
+            for performer_data in low_performers:
+                worker_id = performer_data['worker']
+                metric = recent_metrics.get(worker_id)
+
+                if not metric:
+                    continue
+
                 # Identify focus areas (lowest 2 scores)
                 scores = [
                     ('Attendance', metric.attendance_score),
@@ -190,7 +207,7 @@ class TeamAnalyticsService:
                 ]
                 scores.sort(key=lambda x: x[1])
                 focus_areas = [area for area, score in scores[:2]]
-                
+
                 coaching_queue.append({
                     'worker_id': metric.worker.id,
                     'worker_name': metric.worker.get_full_name(),
@@ -198,13 +215,13 @@ class TeamAnalyticsService:
                     'current_bpi': float(metric.balanced_performance_index),
                     'performance_band': metric.performance_band,
                     'focus_areas': focus_areas,
-                    'days_below_threshold': days_below,
-                    'last_measured': metric.date.isoformat()
+                    'days_below_threshold': performer_data['days_below_count'],
+                    'last_measured': performer_data['most_recent_date'].isoformat()
                 })
-            
+
             # Sort by BPI ascending (worst first)
             coaching_queue.sort(key=lambda x: x['current_bpi'])
-            
+
             return coaching_queue
         
         except Bt.DoesNotExist:
