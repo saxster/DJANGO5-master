@@ -21,11 +21,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from django.db import DatabaseError
+from django.db import DatabaseError, IntegrityError, transaction
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q
 
 from apps.y_helpdesk.models import Ticket
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
 
@@ -345,60 +346,61 @@ class TicketUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, ticket_id):
-        """Update ticket with tenant validation."""
+        """Update ticket with tenant validation (Rule #17: transaction.atomic)."""
         # Generate correlation ID
         correlation_id = str(uuid.uuid4())
 
         try:
-            # Get ticket with tenant filtering
-            queryset = self._get_filtered_queryset(request)
-            ticket = queryset.get(id=ticket_id)
+            with transaction.atomic(using=get_current_db_name()):
+                # Get ticket with tenant filtering - use select_for_update for concurrency
+                queryset = self._get_filtered_queryset(request).select_for_update()
+                ticket = queryset.get(id=ticket_id)
 
-            # Update allowed fields
-            updatable_fields = ['title', 'description', 'priority', 'category']
-            updated = False
+                # Update allowed fields
+                updatable_fields = ['title', 'description', 'priority', 'category']
+                updated = False
 
-            for field in updatable_fields:
-                if field in request.data:
-                    setattr(ticket, field, request.data[field])
+                for field in updatable_fields:
+                    if field in request.data:
+                        setattr(ticket, field, request.data[field])
+                        updated = True
+
+                # Recalculate SLA if priority changed
+                if 'priority' in request.data:
+                    sla_hours = self._get_sla_hours(ticket.priority)
+                    ticket.due_date = datetime.now(dt_timezone.utc) + timedelta(hours=sla_hours)
                     updated = True
 
-            # Recalculate SLA if priority changed
-            if 'priority' in request.data:
-                sla_hours = self._get_sla_hours(ticket.priority)
-                ticket.due_date = datetime.now(dt_timezone.utc) + timedelta(hours=sla_hours)
-                updated = True
+                if updated:
+                    ticket.save()
 
-            if updated:
-                ticket.save()
-
-            # Serialize ticket data
-            ticket_data = {
-                'id': ticket.id,
-                'ticket_number': ticket.ticket_number,
-                'title': ticket.title,
-                'description': ticket.description,
-                'priority': ticket.priority,
-                'category': ticket.category,
-                'status': ticket.status,
-                'due_date': ticket.due_date.isoformat() if ticket.due_date else None,
-                'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
-            }
-
-            logger.info(f"V2 ticket updated: {ticket_id}", extra={
-                'correlation_id': correlation_id,
-                'ticket_id': ticket_id
-            })
-
-            # V2 standardized success response
-            return Response({
-                'success': True,
-                'data': ticket_data,
-                'meta': {
-                    'correlation_id': correlation_id,
-                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                # Serialize ticket data
+                ticket_data = {
+                    'id': ticket.id,
+                    'ticket_number': ticket.ticket_number,
+                    'title': ticket.title,
+                    'description': ticket.description,
+                    'priority': ticket.priority,
+                    'category': ticket.category,
+                    'status': ticket.status,
+                    'due_date': ticket.due_date.isoformat() if ticket.due_date else None,
+                    'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                 }
-            }, status=status.HTTP_200_OK)
+
+                logger.info(f"V2 ticket updated: {ticket_id}", extra={
+                    'correlation_id': correlation_id,
+                    'ticket_id': ticket_id
+                })
+
+                # V2 standardized success response
+                return Response({
+                    'success': True,
+                    'data': ticket_data,
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_200_OK)
 
         except Ticket.DoesNotExist:
             logger.warning(f"Ticket not found: {ticket_id}", extra={
@@ -473,7 +475,7 @@ class TicketTransitionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, ticket_id):
-        """Transition ticket with workflow logging."""
+        """Transition ticket with workflow logging (Rule #17: transaction.atomic)."""
         # Generate correlation ID
         correlation_id = str(uuid.uuid4())
 
@@ -488,42 +490,43 @@ class TicketTransitionView(APIView):
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Get ticket
-            queryset = self._get_filtered_queryset(request)
-            ticket = queryset.get(id=ticket_id)
+            with transaction.atomic(using=get_current_db_name()):
+                # Get ticket with row locking for concurrent transitions
+                queryset = self._get_filtered_queryset(request).select_for_update()
+                ticket = queryset.get(id=ticket_id)
 
-            # Update status
-            old_status = ticket.status
-            ticket.status = to_status
+                # Update status
+                old_status = ticket.status
+                ticket.status = to_status
 
-            # Set resolved_at if transitioning to resolved
-            if to_status == 'resolved':
-                ticket.resolved_at = datetime.now(dt_timezone.utc)
+                # Set resolved_at if transitioning to resolved
+                if to_status == 'resolved':
+                    ticket.resolved_at = datetime.now(dt_timezone.utc)
 
-            ticket.save()
+                ticket.save()
 
-            # Serialize ticket
-            ticket_data = {
-                'id': ticket.id,
-                'ticket_number': ticket.ticket_number,
-                'title': ticket.title,
-                'status': ticket.status,
-                'priority': ticket.priority,
-            }
-
-            logger.info(f"V2 ticket transitioned: {ticket_id} ({old_status} → {to_status})", extra={
-                'correlation_id': correlation_id,
-                'ticket_id': ticket_id
-            })
-
-            return Response({
-                'success': True,
-                'data': ticket_data,
-                'meta': {
-                    'correlation_id': correlation_id,
-                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                # Serialize ticket
+                ticket_data = {
+                    'id': ticket.id,
+                    'ticket_number': ticket.ticket_number,
+                    'title': ticket.title,
+                    'status': ticket.status,
+                    'priority': ticket.priority,
                 }
-            }, status=status.HTTP_200_OK)
+
+                logger.info(f"V2 ticket transitioned: {ticket_id} ({old_status} → {to_status})", extra={
+                    'correlation_id': correlation_id,
+                    'ticket_id': ticket_id
+                })
+
+                return Response({
+                    'success': True,
+                    'data': ticket_data,
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_200_OK)
 
         except Ticket.DoesNotExist:
             return self._error_response(
@@ -574,59 +577,60 @@ class TicketEscalateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, ticket_id):
-        """Escalate ticket priority."""
+        """Escalate ticket priority (Rule #17: transaction.atomic)."""
         # Generate correlation ID
         correlation_id = str(uuid.uuid4())
 
         try:
-            # Get ticket
-            queryset = self._get_filtered_queryset(request)
-            ticket = queryset.get(id=ticket_id)
+            with transaction.atomic(using=get_current_db_name()):
+                # Get ticket with row locking for atomic escalation
+                queryset = self._get_filtered_queryset(request).select_for_update()
+                ticket = queryset.get(id=ticket_id)
 
-            # Escalate priority
-            priority_levels = ['P3', 'P2', 'P1', 'P0']
-            current_index = priority_levels.index(ticket.priority) if ticket.priority in priority_levels else 1
+                # Escalate priority
+                priority_levels = ['P3', 'P2', 'P1', 'P0']
+                current_index = priority_levels.index(ticket.priority) if ticket.priority in priority_levels else 1
 
-            if current_index >= len(priority_levels) - 1:
-                return self._error_response(
-                    code='MAX_PRIORITY_REACHED',
-                    message='Ticket is already at highest priority',
-                    correlation_id=correlation_id,
-                    status_code=status.HTTP_400_BAD_REQUEST
-                )
+                if current_index >= len(priority_levels) - 1:
+                    return self._error_response(
+                        code='MAX_PRIORITY_REACHED',
+                        message='Ticket is already at highest priority',
+                        correlation_id=correlation_id,
+                        status_code=status.HTTP_400_BAD_REQUEST
+                    )
 
-            # Increase priority
-            new_priority = priority_levels[current_index + 1]
-            ticket.priority = new_priority
+                # Increase priority
+                new_priority = priority_levels[current_index + 1]
+                ticket.priority = new_priority
 
-            # Recalculate SLA
-            sla_hours = self._get_sla_hours(new_priority)
-            ticket.due_date = datetime.now(dt_timezone.utc) + timedelta(hours=sla_hours)
+                # Recalculate SLA
+                sla_hours = self._get_sla_hours(new_priority)
+                ticket.due_date = datetime.now(dt_timezone.utc) + timedelta(hours=sla_hours)
 
-            ticket.save()
+                ticket.save()
 
-            # Serialize ticket
-            ticket_data = {
-                'id': ticket.id,
-                'ticket_number': ticket.ticket_number,
-                'title': ticket.title,
-                'priority': ticket.priority,
-                'due_date': ticket.due_date.isoformat() if ticket.due_date else None,
-            }
-
-            logger.info(f"V2 ticket escalated: {ticket_id} to {new_priority}", extra={
-                'correlation_id': correlation_id,
-                'ticket_id': ticket_id
-            })
-
-            return Response({
-                'success': True,
-                'data': ticket_data,
-                'meta': {
-                    'correlation_id': correlation_id,
-                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                # Serialize ticket
+                ticket_data = {
+                    'id': ticket.id,
+                    'ticket_number': ticket.ticket_number,
+                    'title': ticket.title,
+                    'priority': ticket.priority,
+                    'due_date': ticket.due_date.isoformat() if ticket.due_date else None,
                 }
-            }, status=status.HTTP_200_OK)
+
+                logger.info(f"V2 ticket escalated: {ticket_id} to {new_priority}", extra={
+                    'correlation_id': correlation_id,
+                    'ticket_id': ticket_id
+                })
+
+                return Response({
+                    'success': True,
+                    'data': ticket_data,
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_200_OK)
 
         except Ticket.DoesNotExist:
             return self._error_response(

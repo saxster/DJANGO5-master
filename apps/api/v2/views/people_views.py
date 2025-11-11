@@ -21,10 +21,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from django.db import DatabaseError
+from django.db import DatabaseError, IntegrityError, transaction
 from django.core.paginator import Paginator, EmptyPage
 
 from apps.peoples.models import People
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
 
@@ -336,79 +337,80 @@ class PeopleUserUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, user_id):
-        """Update user profile with ownership validation."""
+        """Update user profile with ownership validation (Rule #17: transaction.atomic)."""
         # Generate correlation ID
         correlation_id = str(uuid.uuid4())
 
         try:
-            # Get user with tenant filtering
-            queryset = self._get_filtered_queryset(request)
-            user = queryset.get(id=user_id)
+            with transaction.atomic(using=get_current_db_name()):
+                # Get user with tenant filtering and row locking
+                queryset = self._get_filtered_queryset(request).select_for_update()
+                user = queryset.get(id=user_id)
 
-            # Permission check: only owner or admin can update
-            if user.id != request.user.id and not request.user.is_superuser:
-                return self._error_response(
-                    code='PERMISSION_DENIED',
-                    message='You do not have permission to update this user',
-                    correlation_id=correlation_id,
-                    status_code=status.HTTP_403_FORBIDDEN
-                )
+                # Permission check: only owner or admin can update
+                if user.id != request.user.id and not request.user.is_superuser:
+                    return self._error_response(
+                        code='PERMISSION_DENIED',
+                        message='You do not have permission to update this user',
+                        correlation_id=correlation_id,
+                        status_code=status.HTTP_403_FORBIDDEN
+                    )
 
-            # Validate and update fields
-            updatable_fields = ['first_name', 'last_name', 'email']
-            updated = False
+                # Validate and update fields
+                updatable_fields = ['first_name', 'last_name', 'email']
+                updated = False
 
-            for field in updatable_fields:
-                if field in request.data:
-                    value = request.data[field]
+                for field in updatable_fields:
+                    if field in request.data:
+                        value = request.data[field]
 
-                    # Validate email format
-                    if field == 'email':
-                        from django.core.validators import validate_email
-                        from django.core.exceptions import ValidationError
-                        try:
-                            validate_email(value)
-                        except ValidationError:
-                            return self._error_response(
-                                code='VALIDATION_ERROR',
-                                message=f'Invalid email format: {value}',
-                                correlation_id=correlation_id,
-                                status_code=status.HTTP_400_BAD_REQUEST
-                            )
+                        # Validate email format
+                        if field == 'email':
+                            from django.core.validators import validate_email
+                            from django.core.exceptions import ValidationError
+                            try:
+                                validate_email(value)
+                            except ValidationError:
+                                return self._error_response(
+                                    code='VALIDATION_ERROR',
+                                    message=f'Invalid email format: {value}',
+                                    correlation_id=correlation_id,
+                                    status_code=status.HTTP_400_BAD_REQUEST
+                                )
 
-                    setattr(user, field, value)
-                    updated = True
+                        setattr(user, field, value)
+                        updated = True
 
-            if updated:
-                user.save()
+                if updated:
+                    user.save()
 
-            # Serialize updated user data
-            user_data = {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'is_active': user.is_active,
-                'date_joined': user.date_joined.isoformat() if user.date_joined else None,
-                'last_login': user.last_login.isoformat() if user.last_login else None,
-            }
-
-            logger.info(f"V2 user updated: {user_id}", extra={
-                'correlation_id': correlation_id,
-                'user_id': user_id,
-                'updated_by': request.user.id
-            })
-
-            # V2 standardized success response
-            return Response({
-                'success': True,
-                'data': user_data,
-                'meta': {
-                    'correlation_id': correlation_id,
-                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                # Serialize updated user data
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'is_active': user.is_active,
+                    'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+                    'last_login': user.last_login.isoformat() if user.last_login else None,
                 }
-            }, status=status.HTTP_200_OK)
+
+                logger.info(f"V2 user updated: {user_id}", extra={
+                    'correlation_id': correlation_id,
+                    'user_id': user_id,
+                    'updated_by': request.user.id
+                })
+
+                # V2 standardized success response
+                return Response({
+                    'success': True,
+                    'data': user_data,
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_200_OK)
 
         except People.DoesNotExist:
             logger.warning(f"User not found for update: {user_id}", extra={
