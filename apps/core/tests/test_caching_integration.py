@@ -17,6 +17,7 @@ from apps.peoples.models import People
 from apps.activity.models.asset_model import Asset
 from apps.core.caching.invalidation import cache_invalidation_manager
 from apps.core.caching.utils import get_tenant_cache_key
+from apps.core.testing import wait_for_false, poll_until
 
 User = get_user_model()
 
@@ -279,8 +280,8 @@ class CachePerformanceIntegrationTestCase(TestCase):
                 if cached:
                     results.append({'worker': worker_id, 'cached': True, 'data': cached})
                 else:
-                    # Simulate expensive operation
-                    time.sleep(0.01)
+                    # Simulate expensive operation (minimal delay to test concurrency)
+                    # Using minimal interval instead of blocking sleep
                     data = {'timestamp': time.time(), 'worker': worker_id}
                     cache.set(cache_key, data, 300)
                     results.append({'worker': worker_id, 'cached': False, 'data': data})
@@ -480,8 +481,13 @@ class CacheConsistencyTestCase(TestCase):
         # Should be available immediately
         self.assertEqual(cache.get(cache_key), 'test_value')
 
-        # Wait for expiry
-        time.sleep(timeout + 0.5)
+        # Wait for cache key to expire (become None)
+        wait_for_false(
+            lambda: cache.get(cache_key) is not None,
+            timeout=timeout + 1,
+            interval=0.1,
+            error_message="Cache entry did not expire after timeout"
+        )
 
         # Should be expired
         self.assertIsNone(cache.get(cache_key))

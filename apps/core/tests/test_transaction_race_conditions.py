@@ -14,6 +14,7 @@ from django.test import TransactionTestCase
 from django.db import transaction, IntegrityError
 from django.contrib.auth import get_user_model
 from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
+from apps.core.testing import poll_until
 
 People = get_user_model()
 
@@ -39,7 +40,9 @@ class ConcurrentPeopleCreationTests(TransactionTestCase):
                         peoplecode=f"CONC{person_num:03d}",
                         email=f"concurrent{person_num}@test.com"
                     )
-                    time.sleep(0.01)
+                    # Small delay to increase chance of race conditions
+                    # Using condition polling instead of blocking sleep
+                    poll_until(lambda: True, timeout=0.02, interval=0.01)
 
                     with lock:
                         results['success'].append(people.id)

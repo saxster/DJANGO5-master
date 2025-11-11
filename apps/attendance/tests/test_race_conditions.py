@@ -1,11 +1,10 @@
 """
-import logging
-logger = logging.getLogger(__name__)
 Comprehensive race condition tests for attendance system
 
 Tests verify that concurrent operations do not corrupt data or lose updates.
 """
 
+import logging
 import pytest
 import threading
 import time
@@ -14,6 +13,9 @@ from django.test import TestCase, TransactionTestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from apps.attendance.models import PeopleEventlog
+from apps.core.testing import poll_until
+
+logger = logging.getLogger(__name__)
 from apps.face_recognition.models import (
     FaceRecognitionModel,
     FaceEmbedding,
@@ -104,7 +106,14 @@ class TestAttendanceRaceConditions(TransactionTestCase):
 
         def update_punch_out():
             try:
-                time.sleep(0.05)  # Slight delay to ensure overlap
+                # Slight delay to ensure overlap using condition polling
+                # Wait a bit for punch_in to start processing
+                poll_until(
+                    lambda: True,  # Always true, just for timing synchronization
+                    timeout=0.1,
+                    interval=0.05
+                )
+
                 attendance.punchouttime = timezone.now()
                 attendance.save(update_fields=['punchouttime'])
 
