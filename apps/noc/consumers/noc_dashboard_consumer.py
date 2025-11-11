@@ -26,9 +26,13 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
     Supports:
     - Client-specific alert subscriptions
     - Tenant-wide broadcasts
-    - Rate limiting (100 msg/min per connection)
+    - Rate limiting (100 msg/min per user, Redis-backed, prevents multi-connection bypass)
     - RBAC scope enforcement
     - Heartbeat for keep-alive
+
+    Security Note (Nov 2025):
+    Rate limiting is implemented per-user via Redis cache, not per-connection.
+    This prevents bypassing limits by opening multiple WebSocket connections.
     """
 
     RATE_LIMIT_WINDOW = 60
@@ -48,8 +52,6 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
 
         self.user = user
         self.tenant_id = user.tenant_id
-        self.message_count = 0
-        self.window_start = timezone.now()
 
         self.tenant_group = f'noc_tenant_{self.tenant_id}'
         await self.channel_layer.group_add(
@@ -317,16 +319,46 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         }))
 
     async def _check_rate_limit(self):
-        """Check if message rate limit is exceeded."""
-        now = timezone.now()
+        """
+        Check if per-user message rate limit is exceeded.
 
-        if (now - self.window_start).total_seconds() > self.RATE_LIMIT_WINDOW:
-            self.message_count = 0
-            self.window_start = now
+        CRITICAL SECURITY FIX (Nov 2025):
+        Implements Redis-backed per-user rate limiting, not per-connection.
+        This prevents rate limit bypass via multiple WebSocket connections.
 
-        self.message_count += 1
+        Cache key: websocket:rate:{user.id}
+        Uses atomic cache.incr() for thread-safe counting across workers.
+        """
+        cache_key = f'websocket:rate:{self.user.id}'
 
-        return self.message_count <= self.RATE_LIMIT_MAX
+        try:
+            # Atomic increment with TTL
+            # Returns the new count after increment
+            current_count = cache.incr(cache_key)
+
+            # Set expiry on first message in window
+            if current_count == 1:
+                cache.expire(cache_key, self.RATE_LIMIT_WINDOW)
+
+            # Check if exceeded
+            if current_count > self.RATE_LIMIT_MAX:
+                logger.warning(
+                    f"WebSocket rate limit exceeded for user",
+                    extra={'user_id': self.user.id, 'count': current_count}
+                )
+                return False
+
+            return True
+
+        except Exception as e:
+            # Fail-open: allow request if cache unavailable
+            # This prevents blocking legitimate users due to Redis issues
+            logger.error(
+                f"Rate limit check failed: {e}",
+                exc_info=True,
+                extra={'user_id': self.user.id}
+            )
+            return True
 
     @database_sync_to_async
     def _has_noc_capability(self, user):
