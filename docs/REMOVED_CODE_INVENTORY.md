@@ -72,6 +72,39 @@ diff challenge_response_service.py challenge_response_service.py.bak
 
 ---
 
+### 2025-11-11: Clientbilling Stub App Removal
+
+**Files Removed:**
+- `apps/clientbilling/` (entire directory)
+  - `__init__.py` (20 bytes)
+  - `urls.py` (228 bytes, single route to static template)
+- URL route removed from `intelliwiz_config/urls_optimized.py:193`
+
+**Reason**:
+- Unused stub app with no implementation
+- No models, views, tests, or admin
+- Single route to non-existent template: `path('features/', TemplateView...)`
+- Not in INSTALLED_APPS (never activated)
+- Taking up namespace that might be needed later
+- Violates architecture standards (apps must have tests)
+
+**Impact**: None - app was never functional or used
+
+**Verification**:
+```bash
+# Confirmed NOT in INSTALLED_APPS
+grep "clientbilling" intelliwiz_config/settings/base_apps.py
+# Returns: no matches
+
+# Confirmed no imports
+grep -r "clientbilling" apps/
+# Returns: no matches
+```
+
+**Commit**: [TBD - add commit hash]
+
+---
+
 ## Guidelines for This File
 
 ### When to Add Entries

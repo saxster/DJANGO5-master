@@ -190,7 +190,7 @@ LEGACY_PATTERNS = [
     path('scheduler/', include('apps.scheduler.urls')),
     path('helpdesk/', include('apps.y_helpdesk.urls')),
     path('y_helpdesk/', include(('apps.y_helpdesk.urls', 'helpdesk'), namespace='y_helpdesk')),
-    path('clientbilling/', include('apps.clientbilling.urls')),
+    # clientbilling app removed (unused stub)
     # reminder app removed
 
     # ========== INTERNATIONALIZATION ==========
