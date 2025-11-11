@@ -1,14 +1,20 @@
 """
 SQL Security Utilities
 
+IMPORTANT: Prefer Django ORM over raw SQL whenever possible.
+Use `get_table_count_via_orm()` instead of `build_safe_sqlite_count_query()`.
+
 This module provides secure SQL execution patterns to prevent SQL injection vulnerabilities.
 All raw SQL queries should use these utilities instead of direct string formatting.
+Raw SQL methods use strict whitelist validation and identifier quoting for safety.
 """
 
 import re
 import logging
 from typing import List, Tuple, Dict, Any, Optional, Union, Set
 from django.core.exceptions import ValidationError
+from django.apps import apps
+from django.db import connection
 
 logger = logging.getLogger("django")
 
@@ -237,22 +243,69 @@ class SecureSQL:
         return table_name
 
     @staticmethod
-    def build_safe_sqlite_count_query(table_name: str, allowed_tables: Set[str]) -> str:
+    def build_safe_sqlite_count_query(
+        table_name: str,
+        allowed_tables: Set[str]
+    ) -> Tuple[str, list]:
         """
-        Build a safe COUNT query for SQLite with table name validation.
+        Build a safe COUNT query with validated table name.
+
+        SECURITY: Uses identifier quoting after strict whitelist validation.
+        While table names cannot be parameterized in SQL, we use:
+        1. Strict whitelist validation (fail fast on invalid names)
+        2. Format validation (alphanumeric + underscore only)
+        3. Database-specific identifier quoting
 
         Args:
             table_name: The table name to count records from
             allowed_tables: Set of allowed table names
 
         Returns:
-            Safe SQL query string
+            Tuple of (query string, params list) for safe execution
 
         Raises:
             ValidationError: If table name validation fails
         """
+        # Step 1: Validate against whitelist
         validated_table = SecureSQL.validate_sqlite_table_name(table_name, allowed_tables)
-        return f"SELECT COUNT(*) as count FROM {validated_table}"
+
+        # Step 2: Use database-specific identifier quoting
+        quoted_table = connection.ops.quote_name(validated_table)
+
+        # Step 3: Build query with quoted identifier
+        query = f"SELECT COUNT(*) as count FROM {quoted_table}"
+
+        # Return tuple for consistency with parameterized query API
+        return query, []
+
+    @staticmethod
+    def get_table_count_via_orm(app_label: str, model_name: str) -> int:
+        """
+        Get table count using Django ORM (preferred over raw SQL).
+
+        This is the RECOMMENDED approach - use instead of build_safe_sqlite_count_query
+        when possible. Django ORM is 100% safe from SQL injection.
+
+        Args:
+            app_label: Django app label (e.g., 'peoples')
+            model_name: Model name (e.g., 'People')
+
+        Returns:
+            int: Row count
+
+        Raises:
+            ValidationError: If model not found
+
+        Example:
+            >>> count = SecureSQL.get_table_count_via_orm('peoples', 'People')
+            >>> print(count)
+            42
+        """
+        try:
+            model = apps.get_model(app_label, model_name)
+            return model.objects.count()
+        except LookupError as e:
+            raise ValidationError(f"Model not found: {app_label}.{model_name}") from e
 
 
 def secure_raw_sql(
