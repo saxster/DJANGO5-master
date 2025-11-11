@@ -36,9 +36,8 @@ User = get_user_model()
 def test_tenant():
     """Create a test tenant for multi-tenant isolation"""
     return Tenant.objects.create(
-        name="Test Tenant",
-        slug="test-tenant",
-        schema_name="test_tenant",
+        tenantname="Test Tenant",
+        subdomain_prefix="test-tenant",
         is_active=True,
     )
 

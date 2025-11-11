@@ -156,13 +156,14 @@ class PIIDetectionScanner:
 
         # Log if PII found
         if pii_found:
+            safe_pii_summary = self._get_safe_pii_summary(pii_found)
             logger.warning(
                 f"PII detected in journal entry {entry.id}",
                 extra={
                     'entry_id': str(entry.id),
                     'pii_count': len(pii_found),
                     'max_severity': result['max_severity'],
-                    'pii_types': [p['type'] for p in pii_found]
+                    'pii_types_summary': safe_pii_summary
                 }
             )
 
@@ -384,3 +385,34 @@ class PIIDetectionScanner:
                 return severity
 
         return 'low'
+
+    def _get_safe_pii_summary(self, pii_found: list) -> list:
+        """
+        Create safe PII summary for logging (excludes context and matches).
+
+        This method sanitizes PII detection results for safe logging,
+        removing sensitive context and match text while preserving
+        type and severity information needed for analytics.
+
+        Args:
+            pii_found: List of PII detections with full context
+
+        Returns:
+            list: Safe summary with only type and severity (GDPR/HIPAA compliant)
+
+        Example:
+            >>> pii_found = [
+            ...     {'type': 'ssn', 'severity': 'critical', 'context': '...123-45-6789...'},
+            ...     {'type': 'phone', 'severity': 'high', 'match': '555-1234'}
+            ... ]
+            >>> safe = scanner._get_safe_pii_summary(pii_found)
+            >>> safe
+            [{'type': 'ssn', 'severity': 'critical'}, {'type': 'phone', 'severity': 'high'}]
+        """
+        return [
+            {
+                'type': pii_item['type'],
+                'severity': pii_item['severity']
+            }
+            for pii_item in pii_found
+        ]
