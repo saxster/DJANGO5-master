@@ -69,7 +69,7 @@ class IntelligenceAlert(TenantAwareModel):
     # Auto-generated work order tracking
     work_order_created = models.BooleanField(default=False)
     work_order = models.ForeignKey(
-        'work_order_management.WorkOrder',
+        'work_order_management.Wom',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

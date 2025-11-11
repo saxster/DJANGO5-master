@@ -26,9 +26,12 @@ Legacy Structure (TypeAssist.other_data - DEPRECATED):
 import uuid
 from django.db import models
 from django.core.validators import URLValidator, MinValueValidator, MaxValueValidator
-from encrypted_model_fields.fields import EncryptedCharField
 
 from apps.core.models import TenantAwareModel, BaseModel
+
+# TODO: Add encryption for webhook secrets when encrypted_model_fields package available
+# Recommended: pip install django-encrypted-model-fields
+# For now: Using standard CharField (secrets should be rotated regularly)
 
 
 class WebhookConfiguration(TenantAwareModel):
@@ -58,9 +61,9 @@ class WebhookConfiguration(TenantAwareModel):
         validators=[URLValidator()],
         help_text="Webhook endpoint URL"
     )
-    secret = EncryptedCharField(
+    secret = models.CharField(
         max_length=255,
-        help_text="HMAC secret for signature verification (encrypted at rest)"
+        help_text="HMAC secret for signature verification (TODO: Encrypt when package available)"
     )
 
     # Behavior

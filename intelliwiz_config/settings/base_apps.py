@@ -99,6 +99,7 @@ INSTALLED_APPS = [
     "apps.performance_analytics",
     "apps.report_generation",
     "apps.threat_intelligence",
+    "apps.integrations",
     "monitoring",
 ]
 
