@@ -4,6 +4,7 @@ WebSocket Consumers for Real-time Dashboard Updates
 
 import json
 import asyncio
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
@@ -11,11 +12,17 @@ from django.contrib.auth.models import AnonymousUser
 from .models import TestRun, StreamEvent
 from ..issue_tracker.models import AnomalyOccurrence
 
+logger = logging.getLogger(__name__)
+
 
 class StreamMetricsConsumer(AsyncWebsocketConsumer):
     """
     WebSocket consumer for real-time stream metrics updates
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.periodic_task = None
 
     async def connect(self):
         # Check if user is staff
@@ -36,10 +43,18 @@ class StreamMetricsConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        # Start sending periodic updates
-        asyncio.create_task(self.send_periodic_updates())
+        # Start sending periodic updates and store task reference
+        self.periodic_task = asyncio.create_task(self.send_periodic_updates())
 
     async def disconnect(self, close_code):
+        # Cancel the periodic task if it exists and is running
+        if self.periodic_task and not self.periodic_task.done():
+            self.periodic_task.cancel()
+            try:
+                await self.periodic_task
+            except asyncio.CancelledError:
+                pass
+
         # Leave room group
         await self.channel_layer.group_discard(
             self.room_group_name,
@@ -65,13 +80,18 @@ class StreamMetricsConsumer(AsyncWebsocketConsumer):
 
     async def send_periodic_updates(self):
         """Send periodic metric updates every 5 seconds"""
-        while True:
-            try:
-                await asyncio.sleep(5)
-                await self.send_metrics_update()
-            except (ConnectionError, TimeoutError, TypeError, ValueError, asyncio.CancelledError, json.JSONDecodeError) as e:
-                # Consumer might be disconnected
-                break
+        try:
+            while True:
+                try:
+                    await asyncio.sleep(5)
+                    await self.send_metrics_update()
+                except (ConnectionError, TimeoutError, TypeError, ValueError, json.JSONDecodeError) as e:
+                    # Consumer might be disconnected
+                    logger.debug(f"Error sending metrics update: {e}")
+                    break
+        except asyncio.CancelledError:
+            logger.debug("Periodic updates task cancelled")
+            raise  # Re-raise to mark task as cancelled
 
     async def send_metrics_update(self):
         """Send current metrics to client"""

@@ -1,10 +1,10 @@
 """
-import logging
-logger = logging.getLogger(__name__)
 WebSocket Integration Tests for Stream Testbench
 """
 
 import asyncio
+import logging
+import uuid
 from django.test import TransactionTestCase
 from django.contrib.auth import get_user_model
 from channels.testing import WebsocketCommunicator
@@ -15,6 +15,7 @@ from django.urls import path
 from ..consumers import StreamMetricsConsumer, AnomalyAlertsConsumer
 from apps.api.mobile_consumers import MobileSyncConsumer
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -75,6 +76,40 @@ class TestStreamMetricsConsumer(TransactionTestCase):
 
         connected, subprotocol = await communicator.connect()
         self.assertFalse(connected)
+
+    async def test_background_task_cancelled_on_disconnect(self):
+        """Test that background task is properly cancelled on disconnect"""
+        application = URLRouter([
+            path("ws/streamlab/metrics/", StreamMetricsConsumer.as_asgi()),
+        ])
+
+        communicator = WebsocketCommunicator(
+            application,
+            "ws/streamlab/metrics/"
+        )
+
+        communicator.scope['user'] = self.user
+
+        # Connect
+        connected, subprotocol = await communicator.connect()
+        self.assertTrue(connected)
+
+        # Get reference to consumer instance
+        consumer = communicator.instance
+
+        # Verify periodic task was created
+        self.assertIsNotNone(consumer.periodic_task)
+        self.assertFalse(consumer.periodic_task.done())
+
+        # Disconnect
+        await communicator.disconnect()
+
+        # Wait a bit for cancellation to complete
+        await asyncio.sleep(0.1)
+
+        # Verify task was cancelled
+        self.assertTrue(consumer.periodic_task.done())
+        self.assertTrue(consumer.periodic_task.cancelled())
 
     async def test_anomaly_alerts_consumer(self):
         """Test anomaly alerts WebSocket consumer"""

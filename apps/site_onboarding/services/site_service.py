@@ -15,34 +15,34 @@ class SiteService:
     def create_site(
         self,
         client_id: str,
-        name: str,
         site_type: str,
-        conversation_session_id: str = None
+        conversation_session_id: str
     ) -> str:
         """
         Create new site for client.
 
         Args:
             client_id: Client UUID string (from client context)
-            name: Site name
             site_type: Site type (OFFICE, WAREHOUSE, etc.)
-            conversation_session_id: Optional conversation UUID
+            conversation_session_id: Conversation UUID (REQUIRED)
 
         Returns:
             site_id (UUID string)
         """
         with transaction.atomic():
+            # Fetch conversation session BEFORE creating site
+            session = ConversationSession.objects.get(session_id=conversation_session_id)
+
+            # Create site with required FK
             site = OnboardingSite.objects.create(
                 business_unit_id=client_id,  # FK by ID
-                name=name,
+                conversation_session=session,  # Required OneToOneField
                 site_type=site_type
             )
 
-            # Link to conversation
-            if conversation_session_id:
-                session = ConversationSession.objects.get(session_id=conversation_session_id)
-                session.context_object_id = str(site.site_id)
-                session.save()
+            # Link conversation to site context
+            session.context_object_id = str(site.site_id)
+            session.save()
 
             return str(site.site_id)
 
