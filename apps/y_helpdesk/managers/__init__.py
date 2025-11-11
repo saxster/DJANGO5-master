@@ -10,9 +10,14 @@ from .base import TicketManager, ESCManager
 # Backward compatibility alias for legacy imports
 OptimizedTicketManager = TicketManager
 
+# Backward compatibility for migrations
+# EscalationMatrixManager was removed during refactoring - use ESCManager
+EscalationMatrixManager = ESCManager
+
 __all__ = [
     'OptimizedTicketManagerMixin',
     'TicketManager',
     'OptimizedTicketManager',
-    'ESCManager'
+    'ESCManager',
+    'EscalationMatrixManager',  # Backward compatibility
 ]

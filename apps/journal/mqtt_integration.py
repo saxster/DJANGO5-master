@@ -12,6 +12,8 @@ Integrates journal and wellness system with existing MQTT infrastructure for:
 import json
 import logging
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 from django.utils import timezone
 from paho.mqtt import client as mqtt
 from celery import shared_task
@@ -21,6 +23,18 @@ from apps.wellness.models import WellnessContent, WellnessContentInteraction
 from apps.mqtt.client import MqttClient
 
 logger = logging.getLogger(__name__)
+
+
+class IntegrationException(Exception):
+    """
+    Exception raised when MQTT integration fails.
+
+    This exception is raised when:
+    - MQTT broker connection fails
+    - Message publishing fails
+    - Network errors occur during MQTT operations
+    """
+    pass
 
 
 class JournalWellnessMQTTService:

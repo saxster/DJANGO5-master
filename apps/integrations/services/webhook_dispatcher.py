@@ -495,19 +495,76 @@ class WebhookDispatcher:
         return hmac.compare_digest(signature, expected_signature)
 
     @classmethod
-    def get_dead_letter_queue_entries(cls, webhook_id: str) -> List[Dict]:
+    def get_dead_letter_queue_entries(cls, webhook_id: str, limit: int = 100) -> List[Dict]:
         """
         Get dead-letter queue entries for a webhook.
 
         Args:
             webhook_id: Webhook identifier
+            limit: Maximum number of entries to return (default 100)
 
         Returns:
-            List of DLQ entries
+            List of DLQ entries sorted by timestamp (newest first)
         """
-        # This would query Redis with pattern matching
-        # For now, return empty list
-        return []
+        try:
+            # Get Redis client from Django cache
+            redis_client = cache.client.get_client()
+
+            # Build pattern for this webhook's DLQ entries
+            pattern = f"{DEAD_LETTER_QUEUE_PREFIX}:{webhook_id}:*"
+
+            # Scan for matching keys
+            cursor = 0
+            entries = []
+
+            while len(entries) < limit:
+                # Use SCAN for efficient iteration
+                cursor, keys = redis_client.scan(
+                    cursor=cursor,
+                    match=pattern,
+                    count=50  # Batch size for SCAN
+                )
+
+                # Retrieve entries for found keys
+                for key in keys:
+                    if len(entries) >= limit:
+                        break
+
+                    # Decode key if bytes
+                    key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+
+                    # Get entry from cache
+                    entry = cache.get(key_str)
+
+                    if entry:
+                        # Add DLQ key to entry for retry functionality
+                        entry['dlq_key'] = key_str
+                        entries.append(entry)
+
+                # Break if SCAN completed (cursor returned to 0)
+                if cursor == 0:
+                    break
+
+            # Sort by timestamp (newest first)
+            entries.sort(
+                key=lambda x: x.get('timestamp', ''),
+                reverse=True
+            )
+
+            logger.info(
+                f"Retrieved {len(entries)} DLQ entries for webhook {webhook_id}",
+                extra={'webhook_id': webhook_id, 'entry_count': len(entries)}
+            )
+
+            return entries
+
+        except Exception as e:
+            logger.error(
+                f"Failed to retrieve DLQ entries for webhook {webhook_id}: {e}",
+                exc_info=True,
+                extra={'webhook_id': webhook_id}
+            )
+            return []
 
     @classmethod
     def retry_dead_letter_entry(cls, dlq_key: str) -> Dict:

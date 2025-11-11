@@ -132,6 +132,9 @@ from .query_execution_plans import (
 # Sync idempotency
 from .sync_idempotency import SyncIdempotencyRecord
 
+# Sync tracking (ML conflict prediction - Nov 2025)
+from .sync_tracking import SyncLog, ConflictResolution
+
 # Sync mixins (additional sync-related functionality)
 from .sync_mixins import (
     SyncableModelMixin,
@@ -272,6 +275,9 @@ __all__ = [
     "PlanRegressionAlert",
     # Sync idempotency
     "SyncIdempotencyRecord",
+    # Sync tracking (ML conflict prediction)
+    "SyncLog",
+    "ConflictResolution",
     # Sync mixins
     "SyncableModelMixin",
     "ConflictTrackingMixin",

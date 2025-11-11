@@ -17,6 +17,7 @@ Following CLAUDE.md Rule #7: Each model <150 lines
 """
 
 from django.db import models
+from django.db.models import F
 from apps.tenants.models import TenantAwareModel
 from apps.tenants.managers import TenantAwareManager
 from apps.peoples.models import People
@@ -162,26 +163,41 @@ class HelpUserPoints(TenantAwareModel):
         db_table = 'help_center_user_points'
         ordering = ['-total_points']
 
-    def add_points(self, points, category='feedback'):
+    def add_points(self, points: int, category: str = 'feedback') -> None:
         """
-        Add points to user's total.
+        Add points to user's total atomically using F() expressions.
+
+        This method is race-condition safe - multiple workers can call it
+        concurrently without losing updates.
 
         Args:
             points: Number of points to add
             category: Points category (feedback, suggestion, contribution, badge_bonus)
+
+        Note:
+            Uses F() expressions for atomic database updates, preventing
+            race conditions when multiple workers award points simultaneously.
         """
-        self.total_points += points
+        # Map category to field name
+        category_field_map = {
+            'feedback': 'feedback_points',
+            'suggestion': 'suggestion_points',
+            'contribution': 'contribution_points',
+            'badge_bonus': 'badge_bonus_points'
+        }
 
-        if category == 'feedback':
-            self.feedback_points += points
-        elif category == 'suggestion':
-            self.suggestion_points += points
-        elif category == 'contribution':
-            self.contribution_points += points
-        elif category == 'badge_bonus':
-            self.badge_bonus_points += points
+        # Build atomic update fields
+        update_fields = {'total_points': F('total_points') + points}
 
-        self.save()
+        if category in category_field_map:
+            field_name = category_field_map[category]
+            update_fields[field_name] = F(field_name) + points
+
+        # Perform atomic update
+        HelpUserPoints.objects.filter(pk=self.pk).update(**update_fields)
+
+        # Reload from database to get updated values
+        self.refresh_from_db()
 
     def __str__(self):
         return f"{self.user.username}: {self.total_points} points"
