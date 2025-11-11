@@ -116,6 +116,22 @@ FRAPPE_TIMEOUT: Final[Tuple[int, int]] = (5, 30)
 GEOFENCE_VALIDATION_TIMEOUT: Final[Tuple[int, int]] = (5, 10)
 
 # =============================================================================
+# FILE UPLOAD OPERATION TIMEOUTS (in seconds)
+# =============================================================================
+
+# Virus scanning timeout (ClamAV or similar)
+FILE_UPLOAD_VIRUS_SCAN_TIMEOUT: Final[int] = 30
+
+# EXIF metadata extraction and processing timeout
+FILE_UPLOAD_EXIF_PROCESSING_TIMEOUT: Final[int] = 15
+
+# Cloud storage upload timeout (S3, Azure, etc.)
+FILE_UPLOAD_CLOUD_UPLOAD_TIMEOUT: Final[int] = 60
+
+# Maximum total time for complete upload pipeline
+FILE_UPLOAD_MAX_TOTAL_TIMEOUT: Final[int] = 120
+
+# =============================================================================
 # MODULE EXPORTS
 # =============================================================================
 
@@ -160,4 +176,10 @@ __all__ = [
     'GOOGLE_MAPS_TIMEOUT',
     'FRAPPE_TIMEOUT',
     'GEOFENCE_VALIDATION_TIMEOUT',
+
+    # File upload operation timeouts
+    'FILE_UPLOAD_VIRUS_SCAN_TIMEOUT',
+    'FILE_UPLOAD_EXIF_PROCESSING_TIMEOUT',
+    'FILE_UPLOAD_CLOUD_UPLOAD_TIMEOUT',
+    'FILE_UPLOAD_MAX_TOTAL_TIMEOUT',
 ]

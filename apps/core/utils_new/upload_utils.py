@@ -80,6 +80,7 @@ def upload(request, vendor: bool = False) -> Tuple[bool, Optional[str], Optional
     - Filename injection via file extension manipulation
     - Generic exception handling that masks security errors
     - Arbitrary file write vulnerabilities
+    - Worker exhaustion from hanging network calls (timeout protection)
 
     Complies with Rules #11 and #14 from .claude/rules.md
 
@@ -92,6 +93,11 @@ def upload(request, vendor: bool = False) -> Tuple[bool, Optional[str], Optional
     """
     try:
         from apps.core.services.secure_file_upload_service import SecureFileUploadService
+        from apps.core.constants.timeouts import (
+            FILE_UPLOAD_VIRUS_SCAN_TIMEOUT,
+            FILE_UPLOAD_EXIF_PROCESSING_TIMEOUT,
+            FILE_UPLOAD_CLOUD_UPLOAD_TIMEOUT
+        )
 
         logger.info(
             "Starting secure file upload",
@@ -121,7 +127,12 @@ def upload(request, vendor: bool = False) -> Tuple[bool, Optional[str], Optional
 
         upload_context = {
             'folder_type': foldertype,
-            'vendor_upload': vendor
+            'vendor_upload': vendor,
+            'timeout_config': {
+                'virus_scan_timeout': FILE_UPLOAD_VIRUS_SCAN_TIMEOUT,
+                'exif_processing_timeout': FILE_UPLOAD_EXIF_PROCESSING_TIMEOUT,
+                'cloud_upload_timeout': FILE_UPLOAD_CLOUD_UPLOAD_TIMEOUT,
+            }
         }
 
         if "peopleid" in request.POST:
@@ -162,7 +173,7 @@ def upload(request, vendor: bool = False) -> Tuple[bool, Optional[str], Optional
             "Secure file upload completed successfully",
             extra={
                 'correlation_id': file_metadata['correlation_id'],
-                'filename': filename,
+                'uploaded_filename': filename,
                 'user_id': upload_context.get('people_id')
             }
         )
@@ -229,6 +240,7 @@ def upload_vendor_file(file, womid: str) -> Tuple[bool, Optional[str], Optional[
     - Filename injection through file.name manipulation
     - Generic exception handling that masks security errors
     - Path traversal vulnerabilities
+    - Worker exhaustion from hanging network calls (timeout protection)
 
     Complies with Rules #11 and #14 from .claude/rules.md
 
@@ -241,12 +253,17 @@ def upload_vendor_file(file, womid: str) -> Tuple[bool, Optional[str], Optional[
     """
     try:
         from apps.core.services.secure_file_upload_service import SecureFileUploadService
+        from apps.core.constants.timeouts import (
+            FILE_UPLOAD_VIRUS_SCAN_TIMEOUT,
+            FILE_UPLOAD_EXIF_PROCESSING_TIMEOUT,
+            FILE_UPLOAD_CLOUD_UPLOAD_TIMEOUT
+        )
 
         logger.info(
             "Starting secure vendor file upload",
             extra={
                 'womid': womid,
-                'filename': getattr(file, 'name', 'unknown')
+                'uploaded_filename': getattr(file, 'name', 'unknown')
             }
         )
 
@@ -259,7 +276,12 @@ def upload_vendor_file(file, womid: str) -> Tuple[bool, Optional[str], Optional[
         upload_context = {
             'people_id': f'vendor_{womid}',
             'folder_type': 'workorder_management',
-            'womid': womid
+            'womid': womid,
+            'timeout_config': {
+                'virus_scan_timeout': FILE_UPLOAD_VIRUS_SCAN_TIMEOUT,
+                'exif_processing_timeout': FILE_UPLOAD_EXIF_PROCESSING_TIMEOUT,
+                'cloud_upload_timeout': FILE_UPLOAD_CLOUD_UPLOAD_TIMEOUT,
+            }
         }
 
         file_type = 'document'
@@ -285,7 +307,7 @@ def upload_vendor_file(file, womid: str) -> Tuple[bool, Optional[str], Optional[
             "Secure vendor file upload completed successfully",
             extra={
                 'correlation_id': file_metadata['correlation_id'],
-                'filename': filename,
+                'uploaded_filename': filename,
                 'womid': womid
             }
         )
