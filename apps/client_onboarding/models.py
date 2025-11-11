@@ -67,7 +67,8 @@ from .models.conversational_ai import (
 )
 
 # Placeholder imports for Phase 2+ models (to be implemented)
-# These will be added as the remaining modules are created:
+# See MIGRATION_STATUS.md for complete status, business case, and recommendations
+# DECISION NEEDED: Remove these placeholders if Phase 2+ not planned within 6 months
 
 # Knowledge Base Models:
 # from .models.knowledge_sources import KnowledgeSource, KnowledgeIngestionJob
