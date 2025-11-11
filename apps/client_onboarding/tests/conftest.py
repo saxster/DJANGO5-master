@@ -2,19 +2,19 @@
 Fixtures for onboarding app testing
 """
 import pytest
+from datetime import date, time, timedelta
 from django.test import RequestFactory
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.utils import timezone
 from django.contrib.gis.geos import Point, Polygon
 from apps.client_onboarding.models import (
     Bt,
-    TypeAssist,
     Shift,
-    GeofenceMaster,
     Device,
     Subscription,
     DownTimeHistory,
 )
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster
 from apps.peoples.models import People
 
 

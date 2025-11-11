@@ -143,9 +143,18 @@ def invalidate_cache_api(request):
 
 
 def get_user_tenant_id(user):
-    """Get tenant ID from user object."""
-    if hasattr(user, 'tenant_id'):
-        return user.tenant_id
-    elif hasattr(user, 'peopleorganizational') and user.peopleorganizational:
-        return user.peopleorganizational.bu_id
-    return None
+    """
+    Get user's tenant ID - NEVER falls back to BU ID.
+
+    BU IDs are organizational units that can be shared across tenants,
+    making them unsuitable for cache keys or tenant isolation.
+
+    Returns:
+        int or None: User's tenant_id if available, None otherwise
+
+    Security:
+        - NEVER returns bu_id (business unit ID) as it's shared across tenants
+        - Failing with None is safer than poisoning cache with wrong tenant data
+        - Callers should handle None appropriately (error or skip caching)
+    """
+    return getattr(user, 'tenant_id', None)

@@ -3,6 +3,9 @@ AI Testing Views
 Coverage Gap Management, Test Generation, and AI Insights
 """
 
+import unicodedata
+import re
+
 from django.http import JsonResponse, HttpResponse, Http404
 from django.contrib.auth.decorators import user_passes_test
 from django.views.decorators.http import require_http_methods
@@ -21,6 +24,59 @@ from .models import TestCoverageGap
 def is_staff_or_superuser(user):
     """Check if user is staff or superuser"""
     return user.is_staff or user.is_superuser
+
+
+def sanitize_filename(filename: str, max_length: int = 200) -> str:
+    """
+    Sanitize filename for Content-Disposition header to prevent header injection.
+
+    Security measures:
+    - Removes CRLF characters (\\r\\n) to prevent HTTP header injection
+    - Removes control characters (ASCII 0-31)
+    - Removes non-ASCII characters (prevent encoding attacks)
+    - Removes quotes and backslashes (prevent quote escaping)
+    - Limits length to prevent buffer overflows
+
+    Args:
+        filename: Untrusted filename from user input or database
+        max_length: Maximum allowed filename length (default 200)
+
+    Returns:
+        Safe filename suitable for Content-Disposition header
+
+    Security:
+        Prevents CVE-2023-XXXX class HTTP header injection vulnerabilities
+
+    References:
+        - OWASP: HTTP Response Splitting
+        - CWE-113: Improper Neutralization of CRLF Sequences in HTTP Headers
+    """
+    if not filename:
+        return "download.txt"
+
+    # Remove CRLF and all control characters (ASCII 0-31)
+    sanitized = ''.join(c for c in filename if c not in '\r\n\t\x00' and ord(c) >= 32)
+
+    # Remove quotes, backslashes that could break header syntax
+    sanitized = sanitized.replace('"', '').replace('\\', '').replace("'", '')
+
+    # Normalize Unicode and convert to ASCII (removes non-ASCII)
+    sanitized = unicodedata.normalize('NFKD', sanitized).encode('ascii', 'ignore').decode('ascii')
+
+    # Remove any remaining dangerous characters (keep only alphanumeric, spaces, hyphens, underscores, dots)
+    sanitized = re.sub(r'[^\w\s\-_.]', '', sanitized)
+
+    # Remove path traversal sequences
+    sanitized = sanitized.replace('..', '').replace('/.', '').replace('\\.', '')
+
+    # Limit length
+    sanitized = sanitized[:max_length]
+
+    # Fallback if everything was removed
+    if not sanitized or sanitized.isspace():
+        return "download.txt"
+
+    return sanitized.strip()
 
 
 # Coverage Gap Management Views
@@ -299,7 +355,9 @@ def preview_generated_test(request):
 
         if test_code:
             file_extension = '.kt' if framework in ['espresso', 'junit', 'robolectric'] else '.swift'
-            file_name = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+            raw_filename = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+            # Sanitize filename for client-side download safety
+            file_name = sanitize_filename(raw_filename)
 
             return JsonResponse({
                 'success': True,
@@ -343,7 +401,9 @@ def download_generated_test(request):
 
         # Determine file name and content type
         file_extension = '.kt' if framework in ['espresso', 'junit', 'robolectric'] else '.swift'
-        file_name = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+        raw_filename = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+        # Sanitize filename to prevent CRLF injection and header injection attacks
+        file_name = sanitize_filename(raw_filename)
 
         response = HttpResponse(test_code, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename="{file_name}"'
