@@ -1,37 +1,12 @@
-# Pre-commit hooks configuration for AI Mentor integration
+# Pre-commit hooks configuration
 # See https://pre-commit.com for more information
 
 repos:
-  # AI Mentor System Hooks
+  # Local validation hooks
   - repo: local
     hooks:
-      - id: mentor-guard-validation
-        name: AI Mentor Guard Validation
-        entry: python manage.py mentor_guard --validate
-        language: system
-        files: '\.py$'
-        stages: [commit]
-
-      - id: mentor-security-scan
-        name: AI Mentor Security Scan
-        entry: python manage.py mentor_security_scan --quick
-        language: system
-        files: '\.py$'
-        stages: [commit]
-
-      - id: mentor-quality-check
-        name: AI Mentor Quality Check
-        entry: python manage.py mentor_quality_check --threshold 7.0
-        language: system
-        files: '\.py$'
-        stages: [commit]
-
-      - id: mentor-secret-scan
-        name: AI Mentor Secret Scanner
-        entry: python manage.py mentor_secret_scan
-        language: system
-        files: '\.(py|js|jsx|ts|tsx|json|yaml|yml|env)$'
-        stages: [commit]
+      # NOTE: AI Mentor hooks removed (apps.mentor moved to separate service - Nov 1, 2025)
+      # Removed hooks: mentor-guard-validation, mentor-security-scan, mentor-quality-check, mentor-secret-scan
 
       # GITLEAKS SECRET SCANNER (Industry-standard)
       - id: gitleaks-protect

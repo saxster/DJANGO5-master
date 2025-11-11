@@ -405,8 +405,15 @@ for user in People.objects.all():
 
 ## 📚 Complete Documentation
 
-> **📍 IMPORTANT:** Documentation was reorganized on November 7, 2025. See [Documentation Index](docs/INDEX.md) for complete navigation and [Migration Map](docs/MIGRATION_MAP.md) for file movements.
+> **⚠️ DOCUMENTATION NOTICE (Nov 11, 2025):**
+> The comprehensive docs/ structure referenced below was removed during V2 migration (commit 4dc48df). Most documentation exists as completion reports in the root directory. Documentation reorganization is pending.
+>
+> **Available Documentation:**
+> - Architecture Decision Records: `docs/architecture/adr/` (active)
+> - Completion Reports: Root directory (see Key Reference Documents below)
+> - App-Level Docs: `apps/*/docs/` and `apps/*/README.md`
 
+<!-- COMMENTED OUT - Documentation files removed in V2 migration (Nov 8, 2025)
 ### Architecture & Design
 
 - **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
@@ -415,8 +422,6 @@ for user in People.objects.all():
 - **[Refactoring Playbook](docs/architecture/REFACTORING_PLAYBOOK.md)** ⚠️ **MANDATORY** - Complete refactoring guide for future work (Phase 1-6 patterns)
 - **[Architecture Decision Records (ADRs)](docs/architecture/adr/)** - Documented architectural decisions with context and consequences
 - **[Project Retrospective](docs/PROJECT_RETROSPECTIVE.md)** - Complete Phase 1-6 refactoring journey with lessons learned
-- **Custom User Model** - Multi-model design (People, PeopleProfile, PeopleOrganizational)
-- **URL Structure** - Domain-driven organization with backward compatibility
 
 ### Workflows & Operations
 
@@ -429,10 +434,7 @@ for user in People.objects.all():
 
 - **[Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)** - Comprehensive testing docs, code quality validation, pre-commit hooks, quality metrics
 - **[Testing Training](docs/training/TESTING_TRAINING.md)** - Writing effective tests for refactored code
-- **Code Smell Detection** - Automated anti-pattern detection
-- **[Exception Handling Part 3 Complete](EXCEPTION_HANDLING_PART3_COMPLETE.md)** ✅ - 100% remediation (554→0 violations), automated migration
 - **[Exception Handling Quick Reference](docs/quick_reference/EXCEPTION_HANDLING_QUICK_REFERENCE.md)** - Pattern selector, best practices, validation
-- **Race Condition Testing** - Critical data integrity tests
 
 ### API & Integration
 
@@ -456,14 +458,20 @@ for user in People.objects.all():
 ### Troubleshooting
 
 - **[Common Issues](docs/troubleshooting/COMMON_ISSUES.md)** - Solutions to pre-commit hooks, CI/CD, legacy API quirks, idempotency, Celery, Flake8, database, Redis, performance issues
+-->
 
-### Key Reference Documents
+### Architecture Decision Records (Active)
 
-**Core:**
-- **DateTime Standards**: `docs/DATETIME_FIELD_STANDARDS.md`
+- **[ADRs](docs/architecture/adr/)** - Documented architectural decisions with context and consequences
+- Latest: ADR-008 (Ultrathink Technical Debt Remediation - Nov 2025)
+
+### Key Reference Documents (Root Directory)
+
+**Core Architecture & Refactoring:**
 - **God File Refactoring**: `GOD_FILE_REFACTORING_PHASES_5-7_COMPLETE.md`
 - **Security Mentor**: `SECURITY_FACILITY_MENTOR_PHASE2_COMPLETE.md`
 - **Operator Guide**: `NON_NEGOTIABLES_OPERATOR_GUIDE.md`
+- **Exception Handling**: `EXCEPTION_HANDLING_PART3_COMPLETE.md` - 100% remediation (554→0 violations)
 
 **Quality & Monitoring:**
 - **Removed Code Inventory**: `REMOVED_CODE_INVENTORY.md`
