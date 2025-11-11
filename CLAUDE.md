@@ -71,6 +71,53 @@ pip install -r requirements/ai_requirements.txt
 
 📖 **See**: [Complete Installation Guide](.github/INSTALL_GUIDE.md) for troubleshooting and platform-specific details
 
+### Infrastructure Requirements
+
+⚠️ **CRITICAL**: The following infrastructure is **required** for production deployment:
+
+#### Redis (MANDATORY)
+
+**Required for**: Journal rate limiting, Celery task queue, caching layer
+
+**Backend**: Must use `django-redis` cache backend (NOT memcached or filesystem)
+
+```python
+# intelliwiz_config/settings/base.py
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_KWARGS': {'max_connections': 50},
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+        }
+    }
+}
+```
+
+**Why**: Journal security middleware uses Redis sorted sets for cross-worker rate limiting (Nov 2025 fix). In-memory rate limiting was removed because it:
+- Resets on worker restart
+- Doesn't work across multiple workers
+- Allows rate limit bypass in multi-process deployments
+
+**Deployment validation**:
+```bash
+# Verify Redis connectivity
+python manage.py shell -c "from django.core.cache import cache; cache.client.get_client().ping(); print('✅ Redis OK')"
+```
+
+**Startup check**: Journal middleware validates Redis backend on initialization. Check logs for:
+```
+✅ Journal rate limiting: Redis connection verified
+```
+
+If Redis unavailable, middleware logs warning and operates in **fail-open mode** (allows all requests - less secure but prevents blocking legitimate users).
+
+📖 **See**: [Settings & Configuration](docs/configuration/SETTINGS_AND_CONFIG.md) for complete Redis setup
+
 ### Top 10 Commands
 
 ```bash

@@ -22,6 +22,13 @@ from django.db import DatabaseError, IntegrityError, ObjectDoesNotExist
 from django.core.cache import cache
 import logging
 
+# Redis-specific exceptions for proper error handling
+from redis.exceptions import (
+    RedisError,
+    ConnectionError as RedisConnectionError,
+    TimeoutError as RedisTimeoutError
+)
+
 from .models import JournalEntry, JournalPrivacySettings
 from .privacy import JournalPrivacyManager
 
@@ -67,6 +74,9 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         # Rate limiting now uses Redis via Django cache backend
         # No in-memory storage needed - Redis handles multi-worker coordination
 
+        # Validate Redis backend on startup (Nov 2025 security requirement)
+        self._validate_redis_backend()
+
     def __call__(self, request):
         """Process request with security checks"""
         start_time = time.time()
@@ -111,6 +121,45 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         ]
 
         return any(path.startswith(prefix) for prefix in journal_wellness_paths)
+
+    def _validate_redis_backend(self):
+        """
+        Validate Redis backend is available for rate limiting.
+
+        Critical security requirement (Nov 2025): Journal middleware requires
+        django-redis backend for cross-worker rate limiting enforcement.
+
+        Logs warning if Redis unavailable (fail-open mode).
+        """
+        try:
+            # Attempt to get Redis client
+            redis_client = cache.client.get_client()
+
+            # Verify connection with ping
+            redis_client.ping()
+
+            self.logger.info(
+                "✅ Journal rate limiting: Redis connection verified. "
+                "Cross-worker rate limits active."
+            )
+
+        except AttributeError:
+            # cache.client.get_client() doesn't exist - wrong backend
+            self.logger.critical(
+                "❌ Journal rate limiting: django-redis backend NOT configured. "
+                "Current cache backend does not support Redis sorted sets. "
+                "Rate limiting will be DISABLED (fail-open mode). "
+                "SECURITY RISK: Users can bypass rate limits. "
+                "See CLAUDE.md 'Infrastructure Requirements' for setup instructions."
+            )
+
+        except (ConnectionError, Exception) as e:
+            # Redis server unavailable
+            self.logger.warning(
+                f"⚠️ Journal rate limiting: Redis unavailable - {type(e).__name__}: {e}. "
+                "Rate limiting will be DISABLED (fail-open mode). "
+                "Requests will be allowed to prevent blocking legitimate users."
+            )
 
     def _apply_security_checks(self, request, correlation_id):
         """Apply comprehensive security checks"""
@@ -207,13 +256,31 @@ class JournalSecurityMiddleware(MiddlewareMixin):
 
             return {'allowed': True}
 
-        except (ConnectionError, AttributeError) as e:
-            # Redis unavailable - log warning and allow request
-            # Better to allow requests than block legitimate users
+        except (RedisError, RedisConnectionError, RedisTimeoutError) as e:
+            # Redis unavailable or operation failed - graceful degradation
+            # Better to allow requests than block legitimate users (fail-open)
             self.logger.warning(
-                f"Rate limiting unavailable (Redis error): {e}. Allowing request.",
+                f"Rate limiting unavailable (Redis error: {type(e).__name__}): {e}. "
+                "Allowing request (fail-open mode).",
+                extra={
+                    'correlation_id': correlation_id,
+                    'endpoint': endpoint,
+                    'error_type': type(e).__name__
+                }
+            )
+            return {'allowed': True}
+
+        except AttributeError as e:
+            # Programming error - wrong cache backend or method doesn't exist
+            # This should fail fast in development
+            self.logger.error(
+                f"Rate limiting implementation error (AttributeError): {e}. "
+                "This indicates django-redis backend not configured or code bug. "
+                "Allowing request to prevent blocking users.",
+                exc_info=True,
                 extra={'correlation_id': correlation_id, 'endpoint': endpoint}
             )
+            # In production, allow request; in development, you might want to raise
             return {'allowed': True}
 
     def _check_tenant_isolation(self, request, correlation_id):
