@@ -11,6 +11,7 @@ Testing:
 Run with: pytest apps/journal/tests/test_services.py -v
 """
 import pytest
+import logging
 from django.test import TestCase
 from django.utils import timezone
 
@@ -359,3 +360,37 @@ class TestServiceIntegration(TestCase):
 
         assert len(results) >= 1
         assert any('Site' in e.title for e in results)
+
+
+@pytest.mark.django_db
+class TestJournalEntryLoggingSecurity:
+    """Test journal entry service logging security"""
+
+    def test_journal_entry_service_sanitizes_logs(self, caplog):
+        """Test that JournalEntryService sanitizes PII from logs."""
+        from unittest.mock import Mock, patch
+
+        # Create a mock entry with PII in title
+        mock_entry = Mock()
+        mock_entry.id = 1
+        mock_entry.title = "Conversation with Dr. Smith about cancer diagnosis"
+        mock_entry.is_deleted = False
+        mock_entry.sync_data = None
+        mock_entry.sync_status = None
+
+        service = JournalEntryService()
+
+        with caplog.at_level(logging.INFO):
+            # Test soft_delete_entry logs without leaking title
+            with patch.object(mock_entry, 'save'):
+                service.soft_delete_entry(mock_entry)
+
+        log_output = caplog.text
+
+        # Original PII title should NOT be in logs
+        assert "Conversation with Dr. Smith" not in log_output
+        assert "cancer diagnosis" not in log_output
+        assert "Dr. Smith" not in log_output
+
+        # Sanitized log message should be present
+        assert 'Journal entry soft deleted' in log_output

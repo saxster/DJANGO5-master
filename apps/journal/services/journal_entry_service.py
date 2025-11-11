@@ -8,6 +8,7 @@ Extracted from views.py to separate concerns and improve testability.
 from django.utils import timezone
 from django.db.models import Avg
 from apps.journal.logging import get_journal_logger
+from apps.journal.logging.sanitizers import sanitize_title_for_logging
 
 logger = get_journal_logger(__name__)
 
@@ -37,7 +38,11 @@ class JournalEntryService:
             result = orchestrator.create_journal_entry_with_analysis(user, validated_data)
 
             if result['success']:
-                logger.info(f"Journal entry created: {result['journal_entry'].title}")
+                sanitized_title = sanitize_title_for_logging(result['journal_entry'].title)
+                logger.info(
+                    f"Journal entry created: {sanitized_title}",
+                    extra={'entry_id': str(result['journal_entry'].id)}
+                )
             else:
                 logger.error(f"Journal entry creation failed: {result.get('error')}")
 
@@ -51,7 +56,11 @@ class JournalEntryService:
                 tenant=getattr(user, 'tenant', None),
                 **validated_data
             )
-            logger.info(f"Journal entry created (basic): {journal_entry.title}")
+            sanitized_title = sanitize_title_for_logging(journal_entry.title)
+            logger.info(
+                f"Journal entry created (basic): {sanitized_title}",
+                extra={'entry_id': str(journal_entry.id)}
+            )
 
             # Trigger basic pattern analysis
             try:
@@ -88,7 +97,11 @@ class JournalEntryService:
             result = orchestrator.update_journal_entry_with_reanalysis(entry, validated_data)
 
             if result['success']:
-                logger.debug(f"Journal entry updated: {result['journal_entry'].title}")
+                sanitized_title = sanitize_title_for_logging(result['journal_entry'].title)
+                logger.debug(
+                    f"Journal entry updated: {sanitized_title}",
+                    extra={'entry_id': str(result['journal_entry'].id)}
+                )
             else:
                 logger.error(f"Journal entry update failed: {result.get('error')}")
 
@@ -100,7 +113,11 @@ class JournalEntryService:
                 setattr(entry, key, value)
             entry.save()
 
-            logger.debug(f"Journal entry updated (basic): {entry.title}")
+            sanitized_title = sanitize_title_for_logging(entry.title)
+            logger.debug(
+                f"Journal entry updated (basic): {sanitized_title}",
+                extra={'entry_id': str(entry.id)}
+            )
 
             return {
                 'success': True,
@@ -127,7 +144,11 @@ class JournalEntryService:
                 entry.sync_status = 'pending_delete'
             entry.save()
 
-        logger.info(f"Journal entry soft deleted: {entry.title}")
+        sanitized_title = sanitize_title_for_logging(entry.title)
+        logger.info(
+            f"Journal entry soft deleted: {sanitized_title}",
+            extra={'entry_id': str(entry.id)}
+        )
         return True
 
     def toggle_bookmark(self, entry):
