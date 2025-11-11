@@ -193,6 +193,67 @@ class TenantAwareModel(models.Model):
     class Meta:
         abstract = True
 
+    def __init_subclass__(cls, **kwargs):
+        """
+        Validate that subclasses have proper tenant-aware managers.
+
+        This hook is called when a subclass is defined, allowing us to
+        enforce security requirements at import time rather than runtime.
+
+        Security Enforcement:
+            - Checks if 'objects' manager is defined on the subclass
+            - If custom manager is used, validates it inherits from TenantAwareManager
+            - Logs warnings for vulnerable configurations
+            - Does NOT block (to avoid breaking existing code during migration)
+
+        Note: This is a defense-in-depth measure. The primary defense is
+        TenantAwareManager.get_queryset() which filters by tenant context.
+        """
+        super().__init_subclass__(**kwargs)
+
+        # Skip validation for abstract models (no table, no manager needed)
+        if getattr(cls._meta, 'abstract', False):
+            return
+
+        # Skip during migrations (avoid import cycles)
+        import sys
+        if 'migrate' in sys.argv or 'makemigrations' in sys.argv:
+            return
+
+        # Check if 'objects' manager is explicitly declared
+        if 'objects' in cls.__dict__:
+            manager = cls.__dict__['objects']
+
+            # If it's a manager instance, check its class hierarchy
+            if hasattr(manager, '__class__'):
+                manager_class = manager.__class__
+
+                # Check if it inherits from TenantAwareManager
+                from apps.tenants.managers import TenantAwareManager
+
+                if not issubclass(manager_class, TenantAwareManager):
+                    logger.error(
+                        f"SECURITY WARNING: {cls.__name__}.objects uses {manager_class.__name__} "
+                        f"which does NOT inherit from TenantAwareManager. "
+                        f"This creates an IDOR vulnerability - queries will NOT be filtered by tenant!",
+                        extra={
+                            'model': cls.__name__,
+                            'manager_class': manager_class.__name__,
+                            'security_event': 'TENANT_MANAGER_INHERITANCE_VIOLATION',
+                            'severity': 'CRITICAL'
+                        }
+                    )
+                else:
+                    logger.debug(
+                        f"✅ {cls.__name__}.objects uses {manager_class.__name__} "
+                        f"(inherits from TenantAwareManager)"
+                    )
+        else:
+            # No explicit 'objects' manager - inherits from base (safe)
+            logger.debug(
+                f"✅ {cls.__name__} inherits default TenantAwareManager from base class"
+            )
+
     def save(self, *args, **kwargs):
         """
         Pre-save validation to enforce tenant association.
