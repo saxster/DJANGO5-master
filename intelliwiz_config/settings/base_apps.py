@@ -75,7 +75,7 @@ INSTALLED_APPS = [
     "apps.attendance",
     "apps.activity",
     "apps.scheduler",
-    "apps.reminder",
+    # "apps.reminder",  # REMOVED: Merged into apps.scheduler (Nov 11, 2025)
     "apps.reports",
     "apps.service",
     "apps.y_helpdesk",

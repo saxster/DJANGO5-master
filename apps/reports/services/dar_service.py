@@ -440,6 +440,38 @@ class DARService:
                     'reason': record.other_data.get('early_reason', 'No reason provided')
                 })
 
-        # TODO: Check for no-shows (scheduled but no attendance record)
+        # Check for no-shows (scheduled but no attendance record)
+        # Grace period: 15 minutes after scheduled start
+        grace_period = timedelta(minutes=15)
+
+        # Get scheduled jobs for this shift
+        scheduled_jobs = Job.objects.filter(
+            bu_id=site_id,
+            plandatetime__gte=shift_start,
+            plandatetime__lt=shift_end,
+            people__isnull=False  # Only jobs assigned to specific workers
+        ).exclude(
+            status__in=['CANCELLED', 'COMPLETED']  # Exclude cancelled or already completed
+        ).select_related('people').values_list('people_id', 'people__fullname', 'plandatetime')
+
+        # Get set of workers who actually checked in
+        attended_worker_ids = set(
+            attendance_records.values_list('people_id', flat=True)
+        )
+
+        # Find no-shows
+        for worker_id, worker_name, scheduled_time in scheduled_jobs:
+            if worker_id and worker_id not in attended_worker_ids:
+                # Only mark as no-show if grace period has passed
+                if timezone.now() > scheduled_time + grace_period:
+                    exceptions.append({
+                        'type': 'NO_SHOW',
+                        'severity': 'HIGH',  # Critical for compliance
+                        'guard_name': worker_name,
+                        'scheduled_time': scheduled_time,
+                        'actual_time': None,
+                        'minutes_late': None,
+                        'reason': 'No attendance record found for scheduled shift'
+                    })
 
         return exceptions

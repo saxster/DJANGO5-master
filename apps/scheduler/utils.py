@@ -5,7 +5,7 @@ from apps.core import utils
 from datetime import datetime, timezone as dt_timezone, timedelta
 from django.utils import timezone
 from django.db.models.query import QuerySet
-from apps.reminder.models import Reminder
+from apps.scheduler.models import Reminder  # Migrated from apps.reminder (Nov 11, 2025)
 import random
 import traceback as tb
 from celery import shared_task
