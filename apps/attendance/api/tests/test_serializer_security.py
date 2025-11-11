@@ -31,7 +31,7 @@ from apps.attendance.api.serializers_post import (
 @pytest.fixture
 def site(db):
     """Create test site"""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     return Bt.objects.create(
         buname='Test Site',
         buccode='TS001'
@@ -41,7 +41,7 @@ def site(db):
 @pytest.fixture
 def shift(db):
     """Create test shift"""
-    from apps.onboarding.models import Shift
+    from apps.client_onboarding.models import Shift
     return Shift.objects.create(
         shiftname='Day Shift',
         starttime=time(9, 0),

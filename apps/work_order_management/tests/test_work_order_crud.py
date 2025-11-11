@@ -362,7 +362,7 @@ class TestMultiTenantIsolation:
             enable=True
         )
 
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         vendor_type2 = TypeAssist.objects.create(
             typename="VendorType",
             typeval="Vendor Type 2",

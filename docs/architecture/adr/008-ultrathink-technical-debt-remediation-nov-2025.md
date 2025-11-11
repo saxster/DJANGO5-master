@@ -157,7 +157,7 @@ for worker_id, worker_name, scheduled_time in scheduled_jobs:
 1. Created `apps/scheduler/models/reminder.py`
 2. Updated `apps/scheduler/utils.py` import
 3. Removed `apps.reminder` from `INSTALLED_APPS`
-4. Archived old app to `apps/reminder.deprecated/`
+4. Archived old app to `apps/reminder.deprecated/` (directory removed Jan 2026; see git history)
 
 **Benefits**:
 - Cleaner architecture (co-location principle)

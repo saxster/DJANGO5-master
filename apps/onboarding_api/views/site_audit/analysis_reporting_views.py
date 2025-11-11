@@ -34,16 +34,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import (
-from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
-
-from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
-
-    OnboardingSite,
-    SOP,
-    CoveragePlan,
+from apps.client_onboarding.models import (
+    from apps.core.exceptions.patterns import CELERY_EXCEPTIONS,
+    from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+)
+from apps.core_onboarding.models import (
     ConversationSession,
     LLMRecommendation
+)
+from apps.site_onboarding.models import (
+    OnboardingSite,
+    SOP,
+    CoveragePlan
 )
 
 from ...serializer_modules.site_audit_serializers import (

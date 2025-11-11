@@ -9,8 +9,11 @@ from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q, Count
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from apps.core.decorators import csrf_protect_htmx, rate_limit
 
+from apps.ai_testing.dashboard_integration import get_ai_insights_summary
 from .services.test_synthesizer import TestSynthesizer
 from .models import TestCoverageGap
 

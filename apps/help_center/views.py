@@ -38,6 +38,7 @@ from apps.help_center.serializers import (
 )
 from apps.help_center.services.search_service import SearchService
 from apps.help_center.services.analytics_service import AnalyticsService
+from apps.help_center.gamification_service import GamificationService
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,13 @@ class HelpArticleViewSet(viewsets.ReadOnlyModelViewSet):
                     session_id=session_id,
                     referrer_url=request.META.get('HTTP_REFERER', '')
                 )
+                try:
+                    GamificationService.award_points(request.user, 'article_view')
+                except Exception as exc:  # Best-effort gamification
+                    logger.debug(
+                        "gamification_view_award_failed",
+                        extra={'user': request.user.username, 'error': str(exc)}
+                    )
             except (ValueError, TypeError) as e:
                 logger.warning(f"Invalid session_id: {e}")
 
@@ -167,6 +175,14 @@ class HelpArticleViewSet(viewsets.ReadOnlyModelViewSet):
                 comment=serializer.validated_data.get('comment', ''),
                 session_id=session_id
             )
+
+            try:
+                GamificationService.award_points(request.user, 'article_feedback')
+            except Exception as exc:
+                logger.debug(
+                    "gamification_vote_award_failed",
+                    extra={'user': request.user.username, 'error': str(exc)}
+                )
 
             article.refresh_from_db()
 

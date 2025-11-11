@@ -29,7 +29,7 @@ from typing import Optional, List, Dict, Tuple
 from apps.attendance.models import Post, PostAssignment, ApprovalRequest
 from apps.peoples.models import People
 from apps.peoples.models.membership_model import Pgbelonging
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 import logging

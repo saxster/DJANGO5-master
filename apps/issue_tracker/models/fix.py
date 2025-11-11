@@ -10,6 +10,9 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from apps.core.models import TenantAwareModel
+from apps.core.services.html_sanitization_service import HTMLSanitizationService
+
 from .enums import (
     FIX_TYPES,
     FIX_STATUS_CHOICES,
@@ -23,7 +26,7 @@ from .occurrence import AnomalyOccurrence
 User = get_user_model()
 
 
-class FixSuggestion(models.Model):
+class FixSuggestion(TenantAwareModel):
     """
     AI/rule-based fix suggestions for anomaly signatures
     """
@@ -100,6 +103,7 @@ class FixSuggestion(models.Model):
             models.Index(fields=['signature', 'status']),
             models.Index(fields=['fix_type', 'confidence']),
             models.Index(fields=['auto_applicable', 'risk_level']),
+            models.Index(fields=['tenant', 'signature']),
         ]
 
     def __str__(self):
@@ -123,6 +127,20 @@ class FixSuggestion(models.Model):
         if reason:
             self.description += f"\n\nRejection reason: {reason}"
         self.save()
+
+    def _sanitize_security_fields(self):
+        """Ensure templates/descriptions are sanitized before persistence."""
+        if self.patch_template:
+            sanitized_template = HTMLSanitizationService.sanitize_text(self.patch_template)
+            self.patch_template = str(sanitized_template)
+
+        if self.description:
+            sanitized_description = HTMLSanitizationService.sanitize_user_html(self.description)
+            self.description = str(sanitized_description)
+
+    def save(self, *args, **kwargs):
+        self._sanitize_security_fields()
+        super().save(*args, **kwargs)
 
 
 class FixAction(models.Model):

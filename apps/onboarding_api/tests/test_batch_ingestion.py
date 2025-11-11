@@ -17,11 +17,11 @@ from datetime import datetime
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from unittest.mock import patch, MagicMock
-from apps.onboarding.models import (
+from apps.client_onboarding.models import (
     KnowledgeSource,
-    KnowledgeIngestionJob,
-    AuthoritativeKnowledge
+    KnowledgeIngestionJob
 )
+from apps.core_onboarding.models import AuthoritativeKnowledge
 from background_tasks.onboarding_tasks_phase2 import (
     ingest_document,
     batch_embed_documents_task

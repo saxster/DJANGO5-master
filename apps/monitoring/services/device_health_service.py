@@ -22,11 +22,13 @@ Follows .claude/rules.md:
 """
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Iterable, Optional, List
 from django.utils import timezone
 from django.db import DatabaseError
 from django.db.models import Avg, Count, Q
+from django.core.cache import cache
 
 logger = logging.getLogger('monitoring.device_health')
 
@@ -47,6 +49,9 @@ class DeviceHealthService:
     HEALTH_CRITICAL = 40  # Device at risk of failure (< 40)
     HEALTH_WARNING = 60   # Device health degrading (40-59)
     HEALTH_GOOD = 80      # Device operating normally (>= 80)
+    HEALTH_CACHE_PREFIX = 'monitoring:device_health'
+    HEALTH_CACHE_BUCKET_SECONDS = 300  # 5-minute buckets
+    HEALTH_CACHE_TTL_SECONDS = 300
     
     @classmethod
     def compute_health_score(cls, device_id: str, tenant_id: int = None) -> Dict[str, Any]:
@@ -63,6 +68,11 @@ class DeviceHealthService:
         from apps.mqtt.models import DeviceTelemetry
         
         try:
+            bucket = cls._current_cache_bucket()
+            cached_result = cls._get_cached_health_score(device_id, tenant_id, bucket)
+            if cached_result:
+                return cached_result
+
             # Get telemetry from last 72 hours
             cutoff_time = timezone.now() - timedelta(hours=72)
             
@@ -70,55 +80,164 @@ class DeviceHealthService:
             if tenant_id:
                 query &= Q(tenant_id=tenant_id)
             
-            telemetry = DeviceTelemetry.objects.filter(query).order_by('-timestamp')[:200]
-            
-            if not telemetry:
-                return {
-                    'device_id': device_id,
-                    'health_score': 50,
-                    'status': 'UNKNOWN',
-                    'message': 'No recent telemetry data'
-                }
-            
-            # Compute component scores
-            battery_score = cls._compute_battery_score(telemetry)
-            signal_score = cls._compute_signal_score(telemetry)
-            uptime_score = cls._compute_uptime_score(telemetry)
-            temp_score = cls._compute_temperature_score(telemetry)
-            
-            # Weighted average
-            health_score = (
-                battery_score * 0.40 +
-                signal_score * 0.30 +
-                uptime_score * 0.20 +
-                temp_score * 0.10
+            telemetry_qs = (
+                DeviceTelemetry.objects
+                .filter(query)
+                .order_by('-timestamp')[:200]
             )
-            
-            # Determine status
-            if health_score < cls.HEALTH_CRITICAL:
-                status = 'CRITICAL'
-            elif health_score < cls.HEALTH_WARNING:
-                status = 'WARNING'
-            else:
-                status = 'HEALTHY'
-            
-            return {
-                'device_id': device_id,
-                'health_score': round(health_score, 1),
-                'status': status,
-                'components': {
-                    'battery': battery_score,
-                    'signal': signal_score,
-                    'uptime': uptime_score,
-                    'temperature': temp_score
-                },
-                'telemetry_count': len(telemetry),
-                'last_reading': telemetry[0].timestamp if telemetry else None
-            }
+            telemetry = list(telemetry_qs)
+
+            result = cls._compute_health_score_from_telemetry(telemetry, device_id)
+            cls._set_cached_health_score(device_id, tenant_id, bucket, result)
+            return result
             
         except DatabaseError as e:
             logger.error(f"Database error computing health score: {e}", exc_info=True)
             raise
+
+    @classmethod
+    def compute_health_scores_bulk(
+        cls,
+        device_ids: Iterable[str],
+        tenant_id: Optional[int] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """Compute health scores for many devices using a single telemetry query."""
+        from apps.mqtt.models import DeviceTelemetry
+
+        device_ids = list({device_id for device_id in device_ids if device_id})
+        if not device_ids:
+            return {}
+
+        cutoff_time = timezone.now() - timedelta(hours=72)
+        bucket_id = cls._current_cache_bucket()
+        cache_keys = {
+            device_id: cls._make_cache_key(device_id, tenant_id, bucket_id)
+            for device_id in device_ids
+        }
+
+        cached_results: Dict[str, Dict[str, Any]] = {}
+        devices_to_compute: List[str] = []
+        for device_id in device_ids:
+            cached_payload = cache.get(cache_keys[device_id])
+            if cached_payload:
+                cached_results[device_id] = cached_payload
+            else:
+                devices_to_compute.append(device_id)
+
+        if not devices_to_compute:
+            return cached_results
+
+        query = Q(device_id__in=devices_to_compute, timestamp__gte=cutoff_time)
+        if tenant_id:
+            query &= Q(tenant_id=tenant_id)
+
+        telemetry_map = defaultdict(list)
+        telemetry_qs = (
+            DeviceTelemetry.objects
+            .filter(query)
+            .order_by('device_id', '-timestamp')
+        )
+
+        for telemetry in telemetry_qs.iterator(chunk_size=500):
+            bucket = telemetry_map[telemetry.device_id]
+            if len(bucket) < 200:
+                bucket.append(telemetry)
+
+        computed_results: Dict[str, Dict[str, Any]] = {}
+        for device_id in devices_to_compute:
+            payload = cls._compute_health_score_from_telemetry(
+                telemetry_map.get(device_id, []),
+                device_id
+            )
+            computed_results[device_id] = payload
+            cache.set(cache_keys[device_id], payload, cls.HEALTH_CACHE_TTL_SECONDS)
+
+        merged_results: Dict[str, Dict[str, Any]] = {}
+        for device_id in device_ids:
+            if device_id in cached_results:
+                merged_results[device_id] = cached_results[device_id]
+            else:
+                merged_results[device_id] = computed_results.get(device_id, {})
+
+        return merged_results
+
+    @classmethod
+    def _compute_health_score_from_telemetry(cls, telemetry, device_id: str) -> Dict[str, Any]:
+        """Shared helper to turn telemetry samples into a health score payload."""
+        if not telemetry:
+            return {
+                'device_id': device_id,
+                'health_score': 50,
+                'status': 'UNKNOWN',
+                'message': 'No recent telemetry data',
+                'components': {
+                    'battery': 50.0,
+                    'signal': 50.0,
+                    'uptime': 50.0,
+                    'temperature': 100.0,
+                },
+                'telemetry_count': 0,
+                'last_reading': None,
+            }
+
+        battery_score = cls._compute_battery_score(telemetry)
+        signal_score = cls._compute_signal_score(telemetry)
+        uptime_score = cls._compute_uptime_score(telemetry)
+        temp_score = cls._compute_temperature_score(telemetry)
+
+        health_score = (
+            battery_score * 0.40 +
+            signal_score * 0.30 +
+            uptime_score * 0.20 +
+            temp_score * 0.10
+        )
+
+        if health_score < cls.HEALTH_CRITICAL:
+            status = 'CRITICAL'
+        elif health_score < cls.HEALTH_WARNING:
+            status = 'WARNING'
+        else:
+            status = 'HEALTHY'
+
+        return {
+            'device_id': device_id,
+            'health_score': round(health_score, 1),
+            'status': status,
+            'components': {
+                'battery': battery_score,
+                'signal': signal_score,
+                'uptime': uptime_score,
+                'temperature': temp_score
+            },
+            'telemetry_count': len(telemetry),
+            'last_reading': telemetry[0].timestamp if telemetry else None
+        }
+
+    @classmethod
+    def _current_cache_bucket(cls) -> int:
+        bucket_seconds = max(60, cls.HEALTH_CACHE_BUCKET_SECONDS)
+        return int(timezone.now().timestamp() // bucket_seconds)
+
+    @classmethod
+    def _make_cache_key(cls, device_id: str, tenant_id: Optional[int], bucket: int) -> str:
+        tenant_part = tenant_id or 'global'
+        return f"{cls.HEALTH_CACHE_PREFIX}:{tenant_part}:{device_id}:{bucket}"
+
+    @classmethod
+    def _get_cached_health_score(cls, device_id: str, tenant_id: Optional[int], bucket: int):
+        cache_key = cls._make_cache_key(device_id, tenant_id, bucket)
+        return cache.get(cache_key)
+
+    @classmethod
+    def _set_cached_health_score(
+        cls,
+        device_id: str,
+        tenant_id: Optional[int],
+        bucket: int,
+        payload: Dict[str, Any]
+    ) -> None:
+        cache_key = cls._make_cache_key(device_id, tenant_id, bucket)
+        cache.set(cache_key, payload, cls.HEALTH_CACHE_TTL_SECONDS)
     
     @classmethod
     def _compute_battery_score(cls, telemetry) -> float:

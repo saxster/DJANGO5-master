@@ -16,6 +16,8 @@ from pathlib import Path
 MODEL_TO_APP = {
     # Client onboarding models
     'Bt': 'client_onboarding',
+    'BusinessUnit': 'client_onboarding',  # Alias for Bt
+    'Bu': 'client_onboarding',  # Alias for Bt
     'bu_defaults': 'client_onboarding',
     'Shift': 'client_onboarding',
     'shiftdata_json': 'client_onboarding',
@@ -40,11 +42,11 @@ MODEL_TO_APP = {
     'ApprovedLocation': 'core_onboarding',
     'OnboardingMedia': 'core_onboarding',
     'OnboardingObservation': 'core_onboarding',
+    'Observation': 'core_onboarding',  # Alias for OnboardingObservation
 
     # Site onboarding models
     'OnboardingSite': 'site_onboarding',
     'OnboardingZone': 'site_onboarding',
-    'Observation': 'site_onboarding',
     'SitePhoto': 'site_onboarding',
     'SiteVideo': 'site_onboarding',
     'Asset': 'site_onboarding',

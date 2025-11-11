@@ -34,12 +34,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import (
-from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
-
+from apps.client_onboarding.models import from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+from apps.core_onboarding.models import ConversationSession
+from apps.site_onboarding.models import (
     OnboardingSite,
-    OnboardingZone,
-    ConversationSession
+    OnboardingZone
 )
 from apps.client_onboarding.models.business_unit import Bt
 

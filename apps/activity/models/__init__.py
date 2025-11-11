@@ -18,9 +18,13 @@ except ImportError:
     Attachment = None
 
 try:
-    from .device_eventlog_model import DeviceEventlog
+    from .deviceevent_log_model import DeviceEventlog
 except ImportError:
-    DeviceEventlog = None
+    try:
+        # Backward compatibility for older module naming
+        from .device_eventlog_model import DeviceEventlog
+    except ImportError:
+        DeviceEventlog = None
 
 try:
     from .job_workflow_audit_log import JobWorkflowAuditLog

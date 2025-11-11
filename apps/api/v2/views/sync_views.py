@@ -13,14 +13,17 @@ Compliance with .claude/rules.md:
 - Rule #13: Required validation patterns
 """
 
-from rest_framework.views import APIView
-from apps.ontology.decorators import ontology
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from django.utils import timezone
 import logging
 import uuid
+
+from django.db import DatabaseError
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.ontology.decorators import ontology
 
 from apps.core.services.sync.sync_engine_service import sync_engine
 from apps.ml.services.conflict_predictor import conflict_predictor
@@ -142,11 +145,23 @@ class SyncVoiceView(APIView):
             # Continue with sync if ML predictor fails
 
         # Sync voice data via service
-        result = sync_engine.sync_voice_data(
-            user_id=str(request.user.id),
-            payload=validated_data,
-            device_id=validated_data['device_id']
-        )
+        try:
+            result = sync_engine.sync_voice_data(
+                user_id=str(request.user.id),
+                payload=validated_data,
+                device_id=validated_data['device_id']
+            )
+        except DatabaseError as exc:
+            logger.error("Voice sync database error: %s", exc, exc_info=True)
+            api_error = APIError(
+                field='non_field_errors',
+                message='Voice sync temporarily unavailable. Please retry shortly.',
+                code='SYNC_DATABASE_ERROR',
+            )
+            return Response(
+                create_error_response([api_error]),
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         # Cross-device coordination
         try:

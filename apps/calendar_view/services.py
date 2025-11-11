@@ -4,47 +4,74 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+from datetime import datetime
 from typing import Mapping, Sequence
 
 from django.core.cache import caches
+from django.core.cache.backends.base import BaseCache
+from django.utils import timezone
 
-from .constants import DEFAULT_CALENDAR_CACHE_TTL
+from .constants import (
+    DEFAULT_CALENDAR_CACHE_TTL,
+    CalendarEntityType,
+    CalendarEventStatus,
+    CalendarEventType,
+)
 from .providers.attendance import AttendanceEventProvider
 from .providers.base import BaseCalendarEventProvider, flatten_events
 from .providers.jobneed import JobneedEventProvider
 from .providers.journal import JournalEventProvider
 from .providers.ticket import TicketEventProvider
 from .types import CalendarAggregationResult, CalendarEvent, CalendarQueryParams
+from .exceptions import CalendarProviderError
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarAggregationService:
     """Fetch and aggregate events from all registered providers."""
 
+    CACHE_SCHEMA_VERSION = "v1"
+
     def __init__(
         self,
         providers: Sequence[BaseCalendarEventProvider] | None = None,
+        cache: BaseCache | None = None,
         cache_alias: str = "default",
         cache_ttl: int = DEFAULT_CALENDAR_CACHE_TTL,
     ) -> None:
         self.providers = list(providers or self._default_providers())
-        self.cache = caches[cache_alias]
+        if cache is not None:
+            self.cache = cache
+        else:
+            self.cache = caches[cache_alias]
         self.cache_ttl = cache_ttl
 
     def get_events(self, params: CalendarQueryParams) -> CalendarAggregationResult:
         cache_key = self._build_cache_key(params)
-        cached = self.cache.get(cache_key)
-        if isinstance(cached, CalendarAggregationResult):
+        cached = self._deserialize_cached_result(self.cache.get(cache_key))
+        if cached:
             return cached
 
         chunks = []
         for provider in self.providers:
             if provider.supports(params.event_types):
-                chunks.append(provider.fetch(params))
+                try:
+                    chunks.append(provider.fetch(params))
+                except CalendarProviderError as exc:
+                    logger.warning(
+                        "Calendar provider %s failed: %s", provider.name, exc
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.exception(
+                        "Unexpected error from calendar provider %s", provider.name, exc_info=exc
+                    )
 
         events = self._post_process(flatten_events(chunks), params)
         summary = self._build_summary(events)
         result = CalendarAggregationResult(events=events, summary=summary)
-        self.cache.set(cache_key, result, self.cache_ttl)
+        self.cache.set(cache_key, self._serialize_result(result), self.cache_ttl)
         return result
 
     # ------------------------------------------------------------------
@@ -135,6 +162,75 @@ class CalendarAggregationService:
             TicketEventProvider(),
             JournalEventProvider(),
         )
+
+    # ------------------------------------------------------------------
+    # Cache helpers
+    # ------------------------------------------------------------------
+    def _serialize_result(self, result: CalendarAggregationResult) -> dict:
+        return {
+            "version": self.CACHE_SCHEMA_VERSION,
+            "summary": result.summary,
+            "events": [self._serialize_event(event) for event in result.events],
+        }
+
+    def _deserialize_cached_result(self, cached: object) -> CalendarAggregationResult | None:
+        if isinstance(cached, CalendarAggregationResult):
+            return cached
+        if not isinstance(cached, dict):
+            return None
+        if cached.get("version") != self.CACHE_SCHEMA_VERSION:
+            return None
+        try:
+            events_payload = cached.get("events", [])
+            events = [self._deserialize_event(payload) for payload in events_payload]
+            summary = cached.get("summary") or {"by_type": {}, "by_status": {}}
+            return CalendarAggregationResult(events=events, summary=summary)
+        except (KeyError, ValueError, TypeError) as exc:
+            logger.warning("Failed to deserialize cached calendar payload: %s", exc)
+            return None
+
+    def _serialize_event(self, event: CalendarEvent) -> dict:
+        return {
+            "id": event.id,
+            "event_type": event.event_type.value,
+            "status": event.status.value,
+            "title": event.title,
+            "start": event.start.isoformat(),
+            "end": event.end.isoformat() if event.end else None,
+            "subtitle": event.subtitle,
+            "related_entity_type": event.related_entity_type.value,
+            "related_entity_id": event.related_entity_id,
+            "location": event.location,
+            "assigned_user_id": event.assigned_user_id,
+            "metadata": event.metadata,
+        }
+
+    def _deserialize_event(self, payload: Mapping[str, object]) -> CalendarEvent:
+        return CalendarEvent(
+            id=str(payload["id"]),
+            event_type=CalendarEventType(str(payload["event_type"])),
+            status=CalendarEventStatus(str(payload["status"])),
+            title=str(payload.get("title") or ""),
+            start=self._coerce_datetime(payload["start"]),
+            end=self._coerce_datetime(payload.get("end")) if payload.get("end") else None,
+            subtitle=payload.get("subtitle"),
+            related_entity_type=CalendarEntityType(str(payload.get("related_entity_type", CalendarEntityType.JOBNEED.value))),
+            related_entity_id=payload.get("related_entity_id"),
+            location=payload.get("location"),
+            assigned_user_id=payload.get("assigned_user_id"),
+            metadata=payload.get("metadata", {}),
+        )
+
+    @staticmethod
+    def _coerce_datetime(value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if not value:
+            raise ValueError("Missing datetime value")
+        parsed = datetime.fromisoformat(str(value))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
 
 
 def _matches_search(event: CalendarEvent, needle: str) -> bool:

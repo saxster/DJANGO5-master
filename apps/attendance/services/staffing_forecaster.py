@@ -22,7 +22,7 @@ from django.utils import timezone
 from django.db.models import Count, Avg, Q
 from apps.attendance.models import Attendance
 from apps.activity.models import Activity
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger('attendance.forecaster')

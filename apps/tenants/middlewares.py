@@ -1,7 +1,9 @@
 """
 DEPRECATED: This middleware has been superseded by middleware_unified.py
 
-This file was relocated to .deprecated/tenants/middlewares.py on 2025-11-11.
+The historical implementation that previously lived in
+`.deprecated/tenants/middlewares.py` was permanently removed in January 2026.
+Use git history (commit 2025-11-11) if you need to reference the legacy code.
 
 The old TenantMiddleware class has been replaced by UnifiedTenantMiddleware
 which provides enhanced functionality:
@@ -14,9 +16,6 @@ which provides enhanced functionality:
 Migration:
 - All projects should use: apps.tenants.middleware_unified.UnifiedTenantMiddleware
 - No code changes required if already using UnifiedTenantMiddleware in settings
-
-For historical reference, the original implementation is preserved in:
-.deprecated/tenants/middlewares.py
 
 IMPORTS NOTE:
 The following imports are re-exported for backward compatibility with test suites:

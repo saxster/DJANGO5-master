@@ -79,6 +79,15 @@ from .performance_optimization import (
     BiometricPerformanceOptimizer
 )
 
+from .unified import (
+    get_face_recognition_service,
+    VerificationEngine,
+    VerificationResult,
+    UnifiedFaceRecognitionService,
+    verify_face,
+    assess_image_quality,
+)
+
 __all__ = [
     # Services (Sprint 1.4 - ai_enhanced_engine.py)
     'DeepfakeDetectionService',

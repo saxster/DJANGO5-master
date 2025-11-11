@@ -13,6 +13,7 @@ Created: 2025-11-04 (Split from god file)
 """
 
 from django.db import models
+from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
 from apps.tenants.managers import TenantAwareManager
 
@@ -117,7 +118,8 @@ class HelpTicketCorrelation(TenantAwareModel):
             ticket=ticket,
             tenant=ticket.tenant,
             help_attempted=False,
-            content_gap=False
+            content_gap=False,
+            analyzed_at=timezone.now()
         )
 
         if user_help_activity:

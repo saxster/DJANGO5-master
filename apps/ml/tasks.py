@@ -11,14 +11,98 @@ Following .claude/rules.md:
 
 import logging
 import os
+from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
+from uuid import UUID
+
 from celery import shared_task
 from django.utils import timezone
 from django.db.models import Count, Q
 from apps.core.tasks.base import CeleryTaskBase
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.models.sync_conflict_policy import ConflictResolutionLog
 
 logger = logging.getLogger('ml.tasks')
+
+
+def _safe_uuid(value: Optional[str]) -> Optional[UUID]:
+    """Convert value to UUID when possible, returning None if invalid."""
+    try:
+        return UUID(str(value))
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def _prediction_has_conflict(
+    conflict_logs: List[Tuple[str, datetime]],
+    predicted_domain: Optional[str],
+    prediction_created_at: datetime
+) -> bool:
+    """Determine whether prediction maps to a recorded conflict."""
+    for domain, created_at in conflict_logs:
+        if created_at < prediction_created_at:
+            continue
+        if predicted_domain and domain != predicted_domain:
+            continue
+        return True
+    return False
+
+
+def _group_conflict_logs(
+    entity_ids: List[UUID],
+    earliest_prediction: datetime
+) -> dict:
+    """Load relevant ConflictResolutionLog rows grouped by entity UUID string."""
+    if not entity_ids:
+        return {}
+
+    logs_by_entity = defaultdict(list)
+    log_rows = ConflictResolutionLog.objects.filter(
+        mobile_id__in=entity_ids,
+        created_at__gte=earliest_prediction
+    ).values('mobile_id', 'domain', 'created_at')
+
+    for entry in log_rows:
+        logs_by_entity[str(entry['mobile_id'])].append((entry['domain'], entry['created_at']))
+
+    return logs_by_entity
+
+
+def _notify_conflict_accuracy_drop(accuracy: float, total: int, correct: int) -> bool:
+    """Send critical alert to the incident channel when accuracy drops."""
+    try:
+        from monitoring.real_time_alerts import AlertManager, AlertSeverity
+    except Exception as exc:  # pragma: no cover - optional dependency
+        logger.warning(
+            "Real-time alert manager unavailable for ML accuracy alert: %s",
+            exc
+        )
+        return False
+
+    try:
+        manager = AlertManager()
+        severity = AlertSeverity.CRITICAL if accuracy < 0.5 else AlertSeverity.ERROR
+        manager.create_alert(
+            title="Conflict predictor accuracy degraded",
+            message=(
+                f"7-day accuracy dipped to {accuracy:.2%} over {total} samples "
+                f"({correct} correct). Investigate conflict resolution ingestion "
+                "and retraining pipelines."
+            ),
+            severity=severity,
+            source='ml.conflict_predictor',
+            tags={
+                'model_type': 'conflict_predictor',
+                'sample_size': str(total),
+                'accuracy': f"{accuracy:.4f}"
+            },
+            notification_channels=['websocket', 'slack']
+        )
+        return True
+    except Exception as exc:  # pragma: no cover - network/logging errors
+        logger.error("Failed to emit conflict accuracy alert: %s", exc, exc_info=True)
+        return False
 
 
 @shared_task(
@@ -45,33 +129,57 @@ def track_conflict_prediction_outcomes_task():
         cutoff_time = timezone.now() - timedelta(hours=24)
         window_start = cutoff_time - timedelta(hours=6)
 
-        pending_predictions = PredictionLog.objects.filter(
-            model_type='conflict_predictor',
-            created_at__gte=window_start,
-            created_at__lt=cutoff_time,
-            actual_conflict_occurred__isnull=True
+        pending_predictions = list(
+            PredictionLog.objects.filter(
+                model_type='conflict_predictor',
+                created_at__gte=window_start,
+                created_at__lt=cutoff_time,
+                actual_conflict_occurred__isnull=True
+            ).order_by('created_at')
         )
 
+        pending_count = len(pending_predictions)
         logger.info(
-            f"Tracking outcomes for {pending_predictions.count()} predictions"
+            "Tracking outcomes for %s predictions", pending_count
         )
 
-        # TODO: Check if conflict occurred for each sync event
-        # Requires ConflictResolution model from apps.core.models
-        # For MVP: Mark all as False (no conflicts)
-        updated_count = 0
+        # Prepare conflict log lookups
+        trackable_predictions: List[Tuple['PredictionLog', UUID]] = []
+        skipped_missing_entities = 0
         for prediction in pending_predictions:
-            # TODO: Replace with actual check once models available
-            # conflict_exists = ConflictResolution.objects.filter(
-            #     sync_id=prediction.entity_id
-            # ).exists()
-            conflict_exists = False  # Placeholder
+            entity_uuid = _safe_uuid(prediction.entity_id)
+            if not entity_uuid:
+                skipped_missing_entities += 1
+                continue
+            trackable_predictions.append((prediction, entity_uuid))
+
+        logs_by_entity = {}
+        if trackable_predictions:
+            earliest_prediction_time = min(
+                prediction.created_at for prediction, _ in trackable_predictions
+            )
+            entity_ids = list({entity_uuid for _, entity_uuid in trackable_predictions})
+            logs_by_entity = _group_conflict_logs(entity_ids, earliest_prediction_time)
+        else:
+            logger.warning(
+                "No trackable predictions had valid entity IDs; skipped=%s",
+                skipped_missing_entities
+            )
+
+        updated_count = 0
+        for prediction, entity_uuid in trackable_predictions:
+            conflict_logs = logs_by_entity.get(str(entity_uuid), [])
+            conflict_exists = _prediction_has_conflict(
+                conflict_logs,
+                prediction.entity_type,
+                prediction.created_at
+            )
 
             prediction.actual_conflict_occurred = conflict_exists
             prediction.prediction_correct = (
                 prediction.predicted_conflict == conflict_exists
             )
-            prediction.save()
+            prediction.save(update_fields=['actual_conflict_occurred', 'prediction_correct'])
             updated_count += 1
 
         # Calculate accuracy metrics
@@ -86,23 +194,27 @@ def track_conflict_prediction_outcomes_task():
         accuracy = correct / total if total > 0 else 0.0
 
         logger.info(
-            f"7-day accuracy: {accuracy:.2%} "
-            f"({correct}/{total} correct predictions)"
+            "7-day accuracy: %.2f%% (%s/%s correct predictions)",
+            accuracy * 100,
+            correct,
+            total
         )
 
-        # Alert if accuracy drops below threshold
-        if total > 100 and accuracy < 0.70:
+        alert_triggered = total > 100 and accuracy < 0.70
+        if alert_triggered:
             logger.error(
-                f"Conflict predictor accuracy dropped to {accuracy:.2%} "
-                f"(threshold: 70%, n={total})"
+                "Conflict predictor accuracy dropped to %.2f%% (threshold: 70%%, n=%s)",
+                accuracy * 100,
+                total
             )
-            # TODO: Send email/Slack notification
+            _notify_conflict_accuracy_drop(accuracy, total, correct)
 
         return {
             'updated_predictions': updated_count,
+            'skipped_predictions': skipped_missing_entities,
             'seven_day_accuracy': accuracy,
             'seven_day_sample_size': total,
-            'alert_triggered': total > 100 and accuracy < 0.70
+            'alert_triggered': alert_triggered
         }
 
     except DATABASE_EXCEPTIONS as e:

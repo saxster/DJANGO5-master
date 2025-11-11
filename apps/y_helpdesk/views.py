@@ -52,18 +52,34 @@ class EscalationMatrixView(LoginRequiredMixin, View):
             page_number = int(R.get('page', 1))
             page_size = int(R.get('page_size', 25))  # Default from StandardPageNumberPagination
 
+            def _serialize_person_option(entry):
+                """Serialize People objects or dicts into JSON-safe payloads."""
+                if isinstance(entry, dict):
+                    return {
+                        'id': entry.get('id'),
+                        'text': entry.get('text') or entry.get('peoplename')
+                    }
+                text_value = getattr(entry, 'text', None) or getattr(entry, 'peoplename', None)
+                if not text_value and hasattr(entry, 'peoplecode'):
+                    text_value = f"{getattr(entry, 'peoplename', '')} ({entry.peoplecode})".strip()
+                return {
+                    'id': getattr(entry, 'id', None),
+                    'text': text_value or str(entry)
+                }
+
             # Apply pagination
             paginator = Paginator(qset, page_size)
             try:
                 page_obj = paginator.page(page_number)
-                items = list(page_obj)
             except (EmptyPage, PageNotAnInteger):
-                # Return empty results for invalid page numbers
-                items = []
                 page_obj = None
 
+            serialized_items = []
+            if page_obj:
+                serialized_items = [_serialize_person_option(item) for item in page_obj]
+
             return rp.JsonResponse({
-                "items": items,
+                "items": serialized_items,
                 "total_count": paginator.count if paginator else 0,
                 "page_size": page_size,
                 "current_page": page_number,

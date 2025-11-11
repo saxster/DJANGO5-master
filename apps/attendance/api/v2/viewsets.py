@@ -381,7 +381,7 @@ class GeofenceValidationView(APIView):
         validated_data = serializer.validated_data
         
         try:
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             site = Bt.objects.get(id=validated_data['site_id'])
             
             user_point = Point(

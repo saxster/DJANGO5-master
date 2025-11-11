@@ -23,7 +23,7 @@ log = logging.getLogger("django")
 from apps.core.json_utils import safe_json_parse_params
 
 # Import optimized query methods
-from .managers.optimized_managers import OptimizedTicketManagerMixin
+from .optimized_managers import OptimizedTicketManagerMixin
 
 
 class TicketManager(OptimizedTicketManagerMixin, TenantAwareManager):

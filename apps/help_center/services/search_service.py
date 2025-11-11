@@ -14,7 +14,11 @@ Following CLAUDE.md:
 
 import logging
 from collections import defaultdict
-from django.db.models import Q, F
+from uuid import UUID, uuid4
+
+from django.conf import settings
+from django.db import connection, transaction
+from django.db.models import Q, F, Count
 from django.contrib.postgres.search import SearchQuery, SearchRank
 from apps.help_center.models import HelpArticle, HelpSearchHistory
 from apps.help_center.utils.embedding import cosine_similarity, text_to_embedding
@@ -46,8 +50,7 @@ class SearchService:
                 'search_id': UUID
             }
         """
-        import uuid
-        session_id = uuid.uuid4()
+        session_id = uuid4()
 
         keyword_results = cls._keyword_search(tenant, query, user, role_filter)
         semantic_results = cls._semantic_search(tenant, query, user, role_filter)
@@ -58,9 +61,9 @@ class SearchService:
             limit=limit
         )
 
-        search_history = HelpSearchHistory.objects.create(
-            tenant=tenant,
-            user=user,
+        cls._record_search_history_async(
+            tenant_id=tenant.id,
+            user_id=user.id,
             query=query,
             results_count=len(combined_results),
             session_id=session_id
@@ -77,12 +80,54 @@ class SearchService:
             'results': [cls._article_to_dict(a) for a in combined_results],
             'suggestions': suggestions,
             'total': len(combined_results),
-            'search_id': search_history.id
+            'search_id': str(session_id)
         }
+
+    @classmethod
+    def _record_search_history_async(cls, tenant_id, user_id, query, results_count, session_id):
+        """Persist search history after the current transaction commits."""
+
+        def persist_history():
+            try:
+                HelpSearchHistory.objects.create(
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    query=query,
+                    results_count=results_count,
+                    session_id=session_id
+                )
+            except DATABASE_EXCEPTIONS as exc:
+                logger.error(
+                    "help_search_history_write_failed",
+                    extra={'tenant_id': tenant_id, 'user_id': user_id, 'error': str(exc)}
+                )
+
+        if getattr(settings, 'TESTING', False):
+            persist_history()
+            return
+
+        try:
+            transaction.on_commit(persist_history)
+        except RuntimeError:
+            # Fallback if no transaction is active
+            persist_history()
 
     @classmethod
     def _keyword_search(cls, tenant, query, user, role_filter):
         """PostgreSQL Full-Text Search."""
+        if connection.vendor != 'postgresql':
+            qs = HelpArticle.objects.filter(
+                tenant=tenant,
+                status=HelpArticle.Status.PUBLISHED,
+            ).filter(
+                Q(title__icontains=query) | Q(summary__icontains=query)
+            )
+
+            if role_filter:
+                logger.debug("Skipping Postgres-specific role filter on %s", connection.vendor)
+
+            return qs.order_by('-published_date')[:10]
+
         search_query = SearchQuery(query, config='english')
 
         qs = HelpArticle.objects.filter(
@@ -94,7 +139,7 @@ class SearchService:
             rank__gte=0.1
         )
 
-        if role_filter:
+        if role_filter and connection.vendor == 'postgresql':
             user_roles = list(user.groups.values_list('name', flat=True))
             qs = qs.filter(
                 Q(target_roles__contains=user_roles) |
@@ -117,7 +162,7 @@ class SearchService:
                 embedding__isnull=False
             )
 
-            if role_filter:
+            if role_filter and connection.vendor == 'postgresql':
                 user_roles = list(user.groups.values_list('name', flat=True))
                 articles = articles.filter(
                     Q(target_roles__contains=user_roles) |
@@ -210,7 +255,7 @@ class SearchService:
             popular_searches = HelpSearchHistory.objects.filter(
                 results_count__gt=0
             ).values('query').annotate(
-                count=Q(id__count=True)
+                count=Count('id')
             ).order_by('-count')[:5]
 
             return [s['query'] for s in popular_searches]
@@ -241,7 +286,10 @@ class SearchService:
     def record_click(cls, search_id, article_id, position):
         """Track which article user clicked from search results."""
         try:
-            search_history = HelpSearchHistory.objects.get(id=search_id)
+            search_history = cls._resolve_search_history(search_id)
+            if not search_history:
+                raise HelpSearchHistory.DoesNotExist()
+
             article = HelpArticle.objects.get(id=article_id)
 
             search_history.clicked_article = article
@@ -253,3 +301,25 @@ class SearchService:
 
         except (HelpSearchHistory.DoesNotExist, HelpArticle.DoesNotExist) as e:
             logger.error(f"Failed to record click: search={search_id}, article={article_id}: {e}")
+
+    @staticmethod
+    def _resolve_search_history(search_id):
+        """Resolve search history by integer PK or UUID session identifier."""
+        try:
+            if search_id is None:
+                return None
+            return HelpSearchHistory.objects.get(id=int(search_id))
+        except (ValueError, TypeError, HelpSearchHistory.DoesNotExist):
+            pass
+
+        try:
+            search_uuid = UUID(str(search_id))
+        except (ValueError, TypeError):
+            return None
+
+        return (
+            HelpSearchHistory.objects
+            .filter(session_id=search_uuid)
+            .order_by('-timestamp')
+            .first()
+        )

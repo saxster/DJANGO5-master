@@ -479,7 +479,7 @@ class Command(BaseCommand):
         try:
             mqtt_config = getattr(settings, 'MQTT_CONFIG', {})
 
-            required_config = ['BROKER_ADDRESS', 'broker_port', 'broker_userNAME', 'broker_password']
+            required_config = ['BROKER_ADDRESS', 'BROKER_PORT', 'BROKER_USERNAME', 'BROKER_PASSWORD']
             missing_config = [key for key in required_config if not mqtt_config.get(key)]
 
             return {

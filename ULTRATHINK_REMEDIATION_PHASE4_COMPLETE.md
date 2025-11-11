@@ -305,7 +305,7 @@ Two tenant middleware implementations existed:
 While settings correctly used `UnifiedTenantMiddleware`, the old file remained and could confuse developers about which to use.
 
 **Fix Applied**:
-1. **Archived old implementation** to `.deprecated/tenants/middlewares.py`
+1. **Archived old implementation** to `.deprecated/tenants/middlewares.py` (removed Jan 2026; available via git history)
 2. **Created deprecation shim** at original location:
 ```python
 # NEW apps/tenants/middlewares.py (SHIM)
@@ -326,7 +326,7 @@ from apps.tenants.middleware_unified import THREAD_LOCAL
 __all__ = ['UnifiedTenantMiddleware', 'TenantDbRouter', 'THREAD_LOCAL']
 ```
 
-3. **Created comprehensive migration guide**: `.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md` (206 lines)
+3. **Created comprehensive migration guide**: `.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md` (206 lines, removed Jan 2026—refer to history)
 
 **Impact**:
 - ✅ Code clarity (single source of truth)
@@ -646,7 +646,7 @@ The pre-commit hook flagged these violations in files we modified, but they **ex
 
 1. **ULTRATHINK_REMEDIATION_PHASE4_COMPLETE.md** (this file) - Complete technical report
 2. **TENANT_MIDDLEWARE_CLEANUP_SUMMARY.md** - Detailed middleware cleanup report
-3. **.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md** - Migration guide (206 lines)
+3. **.deprecated/tenants/DEPRECATED_MIDDLEWARE_NOTICE.md** - Migration guide (206 lines; now removed, see git history)
 
 ---
 

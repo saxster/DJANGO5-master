@@ -7,20 +7,23 @@ and provides a single, consistent interface for all face recognition operations.
 
 import time
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
-from django.conf import settings
 from django.apps import apps
+from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import DatabaseError, IntegrityError
 
-from .models import (
+from apps.core.exceptions import LLMServiceException
+
+from ..models import (
     FaceRecognitionModel,
     FaceEmbedding,
-    FaceVerificationLog,
-    FaceQualityMetrics
+    FaceVerificationLog
 )
-from .enhanced_engine import EnhancedFaceRecognitionEngine
+from ..enhanced_engine import EnhancedFaceRecognitionEngine
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +47,7 @@ class VerificationResult:
 
     # Quality assessment
     image_quality_score: Optional[float] = None
-    quality_issues: List[str] = None
+    quality_issues: Optional[List[str]] = None
 
     # Anti-spoofing
     spoof_detected: bool = False

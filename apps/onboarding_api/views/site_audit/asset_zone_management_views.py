@@ -32,11 +32,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import (
+from apps.site_onboarding.models import (
     OnboardingSite,
     OnboardingZone,
     Asset,
-    MeterPoint,
+    MeterPoint
 )
 
 from ...serializer_modules.site_audit_serializers import (

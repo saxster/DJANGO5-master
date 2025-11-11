@@ -23,7 +23,7 @@ from datetime import date, timedelta, time
 
 from apps.attendance.models import Post, PostAssignment
 from apps.peoples.models import People
-from apps.onboarding.models import Shift, Bt
+from apps.client_onboarding.models import Shift, Bt
 from apps.attendance.services.post_cache_service import PostCacheService
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 

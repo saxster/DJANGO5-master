@@ -8,6 +8,24 @@ After the bounded-context split those managers live in
 imports (including old migrations) continue to work.
 """
 
-from apps.client_onboarding.managers import *  # noqa: F401,F403
+from apps.client_onboarding.managers import (
+    BtManager,
+    TypeAssistManager,
+    GeofenceManager,
+    ShiftManager,
+    DeviceManager,
+    SubscriptionManger,
+)
 
-__all__ = [name for name in globals() if not name.startswith('_')]
+# Backward-compatible alias for typo'd manager name kept in historical migrations
+SubscriptionManager = SubscriptionManger
+
+__all__ = [
+    'BtManager',
+    'TypeAssistManager',
+    'GeofenceManager',
+    'ShiftManager',
+    'DeviceManager',
+    'SubscriptionManger',
+    'SubscriptionManager',
+]

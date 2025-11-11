@@ -50,6 +50,7 @@ MIDDLEWARE = [
     # Layer 5: Session and Multi-Tenancy
     # ========================================================================
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "waffle.middleware.WaffleMiddleware",
     "apps.tenants.middleware_unified.UnifiedTenantMiddleware",  # CRITICAL: Must be after SessionMiddleware
     "django.middleware.locale.LocaleMiddleware",
     "corsheaders.middleware.CorsMiddleware",

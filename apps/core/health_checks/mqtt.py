@@ -37,7 +37,7 @@ def check_mqtt_broker() -> Dict[str, Any]:
             mqtt_config = getattr(settings, "MQTT_CONFIG", {})
 
             broker_address = mqtt_config.get("BROKER_ADDRESS")
-            broker_port = mqtt_config.get("broker_port", 1883)
+            broker_port = mqtt_config.get("BROKER_PORT", 1883)
 
             if not broker_address:
                 return format_check_result(

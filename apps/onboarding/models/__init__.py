@@ -9,7 +9,6 @@ live in ``apps.client_onboarding`` and ``apps.core_onboarding``.
 
 from apps.client_onboarding.models import (
     Bt,
-    Bu,
     Shift,
     Device,
     Subscription,
@@ -17,11 +16,34 @@ from apps.client_onboarding.models import (
     bu_defaults,
     shiftdata_json,
 )
-from apps.core_onboarding.models import TypeAssist, GeofenceMaster
+from apps.core_onboarding.models import (
+    TypeAssist,
+    GeofenceMaster,
+    ConversationSession,
+    LLMRecommendation,
+    AuthoritativeKnowledge,
+    AuthoritativeKnowledgeChunk,
+    AIChangeSet,
+    AIChangeRecord,
+    ChangeSetApproval,
+    OnboardingObservation,
+)
+from apps.site_onboarding.models import (
+    OnboardingZone,
+    OnboardingSite,
+    Asset,
+    Checkpoint,
+    SitePhoto,
+    MeterPoint,
+    SOP,
+    CoveragePlan,
+)
 
 # Backward compatibility aliases
 BusinessUnit = Bt
 Site = Bt
+Bu = Bt
+Observation = OnboardingObservation  # Alias for serializers
 
 __all__ = [
     'Bt',
@@ -34,6 +56,23 @@ __all__ = [
     'DownTimeHistory',
     'TypeAssist',
     'GeofenceMaster',
+    'ConversationSession',
+    'LLMRecommendation',
+    'AuthoritativeKnowledge',
+    'AuthoritativeKnowledgeChunk',
+    'AIChangeSet',
+    'AIChangeRecord',
+    'ChangeSetApproval',
+    'OnboardingZone',
+    'OnboardingSite',
+    'Asset',
+    'Checkpoint',
+    'SitePhoto',
+    'MeterPoint',
+    'SOP',
+    'CoveragePlan',
+    'Observation',
+    'OnboardingObservation',
     'bu_defaults',
     'shiftdata_json',
 ]

@@ -11,8 +11,11 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
-from apps.onboarding.models import (
-    Bt, ConversationSession, LLMRecommendation, AuthoritativeKnowledge
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
+    ConversationSession,
+    LLMRecommendation,
+    AuthoritativeKnowledge
 )
 from apps.client_onboarding.admin import (
     ConversationSessionAdmin, LLMRecommendationAdmin, AuthoritativeKnowledgeAdmin

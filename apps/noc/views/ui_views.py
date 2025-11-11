@@ -23,10 +23,19 @@ def noc_dashboard_view(request):
     from datetime import timedelta
     
     allowed_clients = NOCRBACService.get_visible_clients(request.user)
-    oics = People.objects.filter(
-        is_active=True,
-        peopleorganizational__isnull=False
-    ).distinct()
+    oics = (
+        People.objects.filter(
+            tenant=request.user.tenant,
+            is_active=True,
+            peopleorganizational__isnull=False
+        )
+        .select_related(
+            'peopleorganizational',
+            'peopleorganizational__client',
+            'peopleorganizational__bu'
+        )
+        .distinct()
+    )
 
     recent_threat_alerts = IntelligenceAlert.objects.filter(
         tenant=request.user.tenant,

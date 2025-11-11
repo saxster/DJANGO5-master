@@ -26,11 +26,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from apps.onboarding.models import (
-    OnboardingSite,
-    OnboardingZone,
+from apps.core_onboarding.models import (
     Observation,
     ConversationSession
+)
+from apps.site_onboarding.models import (
+    OnboardingSite,
+    OnboardingZone
 )
 from apps.client_onboarding.models.business_unit import Bt
 

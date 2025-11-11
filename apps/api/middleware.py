@@ -47,13 +47,13 @@ Provides request/response processing for API endpoints.
 """
 
 import time
-import json
 import logging
 from django.utils.deprecation import MiddlewareMixin
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.cache import cache
 from django.utils import timezone
 from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.validators import validate_ipv46_address
 from django.conf import settings
 
 from apps.api.monitoring.analytics import api_analytics
@@ -264,6 +264,7 @@ class APIRateLimitMiddleware(MiddlewareMixin):
             'authenticated': (600, 3600),  # 600 requests per hour
             'premium': (6000, 3600),       # 6000 requests per hour
         }
+        self.trusted_proxies = set(getattr(settings, 'RATE_LIMIT_TRUSTED_IPS', []))
     
     def process_request(self, request):
         """
@@ -340,12 +341,61 @@ class APIRateLimitMiddleware(MiddlewareMixin):
     
     def _get_client_ip(self, request):
         """
-        Get client IP address.
+        Get client IP address while honoring trusted proxies and Django settings.
         """
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0]
-        return request.META.get('REMOTE_ADDR')
+        remote_addr = request.META.get('REMOTE_ADDR')
+        use_forwarded = bool(x_forwarded_for) and (
+            getattr(settings, 'USE_X_FORWARDED_HOST', False)
+            or getattr(settings, 'SECURE_PROXY_SSL_HEADER', None)
+            or self.trusted_proxies
+        )
+
+        if use_forwarded and x_forwarded_for:
+            forwarded_ips = [ip.strip() for ip in x_forwarded_for.split(',') if ip.strip()]
+            if forwarded_ips:
+                # Only trust forwarded chain if the immediate proxy is trusted
+                if not self.trusted_proxies or (remote_addr and remote_addr in self.trusted_proxies):
+                    candidate = self._extract_client_ip_from_chain(forwarded_ips)
+                    if candidate:
+                        return candidate
+
+        real_ip = request.META.get('HTTP_X_REAL_IP')
+        if use_forwarded and real_ip and self._is_valid_ip(real_ip):
+            return real_ip
+
+        if remote_addr and self._is_valid_ip(remote_addr):
+            return remote_addr
+
+        return 'unknown'
+
+    def _extract_client_ip_from_chain(self, forwarded_ips):
+        """
+        Walk the X-Forwarded-For chain and return the first non-proxy IP.
+        """
+        # Prefer the furthest non-proxy hop
+        for ip in reversed(forwarded_ips):
+            if self.trusted_proxies and ip in self.trusted_proxies:
+                continue
+            if self._is_valid_ip(ip):
+                return ip
+
+        # Fallback to the first valid IP even if proxies list is unknown
+        for ip in forwarded_ips:
+            if self._is_valid_ip(ip):
+                return ip
+        return None
+
+    @staticmethod
+    def _is_valid_ip(value):
+        """
+        Validate IPv4/IPv6 addresses.
+        """
+        try:
+            validate_ipv46_address(value)
+            return True
+        except (ValidationError, ValueError, TypeError):
+            return False
 
 
 class APICacheMiddleware(MiddlewareMixin):
@@ -364,6 +414,7 @@ class APICacheMiddleware(MiddlewareMixin):
             '/api/v1/assets/',
             '/api/v1/config/'
         ]
+        self._cached_header_blocklist = {'set-cookie', 'x-cache'}
     
     def process_request(self, request):
         """
@@ -387,10 +438,10 @@ class APICacheMiddleware(MiddlewareMixin):
         # Try to get from cache
         cached_response = cache.get(cache_key)
         if cached_response:
-            # Return cached response
-            response = JsonResponse(cached_response)
-            response['X-Cache'] = 'HIT'
-            return response
+            response = self._build_cached_response(cached_response)
+            if response:
+                response['X-Cache'] = 'HIT'
+                return response
         
         # Store cache key for response processing
         request._cache_key = cache_key
@@ -406,19 +457,11 @@ class APICacheMiddleware(MiddlewareMixin):
         # Check if we should cache this response
         if hasattr(request, '_cache_key') and response.status_code == 200:
             try:
-                # Parse response content
-                if hasattr(response, 'data'):
-                    cache_data = response.data
-                else:
-                    cache_data = json.loads(response.content)
-                
-                # Cache the response
-                cache.set(request._cache_key, cache_data, self.cache_timeout)
-
-                # Add cache headers
-                response['X-Cache'] = 'MISS'
-                response['Cache-Control'] = f'max-age={self.cache_timeout}'
-
+                payload = self._serialize_response(response)
+                if payload is not None:
+                    cache.set(request._cache_key, payload, self.cache_timeout)
+                    response['X-Cache'] = 'MISS'
+                    response.setdefault('Cache-Control', f'max-age={self.cache_timeout}')
             except CacheException as e:
                 correlation_id = ErrorHandler.handle_exception(
                     e,
@@ -426,13 +469,6 @@ class APICacheMiddleware(MiddlewareMixin):
                     level='warning'
                 )
                 logger.warning(f"Cache operation failed", extra={'correlation_id': correlation_id})
-            except (json.JSONDecodeError, ValueError) as e:
-                correlation_id = ErrorHandler.handle_exception(
-                    e,
-                    context={'operation': 'api_cache_parse', 'path': request.path},
-                    level='warning'
-                )
-                logger.warning(f"Failed to parse response for caching", extra={'correlation_id': correlation_id})
             except (ConnectionError, OSError) as e:
                 correlation_id = ErrorHandler.handle_exception(
                     e,
@@ -460,6 +496,53 @@ class APICacheMiddleware(MiddlewareMixin):
         
         key_string = ':'.join(key_parts)
         return f"api_cache:{hashlib.md5(key_string.encode()).hexdigest()}"
+
+    def _serialize_response(self, response):
+        """
+        Serialize a response into a cache-friendly structure.
+        """
+        if getattr(response, 'streaming', False):
+            return None
+
+        try:
+            content = response.content
+        except AttributeError:
+            return None
+
+        headers = {
+            key: value
+            for key, value in response.items()
+            if key.lower() not in self._cached_header_blocklist
+        }
+
+        return {
+            'status': response.status_code,
+            'content': content,
+            'headers': headers,
+            'content_type': response.get('Content-Type'),
+            'charset': getattr(response, 'charset', None),
+        }
+
+    def _build_cached_response(self, payload):
+        """
+        Reconstruct an HttpResponse from cached payload metadata.
+        """
+        if not isinstance(payload, dict) or 'content' not in payload:
+            return None
+
+        response = HttpResponse(
+            content=payload.get('content', b''),
+            status=payload.get('status', 200),
+            content_type=payload.get('content_type')
+        )
+
+        if payload.get('charset'):
+            response.charset = payload['charset']
+
+        for header, value in (payload.get('headers') or {}).items():
+            response[header] = value
+
+        return response
 
 
 class APISecurityMiddleware(MiddlewareMixin):

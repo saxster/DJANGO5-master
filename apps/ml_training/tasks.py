@@ -165,9 +165,10 @@ def train_model(
 )
 def active_learning_loop(
     self,
-    model_id: int,
+    model_id: Optional[int] = None,
     confidence_threshold: float = 0.85,
-    batch_size: int = 100
+    batch_size: int = 100,
+    dataset_id: Optional[int] = None
 ):
     """
     Run active learning loop to identify samples for labeling.
@@ -177,12 +178,13 @@ def active_learning_loop(
     Active learning identifies uncertain predictions that need human labeling.
 
     Args:
-        model_id: Model ID to use for predictions
+        model_id: Optional model ID associated with the dataset
         confidence_threshold: Confidence threshold (below = uncertain)
         batch_size: Number of samples to process
+        dataset_id: Explicit dataset ID (overrides model_id mapping)
 
     Returns:
-        dict: Uncertain samples identified
+        dict: Active learning summary
 
     Example:
         active_learning_loop.apply_async(
@@ -191,30 +193,118 @@ def active_learning_loop(
             priority=1
         )
     """
-    logger.info(f"Starting active learning loop: model={model_id}, threshold={confidence_threshold}")
+    logger.info(
+        "Starting active learning loop: model=%s, dataset=%s, threshold=%.2f",
+        model_id,
+        dataset_id,
+        confidence_threshold
+    )
 
     try:
-        # TODO: Implement active learning logic
-        # from apps.ml_training.services.active_learning_service import identify_uncertain_samples
-        # uncertain_samples = identify_uncertain_samples(model_id, confidence_threshold, batch_size)
+        from apps.ml_training.models import TrainingDataset, TrainingExample
+        from apps.ml_training.services.active_learning_service import (
+            ActiveLearningService
+        )
 
-        # Placeholder
-        uncertain_samples = {
-            'model_id': model_id,
-            'samples_identified': 15,
-            'confidence_range': [0.60, 0.84],
-            'recommended_for_labeling': [101, 102, 103, 104, 105]
-        }
+        dataset = None
+        if dataset_id is not None:
+            dataset = TrainingDataset.objects.filter(id=dataset_id).first()
+        if dataset is None and model_id is not None:
+            dataset = TrainingDataset.objects.filter(
+                metadata__model_id=model_id
+            ).first()
 
-        # Record metrics
+        if dataset is None:
+            logger.warning(
+                "Active learning skipped: dataset not found (model_id=%s, dataset_id=%s)",
+                model_id,
+                dataset_id
+            )
+            return {
+                'status': 'skipped',
+                'reason': 'dataset_not_found',
+                'model_id': model_id,
+                'samples_identified': 0
+            }
+
+        confidence_threshold = max(0.0, min(1.0, confidence_threshold))
+        min_uncertainty = 1.0 - confidence_threshold
+
+        service = ActiveLearningService()
+        detection = service.detect_uncertain_examples(
+            dataset=dataset,
+            min_uncertainty=min_uncertainty,
+            limit=batch_size
+        )
+
+        if not detection.get('success'):
+            error_message = detection.get('error', 'detection_failed')
+            logger.error(
+                "Active learning detection failed for dataset %s: %s",
+                dataset.id,
+                error_message
+            )
+            return {
+                'status': 'error',
+                'reason': error_message,
+                'model_id': model_id,
+                'dataset_id': dataset.id
+            }
+
+        candidates = detection.get('examples') or []
+        if not candidates:
+            logger.info(
+                "Active learning skipped: no uncertain samples above threshold for dataset %s",
+                dataset.id
+            )
+            return {
+                'status': 'skipped',
+                'reason': 'no_uncertain_samples',
+                'model_id': model_id,
+                'dataset_id': dataset.id,
+                'uncertainty_threshold': min_uncertainty
+            }
+
+        selected_examples = sorted(
+            candidates,
+            key=lambda example: example.uncertainty_score or 0.0,
+            reverse=True
+        )[:batch_size]
+
+        for priority, example in enumerate(selected_examples, start=1):
+            example.selected_for_labeling = True
+            base_priority = int((example.uncertainty_score or 0) * 100)
+            example.labeling_priority = max(base_priority, 1) + (batch_size - priority)
+
+        TrainingExample.objects.bulk_update(
+            selected_examples,
+            ['selected_for_labeling', 'labeling_priority']
+        )
+
         TaskMetrics.increment_counter('active_learning_samples_identified', {
-            'model_id': str(model_id),
-            'count': str(uncertain_samples['samples_identified'])
+            'dataset_id': str(dataset.id),
+            'count': str(len(selected_examples))
         })
 
-        logger.info(f"Active learning loop complete: {uncertain_samples['samples_identified']} samples identified")
+        recommended_ids = [str(example.uuid) for example in selected_examples]
 
-        return uncertain_samples
+        logger.info(
+            "Active learning loop complete: %s samples identified for dataset %s",
+            len(selected_examples),
+            dataset.id
+        )
+
+        return {
+            'status': 'success',
+            'model_id': model_id,
+            'dataset_id': dataset.id,
+            'dataset_name': dataset.name,
+            'samples_identified': len(selected_examples),
+            'confidence_threshold': confidence_threshold,
+            'uncertainty_threshold': min_uncertainty,
+            'recommended_for_labeling': recommended_ids,
+            'uncertainty_stats': detection.get('uncertainty_stats', {})
+        }
 
     except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error in active learning loop: {e}", exc_info=True)
@@ -260,7 +350,50 @@ def dataset_labeling(
     logger.info(f"Starting dataset labeling: dataset={dataset_id}, strategy={labeling_strategy}")
 
     try:
-        # Broadcast labeling started
+        if dataset_id is None:
+            logger.warning("Dataset labeling skipped: dataset_id not provided")
+            return {
+                'status': 'skipped',
+                'reason': 'dataset_not_specified',
+                'samples_labeled': 0
+            }
+
+        from apps.ml_training.models import TrainingDataset
+
+        dataset = TrainingDataset.objects.filter(id=dataset_id).first()
+        if dataset is None:
+            logger.warning("Dataset labeling skipped: dataset %s not found", dataset_id)
+            return {
+                'status': 'skipped',
+                'reason': 'dataset_not_found',
+                'dataset_id': dataset_id,
+                'samples_labeled': 0
+            }
+
+        # Attempt to load real labeling service. If unavailable, guard task.
+        try:
+            from apps.ml_training.services.dataset_labeling_service import label_dataset  # type: ignore
+        except ModuleNotFoundError:
+            logger.warning(
+                "Dataset labeling service unavailable; skipping dataset %s",
+                dataset_id
+            )
+            if user_id:
+                self.broadcast_task_progress(
+                    user_id=user_id,
+                    task_name='Dataset Labeling',
+                    progress=0.0,
+                    status='skipped',
+                    message='Dataset labeling service unavailable'
+                )
+            return {
+                'status': 'skipped',
+                'reason': 'dataset_labeling_service_unavailable',
+                'dataset_id': dataset_id,
+                'samples_labeled': 0
+            }
+
+        # Real implementation path (unreachable until service lands)
         if user_id:
             self.broadcast_task_progress(
                 user_id=user_id,
@@ -269,36 +402,30 @@ def dataset_labeling(
                 message='Initializing labeling pipeline'
             )
 
-        # TODO: Implement labeling logic
-        # from apps.ml_training.services.dataset_labeling_service import label_dataset
-        # result = label_dataset(dataset_id, labeling_strategy)
+        result = label_dataset(dataset_id, labeling_strategy)
 
-        # Placeholder
-        result = {
-            'dataset_id': dataset_id,
-            'samples_labeled': 250,
-            'confidence_avg': 0.92,
-            'labeling_strategy': labeling_strategy
-        }
-
-        # Broadcast completion
         if user_id:
             self.broadcast_task_progress(
                 user_id=user_id,
                 task_name='Dataset Labeling',
                 progress=100.0,
                 status='completed',
-                message=f'{result["samples_labeled"]} samples labeled'
+                message=f"{result.get('samples_labeled', 0)} samples labeled"
             )
 
-        # Record metrics
         TaskMetrics.increment_counter('dataset_samples_labeled', {
             'strategy': labeling_strategy,
-            'count': str(result['samples_labeled'])
+            'count': str(result.get('samples_labeled', 0))
         })
 
-        logger.info(f"Dataset labeling complete: {result['samples_labeled']} samples labeled")
+        logger.info(
+            "Dataset labeling completed via service: dataset=%s samples=%s",
+            dataset_id,
+            result.get('samples_labeled')
+        )
 
+        result.setdefault('status', 'success')
+        result.setdefault('dataset_id', dataset_id)
         return result
 
     except DATABASE_EXCEPTIONS as e:
@@ -353,22 +480,45 @@ def evaluate_model(
     logger.info(f"Starting model evaluation: model={model_id}, test_dataset={test_dataset_id}")
 
     try:
-        # TODO: Implement evaluation logic
-        # from apps.ml_training.services.evaluation_service import evaluate_ml_model
-        # metrics = evaluate_ml_model(model_id, test_dataset_id)
+        if model_id is None or test_dataset_id is None:
+            logger.warning(
+                "Model evaluation skipped: missing parameters (model_id=%s, test_dataset_id=%s)",
+                model_id,
+                test_dataset_id
+            )
+            return {
+                'status': 'skipped',
+                'reason': 'missing_parameters'
+            }
 
-        # Placeholder
-        metrics = {
-            'model_id': model_id,
-            'test_dataset_id': test_dataset_id,
-            'accuracy': 0.94,
-            'precision': 0.92,
-            'recall': 0.93,
-            'f1_score': 0.925,
-            'confusion_matrix': [[80, 5], [3, 12]]
-        }
+        try:
+            from apps.ml_training.services.evaluation_service import evaluate_ml_model  # type: ignore
+        except ModuleNotFoundError:
+            logger.warning(
+                "Model evaluation service unavailable; skipping model=%s dataset=%s",
+                model_id,
+                test_dataset_id
+            )
+            if user_id:
+                self.broadcast_to_user(
+                    user_id=user_id,
+                    message_type='model_evaluation_complete',
+                    data={
+                        'status': 'skipped',
+                        'reason': 'model_evaluation_service_unavailable',
+                        'model_id': model_id,
+                        'test_dataset_id': test_dataset_id
+                    }
+                )
+            return {
+                'status': 'skipped',
+                'reason': 'model_evaluation_service_unavailable',
+                'model_id': model_id,
+                'test_dataset_id': test_dataset_id
+            }
 
-        # Broadcast results to user
+        metrics = evaluate_ml_model(model_id, test_dataset_id)
+
         if user_id:
             self.broadcast_to_user(
                 user_id=user_id,
@@ -376,13 +526,17 @@ def evaluate_model(
                 data=metrics
             )
 
-        # Record metrics
         TaskMetrics.increment_counter('ml_model_evaluated', {
             'model_id': str(model_id),
         })
 
-        logger.info(f"Model evaluation complete: accuracy={metrics['accuracy']:.2%}")
+        logger.info(
+            "Model evaluation complete via service: model=%s dataset=%s",
+            model_id,
+            test_dataset_id
+        )
 
+        metrics.setdefault('status', 'success')
         return metrics
 
     except DATABASE_EXCEPTIONS as e:

@@ -18,7 +18,8 @@ Following CLAUDE.md:
 import logging
 from datetime import timedelta
 from typing import Dict, List
-from django.db.models import Q, Count, Prefetch
+from django.db.models import Q, Count, IntegerField, Value
+from django.db.models.functions import Cast, Coalesce
 from django.utils import timezone
 from django.core.cache import cache
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE
@@ -152,34 +153,38 @@ class CommandCenterService:
         from apps.monitoring.services.device_health_service import DeviceHealthService
 
         try:
-            # Get devices with recent telemetry (last 24 hours)
             twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
 
-            recent_devices = DeviceTelemetry.objects.filter(
-                tenant_id=tenant_id,
-                timestamp__gte=twenty_four_hours_ago
-            ).values('device_id').distinct()
+            recent_device_ids = list(
+                DeviceTelemetry.objects.filter(
+                    tenant_id=tenant_id,
+                    timestamp__gte=twenty_four_hours_ago
+                ).values_list('device_id', flat=True).distinct()
+            )
 
-            # Compute health scores and filter devices below threshold
+            if not recent_device_ids:
+                return []
+
+            health_scores = DeviceHealthService.compute_health_scores_bulk(
+                recent_device_ids,
+                tenant_id=tenant_id
+            )
+
             devices_at_risk = []
+            for device_id, health_result in health_scores.items():
+                if health_result['health_score'] >= DeviceHealthService.HEALTH_WARNING:
+                    continue
 
-            for device_data in recent_devices:
-                device_id = device_data['device_id']
-                health_result = DeviceHealthService.compute_health_score(
-                    device_id=device_id,
-                    tenant_id=tenant_id
-                )
+                devices_at_risk.append({
+                    'device_id': device_id,
+                    'health_score': health_result['health_score'],
+                    'status': health_result['status'],
+                    'components': health_result.get('components', {}),
+                    'telemetry_count': health_result.get('telemetry_count', 0),
+                    'last_reading': health_result.get('last_reading')
+                })
 
-                # Only include devices with health score below warning threshold
-                if health_result['health_score'] < DeviceHealthService.HEALTH_WARNING:
-                    devices_at_risk.append({
-                        'device_id': device_id,
-                        'health_score': health_result['health_score'],
-                        'status': health_result['status'],
-                        'components': health_result.get('components', {})
-                    })
-
-            return devices_at_risk
+            return sorted(devices_at_risk, key=lambda device: device['health_score'])[:25]
 
         except DATABASE_EXCEPTIONS as e:
             logger.warning(
@@ -196,36 +201,46 @@ class CommandCenterService:
         Uses existing SLABreachPredictor predictions stored in other_data.
         """
         from apps.y_helpdesk.models import Ticket
+        from apps.y_helpdesk.models.sla_prediction import SLAPrediction
 
         try:
-            tickets = Ticket.objects.filter(
-                tenant_id=tenant_id,
-                status__in=['OPEN', 'ASSIGNED'],
-                sla_policy__isnull=False
-            ).select_related('assigned_to', 'created_by')
+            predictions = (
+                SLAPrediction.objects
+                .filter(
+                    tenant_id=tenant_id,
+                    item_type='Ticket',
+                    confidence__gte=70,
+                    is_acknowledged=False
+                )
+                .order_by('-confidence')[:50]
+            )
+
+            ticket_ids = [prediction.item_id for prediction in predictions]
+            tickets = {
+                ticket.id: ticket for ticket in Ticket.objects.filter(
+                    id__in=ticket_ids
+                ).select_related('assigned_to', 'created_by')
+            }
 
             at_risk_tickets = []
+            for prediction in predictions:
+                ticket = tickets.get(prediction.item_id)
+                if not ticket:
+                    continue
 
-            for ticket in tickets:
-                if ticket.other_data and 'sla_predictions' in ticket.other_data:
-                    predictions = ticket.other_data['sla_predictions']
-                    if predictions:
-                        latest_prediction = predictions[-1]
-                        probability = latest_prediction.get('breach_probability', 0)
-                        
-                        if probability >= 0.7:
-                            at_risk_tickets.append({
-                                'id': ticket.id,
-                                'title': ticket.title,
-                                'priority': ticket.priority,
-                                'breach_probability': probability,
-                                'time_to_sla': cls._calculate_time_to_sla(ticket),
-                                'assigned_to': ticket.assigned_to.fullname if ticket.assigned_to else 'Unassigned',
-                                'created_at': ticket.created_at.isoformat(),
-                                'url': f"/helpdesk/tickets/{ticket.id}/"
-                            })
+                breach_probability = round(prediction.confidence / 100, 2)
+                at_risk_tickets.append({
+                    'id': ticket.id,
+                    'title': ticket.title,
+                    'priority': ticket.priority,
+                    'breach_probability': breach_probability,
+                    'time_to_sla': cls._calculate_time_to_sla(ticket),
+                    'assigned_to': ticket.assigned_to.fullname if ticket.assigned_to else 'Unassigned',
+                    'created_at': ticket.created_at.isoformat(),
+                    'url': f"/helpdesk/tickets/{ticket.id}/"
+                })
 
-            return sorted(at_risk_tickets, key=lambda x: x['breach_probability'], reverse=True)[:10]
+            return at_risk_tickets[:10]
 
         except DATABASE_EXCEPTIONS as e:
             logger.warning(
@@ -243,40 +258,50 @@ class CommandCenterService:
             today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
             today_end = today_start + timedelta(days=1)
 
-            attendance = Attendance.objects.filter(
-                tenant_id=tenant_id,
-                checkin__gte=today_start,
-                checkin__lt=today_end
-            ).select_related('people', 'location')
+            attendance = (
+                Attendance.objects.filter(
+                    tenant_id=tenant_id,
+                    checkin__gte=today_start,
+                    checkin__lt=today_end
+                )
+                .annotate(
+                    minutes_late=Cast(
+                        Coalesce('other_data__minutes_late', Value(0)),
+                        IntegerField()
+                    ),
+                    minutes_early=Cast(
+                        Coalesce('other_data__minutes_early', Value(0)),
+                        IntegerField()
+                    )
+                )
+                .filter(Q(minutes_late__gt=15) | Q(minutes_early__gt=15))
+                .select_related('people', 'location')
+            )
 
-            anomalies = []
+            anomalies: List[Dict] = []
 
-            for record in attendance:
-                if record.other_data:
-                    minutes_late = record.other_data.get('minutes_late', 0)
-                    minutes_early = record.other_data.get('minutes_early', 0)
+            for record in attendance[:50]:
+                if record.minutes_late > 15:
+                    anomalies.append({
+                        'type': 'LATE_ARRIVAL',
+                        'guard_name': record.people.fullname if record.people else 'Unknown',
+                        'site_name': record.location.name if record.location else 'Unknown',
+                        'minutes': record.minutes_late,
+                        'timestamp': record.checkin.isoformat(),
+                        'severity': 'HIGH' if record.minutes_late > 60 else 'MEDIUM'
+                    })
 
-                    if minutes_late > 15:
-                        anomalies.append({
-                            'type': 'LATE_ARRIVAL',
-                            'guard_name': record.people.fullname if record.people else 'Unknown',
-                            'site_name': record.location.name if record.location else 'Unknown',
-                            'minutes': minutes_late,
-                            'timestamp': record.checkin.isoformat(),
-                            'severity': 'HIGH' if minutes_late > 60 else 'MEDIUM'
-                        })
+                if record.minutes_early > 15:
+                    anomalies.append({
+                        'type': 'EARLY_DEPARTURE',
+                        'guard_name': record.people.fullname if record.people else 'Unknown',
+                        'site_name': record.location.name if record.location else 'Unknown',
+                        'minutes': record.minutes_early,
+                        'timestamp': record.checkout.isoformat() if record.checkout else None,
+                        'severity': 'MEDIUM'
+                    })
 
-                    if minutes_early > 15:
-                        anomalies.append({
-                            'type': 'EARLY_DEPARTURE',
-                            'guard_name': record.people.fullname if record.people else 'Unknown',
-                            'site_name': record.location.name if record.location else 'Unknown',
-                            'minutes': minutes_early,
-                            'timestamp': record.checkout.isoformat() if record.checkout else None,
-                            'severity': 'MEDIUM'
-                        })
-
-            return sorted(anomalies, key=lambda x: x.get('minutes', 0), reverse=True)[:10]
+            return sorted(anomalies, key=lambda anomaly: anomaly.get('minutes', 0), reverse=True)[:10]
 
         except DATABASE_EXCEPTIONS as e:
             logger.warning(

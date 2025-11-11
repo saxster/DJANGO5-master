@@ -28,10 +28,7 @@ from django.db import models
 from django.core.validators import URLValidator, MinValueValidator, MaxValueValidator
 
 from apps.core.models import TenantAwareModel, BaseModel
-
-# TODO: Add encryption for webhook secrets when encrypted_model_fields package available
-# Recommended: pip install django-encrypted-model-fields
-# For now: Using standard CharField (secrets should be rotated regularly)
+from apps.core.fields.encrypted_fields import EncryptedCharField
 
 
 class WebhookConfiguration(TenantAwareModel):
@@ -61,9 +58,9 @@ class WebhookConfiguration(TenantAwareModel):
         validators=[URLValidator()],
         help_text="Webhook endpoint URL"
     )
-    secret = models.CharField(
+    secret = EncryptedCharField(
         max_length=255,
-        help_text="HMAC secret for signature verification (TODO: Encrypt when package available)"
+        help_text="Encrypted HMAC secret used for signature verification"
     )
 
     # Behavior

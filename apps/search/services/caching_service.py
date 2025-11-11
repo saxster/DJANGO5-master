@@ -15,19 +15,18 @@ Compliance with .claude/rules.md:
 - Rule #11: Specific exception handling
 - Rule #12: Database query optimization
 
-Note: Cache invalidation is not implemented. Results expire naturally via TTL.
+Note: Cache invalidation uses entity version tokens that are updated via signals,
+so stale entries are ignored immediately after relevant data changes.
 """
 
 import logging
 import hashlib
 import json
-from typing import Dict, Any, Optional, List
-from datetime import timedelta
+import secrets
+from typing import Dict, Any, Optional, List, Iterable
 
 from django.core.cache import cache
-from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE
@@ -47,6 +46,8 @@ class SearchCacheService:
     CACHE_TTL = 5 * SECONDS_IN_MINUTE  # 5 minutes
     ANALYTICS_PREFIX = 'search_cache_analytics'
     ANALYTICS_TTL = 24 * 60 * SECONDS_IN_MINUTE  # 24 hours
+    ENTITY_VERSION_PREFIX = 'search_cache_entity_version'
+    ENTITY_VERSION_TTL = 30 * 24 * 60 * SECONDS_IN_MINUTE  # 30 days
 
     def __init__(self, tenant_id: int, user_id: Optional[int] = None):
         """
@@ -58,6 +59,7 @@ class SearchCacheService:
         """
         self.tenant_id = tenant_id
         self.user_id = user_id
+        self._analytics_enabled = True
 
     def get_cached_results(
         self,
@@ -104,7 +106,8 @@ class SearchCacheService:
             )
             return None
 
-        except (ConnectionError, TimeoutError) as e:
+        except Exception as e:
+            self._disable_analytics_tracking()
             logger.warning(
                 f"Cache retrieval failed: {e}. Proceeding without cache.",
                 exc_info=True
@@ -136,7 +139,7 @@ class SearchCacheService:
             # Prepare cacheable data (exclude non-serializable items)
             cacheable_data = {
                 'results': results.get('results', []),
-                'total_results': results.get('total_results', 0),
+                'total_results': results.get('total_results', results.get('count', 0)),
                 'response_time_ms': results.get('response_time_ms', 0),
                 'cached_at': timezone.now().isoformat(),
                 'query': query,
@@ -157,17 +160,16 @@ class SearchCacheService:
 
             return True
 
-        except (ConnectionError, TimeoutError, TypeError) as e:
+        except (ConnectionError, TimeoutError, TypeError, Exception) as e:
+            self._disable_analytics_tracking()
             logger.warning(
                 f"Failed to cache search results: {e}",
                 exc_info=True
             )
             return False
 
-    # TODO: Implement cache invalidation when needed
-    # Options: versioned keys or direct Redis pattern deletion
-    # Removed Nov 2025: invalidate_entity_cache() was a no-op that only logged
-    # See: apps/search/services/caching_service.py (git history for reference)
+# Cache invalidation is handled via per-entity version tokens.
+# See invalidate_entities() for integration points (signals update versions).
 
     def get_cache_analytics(self) -> Dict[str, Any]:
         """
@@ -221,7 +223,8 @@ class SearchCacheService:
         filters_json = json.dumps(filters, sort_keys=True, cls=DjangoJSONEncoder)
 
         # Create hash of search parameters
-        search_params = f"{query_normalized}:{entities_sorted}:{filters_json}"
+        entity_versions = self._get_entity_versions(entities_sorted)
+        search_params = f"{query_normalized}:{entities_sorted}:{filters_json}:{entity_versions}"
         search_hash = hashlib.sha256(search_params.encode()).hexdigest()[:16]
 
         # Include user permissions in key (if applicable)
@@ -231,20 +234,102 @@ class SearchCacheService:
 
     def _track_cache_hit(self, cache_key: str):
         """Track cache hit for analytics"""
+        if not self._analytics_enabled:
+            return
         try:
             analytics_key = f"{self.ANALYTICS_PREFIX}:{self.tenant_id}"
             analytics = cache.get(analytics_key, {'hits': 0, 'misses': 0})
             analytics['hits'] += 1
             cache.set(analytics_key, analytics, timeout=self.ANALYTICS_TTL)
-        except (ConnectionError, TimeoutError, TypeError):
-            pass
+        except (ConnectionError, TimeoutError, TypeError, Exception):
+            self._disable_analytics_tracking()
 
     def _track_cache_miss(self, cache_key: str):
         """Track cache miss for analytics"""
+        if not self._analytics_enabled:
+            return
         try:
             analytics_key = f"{self.ANALYTICS_PREFIX}:{self.tenant_id}"
             analytics = cache.get(analytics_key, {'hits': 0, 'misses': 0})
             analytics['misses'] += 1
             cache.set(analytics_key, analytics, timeout=self.ANALYTICS_TTL)
-        except (ConnectionError, TimeoutError, TypeError):
-            pass
+        except (ConnectionError, TimeoutError, TypeError, Exception):
+            self._disable_analytics_tracking()
+
+    def _get_entity_versions(self, entities: List[str]) -> List[str]:
+        """Return stable version tokens for each entity involved in the query."""
+        versions = []
+        for entity in entities:
+            version_key = self._entity_version_key(entity)
+            version = None
+            if version_key:
+                try:
+                    version = cache.get(version_key)
+                except (ConnectionError, TimeoutError, TypeError, Exception):
+                    # Backend unavailable – skip analytics tracking to avoid noisy errors
+                    self._disable_analytics_tracking()
+
+                if not version:
+                    version = self._initialize_entity_version(version_key)
+
+            versions.append(version or 'v0')
+        return versions
+
+    def _entity_version_key(self, entity: str) -> Optional[str]:
+        """Build cache key used for per-entity versioning."""
+        if not self.tenant_id or not entity:
+            return None
+        normalized_entity = str(entity).lower()
+        return f"{self.ENTITY_VERSION_PREFIX}:{self.tenant_id}:{normalized_entity}"
+
+    def _initialize_entity_version(self, version_key: Optional[str]) -> str:
+        """Ensure a version token exists when first seen."""
+        token = self._new_version_token()
+        if not version_key:
+            return token
+        try:
+            cache.add(version_key, token, timeout=self.ENTITY_VERSION_TTL)
+        except (ConnectionError, TimeoutError, TypeError, Exception):
+            self._disable_analytics_tracking()
+        return token
+
+    @classmethod
+    def invalidate_entities(cls, tenant_id: Optional[int], entities: Iterable[str]):
+        """
+        Bump version tokens for the provided entities so stale cache entries are ignored.
+        """
+        if not tenant_id:
+            return
+
+        unique_entities = {str(entity).lower() for entity in entities if entity}
+        for entity in unique_entities:
+            version_key = f"{cls.ENTITY_VERSION_PREFIX}:{tenant_id}:{entity}"
+            token = cls._new_version_token()
+            try:
+                cache.set(version_key, token, timeout=cls.ENTITY_VERSION_TTL)
+                logger.debug(
+                    "Search cache invalidated",
+                    extra={'tenant_id': tenant_id, 'entity': entity}
+                )
+            except (ConnectionError, TimeoutError, TypeError, Exception) as exc:
+                logger.warning(
+                    "Failed to invalidate search cache for tenant %s entity %s: %s",
+                    tenant_id,
+                    entity,
+                    exc,
+                    exc_info=True
+                )
+
+    @staticmethod
+    def _new_version_token() -> str:
+        """Generate a new opaque version token for cache busting."""
+        return secrets.token_hex(8)
+
+    def _disable_analytics_tracking(self):
+        """Disable cache analytics tracking for this instance after a backend failure."""
+        if self._analytics_enabled:
+            logger.debug(
+                "Disabling search cache analytics tracking for tenant %s due to backend error",
+                self.tenant_id
+            )
+        self._analytics_enabled = False

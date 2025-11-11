@@ -3,22 +3,30 @@ Stream Testbench Dashboard Views
 Real-time monitoring dashboards with HTMX integration
 """
 
-from django.shortcuts import render, get_object_or_404
+import asyncio
+import logging
+from datetime import timedelta
+
+from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import user_passes_test
-from django.views.decorators.http import require_http_methods
-from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError, transaction
+from django.db.models import Avg, Count
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+
 from apps.core.decorators import csrf_protect_htmx, rate_limit
 
-import logging
 logger = logging.getLogger(__name__)
 
 
-from .models import TestScenario, TestRun, StreamEvent
-from ..issue_tracker.models import AnomalySignature, AnomalyOccurrence
-from .services.event_capture import stream_event_capture
+from .models import StreamEvent, TestRun, TestScenario
+from ..ai_testing.dashboard_integration import get_ai_insights_for_htmx, get_ai_insights_summary
+from ..issue_tracker.models import AnomalyOccurrence, AnomalySignature
 from ..issue_tracker.services.anomaly_detector import anomaly_detector
-from ..ai_testing.dashboard_integration import get_ai_insights_summary, get_ai_insights_for_htmx
+from .services.event_capture import stream_event_capture
 
 
 def is_staff_or_superuser(user):
@@ -180,21 +188,21 @@ def start_scenario(request, scenario_id):
     scenario = get_object_or_404(TestScenario, id=scenario_id)
 
     try:
-        # Create new test run
-        test_run = TestRun.objects.create(
-            scenario=scenario,
-            started_by=request.user,
-            runtime_config={
-                'started_from': 'dashboard',
-                'user_id': request.user.id
-            }
-        )
+        with transaction.atomic():
+            # Create new test run
+            test_run = TestRun.objects.create(
+                scenario=scenario,
+                started_by=request.user,
+                runtime_config={
+                    'started_from': 'dashboard',
+                    'user_id': request.user.id
+                }
+            )
 
-        # Start event capture
-        import asyncio
-        asyncio.create_task(
-            stream_event_capture.start_test_run_capture(str(test_run.id))
-        )
+            # Start event capture synchronously to surface errors immediately
+            async_to_sync(
+                stream_event_capture.start_test_run_capture
+            )(str(test_run.id))
 
         return JsonResponse({
             'success': True,
@@ -224,11 +232,11 @@ def stop_scenario(request, run_id):
         }, status=400)
 
     try:
-        # Stop event capture
-        import asyncio
-        asyncio.create_task(
-            stream_event_capture.stop_test_run_capture(str(run.id))
-        )
+        with transaction.atomic():
+            # Stop event capture and finalize metrics synchronously
+            async_to_sync(
+                stream_event_capture.stop_test_run_capture
+            )(str(run.id))
 
         return JsonResponse({
             'success': True,

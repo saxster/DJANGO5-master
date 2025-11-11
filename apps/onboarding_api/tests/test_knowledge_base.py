@@ -8,10 +8,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
-from apps.onboarding.models import (
+from apps.client_onboarding.models import KnowledgeReview
+from apps.core_onboarding.models import (
     AuthoritativeKnowledge,
-    AuthoritativeKnowledgeChunk,
-    KnowledgeReview,
+    AuthoritativeKnowledgeChunk
 )
 from apps.core_onboarding.services.knowledge.vector_stores.postgres_array import PostgresArrayBackend
 from apps.core_onboarding.services.knowledge.vector_stores.pgvector_base import PgVectorBackend

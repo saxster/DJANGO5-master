@@ -28,6 +28,8 @@ class ProductionMonitor:
             "cache_misses": 0,
             "task_queue_size": 0,
             "active_sessions": 0,
+            "onboarding_api_requests": 0,
+            "onboarding_api_rate_limit_hits": 0,
         }
         self.start_time = time.time()
         self.last_metrics_reset = timezone.now()

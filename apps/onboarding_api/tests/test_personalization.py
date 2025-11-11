@@ -12,10 +12,10 @@ Tests include:
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from apps.onboarding.models import (
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
     ConversationSession,
-   LLMRecommendation,
-    Bt,
+    LLMRecommendation
 )
 from apps.onboarding_api.services.learning import (
     FeatureExtractor,

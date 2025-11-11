@@ -10,7 +10,7 @@ log = logging.getLogger("message_qlogs")
 # Phase 4.2: Load broker config from settings (not hardcoded)
 MQTT_CONFIG = getattr(settings, 'MQTT_CONFIG', {})
 DEFAULT_BROKER_HOST = MQTT_CONFIG.get('BROKER_ADDRESS', 'localhost')
-DEFAULT_BROKER_PORT = MQTT_CONFIG.get('broker_port', 1883)
+DEFAULT_BROKER_PORT = MQTT_CONFIG.get('BROKER_PORT', 1883)
 
 
 def publish_message(topic, message, host=None, port=None, qos=1):
@@ -21,7 +21,7 @@ def publish_message(topic, message, host=None, port=None, qos=1):
         topic: MQTT topic
         message: Message payload (string or JSON-serializable)
         host: Broker host (defaults to settings.MQTT_CONFIG['BROKER_ADDRESS'])
-        port: Broker port (defaults to settings.MQTT_CONFIG['broker_port'])
+        port: Broker port (defaults to settings.MQTT_CONFIG['BROKER_PORT'])
         qos: Quality of Service level (0, 1, or 2)
 
     Phase 4.2: Fixed hardcoded broker address (was 'django5.youtility.in').

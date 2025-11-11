@@ -8,8 +8,8 @@ MQTT IoT Client for Device Communication
     protocol="MQTT 3.1.1/5.0 (via paho-mqtt)",
     mqtt_client_version="paho.mqtt CallbackAPIVersion.VERSION2",
     connection_config={
-        "broker_address": "from settings.MQTT_CONFIG",
-        "broker_port": "from settings.MQTT_CONFIG",
+        "BROKER_ADDRESS": "from settings.MQTT_CONFIG",
+        "BROKER_PORT": "from settings.MQTT_CONFIG",
         "keep_alive": "default (60s)",
         "reconnect": "automatic"
     },
@@ -28,6 +28,7 @@ MQTT IoT Client for Device Communication
 """
 
 import os
+import time
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
@@ -45,8 +46,8 @@ from django.conf import settings
 MQTT_CONFIG = settings.MQTT_CONFIG
 
 # MQTT broker settings
-BROKER_ADDRESS = MQTT_CONFIG["BROKER_ADDRESS"]
-BROKER_PORT = MQTT_CONFIG["broker_port"]
+BROKER_ADDRESS = MQTT_CONFIG.get("BROKER_ADDRESS", "localhost")
+BROKER_PORT = MQTT_CONFIG.get("BROKER_PORT", 1883)
 
 class MqttClient:
     """
@@ -73,9 +74,29 @@ class MqttClient:
         log.info("Disconnected from MQTT broker", userdata)
 
     def loop_forever(self):
-        # Connect to MQTT broker
-        self.client.connect(BROKER_ADDRESS, BROKER_PORT)
-        self.client.loop_forever()
+        backoff_seconds = 1
+        max_backoff_seconds = 60
+
+        while True:
+            try:
+                self.client.connect(BROKER_ADDRESS, BROKER_PORT)
+                self.client.loop_forever()
+                backoff_seconds = 1
+            except KeyboardInterrupt:
+                log.info("MQTT client interrupted; shutting down")
+                break
+            except Exception as exc:  # noqa: BLE001 - reconnect loop
+                log.error(
+                    "mqtt_connection_failed",
+                    extra={
+                        'broker': BROKER_ADDRESS,
+                        'port': BROKER_PORT,
+                        'retry_in': backoff_seconds
+                    },
+                    exc_info=True
+                )
+                time.sleep(backoff_seconds)
+                backoff_seconds = min(backoff_seconds * 2, max_backoff_seconds)
 
 
 if __name__ == "__main__":

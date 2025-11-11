@@ -26,7 +26,7 @@ from apps.attendance.models import (
     PostAssignment,
 )
 from apps.peoples.models import People
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 
 import logging

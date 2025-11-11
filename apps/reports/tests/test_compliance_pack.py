@@ -8,7 +8,7 @@ import pytest
 from datetime import datetime
 from django.utils import timezone
 from apps.reports.services.compliance_pack_service import CompliancePackService
-from apps.onboarding.models import BusinessUnit
+from apps.client_onboarding.models import BusinessUnit
 
 
 @pytest.mark.django_db

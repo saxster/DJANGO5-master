@@ -82,7 +82,7 @@ class CompliancePackService:
     @classmethod
     def _build_metadata(cls, client_id: int, month: int, year: int) -> Dict[str, Any]:
         """Build pack metadata."""
-        from apps.onboarding.models import BusinessUnit
+        from apps.client_onboarding.models import BusinessUnit
         client = BusinessUnit.objects.get(id=client_id)
         
         return {

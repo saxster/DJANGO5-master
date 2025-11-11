@@ -20,7 +20,8 @@ from django.db.models import Count, Q
 from datetime import date, timedelta
 
 from apps.attendance.models import Post, PostAssignment, PostOrderAcknowledgement, PeopleEventlog
-from apps.onboarding.models import Shift, Bt, OnboardingZone
+from apps.client_onboarding.models import Shift, Bt
+from apps.site_onboarding.models import OnboardingZone
 from apps.peoples.models import People
 
 

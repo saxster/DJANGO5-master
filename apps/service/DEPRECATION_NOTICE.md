@@ -10,11 +10,18 @@
 
 The `apps/service/auth.py` module contains legacy GraphQL authentication functions with exploitable security bugs. Codebase analysis (November 2025) confirmed these functions are **never called in production**. The module is being deprecated rather than fixed.
 
+> **Update (January 2026)**  
+> To prevent accidental reuse, every public function in `apps/service/auth.py`
+> now raises `django.core.exceptions.ImproperlyConfigured` immediately while
+> preserving the `Messages` constants for import compatibility. Any attempts to
+> invoke `auth_check`, `authenticate_user`, `LoginUser`, `LogOutUser`, or
+> `check_user_site` will fail fast with a descriptive error.
+
 ---
 
 ## Affected Functions
 
-### 1. `auth_check(info, input, returnUser, uclientip=None)`
+### 1. `auth_check(info, input, returnUser, uclientip=None)` *(guarded as of Jan 2026)*
 **Security Issues**:
 - **KeyError Risk**: Crashes on missing `bupreferences["validip"]` or `["validimei"]` keys
 - **Critical Security Bypass**: Line 82 unconditionally sets `allowAccess = True`, completely bypassing IP and device validation
@@ -35,17 +42,17 @@ elif user.deviceid != input.deviceid:
 allowAccess = True  # ← BUG: Unconditionally reset, bypassing all checks above
 ```
 
-### 2. `authenticate_user(input, request, msg, returnUser)`
+### 2. `authenticate_user(input, request, msg, returnUser)` *(guarded as of Jan 2026)*
 **Security Issues**:
 - **KeyError Risk**: Crashes on missing `bupreferences["validimei"]` key (line 100)
 - **Inconsistent Logic**: Different validation rules than `auth_check()`
 
-### 3. `LoginUser(response, request)`
+### 3. `LoginUser(response, request)` *(guarded as of Jan 2026)*
 **Issues**:
 - Tightly coupled to legacy GraphQL response format
 - Direct database update without validation
 
-### 4. `LogOutUser(response, request)`
+### 4. `LogOutUser(response, request)` *(guarded as of Jan 2026)*
 **Issues**:
 - Same coupling issues as `LoginUser`
 - Part of deprecated authentication flow

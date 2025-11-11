@@ -8,9 +8,12 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from apps.onboarding.models import (
-    Bt, ConversationSession, LLMRecommendation,
-    AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
+    ConversationSession,
+    LLMRecommendation,
+    AuthoritativeKnowledge,
+    AuthoritativeKnowledgeChunk
 )
 from apps.core_onboarding.services.llm import EnhancedCheckerLLM, ConsensusEngine
 from apps.core_onboarding.services.security import PIIRedactor, SecurityGuardian, RateLimitExceeded

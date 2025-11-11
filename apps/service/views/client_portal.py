@@ -28,7 +28,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from apps.core.utils_new.link_signer import LinkSigner
-from apps.onboarding.models import BusinessUnit
+from apps.client_onboarding.models import BusinessUnit
 from apps.reports.services.executive_scorecard_service import ExecutiveScoreCardService
 
 logger = logging.getLogger('service.client_portal')

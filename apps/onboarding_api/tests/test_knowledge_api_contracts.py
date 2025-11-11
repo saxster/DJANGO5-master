@@ -17,12 +17,12 @@ import json
 from datetime import datetime
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
-from apps.onboarding.models import (
+from apps.client_onboarding.models import (
     KnowledgeSource,
     KnowledgeIngestionJob,
-    AuthoritativeKnowledge,
     KnowledgeReview
 )
+from apps.core_onboarding.models import AuthoritativeKnowledge
 
 People = get_user_model()
 

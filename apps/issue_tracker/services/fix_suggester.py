@@ -4,9 +4,22 @@ Generates actionable fix suggestions for detected anomalies
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+try:
+    from asgiref.sync import database_sync_to_async
+except ImportError:
+    from asgiref.sync import sync_to_async as _sync_to_async
+
+    def database_sync_to_async(func):
+        return _sync_to_async(func, thread_sensitive=True)
+
+from apps.tenants.utils import get_tenant_from_context
 
 from ..models import AnomalySignature, FixSuggestion
+
+if TYPE_CHECKING:
+    from apps.tenants.models import Tenant
 
 logger = logging.getLogger('issue_tracker.fixes')
 
@@ -207,24 +220,40 @@ class OptimizedModel:
             }
         }
 
-    async def generate_suggestions(self, signature: AnomalySignature,
-                                 rule: Dict[str, Any]) -> List[FixSuggestion]:
+    async def generate_suggestions(
+        self,
+        signature: AnomalySignature,
+        rule: Dict[str, Any],
+        tenant: Optional['Tenant'] = None
+    ) -> List[FixSuggestion]:
         """Generate fix suggestions for anomaly signature"""
         try:
-            from asgiref.sync import sync_to_async
+            resolved_tenant = self._resolve_suggestion_tenant(signature, tenant)
+            if resolved_tenant is None:
+                logger.warning(
+                    "Skipping fix suggestion generation due to missing tenant context",
+                    extra={
+                        'signature_id': str(signature.id),
+                        'anomaly_type': signature.anomaly_type,
+                        'security_event': 'tenant_context_missing'
+                    }
+                )
+                return []
 
             suggestions = []
             rule_fixes = rule.get('fixes', [])
 
             for fix_config in rule_fixes:
                 suggestion = await self._create_fix_suggestion(
-                    signature, fix_config, rule
+                    signature, fix_config, rule, resolved_tenant
                 )
                 if suggestion:
                     suggestions.append(suggestion)
 
             # Generate additional context-aware suggestions
-            additional_suggestions = await self._generate_context_suggestions(signature)
+            additional_suggestions = await self._generate_context_suggestions(
+                signature, resolved_tenant
+            )
             suggestions.extend(additional_suggestions)
 
             logger.info(
@@ -237,12 +266,52 @@ class OptimizedModel:
             logger.error(f"Fix suggestion generation failed: {e}", exc_info=True)
             return []
 
-    async def _create_fix_suggestion(self, signature: AnomalySignature,
-                                   fix_config: Dict[str, Any],
-                                   rule: Dict[str, Any]) -> FixSuggestion:
+    def _resolve_suggestion_tenant(
+        self,
+        signature: AnomalySignature,
+        provided_tenant: Optional['Tenant'] = None
+    ) -> Optional['Tenant']:
+        """
+        Resolve tenant for a fix suggestion from explicit parameter,
+        linked signature, or current tenant context.
+        """
+        if provided_tenant:
+            return provided_tenant
+
+        signature_tenant = getattr(signature, 'tenant', None)
+        if signature_tenant:
+            return signature_tenant
+
+        resolved = get_tenant_from_context()
+        if not resolved:
+            logger.error(
+                "Unable to resolve tenant for fix suggestion",
+                extra={
+                    'signature_id': str(signature.id),
+                    'anomaly_type': signature.anomaly_type,
+                    'security_event': 'fix_suggestion_unscoped'
+                }
+            )
+        return resolved
+
+    async def _create_fix_suggestion(
+        self,
+        signature: AnomalySignature,
+        fix_config: Dict[str, Any],
+        rule: Dict[str, Any],
+        tenant: 'Tenant'
+    ) -> Optional[FixSuggestion]:
         """Create individual fix suggestion"""
         try:
-            from asgiref.sync import sync_to_async
+            if tenant is None:
+                logger.warning(
+                    "Tenant missing while creating fix suggestion",
+                    extra={
+                        'signature_id': str(signature.id),
+                        'anomaly_type': signature.anomaly_type
+                    }
+                )
+                return None
 
             fix_type = fix_config.get('type', 'code_fix')
             confidence = fix_config.get('confidence', 0.5)
@@ -260,8 +329,11 @@ class OptimizedModel:
             # Calculate priority score
             priority_score = self._calculate_priority(signature, confidence)
 
-            suggestion = await sync_to_async(FixSuggestion.objects.create)(
+            suggestion = await database_sync_to_async(
+                FixSuggestion.objects.create
+            )(
                 signature=signature,
+                tenant=tenant,
                 title=title,
                 description=description,
                 fix_type=fix_type,
@@ -345,36 +417,52 @@ class OptimizedModel:
         priority = int(base_score * confidence_multiplier * recurrence_multiplier)
         return min(max(priority, 1), 10)  # Clamp between 1-10
 
-    async def _generate_context_suggestions(self, signature: AnomalySignature) -> List[FixSuggestion]:
+    async def _generate_context_suggestions(
+        self,
+        signature: AnomalySignature,
+        tenant: 'Tenant'
+    ) -> List[FixSuggestion]:
         """Generate additional context-aware suggestions"""
-        suggestions = []
+        suggestions: List[FixSuggestion] = []
 
         try:
             # Latency-specific suggestions
             if 'latency' in signature.anomaly_type:
-                suggestions.append(await self._suggest_performance_optimization(signature))
+                suggestion = await self._suggest_performance_optimization(signature, tenant)
+                if suggestion:
+                    suggestions.append(suggestion)
 
             # Error-specific suggestions
             if signature.severity in ['error', 'critical']:
-                suggestions.append(await self._suggest_error_handling(signature))
+                suggestion = await self._suggest_error_handling(signature, tenant)
+                if suggestion:
+                    suggestions.append(suggestion)
 
             # Schema-related suggestions
             if 'schema' in signature.anomaly_type:
-                suggestions.append(await self._suggest_schema_versioning(signature))
-
-            # Filter out None suggestions
-            return [s for s in suggestions if s is not None]
+                suggestion = await self._suggest_schema_versioning(signature, tenant)
+                if suggestion:
+                    suggestions.append(suggestion)
 
         except (ConnectionError, DatabaseError, IntegrityError, ObjectDoesNotExist, TimeoutError, ValueError, asyncio.CancelledError) as e:
             logger.error(f"Context suggestion generation failed: {e}")
-            return []
 
-    async def _suggest_performance_optimization(self, signature: AnomalySignature) -> FixSuggestion:
+        return suggestions
+
+    async def _suggest_performance_optimization(
+        self,
+        signature: AnomalySignature,
+        tenant: 'Tenant'
+    ) -> Optional[FixSuggestion]:
         """Generate performance optimization suggestion"""
-        from asgiref.sync import sync_to_async
+        if tenant is None:
+            return None
 
-        return await sync_to_async(FixSuggestion.objects.create)(
+        return await database_sync_to_async(
+            FixSuggestion.objects.create
+        )(
             signature=signature,
+            tenant=tenant,
             title='Performance Optimization Bundle',
             description=f'''
 Comprehensive performance optimization for {signature.endpoint_pattern}:
@@ -395,12 +483,20 @@ This bundle addresses the root causes of latency issues systematically.
             created_by='ai_assistant'
         )
 
-    async def _suggest_error_handling(self, signature: AnomalySignature) -> FixSuggestion:
+    async def _suggest_error_handling(
+        self,
+        signature: AnomalySignature,
+        tenant: 'Tenant'
+    ) -> Optional[FixSuggestion]:
         """Generate error handling improvement suggestion"""
-        from asgiref.sync import sync_to_async
+        if tenant is None:
+            return None
 
-        return await sync_to_async(FixSuggestion.objects.create)(
+        return await database_sync_to_async(
+            FixSuggestion.objects.create
+        )(
             signature=signature,
+            tenant=tenant,
             title='Enhanced Error Handling',
             description=f'''
 Improve error handling for {signature.endpoint_pattern}:
@@ -421,12 +517,20 @@ This reduces error impact and improves debugging capabilities.
             created_by='ai_assistant'
         )
 
-    async def _suggest_schema_versioning(self, signature: AnomalySignature) -> FixSuggestion:
+    async def _suggest_schema_versioning(
+        self,
+        signature: AnomalySignature,
+        tenant: 'Tenant'
+    ) -> Optional[FixSuggestion]:
         """Generate schema versioning suggestion"""
-        from asgiref.sync import sync_to_async
+        if tenant is None:
+            return None
 
-        return await sync_to_async(FixSuggestion.objects.create)(
+        return await database_sync_to_async(
+            FixSuggestion.objects.create
+        )(
             signature=signature,
+            tenant=tenant,
             title='Schema Version Management',
             description=f'''
 Implement schema versioning for {signature.endpoint_pattern}:

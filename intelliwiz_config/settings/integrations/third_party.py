@@ -71,9 +71,9 @@ TRANSLATION_TEST_MODE = env.bool('TRANSLATION_TEST_MODE', default=False)
 
 MQTT_CONFIG = {
     "BROKER_ADDRESS": env("MQTT_BROKER_ADDRESS", default="localhost"),
-    "broker_port": env.int("MQTT_BROKER_PORT", default=1883),
-    "broker_userNAME": env("MQTT_BROKER_USERNAME", default=""),
-    "broker_password": env("MQTT_BROKER_PASSWORD", default=""),
+    "BROKER_PORT": env.int("MQTT_BROKER_PORT", default=1883),
+    "BROKER_USERNAME": env("MQTT_BROKER_USERNAME", default=""),
+    "BROKER_PASSWORD": env("MQTT_BROKER_PASSWORD", default=""),
 }
 
 # ============================================================================

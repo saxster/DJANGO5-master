@@ -18,13 +18,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from apps.onboarding.models import (
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
     AuthoritativeKnowledge,
     AuthoritativeKnowledgeChunk,
     LLMRecommendation,
     ConversationSession,
-    AIChangeSet,
-    Bt
+    AIChangeSet
 )
 from apps.core.exceptions import LLMServiceException, IntegrationException
 from .services.knowledge import get_knowledge_service

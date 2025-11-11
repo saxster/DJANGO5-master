@@ -15,12 +15,74 @@ Follows .claude/rules.md:
 
 import pytest
 from datetime import timedelta
+from typing import Optional
+from uuid import uuid4
+
 from django.utils import timezone
 from unittest.mock import Mock, patch, MagicMock
+from apps.peoples.models import People
+from apps.tenants.models import Tenant
+from apps.ml_training.models import TrainingDataset, TrainingExample
 from apps.ml.tasks import (
     track_conflict_prediction_outcomes_task,
     retrain_conflict_model_weekly_task
 )
+from apps.ml_training.tasks import (
+    active_learning_loop,
+    dataset_labeling,
+    evaluate_model
+)
+
+
+def _create_dataset_with_examples(
+    model_id: int,
+    example_count: int = 5,
+    uncertainties: Optional[list[float]] = None
+) -> TrainingDataset:
+    """Create a dataset with training examples for active learning tests."""
+    tenant = Tenant.objects.create(
+        tenantname=f"Tenant {model_id}",
+        subdomain_prefix=f"tenant-{model_id}-{uuid4().hex[:6]}"
+    )
+
+    owner = People.objects.create(
+        tenant=tenant,
+        peoplecode=f"USR{model_id:04d}",
+        peoplename=f"Owner {model_id}",
+        loginid=f"owner_{model_id}_{uuid4().hex[:4]}",
+        email=f"owner{model_id}@example.com",
+        password='testpass123',
+        mobno='1234567890'
+    )
+
+    dataset = TrainingDataset.objects.create(
+        tenant=tenant,
+        name=f"Dataset {model_id}",
+        description='Test dataset for active learning',
+        dataset_type='OCR_METERS',
+        status='ACTIVE',
+        created_by=owner,
+        last_modified_by=owner,
+        metadata={'model_id': model_id}
+    )
+
+    scores = uncertainties or [0.9 - (i * 0.05) for i in range(example_count)]
+    for idx, score in enumerate(scores[:example_count]):
+        TrainingExample.objects.create(
+            tenant=tenant,
+            dataset=dataset,
+            image_path=f"/tmp/image_{model_id}_{idx}.png",
+            image_hash=f"hash-{model_id}-{idx}",
+            image_width=128,
+            image_height=128,
+            file_size=2048 + idx,
+            example_type='PRODUCTION',
+            labeling_status='UNLABELED',
+            is_labeled=False,
+            uncertainty_score=score
+        )
+
+    return dataset
 
 
 @pytest.mark.django_db
@@ -37,31 +99,67 @@ class TestConflictOutcomeTracking:
     def test_track_conflict_prediction_outcomes_with_pending(self):
         """Test outcome tracking with pending predictions."""
         from apps.ml.models.ml_models import PredictionLog
+        from apps.core.models.sync_conflict_policy import ConflictResolutionLog
+        from apps.tenants.models import Tenant
 
-        # Create predictions from 25 hours ago (ready for tracking)
+        tenant = Tenant.objects.create(
+            tenantname='ML Test Tenant',
+            subdomain_prefix='ml-test'
+        )
+
         old_time = timezone.now() - timedelta(hours=25)
 
-        for i in range(10):
+        # Create predictions that can be matched to conflicts
+        tracked_entities = []
+        for i in range(6):
+            entity_uuid = uuid4()
+            tracked_entities.append(entity_uuid)
             PredictionLog.objects.create(
                 model_type='conflict_predictor',
                 model_version='test_v1',
                 entity_type='schedule',
-                entity_id=str(i),
+                entity_id=str(entity_uuid),
                 predicted_conflict=i % 2 == 0,
                 conflict_probability=0.6 if i % 2 == 0 else 0.3,
                 created_at=old_time
             )
 
+            if i % 2 == 0:
+                ConflictResolutionLog.objects.create(
+                    mobile_id=entity_uuid,
+                    domain='schedule',
+                    server_version=3,
+                    client_version=2,
+                    resolution_strategy='server_wins',
+                    resolution_result='resolved',
+                    tenant=tenant,
+                    created_at=old_time + timedelta(hours=1)
+                )
+
+        # Add a legacy prediction with invalid entity ID to ensure it is skipped
+        PredictionLog.objects.create(
+            model_type='conflict_predictor',
+            model_version='test_v1',
+            entity_type='schedule',
+            entity_id='legacy-id',
+            predicted_conflict=False,
+            conflict_probability=0.2,
+            created_at=old_time
+        )
+
         result = track_conflict_prediction_outcomes_task.apply().result
 
-        # Should update all 10 predictions
-        assert result['updated_predictions'] == 10
+        assert result['updated_predictions'] == len(tracked_entities)
+        assert result['skipped_predictions'] == 1
 
-        # Verify outcomes were set
         updated = PredictionLog.objects.filter(
             actual_conflict_occurred__isnull=False
         )
-        assert updated.count() == 10
+        assert updated.count() == len(tracked_entities)
+        assert PredictionLog.objects.filter(
+            entity_id='legacy-id',
+            actual_conflict_occurred__isnull=True
+        ).count() == 1
 
     def test_track_conflict_prediction_outcomes_accuracy_calculation(self):
         """Test that 7-day accuracy is calculated correctly."""
@@ -92,7 +190,8 @@ class TestConflictOutcomeTracking:
         assert result['seven_day_sample_size'] == 10
         assert result['seven_day_accuracy'] == 0.8  # 80%
 
-    def test_track_conflict_prediction_outcomes_low_accuracy_alert(self):
+    @patch('apps.ml.tasks._notify_conflict_accuracy_drop')
+    def test_track_conflict_prediction_outcomes_low_accuracy_alert(self, mock_notify):
         """Test that alert is triggered when accuracy drops below 70%."""
         from apps.ml.models.ml_models import PredictionLog
 
@@ -119,6 +218,7 @@ class TestConflictOutcomeTracking:
         # Alert should be triggered
         assert result['alert_triggered'] is True
         assert result['seven_day_accuracy'] == 0.6
+        mock_notify.assert_called_once()
 
 
 @pytest.mark.django_db
@@ -293,32 +393,61 @@ class TestWeeklyModelRetraining:
 class TestActiveLearningLoop:
     """Test active learning loop task."""
 
-    def test_active_learning_loop_selects_high_uncertainty(self):
-        """Test that active learning selects high-uncertainty examples."""
-        from apps.ml_training.models import TrainingExample
-        from apps.ml_training.services.active_learning_service import (
-            ActiveLearningService
-        )
+    def test_active_learning_loop_selects_uncertain_samples(self):
+        """Ensure the task selects the highest uncertainty samples."""
+        dataset = _create_dataset_with_examples(model_id=300, example_count=6)
 
-        # Create examples with varying uncertainty
-        for i in range(20):
-            TrainingExample.objects.create(
-                example_type='METER_READING',
-                entity_id=f'METER_{i}',
-                extracted_value=str(i),
-                confidence_score=0.5 + (i * 0.02),
-                uncertainty_score=0.5 - (i * 0.02),
-                requires_labeling=i < 10  # First 10 need labeling
-            )
+        result = active_learning_loop.apply(kwargs={
+            'dataset_id': dataset.id,
+            'batch_size': 3,
+            'confidence_threshold': 0.8
+        }).result
 
-        service = ActiveLearningService()
-        result = service.select_high_uncertainty_examples(limit=5)
+        assert result['status'] == 'success'
+        assert result['samples_identified'] == 3
+        assert TrainingExample.objects.filter(
+            dataset=dataset,
+            selected_for_labeling=True
+        ).count() == 3
 
-        # Should select 5 highest uncertainty examples
-        assert len(result['examples']) == 5
+    def test_active_learning_loop_infers_dataset_from_model_id(self):
+        """Verify dataset lookup by model_id metadata works."""
+        dataset = _create_dataset_with_examples(model_id=555, example_count=4)
 
-        # First example should have highest uncertainty
-        assert result['examples'][0].uncertainty_score >= 0.45
+        result = active_learning_loop.apply(kwargs={
+            'model_id': 555,
+            'batch_size': 2
+        }).result
+
+        assert result['status'] == 'success'
+        assert result['dataset_id'] == dataset.id
+
+    def test_active_learning_loop_handles_missing_dataset(self):
+        """Return a skipped status when no dataset matches."""
+        result = active_learning_loop.apply(kwargs={'model_id': 9999}).result
+
+        assert result['status'] == 'skipped'
+        assert result['reason'] == 'dataset_not_found'
+
+
+@pytest.mark.django_db
+class TestMLTrainingTaskGuards:
+    """Ensure placeholder tasks fail-safe when services are unavailable."""
+
+    def test_dataset_labeling_service_unavailable(self):
+        dataset = _create_dataset_with_examples(model_id=800, example_count=2)
+
+        result = dataset_labeling.apply(kwargs={'dataset_id': dataset.id}).result
+
+        assert result['status'] == 'skipped'
+        assert result['reason'] == 'dataset_labeling_service_unavailable'
+        assert result['dataset_id'] == dataset.id
+
+    def test_evaluate_model_service_unavailable(self):
+        result = evaluate_model.apply(kwargs={'model_id': 42, 'test_dataset_id': 24}).result
+
+        assert result['status'] == 'skipped'
+        assert result['reason'] == 'model_evaluation_service_unavailable'
 
 
 @pytest.mark.django_db

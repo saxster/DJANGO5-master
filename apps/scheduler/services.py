@@ -11,8 +11,10 @@ database references throughout the codebase.
 """
 
 import logging
-from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import DatabaseError, transaction
 from django.db.utils import IntegrityError
+from apps.activity.models import Job
 from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
@@ -21,7 +23,6 @@ logger = logging.getLogger(__name__)
 # TourJobService removed - functionality exists in:
 # - apps/scheduler/services/scheduling_service.py (SchedulingService)
 # - apps/scheduler/services/internal_tour_service.py (InternalTourService)
-# Dead code with missing imports: Job, DatabaseConstants, DatabaseError, ObjectDoesNotExist
 
 
 class TaskJobService:

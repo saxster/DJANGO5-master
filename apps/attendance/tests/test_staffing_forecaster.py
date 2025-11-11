@@ -9,7 +9,7 @@ from datetime import timedelta
 from django.utils import timezone
 from apps.attendance.services.staffing_forecaster import StaffingForecaster
 from apps.attendance.models import Attendance
-from apps.onboarding.models import Bt, BusinessUnit
+from apps.client_onboarding.models import Bt, BusinessUnit
 
 
 @pytest.mark.django_db

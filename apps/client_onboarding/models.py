@@ -25,6 +25,10 @@ Legacy imports continue to work unchanged:
 from apps.core_onboarding.models import TypeAssist
 """
 
+from django.core.exceptions import ValidationError
+
+from apps.core_onboarding.services.llm.exceptions import LLMServiceException
+
 # Import all models from the new modular structure
 # This maintains 100% backward compatibility while enabling the new architecture
 
@@ -46,6 +50,13 @@ __all__ = [
     'Device',
     'Subscription',
     'DownTimeHistory',
+    'TypeAssist',
+    'GeofenceMaster',
+    'ConversationSession',
+    'LLMRecommendation',
+    'AuthoritativeKnowledge',
+    'UserFeedbackLearning',
+    'AuthoritativeKnowledgeChunk',
 ]
 
 # Legacy compatibility - explicitly expose the most commonly used models

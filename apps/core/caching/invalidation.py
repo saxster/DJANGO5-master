@@ -5,6 +5,7 @@ Intelligent cache invalidation system with dependency mapping
 import logging
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
@@ -344,6 +345,8 @@ def handle_model_post_save(sender, instance, created, **kwargs):
     """
     Automatic cache invalidation on model save
     """
+    if not getattr(settings, 'CACHE_INVALIDATION_ENABLED', True):
+        return None
     operation = 'create' if created else 'update'
 
     try:
@@ -362,6 +365,8 @@ def handle_model_post_delete(sender, instance, **kwargs):
     """
     Automatic cache invalidation on model deletion
     """
+    if not getattr(settings, 'CACHE_INVALIDATION_ENABLED', True):
+        return None
     try:
         result = cache_invalidation_manager.invalidate_for_model(instance, 'delete')
         if result['patterns_cleared'] > 0:
@@ -378,6 +383,8 @@ def handle_m2m_changed(sender, instance, action, pk_set, **kwargs):
     """
     Automatic cache invalidation on many-to-many changes
     """
+    if not getattr(settings, 'CACHE_INVALIDATION_ENABLED', True):
+        return None
     if action in ('post_add', 'post_remove', 'post_clear'):
         try:
             result = cache_invalidation_manager.invalidate_for_model(instance, 'm2m_change')

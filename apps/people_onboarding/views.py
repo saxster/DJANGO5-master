@@ -21,6 +21,7 @@ from .models import (
     AccessProvisioning, TrainingAssignment
 )
 from .forms import CandidateProfileForm, DocumentUploadForm, ApprovalDecisionForm
+from .services.document_parser_service import DocumentParserService
 
 
 @login_required
@@ -169,7 +170,8 @@ def document_upload(request, uuid):
     return render(request, 'people_onboarding/document_upload.html', {
         'request_obj': onboarding_request,
         'documents': documents,
-        'required_documents': required_documents
+        'required_documents': required_documents,
+        'document_parser_available': DocumentParserService.is_available(),
     })
 
 

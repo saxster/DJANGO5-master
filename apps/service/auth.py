@@ -29,19 +29,12 @@ See: apps/service/DEPRECATION_NOTICE.md for complete migration guide
 
 DO NOT USE THIS MODULE IN NEW CODE.
 """
-from apps.core.exceptions import (
-    NoClientPeopleError,
-    MultiDevicesError,
-    NotRegisteredError,
-    WrongCredsError,
-    NoSiteError,
-    NotBelongsToClientError,
-)
-from apps.peoples.models import People
-from logging import getLogger
-import warnings
+from django.core.exceptions import ImproperlyConfigured
 
-log = getLogger("mobile_service_log")
+DEPRECATION_ERROR = (
+    "apps.service.auth has been removed due to critical security issues. "
+    "Use apps.peoples.services.authentication_service instead."
+)
 
 
 class Messages:
@@ -58,135 +51,50 @@ class Messages:
     NOTBELONGSTOCLIENT = "UserNotInThisClient"
 
 
+def _raise_deprecated_access(function_name: str):
+    """Always raise ImproperlyConfigured to prevent accidental usage."""
+    raise ImproperlyConfigured(
+        f"{function_name} is no longer available. {DEPRECATION_ERROR}"
+    )
+
+
 def LoginUser(response, request):
     """
     DEPRECATED: Use apps.peoples.services.authentication_service instead.
 
-    This function will be removed in March 2026.
+    This function now raises ImproperlyConfigured immediately.
     """
-    warnings.warn(
-        "LoginUser() is deprecated and will be removed in March 2026. "
-        "Use apps.peoples.services.authentication_service instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-
-    if response["isauthenticated"]:
-        People.objects.filter(id=response["user"].id).update(
-            deviceid=response["authinput"].deviceid
-        )
+    _raise_deprecated_access("LoginUser")
 
 
 def LogOutUser(response, request):
     """
     DEPRECATED: Use apps.peoples.services.authentication_service instead.
 
-    This function will be removed in March 2026.
+    This function now raises ImproperlyConfigured immediately.
     """
-    warnings.warn(
-        "LogOutUser() is deprecated and will be removed in March 2026. "
-        "Use apps.peoples.services.authentication_service instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-
-    if response["isauthenticated"]:
-        People.objects.filter(id=response["user"].id).update(deviceid=-1)
+    _raise_deprecated_access("LogOutUser")
 
 
 def check_user_site(user):
-    return user.bu_id not in [1, None, "NONE", "None"]
+    """Removed helper kept for backward compatibility."""
+    _raise_deprecated_access("check_user_site")
 
 
 def auth_check(info, input, returnUser, uclientip=None):
     """
     DEPRECATED: Use apps.peoples.services.authentication_service instead.
 
-    This function contains security vulnerabilities and will be removed in March 2026.
+    This function now raises ImproperlyConfigured immediately to prevent
+    the known security bypass from being executed.
     """
-    warnings.warn(
-        "auth_check() is deprecated and will be removed in March 2026. "
-        "Use apps.peoples.services.authentication_service instead. "
-        "This function contains known security bugs (KeyError risks, IP validation bypass).",
-        DeprecationWarning,
-        stacklevel=2
-    )
-
-    from django.contrib.auth import authenticate
-
-    try:
-        log.info(f"Authenticating {input.loginid} for {input.clientcode}")
-        if (
-            valid_user := People.objects.select_related("client")
-            .filter(loginid=input.loginid, client__bucode=input.clientcode)
-            .exists()
-        ):
-            user = authenticate(
-                info.context, username=input.loginid, password=input.password
-            )
-            if not user:
-                raise ValueError
-        else:
-            raise NotBelongsToClientError(Messages.NOTBELONGSTOCLIENT)
-    except ValueError as e:
-        raise WrongCredsError(Messages.WRONGCREDS) from e
-    else:
-        if not check_user_site(user):
-            raise NoSiteError(Messages.NOSITE)
-        allowAccess = isValidDevice = isUniqueDevice = True
-        people_validips = user.client.bupreferences["validip"]
-        people_validimeis = (
-            user.client.bupreferences["validimei"].replace(" ", "").split(",")
-        )
-
-        if people_validips is not None and len(people_validips.replace(" ", "")) > 0:
-            clientIpList = people_validips.replace(" ", "").split(",")
-            if uclientip is not None and uclientip not in clientIpList:
-                allowAccess = False
-
-        if user.deviceid in [-1, "-1"] or input.deviceid in [-1, "-1"]:
-            allowAccess = True
-        elif user.deviceid != input.deviceid:
-            raise MultiDevicesError(Messages.MULTIDEVICES)
-        allowAccess = True
-        if allowAccess:
-            if user.client.enable and user.enable:
-                return returnUser(user, info.context), user
-            else:
-                raise NoClientPeopleError(Messages.NOCLIENTPEOPLE)
+    _raise_deprecated_access("auth_check")
 
 
 def authenticate_user(input, request, msg, returnUser):
     """
     DEPRECATED: Use apps.peoples.services.authentication_service instead.
 
-    This function contains security vulnerabilities and will be removed in March 2026.
+    This function now raises ImproperlyConfigured immediately.
     """
-    warnings.warn(
-        "authenticate_user() is deprecated and will be removed in March 2026. "
-        "Use apps.peoples.services.authentication_service instead. "
-        "This function contains known security bugs (KeyError risks).",
-        DeprecationWarning,
-        stacklevel=2
-    )
-
-    loginid = input.loginid
-    password = input.password
-    deviceid = input.deviceid
-
-    from django.contrib.auth import authenticate
-
-    user = authenticate(request, username=loginid, password=password)
-    if not user:
-        raise WrongCredsError(msg.WRONGCREDS)
-    valid_imeis = user.client.bupreferences["validimei"].replace(" ", "").split(",")
-
-    if deviceid != "-1" and user.deviceid == "-1":
-        if all([user.client.enable, user.enable, user.isverified]):
-            return returnUser(user, request), user
-        raise NoClientPeopleError(msg.NOCLIENTPEOPLE)
-    if deviceid not in valid_imeis:
-        raise NotRegisteredError(msg.NOTREGISTERED)
-    if deviceid != user.deviceid:
-        raise MultiDevicesError(msg.MULTIDEVICES)
-    return returnUser(user, request), user
+    _raise_deprecated_access("authenticate_user")

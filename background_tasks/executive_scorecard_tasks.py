@@ -50,7 +50,7 @@ def generate_monthly_scorecards_task(self):
     """
     from apps.reports.services.executive_scorecard_service import ExecutiveScoreCardService
     from apps.reports.services.report_delivery_service import ReportDeliveryService
-    from apps.onboarding.models import BusinessUnit
+    from apps.client_onboarding.models import BusinessUnit
     from django.template.loader import render_to_string
     
     try:

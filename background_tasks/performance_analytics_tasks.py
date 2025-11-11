@@ -173,7 +173,7 @@ def generate_coaching_recommendations_task(self):
         Run daily at 6:00 AM
     """
     from apps.performance_analytics.services.team_analytics_service import TeamAnalyticsService
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     
     try:
         logger.info("Generating coaching recommendations", extra={'task_id': self.request.id})

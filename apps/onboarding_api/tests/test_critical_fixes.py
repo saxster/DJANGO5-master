@@ -18,8 +18,14 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from apps.onboarding.models import (
-    Bt, Shift, TypeAssist, ConversationSession, LLMRecommendation
+from apps.client_onboarding.models import (
+    Bt,
+    Shift
+)
+from apps.core_onboarding.models import (
+    TypeAssist,
+    ConversationSession,
+    LLMRecommendation
 )
 from apps.core_onboarding.services.translation import GoogleTranslateService
 
@@ -499,14 +505,16 @@ class RegressionTests(TestCase):
     def test_all_model_imports_successful(self):
         """Test that all required models can be imported"""
         try:
-            from apps.onboarding.models import (
-                Bt,
-                Shift,
-                TypeAssist,
-                ConversationSession,
-                LLMRecommendation,
-                AuthoritativeKnowledge,
-            )
+            from apps.client_onboarding.models import (
+    Bt,
+    Shift
+)
+from apps.core_onboarding.models import (
+    TypeAssist,
+    ConversationSession,
+    LLMRecommendation,
+    AuthoritativeKnowledge
+)
             # If we get here, all imports succeeded
             self.assertTrue(True)
         except ImportError as e:

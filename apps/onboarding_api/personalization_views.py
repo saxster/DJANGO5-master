@@ -26,14 +26,10 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.throttling import UserRateThrottle
 
-from apps.onboarding.models import (
-    # ExperimentAssignment,  # TBD - Model not yet implemented
-    # RecommendationInteraction,  # TBD - Model not yet implemented
-    # Experiment,  # TBD - Model not yet implemented
-    # PreferenceProfile,  # TBD - Model not yet implemented
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
     ConversationSession,
-    LLMRecommendation,
-    Bt
+    LLMRecommendation
 )
 from apps.peoples.models import People
 from apps.core.exceptions import LLMServiceException

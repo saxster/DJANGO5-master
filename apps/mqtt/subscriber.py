@@ -8,8 +8,8 @@ MQTT Subscriber Service for IoT Device Communication
     protocol="MQTT 3.1.1/5.0 (via paho-mqtt)",
     mqtt_client_version="paho.mqtt CallbackAPIVersion.VERSION2",
     connection_config={
-        "broker_address": "from settings.MQTT_CONFIG",
-        "broker_port": "from settings.MQTT_CONFIG",
+        "BROKER_ADDRESS": "from settings.MQTT_CONFIG",
+        "BROKER_PORT": "from settings.MQTT_CONFIG",
         "keep_alive": "60s",
         "reconnect": "automatic with exponential backoff"
     },
@@ -68,10 +68,10 @@ logger = logging.getLogger("mqtt_subscriber")
 
 # MQTT Configuration
 MQTT_CONFIG = settings.MQTT_CONFIG
-BROKER_ADDRESS = MQTT_CONFIG["BROKER_ADDRESS"]
-BROKER_PORT = MQTT_CONFIG["broker_port"]
-BROKER_USERNAME = MQTT_CONFIG.get("broker_userNAME", "")
-BROKER_PASSWORD = MQTT_CONFIG.get("broker_password", "")
+BROKER_ADDRESS = MQTT_CONFIG.get("BROKER_ADDRESS", "localhost")
+BROKER_PORT = MQTT_CONFIG.get("BROKER_PORT", 1883)
+BROKER_USERNAME = MQTT_CONFIG.get("BROKER_USERNAME", "")
+BROKER_PASSWORD = MQTT_CONFIG.get("BROKER_PASSWORD", "")
 
 # Security Configuration
 MAX_PAYLOAD_SIZE = 1024 * 1024  # 1MB max payload

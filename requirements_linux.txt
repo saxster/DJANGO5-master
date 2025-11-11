@@ -7,3 +7,6 @@
 -r requirements/observability.txt
 -r requirements/sentry.txt
 -r requirements/speech_to_text_requirements.txt
+
+# Document parsing / OCR dependencies (People Onboarding)
+google-cloud-vision==3.7.2  # Required by apps.core_onboarding.services.ocr_service

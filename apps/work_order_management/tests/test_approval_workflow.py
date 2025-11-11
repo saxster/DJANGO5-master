@@ -56,7 +56,7 @@ class TestApprovalFlow:
         from apps.peoples.models import People
         from apps.work_order_management.models import Vendor
         from apps.activity.models import Location, QuestionSet
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         from django.contrib.gis.geos import Point
 
         # Create second approver

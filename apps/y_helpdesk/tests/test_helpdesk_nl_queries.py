@@ -69,7 +69,7 @@ class TestHelpDeskQueryExecutor:
     @pytest.fixture
     def test_site(self, test_user):
         """Create test site."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         site = Bt.objects.create(
             buname='Test Site X',
@@ -284,7 +284,7 @@ class TestTicketWorkflowQueries:
     def escalated_tickets(self, test_user):
         """Create tickets with workflow/escalation data."""
         from apps.y_helpdesk.models import Ticket, TicketWorkflow
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         site = Bt.objects.create(
             buname='Escalation Site',
@@ -464,7 +464,7 @@ class TestHelpDeskNLIntegration:
     def test_result_formatting(self, test_user):
         """Test that Help Desk results are properly formatted."""
         from apps.y_helpdesk.models import Ticket
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # Create test data
         site = Bt.objects.create(
@@ -577,7 +577,7 @@ class TestHelpDeskQuerySafety:
     def test_tenant_isolation_enforced(self, admin_user):
         """Test that queries only return tickets from user's tenant."""
         from apps.y_helpdesk.models import Ticket
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.tenants.models import Tenant
 
         # Create second tenant with tickets

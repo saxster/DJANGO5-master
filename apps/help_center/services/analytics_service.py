@@ -65,10 +65,10 @@ class AnalyticsService:
     @classmethod
     def _calculate_effectiveness_metrics(cls, tenant, date_from, date_to):
         """Ticket deflection, resolution time, satisfaction."""
-        correlations = HelpTicketCorrelation.objects.filter(
-            tenant=tenant,
-            ticket__created_at__range=(date_from, date_to)
-        )
+        correlations = HelpTicketCorrelation.objects.filter(tenant=tenant)
+
+        if date_from and date_to:
+            correlations = correlations.filter(analyzed_at__range=(date_from, date_to))
 
         total_correlations = correlations.count()
         tickets_with_help = correlations.filter(help_attempted=True).count()

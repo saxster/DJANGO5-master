@@ -23,7 +23,7 @@ from django.utils.decorators import method_decorator
 from django.http import StreamingHttpResponse, JsonResponse
 from django.db import DatabaseError, IntegrityError
 from apps.core.exceptions import IntegrationException
-from apps.onboarding.models import (
+from apps.core_onboarding.models import (
     ConversationSession,
     LLMRecommendation,
     AuthoritativeKnowledge,

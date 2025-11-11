@@ -17,7 +17,7 @@ from apps.helpbot.models import HelpBotSession, HelpBotMessage, HelpBotKnowledge
 from apps.helpbot.services.conversation_service import HelpBotConversationService
 from apps.helpbot.services.ticket_intent_classifier import TicketIntentClassifier, IntentClassification
 from apps.y_helpdesk.models import Ticket
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 User = get_user_model()

@@ -4,7 +4,7 @@ Handles models that inherit from TenantAwareModel but don't have proper migratio
 """
 
 from django.test.runner import DiscoverRunner
-from django.db import connection
+from django.db import connection, connections
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ class TenantAwareTestRunner(DiscoverRunner):
 
     def setup_databases(self, **kwargs):
         """Override to add missing columns after database creation."""
+        kwargs = self._maybe_enable_keepdb(kwargs)
         # First, let Django create the test database normally
         old_names = super().setup_databases(**kwargs)
 
@@ -27,6 +28,59 @@ class TenantAwareTestRunner(DiscoverRunner):
         self._ensure_reports_tables_exist()
 
         return old_names
+
+    def _maybe_enable_keepdb(self, kwargs: dict) -> dict:
+        """
+        If a previous test database already exists, automatically enable keepdb so
+        Django reuses it instead of prompting for confirmation.
+        """
+        for conn in connections.all():
+            if conn.vendor != 'postgresql':
+                continue
+
+            creation = conn.creation
+            try:
+                test_db_name = creation._get_test_db_name()
+            except Exception:  # pragma: no cover - defensive
+                continue
+
+            if not test_db_name:
+                continue
+
+            if self._test_database_exists(conn, test_db_name):
+                if not self.keepdb:
+                    logger.info(
+                        "Test database %s already exists for alias '%s'; enabling keepdb to reuse it.",
+                        test_db_name,
+                        conn.alias,
+                    )
+                self.keepdb = True
+                logger.info(
+                    "Using existing test database %s for alias '%s'.",
+                    test_db_name,
+                    conn.alias,
+                )
+                break
+
+        return kwargs
+
+    def _test_database_exists(self, conn, test_db_name: str) -> bool:
+        """Check whether the backend already has a test database provisioned."""
+        try:
+            with conn.creation._nodb_cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM pg_database WHERE datname = %s",
+                    [test_db_name],
+                )
+                return cursor.fetchone() is not None
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug(
+                "Unable to determine if test database %s exists for alias '%s': %s",
+                test_db_name,
+                conn.alias,
+                exc,
+            )
+            return False
 
     def _add_missing_tenant_columns(self):
         """Add tenant_id columns to tables that are missing them."""

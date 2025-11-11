@@ -28,8 +28,22 @@ class _StubProvider(BaseCalendarEventProvider):
         return self._events
 
 
+class _FakeCache:
+    """Minimal cache stub for unit tests."""
+
+    def __init__(self) -> None:
+        self._store: dict[str, object] = {}
+
+    def get(self, key: str, default=None):
+        return self._store.get(key, default)
+
+    def set(self, key: str, value, timeout=None):
+        self._store[key] = value
+
+
 class CalendarAggregationServiceTests(SimpleTestCase):
     def setUp(self):
+        self.cache = _FakeCache()
         self.start = datetime(2025, 11, 9, tzinfo=timezone.utc)
         self.end = self.start + timedelta(days=1)
         self.params = CalendarQueryParams(
@@ -59,7 +73,15 @@ class CalendarAggregationServiceTests(SimpleTestCase):
                 start=self.start + timedelta(hours=1),
             ),
         ]
-        service = CalendarAggregationService(providers=[_StubProvider(events)], cache_alias="select2")
+        service = CalendarAggregationService(
+            providers=[_StubProvider(events)],
+            cache=self.cache,
+        )
+        self.assertIs(
+            service.cache,
+            self.cache,
+            "Calendar tests must use the fake in-memory cache backend",
+        )
         result = service.get_events(self.params)
         self.assertEqual([event.id for event in result.events], ["a", "b"])
         self.assertEqual(result.summary["by_type"]["TASK"], 2)
@@ -82,7 +104,15 @@ class CalendarAggregationServiceTests(SimpleTestCase):
             ),
         ]
         params = replace(self.params, statuses=[CalendarEventStatus.IN_PROGRESS])
-        service = CalendarAggregationService(providers=[_StubProvider(events)], cache_alias="select2")
+        service = CalendarAggregationService(
+            providers=[_StubProvider(events)],
+            cache=self.cache,
+        )
+        self.assertIs(
+            service.cache,
+            self.cache,
+            "Calendar tests must use the fake in-memory cache backend",
+        )
         result = service.get_events(params)
         self.assertEqual(len(result.events), 1)
         self.assertEqual(result.events[0].id, "2")

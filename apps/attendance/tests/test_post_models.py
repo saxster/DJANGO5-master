@@ -13,73 +13,72 @@ Created: 2025-11-03
 import pytest
 from datetime import datetime, time, date, timedelta
 from django.utils import timezone
-from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from apps.attendance.models import Post, PostAssignment, PostOrderAcknowledgement
-from apps.onboarding.models import Shift, Bt, OnboardingZone
-from apps.peoples.models import People
+from apps.client_onboarding.models import Shift, Bt
+from apps.site_onboarding.models import OnboardingZone
+from apps.peoples.models import People, AgentSkill
+from apps.core_onboarding.models import TypeAssist
+from apps.tenants.models import Tenant
 
 
 # ==================== FIXTURES ====================
 
 @pytest.fixture
-def test_site(db):
+def test_tenant(db):
+    """Create tenant for tenant-aware models."""
+    return Tenant.objects.create(
+        tenantname='Test Tenant',
+        subdomain_prefix='test-tenant'
+    )
+
+
+@pytest.fixture
+def test_site(db, test_tenant):
     """Create test site"""
     return Bt.objects.create(
         buname='Test Security Site',
         bucode='TSS001',
-        gpslocation=Point(77.2090, 28.6139, srid=4326),
-        client_id=1,
-        tenant='default'
+        tenant=test_tenant
     )
 
 
 @pytest.fixture
-def test_shift(db, test_site):
+def test_shift(db, test_site, test_tenant):
     """Create test shift"""
     return Shift.objects.create(
         shiftname='Morning Shift',
         bu=test_site,
+        client=test_site,
         starttime=time(9, 0),
         endtime=time(17, 0),
-        client_id=1,
-        tenant='default'
+        tenant=test_tenant
     )
 
 
 @pytest.fixture
-def test_worker(db, test_site):
+def test_worker(db, test_site, test_tenant):
     """Create test worker"""
     return People.objects.create(
         username='test_guard',
         email='guard@test.com',
         first_name='John',
         last_name='Doe',
-        client_id=1,
         bu=test_site,
-        tenant='default'
+        tenant=test_tenant
     )
 
 
 @pytest.fixture
-def test_zone(db, test_site):
-    """Create test zone"""
-    return OnboardingZone.objects.create(
-        zone_name='Main Gate',
-        zone_type='GATE',
-        site=test_site,
-        gps_coordinates=Point(77.2090, 28.6139, srid=4326),
-        coverage_required=True,
-        importance_level='high',
-        risk_level='high',
-        tenant='default'
-    )
+def test_zone():
+    """Zone is optional for these tests."""
+    return None
 
 
 @pytest.fixture
-def test_post(db, test_site, test_shift, test_zone):
+def test_post(db, test_site, test_shift, test_zone, test_tenant):
     """Create test post"""
     return Post.objects.create(
         post_code='GATE-A-MORNING',
@@ -88,7 +87,6 @@ def test_post(db, test_site, test_shift, test_zone):
         site=test_site,
         zone=test_zone,
         shift=test_shift,
-        gps_coordinates=Point(77.2090, 28.6139, srid=4326),
         geofence_radius=50,
         required_guard_count=1,
         armed_required=False,
@@ -97,13 +95,56 @@ def test_post(db, test_site, test_shift, test_zone):
         risk_level='HIGH',
         active=True,
         coverage_required=True,
-        tenant='default',
+        tenant=test_tenant,
         client=test_site
     )
 
 
 @pytest.fixture
-def test_assignment(db, test_worker, test_post, test_shift, test_site):
+def certification_type(db):
+    """Root TypeAssist node for certifications."""
+    return TypeAssist.objects.create(
+        tacode='CERTIFICATION',
+        taname='Certification Root'
+    )
+
+
+@pytest.fixture
+def first_aid_cert(db, certification_type):
+    """Concrete certification used for qualification tests."""
+    return TypeAssist.objects.create(
+        tacode='FIRST_AID',
+        taname='First Aid',
+        tatype=certification_type
+    )
+
+
+@pytest.fixture
+def armed_certification(db, certification_type):
+    """Certification entry representing armed guard approval."""
+    return TypeAssist.objects.create(
+        tacode='ARMED_GUARD',
+        taname='Armed Guard Qualification',
+        tatype=certification_type
+    )
+
+
+@pytest.fixture
+def certification_skill(db, test_worker, first_aid_cert):
+    """AgentSkill entry that marks the worker as certified."""
+    skill = AgentSkill(
+        agent=test_worker,
+        category=first_aid_cert,
+        skill_level=3,
+        certified=True,
+        tenant=getattr(test_worker, 'tenant', None),
+    )
+    skill.save(skip_tenant_validation=True)
+    return skill
+
+
+@pytest.fixture
+def test_assignment(db, test_worker, test_post, test_shift, test_site, test_tenant):
     """Create test post assignment"""
     return PostAssignment.objects.create(
         worker=test_worker,
@@ -114,7 +155,7 @@ def test_assignment(db, test_worker, test_post, test_shift, test_site):
         start_time=time(9, 0),
         end_time=time(17, 0),
         status='SCHEDULED',
-        tenant='default',
+        tenant=test_tenant,
         client=test_site
     )
 
@@ -177,6 +218,65 @@ class TestPostModel:
         """Test getting required certifications"""
         certs = test_post.get_required_certifications_list()
         assert isinstance(certs, list)
+
+    def test_is_guard_qualified_with_matching_certifications(
+        self,
+        test_post,
+        test_worker,
+        first_aid_cert,
+        certification_skill
+    ):
+        """Guard should be qualified when all required certifications are present."""
+        test_post.required_certifications.add(first_aid_cert)
+
+        qualified, missing = test_post.is_guard_qualified(test_worker)
+
+        assert qualified is True
+        assert missing == []
+
+    def test_is_guard_qualified_reports_missing_certifications(
+        self,
+        test_post,
+        test_worker,
+        first_aid_cert
+    ):
+        """Missing certifications should be surfaced in the response."""
+        test_post.required_certifications.add(first_aid_cert)
+
+        qualified, missing = test_post.is_guard_qualified(test_worker)
+
+        assert qualified is False
+        assert first_aid_cert.taname in missing
+
+    def test_is_guard_qualified_enforces_armed_requirement(
+        self,
+        test_post,
+        test_worker,
+        first_aid_cert,
+        certification_skill,
+        armed_certification
+    ):
+        """Armed posts require either metadata flags or armed certifications."""
+        test_post.required_certifications.add(first_aid_cert)
+        test_post.armed_required = True
+        test_post.save()
+
+        qualified, missing = test_post.is_guard_qualified(test_worker)
+        assert qualified is False
+        assert 'Armed guard certification' in missing
+
+        armed_skill = AgentSkill(
+            agent=test_worker,
+            category=armed_certification,
+            skill_level=4,
+            certified=True,
+            tenant=getattr(test_worker, 'tenant', None),
+        )
+        armed_skill.save(skip_tenant_validation=True)
+
+        qualified_after, missing_after = test_post.is_guard_qualified(test_worker)
+        assert qualified_after is True
+        assert 'Armed guard certification' not in missing_after
 
     def test_is_coverage_met_true(self, test_post, test_assignment):
         """Test coverage met when assigned >= required"""

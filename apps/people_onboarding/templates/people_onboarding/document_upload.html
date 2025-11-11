@@ -150,6 +150,11 @@
                         <i class="bi bi-cloud-upload text-primary me-2"></i>
                         Upload Documents
                     </h3>
+                    {% if not document_parser_available %}
+                    <span class="badge badge-warning text-dark ms-3">
+                        AI parsing offline
+                    </span>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info d-flex align-items-center mb-5">
@@ -160,7 +165,11 @@
                                 <li>Maximum file size: <strong>10MB</strong></li>
                                 <li>Supported formats: <strong>PDF, JPG, PNG, DOC, DOCX</strong></li>
                                 <li>Ensure documents are clear and legible</li>
+                                {% if document_parser_available %}
                                 <li>Files are automatically scanned using OCR technology</li>
+                                {% else %}
+                                <li class="text-muted">AI document parsing is temporarily unavailable; documents will be reviewed manually.</li>
+                                {% endif %}
                             </ul>
                         </div>
                     </div>
@@ -419,6 +428,9 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 window.DocumentUploadApp = {
+    config: {
+        documentParserEnabled: {{ document_parser_available|yesno:"true,false" }}
+    },
     dropzone: null,
     currentPdf: null,
     currentPage: 1,
@@ -455,7 +467,7 @@ window.DocumentUploadApp = {
                     self.addDocumentToSidebar(response.document);
 
                     // Trigger OCR extraction
-                    if (response.document.uuid) {
+                    if (DocumentUploadApp.config.documentParserEnabled && response.document.uuid) {
                         self.triggerOCR(response.document.uuid);
                     }
                 });
@@ -474,6 +486,9 @@ window.DocumentUploadApp = {
     },
 
     triggerOCR: function(documentUuid) {
+        if (!this.config.documentParserEnabled) {
+            return;
+        }
         OnboardingApp.ajax.post(
             OnboardingApp.config.apiBaseUrl + 'documents/' + documentUuid + '/extract-ocr/',
             {},

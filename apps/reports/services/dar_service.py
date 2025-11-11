@@ -29,7 +29,7 @@ from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 from apps.attendance.models import Attendance, SosAlert, Geofence
 from apps.activity.models import Job, DeviceEvent, Location, Asset
 from apps.scheduler.models import Tour, Schedule
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)

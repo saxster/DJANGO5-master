@@ -186,7 +186,7 @@ class HelpSearchResponseSerializer(serializers.Serializer):
         read_only=True
     )
     total = serializers.IntegerField(read_only=True)
-    search_id = serializers.IntegerField(read_only=True)
+    search_id = serializers.UUIDField(read_only=True)
 
 
 class HelpVoteSerializer(serializers.Serializer):

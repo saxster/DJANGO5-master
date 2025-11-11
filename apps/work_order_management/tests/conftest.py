@@ -10,7 +10,7 @@ from django.test import RequestFactory, Client
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from apps.client_onboarding.models import Bt
-from apps.onboarding.models import TypeAssist
+from apps.core_onboarding.models import TypeAssist
 from apps.activity.models import Location, Asset, QuestionSet
 
 User = get_user_model()

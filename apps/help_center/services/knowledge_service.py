@@ -14,7 +14,7 @@ Following CLAUDE.md:
 """
 
 import logging
-from django.db import transaction
+from django.db import transaction, connection
 from django.contrib.postgres.search import SearchVector
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
@@ -172,6 +172,11 @@ class KnowledgeService:
     @classmethod
     def _update_search_vector(cls, article):
         """Update PostgreSQL FTS search_vector (weighted)."""
+        if connection.vendor != 'postgresql':
+            # SQLite (and other test databases) do not support SearchVector.
+            article.save(update_fields=['updated_at'])
+            return
+
         article.search_vector = (
             SearchVector('title', weight='A', config='english') +
             SearchVector('summary', weight='B', config='english') +

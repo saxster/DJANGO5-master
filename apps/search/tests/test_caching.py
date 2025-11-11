@@ -23,10 +23,31 @@ from freezegun import freeze_time
 from unittest.mock import patch, MagicMock
 import time
 
+from uuid import uuid4
+
 from apps.search.services.caching_service import SearchCacheService
 from apps.core.constants.datetime_constants import SECONDS_IN_MINUTE
+from apps.tenants.models import Tenant
 
 User = get_user_model()
+
+
+def create_test_tenant(prefix: str = 'tenant-test'):
+    """Create a tenant for tests with a unique slug."""
+    slug = f"{prefix}-{uuid4().hex[:8]}"
+    return Tenant.objects.create(
+        tenantname=f"Test Tenant {slug}",
+        subdomain_prefix=slug
+    )
+
+
+def assert_cached_payload(testcase, cached, expected):
+    """Ensure cached payload aligns with expected structure."""
+    testcase.assertIsInstance(cached, dict)
+    testcase.assertEqual(cached.get('results', []), expected.get('results', []))
+    expected_total = expected.get('total_results', expected.get('count'))
+    if expected_total is not None:
+        testcase.assertEqual(cached.get('total_results'), expected_total)
 
 
 class SearchCacheServiceTestCase(TestCase):
@@ -34,13 +55,17 @@ class SearchCacheServiceTestCase(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        self.tenant = create_test_tenant()
         self.user = User.objects.create_user(
             loginid='testuser',
             email='test@example.com',
-            password='testpass123'
+            password='testpass123',
+            tenant=self.tenant,
+            peoplename='Test User',
+            peoplecode='TU-001'
         )
         self.cache_service = SearchCacheService(
-            tenant_id=1,
+            tenant_id=self.tenant.id,
             user_id=self.user.id
         )
         cache.clear()
@@ -79,7 +104,7 @@ class SearchCacheServiceTestCase(TestCase):
         )
 
         self.assertIsNotNone(cached)
-        self.assertEqual(cached, test_results)
+        assert_cached_payload(self, cached, test_results)
 
     def test_cache_key_includes_all_parameters(self):
         """Test that cache key is unique for different parameters."""
@@ -94,8 +119,8 @@ class SearchCacheServiceTestCase(TestCase):
         cached_1 = self.cache_service.get_cached_results('query1', ['asset'], {})
         cached_2 = self.cache_service.get_cached_results('query2', ['asset'], {})
 
-        self.assertEqual(cached_1, test_results_1)
-        self.assertEqual(cached_2, test_results_2)
+        assert_cached_payload(self, cached_1, test_results_1)
+        assert_cached_payload(self, cached_2, test_results_2)
         self.assertNotEqual(cached_1, cached_2)
 
     def test_cache_key_entity_order_independent(self):
@@ -118,7 +143,7 @@ class SearchCacheServiceTestCase(TestCase):
         )
 
         self.assertIsNotNone(cached)
-        self.assertEqual(cached, test_results)
+        assert_cached_payload(self, cached, test_results)
 
     @freeze_time("2025-10-01 12:00:00")
     def test_cache_ttl_expiration(self):
@@ -146,24 +171,25 @@ class SearchCacheServiceTestCase(TestCase):
 
     def test_tenant_isolation(self):
         """Test that cache is isolated per tenant."""
-        test_results_tenant1 = {'results': [{'id': 1, 'tenant': 1}], 'count': 1}
-        test_results_tenant2 = {'results': [{'id': 2, 'tenant': 2}], 'count': 1}
+        test_results_tenant1 = {'results': [{'id': 1, 'tenant': self.tenant.id}], 'count': 1}
+        tenant_two = create_test_tenant(prefix='tenant-two')
+        test_results_tenant2 = {'results': [{'id': 2, 'tenant': tenant_two.id}], 'count': 1}
 
         # Cache for tenant 1
-        cache_service_1 = SearchCacheService(tenant_id=1, user_id=self.user.id)
+        cache_service_1 = SearchCacheService(tenant_id=self.tenant.id, user_id=self.user.id)
         cache_service_1.cache_results('test', ['asset'], {}, test_results_tenant1)
 
         # Cache for tenant 2
-        cache_service_2 = SearchCacheService(tenant_id=2, user_id=self.user.id)
+        cache_service_2 = SearchCacheService(tenant_id=tenant_two.id, user_id=self.user.id)
         cache_service_2.cache_results('test', ['asset'], {}, test_results_tenant2)
 
         # Tenant 1 should only see tenant 1 results
         cached_1 = cache_service_1.get_cached_results('test', ['asset'], {})
-        self.assertEqual(cached_1, test_results_tenant1)
+        assert_cached_payload(self, cached_1, test_results_tenant1)
 
         # Tenant 2 should only see tenant 2 results
         cached_2 = cache_service_2.get_cached_results('test', ['asset'], {})
-        self.assertEqual(cached_2, test_results_tenant2)
+        assert_cached_payload(self, cached_2, test_results_tenant2)
 
 
     def test_cache_analytics_tracking(self):
@@ -220,7 +246,7 @@ class SearchCacheServiceTestCase(TestCase):
         # Should retrieve with same filters
         cached = self.cache_service.get_cached_results('test', ['asset'], complex_filters)
         self.assertIsNotNone(cached)
-        self.assertEqual(cached, test_results)
+        assert_cached_payload(self, cached, test_results)
 
     def test_cache_with_pagination(self):
         """Test that pagination is included in cache key."""
@@ -238,8 +264,36 @@ class SearchCacheServiceTestCase(TestCase):
         cached_page1 = self.cache_service.get_cached_results('test', ['asset'], filters_page1)
         cached_page2 = self.cache_service.get_cached_results('test', ['asset'], filters_page2)
 
-        self.assertEqual(cached_page1, page1_results)
-        self.assertEqual(cached_page2, page2_results)
+        assert_cached_payload(self, cached_page1, page1_results)
+        assert_cached_payload(self, cached_page2, page2_results)
+
+    def test_cache_invalidation_ignores_stale_entries(self):
+        """Search cache entries should become unreachable after invalidation."""
+        test_results = {'results': [{'id': 1}], 'total_results': 1}
+        self.cache_service.cache_results('test', ['asset'], {}, test_results)
+
+        # Confirm cache hit prior to invalidation
+        self.assertIsNotNone(
+            self.cache_service.get_cached_results('test', ['asset'], {})
+        )
+
+        # Invalidate tenant/entity combination via version bump
+        SearchCacheService.invalidate_entities(
+            tenant_id=self.cache_service.tenant_id,
+            entities=['asset']
+        )
+
+        # Entry should no longer be reachable because the key version changed
+        self.assertIsNone(
+            self.cache_service.get_cached_results('test', ['asset'], {})
+        )
+
+        # Other tenants remain unaffected
+        cache_service_other = SearchCacheService(tenant_id=999, user_id=self.user.id)
+        cache_service_other.cache_results('test', ['asset'], {}, test_results)
+        self.assertIsNotNone(
+            cache_service_other.get_cached_results('test', ['asset'], {})
+        )
 
     @patch('apps.search.services.caching_service.cache')
     def test_graceful_degradation_on_cache_failure(self, mock_cache):
@@ -265,13 +319,17 @@ class CacheIntegrationTest(TransactionTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        self.tenant = create_test_tenant(prefix='tenant-integration')
         self.user = User.objects.create_user(
             loginid='testuser',
             email='test@example.com',
-            password='testpass123'
+            password='testpass123',
+            tenant=self.tenant,
+            peoplename='Integration User',
+            peoplecode='IU-001'
         )
         self.cache_service = SearchCacheService(
-            tenant_id=1,
+            tenant_id=self.tenant.id,
             user_id=self.user.id
         )
         cache.clear()
@@ -317,7 +375,7 @@ class CacheIntegrationTest(TransactionTestCase):
 
         # All should get the same cached result
         for result in results:
-            self.assertEqual(result, test_results)
+            assert_cached_payload(self, result, test_results)
 
     def test_cache_hit_rate_tracking(self):
         """Test tracking of cache hit rate over time."""

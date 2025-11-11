@@ -41,14 +41,29 @@ def tenant(db):
 def user(db, tenant):
     """Create test user with supervisor role."""
     from apps.peoples.models import People
+    from django.db.models.signals import post_save
+    from apps.peoples.signals import create_people_profile, create_people_organizational
     from django.contrib.auth.models import Group
 
-    user = People.objects.create_user(
-        username="testuser",
-        email="test@example.com",
-        password="testpass123",
-        tenant=tenant
-    )
+    # Disable profile/organizational auto-creation to keep the lightweight
+    # SQLite test schema minimal.
+    post_save.disconnect(create_people_profile, sender=People)
+    post_save.disconnect(create_people_organizational, sender=People)
+
+    try:
+        user = People.objects.create_user(
+            loginid="testuser",
+            password="testpass123",
+            tenant=tenant,
+            peoplename="Test User",
+            peoplecode="EMP-001",
+            email="test@example.com",
+        )
+        # Avoid hitting foreign key heavy organizational tables during tests.
+        user._state.fields_cache['organizational'] = None
+    finally:
+        post_save.connect(create_people_profile, sender=People)
+        post_save.connect(create_people_organizational, sender=People)
 
     group = Group.objects.create(name="Supervisor")
     user.groups.add(group)
@@ -64,6 +79,56 @@ def help_category(db, tenant):
         name="Operations",
         slug="operations"
     )
+
+
+@pytest.fixture(autouse=True)
+def sync_help_center_tasks(monkeypatch):
+    """Run Celery tasks synchronously during tests."""
+    from apps.help_center import tasks
+    from apps.core.caching import utils as cache_utils
+    from apps.core.caching import invalidation
+    from django.db.models.signals import pre_save, post_save
+    from apps.y_helpdesk.models import Ticket
+    from apps.y_helpdesk import signals as ticket_signals
+    from apps.help_center.services import ticket_integration_service
+
+    def _make_sync(task):
+        def _sync_apply_async(args=None, kwargs=None, **options):
+            args = args or []
+            kwargs = kwargs or {}
+            return task.run(*args, **kwargs)
+
+        monkeypatch.setattr(task, 'apply_async', _sync_apply_async)
+
+    for task in (
+        tasks.generate_article_embedding,
+        tasks.analyze_ticket_content_gap,
+        tasks.generate_help_analytics,
+    ):
+        _make_sync(task)
+
+    def _noop_clear(pattern):
+        return {'pattern': pattern, 'keys_cleared': 0, 'success': True}
+
+    monkeypatch.setattr(cache_utils, 'clear_cache_pattern', _noop_clear)
+    monkeypatch.setattr(invalidation, 'clear_cache_pattern', _noop_clear)
+
+    ticket_signal_pairs = [
+        (pre_save, ticket_signals.set_serial_no_for_ticket),
+        (pre_save, ticket_signals.track_ticket_status_change),
+        (post_save, ticket_signals.broadcast_ticket_state_change),
+        (post_save, ticket_signals.analyze_ticket_sentiment_on_creation),
+        (post_save, ticket_integration_service.on_ticket_created),
+        (post_save, ticket_integration_service.on_ticket_resolved),
+    ]
+
+    for signal, handler in ticket_signal_pairs:
+        signal.disconnect(handler, sender=Ticket)
+
+    yield
+
+    for signal, handler in ticket_signal_pairs:
+        signal.connect(handler, sender=Ticket)
 
 
 @pytest.mark.django_db
@@ -223,7 +288,7 @@ class TestSearchService:
 
         assert results['total'] >= 2
         assert len(results['results']) >= 2
-        assert results['search_id'] is not None
+        assert uuid.UUID(results['search_id'])
 
     def test_record_click(self, tenant, user, help_category):
         """Test click tracking."""
@@ -239,18 +304,20 @@ class TestSearchService:
             target_roles=["all"]
         )
 
-        # Create search history
+        # Create search history with UUID session id
+        session_token = uuid.uuid4()
         search_history = HelpSearchHistory.objects.create(
             tenant=tenant,
             user=user,
             query="test",
-            results_count=1
+            results_count=1,
+            session_id=session_token
         )
 
         initial_view_count = article.view_count
 
         SearchService.record_click(
-            search_id=search_history.id,
+            search_id=str(session_token),
             article_id=article.id,
             position=1
         )
@@ -261,6 +328,16 @@ class TestSearchService:
         assert search_history.clicked_article == article
         assert search_history.click_position == 1
         assert article.view_count == initial_view_count + 1
+
+        # Backward compatibility: allow integer search IDs
+        SearchService.record_click(
+            search_id=search_history.id,
+            article_id=article.id,
+            position=2
+        )
+
+        search_history.refresh_from_db()
+        assert search_history.click_position == 2
 
 
 @pytest.mark.django_db
@@ -335,9 +412,9 @@ class TestTicketIntegrationService:
 
         ticket = Ticket.objects.create(
             tenant=tenant,
-            title="Test Ticket",
-            description="Issue description",
-            created_by=user
+            ticketdesc="Issue description",
+            cuser=user,
+            muser=user
         )
 
         correlation = TicketIntegrationService.analyze_ticket_help_usage(ticket)
@@ -372,9 +449,9 @@ class TestTicketIntegrationService:
         # Create ticket within 30 minutes
         ticket = Ticket.objects.create(
             tenant=tenant,
-            title="Test Ticket",
-            description="Issue",
-            created_by=user
+            ticketdesc="Issue",
+            cuser=user,
+            muser=user
         )
 
         correlation = TicketIntegrationService.analyze_ticket_help_usage(ticket)

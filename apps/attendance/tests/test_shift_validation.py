@@ -24,7 +24,7 @@ from apps.attendance.services.shift_validation_service import (
 from apps.peoples.models import People
 from apps.peoples.models.membership_model import Pgbelonging
 from apps.activity.models import Jobneed
-from apps.onboarding.models import Shift, Bt
+from apps.client_onboarding.models import Shift, Bt
 from apps.attendance.models import PeopleEventlog
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 

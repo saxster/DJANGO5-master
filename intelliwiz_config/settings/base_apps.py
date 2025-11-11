@@ -59,12 +59,14 @@ INSTALLED_APPS = [
     "django_celery_results",
     "corsheaders",
     "django_cleanup.apps.CleanupConfig",
+    "waffle",
 
     # ========================================================================
     # Local Applications
     # ========================================================================
     "apps.onboarding.apps.OnboardingLegacyConfig",
     "apps.core",
+    "apps.core.feature_flags.apps.FeatureFlagsConfig",
     "apps.ontology",
     "apps.peoples",
     "apps.people_onboarding",

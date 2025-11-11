@@ -211,7 +211,7 @@ class WebhookDispatcher:
 
         # Fallback to legacy TypeAssist.other_data (DEPRECATED)
         try:
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
 
             webhook_config = TypeAssist.objects.filter(
                 client_id=tenant_id,

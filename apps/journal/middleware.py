@@ -70,6 +70,8 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         self.get_response = get_response
         self.logger = logging.getLogger('security.journal')
         self.privacy_manager = JournalPrivacyManager()
+        self.redis_rate_limiter_ready = False
+        self._rate_limit_warning_logged = False
 
         # Rate limiting now uses Redis via Django cache backend
         # No in-memory storage needed - Redis handles multi-worker coordination
@@ -81,6 +83,7 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         """Process request with security checks"""
         start_time = time.time()
         correlation_id = str(uuid.uuid4())
+        response = None
 
         # Add correlation ID to request for tracking
         request.correlation_id = correlation_id
@@ -108,8 +111,17 @@ class JournalSecurityMiddleware(MiddlewareMixin):
                 f"Security middleware error: {e}",
                 extra={'correlation_id': correlation_id, 'path': request.path}
             )
-            # Don't block request for middleware errors
-            return self.get_response(request)
+
+            if response is not None:
+                return response
+
+            return JsonResponse(
+                {
+                    'detail': 'Journal security controls unavailable. Please retry shortly.',
+                    'correlation_id': correlation_id
+                },
+                status=503
+            )
 
     def _is_journal_wellness_endpoint(self, path):
         """Check if path is a journal or wellness endpoint"""
@@ -138,12 +150,14 @@ class JournalSecurityMiddleware(MiddlewareMixin):
             # Verify connection with ping
             redis_client.ping()
 
+            self.redis_rate_limiter_ready = True
             self.logger.info(
                 "✅ Journal rate limiting: Redis connection verified. "
                 "Cross-worker rate limits active."
             )
 
         except AttributeError:
+            self.redis_rate_limiter_ready = False
             # cache.client.get_client() doesn't exist - wrong backend
             self.logger.critical(
                 "❌ Journal rate limiting: django-redis backend NOT configured. "
@@ -153,7 +167,8 @@ class JournalSecurityMiddleware(MiddlewareMixin):
                 "See CLAUDE.md 'Infrastructure Requirements' for setup instructions."
             )
 
-        except (ConnectionError, Exception) as e:
+        except (RedisError, RedisConnectionError, RedisTimeoutError, ConnectionError, Exception) as e:
+            self.redis_rate_limiter_ready = False
             # Redis server unavailable
             self.logger.warning(
                 f"⚠️ Journal rate limiting: Redis unavailable - {type(e).__name__}: {e}. "
@@ -207,6 +222,15 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         rate_config = self.RATE_LIMITS.get(endpoint)
 
         if not rate_config:
+            return {'allowed': True}
+
+        if not getattr(self, 'redis_rate_limiter_ready', False):
+            if not self._rate_limit_warning_logged:
+                self.logger.warning(
+                    "Journal rate limiting bypassed: Redis backend not ready.",
+                    extra={'correlation_id': correlation_id, 'endpoint': endpoint}
+                )
+                self._rate_limit_warning_logged = True
             return {'allowed': True}
 
         # Redis-based rate limiting (works across multiple workers)

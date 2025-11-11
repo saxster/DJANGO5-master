@@ -123,10 +123,13 @@ class UnifiedTenantMiddleware:
         from intelliwiz_config.settings.tenants import TENANT_MAPPINGS
         self.tenant_mappings = TENANT_MAPPINGS
 
-        logger.info(
-            f"UnifiedTenantMiddleware initialized: "
-            f"mode={self.mode}, strict={self.strict_mode}, require={self.require_tenant}"
-        )
+        if settings.DEBUG:
+            logger.info(
+                "UnifiedTenantMiddleware initialized: mode=%s, strict=%s, require=%s",
+                self.mode,
+                self.strict_mode,
+                self.require_tenant
+            )
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         """
@@ -143,13 +146,14 @@ class UnifiedTenantMiddleware:
             - Inactive tenants rejected with 410 Gone
             - Unknown tenants rejected with 403 Forbidden (strict mode)
         """
-        # Skip tenant extraction for excluded paths
-        if self._should_skip(request.path):
-            return self.get_response(request)
-
         tenant_context = None
 
         try:
+            # Skip tenant extraction for excluded paths but still cleanup context
+            if self._should_skip(request.path):
+                request.tenant = None
+                return self.get_response(request)
+
             # Extract tenant using configured strategy
             tenant_context = self._extract_tenant(request)
 
@@ -187,21 +191,15 @@ class UnifiedTenantMiddleware:
                 # No tenant context (acceptable for some views)
                 request.tenant = None
 
-            # Process request
-            try:
-                response = self.get_response(request)
+            response = self.get_response(request)
 
-                # Add tenant info to response headers (for debugging)
-                if tenant_context:
-                    response['X-Tenant-Slug'] = tenant_context.tenant_slug
-                    response['X-Tenant-ID'] = str(tenant_context.tenant_pk)
-                    response['X-DB-Alias'] = tenant_context.db_alias
+            # Add tenant info to response headers (for debugging)
+            if tenant_context:
+                response['X-Tenant-Slug'] = tenant_context.tenant_slug
+                response['X-Tenant-ID'] = str(tenant_context.tenant_pk)
+                response['X-DB-Alias'] = tenant_context.db_alias
 
-                return response
-
-            finally:
-                # CRITICAL: Always cleanup thread-local
-                cleanup_tenant_context()
+            return response
 
         except HttpResponseGone as e:
             # Tenant deleted/suspended - return immediately
@@ -210,6 +208,10 @@ class UnifiedTenantMiddleware:
         except HttpResponseForbidden as e:
             # Unknown tenant in strict mode - return immediately
             return e
+
+        finally:
+            # CRITICAL: Always cleanup thread-local, even for excluded paths/exceptions
+            cleanup_tenant_context()
 
     def _should_skip(self, path: str) -> bool:
         """Check if path should be excluded from tenant extraction."""

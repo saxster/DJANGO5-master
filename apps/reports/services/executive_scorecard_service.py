@@ -53,7 +53,7 @@ class ExecutiveScoreCardService:
         Returns:
             Dict with all scorecard sections
         """
-        from apps.onboarding.models import BusinessUnit
+        from apps.client_onboarding.models import BusinessUnit
         
         now = timezone.now()
         target_month = month or now.month

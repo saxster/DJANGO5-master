@@ -5,16 +5,31 @@ Handles automatic creation of user progress tracking, content delivery schedulin
 achievement notifications, and analytics updates for the wellness education system.
 """
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from .models import WellnessUserProgress, WellnessContentInteraction, WellnessContent
+from apps.core.exceptions import IntegrationException
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
+from django.conf import settings
 import logging
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+AUTOMATED_WELLNESS_SIGNALS_ENABLED = getattr(
+    settings,
+    'WELLNESS_AUTOMATION_SIGNALS_ENABLED',
+    False
+)
+
+if not AUTOMATED_WELLNESS_SIGNALS_ENABLED:
+    logger.info(
+        "Wellness automation signals disabled - enable WELLNESS_AUTOMATION_SIGNALS_ENABLED to activate experimental handlers."
+    )
 
 
 @receiver(post_save, sender=User)
@@ -62,7 +77,13 @@ def handle_wellness_interaction_created(sender, instance, created, **kwargs):
         # Schedule follow-up content if user showed high engagement
         try:
             if instance.engagement_score >= 4:
-                schedule_follow_up_content(instance)
+                if AUTOMATED_WELLNESS_SIGNALS_ENABLED:
+                    schedule_follow_up_content(instance)
+                else:
+                    logger.debug(
+                        "Follow-up content automation disabled; skipping scheduling.",
+                        extra={'user_id': instance.user_id, 'interaction_id': instance.id}
+                    )
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             logger.error(f"Failed to schedule follow-up content: {e}", exc_info=True)
 
@@ -131,27 +152,33 @@ def schedule_follow_up_content(interaction):
             logger.error(f"Failed to schedule follow-up content: {e}", exc_info=True)
 
 
-@receiver(post_save, sender=WellnessContent)
-def handle_wellness_content_updated(sender, instance, created, **kwargs):
-    """Handle wellness content creation/update events"""
+if AUTOMATED_WELLNESS_SIGNALS_ENABLED:
 
-    if created:
-        logger.info(f"New wellness content created: '{instance.title}' in category {instance.category}")
+    @receiver(post_save, sender=WellnessContent)
+    def handle_wellness_content_updated(sender, instance, created, **kwargs):
+        """Handle wellness content creation/update events."""
 
-        # Check if content needs immediate verification
-        if instance.needs_verification:
-            logger.warning(f"New content '{instance.title}' needs evidence verification")
+        if created:
+            logger.info(f"New wellness content created: '{instance.title}' in category {instance.category}")
 
-        # Queue content for personalization engine training
-        try:
-            # TODO: Update ML models with new content - deferred until baseline metrics established
-            # (min 1000 content interactions) to train effective personalization models
-            logger.debug("Queuing ML model update for new wellness content")
-        except BUSINESS_LOGIC_EXCEPTIONS as e:
-            logger.error(f"Failed to update ML models: {e}", exc_info=True)
+            # Check if content needs immediate verification
+            if instance.needs_verification:
+                logger.warning(f"New content '{instance.title}' needs evidence verification")
 
-    else:
-        logger.debug(f"Wellness content updated: '{instance.title}'")
+            # Queue content for personalization engine training
+            try:
+                logger.debug("Queuing ML model update for new wellness content")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to update ML models: {e}", exc_info=True)
+
+        else:
+            logger.debug(f"Wellness content updated: '{instance.title}'")
+
+else:
+
+    def handle_wellness_content_updated(*args, **kwargs):
+        """Placeholder when automation signals are disabled."""
+        logger.debug("handle_wellness_content_updated skipped - automation disabled.")
 
 
 @receiver(post_delete, sender=WellnessContent)
@@ -257,23 +284,23 @@ def reschedule_daily_wellness_content(user):
 
 
 # Analytics and effectiveness tracking
-@receiver(post_save, sender=WellnessContentInteraction)
-def update_content_effectiveness_metrics(sender, instance, created, **kwargs):
-    """Update content effectiveness metrics for analytics"""
+if AUTOMATED_WELLNESS_SIGNALS_ENABLED:
 
-    if created and instance.is_positive_interaction:
-        try:
-            # TODO: Update content effectiveness analytics - deferred until baseline metrics established
-            # (min 1000 interactions) to calculate statistically significant effectiveness scores
-            logger.debug(f"Updating effectiveness metrics for content {instance.content.id}")
+    @receiver(post_save, sender=WellnessContentInteraction)
+    def update_content_effectiveness_metrics(sender, instance, created, **kwargs):
+        """Update content effectiveness metrics for analytics."""
 
-            # This could involve:
-            # - Updating content popularity scores
-            # - Training personalization models
-            # - Adjusting content priority scores based on engagement
+        if created and instance.is_positive_interaction:
+            try:
+                logger.debug(f"Updating effectiveness metrics for content {instance.content.id}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to update effectiveness metrics: {e}", exc_info=True)
 
-        except BUSINESS_LOGIC_EXCEPTIONS as e:
-            logger.error(f"Failed to update effectiveness metrics: {e}", exc_info=True)
+else:
+
+    def update_content_effectiveness_metrics(*args, **kwargs):
+        """Placeholder when automation signals are disabled."""
+        logger.debug("update_content_effectiveness_metrics skipped - automation disabled.")
 
 
 # Mental Health Intervention Integration

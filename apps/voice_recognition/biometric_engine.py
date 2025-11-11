@@ -21,7 +21,7 @@ import logging
 import time
 import hashlib
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TypedDict, Union
 from django.db import DatabaseError, IntegrityError
 from django.conf import settings
 from django.utils import timezone
@@ -42,6 +42,16 @@ from apps.voice_recognition.services.challenge_generator import ChallengeRespons
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class CachedVoiceEmbedding(TypedDict, total=False):
+    """Serializable cache payload for voice embeddings."""
+    id: int
+    embedding_vector: List[float]
+    is_primary: bool
+    is_validated: bool
+    extraction_timestamp: Optional[str]
+    validation_score: Optional[float]
 
 
 class VoiceVerificationError(Exception):
@@ -265,7 +275,7 @@ class VoiceBiometricEngine:
             logger.error(f"Error transcribing audio: {e}")
             return ""
 
-    def _get_user_voiceprints(self, user_id: int) -> List[VoiceEmbedding]:
+    def _get_user_voiceprints(self, user_id: int) -> List[CachedVoiceEmbedding]:
         """
         Get user's voice embeddings with caching.
 
@@ -287,14 +297,17 @@ class VoiceBiometricEngine:
                 is_validated=True
             ).order_by('-is_primary', '-extraction_timestamp')
 
-            embedding_list = list(embeddings)
+            serialized_embeddings = [
+                self._serialize_voice_embedding(embedding)
+                for embedding in embeddings
+            ]
 
             # Cache for 5 minutes
-            if embedding_list:
-                cache.set(cache_key, embedding_list, timeout=300)
-                logger.debug(f"Cached {len(embedding_list)} voice embeddings for user {user_id}")
+            if serialized_embeddings:
+                cache.set(cache_key, serialized_embeddings, timeout=300)
+                logger.debug(f"Cached {len(serialized_embeddings)} voice embeddings for user {user_id}")
 
-            return embedding_list
+            return serialized_embeddings
 
         except (DatabaseError, ObjectDoesNotExist) as e:
             logger.error(f"Error getting user voiceprints: {e}")
@@ -306,6 +319,31 @@ class VoiceBiometricEngine:
         cache.delete(cache_key)
         logger.debug(f"Invalidated voiceprint cache for user {user_id}")
 
+    @staticmethod
+    def _serialize_voice_embedding(embedding: VoiceEmbedding) -> CachedVoiceEmbedding:
+        """Convert ORM embedding into a cache-safe payload."""
+        return CachedVoiceEmbedding(
+            id=embedding.id,
+            embedding_vector=list(embedding.embedding_vector or []),
+            is_primary=embedding.is_primary,
+            is_validated=embedding.is_validated,
+            extraction_timestamp=embedding.extraction_timestamp.isoformat() if embedding.extraction_timestamp else None,
+            validation_score=embedding.validation_score,
+        )
+
+    @staticmethod
+    def _ensure_voiceprint_payload(
+        voiceprint: Union[VoiceEmbedding, CachedVoiceEmbedding]
+    ) -> CachedVoiceEmbedding:
+        """
+        Normalize cached data or ORM objects into a consistent payload.
+        """
+        if isinstance(voiceprint, dict):
+            # Already serialized
+            return CachedVoiceEmbedding(**voiceprint)
+
+        return VoiceBiometricEngine._serialize_voice_embedding(voiceprint)
+
     def _extract_voice_embedding(self, audio_sample: AudioSample) -> Optional[np.ndarray]:
         try:
             return extract_embedding(audio_sample, emb_dim=512)
@@ -316,7 +354,7 @@ class VoiceBiometricEngine:
     def _verify_against_voiceprints(
         self,
         input_embedding: np.ndarray,
-        user_voiceprints: List[VoiceEmbedding]
+        user_voiceprints: List[Union[VoiceEmbedding, CachedVoiceEmbedding]]
     ) -> Dict[str, Any]:
         """
         Verify input embedding against stored voiceprints.
@@ -335,12 +373,19 @@ class VoiceBiometricEngine:
             # Calculate similarity with each voiceprint
             similarities = []
             for voiceprint in user_voiceprints:
-                stored_embedding = np.array(voiceprint.embedding_vector)
+                payload = self._ensure_voiceprint_payload(voiceprint)
+                stored_vector = payload.get('embedding_vector')
+
+                if not stored_vector:
+                    logger.debug("Skipping voiceprint without embedding vector", extra={'embedding_id': payload.get('id')})
+                    continue
+
+                stored_embedding = np.array(stored_vector)
                 similarity = self._cosine_similarity(input_embedding, stored_embedding)
                 similarities.append({
-                    'embedding_id': voiceprint.id,
+                    'embedding_id': payload.get('id'),
                     'similarity': similarity,
-                    'is_primary': voiceprint.is_primary,
+                    'is_primary': payload.get('is_primary', False),
                 })
 
             # Get best match

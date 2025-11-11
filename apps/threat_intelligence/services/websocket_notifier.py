@@ -5,11 +5,14 @@ Provides helper methods to broadcast alert updates via WebSocket.
 """
 
 import logging
-from typing import Dict, Any
-from channels.layers import get_channel_layer
+from typing import Dict, Any, Optional
+
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.utils import timezone
+
 from apps.threat_intelligence.models import IntelligenceAlert
+from monitoring.django_monitoring import metrics_collector
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +105,22 @@ class WebSocketNotifier:
             update_type: Type of update
             data: Update data
         """
+        channel_layer = get_channel_layer()
+
+        if channel_layer is None:
+            logger.warning(
+                "Channel layer unavailable; skipping WebSocket broadcast.",
+                extra={'tenant_id': alert.tenant_id, 'update_type': update_type}
+            )
+            cls._record_metric(
+                alert,
+                update_type,
+                metric_name='threat_alert_websocket_skipped',
+                reason='channel_layer_unavailable'
+            )
+            return
+
         try:
-            channel_layer = get_channel_layer()
-            
             async_to_sync(channel_layer.group_send)(
                 f"threat_alerts_tenant_{alert.tenant.id}",
                 {
@@ -114,7 +130,9 @@ class WebSocketNotifier:
                     "data": data
                 }
             )
-            
+
+            cls._record_metric(alert, update_type, 'threat_alert_websocket_sent')
+
             logger.info(
                 f"WebSocket update sent for alert {alert.id}",
                 extra={
@@ -123,10 +141,36 @@ class WebSocketNotifier:
                     'correlation_id': f'alert_update_{alert.id}_{timezone.now().timestamp()}'
                 }
             )
-            
-        except Exception as e:
+
+        except Exception as exc:
+            cls._record_metric(
+                alert,
+                update_type,
+                metric_name='threat_alert_websocket_failed',
+                reason=exc.__class__.__name__
+            )
             logger.error(
-                f"Failed to send WebSocket update for alert {alert.id}: {e}",
+                f"Failed to send WebSocket update for alert {alert.id}: {exc}",
                 exc_info=True,
                 extra={'update_type': update_type}
             )
+
+    @staticmethod
+    def _record_metric(
+        alert: IntelligenceAlert,
+        update_type: str,
+        metric_name: str,
+        reason: Optional[str] = None
+    ):
+        """
+        Record metrics for WebSocket notifications without breaking callers.
+        """
+        tags = {
+            'update_type': update_type,
+            'tenant_id': alert.tenant_id,
+            'alert_id': alert.id,
+        }
+        if reason:
+            tags['reason'] = reason
+
+        metrics_collector.record_metric(metric_name, 1, tags)

@@ -129,7 +129,7 @@ class ShiftComplianceService:
         """
         from apps.noc.security_intelligence.models import ShiftScheduleCache
         from apps.scheduler.models import Schedule
-        from apps.onboarding.models import Shift
+        from apps.client_onboarding.models import Shift
         from datetime import datetime, timedelta
 
         try:

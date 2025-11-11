@@ -25,6 +25,8 @@ import logging
 import warnings
 from django.utils import timezone
 
+from . import constants as people_constants
+
 logger = logging.getLogger("django")
 
 # Import all models from the refactored models/ directory
@@ -49,35 +51,7 @@ def peoplejson():
         DeprecationWarning,
         stacklevel=2
     )
-    return {
-        "andriodversion": "",
-        "appversion": "",
-        "mobilecapability": [],
-        "portletcapability": [],
-        "reportcapability": [],
-        "webcapability": [],
-        "noccapability": [],
-        "loacationtracking": False,
-        "capturemlog": False,
-        "showalltemplates": False,
-        "debug": False,
-        "showtemplatebasedonfilter": False,
-        "blacklist": False,
-        "assignsitegroup": [],
-        "tempincludes": [],
-        "mlogsendsto": "",
-        "user_type": "",
-        "secondaryemails": [],
-        "secondarymobno": [],
-        "isemergencycontact": False,
-        "alertmails": False,
-        "currentaddress": "",
-        "permanentaddress": "",
-        "isworkpermit_approver": False,
-        "userfor": "",
-        'enable_gps': False,
-        'noc_user': False
-    }
+    return people_constants.peoplejson()
 
 
 def upload_peopleimg(instance, filename):
@@ -96,6 +70,7 @@ def upload_peopleimg(instance, filename):
 
     Raises:
         ValidationError: If security validation fails
+        RuntimeError: When secure upload delegation is unavailable
 
     Migration:
         Old: peopleimg = models.ImageField(upload_to=upload_peopleimg)
@@ -117,7 +92,7 @@ def upload_peopleimg(instance, filename):
         return SecureFileUploadService.generate_secure_upload_path(instance, filename)
     except (ImportError, AttributeError, TypeError, ValueError) as e:
         logger.error(
-            "Failed to delegate to SecureFileUploadService, using fallback",
+            "Failed to delegate to SecureFileUploadService; rejecting upload path.",
             extra={
                 'error_type': type(e).__name__,
                 'instance_id': getattr(instance, 'id', None),
@@ -125,8 +100,9 @@ def upload_peopleimg(instance, filename):
             },
             exc_info=True
         )
-        # Fallback to safe default path
-        return "master/people/blank.png"
+        raise RuntimeError(
+            "Secure file upload service is unavailable; aborting insecure upload path."
+        ) from e
 
 
 def now():

@@ -19,6 +19,7 @@ Following .claude/rules.md:
 
 import logging
 from celery import shared_task, chord
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.utils import timezone
 from django.db import DatabaseError, IntegrityError, OperationalError
@@ -95,10 +96,44 @@ def detect_mentor_domain(report_id: int):
         from apps.report_generation.models import GeneratedReport
         
         report = GeneratedReport.objects.get(id=report_id)
+        try:
+            mentor_context_model = django_apps.get_model(
+                'report_generation',
+                'ReportMentorContext'
+            )
+        except LookupError:
+            mentor_context_model = None
+        
+        if mentor_context_model is None:
+            logger.warning(
+                "Mentor domain detection skipped for report %s: ReportMentorContext model missing",
+                report_id
+            )
+            return {
+                'report_id': report_id,
+                'success': False,
+                'status': 'skipped',
+                'reason': 'mentor_context_model_missing'
+            }
+        
+        context_fields = {field.name for field in mentor_context_model._meta.get_fields()}
+        if 'report' not in context_fields:
+            logger.error(
+                "Mentor context model missing 'report' relation; cannot persist detection for report %s",
+                report_id
+            )
+            return {
+                'report_id': report_id,
+                'success': False,
+                'status': 'skipped',
+                'reason': 'mentor_context_model_invalid'
+            }
         
         # Use MentorContextParser when implemented
         # For now, simple keyword detection
-        keywords = ' '.join(str(v) for v in report.report_data.values() if isinstance(v, str)).lower()
+        keywords = ' '.join(
+            str(v) for v in report.report_data.values() if isinstance(v, str)
+        ).lower()
         
         security_keywords = ['breach', 'theft', 'assault', 'intrusion', 'unauthorized', 'security']
         facility_keywords = ['pump', 'asset', 'maintenance', 'failure', 'breakdown', 'equipment']
@@ -111,15 +146,36 @@ def detect_mentor_domain(report_id: int):
             confidence = int((security_score / (security_score + facility_score)) * 100)
         elif facility_score > security_score:
             domain = 'facility'
-            confidence = int((facility_score / (security_score + facility_score)) * 100)
+            confidence = int((facility_score / (facility_score + security_score)) * 100)
         else:
             domain = 'hybrid'
             confidence = 50
         
-        # TODO: Create ReportMentorContext when model added
-        logger.info(f"Report {report_id} assigned to {domain} mentor (confidence: {confidence}%)")
+        defaults = {}
+        if 'domain' in context_fields:
+            defaults['domain'] = domain
+        if 'confidence' in context_fields:
+            defaults['confidence'] = confidence
+        if 'detected_at' in context_fields:
+            defaults['detected_at'] = timezone.now()
         
-        return {'report_id': report_id, 'domain': domain, 'confidence': confidence}
+        mentor_context_model.objects.update_or_create(
+            report=report,
+            defaults=defaults
+        )
+        logger.info(
+            "Report %s assigned to %s mentor (confidence: %s%%)",
+            report_id,
+            domain,
+            confidence
+        )
+        
+        return {
+            'report_id': report_id,
+            'domain': domain,
+            'confidence': confidence,
+            'success': True
+        }
         
     except Exception as e:
         logger.error(f"Error detecting mentor domain for report {report_id}: {e}", exc_info=True)
@@ -270,9 +326,11 @@ def analyze_attachment_async(self, attachment_id: int):
         from apps.report_generation.models import ReportAttachment
         
         attachment = ReportAttachment.objects.get(id=attachment_id)
+        metadata = attachment.metadata or {}
+        analysis_complete = False
         
         # TODO: Use MultimediaInterrogationService when implemented
-        # For now, basic EXIF extraction
+        # For now, basic EXIF extraction for photos and explicit warnings otherwise
         
         if attachment.attachment_type == 'photo':
             from PIL import Image
@@ -287,13 +345,33 @@ def analyze_attachment_async(self, attachment_id: int):
                 if 'Image Make' in tags and 'Image Model' in tags:
                     exif_data['device'] = f"{tags['Image Make']} {tags['Image Model']}"
                 
-                attachment.metadata['exif'] = exif_data
+                metadata['exif'] = exif_data
+                attachment.metadata = metadata
                 attachment.ai_analyzed = True
-                attachment.save()
+                attachment.save(update_fields=['metadata', 'ai_analyzed'])
+                analysis_complete = True
+        else:
+            warnings = metadata.get('analysis_warnings', [])
+            if 'multimedia_interrogation_pending' not in warnings:
+                warnings.append('multimedia_interrogation_pending')
+            metadata['analysis_warnings'] = warnings
+            metadata['pending_multimedia_analysis'] = True
+            attachment.metadata = metadata
+            attachment.save(update_fields=['metadata'])
+            logger.warning(
+                "Attachment %s (%s) skipped multimedia interrogation; operators notified",
+                attachment_id,
+                attachment.attachment_type
+            )
         
-        logger.info(f"Analyzed attachment {attachment_id}")
+        if analysis_complete:
+            logger.info(f"Analyzed attachment {attachment_id}")
         
-        return {'attachment_id': attachment_id, 'success': True}
+        return {
+            'attachment_id': attachment_id,
+            'success': analysis_complete,
+            'pending_multimedia': not analysis_complete
+        }
         
     except Exception as e:
         logger.error(f"Error analyzing attachment {attachment_id}: {e}", exc_info=True)

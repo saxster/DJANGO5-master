@@ -13,6 +13,7 @@ Phase: 2 - Post Assignment Model
 """
 
 from django.db import models
+from django.db.models import Q
 from django.contrib.gis.db.models import PointField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
@@ -341,27 +342,129 @@ class Post(BaseModel, TenantAwareModel):
         Returns:
             tuple: (qualified: bool, missing_requirements: list)
         """
-        missing = []
+        from apps.peoples.models import People
+        from apps.core_onboarding.models import TypeAssist
 
-        # Check armed requirement
-        if self.armed_required:
-            # TODO: Check guard's armed certification
-            # if not guard.has_armed_certification():
-            #     missing.append("Armed guard certification")
-            pass
+        def _normalize_collection(raw_value):
+            ids, codes = set(), set()
+            if not raw_value:
+                return ids, codes
 
-        # Check required certifications
-        required_certs = set(self.required_certifications.values_list('id', flat=True))
-        if required_certs:
-            # TODO: Get guard's certifications
-            # guard_certs = set(guard.certifications.values_list('id', flat=True))
-            # missing_certs = required_certs - guard_certs
-            # if missing_certs:
-            #     cert_names = TypeAssist.objects.filter(id__in=missing_certs).values_list('taname', flat=True)
-            #     missing.extend(cert_names)
-            pass
+            iterable = raw_value
+            if isinstance(raw_value, str):
+                iterable = [entry.strip() for entry in raw_value.split(',') if entry.strip()]
+            elif isinstance(raw_value, dict):
+                # When stored as {"code": "..."} or {"items": [...]}
+                possible = []
+                if 'items' in raw_value and isinstance(raw_value['items'], (list, tuple, set)):
+                    possible = raw_value['items']
+                else:
+                    possible = raw_value.values()
+                iterable = possible
 
-        return (len(missing) == 0, missing)
+            if isinstance(iterable, (list, tuple, set)):
+                for entry in iterable:
+                    candidate = entry
+                    if isinstance(entry, dict):
+                        candidate = entry.get('code') or entry.get('tacode') or entry.get('id')
+
+                    if candidate is None:
+                        continue
+
+                    if isinstance(candidate, int):
+                        ids.add(candidate)
+                        continue
+
+                    candidate_str = str(candidate).strip()
+                    if not candidate_str:
+                        continue
+                    try:
+                        ids.add(int(candidate_str))
+                        continue
+                    except (TypeError, ValueError):
+                        codes.add(candidate_str)
+            return ids, codes
+
+        def _extract_certifications_from_metadata(metadata_source):
+            cert_ids, cert_codes = set(), set()
+            if not isinstance(metadata_source, dict):
+                return cert_ids, cert_codes
+
+            metadata_keys = (
+                'certifications',
+                'certifications_completed',
+                'certification_codes',
+                'certifications_codes',
+            )
+
+            for key in metadata_keys:
+                ids, codes = _normalize_collection(metadata_source.get(key))
+                cert_ids.update(ids)
+                cert_codes.update(codes)
+            return cert_ids, cert_codes
+
+        def _has_armed_authorization(person):
+            # Prefer explicit metadata flags
+            flag_keys = ('armed_guard_certified', 'armed_guard_ready', 'armed_training_complete')
+            for source in (person.people_extras or {}, person.capabilities or {}):
+                if not isinstance(source, dict):
+                    continue
+                if any(source.get(flag) for flag in flag_keys):
+                    return True
+
+            # Fall back to certified skills mentioning armed capability
+            return person.skills.filter(
+                certified=True,
+                category__tatype__tacode='CERTIFICATION'
+            ).filter(
+                Q(category__taname__icontains='armed') | Q(category__tacode__icontains='ARMED')
+            ).exists()
+
+        missing_requirements: list[str] = []
+
+        if guard is None:
+            return (False, ['Guard not provided'])
+
+        guard_instance = guard
+        if not isinstance(guard_instance, People):
+            guard_instance = People.objects.filter(pk=guard).first()
+            if guard_instance is None:
+                return (False, ['Guard not found'])
+
+        required_certifications = list(self.required_certifications.all())
+
+        guard_cert_ids = set(
+            guard_instance.skills.filter(
+                certified=True,
+                category__tatype__tacode='CERTIFICATION'
+            ).values_list('category_id', flat=True)
+        )
+
+        # Include IDs/codes stored in people_extras or capabilities JSON blobs
+        extra_ids = set()
+        extra_codes = set()
+        metadata_sources = (guard_instance.people_extras or {}, guard_instance.capabilities or {})
+        for metadata in metadata_sources:
+            ids, codes = _extract_certifications_from_metadata(metadata)
+            extra_ids.update(ids)
+            extra_codes.update(codes)
+
+        guard_cert_ids.update(extra_ids)
+        if extra_codes:
+            extra_lookup_ids = TypeAssist.objects.filter(
+                tatype__tacode='CERTIFICATION',
+                tacode__in=list(extra_codes)
+            ).values_list('id', flat=True)
+            guard_cert_ids.update(extra_lookup_ids)
+
+        for cert in required_certifications:
+            if cert.id not in guard_cert_ids:
+                missing_requirements.append(cert.taname or cert.tacode or f"Certification {cert.id}")
+
+        if self.armed_required and not _has_armed_authorization(guard_instance):
+            missing_requirements.append(str(_('Armed guard certification')))
+
+        return (len(missing_requirements) == 0, missing_requirements)
 
     def get_current_assignments(self, date=None):
         """

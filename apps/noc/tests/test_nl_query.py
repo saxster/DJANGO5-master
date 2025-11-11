@@ -75,7 +75,7 @@ class QueryExecutorTestCase(TestCase):
     def setUp(self):
         """Set up test fixtures."""
         from apps.tenants.models import Tenant
-        from apps.onboarding.models import Bt, Identifier
+        from apps.client_onboarding.models import Bt
 
         # Create tenant
         self.tenant = Tenant.objects.create(name="Test Tenant")
@@ -89,17 +89,11 @@ class QueryExecutorTestCase(TestCase):
             isadmin=True
         )
 
-        # Create client identifier
-        self.client_identifier = Identifier.objects.create(
-            tacode='CLIENT',
-            tenant=self.tenant
-        )
-
-        # Create test client
+        # NOTE: Identifier model removed (was not in bounded context migration)
+        # Create test client without identifier (field may be nullable)
         self.client = Bt.objects.create(
             btname='Test Client',
-            tenant=self.tenant,
-            identifier=self.client_identifier
+            tenant=self.tenant
         )
 
     def test_execute_alerts_query(self):

@@ -11,12 +11,14 @@ Compliance:
 """
 
 import logging
+from contextlib import nullcontext
 from datetime import date
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Iterable, Tuple
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction
-from django.db.models import Avg, StdDev, Count, Q
+from django.db.models import Avg, StdDev, Count, Q, Max, Min
 from django.utils import timezone
 
 from apps.peoples.models import People
@@ -59,6 +61,7 @@ class MetricsAggregator:
     Main entry point for daily/nightly performance aggregation.
     Coordinates individual calculators and updates all metric records.
     """
+    WORKER_BATCH_SIZE = getattr(settings, 'PERF_ANALYTICS_WORKER_BATCH_SIZE', 50)
     
     def __init__(self):
         """Initialize all calculator services."""
@@ -70,57 +73,166 @@ class MetricsAggregator:
         self.bpi_calc = BalancedPerformanceIndexCalculator()
         self.cohort_analyzer = CohortAnalyzer()
     
-    def aggregate_all_metrics(self, target_date: date) -> Dict:
-        """
-        Main orchestrator for daily aggregation.
-        
-        Args:
-            target_date: Date to aggregate metrics for
-        
-        Returns:
-            Summary dict with counts and errors
-        """
+    @classmethod
+    def aggregate_all_metrics(cls, target_date: date) -> Dict:
+        """Class-level entry point to aggregate all metrics."""
+        return cls()._aggregate_all_metrics(target_date)
+
+    def _aggregate_all_metrics(self, target_date: date) -> Dict:
+        """Main orchestrator for daily aggregation."""
         summary = {
             'date': target_date,
             'workers_processed': 0,
-            'teams_processed': 0,
+            'teams_updated': 0,
             'errors': [],
+            'summary_stats': {},
         }
         
-        active_workers = People.objects.filter(
-            is_active=True,
-            organizational__employmentstatus='Active'
-        )
+        worker_qs = self._get_active_workers_queryset()
+        for scope, workers in self._iter_workers_by_scope(worker_qs):
+            self._process_worker_scope_batch(scope, workers, target_date, summary)
         
-        for worker in active_workers:
-            try:
-                self.aggregate_worker_metrics(worker, target_date)
-                summary['workers_processed'] += 1
-            except (DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
-                logger.error(
-                    f"Error aggregating metrics for {worker.loginid}: {e}",
-                    exc_info=True
-                )
-                summary['errors'].append(str(e))
-        
-        sites = Bt.objects.filter(is_active=True)
-        for site in sites:
-            try:
-                self.aggregate_team_metrics(site, target_date)
-                summary['teams_processed'] += 1
-            except DATABASE_EXCEPTIONS as e:
-                logger.error(
-                    f"Error aggregating team metrics for {site.abbr}: {e}",
-                    exc_info=True
-                )
-                summary['errors'].append(str(e))
+        self._aggregate_active_sites(target_date, summary)
+        summary['summary_stats'] = self._get_summary_stats(target_date)
+        # Backwards compatibility for older callers still reading teams_processed
+        summary['teams_processed'] = summary['teams_updated']
         
         return summary
-    
-    def aggregate_worker_metrics(
+
+    def _get_active_workers_queryset(self):
+        """Return optimized queryset of active workers for batching."""
+        return (
+            People.objects.filter(
+                is_active=True,
+                organizational__employmentstatus='Active'
+            )
+            .select_related('tenant', 'organizational__site')
+            .order_by('tenant_id', 'organizational__site_id', 'id')
+        )
+
+    def _iter_workers_by_scope(
         self,
+        queryset
+    ) -> Iterable[Tuple[Tuple[Optional[int], Optional[int]], List[People]]]:
+        """Yield workers grouped by (tenant_id, site_id) scopes in batches."""
+        batch: List[People] = []
+        current_scope: Optional[Tuple[Optional[int], Optional[int]]] = None
+        for worker in queryset.iterator(chunk_size=self.WORKER_BATCH_SIZE):
+            site_id = getattr(getattr(worker, 'organizational', None), 'site_id', None)
+            scope = (worker.tenant_id, site_id)
+            if current_scope is None:
+                current_scope = scope
+            if scope != current_scope or len(batch) >= self.WORKER_BATCH_SIZE:
+                if batch:
+                    yield current_scope, batch
+                batch = []
+                current_scope = scope
+            batch.append(worker)
+        if batch:
+            yield current_scope, batch
+
+    def _process_worker_scope_batch(
+        self,
+        scope: Tuple[Optional[int], Optional[int]],
+        workers: List[People],
+        target_date: date,
+        summary: Dict
+    ) -> None:
+        """Process a batch of workers sharing the same tenant/site scope."""
+        if not workers:
+            return
+        tenant_id, site_id = scope
+        with transaction.atomic():
+            for worker in workers:
+                savepoint = transaction.savepoint()
+                try:
+                    self._aggregate_worker_metrics(
+                        worker,
+                        target_date,
+                        use_transaction=False
+                    )
+                    transaction.savepoint_commit(savepoint)
+                    summary['workers_processed'] += 1
+                except (DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
+                    transaction.savepoint_rollback(savepoint)
+                    logger.error(
+                        "Error aggregating metrics for %s (tenant=%s, site=%s): %s",
+                        worker.loginid,
+                        tenant_id,
+                        site_id,
+                        e,
+                        exc_info=True
+                    )
+                    summary['errors'].append(str(e))
+
+    def _aggregate_active_sites(self, target_date: date, summary: Dict) -> None:
+        """Aggregate team metrics for all active sites."""
+        sites = Bt.objects.filter(is_active=True).select_related('tenant')
+        for site in sites.iterator():
+            try:
+                team_metrics = self._aggregate_team_metrics(site, target_date)
+                if team_metrics:
+                    summary['teams_updated'] += 1
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(
+                    "Error aggregating team metrics for %s: %s",
+                    site.abbr,
+                    e,
+                    exc_info=True
+                )
+                summary['errors'].append(str(e))
+
+    def _get_summary_stats(self, target_date: date) -> Dict:
+        """Summarize aggregation results using staging tables."""
+        worker_metrics = WorkerDailyMetrics.objects.filter(date=target_date)
+        team_metrics = TeamDailyMetrics.objects.filter(date=target_date)
+        worker_count = worker_metrics.count()
+        if worker_count == 0:
+            return {
+                'workers': 0,
+                'avg_bpi': 0,
+                'max_bpi': 0,
+                'min_bpi': 0,
+                'exceptional_workers': 0,
+                'needs_support_workers': 0,
+                'teams': team_metrics.count(),
+                'avg_team_bpi': 0,
+            }
+        worker_aggregates = worker_metrics.aggregate(
+            avg_bpi=Avg('balanced_performance_index'),
+            max_bpi=Max('balanced_performance_index'),
+            min_bpi=Min('balanced_performance_index')
+        )
+        team_avg = team_metrics.aggregate(avg=Avg('team_bpi_avg'))['avg'] or 0
+        return {
+            'workers': worker_count,
+            'avg_bpi': worker_aggregates['avg_bpi'] or 0,
+            'max_bpi': worker_aggregates['max_bpi'] or 0,
+            'min_bpi': worker_aggregates['min_bpi'] or 0,
+            'exceptional_workers': worker_metrics.filter(
+                performance_band='exceptional'
+            ).count(),
+            'needs_support_workers': worker_metrics.filter(
+                performance_band__in=['developing', 'needs_support']
+            ).count(),
+            'teams': team_metrics.count(),
+            'avg_team_bpi': team_avg,
+        }
+    
+    @classmethod
+    def aggregate_worker_metrics(
+        cls,
         worker: People,
         target_date: date
+    ) -> WorkerDailyMetrics:
+        """Class-level helper for aggregating a single worker."""
+        return cls()._aggregate_worker_metrics(worker, target_date)
+
+    def _aggregate_worker_metrics(
+        self,
+        worker: People,
+        target_date: date,
+        use_transaction: bool = True
     ) -> WorkerDailyMetrics:
         """
         Aggregate all metrics for a single worker on target date.
@@ -128,11 +240,13 @@ class MetricsAggregator:
         Args:
             worker: Worker to aggregate metrics for
             target_date: Date to calculate metrics for
+            use_transaction: Wrap writes in transaction.atomic when True
         
         Returns:
             Created/updated WorkerDailyMetrics record
         """
-        with transaction.atomic():
+        context = transaction.atomic if use_transaction else nullcontext
+        with context():
             attendance_data = self.attendance_calc.calculate_metrics(
                 worker, target_date
             )
@@ -177,7 +291,17 @@ class MetricsAggregator:
             
             return metrics
     
+    @classmethod
     def aggregate_team_metrics(
+        cls,
+        site: Bt,
+        target_date: date,
+        shift_type: Optional[str] = None
+    ) -> TeamDailyMetrics:
+        """Class-level helper for aggregating team metrics."""
+        return cls()._aggregate_team_metrics(site, target_date, shift_type)
+
+    def _aggregate_team_metrics(
         self,
         site: Bt,
         target_date: date,

@@ -268,7 +268,7 @@ def generate_cost_dashboards_task(self, tenant_id: int):
         dict: Generation results
     """
     try:
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         
         # Get all sites for tenant
         sites = Bt.objects.filter(tenant_id=tenant_id)

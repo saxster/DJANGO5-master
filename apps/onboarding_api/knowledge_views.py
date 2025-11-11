@@ -23,12 +23,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.paginator import Paginator
 
-from apps.onboarding.models import (
+from apps.client_onboarding.models import (
     KnowledgeSource,
     KnowledgeIngestionJob,
-    AuthoritativeKnowledge,
-    KnowledgeReview,
+    KnowledgeReview
 )
+from apps.core_onboarding.models import AuthoritativeKnowledge
 from apps.core_onboarding.services.knowledge.exceptions import (
     DocumentParseError,
     SecurityError

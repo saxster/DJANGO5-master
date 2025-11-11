@@ -303,7 +303,7 @@ def create_attendance_mismatch_ticket(worker_id, site_id, reason, details, gps_l
     """
     try:
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.y_helpdesk.models import Ticket
 
         # Get worker and site details

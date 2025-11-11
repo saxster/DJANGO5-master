@@ -16,7 +16,7 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from django.contrib.gis.geos import Point
 
 from apps.attendance.models import Post, PostAssignment, PostOrderAcknowledgement
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.peoples.models import People
 
 

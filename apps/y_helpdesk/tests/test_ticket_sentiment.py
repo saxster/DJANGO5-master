@@ -34,7 +34,7 @@ from apps.y_helpdesk.tasks.sentiment_analysis_tasks import (
 def mock_ticket(db):
     """Create a mock ticket for testing."""
     from apps.peoples.models import People
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     from apps.tenants.models import Tenant
 
     # Create tenant
@@ -66,7 +66,7 @@ def mock_ticket(db):
 @pytest.fixture
 def negative_ticket(db):
     """Create a ticket with negative sentiment text."""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     from apps.tenants.models import Tenant
 
     tenant = Tenant.objects.create(name="Test Tenant", subdomain="test")
@@ -91,7 +91,7 @@ def negative_ticket(db):
 @pytest.fixture
 def positive_ticket(db):
     """Create a ticket with positive sentiment text."""
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     from apps.tenants.models import Tenant
 
     tenant = Tenant.objects.create(name="Test Tenant", subdomain="test")
@@ -357,7 +357,7 @@ class TestSignalHandlers:
     @patch('apps.y_helpdesk.tasks.sentiment_analysis_tasks.AnalyzeTicketSentimentTask.delay')
     def test_signal_triggers_on_ticket_creation(self, mock_delay, db):
         """Test signal triggers sentiment analysis on ticket creation."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.tenants.models import Tenant
 
         tenant = Tenant.objects.create(name="Test", subdomain="test")
@@ -425,7 +425,7 @@ class TestCeleryTasks:
 
     def test_bulk_analyze_task_processes_multiple_tickets(self, db):
         """Test bulk analysis task."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.tenants.models import Tenant
 
         tenant = Tenant.objects.create(name="Test", subdomain="test")
@@ -463,7 +463,7 @@ class TestEdgeCases:
 
     def test_empty_ticket_description(self, db):
         """Test handling of empty ticket description."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.tenants.models import Tenant
 
         tenant = Tenant.objects.create(name="Test", subdomain="test")

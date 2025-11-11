@@ -110,6 +110,11 @@ from .sync_analytics import (
     SyncAnalyticsSnapshot,
     SyncDeviceHealth,
 )
+from .sync_payloads import (
+    BehavioralSyncEvent,
+    SessionSyncEvent,
+    DeviceMetricSnapshot,
+)
 
 # Query performance monitoring
 from .query_performance import (
@@ -255,6 +260,9 @@ __all__ = [
     # Sync analytics
     "SyncAnalyticsSnapshot",
     "SyncDeviceHealth",
+    "BehavioralSyncEvent",
+    "SessionSyncEvent",
+    "DeviceMetricSnapshot",
     # Query performance
     "QueryPerformanceSnapshot",
     "SlowQueryAlert",
