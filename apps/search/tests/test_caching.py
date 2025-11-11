@@ -7,7 +7,6 @@ Test Coverage:
 - Cache hit/miss tracking
 - TTL expiration (5 minutes)
 - Tenant isolation
-- Cache invalidation
 - Cache analytics
 - Performance benchmarks
 
@@ -166,20 +165,6 @@ class SearchCacheServiceTestCase(TestCase):
         cached_2 = cache_service_2.get_cached_results('test', ['asset'], {})
         self.assertEqual(cached_2, test_results_tenant2)
 
-    def test_cache_invalidation_on_entity_update(self):
-        """Test cache invalidation when entity is updated."""
-        test_results = {'results': [{'id': 1, 'title': 'Old Title'}], 'count': 1}
-
-        # Cache results
-        self.cache_service.cache_results('test', ['asset'], {}, test_results)
-
-        # Invalidate cache for entity
-        self.cache_service.invalidate_entity_cache('asset', entity_id=1)
-
-        # Should be cache miss after invalidation
-        cached = self.cache_service.get_cached_results('test', ['asset'], {})
-        # Note: Basic implementation might not support entity-specific invalidation
-        # This test documents expected behavior
 
     def test_cache_analytics_tracking(self):
         """Test that cache analytics are tracked."""

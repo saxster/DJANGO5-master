@@ -37,7 +37,7 @@ from apps.core.validation import XSSPrevention
 # from apps.face_recognition.services import get_face_recognition_service  # Unused import - removed Oct 2025
 from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
-from apps.reminder.models import Reminder
+from apps.scheduler.models.reminder import Reminder
 from apps.reports import utils as rutils
 from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (

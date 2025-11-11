@@ -1,12 +1,11 @@
 """
 Search Caching Service
 
-Redis-backed caching for search results with intelligent invalidation.
+Redis-backed caching for search results.
 
 Features:
 - 5-minute TTL for search results
 - Cache key based on query + filters + permissions
-- Automatic invalidation on entity updates
 - Cache hit/miss analytics
 - Graceful degradation if Redis unavailable
 
@@ -15,6 +14,8 @@ Compliance with .claude/rules.md:
 - Rule #7: Service < 150 lines
 - Rule #11: Specific exception handling
 - Rule #12: Database query optimization
+
+Note: Cache invalidation is not implemented. Results expire naturally via TTL.
 """
 
 import logging
@@ -163,38 +164,10 @@ class SearchCacheService:
             )
             return False
 
-    def invalidate_entity_cache(self, entity_type: str, entity_id: str):
-        """
-        Invalidate cache for specific entity when it's updated.
-
-        Args:
-            entity_type: Type of entity (e.g., 'people', 'ticket')
-            entity_id: ID of the entity that was updated
-        """
-        try:
-            # Generate invalidation pattern
-            invalidation_pattern = f"{self.CACHE_PREFIX}:*{entity_type}*"
-
-            # Note: Django cache doesn't support pattern-based deletion
-            # This would require Redis directly or cache versioning
-            # For now, we'll track invalidation requests
-
-            logger.info(
-                f"Cache invalidation requested for {entity_type}:{entity_id}",
-                extra={
-                    'entity_type': entity_type,
-                    'entity_id': entity_id,
-                    'tenant_id': self.tenant_id,
-                }
-            )
-
-            # Future enhancement: Implement cache versioning or Redis pattern deletion
-
-        except (ConnectionError, TimeoutError) as e:
-            logger.warning(
-                f"Cache invalidation failed: {e}",
-                exc_info=True
-            )
+    # TODO: Implement cache invalidation when needed
+    # Options: versioned keys or direct Redis pattern deletion
+    # Removed Nov 2025: invalidate_entity_cache() was a no-op that only logged
+    # See: apps/search/services/caching_service.py (git history for reference)
 
     def get_cache_analytics(self) -> Dict[str, Any]:
         """

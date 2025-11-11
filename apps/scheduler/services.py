@@ -18,100 +18,10 @@ from apps.core.utils_new.db_utils import get_current_db_name
 logger = logging.getLogger(__name__)
 
 
-class TourJobService:
-    """Service for tour job related business logic."""
-
-    @staticmethod
-    def create_tour_job(job_data, assigned_checkpoints, user, session):
-        """
-        Create a new tour job with its checkpoints.
-
-        Args:
-            job_data: Dictionary containing job information
-            assigned_checkpoints: List of checkpoint data
-            user: User creating the job
-            session: User session data
-
-        Returns:
-            tuple: (job_instance, success_boolean)
-
-        Raises:
-            IntegrityError: If database constraints are violated
-            ValueError: If data is invalid
-        """
-        try:
-            with transaction.atomic(using=get_current_db_name()):
-                # Create main job
-                job = Job.objects.create(**job_data)
-                job.parent_id = DatabaseConstants.ID_ROOT
-                job.asset_id = DatabaseConstants.ID_NONE
-                job.qset_id = DatabaseConstants.ID_NONE
-                job.save()
-
-                # Save user information
-                from apps.peoples import utils as putils
-                job = putils.save_userinfo(job, user, session, create=True)
-
-                # Create checkpoints
-                TourJobService._create_checkpoints(assigned_checkpoints, job, user, session)
-
-                logger.info(f"Tour job '{job.jobname}' created successfully with {len(assigned_checkpoints)} checkpoints")
-                return job, True
-
-        except IntegrityError as e:
-            logger.error(f"Database integrity error creating tour job: {e}", exc_info=True)
-            raise
-        except (ValueError, KeyError) as e:
-            logger.error(f"Invalid data for tour job creation: {e}", exc_info=True)
-            raise
-        except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.critical(f"Unexpected error creating tour job: {e}", exc_info=True)
-            raise
-
-    @staticmethod
-    def _create_checkpoints(checkpoints, parent_job, user, session):
-        """
-        Create checkpoints for a tour job.
-
-        Args:
-            checkpoints: List of checkpoint data
-            parent_job: Parent Job instance
-            user: User creating checkpoints
-            session: User session data
-        """
-        import apps.scheduler.utils as sutils
-        from apps.peoples import utils as putils
-
-        logger.info(f"Creating {len(checkpoints)} checkpoints for job {parent_job.jobname}")
-
-        for cp in checkpoints:
-            try:
-                checkpoint_data = {
-                    'parent_id': parent_job.id,
-                    'asset_id': cp[1],
-                    'qset_id': cp[3],
-                    'seqno': cp[0],
-                    'expirytime': cp[5],
-                }
-
-                # Merge additional job fields
-                checkpoint_data.update(sutils.job_fields(parent_job, cp))
-
-                checkpoint, created = Job.objects.update_or_create(
-                    parent_id=parent_job.id,
-                    asset_id=cp[1],
-                    qset_id=cp[3],
-                    defaults=checkpoint_data
-                )
-
-                putils.save_userinfo(checkpoint, user, session, create=created)
-
-                status = "CREATED" if created else "UPDATED"
-                logger.debug(f"Checkpoint {cp[2]} {status} for job {parent_job.jobname}")
-
-            except (IndexError, ValueError) as e:
-                logger.error(f"Invalid checkpoint data: {cp}, error: {e}", exc_info=True)
-                raise ValueError(f"Invalid checkpoint data at index: {checkpoints.index(cp)}")
+# TourJobService removed - functionality exists in:
+# - apps/scheduler/services/scheduling_service.py (SchedulingService)
+# - apps/scheduler/services/internal_tour_service.py (InternalTourService)
+# Dead code with missing imports: Job, DatabaseConstants, DatabaseError, ObjectDoesNotExist
 
 
 class TaskJobService:
