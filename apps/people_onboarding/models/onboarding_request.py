@@ -134,14 +134,12 @@ class OnboardingRequest(EnhancedTenantModel):
 
     def can_transition_to(self, new_state):
         """Validate if transition to new state is allowed"""
-        valid_transitions = {
-            self.WorkflowState.DRAFT: [self.WorkflowState.SUBMITTED, self.WorkflowState.CANCELLED],
-            self.WorkflowState.SUBMITTED: [self.WorkflowState.DOCUMENT_VERIFICATION, self.WorkflowState.REJECTED],
-            self.WorkflowState.DOCUMENT_VERIFICATION: [self.WorkflowState.BACKGROUND_CHECK, self.WorkflowState.REJECTED],
-            self.WorkflowState.BACKGROUND_CHECK: [self.WorkflowState.PENDING_APPROVAL, self.WorkflowState.REJECTED],
-            self.WorkflowState.PENDING_APPROVAL: [self.WorkflowState.APPROVED, self.WorkflowState.REJECTED],
-            self.WorkflowState.APPROVED: [self.WorkflowState.PROVISIONING],
-            self.WorkflowState.PROVISIONING: [self.WorkflowState.TRAINING],
-            self.WorkflowState.TRAINING: [self.WorkflowState.COMPLETED],
-        }
-        return new_state in valid_transitions.get(self.current_state, [])
+        from apps.people_onboarding.utils import can_transition_to as validate_transition
+        return validate_transition(self.current_state, new_state)
+
+    def save(self, *args, **kwargs):
+        """Override save to auto-generate request_number if not set"""
+        if not self.request_number:
+            from apps.people_onboarding.utils import generate_request_number
+            self.request_number = generate_request_number()
+        super().save(*args, **kwargs)

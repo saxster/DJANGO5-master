@@ -77,8 +77,8 @@ MIDDLEWARE = [
     # Layer 9: Authentication and Authorization
     # ========================================================================
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "apps.onboarding_api.middleware.OnboardingAPIMiddleware",
-    "apps.onboarding_api.middleware.OnboardingAuditMiddleware",
+    # Removed: apps.onboarding_api middleware (orphaned app, not in INSTALLED_APPS)
+    # See: apps/onboarding_api/DEPRECATION_NOTICE.md
     "apps.attendance.middleware.AttendanceAuditMiddleware",  # Attendance access audit logging (Nov 2025)
 
     # ========================================================================

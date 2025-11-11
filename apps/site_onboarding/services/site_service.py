@@ -53,7 +53,9 @@ class SiteService:
         observation_id: str = None,
         text_input: str = None,
         audio_file=None,
-        media_ids: List[str] = None
+        media_ids: List[str] = None,
+        user=None,
+        conversation_session_id: str = None
     ) -> Dict:
         """
         Add observation to site with 0-N media attachments.
@@ -65,14 +67,61 @@ class SiteService:
             text_input: Text description (if not voice)
             audio_file: Audio file (if not text)
             media_ids: List of OnboardingMedia UUIDs (0 to N)
+            user: Authenticated user (REQUIRED for authorization)
+            conversation_session_id: Conversation session for ownership validation
 
         Returns:
             Dict with observation details
+
+        Raises:
+            ValueError: If user is None
+            PermissionDenied: If user doesn't own the site
+            ValidationError: If site doesn't exist or conversation mismatch
+
+        Security:
+            - Validates site ownership via conversation session
+            - Validates media ownership before linking
+            - Enforces tenant isolation
         """
-        from apps.core_onboarding.models import OnboardingMedia
+        from apps.core_onboarding.models import OnboardingMedia, ConversationSession
+        from django.core.exceptions import PermissionDenied, ValidationError
+
+        if not user:
+            raise ValueError("User is required for observation creation")
+
+        # ✅ VALIDATE: Site ownership via conversation session
+        try:
+            site = OnboardingSite.objects.select_related('conversation_session').get(
+                site_id=site_id
+            )
+
+            # Check user owns the conversation session
+            if site.conversation_session.user != user:
+                raise PermissionDenied(
+                    f"User {user.id} does not own site {site_id}"
+                )
+
+            # Optional: Validate conversation_session_id matches
+            if conversation_session_id and str(site.conversation_session.session_id) != conversation_session_id:
+                raise ValidationError(
+                    f"Site {site_id} belongs to different conversation session"
+                )
+
+        except OnboardingSite.DoesNotExist:
+            raise ValidationError(f"Site {site_id} not found")
 
         if observation_id:
-            obs = OnboardingObservation.objects.get(observation_id=observation_id)
+            # ✅ VALIDATE: Observation belongs to this site and user
+            try:
+                obs = OnboardingObservation.objects.get(
+                    observation_id=observation_id,
+                    context_type='SITE',
+                    context_object_id=site_id
+                )
+                # TODO: Add created_by field to OnboardingObservation model
+                # For now, we validate via site ownership (already checked above)
+            except OnboardingObservation.DoesNotExist:
+                raise ValidationError(f"Observation {observation_id} not found for site {site_id}")
         else:
             # Create new observation
             obs = OnboardingObservation.objects.create(
@@ -82,9 +131,23 @@ class SiteService:
                 audio_file=audio_file
             )
 
-        # Link 0-N media
+        # ✅ VALIDATE: Media ownership before linking
         if media_ids:
-            media_objects = OnboardingMedia.objects.filter(media_id__in=media_ids)
+            # Only allow media that exists and belongs to this site context
+            media_objects = OnboardingMedia.objects.filter(
+                media_id__in=media_ids,
+                context_type='SITE',
+                context_object_id=site_id
+            )
+
+            # Verify all media_ids were valid and owned
+            if media_objects.count() != len(media_ids):
+                found_ids = set(str(m.media_id) for m in media_objects)
+                invalid_ids = set(media_ids) - found_ids
+                raise PermissionDenied(
+                    f"Media not found or not owned by user: {invalid_ids}"
+                )
+
             obs.media.add(*media_objects)
 
         return {
