@@ -105,6 +105,33 @@ grep -r "clientbilling" apps/
 
 ---
 
+### 2025-11-11: Additional Backup Files (Final Verification)
+
+**Files Removed:**
+- `apps/peoples/forms.py.backup` (26KB)
+- `apps/reports/forms.py.backup` (21KB)
+
+**Reason**:
+- Stale backup files from Phase 1-6 refactoring work
+- Current code refactored into `forms/` directories
+- Both apps now use modular forms structure
+- Git-tracked backups violate git hygiene
+
+**Impact**: None - code successfully refactored into directory structure
+
+**Verification**:
+```bash
+# Current structure
+ls apps/peoples/forms/  # Directory with multiple form files
+ls apps/reports/forms/  # Directory with multiple form files
+```
+
+**Discovered During**: Final verification (Task 8) - cleanup sweep for backup files
+
+**Commit**: [TBD - add commit hash]
+
+---
+
 ## Guidelines for This File
 
 ### When to Add Entries
