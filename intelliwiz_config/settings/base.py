@@ -219,6 +219,15 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # ============================================================================
+# CACHE SECURITY CONFIGURATION
+# ============================================================================
+# Cache security settings to prevent cache poisoning attacks
+# Configuration centralized in settings/cache_security.py
+# ============================================================================
+
+from .cache_security import CACHE_SECURITY
+
+# ============================================================================
 # UNFOLD ADMIN THEME CONFIGURATION
 # ============================================================================
 # Modern admin interface with organized model grouping and enhanced UX
