@@ -227,7 +227,8 @@ class CalendarAggregationService:
             return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
         if not value:
             raise ValueError("Missing datetime value")
-        parsed = datetime.fromisoformat(str(value))
+        value_str = str(value).replace('Z', '+00:00')  # Handle Zulu time
+        parsed = datetime.fromisoformat(value_str)
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return parsed

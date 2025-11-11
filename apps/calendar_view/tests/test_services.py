@@ -116,3 +116,24 @@ class CalendarAggregationServiceTests(SimpleTestCase):
         result = service.get_events(params)
         self.assertEqual(len(result.events), 1)
         self.assertEqual(result.events[0].id, "2")
+
+    def test_datetime_coercion_handles_zulu_time(self):
+        """Test that _coerce_datetime handles Z suffix (ISO8601 Zulu time)."""
+        # Test string with Z suffix
+        result = CalendarAggregationService._coerce_datetime("2025-11-11T10:00:00Z")
+        self.assertEqual(result.year, 2025)
+        self.assertEqual(result.month, 11)
+        self.assertEqual(result.day, 11)
+        self.assertEqual(result.hour, 10)
+        self.assertIsNotNone(result.tzinfo)
+
+        # Test string without Z suffix
+        result_no_z = CalendarAggregationService._coerce_datetime("2025-11-11T10:00:00+00:00")
+        self.assertEqual(result_no_z.year, 2025)
+        self.assertIsNotNone(result_no_z.tzinfo)
+
+        # Test already aware datetime
+        aware_dt = datetime(2025, 11, 11, 10, 0, 0, tzinfo=timezone.utc)
+        result_aware = CalendarAggregationService._coerce_datetime(aware_dt)
+        self.assertEqual(result_aware, aware_dt)
+        self.assertIsNotNone(result_aware.tzinfo)

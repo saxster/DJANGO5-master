@@ -520,7 +520,8 @@ class EmergencyAssignmentService:
                 if auto_expire_str:
                     auto_expire_dt = datetime.fromisoformat(auto_expire_str)
                     if isinstance(auto_expire_dt, datetime):
-                        auto_expire_dt = timezone.make_aware(auto_expire_dt)
+                        if timezone.is_naive(auto_expire_dt):
+                            auto_expire_dt = timezone.make_aware(auto_expire_dt)
 
                     if now >= auto_expire_dt:
                         # Mark as completed if checked in, cancelled otherwise
