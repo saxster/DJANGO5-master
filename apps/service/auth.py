@@ -1,3 +1,34 @@
+"""
+DEPRECATED: Legacy GraphQL authentication module with critical security bugs.
+
+**Status**: Deprecated as of November 2025
+**Removal**: Scheduled for March 2026
+**Migration**: Use apps.peoples.services.authentication_service instead
+
+**Known Security Issues**:
+1. KeyError risk on missing bupreferences["validip"]/["validimei"] keys
+2. Security bypass: allowAccess unconditionally reset to True (line 82)
+   - IP validation is completely bypassed
+   - Device validation is ignored
+3. Inconsistent authentication logic between auth_check() and authenticate_user()
+
+**Why Deprecated**:
+- Never called in production (confirmed via codebase analysis Nov 2025)
+- Contains exploitable security vulnerabilities
+- Modern authentication available in apps.peoples.services.authentication_service
+- Part of legacy GraphQL API being phased out
+
+**Migration Path**:
+Replace usage with apps.peoples.services.authentication_service:
+    from apps.peoples.services.authentication_service import (
+        authenticate_user_with_device,
+        validate_user_access
+    )
+
+See: apps/service/DEPRECATION_NOTICE.md for complete migration guide
+
+DO NOT USE THIS MODULE IN NEW CODE.
+"""
 from apps.core.exceptions import (
     NoClientPeopleError,
     MultiDevicesError,
@@ -8,6 +39,7 @@ from apps.core.exceptions import (
 )
 from apps.peoples.models import People
 from logging import getLogger
+import warnings
 
 log = getLogger("mobile_service_log")
 
@@ -27,6 +59,18 @@ class Messages:
 
 
 def LoginUser(response, request):
+    """
+    DEPRECATED: Use apps.peoples.services.authentication_service instead.
+
+    This function will be removed in March 2026.
+    """
+    warnings.warn(
+        "LoginUser() is deprecated and will be removed in March 2026. "
+        "Use apps.peoples.services.authentication_service instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     if response["isauthenticated"]:
         People.objects.filter(id=response["user"].id).update(
             deviceid=response["authinput"].deviceid
@@ -34,6 +78,18 @@ def LoginUser(response, request):
 
 
 def LogOutUser(response, request):
+    """
+    DEPRECATED: Use apps.peoples.services.authentication_service instead.
+
+    This function will be removed in March 2026.
+    """
+    warnings.warn(
+        "LogOutUser() is deprecated and will be removed in March 2026. "
+        "Use apps.peoples.services.authentication_service instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     if response["isauthenticated"]:
         People.objects.filter(id=response["user"].id).update(deviceid=-1)
 
@@ -43,6 +99,19 @@ def check_user_site(user):
 
 
 def auth_check(info, input, returnUser, uclientip=None):
+    """
+    DEPRECATED: Use apps.peoples.services.authentication_service instead.
+
+    This function contains security vulnerabilities and will be removed in March 2026.
+    """
+    warnings.warn(
+        "auth_check() is deprecated and will be removed in March 2026. "
+        "Use apps.peoples.services.authentication_service instead. "
+        "This function contains known security bugs (KeyError risks, IP validation bypass).",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     from django.contrib.auth import authenticate
 
     try:
@@ -88,6 +157,19 @@ def auth_check(info, input, returnUser, uclientip=None):
 
 
 def authenticate_user(input, request, msg, returnUser):
+    """
+    DEPRECATED: Use apps.peoples.services.authentication_service instead.
+
+    This function contains security vulnerabilities and will be removed in March 2026.
+    """
+    warnings.warn(
+        "authenticate_user() is deprecated and will be removed in March 2026. "
+        "Use apps.peoples.services.authentication_service instead. "
+        "This function contains known security bugs (KeyError risks).",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     loginid = input.loginid
     password = input.password
     deviceid = input.deviceid
