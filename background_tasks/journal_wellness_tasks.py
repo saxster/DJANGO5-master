@@ -40,6 +40,7 @@ from apps.core.tasks.base import (
     BaseTask, EmailTask, ExternalServiceTask, TaskMetrics, log_task_context
 )
 from apps.core.tasks.utils import task_retry_policy
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 User = get_user_model()
 logger = logging.getLogger('background_tasks')
@@ -133,8 +134,11 @@ def process_crisis_intervention_alert(self, user_id, alert_data, severity_level=
                     intervention_actions=intervention_actions,
                     processed_at=timezone.now()
                 )
-            except Exception as log_error:
-                logger.error(f"Failed to create crisis intervention log: {log_error}")
+            except DATABASE_EXCEPTIONS as log_error:
+                logger.error(f"Database error creating crisis intervention log: {log_error}", exc_info=True)
+                # Don't fail the task for logging issues
+            except (ValueError, TypeError, KeyError) as log_error:
+                logger.error(f"Validation error creating crisis intervention log: {log_error}", exc_info=True)
                 # Don't fail the task for logging issues
 
             # Record success metrics
@@ -163,9 +167,14 @@ def process_crisis_intervention_alert(self, user_id, alert_data, severity_level=
                 'user_id': user_id
             }
 
-        except Exception as exc:
-            logger.error(f"Crisis intervention processing failed for user {user_id}: {exc}")
-            TaskMetrics.increment_counter('crisis_intervention_error', {'error': 'processing_failed'})
+        except DATABASE_EXCEPTIONS as exc:
+            logger.error(f"Database error in crisis intervention for user {user_id}: {exc}", exc_info=True)
+            TaskMetrics.increment_counter('crisis_intervention_error', {'error': 'database_error'})
+            raise  # Let BaseTask handle retry logic
+
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            logger.error(f"Validation error in crisis intervention for user {user_id}: {exc}", exc_info=True)
+            TaskMetrics.increment_counter('crisis_intervention_error', {'error': 'validation_error'})
             raise  # Let BaseTask handle retry logic
 
 
@@ -278,9 +287,19 @@ def notify_support_team(self, user_id, alert_data, urgent=False, crisis_mode=Fal
                 'subject': subject
             }
 
-        except Exception as exc:
-            logger.error(f"Failed to notify support team for user {user_id}: {exc}")
-            TaskMetrics.increment_counter('support_notification_error', {'error': str(exc)})
+        except User.DoesNotExist:
+            logger.error(f"User not found for support notification: {user_id}")
+            TaskMetrics.increment_counter('support_notification_error', {'error': 'user_not_found'})
+            raise
+
+        except DATABASE_EXCEPTIONS as exc:
+            logger.error(f"Database error notifying support team for user {user_id}: {exc}", exc_info=True)
+            TaskMetrics.increment_counter('support_notification_error', {'error': 'database_error'})
+            raise  # Let BaseTask handle retry logic
+
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            logger.error(f"Validation error notifying support team for user {user_id}: {exc}", exc_info=True)
+            TaskMetrics.increment_counter('support_notification_error', {'error': 'validation_error'})
             raise  # Let BaseTask handle retry logic
 
 

@@ -26,6 +26,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db import DatabaseError
 from django.conf import settings
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger('sla.prevention')
 
@@ -120,10 +121,16 @@ def predict_sla_breaches_task(self):
                             )
                     
                 ticket.save(update_fields=['other_data', 'status', 'priority'])
-                
-            except Exception as e:
+
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
                 logger.error(
-                    f"Error predicting SLA breach for ticket {ticket.id}: {e}",
+                    f"Validation error predicting SLA breach for ticket {ticket.id}: {e}",
+                    exc_info=True
+                )
+                continue
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(
+                    f"Database error predicting SLA breach for ticket {ticket.id}: {e}",
                     exc_info=True
                 )
                 continue
@@ -141,12 +148,16 @@ def predict_sla_breaches_task(self):
         )
         
         return result
-        
-    except DatabaseError as e:
+
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error in SLA prediction: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
-    except Exception as e:
-        logger.error(f"Unexpected error in SLA prediction: {e}", exc_info=True)
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
+        logger.error(
+            f"Validation error in SLA prediction: {e}",
+            exc_info=True,
+            extra={'error_type': type(e).__name__}
+        )
         raise
 
 
@@ -188,16 +199,32 @@ def auto_escalate_at_risk_tickets(self):
                         f"Escalated ticket {ticket.id} priority to HIGH",
                         extra={'ticket_id': ticket.id, 'risk_score': ticket.other_data.get('sla_risk_score')}
                     )
-                    
-            except Exception as e:
-                logger.error(f"Error escalating ticket {ticket.id}: {e}")
+
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
+                logger.error(
+                    f"Validation error escalating ticket {ticket.id}: {e}",
+                    exc_info=True
+                )
+                continue
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(
+                    f"Database error escalating ticket {ticket.id}: {e}",
+                    exc_info=True
+                )
                 continue
         
         return {
             'escalated_count': escalated,
             'timestamp': timezone.now().isoformat()
         }
-        
-    except DatabaseError as e:
+
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error in auto-escalation: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=60)
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
+        logger.error(
+            f"Validation error in auto-escalation: {e}",
+            exc_info=True,
+            extra={'error_type': type(e).__name__}
+        )
+        raise

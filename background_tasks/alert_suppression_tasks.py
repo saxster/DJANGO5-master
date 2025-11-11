@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.core.cache import cache
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 from apps.noc.services.alert_rules_service import AlertRulesService
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, CACHE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +101,26 @@ def monitor_suppression_effectiveness(self, tenant_id: int):
         )
         raise self.retry(exc=e)
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
         logger.error(
-            "suppression_monitoring_error",
+            "suppression_monitoring_validation_error",
+            extra={
+                'tenant_id': tenant_id,
+                'error': str(e),
+                'error_type': type(e).__name__
+            },
+            exc_info=True
+        )
+        return {
+            'status': 'error',
+            'tenant_id': tenant_id,
+            'error': str(e),
+            'error_type': 'validation_error'
+        }
+
+    except CACHE_EXCEPTIONS as e:
+        logger.error(
+            "suppression_monitoring_cache_error",
             extra={
                 'tenant_id': tenant_id,
                 'error': str(e)
@@ -113,7 +130,8 @@ def monitor_suppression_effectiveness(self, tenant_id: int):
         return {
             'status': 'error',
             'tenant_id': tenant_id,
-            'error': str(e)
+            'error': str(e),
+            'error_type': 'cache_error'
         }
 
 
@@ -151,9 +169,9 @@ def cleanup_expired_suppressions(self):
             'cleaned_count': cleaned_count
         }
 
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(
-            "suppression_cleanup_error",
+            "suppression_cleanup_cache_error",
             extra={
                 'error': str(e)
             },
@@ -161,7 +179,23 @@ def cleanup_expired_suppressions(self):
         )
         return {
             'status': 'error',
-            'error': str(e)
+            'error': str(e),
+            'error_type': 'cache_error'
+        }
+
+    except (ValueError, TypeError, KeyError) as e:
+        logger.error(
+            "suppression_cleanup_validation_error",
+            extra={
+                'error': str(e),
+                'error_type': type(e).__name__
+            },
+            exc_info=True
+        )
+        return {
+            'status': 'error',
+            'error': str(e),
+            'error_type': 'validation_error'
         }
 
 
@@ -239,9 +273,26 @@ def generate_suppression_report(self, tenant_id: int, period_days: int = 7):
         )
         raise self.retry(exc=e)
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
         logger.error(
-            "suppression_report_error",
+            "suppression_report_validation_error",
+            extra={
+                'tenant_id': tenant_id,
+                'error': str(e),
+                'error_type': type(e).__name__
+            },
+            exc_info=True
+        )
+        return {
+            'status': 'error',
+            'tenant_id': tenant_id,
+            'error': str(e),
+            'error_type': 'validation_error'
+        }
+
+    except CACHE_EXCEPTIONS as e:
+        logger.error(
+            "suppression_report_cache_error",
             extra={
                 'tenant_id': tenant_id,
                 'error': str(e)
@@ -251,5 +302,6 @@ def generate_suppression_report(self, tenant_id: int, period_days: int = 7):
         return {
             'status': 'error',
             'tenant_id': tenant_id,
-            'error': str(e)
+            'error': str(e),
+            'error_type': 'cache_error'
         }

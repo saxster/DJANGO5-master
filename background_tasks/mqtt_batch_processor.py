@@ -27,7 +27,7 @@ from typing import Dict, List, Any, Optional
 from django.utils import timezone
 from django.db import transaction
 from apps.mqtt.models import DeviceTelemetry, GuardLocation, SensorReading
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 import logging
 
 logger = logging.getLogger('mqtt.batch_processor')
@@ -162,8 +162,11 @@ class MQTTBatchProcessor:
                 if len(self.batches['telemetry']) >= self.batch_size:
                     self._flush_telemetry()
 
-            except Exception as e:
-                logger.error(f"Error adding telemetry to batch: {e}", exc_info=True)
+            except VALIDATION_EXCEPTIONS as e:
+                logger.error(f"Validation error adding telemetry to batch: {e}", exc_info=True)
+                raise
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error adding telemetry to batch: {e}", exc_info=True)
                 raise
 
     def add_guard_location(self, location_data: Dict[str, Any]):
@@ -176,8 +179,11 @@ class MQTTBatchProcessor:
                 if len(self.batches['guard_location']) >= self.batch_size:
                     self._flush_guard_location()
 
-            except Exception as e:
-                logger.error(f"Error adding guard location to batch: {e}", exc_info=True)
+            except VALIDATION_EXCEPTIONS as e:
+                logger.error(f"Validation error adding guard location to batch: {e}", exc_info=True)
+                raise
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error adding guard location to batch: {e}", exc_info=True)
                 raise
 
     def add_sensor_reading(self, sensor_data: Dict[str, Any]):
@@ -190,8 +196,11 @@ class MQTTBatchProcessor:
                 if len(self.batches['sensor_reading']) >= self.batch_size:
                     self._flush_sensor_reading()
 
-            except Exception as e:
-                logger.error(f"Error adding sensor reading to batch: {e}", exc_info=True)
+            except VALIDATION_EXCEPTIONS as e:
+                logger.error(f"Validation error adding sensor reading to batch: {e}", exc_info=True)
+                raise
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error adding sensor reading to batch: {e}", exc_info=True)
                 raise
 
     def _flush_telemetry(self):
@@ -229,12 +238,14 @@ class MQTTBatchProcessor:
             )
             # Don't clear batch on error - retry on next flush
 
-        except Exception as e:
+        except VALIDATION_EXCEPTIONS as e:
             self.flush_errors += 1
             logger.error(
-                f"Unexpected error flushing telemetry batch: {e}",
+                f"Validation error flushing telemetry batch: {e}",
                 exc_info=True
             )
+            # Clear batch on validation errors (data is bad, won't succeed on retry)
+            self.batches['telemetry'].clear()
 
     def _flush_guard_location(self):
         """Flush guard location batch to database"""
