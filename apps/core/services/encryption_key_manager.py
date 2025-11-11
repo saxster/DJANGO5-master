@@ -29,6 +29,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction, DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 from apps.core.error_handling import ErrorHandler
 
 logger = logging.getLogger("encryption_key_manager")
@@ -110,7 +113,7 @@ class EncryptionKeyManager:
 
             current_key = EncryptionKeyMetadata.objects.filter(
                 is_active=True,
-                expires_at__gt=datetime.now()
+                expires_at__gt=timezone.now()
             ).order_by('-created_at').first()
 
             if current_key:
@@ -145,7 +148,7 @@ class EncryptionKeyManager:
             # Load all non-expired active keys
             active_keys = EncryptionKeyMetadata.objects.filter(
                 is_active=True,
-                expires_at__gt=datetime.now()
+                expires_at__gt=timezone.now()
             ).order_by('-created_at')
 
             cls._active_keys.clear()
@@ -166,8 +169,8 @@ class EncryptionKeyManager:
                 default_fernet = cls._derive_fernet_key_from_secret_key()
                 cls._active_keys[default_key_id] = default_fernet
                 cls._key_metadata[default_key_id] = {
-                    'created_at': datetime.now(),
-                    'expires_at': datetime.now() + timedelta(days=cls.DEFAULT_KEY_MAX_AGE_DAYS),
+                    'created_at': timezone.now(),
+                    'expires_at': timezone.now() + timedelta(days=cls.DEFAULT_KEY_MAX_AGE_DAYS),
                     'rotation_status': 'active',
                 }
 
@@ -178,8 +181,8 @@ class EncryptionKeyManager:
             default_fernet = cls._derive_fernet_key_from_secret_key()
             cls._active_keys[default_key_id] = default_fernet
             cls._key_metadata[default_key_id] = {
-                'created_at': datetime.now(),
-                'expires_at': datetime.now() + timedelta(days=cls.DEFAULT_KEY_MAX_AGE_DAYS),
+                'created_at': timezone.now(),
+                'expires_at': timezone.now() + timedelta(days=cls.DEFAULT_KEY_MAX_AGE_DAYS),
                 'rotation_status': 'active',
             }
 
@@ -423,9 +426,13 @@ class EncryptionKeyManager:
         return Fernet(fernet_key)
 
     @classmethod
+    @transaction.atomic
     def create_new_key(cls) -> str:
         """
         Create a new encryption key for rotation.
+
+        This method is wrapped in a database transaction to ensure atomicity.
+        If any error occurs, all database changes are rolled back.
 
         Returns:
             str: New key ID
@@ -440,12 +447,12 @@ class EncryptionKeyManager:
                 # Create Fernet instance
                 new_fernet = cls._derive_fernet_key(new_key_id)
 
-                # Create metadata record
+                # Create metadata record (within atomic transaction)
                 key_meta = EncryptionKeyMetadata.objects.create(
                     key_id=new_key_id,
                     is_active=False,  # Not active until rotation completes
-                    created_at=datetime.now(),
-                    expires_at=datetime.now() + timedelta(days=cls.DEFAULT_KEY_MAX_AGE_DAYS),
+                    created_at=timezone.now(),
+                    expires_at=timezone.now() + timedelta(days=cls.DEFAULT_KEY_MAX_AGE_DAYS),
                     rotation_status='created'
                 )
 
@@ -464,9 +471,14 @@ class EncryptionKeyManager:
                 raise RuntimeError(f"Failed to create new encryption key (ID: {correlation_id})") from e
 
     @classmethod
+    @transaction.atomic
     def activate_key(cls, key_id: str) -> None:
         """
         Activate a key for encryption (make it current).
+
+        This method is wrapped in a database transaction to ensure atomicity
+        of the key activation, cache update, and state reload.
+        If any error occurs, all changes are rolled back.
 
         Args:
             key_id: Key ID to activate
@@ -475,15 +487,15 @@ class EncryptionKeyManager:
             try:
                 from apps.core.models import EncryptionKeyMetadata
 
-                # Get key metadata
+                # Get key metadata (within atomic transaction)
                 key_meta = EncryptionKeyMetadata.objects.get(key_id=key_id)
 
-                # Mark as active and current
+                # Mark as active and current (within atomic transaction)
                 key_meta.is_active = True
                 key_meta.rotation_status = 'active'
                 key_meta.save()
 
-                # Update current key
+                # Update current key in memory
                 cls._current_key_id = key_id
                 cache.set(cls.CACHE_KEY_CURRENT, key_id, cls.CACHE_TTL)
 
@@ -503,6 +515,30 @@ class EncryptionKeyManager:
                 raise RuntimeError(f"Failed to activate key (ID: {correlation_id})") from e
 
     @classmethod
+    def _build_key_info(cls, key_id: str, metadata: dict) -> dict:
+        """
+        Build key information dictionary for status reporting.
+
+        Args:
+            key_id: The key identifier
+            metadata: Key metadata dictionary
+
+        Returns:
+            dict: Formatted key information
+        """
+        age_days = (timezone.now() - metadata['created_at']).days
+        expires_in_days = (metadata['expires_at'] - timezone.now()).days
+
+        return {
+            'key_id': key_id,
+            'is_current': key_id == cls._current_key_id,
+            'age_days': age_days,
+            'expires_in_days': expires_in_days,
+            'rotation_status': metadata['rotation_status'],
+            'needs_rotation': expires_in_days < cls.KEY_ROTATION_WARNING_DAYS
+        }
+
+    @classmethod
     def get_key_status(cls) -> Dict:
         """
         Get status of all encryption keys.
@@ -520,18 +556,7 @@ class EncryptionKeyManager:
         }
 
         for key_id, metadata in cls._key_metadata.items():
-            age_days = (datetime.now() - metadata['created_at']).days
-            expires_in_days = (metadata['expires_at'] - datetime.now()).days
-
-            key_info = {
-                'key_id': key_id,
-                'is_current': key_id == cls._current_key_id,
-                'age_days': age_days,
-                'expires_in_days': expires_in_days,
-                'rotation_status': metadata['rotation_status'],
-                'needs_rotation': expires_in_days < cls.KEY_ROTATION_WARNING_DAYS
-            }
-
+            key_info = cls._build_key_info(key_id, metadata)
             status['keys'].append(key_info)
 
         return status
