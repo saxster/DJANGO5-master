@@ -27,7 +27,12 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404
 
 from apps.core.services.secure_file_download_service import SecureFileDownloadService
-from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+from apps.core.exceptions.patterns import (
+    CACHE_EXCEPTIONS,
+    VALIDATION_EXCEPTIONS,
+    SERIALIZATION_EXCEPTIONS,
+    CELERY_EXCEPTIONS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +141,28 @@ class ReportGenerateView(APIView):
                 correlation_id=correlation_id,
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        except Exception as e:
-            logger.error(f"Error during report generation: {e}", exc_info=True, extra={
+        except VALIDATION_EXCEPTIONS as e:
+            logger.error(f"Validation error during report generation: {type(e).__name__}", exc_info=True, extra={
+                'correlation_id': correlation_id
+            })
+            return self._error_response(
+                code='VALIDATION_ERROR',
+                message='Invalid report parameters. Please check your input.',
+                correlation_id=correlation_id,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except CELERY_EXCEPTIONS as e:
+            logger.error(f"Celery task error during report generation: {type(e).__name__}", exc_info=True, extra={
+                'correlation_id': correlation_id
+            })
+            return self._error_response(
+                code='TASK_ERROR',
+                message='Failed to queue report. Please try again.',
+                correlation_id=correlation_id,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except SERIALIZATION_EXCEPTIONS as e:
+            logger.error(f"Serialization error during report generation: {type(e).__name__}", exc_info=True, extra={
                 'correlation_id': correlation_id
             })
             return self._error_response(
@@ -396,8 +421,18 @@ class ReportScheduleView(APIView):
                 }
             }, status=status.HTTP_201_CREATED)
 
-        except Exception as e:
-            logger.error(f"Error creating report schedule: {e}", exc_info=True, extra={
+        except VALIDATION_EXCEPTIONS as e:
+            logger.error(f"Validation error creating report schedule: {type(e).__name__}", exc_info=True, extra={
+                'correlation_id': correlation_id
+            })
+            return self._error_response(
+                code='VALIDATION_ERROR',
+                message='Invalid schedule parameters. Please check your input.',
+                correlation_id=correlation_id,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except SERIALIZATION_EXCEPTIONS as e:
+            logger.error(f"Serialization error creating report schedule: {type(e).__name__}", exc_info=True, extra={
                 'correlation_id': correlation_id
             })
             return self._error_response(

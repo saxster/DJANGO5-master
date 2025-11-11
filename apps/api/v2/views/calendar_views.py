@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from apps.api.pagination import StandardPageNumberPagination
 from apps.api.permissions import TenantIsolationPermission
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, SERIALIZATION_EXCEPTIONS
 from apps.calendar_view.constants import (
     CalendarContextType,
     CalendarEventStatus,
@@ -219,11 +219,10 @@ class CalendarEventAttachmentsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        except Exception as e:
-            # Last resort handler for unexpected errors
-            # Only reached if error is not PermissionError, ValueError, or DATABASE_EXCEPTIONS
-            logger.critical(
-                f"UNEXPECTED error in calendar attachment endpoint - type: {type(e).__name__}: {e}",
+        except SERIALIZATION_EXCEPTIONS as e:
+            # Handle serialization/parsing errors (JSON, DRF, Pydantic)
+            logger.error(
+                f"Serialization error in calendar attachment endpoint: {type(e).__name__}",
                 extra={"correlation_id": correlation_id, "event_id": event_id},
                 exc_info=True,
             )

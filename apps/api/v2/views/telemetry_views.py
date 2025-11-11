@@ -5,6 +5,7 @@ Telemetry ingestion for Kotlin SDK with V2 enhancements.
 
 Following .claude/rules.md:
 - View methods < 30 lines
+- Specific exception handling (Rule #11)
 """
 
 import uuid
@@ -15,6 +16,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+
+from apps.core.exceptions.patterns import (
+    VALIDATION_EXCEPTIONS,
+    SERIALIZATION_EXCEPTIONS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,13 +60,35 @@ class TelemetryBatchView(APIView):
                 }
             }, status=status.HTTP_201_CREATED)
 
-        except Exception as e:
-            logger.error(f"Error processing telemetry: {e}", exc_info=True)
+        except VALIDATION_EXCEPTIONS as e:
+            # Validation errors (e.g., missing fields, invalid data types)
+            logger.error(f"Validation error processing telemetry: {type(e).__name__}", exc_info=True, extra={
+                'correlation_id': correlation_id,
+                'device_id': request.data.get('device_id')
+            })
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'VALIDATION_ERROR',
+                    'message': 'Invalid telemetry data. Please check your request.'
+                },
+                'meta': {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        except SERIALIZATION_EXCEPTIONS as e:
+            # Serialization/parsing errors (JSON, data format issues)
+            logger.error(f"Serialization error processing telemetry: {type(e).__name__}", exc_info=True, extra={
+                'correlation_id': correlation_id,
+                'device_id': request.data.get('device_id')
+            })
             return Response({
                 'success': False,
                 'error': {
                     'code': 'PROCESSING_ERROR',
-                    'message': str(e)
+                    'message': 'An error occurred processing your request. Please try again.'
                 },
                 'meta': {
                     'correlation_id': correlation_id,
