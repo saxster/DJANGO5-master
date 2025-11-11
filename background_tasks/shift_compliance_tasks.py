@@ -25,6 +25,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db import DatabaseError
 from datetime import timedelta
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
 
 logger = logging.getLogger('shift_compliance')
 
@@ -82,8 +83,14 @@ def rebuild_shift_schedule_cache_task(self):
                     f"Built {count} cache entries for tenant {tenant.name}",
                     extra={'tenant_id': tenant.id, 'cache_entries': count}
                 )
-                
-            except Exception as e:
+
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(
+                    f"Database error building cache for tenant {tenant.id}: {e}",
+                    exc_info=True
+                )
+                continue
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
                 logger.error(
                     f"Error building cache for tenant {tenant.id}: {e}",
                     exc_info=True
@@ -102,13 +109,10 @@ def rebuild_shift_schedule_cache_task(self):
         )
         
         return result
-        
-    except DatabaseError as e:
+
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error rebuilding shift cache: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=300)
-    except Exception as e:
-        logger.error(f"Unexpected error rebuilding shift cache: {e}", exc_info=True)
-        raise
 
 
 @shared_task(
@@ -244,8 +248,11 @@ def detect_shift_no_shows_task(self):
                                 'anomaly_type': 'WRONG_SITE'
                             }
                         )
-                        
-            except Exception as e:
+
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Database error checking shift {shift.id}: {e}", exc_info=True)
+                continue
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
                 logger.error(f"Error checking shift {shift.id}: {e}", exc_info=True)
                 continue
         
@@ -263,10 +270,7 @@ def detect_shift_no_shows_task(self):
         )
         
         return result
-        
-    except DatabaseError as e:
+
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error detecting no-shows: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=120)
-    except Exception as e:
-        logger.error(f"Unexpected error detecting no-shows: {e}", exc_info=True)
-        raise

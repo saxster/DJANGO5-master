@@ -198,8 +198,11 @@ View ticket: {settings.SITE_URL}/helpdesk/tickets/{ticket.id}/
     except (ValueError, AttributeError) as e:
         logger.error(f"Invalid email configuration for ticket {ticket_id}: {e}", exc_info=True)
         return {'status': 'error', 'message': 'Invalid email configuration'}
-    except Exception as e:
-        # SMTP errors and other email-related exceptions
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error sending email for ticket {ticket_id}: {e}", exc_info=True)
+        return {'status': 'error', 'message': 'Database error processing notification'}
+    except (OSError, IOError) as e:
+        # SMTP errors (SMTPException inherits from OSError)
         logger.error(f"Email send failed for ticket {ticket_id}: {e}", exc_info=True)
         return {'status': 'error', 'message': 'Failed to send email notification'}
 

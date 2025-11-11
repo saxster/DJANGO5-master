@@ -85,11 +85,18 @@ def forecast_all_tanks_task(self, tenant_id: int):
                 
                 # Create alert if needed (days_remaining <= 3)
                 alert_id = TankForecastingService.create_refill_alert(tank.id, forecast)
-                
+
                 if alert_id:
                     alerts_created += 1
-                    
-            except Exception as e:
+
+            except DATABASE_EXCEPTIONS as e:
+                warnings.append(f"Tank {tank.name}: Database error - {str(e)}")
+                logger.error(
+                    "tank_forecast_database_error",
+                    extra={'tank_id': tank.id, 'error': str(e)},
+                    exc_info=True
+                )
+            except (ValueError, TypeError, KeyError) as e:
                 warnings.append(f"Tank {tank.name}: {str(e)}")
                 logger.error(
                     "tank_forecast_error",
@@ -120,8 +127,8 @@ def forecast_all_tanks_task(self, tenant_id: int):
             exc_info=True
         )
         raise self.retry(exc=e)
-    
-    except Exception as e:
+
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
         logger.error(
             "tank_forecasting_task_error",
             extra={'tenant_id': tenant_id, 'error': str(e)},
@@ -236,8 +243,8 @@ def detect_theft_leaks_task(self, tenant_id: int):
             exc_info=True
         )
         raise self.retry(exc=e)
-    
-    except Exception as e:
+
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
         logger.error(
             "theft_leak_detection_error",
             extra={'tenant_id': tenant_id, 'error': str(e)},
@@ -305,10 +312,21 @@ def generate_cost_dashboards_task(self, tenant_id: int):
             "cost_dashboards_generated",
             extra=result
         )
-        
+
         return result
-        
-    except Exception as e:
+
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(
+            "cost_dashboard_database_error",
+            extra={'tenant_id': tenant_id, 'error': str(e)},
+            exc_info=True
+        )
+        return {
+            'status': 'error',
+            'tenant_id': tenant_id,
+            'error': str(e)
+        }
+    except (ValueError, TypeError, KeyError, AttributeError) as e:
         logger.error(
             "cost_dashboard_generation_error",
             extra={'tenant_id': tenant_id, 'error': str(e)},
@@ -364,10 +382,20 @@ def monitor_all_meter_intelligence_task():
             
             # Run cost dashboards (weekly, not daily)
             # dashboard_result = generate_cost_dashboards_task(tenant.id)
-            
+
             results['tenants_processed'] += 1
-            
-        except Exception as e:
+
+        except DATABASE_EXCEPTIONS as e:
+            results['errors'].append({
+                'tenant_id': tenant.id,
+                'error': f"Database error: {str(e)}"
+            })
+            logger.error(
+                "meter_intelligence_tenant_database_error",
+                extra={'tenant_id': tenant.id, 'error': str(e)},
+                exc_info=True
+            )
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
             results['errors'].append({
                 'tenant_id': tenant.id,
                 'error': str(e)

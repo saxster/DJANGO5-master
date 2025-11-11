@@ -146,10 +146,16 @@ def predict_device_failures_task(self):
                             'failure_type': failure_type
                         }
                     )
-                    
-            except Exception as e:
+
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 logger.error(
-                    f"Error predicting failure for device {device_id}: {e}",
+                    f"Data processing error predicting failure for device {device_id}: {e}",
+                    exc_info=True
+                )
+                continue
+            except DatabaseError as e:
+                logger.error(
+                    f"Database error predicting failure for device {device_id}: {e}",
                     exc_info=True
                 )
                 continue
@@ -172,8 +178,8 @@ def predict_device_failures_task(self):
     except DatabaseError as e:
         logger.error(f"Database error in device failure prediction: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=120)
-    except Exception as e:
-        logger.error(f"Unexpected error in device failure prediction: {e}", exc_info=True)
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
+        logger.error(f"Data processing error in device failure prediction: {e}", exc_info=True)
         raise
 
 
@@ -214,10 +220,16 @@ def compute_device_health_scores_task(self):
                     f"Created {sum(alerts.values())} health alerts for tenant {tenant_id}",
                     extra={'tenant_id': tenant_id, 'alerts': alerts}
                 )
-                
-            except Exception as e:
+
+            except DatabaseError as e:
                 logger.error(
-                    f"Error processing tenant {tenant_id}: {e}",
+                    f"Database error processing tenant {tenant_id}: {e}",
+                    exc_info=True
+                )
+                continue
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
+                logger.error(
+                    f"Data processing error for tenant {tenant_id}: {e}",
                     exc_info=True
                 )
                 continue

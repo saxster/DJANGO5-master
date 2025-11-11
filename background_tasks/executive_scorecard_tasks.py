@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.db import DatabaseError
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger('reports.executive_scorecard')
 
@@ -131,12 +132,18 @@ Operations Management System
                                 html_content=html_content,
                                 attachments=[]  # PDF generation would be added here
                             )
-                            
+
                             scorecards_delivered += 1
-                            
-                        except Exception as e:
+
+                        except VALIDATION_EXCEPTIONS as e:
                             logger.error(
-                                f"Error sending scorecard to {recipient}: {e}",
+                                f"Validation error sending scorecard to {recipient}: {e}",
+                                exc_info=True
+                            )
+                            errors += 1
+                        except NETWORK_EXCEPTIONS as e:
+                            logger.error(
+                                f"Network error sending scorecard to {recipient}: {e}",
                                 exc_info=True
                             )
                             errors += 1
@@ -149,10 +156,17 @@ Operations Management System
                         'recipients': len(exec_emails)
                     }
                 )
-                
-            except Exception as e:
+
+            except VALIDATION_EXCEPTIONS as e:
                 logger.error(
-                    f"Error generating scorecard for client {client.id}: {e}",
+                    f"Validation error generating scorecard for client {client.id}: {e}",
+                    exc_info=True
+                )
+                errors += 1
+                continue
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(
+                    f"Database error generating scorecard for client {client.id}: {e}",
                     exc_info=True
                 )
                 errors += 1
@@ -174,10 +188,7 @@ Operations Management System
         )
         
         return result
-        
-    except DatabaseError as e:
+
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Database error generating scorecards: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=600)
-    except Exception as e:
-        logger.error(f"Unexpected error generating scorecards: {e}", exc_info=True)
-        raise

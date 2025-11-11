@@ -73,7 +73,7 @@ def validate_document_url(url: str) -> bool:
     # Parse URL
     try:
         parsed = urlparse(url)
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         raise ValidationError(f"Invalid URL format: {str(e)}")
 
     # Check scheme
@@ -827,8 +827,20 @@ def ingest_document(self, job_id: str):
             fetch_result['content'] = sanitized_content
             fetch_result['metadata']['sanitization_report'] = sanitization_report
 
-        except Exception as sanitize_error:
-            task_logger.error(f"Content sanitization failed: {str(sanitize_error)}")
+        except (ValueError, TypeError, AttributeError) as sanitize_error:
+            task_logger.error(
+                f"Content sanitization failed (validation error): {str(sanitize_error)}",
+                exc_info=True
+            )
+            job.update_status(KnowledgeIngestionJob.StatusChoices.FAILED, str(sanitize_error))
+            job.source.fetch_error_count += 1
+            job.source.save()
+            raise
+        except DATABASE_EXCEPTIONS as sanitize_error:
+            task_logger.error(
+                f"Content sanitization failed (database error): {str(sanitize_error)}",
+                exc_info=True
+            )
             job.update_status(KnowledgeIngestionJob.StatusChoices.FAILED, str(sanitize_error))
             job.source.fetch_error_count += 1
             job.source.save()

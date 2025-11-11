@@ -191,9 +191,9 @@ def _process_reports_for_tenant(tenant_label: str, db_alias: str, per_tenant_lim
                     })
                     state_map['not_generated'] += 1
 
-    except Exception as exc:  # Broad catch to ensure per-tenant isolation
+    except DatabaseError as exc:
         log.error(
-            "Failed to process scheduled reports for tenant %s (db=%s): %s",
+            "Database error processing scheduled reports for tenant %s (db=%s): %s",
             tenant_label,
             db_alias,
             exc,
@@ -201,7 +201,33 @@ def _process_reports_for_tenant(tenant_label: str, db_alias: str, per_tenant_lim
         )
         story['errors'].append({
             'tenant': tenant_label,
-            'error': str(exc),
+            'error': f"Database error: {str(exc)}",
+            'traceback': tb.format_exc()
+        })
+    except (ValidationError, ValueError, TypeError) as exc:
+        log.error(
+            "Validation error processing scheduled reports for tenant %s (db=%s): %s",
+            tenant_label,
+            db_alias,
+            exc,
+            exc_info=True
+        )
+        story['errors'].append({
+            'tenant': tenant_label,
+            'error': f"Validation error: {str(exc)}",
+            'traceback': tb.format_exc()
+        })
+    except (KeyError, AttributeError) as exc:
+        log.error(
+            "Data processing error in scheduled reports for tenant %s (db=%s): %s",
+            tenant_label,
+            db_alias,
+            exc,
+            exc_info=True
+        )
+        story['errors'].append({
+            'tenant': tenant_label,
+            'error': f"Data error: {str(exc)}",
             'traceback': tb.format_exc()
         })
 

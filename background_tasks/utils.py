@@ -494,9 +494,15 @@ def check_for_checkpoints_status(obj, Jobneed):
                 f'(result: {result.success})'
             )
 
-        except Exception as e:
+        except DatabaseError as e:
             log.error(
-                f'Failed to auto-close checkpoint {checkpoint.id}: {e}',
+                f'Database error auto-closing checkpoint {checkpoint.id}: {e}',
+                exc_info=True
+            )
+            # Continue with other checkpoints even if one fails
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            log.error(
+                f'Data processing error auto-closing checkpoint {checkpoint.id}: {e}',
                 exc_info=True
             )
             # Continue with other checkpoints even if one fails

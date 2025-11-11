@@ -57,7 +57,19 @@ class OnboardingBaseTask(Task):
                 # Task logic here
                 result = do_work(arg1, arg2)
                 return self.task_success(result, correlation_id)
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
+                return self.handle_task_error(
+                    e,
+                    correlation_id=correlation_id,
+                    context={'arg1': arg1, 'arg2': arg2}
+                )
+            except NETWORK_EXCEPTIONS as e:
+                return self.handle_task_error(
+                    e,
+                    correlation_id=correlation_id,
+                    context={'arg1': arg1, 'arg2': arg2}
+                )
+            except VALIDATION_EXCEPTIONS as e:
                 return self.handle_task_error(
                     e,
                     correlation_id=correlation_id,
@@ -307,9 +319,15 @@ class OnboardingBaseTask(Task):
                 correlation_id=correlation_id
             )
 
-        except Exception as dlq_error:
+        except DATABASE_EXCEPTIONS as dlq_error:
             task_logger.error(
-                f"Failed to send task to DLQ: {str(dlq_error)}",
+                f"Failed to send task to DLQ (database error): {str(dlq_error)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+        except (ValueError, TypeError, AttributeError) as dlq_error:
+            task_logger.error(
+                f"Failed to send task to DLQ (validation error): {str(dlq_error)}",
                 extra={'correlation_id': correlation_id},
                 exc_info=True
             )

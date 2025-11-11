@@ -132,8 +132,11 @@ class EvaluateNonNegotiablesTask(IdempotentTask):
         except ValueError as e:
             logger.error(f"Invalid parameters: {e}", exc_info=True)
             raise
-        except Exception as e:
-            logger.error(f"Unexpected error in non-negotiables evaluation: {e}", exc_info=True)
+        except DatabaseError as e:
+            logger.error(f"Database error in non-negotiables evaluation: {e}", exc_info=True)
+            raise
+        except (TypeError, AttributeError, KeyError) as e:
+            logger.error(f"Data processing error in non-negotiables evaluation: {e}", exc_info=True)
             raise
 
 
