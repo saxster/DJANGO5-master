@@ -238,6 +238,10 @@ class TicketViewSet(viewsets.ModelViewSet):
         Escalate ticket to higher priority/manager.
 
         POST /api/v1/help-desk/tickets/{id}/escalate/
+
+        Sends email notifications to:
+        - Assigned user (if assigned)
+        - Assigned user's manager (if reportto exists)
         """
         ticket = self.get_object()
 
@@ -246,22 +250,166 @@ class TicketViewSet(viewsets.ModelViewSet):
         current_index = priority_levels.index(ticket.priority) if ticket.priority in priority_levels else 2
 
         if current_index < len(priority_levels) - 1:
+            old_priority = ticket.priority
             ticket.priority = priority_levels[current_index + 1]
             ticket.save()
 
-            logger.info(f"Ticket {ticket.ticket_number} escalated to {ticket.priority}")
+            logger.info(f"Ticket {ticket.ticketno} escalated from {old_priority} to {ticket.priority}")
 
-            # TODO: Send email notification to manager
+            # Send escalation notifications
+            notification_sent = self._send_escalation_notifications(
+                ticket=ticket,
+                old_priority=old_priority,
+                new_priority=ticket.priority,
+                escalated_by=request.user
+            )
 
             return Response({
                 'message': f'Ticket escalated to {ticket.priority}',
-                'ticket': TicketDetailSerializer(ticket).data
+                'ticket': TicketDetailSerializer(ticket).data,
+                'notification_sent': notification_sent
             })
         else:
             return Response(
                 {'error': 'Ticket is already at highest priority'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    def _send_escalation_notifications(self, ticket, old_priority, new_priority, escalated_by):
+        """
+        Send email notifications for ticket escalation.
+
+        Args:
+            ticket: Ticket instance
+            old_priority: Previous priority level
+            new_priority: New priority level
+            escalated_by: User who initiated escalation
+
+        Returns:
+            bool: True if at least one notification sent successfully
+        """
+        # Collect recipients (assignee + manager)
+        recipients = self._get_escalation_recipients(ticket)
+
+        if not recipients:
+            logger.warning(f"No email recipients for escalation of ticket {ticket.ticketno}")
+            return False
+
+        # Send email notification
+        return self._send_escalation_email(
+            ticket=ticket,
+            recipients=recipients,
+            old_priority=old_priority,
+            new_priority=new_priority,
+            escalated_by=escalated_by
+        )
+
+    def _get_escalation_recipients(self, ticket):
+        """
+        Collect email recipients for escalation notification.
+
+        Args:
+            ticket: Ticket instance
+
+        Returns:
+            list: Email addresses of assignee and manager
+        """
+        recipients = []
+
+        if ticket.assignedtopeople and ticket.assignedtopeople.email:
+            recipients.append(ticket.assignedtopeople.email)
+
+            # Add manager if exists
+            if (hasattr(ticket.assignedtopeople, 'organizational') and
+                ticket.assignedtopeople.organizational.reportto and
+                ticket.assignedtopeople.organizational.reportto.email):
+                recipients.append(ticket.assignedtopeople.organizational.reportto.email)
+
+        return recipients
+
+    def _format_escalation_email(self, ticket, old_priority, new_priority, escalated_by):
+        """
+        Format escalation email subject and message.
+
+        Args:
+            ticket: Ticket instance
+            old_priority: Previous priority level
+            new_priority: New priority level
+            escalated_by: User who initiated escalation
+
+        Returns:
+            tuple: (subject, message)
+        """
+        severity_label = 'CRITICAL' if new_priority in ['P0', 'P1'] else 'HIGH'
+        subject = f"[{severity_label}] Ticket Escalated: {ticket.ticketno} - {new_priority}"
+
+        assignee_name = ticket.assignedtopeople.peoplename if ticket.assignedtopeople else 'Unassigned'
+        status_display = ticket.get_status_display() if hasattr(ticket, 'get_status_display') else ticket.status
+        timestamp = datetime.now(dt_timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+        message = f"""Ticket Escalation Notice
+
+Ticket Number: {ticket.ticketno}
+Priority Change: {old_priority} → {new_priority}
+Escalated By: {escalated_by.username}
+Escalated At: {timestamp}
+
+Ticket Details:
+- Description: {ticket.ticketdesc[:200]}{'...' if len(ticket.ticketdesc) > 200 else ''}
+- Status: {status_display}
+- Assigned To: {assignee_name}
+
+Action Required:
+1. Review ticket immediately (Priority: {new_priority})
+2. Contact assignee if needed
+3. Ensure timely resolution
+
+This is an automated notification from the Y-Helpdesk system."""
+
+        return subject, message
+
+    def _send_escalation_email(self, ticket, recipients, old_priority, new_priority, escalated_by):
+        """
+        Send escalation email to recipients.
+
+        Args:
+            ticket: Ticket instance
+            recipients: List of email addresses
+            old_priority: Previous priority level
+            new_priority: New priority level
+            escalated_by: User who initiated escalation
+
+        Returns:
+            bool: True if email sent successfully
+        """
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        subject, message = self._format_escalation_email(
+            ticket, old_priority, new_priority, escalated_by
+        )
+
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=recipients,
+                fail_silently=False
+            )
+            logger.info(
+                f"Escalation notifications sent for ticket {ticket.ticketno} "
+                f"to {len(recipients)} recipient(s): {', '.join(recipients)}"
+            )
+            return True
+        except (ValueError, TypeError, AttributeError, ConnectionError) as e:
+            # Catches: ValueError (invalid email), TypeError (None values),
+            # AttributeError (missing settings), ConnectionError (SMTP failures)
+            logger.error(
+                f"Failed to send escalation notification for ticket {ticket.ticketno}: {e}",
+                exc_info=True
+            )
+            return False
 
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
     def sla_breaches(self, request):

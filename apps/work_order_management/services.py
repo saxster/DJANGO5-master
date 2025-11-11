@@ -20,26 +20,46 @@ class WorkOrderQueryOptimizer:
         1. Removed redundant select_related if no relations are needed
         2. Added caching for vendor lists (typically static data)
         3. Using only() to limit fields if full model not needed
+        4. Cache key includes filter parameters to prevent incorrect data return
+
+        Cache key strategy:
+        - Includes client_id for tenant isolation
+        - Includes MD5 hash of sorted filter params (type, site_id, etc.)
+        - Different filter combinations get separate cache entries
         """
+        import hashlib
+        import json
         from apps.core.json_utils import safe_json_parse_params
 
         R, S = request.GET, request.session
-        cache_key = f"vendor_list_{S['client_id']}"
+
+        # Parse filter parameters
+        params = {}
+        if R.get("params"):
+            params = safe_json_parse_params(R)
+
+        # Build cache key with params hash to ensure unique cache per filter combo
+        params_hash = hashlib.md5(
+            json.dumps(params, sort_keys=True).encode()
+        ).hexdigest()[:8]
+        cache_key = f"vendor_list_{S['client_id']}_{params_hash}"
 
         # Try cache first for vendor lists (relatively static data)
         cached_result = cache.get(cache_key)
         if cached_result is not None:
             return cached_result
 
-        if R.get("params"):
-            P = safe_json_parse_params(R)
+        # Base query with tenant and enabled filters
+        qset = model_class.objects.filter(client_id=S["client_id"], enable=True)
+
+        # Apply filter parameters if provided
+        if params.get("type"):
+            qset = qset.filter(type=params["type"])
+        if params.get("site_id"):
+            qset = qset.filter(site_id=params["site_id"])
 
         # Use only() to limit fields loaded from database
-        qset = (
-            model_class.objects.filter(client_id=S["client_id"], enable=True)
-            .only("id", "code", "name", "type", "address", "email", "mobno")
-            .order_by("name")
-        )
+        qset = qset.only("id", "code", "name", "type", "address", "email", "mobno").order_by("name")
 
         # Convert to list for caching
         result = list(

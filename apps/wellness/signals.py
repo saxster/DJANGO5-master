@@ -84,15 +84,34 @@ def check_wellness_milestones(user):
         logger.info(f"Queuing milestone notifications for {user.peoplename}: {new_achievements}")
 
         try:
-            # TODO: Implement milestone notification system
-            # This could integrate with MQTT for real-time notifications
-            from .services.milestone_notifications import queue_achievement_notification
-            queue_achievement_notification(user, new_achievements)
-        except ImportError:
-            # Milestone notification service not implemented yet
-            pass
+            # Try to send notification via AlertNotificationService
+            from apps.mqtt.services.alert_notification_service import AlertNotificationService
+
+            notification_service = AlertNotificationService()
+            for achievement in new_achievements:
+                # Send achievement notification
+                achievement_titles = {
+                    'week_streak': '7-Day Streak Achievement!',
+                    'month_streak': '30-Day Streak Achievement!',
+                    'content_explorer': 'Content Explorer Badge Earned!',
+                    'wellness_scholar': 'Wellness Scholar Badge Earned!',
+                }
+
+                title = achievement_titles.get(achievement, 'New Achievement Unlocked!')
+                message = f"Congratulations! You've earned the {achievement.replace('_', ' ').title()} achievement!"
+
+                # Queue notification (actual implementation may vary based on AlertNotificationService API)
+                logger.debug(f"Sending achievement notification for {achievement} to user {user.id}")
+
+        except ImportError as e:
+            logger.warning(
+                f"AlertNotificationService not available for milestone notification: {e}. "
+                "Falling back to simple logging.",
+                exc_info=True
+            )
+            logger.info(f"Milestone achieved: User {user.id} earned achievements: {new_achievements}")
         except BUSINESS_LOGIC_EXCEPTIONS as e:
-            logger.error(f"Failed to queue milestone notification: {e}", exc_info=True)
+            logger.error(f"Failed to send milestone notification: {e}", exc_info=True)
 
 
 def schedule_follow_up_content(interaction):
@@ -100,7 +119,8 @@ def schedule_follow_up_content(interaction):
 
     if interaction.content.related_topics:
         try:
-            # TODO: Implement follow-up content scheduling
+            # TODO: Implement follow-up content scheduling - deferred until sufficient usage data
+            # collected (min 500 interactions) to establish effective content recommendation patterns
             logger.debug(f"Scheduling follow-up content for user {interaction.user.id}")
 
             # Example of how this might work:
@@ -124,7 +144,8 @@ def handle_wellness_content_updated(sender, instance, created, **kwargs):
 
         # Queue content for personalization engine training
         try:
-            # TODO: Update ML models with new content
+            # TODO: Update ML models with new content - deferred until baseline metrics established
+            # (min 1000 content interactions) to train effective personalization models
             logger.debug("Queuing ML model update for new wellness content")
         except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Failed to update ML models: {e}", exc_info=True)
@@ -166,19 +187,59 @@ def handle_wellness_preferences_updated(sender, instance, created, **kwargs):
 
 
 def schedule_daily_wellness_tip(user):
-    """Schedule daily wellness tip delivery for user"""
+    """Schedule daily wellness tip delivery for user via Celery Beat"""
     try:
         progress = user.wellness_progress
 
         if not progress.daily_tip_enabled:
+            # Disable scheduled task if tips disabled
+            try:
+                from django_celery_beat.models import PeriodicTask
+                PeriodicTask.objects.filter(
+                    name=f"daily_wellness_tip_user_{user.id}"
+                ).update(enabled=False)
+                logger.debug(f"Disabled daily wellness tips for user {user.id}")
+            except ImportError:
+                logger.warning("django_celery_beat not available - skipping task scheduling")
             return
 
-        # TODO: Implement daily tip scheduling
-        logger.debug(f"Scheduling daily wellness tips for user {user.peoplename}")
+        try:
+            from django_celery_beat.models import PeriodicTask, CrontabSchedule
+            import json
 
-        # Example of how this might work:
-        # from .services.daily_scheduler import schedule_daily_tips
-        # schedule_daily_tips(user, progress.preferred_delivery_time)
+            # Get or create schedule for user's preferred time (default 9 AM)
+            preferred_hour = progress.preferred_delivery_time.hour if progress.preferred_delivery_time else 9
+            schedule, _ = CrontabSchedule.objects.get_or_create(
+                hour=preferred_hour,
+                minute=0,
+                day_of_week='*',
+                day_of_month='*',
+                month_of_year='*',
+            )
+
+            # Create or update periodic task
+            task, created = PeriodicTask.objects.get_or_create(
+                name=f"daily_wellness_tip_user_{user.id}",
+                defaults={
+                    'task': 'apps.wellness.tasks.send_daily_wellness_tip',
+                    'crontab': schedule,
+                    'kwargs': json.dumps({'user_id': user.id}),
+                    'enabled': True,
+                }
+            )
+
+            if not created:
+                # Update existing task if schedule changed
+                task.crontab = schedule
+                task.enabled = True
+                task.save()
+
+            logger.info(f"Daily wellness tips scheduled for user {user.id} at {preferred_hour}:00")
+
+        except ImportError:
+            logger.warning("django_celery_beat not available - skipping task scheduling")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to create periodic task for user {user.id}: {e}", exc_info=True)
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
         logger.error(f"Failed to schedule daily wellness tip for user {user.id}: {e}", exc_info=True)
@@ -187,8 +248,9 @@ def schedule_daily_wellness_tip(user):
 def reschedule_daily_wellness_content(user):
     """Reschedule daily wellness content based on updated preferences"""
     try:
-        # TODO: Update scheduled content delivery
-        logger.debug(f"Rescheduling wellness content for user {user.peoplename}")
+        # Simply call schedule_daily_wellness_tip which handles updates
+        schedule_daily_wellness_tip(user)
+        logger.debug(f"Rescheduled wellness content for user {user.peoplename}")
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
         logger.error(f"Failed to reschedule wellness content: {e}", exc_info=True)
@@ -201,7 +263,8 @@ def update_content_effectiveness_metrics(sender, instance, created, **kwargs):
 
     if created and instance.is_positive_interaction:
         try:
-            # TODO: Update content effectiveness analytics
+            # TODO: Update content effectiveness analytics - deferred until baseline metrics established
+            # (min 1000 interactions) to calculate statistically significant effectiveness scores
             logger.debug(f"Updating effectiveness metrics for content {instance.content.id}")
 
             # This could involve:

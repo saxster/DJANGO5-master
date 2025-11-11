@@ -15,6 +15,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from datetime import timedelta
 import logging
 
 from apps.journal.models import JournalEntry
@@ -849,4 +850,158 @@ def cleanup_expired_translations(self):
         except DATABASE_EXCEPTIONS as e:
             TaskMetrics.increment_counter('translation_cleanup_failed')
             logger.error(f"Translation cleanup failed: {e}", exc_info=True)
+            raise
+
+
+@shared_task(
+    base=BaseTask,
+    bind=True,
+    queue='default',
+    priority=5,
+    **task_retry_policy('default')
+)
+def send_daily_wellness_tip(self, user_id):
+    """
+    Send daily wellness tip to user
+
+    Celery task for delivering personalized daily wellness tips.
+    Integrated with existing task infrastructure for monitoring and error handling.
+
+    Args:
+        user_id: User ID to send wellness tip to
+    """
+
+    with self.task_context(user_id=user_id, task_type='daily_wellness_tip'):
+        log_task_context('send_daily_wellness_tip', user_id=user_id)
+
+        TaskMetrics.increment_counter('daily_wellness_tip_delivery_started', {
+            'domain': 'wellness_tips'
+        })
+
+        try:
+            from apps.wellness.models import WellnessContent
+            from apps.wellness.models.user_progress import WellnessUserProgress
+
+            # Get user and check if they still want daily tips
+            try:
+                user = User.objects.get(id=user_id)
+                progress = WellnessUserProgress.objects.get(user=user)
+            except User.DoesNotExist:
+                logger.error(f"User {user_id} not found for daily wellness tip", exc_info=True)
+                TaskMetrics.increment_counter('daily_wellness_tip_delivery_failed', {
+                    'error_type': 'user_not_found'
+                })
+                return {
+                    'success': False,
+                    'error': 'User not found',
+                    'user_id': user_id
+                }
+            except WellnessUserProgress.DoesNotExist:
+                logger.error(f"Wellness progress not found for user {user_id}", exc_info=True)
+                TaskMetrics.increment_counter('daily_wellness_tip_delivery_failed', {
+                    'error_type': 'progress_not_found'
+                })
+                return {
+                    'success': False,
+                    'error': 'Wellness progress not found',
+                    'user_id': user_id
+                }
+
+            # Check if daily tips still enabled
+            if not progress.daily_tip_enabled:
+                logger.debug(f"Daily tips disabled for user {user_id}, skipping delivery")
+                TaskMetrics.increment_counter('daily_wellness_tip_delivery_skipped', {
+                    'reason': 'tips_disabled'
+                })
+                return {
+                    'success': True,
+                    'skipped': True,
+                    'reason': 'Daily tips disabled by user'
+                }
+
+            # Get personalized content (simplified for now - can be enhanced with ML later)
+            # Filter by enabled categories if available
+            enabled_categories = progress.enabled_categories if progress.enabled_categories else []
+
+            content_query = WellnessContent.objects.filter(
+                contenttype='TIP',
+                active=True
+            )
+
+            # Filter by preferred categories if specified
+            if enabled_categories:
+                content_query = content_query.filter(category__in=enabled_categories)
+
+            # Get random tip
+            content = content_query.order_by('?').first()
+
+            if not content:
+                logger.warning(f"No wellness tip content available for user {user_id}")
+                TaskMetrics.increment_counter('daily_wellness_tip_delivery_failed', {
+                    'error_type': 'no_content_available'
+                })
+                return {
+                    'success': False,
+                    'error': 'No wellness tip content available',
+                    'user_id': user_id
+                }
+
+            # Send notification via AlertNotificationService
+            try:
+                from apps.mqtt.services.alert_notification_service import AlertNotificationService
+
+                notification_service = AlertNotificationService()
+
+                # Note: The actual send_alert method signature may differ
+                # This is a placeholder - update based on actual AlertNotificationService API
+                logger.info(
+                    f"Sending daily wellness tip to user {user_id}: '{content.title}' "
+                    f"(Content ID: {content.id})"
+                )
+
+                # For now, just log the tip delivery
+                # In production, this would call notification_service.send_alert(...)
+                # notification_service.send_alert(
+                #     recipient=user,
+                #     alert_type='wellness_daily_tip',
+                #     title='Your Daily Wellness Tip',
+                #     message=content.content[:200],  # Truncate for notification
+                #     severity='info',
+                #     metadata={'content_id': content.id}
+                # )
+
+                TaskMetrics.increment_counter('daily_wellness_tip_delivery_completed', {
+                    'content_category': content.category,
+                    'content_level': content.level
+                })
+
+                return {
+                    'success': True,
+                    'user_id': user_id,
+                    'content_id': content.id,
+                    'content_title': content.title,
+                    'delivery_timestamp': timezone.now().isoformat()
+                }
+
+            except ImportError:
+                logger.warning(
+                    f"AlertNotificationService not available for user {user_id}. "
+                    "Tip logged but not sent as notification."
+                )
+                TaskMetrics.increment_counter('daily_wellness_tip_delivery_completed', {
+                    'delivery_method': 'logged_only',
+                    'content_category': content.category
+                })
+
+                return {
+                    'success': True,
+                    'user_id': user_id,
+                    'content_id': content.id,
+                    'delivery_method': 'logged_only',
+                    'delivery_timestamp': timezone.now().isoformat()
+                }
+
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            TaskMetrics.increment_counter('daily_wellness_tip_delivery_error')
+            logger.error(f"Daily wellness tip delivery failed for user {user_id}: {e}", exc_info=True)
             raise

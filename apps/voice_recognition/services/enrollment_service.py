@@ -19,6 +19,7 @@ Following .claude/rules.md:
 
 import logging
 import hashlib
+import os
 import time
 from typing import Dict, Any, List, Optional
 from datetime import timedelta
@@ -389,6 +390,7 @@ class VoiceEnrollmentService:
             EnrollmentSecurityError: If spoofing detected or quality insufficient
         """
         start_time = time.time()
+        audio_path = None
 
         try:
             result = {
@@ -476,6 +478,16 @@ class VoiceEnrollmentService:
         except (DatabaseError, IOError, OSError, ValueError, TypeError) as e:
             logger.error(f"Error collecting voice sample: {e}")
             raise EnrollmentError(f"Failed to collect voice sample: {str(e)}")
+
+        finally:
+            # CRITICAL: Always cleanup temporary audio file
+            # Voice biometric data must not persist on disk unencrypted
+            if audio_path and os.path.exists(audio_path):
+                try:
+                    os.unlink(audio_path)
+                    logger.debug(f"Cleaned up temp enrollment audio: {audio_path}")
+                except OSError as e:
+                    logger.error(f"Failed to delete temp audio file {audio_path}: {e}")
 
     def _validate_sample_quality(self, audio_path: str) -> Dict[str, Any]:
         """Validate that enrollment sample meets strict SNR/duration thresholds."""
@@ -864,7 +876,28 @@ class VoiceEnrollmentService:
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
     def _save_temp_audio(self, audio_file, user_id: int, session_id: str) -> str:
-        """Save audio file temporarily for processing."""
+        """
+        Save uploaded audio to temporary file for enrollment processing.
+
+        Creates a temporary file with delete=False to allow processing by
+        external libraries (scipy.io.wavfile). The caller MUST delete the
+        file after use to prevent disk space leaks and privacy risks.
+
+        Args:
+            audio_file: Uploaded audio file from request
+            user_id: User ID for file naming
+            session_id: Enrollment session ID for tracking
+
+        Returns:
+            Path to temporary audio file
+
+        Note:
+            Caller is responsible for cleanup via os.unlink() in finally block.
+            Voice biometric data must not persist on disk unencrypted.
+
+        Raises:
+            EnrollmentError: If file write fails
+        """
         import tempfile
         import os
 
@@ -875,11 +908,13 @@ class VoiceEnrollmentService:
             with tempfile.NamedTemporaryFile(
                 suffix=suffix,
                 prefix=prefix,
-                delete=False,
+                delete=False,  # Caller handles cleanup in finally block
                 mode='wb'
             ) as tmp:
                 for chunk in audio_file.chunks():
                     tmp.write(chunk)
+                tmp.flush()  # Ensure data written to disk before processing
+                logger.debug(f"Saved temp enrollment audio for user {user_id}, session {session_id}: {tmp.name}")
                 return tmp.name
 
         except (OSError, IOError) as e:

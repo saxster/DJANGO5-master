@@ -130,6 +130,7 @@ class VoiceBiometricEngine:
             VoiceVerificationError: If verification fails unexpectedly
         """
         start_time = time.time()
+        audio_path = None
 
         try:
             logger.info(f"Starting voice verification for user {user_id}")
@@ -228,6 +229,16 @@ class VoiceBiometricEngine:
                 'processing_time_ms': processing_time,
                 'fraud_indicators': ['VERIFICATION_ERROR']
             }
+
+        finally:
+            # CRITICAL: Always cleanup temporary audio file
+            # Voice biometric data must not persist on disk unencrypted
+            if audio_path and os.path.exists(audio_path):
+                try:
+                    os.unlink(audio_path)
+                    logger.debug(f"Cleaned up temp audio file: {audio_path}")
+                except OSError as e:
+                    logger.error(f"Failed to delete temp audio file {audio_path}: {e}")
 
     def _assess_audio_quality(self, audio_sample: AudioSample) -> Dict[str, Any]:
         return compute_quality_metrics(audio_sample)
@@ -541,7 +552,27 @@ class VoiceBiometricEngine:
             logger.error(f"Error logging verification: {e}")
 
     def _save_temp_audio(self, audio_file, user_id: int) -> str:
-        """Save audio file temporarily."""
+        """
+        Save uploaded audio to temporary file for processing.
+
+        Creates a temporary file with delete=False to allow processing by
+        external libraries (scipy.io.wavfile). The caller MUST delete the
+        file after use to prevent disk space leaks and privacy risks.
+
+        Args:
+            audio_file: Uploaded audio file from request
+            user_id: User ID for file naming
+
+        Returns:
+            Path to temporary audio file
+
+        Note:
+            Caller is responsible for cleanup via os.unlink() in finally block.
+            Voice biometric data must not persist on disk unencrypted.
+
+        Raises:
+            VoiceVerificationError: If file write fails
+        """
         import tempfile
 
         try:
@@ -551,11 +582,13 @@ class VoiceBiometricEngine:
             with tempfile.NamedTemporaryFile(
                 suffix=suffix,
                 prefix=prefix,
-                delete=False,
+                delete=False,  # Caller handles cleanup in finally block
                 mode='wb'
             ) as tmp:
                 for chunk in audio_file.chunks():
                     tmp.write(chunk)
+                tmp.flush()  # Ensure data written to disk before processing
+                logger.debug(f"Saved temp audio for user {user_id}: {tmp.name}")
                 return tmp.name
 
         except (OSError, IOError) as e:

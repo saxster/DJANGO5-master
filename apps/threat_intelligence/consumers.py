@@ -12,6 +12,7 @@ import json
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.core.cache import cache
 from django.utils import timezone
 from apps.core.tasks.base import TaskMetrics
 
@@ -35,26 +36,56 @@ class ThreatAlertConsumer(AsyncWebsocketConsumer):
     RATE_LIMIT_MAX = 100
     
     async def connect(self):
-        """Handle WebSocket connection with authentication."""
+        """
+        Handle WebSocket connection with authentication and rate limiting.
+
+        Rate limiting strategy:
+        - Tracks concurrent connections per user using Redis-backed cache
+        - Maximum RATE_LIMIT_MAX (100) connections per user
+        - Connection count expires after RATE_LIMIT_WINDOW (60 seconds)
+        - Returns 429 (Too Many Requests) when limit exceeded
+        - Prevents WebSocket DoS attacks by limiting resource exhaustion
+        """
         user = self.scope.get('user')
-        
+
         if not user or not user.is_authenticated:
             logger.warning("Unauthenticated WebSocket connection attempt")
             await self.close(code=403)
             return
-        
+
+        # Rate limit check using Redis via Django cache
+        rate_key = f"ws_threat_alert_connections:{user.id}"
+        current_connections = cache.get(rate_key, 0)
+
+        if current_connections >= self.RATE_LIMIT_MAX:
+            logger.warning(
+                f"WebSocket rate limit exceeded for user {user.id}. "
+                f"Current: {current_connections}, Max: {self.RATE_LIMIT_MAX}",
+                extra={
+                    'user_id': user.id,
+                    'current_connections': current_connections,
+                    'rate_limit_max': self.RATE_LIMIT_MAX,
+                    'correlation_id': f'ws_rate_limit_{user.id}_{timezone.now().timestamp()}'
+                }
+            )
+            await self.close(code=429)  # Too Many Requests
+            return
+
+        # Increment connection count with timeout
+        cache.set(rate_key, current_connections + 1, timeout=self.RATE_LIMIT_WINDOW)
+
         self.user = user
         self.tenant_id = user.tenant_id
         self.tenant_group = f'threat_alerts_tenant_{self.tenant_id}'
-        
+
         # Join tenant-specific group
         await self.channel_layer.group_add(
             self.tenant_group,
             self.channel_name
         )
-        
+
         await self.accept()
-        
+
         logger.info(
             f"Threat alert WebSocket connected",
             extra={
@@ -63,7 +94,7 @@ class ThreatAlertConsumer(AsyncWebsocketConsumer):
                 'correlation_id': f'ws_connect_{user.id}_{timezone.now().timestamp()}'
             }
         )
-        
+
         # Record connection metric
         TaskMetrics.increment_counter('websocket_connection_established', {
             'consumer': 'threat_alert',
@@ -71,13 +102,26 @@ class ThreatAlertConsumer(AsyncWebsocketConsumer):
         })
     
     async def disconnect(self, close_code):
-        """Handle WebSocket disconnection."""
+        """
+        Handle WebSocket disconnection and cleanup rate limit counter.
+
+        Decrements the connection count in Redis to ensure accurate rate limiting.
+        This prevents connection count drift from abnormal disconnections.
+        """
+        # Decrement connection counter for rate limiting
+        if hasattr(self, 'user') and self.user.is_authenticated:
+            rate_key = f"ws_threat_alert_connections:{self.user.id}"
+            current = cache.get(rate_key, 0)
+            if current > 0:
+                # Decrement counter, preserving the original timeout window
+                cache.set(rate_key, current - 1, timeout=self.RATE_LIMIT_WINDOW)
+
         if hasattr(self, 'tenant_group'):
             await self.channel_layer.group_discard(
                 self.tenant_group,
                 self.channel_name
             )
-        
+
         logger.info(
             f"Threat alert WebSocket disconnected",
             extra={
@@ -85,7 +129,7 @@ class ThreatAlertConsumer(AsyncWebsocketConsumer):
                 'correlation_id': f'ws_disconnect_{close_code}_{timezone.now().timestamp()}'
             }
         )
-        
+
         # Record disconnection metric
         TaskMetrics.increment_counter('websocket_connection_closed', {
             'consumer': 'threat_alert',
@@ -125,7 +169,8 @@ class ThreatAlertConsumer(AsyncWebsocketConsumer):
                 'urgency': event['urgency_level']
             })
             
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            # Specific exceptions for data structure issues, type errors, and missing attributes
             logger.error(
                 f"Failed to send threat alert via WebSocket: {e}",
                 exc_info=True,
@@ -155,7 +200,8 @@ class ThreatAlertConsumer(AsyncWebsocketConsumer):
                 'update_type': event['update_type']
             })
             
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            # Specific exceptions for data structure issues, type errors, and missing attributes
             logger.error(
                 f"Failed to send threat alert update via WebSocket: {e}",
                 exc_info=True,
