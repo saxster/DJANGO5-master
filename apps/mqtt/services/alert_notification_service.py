@@ -24,6 +24,7 @@ import time
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone as dt_timezone
+from smtplib import SMTPException
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -273,9 +274,16 @@ class AlertNotificationService:
                 latency_ms=latency_ms
             )
 
-        except CELERY_EXCEPTIONS as e:
+        except (CELERY_EXCEPTIONS, SMTPException) as e:
+            # Catch both Celery task errors AND SMTP failures
+            # (SMTPAuthenticationError, SMTPServerDisconnected, etc.)
+            # This ensures SMS/push notifications still run if email fails
             latency_ms = (time.time() - start_time) * 1000
-            logger.error(f"Failed to send email: {e}", exc_info=True)
+            logger.error(
+                f"Failed to send email notification: {type(e).__name__}: {e}",
+                exc_info=True,
+                extra={'alert_id': alert.id, 'severity': alert.severity}
+            )
 
             TaskMetrics.increment_counter('alert_notification_failed', {
                 'channel': 'email',

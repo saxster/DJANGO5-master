@@ -100,11 +100,16 @@ class MetricsAggregator:
         return summary
 
     def _get_active_workers_queryset(self):
-        """Return optimized queryset of active workers for batching."""
+        """
+        Return optimized queryset of active workers for batching.
+
+        Note: Filters on People.is_active only. The organizational.employmentstatus
+        field does not exist in PeopleOrganizational model (removed during schema cleanup).
+        Active status is determined by People.is_active flag.
+        """
         return (
             People.objects.filter(
-                is_active=True,
-                organizational__employmentstatus='Active'
+                is_active=True
             )
             .select_related('tenant', 'organizational__site')
             .order_by('tenant_id', 'organizational__site_id', 'id')

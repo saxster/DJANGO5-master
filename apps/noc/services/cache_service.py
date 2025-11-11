@@ -115,13 +115,21 @@ class NOCCacheService:
         """
         Invalidate all caches for a tenant.
 
+        Matches cache key structure from _build_cache_key():
+        - Pattern: "noc_cache:tenant_{tenant_id}:*"
+        - Actual keys: "noc_cache:tenant_{scope}:{data_type}:user_{user_id}:{hash}"
+        - Also matches: "noc_cache:tenant_{scope}:metrics:client_{client_id}"
+
+        Note: Previous pattern had TWO tenant references (tenant_{scope}:*:tenant_{id}:*)
+        which never matched actual keys (only ONE tenant reference at start).
+
         Args:
             tenant_id: Tenant ID
         """
-        scope = NOCCacheService._tenant_scope()
-        pattern = f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{scope}:*:tenant_{tenant_id}:*"
+        # Use tenant_id directly (matches actual cache key structure)
+        pattern = f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{tenant_id}:*"
         cache.delete_pattern(pattern)
-        logger.debug(f"Invalidated cache for tenant {tenant_id}")
+        logger.debug(f"Invalidated cache for tenant {tenant_id} with pattern: {pattern}")
 
     @staticmethod
     def get_metrics_cached(client_id, window_minutes=5):
@@ -221,5 +229,8 @@ class NOCCacheService:
     def _tenant_scope() -> str:
         try:
             return get_current_db_name() or 'default'
-        except Exception:
+        except (AttributeError, RuntimeError, KeyError):
+            # AttributeError: Middleware not initialized
+            # RuntimeError: Request context unavailable
+            # KeyError: Tenant not in thread-local storage
             return 'default'

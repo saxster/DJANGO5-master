@@ -356,9 +356,29 @@ class OntologyRegistry:
             logger.warning("Failed to persist ontology registry snapshot: %s", exc)
 
     def _build_snapshot(self) -> Dict[str, Any]:
-        """Create a serializable representation of the registry state."""
+        """
+        Create a serializable representation of the registry state.
+
+        Note: Filters out unpicklable lambda functions from metadata before caching.
+        The _lazy_source_loader lambda (added in decorators.py for lazy source loading)
+        cannot be pickled by Django cache, so we exclude it from the snapshot.
+
+        The lambda is kept in memory for runtime use but excluded from persistence.
+        This allows the registry to warm from cache on worker startup.
+        """
+        # Filter out unpicklable lambdas from metadata
+        serializable_metadata = {}
+        for key, value in self._metadata.items():
+            # Create a copy of the metadata dict without the lambda
+            if isinstance(value, dict) and '_lazy_source_loader' in value:
+                # Clone metadata entry without the lambda
+                filtered_entry = {k: v for k, v in value.items() if k != '_lazy_source_loader'}
+                serializable_metadata[key] = filtered_entry
+            else:
+                serializable_metadata[key] = value
+
         return {
-            "metadata": dict(self._metadata),
+            "metadata": serializable_metadata,
             "by_domain": {key: set(values) for key, values in self._by_domain.items()},
             "by_tag": {key: set(values) for key, values in self._by_tag.items()},
             "by_type": {key: set(values) for key, values in self._by_type.items()},

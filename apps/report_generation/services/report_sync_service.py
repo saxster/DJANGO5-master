@@ -164,7 +164,11 @@ class ReportSyncService(BaseSyncService):
                     'mobile_id': data.get('mobile_id'),
                     'error': 'Report not found or access denied'
                 })
-            except Exception as e:
+            except (ValidationError, ValueError, IOError, OSError) as e:
+                # Catch specific exceptions from file handling and validation
+                # ValidationError: File validation failures
+                # ValueError: Invalid data formats
+                # IOError/OSError: File system errors during save
                 logger.error(f"Attachment sync error: {e}", exc_info=True)
                 results['failed'].append({
                     'mobile_id': data.get('mobile_id'),
@@ -214,11 +218,52 @@ class ReportSyncService(BaseSyncService):
         return BytesIO(file_data)
     
     def _download_from_s3(self, s3_url):
-        """Download file from S3 presigned URL."""
+        """
+        Download file from S3 presigned URL.
+
+        Security: Validates URL against S3 domain whitelist to prevent SSRF attacks.
+        Only allows requests to legitimate AWS S3 endpoints.
+
+        Raises:
+            ValidationError: If URL is not a valid S3 presigned URL
+        """
         import requests
         from io import BytesIO
-        
+        from urllib.parse import urlparse
+
+        # SECURITY: SSRF Prevention - Validate S3 URL whitelist
+        # Only allow legitimate AWS S3 domains to prevent:
+        # - AWS metadata service access (169.254.169.254)
+        # - Internal network probing (localhost, 10.0.0.0/8, etc.)
+        # - File URI attacks (file://)
+        parsed = urlparse(s3_url)
+
+        # Allowed S3 domain patterns
+        allowed_domains = [
+            's3.amazonaws.com',
+            's3-accelerate.amazonaws.com',
+        ]
+
+        # Check for standard S3 URL or bucket-specific subdomain
+        is_valid_s3 = (
+            parsed.scheme == 'https' and (
+                parsed.hostname in allowed_domains or
+                (parsed.hostname and parsed.hostname.endswith('.s3.amazonaws.com')) or
+                (parsed.hostname and parsed.hostname.endswith('.s3-accelerate.amazonaws.com'))
+            )
+        )
+
+        if not is_valid_s3:
+            logger.warning(
+                f"SSRF attempt blocked: Invalid S3 URL '{s3_url}' "
+                f"(hostname: {parsed.hostname}, scheme: {parsed.scheme})"
+            )
+            raise ValidationError(
+                f"Invalid S3 URL. Only HTTPS URLs from AWS S3 domains are allowed. "
+                f"Received: {parsed.scheme}://{parsed.hostname}"
+            )
+
         response = requests.get(s3_url, timeout=(5, 30))
         response.raise_for_status()
-        
+
         return BytesIO(response.content)
