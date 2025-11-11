@@ -2,11 +2,13 @@
 NOC Circuit Breaker Implementation.
 
 Prevents cascade failures in NOC pipeline by opening circuit after repeated failures.
+Includes timeout protection to prevent slow/hanging calls from blocking workers.
 Follows .claude/rules.md Rule #7 (<150 lines), Rule #11 (specific exceptions).
 """
 
 import time
 import logging
+import signal
 from django.core.cache import cache
 from typing import Callable, Any
 
@@ -47,30 +49,55 @@ class NOCCircuitBreaker:
         return False
 
     @classmethod
-    def execute(cls, service_name: str, func: Callable, *args, **kwargs) -> Any:
+    def execute(cls, service_name: str, func: Callable, *args, timeout: int = 30, **kwargs) -> Any:
         """
-        Execute function with circuit breaker protection.
+        Execute function with circuit breaker and timeout protection.
 
         Args:
             service_name: Service identifier
             func: Function to execute
-            *args, **kwargs: Arguments for function
+            *args: Positional arguments for function
+            timeout: Timeout in seconds (default 30s). Prevents hanging calls.
+            **kwargs: Keyword arguments for function (excluding timeout param)
 
         Returns:
             Function result or raises exception
 
         Raises:
             RuntimeError: If circuit is open
+            TimeoutError: If function exceeds timeout
+            ValueError/RuntimeError/ConnectionError: From function execution
         """
         if cls.is_open(service_name):
             raise RuntimeError(f"Circuit breaker open for {service_name}")
 
         try:
-            result = func(*args, **kwargs)
+            # Set timeout handler
+            def timeout_handler(signum, frame):
+                raise TimeoutError(
+                    f"Function '{func.__name__}' exceeded {timeout}s timeout"
+                )
+
+            # Set signal handler for timeout
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout)
+
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                # Cancel alarm and restore old handler
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+
             cls.record_success(service_name)
             return result
-        except (ValueError, RuntimeError, ConnectionError) as e:
+
+        except (ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
             cls.record_failure(service_name)
+            logger.warning(
+                f"Circuit breaker failure for {service_name}: {type(e).__name__}",
+                extra={'error': str(e)}
+            )
             raise
 
     @classmethod
