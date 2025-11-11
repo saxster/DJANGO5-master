@@ -12,6 +12,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from django.core.cache import cache
+from apps.noc.models import WebSocketConnection
 
 logger = logging.getLogger('noc.websocket')
 
@@ -57,6 +58,10 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         )
 
         await self.accept()
+
+        # Register connection for accurate recipient counting
+        await self._register_connection()
+
         logger.info(
             f"NOC WebSocket connected",
             extra={'user_id': user.id, 'tenant_id': self.tenant_id}
@@ -66,6 +71,9 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
+        # Unregister connection from tracking
+        await self._unregister_connection()
+
         if hasattr(self, 'tenant_group'):
             await self.channel_layer.group_discard(
                 self.tenant_group,
@@ -355,3 +363,47 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         """Get cached metrics for client."""
         from apps.noc.services.cache_service import NOCCacheService
         return NOCCacheService.get_metrics_cached(client_id) or {}
+
+    @database_sync_to_async
+    def _register_connection(self):
+        """Register WebSocket connection for recipient tracking."""
+        from apps.tenants.models import Tenant
+
+        try:
+            WebSocketConnection.objects.create(
+                tenant=Tenant.objects.get(id=self.tenant_id),
+                user=self.user,
+                channel_name=self.channel_name,
+                group_name=self.tenant_group,
+                consumer_type='noc_dashboard'
+            )
+            logger.debug(
+                f"Registered WebSocket connection: {self.channel_name}",
+                extra={'user_id': self.user.id, 'group': self.tenant_group}
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to register WebSocket connection: {e}",
+                exc_info=True
+            )
+
+    @database_sync_to_async
+    def _unregister_connection(self):
+        """Unregister WebSocket connection from tracking."""
+        if not hasattr(self, 'channel_name'):
+            return
+
+        try:
+            deleted_count, _ = WebSocketConnection.objects.filter(
+                channel_name=self.channel_name
+            ).delete()
+            if deleted_count > 0:
+                logger.debug(
+                    f"Unregistered WebSocket connection: {self.channel_name}",
+                    extra={'deleted_count': deleted_count}
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to unregister WebSocket connection: {e}",
+                exc_info=True
+            )

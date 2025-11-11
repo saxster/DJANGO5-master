@@ -19,7 +19,7 @@ class IntelligenceSourceAdmin(admin.ModelAdmin):
 
 
 @admin.register(ThreatEvent)
-class ThreatEventAdmin(admin.OSMGeoAdmin):
+class ThreatEventAdmin(admin.GISModelAdmin):  # OSMGeoAdmin deprecated in Django 5.x
     list_display = ['title', 'category', 'severity', 'confidence_score', 'event_start_time', 'location_name', 'is_processed']
     list_filter = ['category', 'severity', 'is_processed', 'source']
     search_fields = ['title', 'description', 'location_name']
@@ -28,7 +28,7 @@ class ThreatEventAdmin(admin.OSMGeoAdmin):
 
 
 @admin.register(TenantIntelligenceProfile)
-class TenantIntelligenceProfileAdmin(admin.OSMGeoAdmin):
+class TenantIntelligenceProfileAdmin(admin.GISModelAdmin):
     list_display = ['tenant', 'minimum_severity', 'is_active', 'enable_websocket', 'enable_sms', 'enable_email']
     list_filter = ['is_active', 'enable_auto_tuning', 'enable_collective_intelligence']
     search_fields = ['tenant__name']

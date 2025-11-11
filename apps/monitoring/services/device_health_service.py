@@ -44,9 +44,9 @@ class DeviceHealthService:
     - Temperature anomalies (10% weight)
     """
     
-    HEALTH_CRITICAL = 40
-    HEALTH_WARNING = 70
-    HEALTH_GOOD = 70
+    HEALTH_CRITICAL = 40  # Device at risk of failure (< 40)
+    HEALTH_WARNING = 60   # Device health degrading (40-59)
+    HEALTH_GOOD = 80      # Device operating normally (>= 80)
     
     @classmethod
     def compute_health_score(cls, device_id: str, tenant_id: int = None) -> Dict[str, Any]:

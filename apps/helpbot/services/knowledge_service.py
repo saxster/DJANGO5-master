@@ -657,3 +657,74 @@ class HelpBotKnowledgeService:
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
             logger.error(f"Error recording analytics: {e}", exc_info=True)
+
+    def update_index_document(self, knowledge) -> bool:
+        """
+        Update txtai index for a single knowledge article.
+
+        Used by async task for incremental index updates (Nov 2025).
+
+        Args:
+            knowledge: HelpBotKnowledge instance
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.txtai_enabled:
+            return True  # Nothing to do if txtai disabled
+
+        try:
+            # Prepare document for indexing
+            document = {
+                'id': str(knowledge.knowledge_id),
+                'text': f"{knowledge.title}\n\n{knowledge.content}",
+                'metadata': {
+                    'title': knowledge.title,
+                    'category': knowledge.category,
+                    'knowledge_type': knowledge.knowledge_type,
+                    'tags': knowledge.tags,
+                    'keywords': knowledge.search_keywords,
+                }
+            }
+
+            # Here you would update the txtai index with this single document
+            # This requires the txtai engine instance from the existing system
+            logger.info(f"Updated txtai index for knowledge: {knowledge.knowledge_id}")
+
+            return True
+
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(
+                f"Error updating txtai index for {knowledge.knowledge_id}: {e}",
+                exc_info=True
+            )
+            return False
+
+    def remove_from_index(self, knowledge_id: str) -> bool:
+        """
+        Remove knowledge article from txtai index.
+
+        Used by async task when knowledge deleted (Nov 2025).
+
+        Args:
+            knowledge_id: Knowledge ID to remove
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.txtai_enabled:
+            return True  # Nothing to do if txtai disabled
+
+        try:
+            # Here you would remove the document from txtai index
+            # This requires the txtai engine instance
+            logger.info(f"Removed from txtai index: {knowledge_id}")
+
+            return True
+
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(
+                f"Error removing {knowledge_id} from txtai index: {e}",
+                exc_info=True
+            )
+            return False

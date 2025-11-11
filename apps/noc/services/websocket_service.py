@@ -12,7 +12,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.utils import timezone
 from django.db import DatabaseError, IntegrityError
-from apps.noc.models import NOCAlertEvent, NOCIncident
+from apps.noc.models import NOCAlertEvent, NOCIncident, WebSocketConnection
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 __all__ = ['NOCWebSocketService']
@@ -71,6 +71,12 @@ class NOCWebSocketService:
             # Calculate latency
             latency_ms = int((time.time() - start_time) * 1000)
 
+            # Count actual recipients from WebSocket connections
+            recipient_count = WebSocketConnection.get_group_member_count(
+                group_name=f"noc_tenant_{tenant_id}",
+                tenant_id=tenant_id
+            )
+
             # Log event to NOCEventLog for audit trail
             from apps.noc.models import NOCEventLog
             NOCEventLog.objects.create(
@@ -82,7 +88,7 @@ class NOCWebSocketService:
                 alert_id=event_data.get('alert_id'),
                 finding_id=event_data.get('finding_id'),
                 ticket_id=event_data.get('ticket_id'),
-                recipient_count=1  # TODO: Track actual WebSocket connection count
+                recipient_count=recipient_count  # Actual WebSocket connection count
             )
 
             logger.info(

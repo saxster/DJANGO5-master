@@ -496,12 +496,28 @@ for user in People.objects.all():
 
 ---
 
-**Last Updated**: November 10, 2025 (Smart Dependency Installer - Platform detection and automated installation)
-**Previous Update**: November 5, 2025 (Phase 7 Documentation - Complete refactoring playbook, training materials, retrospective)
+**Last Updated**: November 11, 2025 (Ultrathink Comprehensive Remediation - Critical bug fixes, data quality improvements, technical debt resolution)
+**Previous Update**: November 10, 2025 (Smart Dependency Installer - Platform detection and automated installation)
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
 
-**Recent Changes (Nov 10, 2025) - Installation Improvements**:
+**Recent Changes (Nov 11, 2025) - Ultrathink Comprehensive Remediation**:
+- ✅ **MQTT Client Fixed** (`apps/mqtt/client.py`) - Removed `.py` extension from settings module path, fixing ModuleNotFoundError in all environments
+- ✅ **Monitoring Thresholds Corrected** (`apps/monitoring/services/device_health_service.py`) - Fixed duplicate HEALTH_WARNING/HEALTH_GOOD values (70→60/80), proper 3-tier health system
+- ✅ **OpenAPI Schema Modernized** (`apps/onboarding_api/openapi_schemas.py`) - Replaced drf-yasg stub with drf-spectacular (OpenAPI 3.0), working Swagger/ReDoc UI
+- ✅ **WebSocket Metrics Fixed** (`apps/noc/models/websocket_connection.py`) - New WebSocketConnection model tracks actual recipients vs hardcoded `recipient_count=1`
+  - NOC consumers register/unregister connections on connect/disconnect
+  - Broadcast service queries real connection count for accurate monitoring
+  - Fixes invalid SLA reporting and dashboard metrics
+- ✅ **ML Training Blocking I/O Eliminated** (`apps/ml_training/services/training_orchestrator.py`) - Removed 10-second `time.sleep()` loops
+  - New TrainingOrchestrator service supports external ML platforms (non-blocking HTTP triggers)
+  - Replaced fake metrics (0.95 accuracy always) with real training workflow
+  - Progress callbacks via WebSocket instead of blocking loops
+- ✅ **Onboarding Shim Deprecated** (`apps/onboarding/__init__.py`) - Added deprecation warnings with March 2026 removal timeline
+- ✅ **Bonus Fixes**: Calendar admin registration, OSMGeoAdmin→GISModelAdmin (Django 5.x), missing `Any` import
+- 📊 **Impact**: 9 issues fixed, ~530 lines changed, 2 new files, 100% backward compatibility maintained
+
+**Previous Changes (Nov 10, 2025) - Installation Improvements**:
 - ✅ **Smart Dependency Installer** created (`scripts/install_dependencies.py`) - Automatically detects platform and installs correct dependencies
 - ✅ **Root requirements.txt removed** - Prevented CUDA package conflicts on macOS
 - ✅ **Installation Guide** created (`.github/INSTALL_GUIDE.md`) - Comprehensive platform-specific setup instructions

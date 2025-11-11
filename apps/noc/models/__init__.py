@@ -23,6 +23,7 @@ from .noc_event_log import NOCEventLog
 from .executable_playbook import ExecutablePlaybook
 from .playbook_execution import PlaybookExecution
 from .predictive_alert_tracking import PredictiveAlertTracking
+from .websocket_connection import WebSocketConnection
 
 __all__ = [
     'NOCMetricSnapshot',
@@ -45,4 +46,5 @@ __all__ = [
     'ExecutablePlaybook',
     'PlaybookExecution',
     'PredictiveAlertTracking',
+    'WebSocketConnection',
 ]

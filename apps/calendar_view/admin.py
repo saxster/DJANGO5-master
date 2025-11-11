@@ -179,10 +179,12 @@ class CalendarViewProxy:
 
 
 # Register the calendar admin
-try:
-    admin.site.register([CalendarViewProxy], CalendarViewAdmin)
-except admin.sites.AlreadyRegistered:
-    pass  # Already registered
+# NOTE: CalendarViewProxy is not a Django model, so it cannot be registered
+# The calendar view is accessible via direct URL pattern instead
+# try:
+#     admin.site.register([CalendarViewProxy], CalendarViewAdmin)
+# except admin.sites.AlreadyRegistered:
+#     pass  # Already registered
 
 
 __all__ = ['CalendarDashboardView', 'CalendarViewAdmin', 'CalendarAdminSite']

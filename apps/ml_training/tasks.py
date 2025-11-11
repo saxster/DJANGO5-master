@@ -94,40 +94,38 @@ def train_model(
                 message='Initializing training pipeline'
             )
 
-        # TODO: Implement actual training logic
-        # from apps.ml_training.services.training_service import train_ml_model
-        # result = train_ml_model(dataset_id, model_type, hyperparameters)
+        # Trigger training via orchestrator (NO blocking time.sleep()!)
+        from apps.ml_training.services.training_orchestrator import TrainingOrchestrator
 
-        # Placeholder training simulation
-        import time
-        for i in range(10):
-            time.sleep(1)  # Simulate training epoch
+        # Progress callback for WebSocket broadcasts
+        def progress_callback(pct, msg):
             if user_id:
                 self.broadcast_task_progress(
                     user_id=user_id,
                     task_name=f'ML Model Training ({model_type})',
-                    progress=(i + 1) * 10.0,
-                    message=f'Training epoch {i + 1}/10'
+                    progress=pct,
+                    message=msg
                 )
 
-        result = {
-            'model_id': 999,  # Placeholder
-            'dataset_id': dataset_id,
-            'model_type': model_type,
-            'accuracy': 0.95,
-            'precision': 0.93,
-            'recall': 0.94,
-            'training_time_seconds': 10
-        }
+        # Trigger training (external platform or in-process)
+        result = TrainingOrchestrator.trigger_training(
+            dataset_id=dataset_id,
+            model_type=model_type,
+            hyperparameters=hyperparameters,
+            progress_callback=progress_callback
+        )
 
         # Broadcast completion
+        status = result.get('status', 'unknown')
+        message = result.get('message', 'Training completed')
+
         if user_id:
             self.broadcast_task_progress(
                 user_id=user_id,
                 task_name=f'ML Model Training ({model_type})',
                 progress=100.0,
                 status='completed',
-                message=f'Training complete - Accuracy: {result["accuracy"]:.2%}'
+                message=message
             )
 
         # Record metrics

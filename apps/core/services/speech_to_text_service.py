@@ -13,7 +13,7 @@ import os
 import tempfile
 import subprocess
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 
 # Optional Google Cloud Speech dependency - graceful fallback if not installed
 try:

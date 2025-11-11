@@ -495,11 +495,11 @@ class TestHealthConstants:
 
     def test_health_warning_threshold(self):
         """Test warning health threshold."""
-        assert DeviceHealthService.HEALTH_WARNING == 70
+        assert DeviceHealthService.HEALTH_WARNING == 60
 
     def test_health_good_threshold(self):
         """Test good health threshold."""
-        assert DeviceHealthService.HEALTH_GOOD == 70
+        assert DeviceHealthService.HEALTH_GOOD == 80
 
 
 class TestErrorHandling:

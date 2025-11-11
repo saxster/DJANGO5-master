@@ -29,7 +29,7 @@ MQTT IoT Client for Device Communication
 
 import os
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings.py")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 import django
 

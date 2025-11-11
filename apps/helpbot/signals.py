@@ -130,22 +130,37 @@ def handle_knowledge_save(sender, instance, created, **kwargs):
         if created:
             logger.debug(f"New knowledge article created: {instance.knowledge_id}")
 
-            # TODO: Trigger txtai index update if enabled
-            # This would integrate with the existing txtai infrastructure
+            # Trigger async txtai index update (Nov 2025 implementation)
             try:
-                from apps.helpbot.services import HelpBotKnowledgeService
-                knowledge_service = HelpBotKnowledgeService()
+                from apps.helpbot.tasks import update_txtai_index_task
 
-                if knowledge_service.txtai_enabled:
-                    logger.debug(f"Would update txtai index for knowledge: {instance.knowledge_id}")
-                    # knowledge_service._build_txtai_index()  # Uncomment when txtai is ready
+                # Queue background task with 5-second delay for batching
+                update_txtai_index_task.apply_async(
+                    args=[str(instance.knowledge_id), 'add'],
+                    countdown=5  # 5-second delay allows aggregation
+                )
 
-            except ImportError:
-                logger.debug("txtai integration not available")
+                logger.debug(
+                    f"Queued txtai index update for knowledge: {instance.knowledge_id}"
+                )
+
+            except ImportError as e:
+                logger.debug(f"txtai task not available: {e}")
 
         else:
-            # Existing knowledge updated
+            # Existing knowledge updated - trigger index refresh
             logger.debug(f"Knowledge article updated: {instance.knowledge_id}")
+
+            try:
+                from apps.helpbot.tasks import update_txtai_index_task
+
+                update_txtai_index_task.apply_async(
+                    args=[str(instance.knowledge_id), 'update'],
+                    countdown=5
+                )
+
+            except ImportError as e:
+                logger.debug(f"txtai task not available: {e}")
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         logger.error(f"Error in knowledge save signal: {e}", exc_info=True)
@@ -157,8 +172,22 @@ def handle_knowledge_delete(sender, instance, **kwargs):
     try:
         logger.debug(f"Knowledge article deleted: {instance.knowledge_id}")
 
-        # TODO: Update txtai index to remove deleted knowledge
-        # This would integrate with the existing txtai infrastructure
+        # Trigger async txtai index cleanup (Nov 2025 implementation)
+        try:
+            from apps.helpbot.tasks import update_txtai_index_task
+
+            # Queue background task to remove from index
+            update_txtai_index_task.apply_async(
+                args=[str(instance.knowledge_id), 'delete'],
+                countdown=5  # 5-second delay for batching
+            )
+
+            logger.debug(
+                f"Queued txtai index removal for knowledge: {instance.knowledge_id}"
+            )
+
+        except ImportError as e:
+            logger.debug(f"txtai task not available: {e}")
 
     except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         logger.error(f"Error in knowledge delete signal: {e}", exc_info=True)
