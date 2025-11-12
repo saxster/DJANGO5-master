@@ -15,9 +15,9 @@ import time
 
 
 @pytest.fixture
-def helpbot_service(django_settings):
+def helpbot_service(settings):
     """Initialize HelpBot service with ontology enabled."""
-    django_settings.FEATURES = {'HELPBOT_USE_ONTOLOGY': True}
+    settings.FEATURES = {'HELPBOT_USE_ONTOLOGY': True}
 
     from apps.helpbot.services.knowledge_service import HelpBotKnowledgeService
     return HelpBotKnowledgeService()
@@ -49,7 +49,7 @@ def test_helpbot_latency_with_ontology(helpbot_service):
                 result = helpbot_service.search_knowledge(query, limit=5)
                 end = time.perf_counter()
                 latencies.append((end - start) * 1000)  # Convert to ms
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError, ImportError, RuntimeError) as e:
                 error_count += 1
                 if error_count <= 5:  # Only print first 5 errors
                     print(f"Error on query '{query}' iteration {i}: {e}")
@@ -111,7 +111,7 @@ def test_helpbot_error_rate(helpbot_service):
                 result = helpbot_service.search_knowledge(query, limit=5)
                 end = time.perf_counter()
                 latencies.append((end - start) * 1000)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError, ImportError, RuntimeError) as e:
                 error_count += 1
                 if error_count <= 5:  # Only print first 5 errors
                     print(f"Error on query '{query}' iteration {i}: {e}")
