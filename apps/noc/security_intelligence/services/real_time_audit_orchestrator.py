@@ -23,7 +23,10 @@ from apps.noc.security_intelligence.models import (
 from apps.noc.security_intelligence.services.evidence_collector import EvidenceCollector
 from apps.noc.security_intelligence.services.task_compliance_monitor import TaskComplianceMonitor
 from apps.noc.security_intelligence.services.activity_signal_collector import ActivitySignalCollector
+from apps.noc.security_intelligence.services.signal_correlation_service import SignalCorrelationService
 from apps.noc.services import AlertCorrelationService
+from apps.noc.services.websocket_service import NOCWebSocketService
+from apps.noc.services.audit_escalation_service import AuditEscalationService
 
 logger = logging.getLogger('noc.audit_orchestrator')
 
@@ -115,6 +118,17 @@ class RealTimeAuditOrchestrator:
                 site=site,
                 window_minutes=window_minutes
             )
+
+            # Correlate signals with existing alerts
+            try:
+                SignalCorrelationService.correlate_signals_with_alerts(
+                    person=active_people,
+                    site=site,
+                    signals=signals,
+                    window_minutes=window_minutes
+                )
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(f"Signal correlation failed: {e}")
 
             signal_count = signals.get(f'{signal_type}_count', 0)
 
@@ -237,6 +251,27 @@ class RealTimeAuditOrchestrator:
             )
 
             logger.info(f"Created finding: {finding}")
+
+            # Broadcast finding to WebSocket clients
+            try:
+                NOCWebSocketService.broadcast_finding(finding)
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(f"Failed to broadcast finding {finding.id}: {e}")
+
+            # Escalate high-severity findings to tickets
+            try:
+                ticket = AuditEscalationService.escalate_finding_to_ticket(finding)
+                if ticket:
+                    logger.info(f"Finding {finding.id} escalated to ticket {ticket.id}")
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(f"Failed to escalate finding {finding.id}: {e}")
+
+            # Execute matching playbooks (Enhancement #2: Automated Playbook Execution)
+            try:
+                self._execute_matching_playbooks(finding)
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(f"Failed to execute playbooks for finding {finding.id}: {e}")
+
             return finding
 
         except (DatabaseError, ValueError) as e:
@@ -280,3 +315,62 @@ class RealTimeAuditOrchestrator:
 
         except (DatabaseError, ValueError) as e:
             logger.error(f"Alert creation error for finding {finding.id}: {e}", exc_info=True)
+
+    def _execute_matching_playbooks(self, finding):
+        """
+        Execute matching playbooks for a finding (Enhancement #2: SOAR-lite).
+
+        Finds playbooks that match:
+        - Finding type in playbook.finding_types
+        - Finding severity >= playbook.severity_threshold
+        - Playbook is active
+
+        Args:
+            finding: AuditFinding instance
+
+        Auto-executes if playbook.auto_execute=True, otherwise creates pending execution.
+        """
+        from apps.noc.models import ExecutablePlaybook
+        from apps.noc.services import PlaybookEngine
+
+        try:
+            # Find matching playbooks
+            severity_order = {'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
+            finding_severity_score = severity_order.get(finding.severity, 0)
+
+            matching_playbooks = ExecutablePlaybook.objects.filter(
+                tenant=finding.tenant,
+                is_active=True,
+                finding_types__contains=[finding.finding_type]
+            )
+
+            executed_count = 0
+            for playbook in matching_playbooks:
+                # Check severity threshold
+                playbook_threshold = severity_order.get(playbook.severity_threshold, 0)
+                if finding_severity_score < playbook_threshold:
+                    continue
+
+                # Execute playbook
+                execution = PlaybookEngine.execute_playbook(
+                    playbook=playbook,
+                    finding=finding,
+                    approved_by=None  # Auto-execute if playbook.auto_execute=True
+                )
+
+                if execution:
+                    executed_count += 1
+                    logger.info(
+                        f"Playbook {'auto-executed' if playbook.auto_execute else 'pending approval'}",
+                        extra={
+                            'playbook': playbook.name,
+                            'finding_id': finding.id,
+                            'execution_id': str(execution.execution_id)
+                        }
+                    )
+
+            if executed_count > 0:
+                logger.info(f"Executed {executed_count} playbooks for finding {finding.id}")
+
+        except (DatabaseError, ValueError) as e:
+            logger.error(f"Playbook execution error for finding {finding.id}: {e}", exc_info=True)

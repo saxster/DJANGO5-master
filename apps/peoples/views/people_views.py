@@ -8,6 +8,8 @@ Business logic delegated to PeopleManagementService.
 import logging
 import html
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from django.shortcuts import render, redirect
 from django.views import View
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -15,13 +17,14 @@ from django.http.request import QueryDict
 
 from apps.peoples.services import PeopleManagementService
 from apps.peoples.forms import PeopleForm, PeopleExtrasForm
-from apps.onboarding.forms import TypeAssistForm
+from apps.client_onboarding.forms import TypeAssistForm
 from apps.core.utils_new.business_logic import get_model_obj
 import apps.peoples.utils as putils
 
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(permission_required('peoples.view_people', raise_exception=True), name='dispatch')
 class PeopleView(LoginRequiredMixin, View):
     """
     Refactored people view using PeopleManagementService.

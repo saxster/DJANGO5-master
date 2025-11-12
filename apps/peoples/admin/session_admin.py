@@ -17,11 +17,12 @@ from django.utils import timezone
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from apps.peoples.models.session_models import UserSession, SessionActivityLog
+from apps.peoples.models import UserSession, SessionActivityLog
 
 
 @admin.register(UserSession)
 class UserSessionAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for user sessions.
 
@@ -256,6 +257,7 @@ class UserSessionAdmin(admin.ModelAdmin):
 
 @admin.register(SessionActivityLog)
 class SessionActivityLogAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for session activity logs.
 

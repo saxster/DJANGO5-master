@@ -64,7 +64,7 @@ class TestBackwardCompatibility:
             'apps.core.utils_new.form_security',
             'apps.core.utils_new.error_handling',
             'apps.core.utils_new.sentinel_resolvers',
-            'apps.core.utils_new.query_optimization',
+            # 'apps.core.utils_new.query_optimization',  # REMOVED 2025-10-31: Deprecated (moved to .deprecated/)
             'apps.core.utils_new.query_optimizer',
             'apps.core.utils_new.sql_security',
             'apps.core.utils_new.datetime_utilities',
@@ -276,7 +276,8 @@ class TestImportPerformance:
         modules_with_wildcards = [
             'apps.core.utils',
             'apps.core.utils_new',
-            'apps.onboarding.models',
+            'apps.client_onboarding.models',
+            'apps.core_onboarding.models',
         ]
 
         for module_name in modules_with_wildcards:

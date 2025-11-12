@@ -1,0 +1,484 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Shift Attendance Tracker{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.shift-adherence-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.shift-adherence-container h1 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.filters-bar {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.filters-form {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filters-form label {
+    font-weight: 600;
+    margin-right: 5px;
+}
+
+.filters-form input[type="date"],
+.filters-form select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.filters-form button,
+.filters-form .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    background: #007bff;
+    color: white;
+}
+
+.filters-form button:hover,
+.filters-form .btn:hover {
+    background: #0056b3;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-card.green { background: #d4edda; border-left: 4px solid #28a745; }
+.stat-card.orange { background: #fff3cd; border-left: 4px solid #ffc107; }
+.stat-card.red { background: #f8d7da; border-left: 4px solid #dc3545; }
+.stat-card.blue { background: #d1ecf1; border-left: 4px solid #17a2b8; }
+
+.stat-icon {
+    font-size: 36px;
+}
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.stat-content p {
+    margin: 5px 0 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    border-bottom: 2px solid #ddd;
+}
+
+.tab {
+    padding: 12px 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab:hover {
+    background: #f5f5f5;
+}
+
+.tab.active {
+    border-bottom-color: #007bff;
+    color: #007bff;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px 0;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.adherence-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.adherence-table thead {
+    background: #f8f9fa;
+}
+
+.adherence-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.adherence-table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.adherence-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.status-badge.green { background: #d4edda; color: #155724; }
+.status-badge.orange { background: #fff3cd; color: #856404; }
+.status-badge.red { background: #f8d7da; color: #721c24; }
+.status-badge.gray { background: #e2e3e5; color: #383d41; }
+
+.issue-list {
+    margin: 0;
+    padding-left: 20px;
+    color: #dc3545;
+    font-size: 13px;
+}
+
+.text-muted {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.text-center {
+    text-align: center;
+    padding: 40px !important;
+    color: #6c757d;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    margin: 2px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.action-btn:hover {
+    background: #f5f5f5;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="shift-adherence-container">
+    <h1>👥 Shift Attendance Tracker</h1>
+    <p>See who's on time, late, or missing from scheduled shifts</p>
+    
+    <!-- Filters -->
+    <div class="filters-bar">
+        <form method="get" class="filters-form">
+            <label>Date:</label>
+            <input type="date" 
+                   name="date" 
+                   value="{{ date|date:'Y-m-d' }}"
+                   onchange="this.form.submit()">
+            
+            <label>Site:</label>
+            <select name="site" onchange="this.form.submit()">
+                <option value="">All Sites</option>
+                {% for s in sites %}
+                <option value="{{ s.id }}" {% if site and site.id == s.id %}selected{% endif %}>
+                    {{ s.name }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <button type="button" onclick="location.reload()">🔄 Refresh</button>
+        </form>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card green">
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+                <h3>{{ stats.on_time_count }}</h3>
+                <p>On Time ({{ stats.on_time_pct }}%)</p>
+            </div>
+        </div>
+        
+        <div class="stat-card orange">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-content">
+                <h3>{{ stats.late_count }}</h3>
+                <p>Late ({{ stats.late_pct }}%)</p>
+            </div>
+        </div>
+        
+        <div class="stat-card red">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-content">
+                <h3>{{ stats.absent_count }}</h3>
+                <p>No Show ({{ stats.absent_pct }}%)</p>
+            </div>
+        </div>
+        
+        <div class="stat-card blue">
+            <div class="stat-icon">📊</div>
+            <div class="stat-content">
+                <h3>{{ stats.coverage_pct }}%</h3>
+                <p>Coverage</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('all', event)">
+            All ({{ stats.total_shifts }})
+        </button>
+        <button class="tab" onclick="showTab('late', event)">
+            ⚠️ Late ({{ stats.late_count }})
+        </button>
+        <button class="tab" onclick="showTab('absent', event)">
+            🔴 No Show ({{ stats.absent_count }})
+        </button>
+        <button class="tab" onclick="showTab('on-time', event)">
+            ✅ On Time ({{ stats.on_time_count }})
+        </button>
+    </div>
+    
+    <!-- All Shifts Table -->
+    <div id="tab-all" class="tab-content active">
+        {% if adherence_data %}
+        <table class="adherence-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Shift</th>
+                    <th>Site</th>
+                    <th>Scheduled</th>
+                    <th>Actual</th>
+                    <th>Issues</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in adherence_data %}
+                <tr>
+                    <td>
+                        <span class="status-badge {{ record.color }}">
+                            {{ record.icon }} {{ record.status }}
+                        </span>
+                    </td>
+                    <td>{{ record.shift.shiftname }}</td>
+                    <td>{{ record.shift.bu.name|default:"N/A" }}</td>
+                    <td>
+                        {{ record.scheduled_start|time:"g:i A" }} - 
+                        {{ record.scheduled_end|time:"g:i A" }}
+                    </td>
+                    <td>
+                        {% if record.actual_start %}
+                            {{ record.actual_start|time:"g:i A" }}
+                            {% if record.actual_end %}
+                            - {{ record.actual_end|time:"g:i A" }}
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">Not clocked in</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if record.issues %}
+                            <ul class="issue-list">
+                                {% for issue in record.issues %}
+                                <li>{{ issue }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📅</div>
+            <p>No scheduled shifts for this date/site</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Late Tab -->
+    <div id="tab-late" class="tab-content">
+        <h3>⚠️ Late Arrivals</h3>
+        {% if by_status.late %}
+        <table class="adherence-table">
+            <thead>
+                <tr>
+                    <th>Shift</th>
+                    <th>Site</th>
+                    <th>Scheduled</th>
+                    <th>Actual</th>
+                    <th>Minutes Late</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in by_status.late %}
+                <tr>
+                    <td>{{ record.shift.shiftname }}</td>
+                    <td>{{ record.shift.bu.name|default:"N/A" }}</td>
+                    <td>{{ record.scheduled_start|time:"g:i A" }}</td>
+                    <td>{{ record.actual_start|time:"g:i A" }}</td>
+                    <td class="text-danger">{{ record.minutes_late }} min</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No late arrivals 🎉</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Absent Tab -->
+    <div id="tab-absent" class="tab-content">
+        <h3>🔴 No Shows</h3>
+        {% if by_status.no_show %}
+        <table class="adherence-table">
+            <thead>
+                <tr>
+                    <th>Shift</th>
+                    <th>Site</th>
+                    <th>Scheduled</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in by_status.no_show %}
+                <tr>
+                    <td>{{ record.shift.shiftname }}</td>
+                    <td>{{ record.shift.bu.name|default:"N/A" }}</td>
+                    <td>{{ record.scheduled_start|time:"g:i A" }} - {{ record.scheduled_end|time:"g:i A" }}</td>
+                    <td><span class="status-badge red">No Clock-In</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No absences 🎉</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- On Time Tab -->
+    <div id="tab-on-time" class="tab-content">
+        <h3>✅ On Time</h3>
+        {% if by_status.on_time %}
+        <table class="adherence-table">
+            <thead>
+                <tr>
+                    <th>Shift</th>
+                    <th>Site</th>
+                    <th>Scheduled</th>
+                    <th>Actual</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in by_status.on_time %}
+                <tr>
+                    <td>{{ record.shift.shiftname }}</td>
+                    <td>{{ record.shift.bu.name|default:"N/A" }}</td>
+                    <td>{{ record.scheduled_start|time:"g:i A" }}</td>
+                    <td>{{ record.actual_start|time:"g:i A" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No on-time arrivals yet</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function showTab(tabName, event) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(el => {
+        el.classList.remove('active');
+    });
+    document.querySelectorAll('.tab').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById('tab-' + tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// Auto-refresh every 5 minutes
+setInterval(() => {
+    location.reload();
+}, 5 * 60 * 1000);
+</script>
+{% endblock %}

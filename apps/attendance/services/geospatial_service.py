@@ -16,6 +16,8 @@ from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from apps.core.exceptions.patterns import BUSINESS_LOGIC_EXCEPTIONS
+
 
 from django.contrib.gis.geos import Point, Polygon, GEOSGeometry, GEOSException
 from django.contrib.gis.geos.prepared import PreparedGeometry
@@ -127,7 +129,7 @@ user_lat, user_lon = 13.0827, 80.2707  # Chennai
 distance_km = GeospatialService.haversine_distance(
     office_lat, office_lon, user_lat, user_lon
 )
-print(f"Distance: {distance_km:.2f} km")  # ~287 km
+logger.debug(f"Distance: {distance_km:.2f} km")
 """,
         "geofence_validation": """
 # Validate if attendance punch is within geofence
@@ -162,7 +164,7 @@ results = GeospatialService.validate_points_in_prepared_geofence(
 )
 
 invalid_count = sum(1 for r in results if not r)
-print(f"Geofence violations: {invalid_count}")
+logger.debug(f"Geofence violations: {invalid_count}")
 """,
         "fraud_detection": """
 # Detect impossible travel (GPS spoofing)
@@ -563,7 +565,7 @@ class GeospatialService:
             else:
                 return cls._sequential_geofence_validation(coordinates_list, prepared_geofence)
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             raise GeofenceValidationError(f"Bulk geofence validation failed: {e}")
 
     @classmethod
@@ -601,8 +603,8 @@ class GeospatialService:
                 try:
                     chunk_results = future.result()
                     results.extend(chunk_results)
-                except Exception as e:
-                    logger.error(f"Parallel validation chunk failed: {e}")
+                except BUSINESS_LOGIC_EXCEPTIONS as e:
+                    logger.error(f"Parallel validation chunk failed: {e}", exc_info=True)
                     # Fall back to False for failed chunk
                     chunk = future_to_chunk[future]
                     results.extend([False] * len(chunk))
@@ -692,3 +694,43 @@ def get_coordinates_from_geometry(geometry: Union[str, GEOSGeometry]) -> Tuple[f
 def validate_point_in_geofence(lat: float, lon: float, geofence: Union[Polygon, tuple]) -> bool:
     """Legacy function wrapper for geofence validation"""
     return GeospatialService.is_point_in_geofence(lat, lon, geofence, use_hysteresis=True)
+
+
+def validate_point_in_geofence_with_config(lat: float, lon: float, geofence_obj) -> bool:
+    """
+    Validate point in geofence using geofence object's configured hysteresis.
+
+    Phase 3.3: Uses per-geofence configurable hysteresis buffer.
+
+    Args:
+        lat: Latitude
+        lon: Longitude
+        geofence_obj: Geofence model instance (must have hysteresis_meters field)
+
+    Returns:
+        True if point is in geofence (with configured buffer)
+
+    Example:
+        from apps.attendance.models import Geofence
+        geofence = Geofence.objects.get(id=123)
+        is_inside = validate_point_in_geofence_with_config(37.7749, -122.4194, geofence)
+    """
+    # Get geofence geometry based on type
+    if geofence_obj.geofence_type == 'POLYGON' and geofence_obj.boundary:
+        geofence = geofence_obj.boundary
+    elif geofence_obj.geofence_type == 'CIRCLE' and geofence_obj.center_point and geofence_obj.radius:
+        # Circular geofence as tuple (center_point, radius_km)
+        geofence = (geofence_obj.center_point, geofence_obj.radius / 1000)  # Convert meters to km
+    else:
+        logger.warning(f"Invalid geofence configuration for {geofence_obj.id}")
+        return False
+
+    # Get configured hysteresis (convert meters to km)
+    hysteresis_km = geofence_obj.hysteresis_meters / 1000
+
+    # Validate with configured hysteresis
+    return GeospatialService.is_point_in_geofence(
+        lat, lon, geofence,
+        use_hysteresis=True,
+        hysteresis_buffer=hysteresis_km
+    )

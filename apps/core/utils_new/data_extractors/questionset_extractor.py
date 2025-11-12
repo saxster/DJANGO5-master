@@ -7,7 +7,8 @@ class QuestionSetExtractor(BaseDataExtractor):
     def extract(self, session_data: Dict[str, Any]) -> List[Tuple]:
         from apps.activity.models import QuestionSet
         from apps.activity.models.asset_model import Asset
-        import apps.onboarding.models as ob
+        from apps.client_onboarding.models import Bt, Shift
+        from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
         import apps.peoples.models as pm
 
         self._validate_session_data(session_data)

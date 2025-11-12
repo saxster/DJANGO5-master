@@ -7,6 +7,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from intelliwiz_config.settings.health_checks import run_health_check, validate_settings_compliance
 import json
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
 
 class Command(BaseCommand):
@@ -60,7 +62,7 @@ class Command(BaseCommand):
                 if fail_on_warnings and results['warnings']:
                     raise CommandError(f"Settings health check warnings: {len(results['warnings'])} warnings found")
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             if not json_output:
                 self.stdout.write(
                     self.style.ERROR(f'Health check failed: {str(e)}')

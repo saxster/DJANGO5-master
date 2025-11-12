@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 from import_export import fields, resources
 from import_export import widgets as wg
 from apps.activity.models.asset_model import Asset
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 import logging
 from apps.core.utils_new.db_utils import (
@@ -37,34 +38,34 @@ class AssetResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
     Unit = fields.Field(
         column_name="Unit",
         attribute="unit",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
     Category = fields.Field(
         column_name="Category",
         attribute="category",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
     Brand = fields.Field(
         column_name="Brand",
         attribute="brand",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -72,7 +73,7 @@ class AssetResource(resources.ModelResource):
     ServiceProvider = fields.Field(
         column_name="Service Provider",
         attribute="servprov",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -80,7 +81,7 @@ class AssetResource(resources.ModelResource):
     SubCategory = fields.Field(
         column_name="Sub Category",
         attribute="subcategory",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -96,7 +97,7 @@ class AssetResource(resources.ModelResource):
     Type = fields.Field(
         column_name="Type",
         attribute="type",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -345,7 +346,7 @@ class AssetResource(resources.ModelResource):
                 row["Service"] = ""
             else:
                 obj = (
-                    om.TypeAssist.objects.select_related("tatype")
+                    TypeAssist.objects.select_related("tatype")
                     .filter(
                         tatype__tacode__in=[
                             "SERVICE_TYPE",
@@ -370,7 +371,7 @@ class AssetResource(resources.ModelResource):
                 row["Meter"] = ""
             else:
                 obj = (
-                    om.TypeAssist.objects.select_related("tatype")
+                    TypeAssist.objects.select_related("tatype")
                     .filter(
                         tatype__tacode=row["ASSETMETER", "ASSET_METER"],
                         client__bucode=row["Client*"],
@@ -386,14 +387,14 @@ class AssetResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -401,7 +402,7 @@ class AssetResourceUpdate(resources.ModelResource):
     Unit = fields.Field(
         column_name="Unit",
         attribute="unit",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -409,7 +410,7 @@ class AssetResourceUpdate(resources.ModelResource):
     Category = fields.Field(
         column_name="Category",
         attribute="category",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -417,7 +418,7 @@ class AssetResourceUpdate(resources.ModelResource):
     Brand = fields.Field(
         column_name="Brand",
         attribute="brand",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -425,7 +426,7 @@ class AssetResourceUpdate(resources.ModelResource):
     ServiceProvider = fields.Field(
         column_name="Service Provider",
         attribute="servprov",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -433,7 +434,7 @@ class AssetResourceUpdate(resources.ModelResource):
     SubCategory = fields.Field(
         column_name="SubCategory",
         attribute="subcategory",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -449,7 +450,7 @@ class AssetResourceUpdate(resources.ModelResource):
     Type = fields.Field(
         column_name="Type",
         attribute="type",
-        widget=ClientAwareTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=ClientAwareTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -731,7 +732,7 @@ class AssetResourceUpdate(resources.ModelResource):
                 else:
                     if "Client" in row:
                         obj = (
-                            om.TypeAssist.objects.select_related("tatype")
+                            TypeAssist.objects.select_related("tatype")
                             .filter(
                                 tatype__tacode__in=[
                                     "SERVICE_TYPE",
@@ -759,7 +760,7 @@ class AssetResourceUpdate(resources.ModelResource):
                 else:
                     if "Client" in row and "ASSETMETER" in row and "ASSET_METER" in row:
                         obj = (
-                            om.TypeAssist.objects.select_related("tatype")
+                            TypeAssist.objects.select_related("tatype")
                             .filter(
                                 tatype__tacode=row["ASSETMETER", "ASSET_METER"],
                                 client__bucode=row["Client"],

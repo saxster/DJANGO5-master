@@ -27,7 +27,8 @@ from import_export import fields, resources
 from import_export import widgets as wg
 
 from apps.activity.models.question_model import Question
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core.widgets import EnabledTypeAssistWidget
 from apps.core import utils
 from apps.core.utils_new.db_utils import get_or_create_none_typeassist, get_or_create_none_bv
@@ -72,21 +73,21 @@ class QuestionResource(resources.ModelResource):
     Unit = fields.Field(
         column_name="Unit",
         attribute="unit",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
     Category = fields.Field(
         column_name="Category",
         attribute="category",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 

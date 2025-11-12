@@ -73,8 +73,17 @@ class RecommendationAPIView(LoginRequiredMixin, View):
             return JsonResponse(result)
             
         except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError) as e:
-            logger.error(f"Error in RecommendationAPIView: {str(e)}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error in RecommendationAPIView: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Internal server error',
+                'correlation_id': correlation_id
+            }, status=500)
     
     def _serialize_content_recommendation(self, rec):
         """Serialize ContentRecommendation to dict"""
@@ -160,8 +169,17 @@ class RecommendationInteractionView(LoginRequiredMixin, View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         except (AttributeError, DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error recording recommendation interaction: {str(e)}")
-            return JsonResponse({'error': 'Internal server error'}, status=500)
+            from apps.core.error_handler import ErrorHandler
+            correlation_id = ErrorHandler.generate_correlation_id()
+            logger.error(
+                f"Error recording recommendation interaction: {str(e)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+            return JsonResponse({
+                'error': 'Internal server error',
+                'correlation_id': correlation_id
+            }, status=500)
     
     def _record_feedback(self, user, rec_id, rec_type, feedback_data):
         """Record user feedback on recommendation"""

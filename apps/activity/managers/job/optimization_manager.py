@@ -24,7 +24,8 @@ Usage:
 """
 
 from .base import (
-    models, logger,
+    models,
+    logger,
 )
 from django.db.models import Max
 
@@ -69,9 +70,9 @@ class OptimizationManager(models.Manager):
             # apps/service/services/job_service.py:
             jobneed = Jobneed.objects.optimized_get_with_relations(jobneed_id=123)
             # Access relations without additional queries:
-            print(jobneed.performedby.peoplename)  # No DB hit
-            print(jobneed.asset.assetname)  # No DB hit
-            print(jobneed.bu.buname)  # No DB hit
+            logger.debug(jobneed.performedby.peoplename)
+            logger.debug(jobneed.asset.assetname)
+            logger.debug(jobneed.bu.buname)
         """
         return self.select_related(
             'performedby', 'asset', 'bu', 'qset', 'job',
@@ -105,7 +106,7 @@ class OptimizationManager(models.Manager):
                 plandatetime__date=today
             )
             for tour in tours:
-                print(tour.performedby.peoplename)  # No additional query per iteration
+                logger.debug(tour.performedby.peoplename)
         """
         return self.select_related(
             'performedby', 'asset', 'bu', 'qset', 'job',
@@ -159,7 +160,7 @@ class OptimizationManager(models.Manager):
             # apps/scheduler/views/job_views.py:
             history = Jobneed.objects.history_for_job(123, limit=20)
             for execution in history:
-                print(f"{execution.plandatetime}: {execution.jobstatus}")
+                logger.debug(f"{execution.plandatetime}: {execution.jobstatus}")
         """
         return self.filter(job_id=job_id).select_related(
             'performedby', 'people', 'bu'
@@ -190,7 +191,7 @@ class OptimizationManager(models.Manager):
         Example:
             current = Jobneed.objects.current_for_jobs(job_ids)
             for job_id, jobneed in current.items():
-                print(job_id, jobneed.jobstatus)
+                logger.debug(job_id, jobneed.jobstatus)
         """
         # Get latest plandatetime per job
         latest_dates = self.filter(

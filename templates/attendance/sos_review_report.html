@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SOS Incident Review Report - {{ metadata.report_id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 10pt;
+            }
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            border-bottom: 3px solid #d32f2f;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #d32f2f;
+            margin: 0;
+            font-size: 24pt;
+        }
+        .header .subtitle {
+            color: #666;
+            font-size: 12pt;
+            margin-top: 5px;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section-title {
+            background: #f5f5f5;
+            padding: 10px;
+            font-size: 16pt;
+            font-weight: bold;
+            border-left: 4px solid #d32f2f;
+            margin-bottom: 15px;
+        }
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .metadata-item {
+            padding: 10px;
+            background: #fafafa;
+            border-left: 2px solid #ccc;
+        }
+        .metadata-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 10pt;
+        }
+        .metadata-value {
+            font-size: 12pt;
+            margin-top: 5px;
+        }
+        .severity-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        .severity-CRITICAL {
+            background: #d32f2f;
+            color: white;
+        }
+        .severity-HIGH {
+            background: #ff9800;
+            color: white;
+        }
+        .severity-MEDIUM {
+            background: #ffc107;
+            color: #333;
+        }
+        .severity-LOW {
+            background: #4caf50;
+            color: white;
+        }
+        .timeline {
+            border-left: 3px solid #2196f3;
+            padding-left: 20px;
+        }
+        .timeline-item {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2196f3;
+        }
+        .timeline-timestamp {
+            font-weight: bold;
+            color: #2196f3;
+            font-size: 11pt;
+        }
+        .timeline-event {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .timeline-details {
+            color: #666;
+            margin-top: 3px;
+            font-size: 10pt;
+        }
+        .action-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .action-table th {
+            background: #2196f3;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-size: 10pt;
+        }
+        .action-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 10pt;
+        }
+        .action-table tr:hover {
+            background: #f5f5f5;
+        }
+        .recommendation {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ff9800;
+            background: #fff3e0;
+        }
+        .recommendation-priority-HIGH {
+            border-left-color: #d32f2f;
+            background: #ffebee;
+        }
+        .recommendation-priority-MEDIUM {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+        .recommendation-priority-LOW {
+            border-left-color: #4caf50;
+            background: #e8f5e9;
+        }
+        .recommendation-category {
+            font-weight: bold;
+            color: #555;
+            font-size: 10pt;
+        }
+        .recommendation-text {
+            margin-top: 5px;
+            font-size: 11pt;
+        }
+        .lesson-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+            font-size: 11pt;
+        }
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+            font-size: 9pt;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 SOS Incident Review Report</h1>
+        <div class="subtitle">{{ metadata.report_id }} | Generated: {{ metadata.generated_at|slice:":10" }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Incident Metadata</div>
+        <div class="metadata-grid">
+            <div class="metadata-item">
+                <div class="metadata-label">Incident ID</div>
+                <div class="metadata-value">{{ metadata.incident_id }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Site</div>
+                <div class="metadata-value">{{ metadata.site_name }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Classification</div>
+                <div class="metadata-value">
+                    <span class="severity-badge severity-{{ metadata.classification }}">{{ metadata.classification }}</span>
+                </div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Tenant ID</div>
+                <div class="metadata-value">{{ metadata.tenant_id }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Executive Summary</div>
+        <div class="metadata-grid">
+            <div class="metadata-item">
+                <div class="metadata-label">Guard</div>
+                <div class="metadata-value">{{ executive_summary.guard_name }} (ID: {{ executive_summary.guard_id }})</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Incident Time</div>
+                <div class="metadata-value">{{ executive_summary.incident_time|slice:":19" }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Location</div>
+                <div class="metadata-value">{{ executive_summary.location }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Severity</div>
+                <div class="metadata-value">
+                    <span class="severity-badge severity-{{ executive_summary.severity }}">{{ executive_summary.severity }}</span>
+                    <br><small>{{ executive_summary.severity_description }}</small>
+                </div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Response Time</div>
+                <div class="metadata-value">{{ executive_summary.response_time|default:"N/A" }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Resolution Time</div>
+                <div class="metadata-value">{{ executive_summary.resolution_time|default:"N/A" }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Responder</div>
+                <div class="metadata-value">{{ executive_summary.responder_name }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Status</div>
+                <div class="metadata-value">{{ executive_summary.status }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Incident Timeline</div>
+        <div class="timeline">
+            {% for event in timeline %}
+            <div class="timeline-item">
+                <div class="timeline-timestamp">{{ event.timestamp|slice:":19" }}</div>
+                <div class="timeline-event">{{ event.event }}</div>
+                <div class="timeline-details">Actor: {{ event.actor }} | {{ event.details }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if response_actions %}
+    <div class="section">
+        <div class="section-title">Response Actions Taken</div>
+        <table class="action-table">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Performed By</th>
+                    <th>Timestamp</th>
+                    <th>Outcome</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in response_actions %}
+                <tr>
+                    <td>{{ action.action }}</td>
+                    <td>{{ action.performed_by }}</td>
+                    <td>{{ action.timestamp|slice:":19" }}</td>
+                    <td>{{ action.outcome }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if location_tracking.available %}
+    <div class="section">
+        <div class="section-title">Location Tracking Summary</div>
+        <p><strong>Total tracking points:</strong> {{ location_tracking.total_points }}</p>
+        <p><em>Note: Detailed location map available in interactive version</em></p>
+    </div>
+    {% endif %}
+
+    {% if lessons_learned %}
+    <div class="section">
+        <div class="section-title">Lessons Learned</div>
+        {% for lesson in lessons_learned %}
+        <div class="lesson-item">{{ lesson }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if recommendations %}
+    <div class="section">
+        <div class="section-title">Recommendations</div>
+        {% for rec in recommendations %}
+        <div class="recommendation recommendation-priority-{{ rec.priority }}">
+            <div class="recommendation-category">{{ rec.category }} (Priority: {{ rec.priority }})</div>
+            <div class="recommendation-text">{{ rec.recommendation }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        This report is confidential and intended for authorized personnel only.<br>
+        Generated by IntelliWiz Facility Management System
+    </div>
+</body>
+</html>

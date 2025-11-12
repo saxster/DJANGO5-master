@@ -4,4 +4,3 @@
 sentry-sdk[django,celery]==1.45.1  # Security update: CVE-2024-40647
 
 # Optional: Better stack traces and local variables
-executing==2.0.1

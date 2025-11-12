@@ -1,0 +1,1083 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' />
+<style>
+    /* Calendar Dashboard Styles */
+    :root {
+        --cal-primary: #4f46e5;
+        --cal-primary-light: #6366f1;
+        --cal-success: #10b981;
+        --cal-warning: #f59e0b;
+        --cal-danger: #ef4444;
+        --cal-info: #3b82f6;
+        --cal-light: #f8fafc;
+        --cal-border: #e2e8f0;
+        --cal-text: #1e293b;
+        --cal-text-light: #64748b;
+        --cal-radius: 12px;
+    }
+
+    .calendar-wrapper {
+        padding: 20px;
+        background: #fff;
+    }
+
+    .calendar-header-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: var(--cal-radius) var(--cal-radius) 0 0;
+        margin: -20px -20px 20px -20px;
+    }
+
+    .calendar-header-bar h1 {
+        font-size: 1.875rem;
+        font-weight: 700;
+        margin: 0 0 8px 0;
+        color: white;
+    }
+
+    .calendar-header-bar p {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0;
+        color: white;
+    }
+
+    /* Controls */
+    .calendar-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 25px;
+        padding: 20px;
+        background: var(--cal-light);
+        border-radius: var(--cal-radius);
+        border: 1px solid var(--cal-border);
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .control-group label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--cal-text);
+        margin-bottom: 4px;
+    }
+
+    .control-group select,
+    .control-group input {
+        padding: 10px 14px;
+        border: 1px solid var(--cal-border);
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        background: white;
+        transition: all 0.2s;
+    }
+
+    .control-group select:focus,
+    .control-group input:focus {
+        outline: none;
+        border-color: var(--cal-primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn-apply {
+        padding: 10px 24px;
+        background: var(--cal-primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        align-self: flex-end;
+    }
+
+    .btn-apply:hover {
+        background: var(--cal-primary-light);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Event Type Filters */
+    .event-filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: var(--cal-radius);
+        border: 1px solid var(--cal-border);
+    }
+
+    .filter-chip {
+        padding: 8px 16px;
+        border: 2px solid var(--chip-color, #ccc);
+        border-radius: 20px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+        font-weight: 500;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .filter-chip.active {
+        background: var(--chip-color);
+        color: white;
+        border-color: var(--chip-color);
+    }
+
+    .filter-chip .icon {
+        font-size: 1.1em;
+    }
+
+    /* Calendar Container */
+    #calendar {
+        background: white;
+        padding: 20px;
+        border-radius: var(--cal-radius);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* FullCalendar Customizations */
+    .fc-event {
+        border-radius: 6px;
+        padding: 4px 8px;
+        border-left-width: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .fc-event:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+    }
+
+    .fc-event.has-photos::before {
+        content: "📷 ";
+    }
+
+    .fc-event.has-videos::after {
+        content: " 🎥";
+    }
+
+    .fc .fc-daygrid-day-top {
+        justify-content: center;
+    }
+
+    .fc .fc-daygrid-day.fc-day-today {
+        background-color: rgba(79, 70, 229, 0.05) !important;
+    }
+
+    /* Photo Lightbox */
+    .photo-lightbox {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .photo-lightbox.active {
+        display: flex;
+    }
+
+    .lightbox-content {
+        position: relative;
+        max-width: 90%;
+        max-height: 90%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .lightbox-content img,
+    .lightbox-content video {
+        max-width: 100%;
+        max-height: 90vh;
+        border-radius: 12px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .lightbox-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding: 20px 16px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.2s;
+        font-size: 2rem;
+        line-height: 1;
+        user-select: none;
+    }
+
+    .lightbox-nav:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    .lightbox-nav.prev { left: 30px; }
+    .lightbox-nav.next { right: 30px; }
+
+    .lightbox-close {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding: 12px 24px;
+        cursor: pointer;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .lightbox-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.05);
+    }
+
+    /* Photo Metadata Panel */
+    .photo-metadata {
+        position: absolute;
+        bottom: 30px;
+        left: 30px;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(20px);
+        color: white;
+        padding: 20px 24px;
+        border-radius: 12px;
+        max-width: 450px;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    .photo-metadata h4 {
+        margin: 0 0 12px 0;
+        font-size: 1.125rem;
+        font-weight: 600;
+    }
+
+    .photo-metadata p {
+        margin: 6px 0;
+        display: flex;
+        gap: 8px;
+    }
+
+    .photo-metadata strong {
+        min-width: 100px;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 500;
+    }
+
+    .photo-metadata code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.8125rem;
+        word-break: break-all;
+        font-family: 'Courier New', monospace;
+    }
+
+    .photo-metadata a {
+        color: #60a5fa;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .photo-metadata a:hover {
+        text-decoration: underline;
+    }
+
+    /* Photo Actions */
+    .photo-actions {
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        display: flex;
+        gap: 12px;
+    }
+
+    .photo-action-btn {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .photo-action-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.05);
+    }
+
+    /* Loading State */
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 9998;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .loading-overlay.active {
+        display: flex;
+    }
+
+    .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--cal-primary);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Error State */
+    .error-message {
+        display: none;
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 16px 20px;
+        border-radius: var(--cal-radius);
+        margin-bottom: 20px;
+        font-weight: 500;
+    }
+
+    .error-message.active {
+        display: block;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .calendar-controls {
+            grid-template-columns: 1fr;
+        }
+
+        .event-filters {
+            justify-content: center;
+        }
+
+        .lightbox-nav {
+            padding: 15px 12px;
+            font-size: 1.5rem;
+        }
+
+        .lightbox-nav.prev { left: 10px; }
+        .lightbox-nav.next { right: 10px; }
+
+        .photo-metadata {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            max-width: calc(100% - 20px);
+        }
+
+        .photo-actions {
+            left: 10px;
+            top: 10px;
+            flex-direction: column;
+            gap: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-wrapper">
+    <!-- Header -->
+    <div class="calendar-header-bar">
+        <h1>📅 {{ title }}</h1>
+        <p>Visual timeline of all time-based events with photo integration</p>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message"></div>
+
+    <!-- Controls -->
+    <div class="calendar-controls">
+        <div class="control-group">
+            <label for="contextTypeSelect">Calendar View</label>
+            <select id="contextTypeSelect">
+                {% for ctx in context_types %}
+                <option value="{{ ctx.value }}" data-requires-id="{{ ctx.requires_id|yesno:'true,false' }}">
+                    {{ ctx.label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="control-group" id="contextIdGroup" style="display: none;">
+            <label for="contextIdInput">Context ID</label>
+            <input
+                type="number"
+                id="contextIdInput"
+                placeholder="Enter Site ID, Asset ID, etc."
+                min="1"
+            >
+        </div>
+
+        <div class="control-group">
+            <label for="searchInput">Search Events</label>
+            <input
+                type="text"
+                id="searchInput"
+                class="search-input"
+                placeholder="Search by title, location..."
+            >
+        </div>
+
+        <div class="control-group" style="align-self: flex-end;">
+            <button id="applyFiltersBtn" class="btn-apply">
+                Apply Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Event Type Filters -->
+    <div class="event-filters">
+        <span style="font-weight: 600; color: var(--cal-text); margin-right: 10px;">Event Types:</span>
+        {% for event_type in event_types %}
+        <div
+            class="filter-chip active"
+            data-event-type="{{ event_type.value }}"
+            style="--chip-color: {{ event_type.color }};"
+        >
+            <span class="icon">{{ event_type.icon }}</span>
+            <span>{{ event_type.label }}</span>
+        </div>
+        {% endfor %}
+        <button
+            id="toggleAllFilters"
+            class="filter-chip"
+            style="--chip-color: #6b7280; margin-left: auto; border-style: dashed;"
+        >
+            Toggle All
+        </button>
+    </div>
+
+    <!-- Calendar -->
+    <div id="calendar"></div>
+</div>
+
+<!-- Photo/Video Lightbox -->
+<div id="photoLightbox" class="photo-lightbox">
+    <div class="photo-actions">
+        <button class="photo-action-btn" onclick="downloadCurrentMedia()">
+            📥 Download
+        </button>
+        <button class="photo-action-btn" onclick="shareCurrentMedia()">
+            🔗 Share
+        </button>
+        <button class="photo-action-btn" onclick="copyBlockchainHash()">
+            🔐 Hash
+        </button>
+    </div>
+
+    <div class="lightbox-nav prev" onclick="prevMedia()">‹</div>
+
+    <div class="lightbox-content">
+        <img id="lightboxImage" src="" alt="Event Media" style="display: none;">
+        <video id="lightboxVideo" controls style="display: none;"></video>
+    </div>
+
+    <div class="lightbox-nav next" onclick="nextMedia()">›</div>
+
+    <div class="photo-metadata" id="photoMetadata"></div>
+
+    <div class="lightbox-close" onclick="closeLightbox()">
+        ✕ Close (ESC)
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loader"></div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script>
+    // Configuration
+    const CONFIG = {
+        apiUrl: '{{ calendar_api_url }}',
+        attachmentsBaseUrl: '{{ attachments_api_base_url }}',
+        userId: {{ user_id }},
+        tenantId: {{ tenant_id }},
+        defaultClientId: {{ default_client_id|default:'null' }},
+        defaultSiteId: {{ default_site_id|default:'null' }},
+    };
+
+    // State
+    let calendar = null;
+    let currentMediaList = [];
+    let currentMediaIndex = 0;
+    let currentEvent = null;
+
+    // Event type colors map
+    const EVENT_COLORS = {
+        {% for et in event_types %}
+        '{{ et.value }}': '{{ et.color }}',
+        {% endfor %}
+    };
+
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCalendar();
+        initializeControls();
+        initializeKeyboardNav();
+    });
+
+    function initializeCalendar() {
+        const calendarEl = document.getElementById('calendar');
+
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            },
+            height: 'auto',
+            navLinks: true,
+            editable: false,
+            selectable: false,
+            nowIndicator: true,
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: 'short'
+            },
+
+            // Fetch events from Django API
+            events: fetchCalendarEvents,
+
+            // Event click handler
+            eventClick: handleEventClick,
+
+            // Event rendering with photo/video indicators
+            eventDidMount: function(info) {
+                const metadata = info.event.extendedProps.metadata || {};
+
+                // Add visual indicators for media
+                if (metadata.photo_count > 0 || metadata.has_checkin_photo || metadata.has_checkout_photo) {
+                    info.el.classList.add('has-photos');
+                    info.el.title = `${metadata.photo_count || 0} photo(s)`;
+                }
+
+                if (metadata.video_count > 0) {
+                    info.el.classList.add('has-videos');
+                }
+
+                // Build safe tooltip (XSS-safe)
+                const tooltip = [];
+                tooltip.push(escapeHtml(info.event.title));
+
+                if (info.event.extendedProps.subtitle) {
+                    tooltip.push(escapeHtml(info.event.extendedProps.subtitle));
+                }
+                if (info.event.extendedProps.location) {
+                    tooltip.push('📍 ' + escapeHtml(info.event.extendedProps.location));
+                }
+                if (metadata.has_attachments) {
+                    const counts = [];
+                    if (metadata.photo_count) counts.push(`${metadata.photo_count} photo(s)`);
+                    if (metadata.video_count) counts.push(`${metadata.video_count} video(s)`);
+                    if (counts.length > 0) {
+                        tooltip.push('📎 ' + counts.join(', '));
+                    }
+                }
+
+                info.el.title = tooltip.join('\n');
+            },
+
+            loading: function(isLoading) {
+                const overlay = document.getElementById('loadingOverlay');
+                if (isLoading) {
+                    overlay.classList.add('active');
+                } else {
+                    overlay.classList.remove('active');
+                }
+            }
+        });
+
+        calendar.render();
+    }
+
+    async function fetchCalendarEvents(info, successCallback, failureCallback) {
+        const contextType = document.getElementById('contextTypeSelect').value;
+        const contextId = document.getElementById('contextIdInput').value;
+        const searchText = document.getElementById('searchInput').value;
+
+        // Get active event types
+        const activeTypes = Array.from(document.querySelectorAll('.filter-chip.active:not(#toggleAllFilters)'))
+            .map(chip => chip.dataset.eventType);
+
+        // Build query params
+        const params = new URLSearchParams({
+            start: info.startStr,
+            end: info.endStr,
+        });
+
+        if (contextType && contextType !== 'USER') {
+            params.append('context_type', contextType);
+            if (contextId) {
+                params.append('context_id', contextId);
+            }
+        } else if (contextType === 'USER') {
+            params.append('context_type', 'USER');
+        }
+
+        activeTypes.forEach(type => params.append('event_types', type));
+
+        if (searchText.trim()) {
+            params.append('search', searchText.trim());
+        }
+
+        try {
+            const response = await fetch(`${CONFIG.apiUrl}?${params}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error?.message || 'API error');
+            }
+
+            // Transform to FullCalendar format
+            const events = data.data.results.map(event => ({
+                id: event.id,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                backgroundColor: EVENT_COLORS[event.event_type] || '#6b7280',
+                borderColor: EVENT_COLORS[event.event_type] || '#6b7280',
+                textColor: '#ffffff',
+                extendedProps: {
+                    subtitle: event.subtitle,
+                    location: event.location,
+                    status: event.status,
+                    event_type: event.event_type,
+                    related_entity_type: event.related_entity_type,
+                    related_entity_id: event.related_entity_id,
+                    metadata: event.metadata
+                }
+            }));
+
+            successCallback(events);
+
+        } catch (error) {
+            console.error('Failed to fetch calendar events:', error);
+            showError(`Failed to load calendar: ${error.message}`);
+            failureCallback(error);
+        }
+    }
+
+    async function handleEventClick(info) {
+        currentEvent = info.event;
+        const eventId = info.event.id;
+        const metadata = info.event.extendedProps.metadata || {};
+
+        // Check if event has attachments
+        const hasAttachments = metadata.has_attachments ||
+                               metadata.photo_count > 0 ||
+                               metadata.video_count > 0 ||
+                               metadata.attachment_count > 0 ||
+                               metadata.modern_attachment_count > 0;
+
+        if (!hasAttachments) {
+            alert(`Event: ${escapeHtml(info.event.title)}\n\nNo photos or videos available for this event.`);
+            return;
+        }
+
+        // Fetch attachments
+        try {
+            showLoading(true);
+            const attachments = await fetchEventAttachments(eventId);
+            showLoading(false);
+
+            if (attachments.length === 0) {
+                alert('No media found for this event.');
+                return;
+            }
+
+            // Open lightbox with media
+            currentMediaList = attachments;
+            currentMediaIndex = 0;
+            showMedia(0);
+
+            document.getElementById('photoLightbox').classList.add('active');
+
+        } catch (error) {
+            showLoading(false);
+            console.error('Failed to fetch attachments:', error);
+            showError(`Failed to load media: ${error.message}`);
+        }
+    }
+
+    async function fetchEventAttachments(eventId) {
+        const url = `${CONFIG.attachmentsBaseUrl}${encodeURIComponent(eventId)}/attachments/`;
+
+        const response = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error?.message || 'API error');
+        }
+
+        return data.data.attachments;
+    }
+
+    function showMedia(index) {
+        const media = currentMediaList[index];
+        if (!media) return;
+
+        const imgEl = document.getElementById('lightboxImage');
+        const videoEl = document.getElementById('lightboxVideo');
+
+        // Show appropriate media element
+        if (media.file_type === 'photo') {
+            videoEl.style.display = 'none';
+            videoEl.pause();
+            // Use thumbnail if available, fallback to full URL
+            imgEl.src = media.thumbnail_url || media.url || '';
+            imgEl.style.display = 'block';
+        } else if (media.file_type === 'video') {
+            imgEl.style.display = 'none';
+            videoEl.src = media.url || '';
+            videoEl.style.display = 'block';
+            videoEl.load();
+        }
+
+        // Update metadata panel (XSS-safe using DOM methods)
+        updateMetadataPanel(media);
+    }
+
+    function updateMetadataPanel(media) {
+        const metadataEl = document.getElementById('photoMetadata');
+
+        // Clear previous content
+        metadataEl.textContent = '';
+
+        // Create heading
+        const heading = document.createElement('h4');
+        heading.textContent = media.filename || 'Media';
+        metadataEl.appendChild(heading);
+
+        // Add metadata fields using safe DOM methods
+        const metadata = media.metadata || {};
+
+        if (media.created_at) {
+            const date = new Date(media.created_at);
+            addMetadataRow(metadataEl, 'Captured', date.toLocaleString());
+        }
+
+        if (media.file_size) {
+            const sizeMB = (media.file_size / (1024 * 1024)).toFixed(2);
+            addMetadataRow(metadataEl, 'Size', `${sizeMB} MB`);
+        }
+
+        if (metadata.gps_lat && metadata.gps_lon) {
+            const lat = parseFloat(metadata.gps_lat);
+            const lon = parseFloat(metadata.gps_lon);
+            const mapsUrl = `https://maps.google.com/?q=${lat},${lon}`;
+
+            const p = document.createElement('p');
+            const strong = document.createElement('strong');
+            strong.textContent = 'GPS:';
+            p.appendChild(strong);
+
+            const coords = document.createTextNode(` ${lat.toFixed(6)}, ${lon.toFixed(6)} `);
+            p.appendChild(coords);
+
+            const link = document.createElement('a');
+            link.href = mapsUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = '📍 View Map';
+            p.appendChild(link);
+
+            metadataEl.appendChild(p);
+        }
+
+        if (metadata.device || media.uploaded_by) {
+            addMetadataRow(metadataEl, 'Device', metadata.device || media.uploaded_by || 'Unknown');
+        }
+
+        if (metadata.blockchain_hash) {
+            const p = document.createElement('p');
+            const strong = document.createElement('strong');
+            strong.textContent = 'Hash:';
+            p.appendChild(strong);
+
+            const code = document.createElement('code');
+            code.textContent = metadata.blockchain_hash.substring(0, 24) + '...';
+            code.title = metadata.blockchain_hash;
+            p.appendChild(code);
+
+            metadataEl.appendChild(p);
+        }
+
+        if (metadata.quality_score) {
+            const score = (metadata.quality_score * 100).toFixed(0);
+            const rating = metadata.quality_rating || 'Unknown';
+            addMetadataRow(metadataEl, 'Quality', `${score}% (${rating})`);
+        }
+
+        if (metadata.face_detected && metadata.face_count) {
+            addMetadataRow(metadataEl, 'Faces', `${metadata.face_count} detected`);
+        }
+
+        if (metadata.width && metadata.height) {
+            addMetadataRow(metadataEl, 'Resolution', `${metadata.width} × ${metadata.height}`);
+        }
+
+        if (metadata.caption) {
+            addMetadataRow(metadataEl, 'Caption', metadata.caption);
+        }
+
+        if (metadata.photo_type) {
+            addMetadataRow(metadataEl, 'Type', metadata.photo_type);
+        }
+    }
+
+    function addMetadataRow(container, label, value) {
+        const p = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = label + ':';
+        p.appendChild(strong);
+
+        const text = document.createTextNode(' ' + value);
+        p.appendChild(text);
+
+        container.appendChild(p);
+    }
+
+    function prevMedia() {
+        currentMediaIndex = (currentMediaIndex - 1 + currentMediaList.length) % currentMediaList.length;
+        showMedia(currentMediaIndex);
+    }
+
+    function nextMedia() {
+        currentMediaIndex = (currentMediaIndex + 1) % currentMediaList.length;
+        showMedia(currentMediaIndex);
+    }
+
+    function closeLightbox() {
+        document.getElementById('photoLightbox').classList.remove('active');
+        const videoEl = document.getElementById('lightboxVideo');
+        videoEl.pause();
+        videoEl.src = '';
+    }
+
+    function downloadCurrentMedia() {
+        const media = currentMediaList[currentMediaIndex];
+        if (!media) return;
+
+        const a = document.createElement('a');
+        a.href = media.url;
+        a.download = media.filename || 'download';
+        a.click();
+    }
+
+    function shareCurrentMedia() {
+        const media = currentMediaList[currentMediaIndex];
+        if (!media) return;
+
+        const fullUrl = window.location.origin + media.url;
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            alert('📋 Media URL copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            prompt('Copy this URL:', fullUrl);
+        });
+    }
+
+    function copyBlockchainHash() {
+        const media = currentMediaList[currentMediaIndex];
+        if (!media || !media.metadata?.blockchain_hash) {
+            alert('No blockchain hash available for this media.');
+            return;
+        }
+
+        const hash = media.metadata.blockchain_hash;
+        navigator.clipboard.writeText(hash).then(() => {
+            alert('🔐 Blockchain hash copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            prompt('Copy this hash:', hash);
+        });
+    }
+
+    function initializeControls() {
+        // Context type change handler
+        document.getElementById('contextTypeSelect').addEventListener('change', function(e) {
+            const option = e.target.selectedOptions[0];
+            const requiresId = option.dataset.requiresId === 'true';
+            const idGroup = document.getElementById('contextIdGroup');
+
+            if (requiresId) {
+                idGroup.style.display = 'flex';
+            } else {
+                idGroup.style.display = 'none';
+                document.getElementById('contextIdInput').value = '';
+            }
+        });
+
+        // Apply filters button
+        document.getElementById('applyFiltersBtn').addEventListener('click', function() {
+            calendar.refetchEvents();
+        });
+
+        // Search with debounce
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                calendar.refetchEvents();
+            }, 500);
+        });
+
+        // Event type filter chips
+        document.querySelectorAll('.filter-chip[data-event-type]').forEach(chip => {
+            chip.addEventListener('click', function() {
+                this.classList.toggle('active');
+                calendar.refetchEvents();
+            });
+        });
+
+        // Toggle all filters
+        document.getElementById('toggleAllFilters').addEventListener('click', function() {
+            const chips = document.querySelectorAll('.filter-chip[data-event-type]');
+            const allActive = Array.from(chips).every(chip => chip.classList.contains('active'));
+
+            chips.forEach(chip => {
+                if (allActive) {
+                    chip.classList.remove('active');
+                } else {
+                    chip.classList.add('active');
+                }
+            });
+
+            calendar.refetchEvents();
+        });
+    }
+
+    function initializeKeyboardNav() {
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('photoLightbox');
+            if (!lightbox.classList.contains('active')) return;
+
+            switch(e.key) {
+                case 'Escape':
+                    closeLightbox();
+                    break;
+                case 'ArrowLeft':
+                    prevMedia();
+                    break;
+                case 'ArrowRight':
+                    nextMedia();
+                    break;
+            }
+        });
+    }
+
+    function showLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (show) {
+            overlay.classList.add('active');
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+
+    function showError(message) {
+        const errorEl = document.getElementById('errorMessage');
+        errorEl.textContent = message;  // XSS-safe: textContent escapes HTML
+        errorEl.classList.add('active');
+
+        setTimeout(() => {
+            errorEl.classList.remove('active');
+        }, 5000);
+    }
+
+    // XSS protection helper
+    function escapeHtml(text) {
+        if (!text) return '';
+        // Modern browser-safe HTML escaping using Option element
+        // This avoids innerHTML and properly escapes <, >, &, ", ' characters
+        return new Option(text).innerHTML;
+    }
+</script>
+{% endblock %}

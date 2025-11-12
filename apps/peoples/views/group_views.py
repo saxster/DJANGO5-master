@@ -7,6 +7,8 @@ Business logic delegated to GroupManagementService.
 
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from django.shortcuts import render, redirect
 from django.views import View
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -20,6 +22,7 @@ from apps.core.utils_new.business_logic import get_model_obj
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(permission_required('peoples.view_pgroup', raise_exception=True), name='dispatch')
 class PeopleGroup(LoginRequiredMixin, View):
     """
     Refactored people group view using GroupManagementService.

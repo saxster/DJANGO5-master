@@ -328,7 +328,7 @@ class AttackSimulationTest(TransactionTestCase):
                     'response_code': getattr(response, 'status_code', 200)
                 }
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 attack_results[attack_name] = {
                     'blocked': True,
                     'error': str(e)
@@ -496,7 +496,7 @@ class SecurityResilienceTest(TestCase):
 
                 results.put(f"thread_{thread_id}_success")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.put(f"Thread {thread_id}: Exception - {str(e)}")
 
         # Create many concurrent threads
@@ -647,7 +647,7 @@ class CrossComponentSecurityValidationTest(TestCase):
                     if 'X-Content-Type-Options' in final_response:
                         successful_defenses += 1 if attack_blocked else 0.5
 
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     # System handled attack by raising exception (also a defense)
                     successful_defenses += 0.5
 

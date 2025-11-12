@@ -87,7 +87,7 @@ class TestCeleryCorrelationIDInjection:
                 sender='test_task',
                 headers=None
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             pytest.fail(f"Handler raised exception with None headers: {e}")
 
     def test_preserves_existing_headers(self):
@@ -157,7 +157,7 @@ class TestCeleryCorrelationIDRestoration:
                 sender=task,
                 task_id='test-task-id'
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             pytest.fail(f"Handler raised exception with missing correlation_id: {e}")
 
         # Should have no correlation ID set
@@ -171,7 +171,7 @@ class TestCeleryCorrelationIDRestoration:
                 sender=None,
                 task_id='test-task-id'
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             pytest.fail(f"Handler raised exception with None task: {e}")
 
     def test_overwrites_existing_correlation_id(self):
@@ -234,7 +234,7 @@ class TestCeleryCorrelationIDCleanup:
                     sender=Mock(),
                     task_id='test-task-id'
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 pytest.fail(f"Cleanup raised exception: {e}")
 
         # Should still be None
@@ -250,7 +250,7 @@ class TestCeleryCorrelationIDCleanup:
                 sender=None,
                 task_id='test-task-id'
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             pytest.fail(f"Cleanup raised exception with None sender: {e}")
 
         # Should still clear
@@ -279,7 +279,7 @@ class TestCeleryCorrelationIDSetup:
         for _ in range(3):
             try:
                 setup_correlation_id_propagation()
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 pytest.fail(f"Setup raised exception: {e}")
 
         # Signal connections should succeed (even if already connected)

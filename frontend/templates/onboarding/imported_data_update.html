@@ -118,7 +118,7 @@ function ConfirmImport(){
     fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     fd.append('table', localStorage.getItem('table'))
     $.ajax({
-        url:"{{ url('onboarding:import_update') }}",
+        url:"{{ url('admin:onboarding_typeassist_import') }}",
         data: fd,
         contentType: false,
         processData: false,
@@ -129,7 +129,7 @@ function ConfirmImport(){
                 icon: "success",
                 title: `Total ${res.totalrows} record processed successfully!`,
             }).then((res) => {
-                location.href = "{{ url('onboarding:import_update') }}?action=form"
+                location.href = "{{ url('admin:onboarding_typeassist_import') }}"
             })
         },
         error:function(xhr, status, error){

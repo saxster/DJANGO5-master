@@ -29,7 +29,8 @@ from rest_framework_simplejwt.tokens import AccessToken
 from datetime import timedelta
 
 from apps.peoples.models import People
-from apps.onboarding.models import Bt, Client
+from apps.client_onboarding.models import Bt
+from apps.client_onboarding.models import Bt as Client
 
 
 # ============================================================================

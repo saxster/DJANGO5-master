@@ -8,21 +8,21 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
-from apps.onboarding.models import (
+from apps.client_onboarding.models import KnowledgeReview
+from apps.core_onboarding.models import (
     AuthoritativeKnowledge,
-    AuthoritativeKnowledgeChunk,
-    KnowledgeReview,
+    AuthoritativeKnowledgeChunk
 )
-from apps.onboarding_api.services.knowledge.vector_stores.postgres_array import PostgresArrayBackend
-from apps.onboarding_api.services.knowledge.vector_stores.pgvector_base import PgVectorBackend
-from apps.onboarding_api.services.knowledge.vector_stores.chroma import ChromaBackend
-from apps.onboarding_api.services.knowledge.exceptions import (
+from apps.core_onboarding.services.knowledge.vector_stores.postgres_array import PostgresArrayBackend
+from apps.core_onboarding.services.knowledge.vector_stores.pgvector_base import PgVectorBackend
+from apps.core_onboarding.services.knowledge.vector_stores.chroma import ChromaBackend
+from apps.core_onboarding.services.knowledge.exceptions import (
     SecurityError,
     DocumentFetchError,
     DocumentParseError,
 )
-from apps.onboarding_api.services.llm import CitationAwareMakerLLM, CitationAwareCheckerLLM
-from apps.onboarding_api.services.security import (
+from apps.core_onboarding.services.llm import CitationAwareMakerLLM, CitationAwareCheckerLLM
+from apps.core_onboarding.services.security import (
     PIIRedactor, SecurityGuardian, ContentDeduplicator, LicenseValidator
 )
 
@@ -241,7 +241,7 @@ class VectorStoreUnitTests(TestCase):
 
     def test_vector_backend_selection(self):
         """Test vector backend factory selection"""
-        from apps.onboarding_api.services.knowledge import get_vector_store
+        from apps.core_onboarding.services.knowledge import get_vector_store
 
         # Test default (postgres_array)
         with override_settings(ONBOARDING_VECTOR_BACKEND='postgres_array'):
@@ -620,7 +620,7 @@ class RetrievalQualityRegressionTests(TestCase):
 
     def test_retrieval_recall_at_k(self):
         """Test recall@k metrics for knowledge retrieval"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
 
         knowledge_service = get_knowledge_service()
 
@@ -828,7 +828,7 @@ class PerformanceTests(TestCase):
 
     def test_search_performance_with_large_dataset(self):
         """Test search performance with larger dataset"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
         import time
 
         knowledge_service = get_knowledge_service()
@@ -889,7 +889,7 @@ class ErrorHandlingTests(TestCase):
             result = parser._parse_html(malformed_html)
             # Should not raise exception
             self.assertIsNotNone(result)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Parser should handle malformed HTML gracefully: {str(e)}")
 
     def test_vector_store_error_recovery(self):

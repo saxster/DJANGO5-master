@@ -282,7 +282,7 @@ class TestErrorHandling:
         # Simulate an error that would be logged
         try:
             raise Exception("Test error for logging")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             utils.logger.error(f"Test error occurred: {str(e)}")
 
         # Verify logger was called
@@ -417,7 +417,7 @@ class TestUtilityIntegration:
         from apps.activity.models.location_model import Location
         from apps.activity.models.asset_model import Asset
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # These should be available without error
         assert Location is not None

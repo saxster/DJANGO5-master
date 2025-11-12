@@ -12,13 +12,15 @@ from datetime import datetime
 from django.core.cache import cache
 from django.db.models import Model
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 
 class CacheManager:
     """Manages caching for ORM queries with intelligent invalidation"""
     
     # Cache timeout configurations (in seconds)
     CACHE_TIMEOUTS = {
-        'capability_tree': 3600,        # 1 hour - rarely changes
+        'capability_tree': SECONDS_IN_HOUR,  # 1 hour - rarely changes
         'bt_hierarchy': 1800,           # 30 minutes - changes occasionally
         'ticket_escalation': 300,       # 5 minutes - changes frequently
         'report_data': 900,             # 15 minutes - computed data
@@ -310,7 +312,7 @@ def warm_critical_caches():
     QueryRepository.get_mob_caps_for_client()
     
     # Warm BT hierarchies for active clients
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     active_clients = Bt.objects.filter(
         identifier__tacode='CLIENT',
         enable=True
@@ -392,16 +394,21 @@ class StampedeProtection:
                     # Lock held by another request - try stale cache
                     stale_result = cache.get(f"{cache_key}{cls.STALE_SUFFIX}")
                     if stale_result is not None:
+                        # OPTIMIZATION (PERF-005): Serve stale immediately, trigger async refresh
+                        # Don't block with time.sleep() - return stale data for better UX
+                        logger.info(f"Cache stampede: serving stale for {cache_key}")
+                        # TODO: Trigger async cache refresh task here if available
+                        # from apps.core.tasks.cache_tasks import refresh_cache_key
+                        # refresh_cache_key.delay(cache_key, func, args, kwargs)
                         return stale_result
 
-                    # No stale cache - wait and retry
-                    import time
-                    time.sleep(0.1)
+                    # No stale cache available - check one more time (non-blocking)
                     result = cache.get(cache_key)
                     if result is not None:
                         return result
 
-                    # Still no cache - generate directly (fallback)
+                    # Still no cache - generate directly as last resort (no blocking sleep!)
+                    logger.warning(f"Cache stampede: no stale cache for {cache_key}, generating fresh")
                     return func(*args, **kwargs)
 
             return wrapper

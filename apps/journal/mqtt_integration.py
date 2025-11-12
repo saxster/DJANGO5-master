@@ -12,6 +12,8 @@ Integrates journal and wellness system with existing MQTT infrastructure for:
 import json
 import logging
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 from django.utils import timezone
 from paho.mqtt import client as mqtt
 from celery import shared_task
@@ -21,6 +23,18 @@ from apps.wellness.models import WellnessContent, WellnessContentInteraction
 from apps.mqtt.client import MqttClient
 
 logger = logging.getLogger(__name__)
+
+
+class IntegrationException(Exception):
+    """
+    Exception raised when MQTT integration fails.
+
+    This exception is raised when:
+    - MQTT broker connection fails
+    - Message publishing fails
+    - Network errors occur during MQTT operations
+    """
+    pass
 
 
 class JournalWellnessMQTTService:
@@ -548,26 +562,44 @@ def broadcast_system_health_status():
     try:
         # Calculate system health metrics
         from apps.tenants.models import Tenant
+        from django.db.models import Prefetch
 
         health_metrics = {}
 
-        for tenant in Tenant.objects.all():
-            # Get tenant-specific metrics
-            tenant_users = User.objects.filter(tenant=tenant)
-            recent_entries = JournalEntry.objects.filter(
-                user__in=tenant_users,
-                timestamp__gte=timezone.now() - timezone.timedelta(days=1),
-                is_deleted=False
+        # PERFORMANCE OPTIMIZATION: Prefetch users to avoid N+1 queries
+        # Before: 3N+1 queries (1 for tenants, N for users, N for entries, N for interactions)
+        # After: 2 queries (1 for tenants with users, 1 for all data)
+        tenants = Tenant.objects.prefetch_related(
+            Prefetch(
+                'user_set',
+                queryset=User.objects.all(),
+                to_attr='cached_users'
             )
+        ).only('id', 'tenantname')
+
+        # Calculate time threshold once (not per iteration)
+        time_threshold = timezone.now() - timezone.timedelta(days=1)
+
+        for tenant in tenants:
+            # Use cached users from prefetch (no additional query)
+            tenant_users = tenant.cached_users
+            tenant_user_ids = [u.id for u in tenant_users]
+
+            # Optimized queries with select_related to avoid additional lookups
+            recent_entries = JournalEntry.objects.filter(
+                user_id__in=tenant_user_ids,
+                timestamp__gte=time_threshold,
+                is_deleted=False
+            ).select_related('user')
 
             recent_interactions = WellnessContentInteraction.objects.filter(
-                user__in=tenant_users,
-                interaction_date__gte=timezone.now() - timezone.timedelta(days=1)
-            )
+                user_id__in=tenant_user_ids,
+                interaction_date__gte=time_threshold
+            ).select_related('user')
 
             health_metrics[tenant.tenantname] = {
-                'total_users': tenant_users.count(),
-                'active_journal_users_24h': recent_entries.values('user').distinct().count(),
+                'total_users': len(tenant_users),
+                'active_journal_users_24h': recent_entries.values('user_id').distinct().count(),
                 'journal_entries_24h': recent_entries.count(),
                 'wellness_interactions_24h': recent_interactions.count(),
                 'system_health': 'healthy'  # Could be calculated based on error rates, etc.

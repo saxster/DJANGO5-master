@@ -28,11 +28,12 @@ from django.utils import timezone
 
 from apps.core.services.exif_analysis_service import EXIFAnalysisService
 from apps.core.services.secure_file_upload_service import SecureFileUploadService
-from apps.core.models.image_metadata import (
+from apps.core.models import (
     ImageMetadata, PhotoAuthenticityLog, CameraFingerprint, ImageQualityAssessment
 )
 from apps.noc.security_intelligence.services.location_fraud_detector import LocationFraudDetector
 from apps.core.error_handling import ErrorHandler
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -239,8 +240,8 @@ class PhotoAuthenticityService:
                 }
             }
 
-        except Exception as e:
-            logger.warning(f"EXIF analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"EXIF analysis failed: {e}", exc_info=True)
             return {
                 'validation_type': 'exif_analysis',
                 'status': 'error',
@@ -293,8 +294,8 @@ class PhotoAuthenticityService:
                 }
             }
 
-        except Exception as e:
-            logger.warning(f"Location validation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.warning(f"Location validation failed: {e}", exc_info=True)
             return {
                 'validation_type': 'location_validation',
                 'status': 'error',
@@ -363,8 +364,8 @@ class PhotoAuthenticityService:
                 }
             }
 
-        except Exception as e:
-            logger.warning(f"Device analysis failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.warning(f"Device analysis failed: {e}", exc_info=True)
             return {
                 'validation_type': 'device_analysis',
                 'status': 'error',
@@ -405,8 +406,8 @@ class PhotoAuthenticityService:
 
             return max(0.0, min(1.0, base_score))
 
-        except Exception as e:
-            logger.warning(f"Device trust score calculation failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.warning(f"Device trust score calculation failed: {e}", exc_info=True)
             return 0.5
 
     @classmethod
@@ -462,8 +463,8 @@ class PhotoAuthenticityService:
                 }
             }
 
-        except Exception as e:
-            logger.warning(f"Behavioral analysis failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.warning(f"Behavioral analysis failed: {e}", exc_info=True)
             return {
                 'validation_type': 'behavioral_analysis',
                 'status': 'error',
@@ -500,8 +501,8 @@ class PhotoAuthenticityService:
 
             return max(0.0, min(1.0, behavioral_score))
 
-        except Exception as e:
-            logger.warning(f"Upload pattern analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Upload pattern analysis failed: {e}", exc_info=True)
             return 0.5
 
     @classmethod
@@ -541,8 +542,8 @@ class PhotoAuthenticityService:
             # Normal human variation
             return 0.8
 
-        except Exception as e:
-            logger.warning(f"Upload timing analysis failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Upload timing analysis failed: {e}", exc_info=True)
             return 0.7
 
     @classmethod
@@ -603,8 +604,8 @@ class PhotoAuthenticityService:
                 'thresholds_used': thresholds
             }
 
-        except Exception as e:
-            logger.warning(f"Comprehensive risk calculation failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Comprehensive risk calculation failed: {e}", exc_info=True)
             return {
                 'authenticity_score': 0.1,
                 'confidence_level': 0.1,
@@ -664,8 +665,8 @@ class PhotoAuthenticityService:
                 }
             }
 
-        except Exception as e:
-            logger.warning(f"Authentication decision failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Authentication decision failed: {e}", exc_info=True)
             return {
                 'authenticated': False,
                 'requires_manual_review': True,
@@ -724,8 +725,8 @@ class PhotoAuthenticityService:
 
             return recommendations
 
-        except Exception as e:
-            logger.warning(f"Recommendation generation failed: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.warning(f"Recommendation generation failed: {e}", exc_info=True)
             return ["Manual review recommended due to system error"]
 
     @classmethod
@@ -751,8 +752,8 @@ class PhotoAuthenticityService:
                 }
             )
 
-        except Exception as e:
-            logger.warning(f"Failed to log authentication event: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.warning(f"Failed to log authentication event: {e}", exc_info=True)
 
     @classmethod
     def _generate_correlation_id(cls) -> str:
@@ -824,8 +825,8 @@ class PhotoAuthenticityService:
                 ]
             }
 
-        except Exception as e:
-            logger.error(f"Failed to get authentication history: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Failed to get authentication history: {e}", exc_info=True)
             return {
                 'people_id': people_id,
                 'error': str(e),

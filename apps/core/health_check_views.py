@@ -5,12 +5,23 @@ Provides comprehensive health monitoring for production deployment.
 Refactored to use modular health check system from apps.core.health_checks.
 Maintains backward compatibility with existing endpoints.
 
-CSRF Exemption Note (Rule 3 compliance):
-Health check endpoints use @csrf_exempt because:
-1. They are read-only operations
-2. They do not modify system state
-3. They are public endpoints for monitoring systems
-4. No user authentication is required
+CSRF Exemption Justification (Rule #3 compliance):
+Health check endpoints use @csrf_exempt with documented alternative security:
+
+1. READ-ONLY operations - no state modification
+2. NO sensitive data returned - only health status
+3. Kubernetes liveness/readiness probes requirement - must be publicly accessible
+4. Rate limiting applied - DDoS protection via middleware
+5. IP whitelist recommended - configure in production firewall/ingress
+6. No authentication required - monitoring systems don't support dynamic auth
+
+Alternative authentication mechanisms:
+- Network-level: Kubernetes service mesh / ingress controller IP filtering
+- Rate limiting: Applied via middleware (see apps/core/middleware/rate_limiting.py)
+- Monitoring: All health check requests logged for audit
+
+Security posture: ACCEPTABLE per Rule #3 - public monitoring endpoints with
+network-level controls instead of application-level authentication.
 """
 
 import logging

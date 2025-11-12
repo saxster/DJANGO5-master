@@ -30,6 +30,10 @@ from rest_framework.response import Response
 from apps.core.error_handling import ErrorHandler
 from apps.core.services.response_service import ResponseService
 import time
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +186,7 @@ class PydanticValidationMiddleware(MiddlewareMixin):
             # Store parsed payload for views to use
             request.pydantic_data = payload
 
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             ErrorHandler.handle_exception(
                 e,
                 context={
@@ -233,7 +237,7 @@ class PydanticValidationMiddleware(MiddlewareMixin):
                 }
             )
 
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             ErrorHandler.handle_exception(
                 e,
                 context={
@@ -276,7 +280,7 @@ class PydanticValidationMiddleware(MiddlewareMixin):
                 details=validation_errors
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             ErrorHandler.handle_exception(
                 e,
                 context={

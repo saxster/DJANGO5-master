@@ -394,7 +394,7 @@
 
     <script>
         // Domain Coverage Chart
-        const domainData = {{ metrics.by_domain|safe }};
+        const domainData = {{ metrics.by_domain|escapejs }};
         const domainCtx = document.getElementById('domainChart').getContext('2d');
         new Chart(domainCtx, {
             type: 'bar',
@@ -431,7 +431,7 @@
         });
 
         // Criticality Chart
-        const criticalityData = {{ metrics.by_criticality|safe }};
+        const criticalityData = {{ metrics.by_criticality|escapejs }};
         const criticalityCtx = document.getElementById('criticalityChart').getContext('2d');
         new Chart(criticalityCtx, {
             type: 'doughnut',
@@ -462,7 +462,7 @@
 
         // Trend Chart (if data available)
         {% if metrics.trend %}
-        const trendData = {{ metrics.trend|safe }};
+        const trendData = {{ metrics.trend|escapejs }};
         const trendCtx = document.getElementById('trendChart').getContext('2d');
         new Chart(trendCtx, {
             type: 'line',

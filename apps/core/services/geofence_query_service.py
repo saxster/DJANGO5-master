@@ -17,8 +17,11 @@ from django.conf import settings
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
-from apps.onboarding.models import GeofenceMaster, Bt
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import GeofenceMaster
 from apps.core.constants.spatial_constants import GEOFENCE_CACHE_TTL
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 error_logger = logging.getLogger("error_logger")
@@ -214,7 +217,7 @@ class GeofenceQueryService:
             error_logger.error(
                 f"Database error invalidating geofence cache: {str(e)}"
             )
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             error_logger.error(
                 f"Unexpected error invalidating geofence cache: {str(e)}",
                 exc_info=True

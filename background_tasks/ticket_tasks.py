@@ -7,6 +7,8 @@ Updated: 2025-10-31 - Removed unused GCS imports (optimization)
 """
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from apps.core.exceptions import IntegrationException
 from .report_tasks import (
     get_scheduled_reports_fromdb,
     generate_scheduled_report,
@@ -35,9 +37,9 @@ from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validation import XSSPrevention
 # from apps.face_recognition.services import get_face_recognition_service  # Unused import - removed Oct 2025
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
-from apps.reminder.models import Reminder
+from apps.scheduler.models.reminder import Reminder
 from apps.reports import utils as rutils
 from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (
@@ -95,8 +97,18 @@ import time
 import traceback as tb
 import uuid
 
+# Initialize logger for ticket tasks
+logger = logging.getLogger('background_tasks.ticket')
 
-@shared_task(bind=True, default_retry_delay=300, max_retries=5, name="send_ticket_email")
+
+@shared_task(
+    bind=True,
+    default_retry_delay=300,
+    max_retries=5,
+    soft_time_limit=300,  # 5 minutes soft limit
+    time_limit=600,        # 10 minutes hard limit
+    name="send_ticket_email"
+)
 def send_ticket_email(self, ticket=None, id=None):
     """
     Send ticket notification email with secure error handling.
@@ -237,7 +249,10 @@ def send_ticket_email(self, ticket=None, id=None):
     bind=True,
     name="ticket_escalation",
     idempotency_scope='global',
-    idempotency_ttl=14400  # 4 hours
+    idempotency_ttl=14400,  # 4 hours
+    soft_time_limit=300,     # 5 minutes soft limit
+    time_limit=600,          # 10 minutes hard limit
+    max_retries=3
 )
 def ticket_escalation(self):
     result = {"story": "", "traceback": "", "id": []}
@@ -261,7 +276,12 @@ def ticket_escalation(self):
     return result
 
 
-@shared_task(bind=True, name="alert_sendmail")
+@shared_task(
+    bind=True,
+    name="alert_sendmail",
+    soft_time_limit=180,  # 3 minutes - alert email
+    time_limit=360         # 6 minutes hard limit
+)
 def alert_sendmail(self, id, event, atts=False):
     """
     takes uuid, ownername (which is the model name) and event (observation or deviation)

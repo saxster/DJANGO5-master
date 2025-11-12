@@ -12,6 +12,8 @@ from django.urls import resolve
 from django.contrib.auth import get_user_model
 import uuid
 
+from apps.core.monitoring import production_monitor
+
 logger = logging.getLogger("django")
 audit_logger = logging.getLogger("audit")
 metrics_logger = logging.getLogger("metrics")
@@ -42,6 +44,8 @@ class OnboardingAPIMiddleware(MiddlewareMixin):
         """Process incoming request for onboarding API endpoints"""
         if not self._is_onboarding_api_request(request):
             return None
+
+        production_monitor.increment_metric("onboarding_api_requests")
 
         # Add request start time for performance tracking
         request._onboarding_start_time = time.time()
@@ -131,15 +135,84 @@ class OnboardingAPIMiddleware(MiddlewareMixin):
 
         cache_key = f"onboarding_api_rate_limit:{user_key}"
 
-        # Get current request count
-        current_count = cache.get(cache_key, 0)
+        current_count = self._increment_rate_counter(cache_key, rate_limit_window)
 
-        if current_count >= max_requests:
+        if current_count > max_requests:
+            self._log_rate_limit_violation(
+                request=request,
+                user_key=user_key,
+                cache_key=cache_key,
+                current_count=current_count,
+                max_requests=max_requests,
+                window_seconds=rate_limit_window,
+            )
             return True
 
-        # Increment counter
-        cache.set(cache_key, current_count + 1, rate_limit_window)
         return False
+
+    def _increment_rate_counter(self, cache_key: str, ttl: int) -> int:
+        """
+        Atomically increment the cached rate-limit counter.
+
+        Returns the current count after incrementing.
+        """
+        # cache.add is atomic in Django caches that support it
+        if cache.add(cache_key, 1, ttl):
+            return 1
+
+        try:
+            return cache.incr(cache_key)
+        except (ValueError, TypeError, NotImplementedError):
+            # Last-resort fallback: read-modify-write while retaining TTL
+            current_count = cache.get(cache_key, 0) + 1
+            cache.set(cache_key, current_count, ttl)
+            return current_count
+
+    def _log_rate_limit_violation(self, *, request: HttpRequest, user_key: str, cache_key: str,
+                                   current_count: int, max_requests: int, window_seconds: int) -> None:
+        """Record when a caller exceeds the configured limit for auditing."""
+        audit_logger.warning(
+            "Onboarding API rate limit exceeded",
+            extra={
+                'rate_limit_key': cache_key,
+                'rate_limit_identity': user_key,
+                'current_count': current_count,
+                'max_requests': max_requests,
+                'window_seconds': window_seconds,
+                'path': request.path,
+                'method': request.method,
+                'ip_address': self._get_client_ip(request),
+                'user': str(request.user) if hasattr(request, 'user') else 'anonymous',
+            }
+        )
+        production_monitor.increment_metric("onboarding_api_rate_limit_hits")
+
+        alert_threshold = getattr(
+            settings,
+            'ONBOARDING_API_RATE_LIMIT_ALERT_THRESHOLD',
+            20,
+        )
+        bucket_key = f"onboarding_api_rate_limit_hits_bucket:{user_key}:{int(time.time() // 60)}"
+
+        if cache.add(bucket_key, 1, 60):
+            bucket_count = 1
+        else:
+            try:
+                bucket_count = cache.incr(bucket_key)
+            except (ValueError, TypeError):
+                cache.set(bucket_key, 1, 60)
+                bucket_count = 1
+
+        if bucket_count >= alert_threshold:
+            metrics_logger.warning(
+                "Onboarding API rate limit alert",
+                extra={
+                    'rate_limit_identity': user_key,
+                    'bucket_hits': bucket_count,
+                    'alert_threshold': alert_threshold,
+                    'path': request.path,
+                },
+            )
 
     def _get_user_key_for_rate_limiting(self, request: HttpRequest) -> str:
         """Get unique key for rate limiting"""

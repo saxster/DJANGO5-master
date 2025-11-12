@@ -23,11 +23,4 @@ import pytest
 #         assert attempt.ip_address == "192.168.1.100"
 #         assert attempt.username == "testuser"
 
-# Add placeholder test to prevent empty test file
-@pytest.mark.django_db
-class TestCorePlaceholder:
-    """Placeholder tests for core app"""
-
-    def test_placeholder(self):
-        """Placeholder test to prevent empty test file"""
-        assert True
+# Placeholder removed - file kept for historical reference of RateLimitAttempt model

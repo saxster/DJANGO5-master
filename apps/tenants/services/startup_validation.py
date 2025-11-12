@@ -202,18 +202,18 @@ class StartupValidationService:
 
     def _validate_middleware(self) -> bool:
         """
-        Validate TenantMiddleware is registered.
+        Validate UnifiedTenantMiddleware is registered.
 
         Returns:
             True if middleware registered, False otherwise
         """
         middleware_classes = settings.MIDDLEWARE
 
-        tenant_middleware = 'apps.tenants.middlewares.TenantMiddleware'
+        tenant_middleware = 'apps.tenants.middleware_unified.UnifiedTenantMiddleware'
 
         if tenant_middleware not in middleware_classes:
             self.validation_errors.append(
-                f"TenantMiddleware not registered in MIDDLEWARE"
+                f"UnifiedTenantMiddleware not registered in MIDDLEWARE"
             )
             return False
 
@@ -221,11 +221,11 @@ class StartupValidationService:
         middleware_index = middleware_classes.index(tenant_middleware)
         if middleware_index > 5:
             self.validation_warnings.append(
-                f"TenantMiddleware is at position {middleware_index}. "
+                f"UnifiedTenantMiddleware is at position {middleware_index}. "
                 f"Consider moving it earlier in MIDDLEWARE for better performance."
             )
 
-        logger.info("TenantMiddleware registration validated")
+        logger.info("UnifiedTenantMiddleware registration validated")
         return True
 
     def _validate_cache_backend(self) -> bool:

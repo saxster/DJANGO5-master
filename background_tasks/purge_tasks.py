@@ -18,8 +18,9 @@ from django.db import transaction
 from django.utils import timezone
 from apps.tenants.models.retention_policy import RetentionPolicy, DEFAULT_RETENTION_DAYS
 from apps.core.models import LLMUsageLog
-from apps.onboarding.models import KnowledgeIngestionJob, LLMRecommendation
+from apps.core_onboarding.models import KnowledgeIngestionJob, LLMRecommendation
 from apps.core.models import SagaState
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger('purge_tasks')
 
@@ -78,8 +79,11 @@ def purge_expired_llm_logs():
             'cutoff_date': cutoff_date.isoformat()
         }
 
-    except Exception as e:
-        logger.error(f"LLM log purge failed: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error in LLM log purge: {e}", exc_info=True)
+        return {'status': 'failed', 'error': str(e)}
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Configuration error in LLM log purge: {e}", exc_info=True)
         return {'status': 'failed', 'error': str(e)}
 
 
@@ -110,8 +114,11 @@ def purge_expired_recommendations():
             'cutoff_date': cutoff_date.isoformat()
         }
 
-    except Exception as e:
-        logger.error(f"Recommendation purge failed: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error in recommendation purge: {e}", exc_info=True)
+        return {'status': 'failed', 'error': str(e)}
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Configuration error in recommendation purge: {e}", exc_info=True)
         return {'status': 'failed', 'error': str(e)}
 
 
@@ -139,8 +146,11 @@ def purge_stale_sagas():
             'purged_count': purged_count
         }
 
-    except Exception as e:
-        logger.error(f"Saga purge failed: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error in saga purge: {e}", exc_info=True)
+        return {'status': 'failed', 'error': str(e)}
+    except (ValueError, AttributeError, ImportError) as e:
+        logger.error(f"Configuration or import error in saga purge: {e}", exc_info=True)
         return {'status': 'failed', 'error': str(e)}
 
 
@@ -171,6 +181,9 @@ def purge_old_ingestion_jobs():
             'cutoff_date': cutoff_date.isoformat()
         }
 
-    except Exception as e:
-        logger.error(f"Ingestion job purge failed: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error in ingestion job purge: {e}", exc_info=True)
+        return {'status': 'failed', 'error': str(e)}
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Configuration error in ingestion job purge: {e}", exc_info=True)
         return {'status': 'failed', 'error': str(e)}

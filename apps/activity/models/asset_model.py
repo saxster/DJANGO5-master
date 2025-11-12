@@ -63,11 +63,11 @@ def asset_json():
     ],
     relationships=[
         "parent: Self-referential FK for asset hierarchy (e.g., building → floors → rooms)",
-        "type/category/subcategory/brand: FK to onboarding.TypeAssist (taxonomy)",
-        "client: FK to onboarding.Bt (business tenant - contract holder)",
-        "bu: FK to onboarding.Bt (site/business unit - physical location)",
+        "type/category/subcategory/brand: FK to core_onboarding.TypeAssist (taxonomy)",
+        "client: FK to client_onboarding.Bt (business tenant - contract holder)",
+        "bu: FK to client_onboarding.Bt (site/business unit - physical location)",
         "location: FK to activity.Location (geofence/zone within site)",
-        "servprov: FK to onboarding.Bt (service provider for maintenance)",
+        "servprov: FK to client_onboarding.Bt (service provider for maintenance)",
         "Related: AssetLog (audit trail), Job (maintenance schedules), Wom (work orders)",
         "Tenant isolation: All queries filtered by TenantAwareModel.tenant field"
     ],
@@ -75,14 +75,14 @@ def asset_json():
         "apps.peoples.models.BaseModel (audit fields: cdby, cdon, mdby, mdon)",
         "apps.tenants.models.TenantAwareModel (multi-tenant isolation)",
         "apps.activity.managers.asset_manager.AssetManager (optimized queries)",
-        "apps.onboarding.models.TypeAssist (asset taxonomy)",
-        "apps.onboarding.models.Bt (clients, sites, service providers)",
+        "apps.core_onboarding.models.TypeAssist (asset taxonomy)",
+        "apps.client_onboarding.models.Bt (clients, sites, service providers)",
         "apps.activity.models.Location (zone/location within site)",
         "django.contrib.gis.db.models.PointField (GPS tracking)",
     ],
     used_by=[
         "apps.activity.services.asset_service.AssetManagementService (CRUD operations)",
-        "apps.activity.views.asset_views (Django admin and web CRUD)",
+        "apps.activity.views.asset (Django admin and web CRUD)",
         "apps.scheduler.models.Job (PPM schedules tied to assets)",
         "apps.work_order_management.models.Wom (work orders for asset maintenance)",
         "apps.inventory.models (spare parts linked to assets)",
@@ -251,7 +251,7 @@ class Asset(BaseModel, TenantAwareModel):
         _("Running Status"), choices=RunningStatus.choices, max_length=55, null=True
     )
     type = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Type"),
         on_delete=models.RESTRICT,
         null=True,
@@ -259,7 +259,7 @@ class Asset(BaseModel, TenantAwareModel):
         related_name="asset_types",
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -267,7 +267,7 @@ class Asset(BaseModel, TenantAwareModel):
         related_name="asset_clients",
     )
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,
         null=True,
@@ -275,7 +275,7 @@ class Asset(BaseModel, TenantAwareModel):
         related_name="asset_bus",
     )
     category = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Category"),
         null=True,
         blank=True,
@@ -283,7 +283,7 @@ class Asset(BaseModel, TenantAwareModel):
         related_name="asset_categories",
     )
     subcategory = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Sub Category"),
         null=True,
         blank=True,
@@ -291,7 +291,7 @@ class Asset(BaseModel, TenantAwareModel):
         related_name="asset_subcategories",
     )
     brand = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Brand"),
         null=True,
         blank=True,
@@ -299,7 +299,7 @@ class Asset(BaseModel, TenantAwareModel):
         related_name="asset_brands",
     )
     unit = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Unit"),
         null=True,
         blank=True,
@@ -310,7 +310,7 @@ class Asset(BaseModel, TenantAwareModel):
         _("Capacity"), default=0.0, max_digits=18, decimal_places=2
     )
     servprov = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -362,10 +362,10 @@ class AssetLog(BaseModel, TenantAwareModel):
         null=True,
     )
     bu = models.ForeignKey(
-        "onboarding.Bt", verbose_name=_("Bu"), on_delete=models.RESTRICT, null=True
+        "client_onboarding.Bt", verbose_name=_("Bu"), on_delete=models.RESTRICT, null=True
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.CASCADE,
         related_name="assetlog_client",

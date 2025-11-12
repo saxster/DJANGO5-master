@@ -1,7 +1,7 @@
 """
 NOC Alert Correlation Service.
 
-Handles alert de-duplication, correlation, and intelligent alert management.
+Handles alert de-duplication, correlation, clustering, and intelligent alert management.
 Follows .claude/rules.md Rule #7 (<150 lines), Rule #11 (specific exceptions),
 Rule #17 (transaction management).
 """
@@ -15,6 +15,8 @@ from django.utils import timezone
 from apps.core.utils_new.db_utils import get_current_db_name
 from ..models import NOCAlertEvent, MaintenanceWindow
 from ..constants import ALERT_TYPES, DEFAULT_ALERT_SUPPRESSION_WINDOW
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 __all__ = ['AlertCorrelationService']
 
@@ -72,6 +74,42 @@ class AlertCorrelationService:
                     **alert_data
                 )
                 logger.info(f"New alert created", extra={'alert_id': alert.id, 'alert_type': alert.alert_type})
+
+                # Calculate priority score using ML-based service
+                try:
+                    from .alert_priority_scorer import AlertPriorityScorer
+                    priority_score, priority_features = AlertPriorityScorer.calculate_priority(alert)
+                    alert.calculated_priority = priority_score
+                    alert.priority_features = priority_features
+                    alert.save(update_fields=['calculated_priority', 'priority_features'])
+                    logger.info(
+                        f"Priority calculated",
+                        extra={
+                            'alert_id': alert.id,
+                            'priority_score': priority_score
+                        }
+                    )
+                except DATABASE_EXCEPTIONS as e:
+                    # Don't fail alert creation if priority calculation fails
+                    logger.error(f"Error calculating priority", extra={'alert_id': alert.id, 'error': str(e)}, exc_info=True)
+
+                # Cluster alert using ML-based clustering service
+                try:
+                    from .alert_clustering_service import AlertClusteringService
+                    cluster, created = AlertClusteringService.cluster_alert(alert)
+                    logger.info(
+                        f"Alert clustered",
+                        extra={
+                            'alert_id': alert.id,
+                            'cluster_id': cluster.cluster_id,
+                            'cluster_created': created,
+                            'cluster_size': cluster.alert_count
+                        }
+                    )
+                except (ValueError, TypeError, AttributeError) as e:
+                    # Don't fail alert creation if clustering fails
+                    logger.error(f"Error clustering alert", extra={'alert_id': alert.id, 'error': str(e)}, exc_info=True)
+
                 return alert
 
         except (DatabaseError, IntegrityError) as e:

@@ -131,6 +131,30 @@ def sanitize_pii_text(
     return sanitized
 
 
+def sanitize_title_for_logging(title: str, max_length: int = 50) -> str:
+    """
+    Sanitize journal entry title for safe logging.
+
+    Prevents PII leakage by replacing actual title with length indicator.
+
+    Args:
+        title: Original journal entry title (may contain PII)
+        max_length: Maximum length to include (default: 50 chars)
+
+    Returns:
+        str: Sanitized title safe for logging
+
+    Example:
+        >>> sanitize_title_for_logging("Dr. Smith cancer diagnosis")
+        '[TITLE: 26 chars]'
+    """
+    if not title:
+        return '[EMPTY]'
+
+    # Return length only, not content - prevents any PII leakage
+    return f'[TITLE: {len(title)} chars]'
+
+
 def sanitize_journal_log_message(message: str, context: Optional[Dict[str, Any]] = None) -> str:
     """
     Sanitize journal-specific log messages.
@@ -304,7 +328,7 @@ def sanitize_journal_logs(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             # Sanitize exception messages before re-raising
             sanitized_msg = sanitize_journal_log_message(str(e))
             logger.error(f"Error in {func.__name__}: {sanitized_msg}")

@@ -187,10 +187,15 @@ pytest --cov=apps --cov-report=html:coverage_reports/html -v
 pytest -m unit          # Unit tests
 pytest -m integration   # Integration tests
 pytest -m security      # Security tests
+pytest -m performance   # Performance smoke tests
 
 # Specific app
 pytest apps/peoples/tests/ -v
 pytest apps/activity/tests/ -v
+
+# Top-level shared suites
+pytest tests/unit -v
+pytest tests/integration -v
 ```
 
 ### Code Quality

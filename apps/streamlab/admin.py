@@ -39,6 +39,8 @@ class TestScenarioAdmin(admin.ModelAdmin):
         })
     )
 
+    list_per_page = 50
+
     def save_model(self, request, obj, form, change):
         if not change:  # Creating new scenario
             obj.created_by = request.user
@@ -98,6 +100,8 @@ class TestRunAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+    list_per_page = 50
 
     def duration_display(self, obj):
         duration = obj.duration_seconds
@@ -183,6 +187,8 @@ class StreamEventAdmin(admin.ModelAdmin):
         })
     )
 
+    list_per_page = 50
+
     def formatted_payload(self, obj):
         if obj.payload_sanitized:
             formatted = json.dumps(obj.payload_sanitized, indent=2)
@@ -202,6 +208,8 @@ class EventRetentionAdmin(admin.ModelAdmin):
     list_display = ['retention_type', 'days_to_keep', 'last_cleanup_at']
     list_editable = ['days_to_keep']
 
+    list_per_page = 50
+
 
 @admin.register(StreamEventArchive)
 class StreamEventArchiveAdmin(admin.ModelAdmin):
@@ -213,6 +221,8 @@ class StreamEventArchiveAdmin(admin.ModelAdmin):
     readonly_fields = [
         'compressed_size_bytes', 'checksum_sha256', 'created_at'
     ]
+
+    list_per_page = 50
 
     def compressed_size_display(self, obj):
         size = obj.compressed_size_bytes

@@ -35,6 +35,7 @@ from ..models.wisdom_conversations import (
 from ..services.wisdom_conversation_generator import WisdomConversationGenerator
 from ..services.conversation_flow_manager import ConversationFlowManager
 from ..services.conversation_personalization_system import ConversationPersonalizationSystem
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -195,8 +196,8 @@ def toggle_conversation_bookmark(request, conversation_id):
             'error': 'Invalid JSON data'
         }, status=400)
 
-    except Exception as e:
-        logger.error(f"Error toggling bookmark for conversation {conversation_id}: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Error toggling bookmark for conversation {conversation_id}: {e}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': 'An error occurred while updating bookmark'
@@ -265,8 +266,8 @@ def track_conversation_engagement(request, conversation_id):
             'error': 'Invalid JSON data'
         }, status=400)
 
-    except Exception as e:
-        logger.error(f"Error tracking engagement for conversation {conversation_id}: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Error tracking engagement for conversation {conversation_id}: {e}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': 'An error occurred while tracking engagement'
@@ -552,8 +553,8 @@ def _track_page_view(user: User, thread_filter: str, search_query: str):
                     'timestamp': timezone.now().isoformat(),
                 }
             )
-    except Exception as e:
-        logger.error(f"Error tracking page view for user {user.id}: {e}")
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Error tracking page view for user {user.id}: {e}", exc_info=True)
 
 
 def _export_conversations_txt(user: User, conversations) -> HttpResponse:

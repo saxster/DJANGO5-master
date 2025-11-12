@@ -22,6 +22,8 @@ import logging
 from typing import Dict, Tuple
 from django.views.decorators.debug import sensitive_variables
 import requests
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +107,7 @@ class APIKeyValidationService:
             else:
                 return (False, "Gemini returned empty response")
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             return (False, f"Gemini validation failed: {str(e)}")
 
     @classmethod
@@ -130,7 +132,7 @@ class APIKeyValidationService:
             else:
                 return (False, "Claude returned empty response")
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             return (False, f"Claude validation failed: {str(e)}")
 
     @classmethod
@@ -150,7 +152,7 @@ class APIKeyValidationService:
             else:
                 return (False, "OpenAI validation failed")
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             return (False, f"OpenAI validation failed: {str(e)}")
 
     @classmethod

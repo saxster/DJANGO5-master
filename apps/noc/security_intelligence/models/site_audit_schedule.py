@@ -29,7 +29,7 @@ class SiteAuditSchedule(BaseModel, TenantAwareModel):
     ]
 
     site = models.OneToOneField(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='audit_schedule',
         help_text="Site (business unit) to audit"

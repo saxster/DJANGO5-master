@@ -110,10 +110,11 @@ class NOCExportIncidentsView(APIView):
 
             allowed_clients = NOCRBACService.get_visible_clients(request.user)
 
-            queryset = NOCIncident.objects.filter(
+            # Use optimized manager for export with counts
+            queryset = NOCIncident.objects.for_export().filter(
                 alerts__client__in=allowed_clients,
                 created_at__gte=window_start
-            ).distinct().select_related('assigned_to', 'resolved_by').prefetch_related('alerts')
+            ).distinct()
 
             csv_content = self._generate_incidents_csv(queryset, request.user)
 
@@ -146,7 +147,7 @@ class NOCExportIncidentsView(APIView):
                 incident.title,
                 incident.state,
                 incident.severity,
-                incident.alerts.count(),
+                incident.alert_count,  # Use annotated count instead of .count()
                 incident.created_at.isoformat(),
                 assigned_to,
                 incident.resolved_at.isoformat() if incident.resolved_at else '',

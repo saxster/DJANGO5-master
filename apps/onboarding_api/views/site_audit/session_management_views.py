@@ -34,12 +34,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import (
+from apps.client_onboarding.models import from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+from apps.core_onboarding.models import ConversationSession
+from apps.site_onboarding.models import (
     OnboardingSite,
-    OnboardingZone,
-    ConversationSession
+    OnboardingZone
 )
-from apps.onboarding.models.business_unit import Bt
+from apps.client_onboarding.models.business_unit import Bt
 
 from ...serializer_modules.site_audit_serializers import (
     SiteAuditStartSerializer,
@@ -231,7 +232,7 @@ class SiteAuditStatusView(APIView):
                 {'error': 'Audit session not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.error(f"Error getting audit status: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to get audit status'},

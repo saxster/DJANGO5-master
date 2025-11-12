@@ -154,12 +154,50 @@ class WellnessPIIRedactionMiddleware(MiddlewareMixin):
         else:
             return 'authenticated'
 
+    def _process_field_value(self, key, value, user, user_role, is_owner):
+        """Process a single field value for redaction."""
+        if value is None:
+            return None
+
+        # Safe metadata
+        if key in self.SAFE_METADATA_FIELDS:
+            return value
+
+        # Owner sees their own data
+        if is_owner:
+            return value
+
+        # Always redact sensitive fields
+        if key in self.ALWAYS_REDACT_FIELDS:
+            return '[REDACTED]'
+
+        # Admin-visible fields
+        if key in self.ADMIN_VISIBLE_FIELDS:
+            return f"[{key.upper()}]" if user_role == 'admin' else '[REDACTED]'
+
+        # Nested structures
+        if isinstance(value, dict):
+            return self._redact_dict(value, user, user_role)
+
+        if isinstance(value, list):
+            return [
+                self._redact_dict(item, user, user_role) if isinstance(item, dict)
+                else self.pii_service.redact_text(str(item)) if isinstance(item, str)
+                else item
+                for item in value
+            ]
+
+        # User name fields
+        if key in ['user_name', 'peoplename']:
+            return 'User ***' if user_role != 'admin' else self._partially_redact_name(value)
+
+        # Default
+        return value
+
     def _redact_dict(self, data: Dict[str, Any], user, user_role: str) -> Dict[str, Any]:
         """Redact PII from dictionary data."""
         if not isinstance(data, dict):
             return data
-
-        redacted = {}
 
         # Check if user is owner
         entry_user_id = data.get('user') or data.get('user_id')
@@ -170,47 +208,9 @@ class WellnessPIIRedactionMiddleware(MiddlewareMixin):
             str(user.id) == str(entry_user_id)
         )
 
+        redacted = {}
         for key, value in data.items():
-            if value is None:
-                redacted[key] = None
-
-            # Safe metadata
-            elif key in self.SAFE_METADATA_FIELDS:
-                redacted[key] = value
-
-            # Owner sees their own data
-            elif is_owner:
-                redacted[key] = value
-
-            # Always redact sensitive fields
-            elif key in self.ALWAYS_REDACT_FIELDS:
-                redacted[key] = '[REDACTED]'
-
-            # Admin-visible fields
-            elif key in self.ADMIN_VISIBLE_FIELDS:
-                if user_role == 'admin':
-                    redacted[key] = f"[{key.upper()}]"
-                else:
-                    redacted[key] = '[REDACTED]'
-
-            # Nested structures
-            elif isinstance(value, dict):
-                redacted[key] = self._redact_dict(value, user, user_role)
-
-            elif isinstance(value, list):
-                redacted[key] = [
-                    self._redact_dict(item, user, user_role) if isinstance(item, dict)
-                    else self.pii_service.redact_text(str(item)) if isinstance(item, str)
-                    else item
-                    for item in value
-                ]
-
-            # User name fields
-            elif key in ['user_name', 'peoplename']:
-                redacted[key] = 'User ***' if user_role != 'admin' else self._partially_redact_name(value)
-
-            else:
-                redacted[key] = value
+            redacted[key] = self._process_field_value(key, value, user, user_role, is_owner)
 
         return redacted
 

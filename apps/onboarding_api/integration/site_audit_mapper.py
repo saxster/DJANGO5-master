@@ -23,15 +23,17 @@ from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError, DatabaseError
 from django.utils import timezone
 
-from apps.onboarding.models import (
-    OnboardingSite,
-    CoveragePlan,
-    SOP,
+from apps.client_onboarding.models import (
     Shift,
-    TypeAssist,
     Bt
 )
-from apps.onboarding.models import AIChangeSet, AIChangeRecord
+from apps.core_onboarding.models import TypeAssist
+from apps.site_onboarding.models import (
+    OnboardingSite,
+    CoveragePlan,
+    SOP
+)
+from apps.core_onboarding.models import AIChangeSet, AIChangeRecord
 from apps.core.utils_new.db_utils import get_current_db_name
 from .mapper import IntegrationAdapter
 

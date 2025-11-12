@@ -11,6 +11,7 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 from django.db.models import QuerySet
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger('noc.cache')
 
@@ -104,7 +105,8 @@ class NOCCacheService:
         Args:
             client_id: Client BU ID
         """
-        pattern = f"{NOCCacheService.CACHE_KEY_PREFIX}:*:client_{client_id}:*"
+        scope = NOCCacheService._tenant_scope()
+        pattern = f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{scope}:*:client_{client_id}:*"
         cache.delete_pattern(pattern)
         logger.debug(f"Invalidated cache for client {client_id}")
 
@@ -113,12 +115,21 @@ class NOCCacheService:
         """
         Invalidate all caches for a tenant.
 
+        Matches cache key structure from _build_cache_key():
+        - Pattern: "noc_cache:tenant_{tenant_id}:*"
+        - Actual keys: "noc_cache:tenant_{scope}:{data_type}:user_{user_id}:{hash}"
+        - Also matches: "noc_cache:tenant_{scope}:metrics:client_{client_id}"
+
+        Note: Previous pattern had TWO tenant references (tenant_{scope}:*:tenant_{id}:*)
+        which never matched actual keys (only ONE tenant reference at start).
+
         Args:
             tenant_id: Tenant ID
         """
-        pattern = f"{NOCCacheService.CACHE_KEY_PREFIX}:*:tenant_{tenant_id}:*"
+        # Use tenant_id directly (matches actual cache key structure)
+        pattern = f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{tenant_id}:*"
         cache.delete_pattern(pattern)
-        logger.debug(f"Invalidated cache for tenant {tenant_id}")
+        logger.debug(f"Invalidated cache for tenant {tenant_id} with pattern: {pattern}")
 
     @staticmethod
     def get_metrics_cached(client_id, window_minutes=5):
@@ -132,7 +143,8 @@ class NOCCacheService:
         Returns:
             dict: Metrics data or None
         """
-        cache_key = f"{NOCCacheService.CACHE_KEY_PREFIX}:metrics:client_{client_id}"
+        scope = NOCCacheService._tenant_scope()
+        cache_key = f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{scope}:metrics:client_{client_id}"
         return cache.get(cache_key)
 
     @staticmethod
@@ -144,7 +156,8 @@ class NOCCacheService:
             client_id: Client BU ID
             metrics_data: Metrics dictionary
         """
-        cache_key = f"{NOCCacheService.CACHE_KEY_PREFIX}:metrics:client_{client_id}"
+        scope = NOCCacheService._tenant_scope()
+        cache_key = f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{scope}:metrics:client_{client_id}"
         cache.set(cache_key, metrics_data, NOCCacheService.CACHE_TTL['metrics'])
 
     @staticmethod
@@ -166,7 +179,8 @@ class NOCCacheService:
         filters_str = json.dumps(filters, sort_keys=True)
         filters_hash = hashlib.md5(filters_str.encode()).hexdigest()[:8]
 
-        return f"{NOCCacheService.CACHE_KEY_PREFIX}:{data_type}:user_{user_id}:{filters_hash}"
+        tenant_scope = NOCCacheService._tenant_scope()
+        return f"{NOCCacheService.CACHE_KEY_PREFIX}:tenant_{tenant_scope}:{data_type}:user_{user_id}:{filters_hash}"
 
     @staticmethod
     def _fetch_dashboard_data(user, filters):
@@ -211,3 +225,12 @@ class NOCCacheService:
             ],
             'cached_at': timezone.now().isoformat(),
         }
+    @staticmethod
+    def _tenant_scope() -> str:
+        try:
+            return get_current_db_name() or 'default'
+        except (AttributeError, RuntimeError, KeyError):
+            # AttributeError: Middleware not initialized
+            # RuntimeError: Request context unavailable
+            # KeyError: Tenant not in thread-local storage
+            return 'default'

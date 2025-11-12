@@ -19,7 +19,8 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from apps.peoples.models import People, Pgroup, Pgbelonging
-from apps.onboarding.models import Bt, Shift, TypeAssist
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist
 from apps.activity.models import Job, Jobneed
 from apps.attendance.models import PeopleEventlog
 from django.utils import timezone

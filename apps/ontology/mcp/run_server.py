@@ -150,7 +150,7 @@ def run_stdio_server():
         response = handle_stdio_request(line, server)
         response_json = json.dumps(response)
 
-        print(response_json, flush=True)
+        logger.debug(response_json, flush=True)
         logger.debug(f"Sent response: {response_json[:100]}...")
 
 

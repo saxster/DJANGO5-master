@@ -29,6 +29,7 @@ from apps.wellness.models import (
     WellnessUserProgress
 )
 from apps.wellness.services.intervention_response_tracker import InterventionResponseTracker
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +155,8 @@ class AdaptiveInterventionLearningSystem:
 
             return result
 
-        except Exception as e:
-            logger.error(f"Adaptive learning update failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Adaptive learning update failed: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
@@ -318,7 +319,7 @@ class AdaptiveInterventionLearningSystem:
                     logger.debug(f"User {user_id} reclassified from {old_archetype} to {current_archetype}")
 
             except WellnessUserProgress.DoesNotExist:
-                logger.warning(f"No wellness progress record for user {user_id}")
+                logger.warning(f"No wellness progress record for user {user_id}", exc_info=True)
 
         return archetype_updates
 
@@ -392,8 +393,8 @@ class AdaptiveInterventionLearningSystem:
             logger.info(f"Effectiveness report generated: overall effectiveness {system_metrics['overall_effectiveness']:.2f}")
             return report
 
-        except Exception as e:
-            logger.error(f"Effectiveness report generation failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Effectiveness report generation failed: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)

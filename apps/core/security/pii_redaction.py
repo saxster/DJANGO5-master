@@ -222,6 +222,20 @@ class PIIRedactionService:
         return redaction_char * len(value)
 
 
+def redact_pii(text: str, pii_types: Optional[List[PIIType]] = None) -> str:
+    """
+    Convenience function for PII redaction.
+
+    Args:
+        text: Text to redact
+        pii_types: Types of PII to redact (None = all)
+
+    Returns:
+        Text with PII redacted
+    """
+    return PIIRedactionService.redact_text(text, pii_types)
+
+
 class PIIRedactionMixin:
     """
     Mixin for models/serializers to auto-redact PII fields.

@@ -15,7 +15,6 @@ import logging
 
 from apps.core.utils_new.sql_security import SecureSQL, secure_raw_sql
 from apps.core.utils_new.db_utils import runrawsql
-from apps.mentor.storage.index_db import MentorIndexDB
 
 
 class SQLInjectionPenetrationTests(TestCase):
@@ -163,40 +162,7 @@ class SQLInjectionPenetrationTests(TestCase):
             with self.assertRaises(ValidationError):
                 SecureSQL.validate_sqlite_table_name(table, allowed_tables)
 
-    def test_mentor_index_db_security(self):
-        """Test MentorIndexDB against SQL injection."""
-        # Test with safe table names
-        db = MentorIndexDB()
-
-        # Mock the database connection
-        with patch.object(db, 'connect') as mock_connect:
-            mock_cursor = MagicMock()
-            mock_cursor.fetchone.return_value = {'count': 10}
-            mock_connect.return_value.execute.return_value = mock_cursor
-
-            stats = db.get_stats()
-            assert isinstance(stats, dict)
-
-        # Test that malicious table names are prevented
-        original_allowed = db.ALLOWED_TABLES.copy()
-
-        # Try to inject malicious table name
-        malicious_tables = {
-            "files'; DROP TABLE symbols--",
-            "files UNION SELECT * FROM sensitive_data",
-            "files' OR '1'='1"
-        }
-
-        db.ALLOWED_TABLES = malicious_tables
-
-        with patch.object(db, 'connect') as mock_connect:
-            stats = db.get_stats()
-            # Should return 0 for invalid tables
-            for table in malicious_tables:
-                assert stats.get(table, 0) == 0
-
-        # Restore original tables
-        db.ALLOWED_TABLES = original_allowed
+    # test_mentor_index_db_security removed - mentor module deleted in Phase 5
 
     def test_raw_sql_parameterization(self):
         """Test that raw SQL properly uses parameterization."""
@@ -285,7 +251,7 @@ class SQLInjectionPenetrationTests(TestCase):
                     for indicator in sql_error_indicators:
                         assert indicator not in content, f"SQL error leaked in {endpoint} with payload {payload}"
 
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     # Endpoints might not exist in test environment
                     pass
 

@@ -59,6 +59,8 @@ from django.utils.deprecation import MiddlewareMixin
 from django.utils import timezone as django_tz
 from django.shortcuts import render
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+
 logger = logging.getLogger('rate_limiting')
 security_logger = logging.getLogger('security')
 
@@ -176,7 +178,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
         ]))
 
         # Cache as list (JSON serializable), but return as set
-        cache.set('trusted_ips_set', list(trusted_ips), 3600)
+        cache.set('trusted_ips_set', list(trusted_ips), SECONDS_IN_HOUR)
         return trusted_ips
 
     def _is_trusted_ip(self, client_ip: str) -> bool:
@@ -323,7 +325,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
         """Increment violation count with 24-hour expiry."""
         violation_key = f"{self.cache_prefix}:violations:{identifier}"
         current_count = cache.get(violation_key, 0)
-        cache.set(violation_key, current_count + 1, 86400)
+        cache.set(violation_key, current_count + 1, SECONDS_IN_DAY)
 
     def _increment_counters(self, request: HttpRequest, client_ip: str):
         """Increment rate limit counters for successful request."""
@@ -393,7 +395,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
         block_key = f"{self.block_cache_prefix}:{client_ip}"
 
         block_duration_hours = min(violation_count - self.auto_block_threshold + 1, self.max_backoff_hours)
-        block_duration_seconds = block_duration_hours * 3600
+        block_duration_seconds = block_duration_hours * SECONDS_IN_HOUR
         blocked_until_timestamp = time.time() + block_duration_seconds
 
         block_data = {
@@ -549,7 +551,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
             return JsonResponse({
                 'error': {
                     'code': 'IP_BLOCKED',
-                    'message': f'Your IP has been blocked due to excessive violations. Block expires in {remaining_seconds // 3600} hours.',
+                    'message': f'Your IP has been blocked due to excessive violations. Block expires in {remaining_seconds // SECONDS_IN_HOUR} hours.',
                     'correlation_id': correlation_id,
                     'blocked_until': time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(blocked_until))
                 }
@@ -558,7 +560,7 @@ class PathBasedRateLimitMiddleware(MiddlewareMixin):
             return HttpResponse(
                 f'<h1>Access Blocked</h1>'
                 f'<p>Your IP has been temporarily blocked due to excessive rate limit violations.</p>'
-                f'<p>Block expires in {remaining_seconds // 3600} hours.</p>'
+                f'<p>Block expires in {remaining_seconds // SECONDS_IN_HOUR} hours.</p>'
                 f'<p>Correlation ID: {correlation_id}</p>',
                 status=403
             )
@@ -593,7 +595,7 @@ class RateLimitMonitoringMiddleware(MiddlewareMixin):
     def __init__(self, get_response=None):
         super().__init__(get_response)
         self.metrics_cache_prefix = 'rate_limit_metrics'
-        self.metrics_window = 3600
+        self.metrics_window = SECONDS_IN_HOUR
 
     def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
         """Track rate limiting metrics from response."""
@@ -605,7 +607,7 @@ class RateLimitMonitoringMiddleware(MiddlewareMixin):
     def _record_violation_metrics(self, request: HttpRequest, response: HttpResponse):
         """Record metrics for rate limit violation."""
         try:
-            timestamp_hour = int(time.time() // 3600) * 3600
+            timestamp_hour = int(time.time() // SECONDS_IN_HOUR) * SECONDS_IN_HOUR
 
             violations_key = f"{self.metrics_cache_prefix}:violations:{timestamp_hour}"
             current_violations = cache.get(violations_key, 0)

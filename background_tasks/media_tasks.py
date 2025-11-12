@@ -22,7 +22,6 @@ from .utils import validate_email_list
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.job_model import Job
 from apps.activity.models.job_model import JobneedDetails
-from apps.core import utils
 from apps.core.error_handling import ErrorHandler
 from apps.core.queries import QueryRepository
 from apps.core.services.async_pdf_service import AsyncPDFGenerationService
@@ -33,12 +32,13 @@ from apps.core.tasks.base import (
     BaseTask, EmailTask, ExternalServiceTask, MaintenanceTask, TaskMetrics, log_task_context
 )
 from apps.core.tasks.utils import task_retry_policy
-from apps.core.utils_new.db_utils import get_current_db_name
+from apps.tenants.constants import DEFAULT_DB_ALIAS
+from apps.tenants.utils import tenant_context
 from apps.core.validation import XSSPrevention
 # from apps.face_recognition.services import get_face_recognition_service  # Imported locally where needed (line 169)
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
-from apps.reminder.models import Reminder
+from apps.scheduler.models.reminder import Reminder
 from apps.reports import utils as rutils
 from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (
@@ -101,6 +101,8 @@ import uuid
     bind=True,
     default_retry_delay=300,
     max_retries=5,
+    soft_time_limit=180,  # 3 minutes - face recognition processing
+    time_limit=360,        # 6 minutes hard limit
     name="perform_facerecognition_bgt",
 )
 def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
@@ -124,14 +126,16 @@ def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
 
     try:
         logger.info("perform_facerecognition ...start [+]")
-        with transaction.atomic(using=get_current_db_name()):
-            utils.set_db_for_router(db)
-            if pel_uuid not in [None, "NONE", "", 1] and peopleid not in [
-                None,
-                "NONE",
-                1,
-                "",
-            ]:
+        target_db = db or DEFAULT_DB_ALIAS
+
+        with tenant_context(target_db):
+            with transaction.atomic(using=target_db):
+                invalid_tokens = {None, "NONE", "", 1}
+                if pel_uuid in invalid_tokens or peopleid in invalid_tokens:
+                    logger.info("Face recognition skipped due to missing identifiers")
+                    result["story"] += "Missing pel_uuid or peopleid; skipping recognition.\n"
+                    return result
+
                 # Retrieve the event picture
                 Attachment = apps.get_model("activity", "Attachment")
                 pel_att = Attachment.objects.get_people_pic(
@@ -234,7 +238,11 @@ def perform_facerecognition_bgt(self, pel_uuid, peopleid, db="default"):
     return result
 
 
-@shared_task(name="move_media_to_cloud_storage")
+@shared_task(
+    name="move_media_to_cloud_storage",
+    soft_time_limit=1800,  # 30 minutes - file operations
+    time_limit=2400         # 40 minutes hard limit
+)
 def move_media_to_cloud_storage():
     resp = {}
     try:
@@ -259,7 +267,14 @@ def move_media_to_cloud_storage():
     return resp
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, name="process_audio_transcript")
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    soft_time_limit=600,   # 10 minutes - audio transcription
+    time_limit=900,         # 15 minutes hard limit
+    name="process_audio_transcript"
+)
 def process_audio_transcript(self, jobneed_detail_id):
     """
     Background task to process audio transcription for JobneedDetails

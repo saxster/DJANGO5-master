@@ -96,9 +96,9 @@ data = {
 serializer = PeopleSerializer(data=data)
 if serializer.is_valid():
     user = serializer.save()
-    print(f"Created user: {user.loginid}")
+    logger.info(f"Created user: {user.loginid}")
 else:
-    print(f"Validation errors: {serializer.errors}")
+    logger.error(f"Validation errors: {serializer.errors}")
 """,
         "masked_display": """
 # Serialize user with PII masking for API response
@@ -108,9 +108,8 @@ user = People.objects.get(loginid='john.doe')
 serializer = PeopleSerializer(user)
 data = serializer.data
 
-print(data['email'])         # Raw: john.doe@example.com (internal use only)
-print(data['email_display']) # Masked: jo****@***.com (safe for API)
-print(data['mobno_display']) # Masked: +91****10 (safe for logs)
+logger.debug(data['email_display']) # Masked: jo****@***.com (safe for API)
+logger.debug(data['mobno_display']) # Masked: +91****10 (safe for logs)
 """,
         "bulk_serialization": """
 # Bulk serialize users for list API endpoint
@@ -136,7 +135,7 @@ if serializer.is_valid():
     serializer.save()
 else:
     # Cross-field validation: DOB must be before DOJ
-    print(serializer.errors)  # {'non_field_errors': ['Date of birth must be before date of joining']}
+    logger.error(serializer.errors)
 """
     }
 )

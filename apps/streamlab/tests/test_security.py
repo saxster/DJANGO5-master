@@ -390,7 +390,7 @@ class TestSecurityValidation(TestCase):
                 result = redactor.redact(payload, 'test/malicious')
                 self.assertIsInstance(result, dict)
                 self.assertTrue(result.get('_pii_redacted', False))
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 self.fail(f"Redactor failed on payload {payload}: {e}")
 
     def test_endpoint_sanitization_security(self):

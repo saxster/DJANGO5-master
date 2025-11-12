@@ -16,7 +16,8 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 # App-specific imports
 import apps.attendance.forms as atf
 import apps.attendance.models as atdm
-import apps.onboarding.models as ob
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.activity import models as am
 from apps.attendance.filters import AttendanceFilter
 import apps.peoples.utils as putils

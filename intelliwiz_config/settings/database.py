@@ -27,6 +27,7 @@ Last Updated: 2025-10-11 (psycopg3 migration)
 
 import os
 from pathlib import Path
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -43,21 +44,19 @@ DATABASES = {
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
         "ATOMIC_REQUESTS": True,  # Wrap views in transactions
-        "CONN_MAX_AGE": 600,  # Connection pooling (10 minutes)
+        # POOLING STRATEGY: Django's CONN_MAX_AGE (single source of truth)
+        # Reason: Simpler, more maintainable, environment-specific override possible
+        # Removed: psycopg3 built-in pool (conflicted with CONN_MAX_AGE)
+        # See: production.py for environment-specific CONN_MAX_AGE values
+        "CONN_MAX_AGE": 600,  # Default: 10 minutes (development). Overridden in production.py
         "CONN_HEALTH_CHECKS": True,  # Enable connection health checks (Django 4.1+)
         "OPTIONS": {
             "connect_timeout": 10,
             "options": "-c statement_timeout=30000",  # 30 second query timeout
-            # psycopg3 connection pooling (requires psycopg[pool])
-            # Enabled after migration from psycopg2 (2025-10-11)
-            "pool": {
-                "min_size": int(os.environ.get("DB_POOL_MIN_SIZE", "5")),   # Minimum connections
-                "max_size": int(os.environ.get("DB_POOL_MAX_SIZE", "20")),  # Maximum connections
-                "timeout": int(os.environ.get("DB_POOL_TIMEOUT", "30")),    # Connection acquisition timeout (seconds)
-                # Optional: "max_waiting": 10,  # Max clients waiting for connection
-                # Optional: "max_lifetime": 3600,  # Max connection lifetime (seconds)
-                # Optional: "max_idle": 600,  # Max idle time before closing (seconds)
-            },
+            # NOTE: psycopg3 built-in pool configuration has been removed to avoid
+            # conflicts with Django's CONN_MAX_AGE pooling strategy.
+            # Django handles connection pooling lifecycle via CONN_MAX_AGE + CONN_HEALTH_CHECKS.
+            # This ensures single-source-of-truth for connection management.
         },
     }
 }
@@ -87,6 +86,7 @@ CACHES = {
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
             "IGNORE_EXCEPTIONS": False,  # Raise exceptions for debugging
+            "KEY_FUNCTION": "apps.core.cache.key_functions.tenant_key",
         },
         "KEY_PREFIX": "intelliwiz",
         "TIMEOUT": 300,  # 5 minutes default
@@ -95,29 +95,18 @@ CACHES = {
     "select2": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/2"),
-        "TIMEOUT": 3600,  # 1 hour for Select2 data
+        "TIMEOUT": SECONDS_IN_HOUR,  # 1 hour for Select2 data
     },
 }
 
-# Session configuration
-SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
-SESSION_CACHE_ALIAS = "default"
-SESSION_COOKIE_AGE = 28800  # 8 hours
-SESSION_COOKIE_SECURE = False  # Set to True in production
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_SAVE_EVERY_REQUEST = False  # Performance optimization
+# NOTE: Session configuration has been moved to security/authentication.py
+# to avoid conflicts and ensure security settings are in a single location.
+# Session settings MUST be configured in security/authentication.py only.
+# See Rule #10: Session Security Standards in .claude/rules.md
 
 __all__ = [
     'DATABASES',
     'DEFAULT_AUTO_FIELD',
     'DATABASE_ROUTERS',
     'CACHES',
-    'SESSION_ENGINE',
-    'SESSION_CACHE_ALIAS',
-    'SESSION_COOKIE_AGE',
-    'SESSION_COOKIE_SECURE',
-    'SESSION_COOKIE_HTTPONLY',
-    'SESSION_COOKIE_SAMESITE',
-    'SESSION_SAVE_EVERY_REQUEST',
 ]

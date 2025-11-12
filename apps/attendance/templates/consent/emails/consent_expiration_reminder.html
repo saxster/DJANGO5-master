@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consent Expiration Reminder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ff9800;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .reminder-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #ff9800;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚠ Consent Expiring Soon</h1>
+    </div>
+
+    <div class="content">
+        <p>Dear {{ employee.first_name|default:employee.username }},</p>
+
+        <div class="reminder-box">
+            <h2>Your consent is expiring in {{ days_remaining }} days</h2>
+            <p><strong>Policy:</strong> {{ policy.title }}</p>
+            <p><strong>Expires On:</strong> {{ expires_at|date:"F d, Y" }}</p>
+        </div>
+
+        <p>To continue using attendance features, please renew your consent before the expiration date.</p>
+
+        <p><strong>What happens when consent expires?</strong></p>
+        <ul>
+            {% if policy.policy_type == 'GPS_TRACKING' %}
+            <li>GPS location tracking will be disabled</li>
+            <li>Mobile clock-in/out may be restricted</li>
+            <li>You'll need to use alternative attendance methods</li>
+            {% endif %}
+
+            {% if policy.policy_type == 'BIOMETRIC_DATA' or policy.policy_type == 'FACE_RECOGNITION' %}
+            <li>Face recognition will be disabled</li>
+            <li>Alternative authentication will be required</li>
+            {% endif %}
+        </ul>
+
+        <center>
+            <a href="{{ renewal_url }}" class="button">Renew Consent Now</a>
+        </center>
+    </div>
+
+    <div class="footer">
+        <p>This reminder was sent automatically by the IntelliWiz Attendance System.</p>
+        <p>If you have questions, please contact your HR department.</p>
+    </div>
+</body>
+</html>

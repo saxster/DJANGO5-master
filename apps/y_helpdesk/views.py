@@ -1,13 +1,17 @@
 from django.shortcuts import render
 from django.db.utils import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from apps.onboarding.models import TypeAssist
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
+from apps.core_onboarding.models import TypeAssist
 from .models import EscalationMatrix, Ticket
 from .forms import TicketForm, EscalationForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.http import response as rp
 from apps.core import utils
+from apps.api.pagination import StandardPageNumberPagination
 from django.db import transaction, DatabaseError
 from apps.peoples import utils as putils
 from apps.peoples import models as pm
@@ -23,6 +27,7 @@ from .serializers.unified_ticket_serializer import (
 
 
 # Create your views here.
+@method_decorator(permission_required('y_helpdesk.view_escalationmatrix', raise_exception=True), name='dispatch')
 class EscalationMatrixView(LoginRequiredMixin, View):
     P = {
         "model": EscalationMatrix,
@@ -40,10 +45,48 @@ class EscalationMatrixView(LoginRequiredMixin, View):
             return render(request, P["template_form"], cxt)
 
         if R.get("action") == "loadPeoples":
+            # Performance: Apply pagination to prevent loading all users at once
             qset = pm.People.objects.getPeoplesForEscForm(request)
-            return rp.JsonResponse(
-                {"items": list(qset), "total_count": len(qset)}, status=200
-            )
+
+            # Get pagination parameters from request
+            page_number = int(R.get('page', 1))
+            page_size = int(R.get('page_size', 25))  # Default from StandardPageNumberPagination
+
+            def _serialize_person_option(entry):
+                """Serialize People objects or dicts into JSON-safe payloads."""
+                if isinstance(entry, dict):
+                    return {
+                        'id': entry.get('id'),
+                        'text': entry.get('text') or entry.get('peoplename')
+                    }
+                text_value = getattr(entry, 'text', None) or getattr(entry, 'peoplename', None)
+                if not text_value and hasattr(entry, 'peoplecode'):
+                    text_value = f"{getattr(entry, 'peoplename', '')} ({entry.peoplecode})".strip()
+                return {
+                    'id': getattr(entry, 'id', None),
+                    'text': text_value or str(entry)
+                }
+
+            # Apply pagination
+            paginator = Paginator(qset, page_size)
+            try:
+                page_obj = paginator.page(page_number)
+            except (EmptyPage, PageNotAnInteger):
+                page_obj = None
+
+            serialized_items = []
+            if page_obj:
+                serialized_items = [_serialize_person_option(item) for item in page_obj]
+
+            return rp.JsonResponse({
+                "items": serialized_items,
+                "total_count": paginator.count if paginator else 0,
+                "page_size": page_size,
+                "current_page": page_number,
+                "total_pages": paginator.num_pages if paginator else 0,
+                "has_next": page_obj.has_next() if page_obj else False,
+                "has_previous": page_obj.has_previous() if page_obj else False
+            }, status=200)
 
         if R.get("action") == "loadGroups":
             qset = pm.Pgroup.objects.getGroupsForEscForm(request)
@@ -89,6 +132,7 @@ class EscalationMatrixView(LoginRequiredMixin, View):
             return rp.JsonResponse(data, status=200, safe=False)
 
 
+@method_decorator(permission_required('y_helpdesk.view_ticket', raise_exception=True), name='dispatch')
 class TicketView(LoginRequiredMixin, View):
     params = {
         "model": Ticket,
@@ -111,11 +155,32 @@ class TicketView(LoginRequiredMixin, View):
 
         if R.get("action") == "list":
             # Use optimized manager method with unified serialization
+            # Query optimization note: select_related() covers all foreign keys accessed by serializer
+            # (assignedtopeople.peoplename, bu.buname, etc.). No nested relationships like
+            # assignedtopeople.profile are accessed, so current optimization is sufficient.
+
+            # Security fix: Validate session data against user's actual organizational context
+            # to prevent cross-tenant access via session manipulation
+            if not hasattr(request.user, 'peopleorganizational'):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("User lacks organizational context")
+
+            user_org = request.user.peopleorganizational
+
+            # Superusers can access all tickets; regular users limited to their scope
+            if request.user.is_superuser:
+                allowed_bu_ids = request.session.get("assignedsites", [])
+                allowed_client_id = request.session.get("client_id")
+            else:
+                # Validate session data matches user's actual organizational context
+                allowed_bu_ids = [user_org.bu_id] if user_org.bu_id else []
+                allowed_client_id = user_org.client_id
+
             tickets = P["model"].objects.filter(
                 cdtz__date__gte=request.GET.get('from'),
                 cdtz__date__lte=request.GET.get('to'),
-                bu_id__in=request.session["assignedsites"],
-                client_id=request.session["client_id"],
+                bu_id__in=allowed_bu_ids,
+                client_id=allowed_client_id,
             ).select_related(
                 'assignedtopeople', 'assignedtogroup', 'bu', 'ticketcategory', 'cuser'
             ).prefetch_related('workflow')
@@ -126,6 +191,26 @@ class TicketView(LoginRequiredMixin, View):
                 tickets = tickets.filter(ticketsource="SYSTEMGENERATED")
             elif status:
                 tickets = tickets.filter(status=status, ticketsource="USERDEFINED")
+
+            # Apply sentiment filtering (Feature 2: NL/AI Platform Quick Win)
+            sentiment_label = request.GET.get("sentiment_label")
+            if sentiment_label:
+                tickets = tickets.filter(sentiment_label=sentiment_label)
+
+            # Filter by sentiment score range
+            min_sentiment = request.GET.get("min_sentiment")
+            max_sentiment = request.GET.get("max_sentiment")
+            if min_sentiment:
+                tickets = tickets.filter(sentiment_score__gte=float(min_sentiment))
+            if max_sentiment:
+                tickets = tickets.filter(sentiment_score__lte=float(max_sentiment))
+
+            # Sort by sentiment (negative first for priority)
+            sentiment_sort = request.GET.get("sort_by_sentiment")
+            if sentiment_sort == "negative_first":
+                tickets = tickets.order_by('sentiment_score', '-cdtz')
+            elif sentiment_sort == "positive_first":
+                tickets = tickets.order_by('-sentiment_score', '-cdtz')
 
             # Use unified serializer for consistent API response
             objs = serialize_for_web_api(tickets, request.user)
@@ -180,69 +265,95 @@ class TicketView(LoginRequiredMixin, View):
 
     def handle_valid_form(self, form, request):
         """
-        Handle valid ticket form submission with retry logic for unique constraint violations.
+        Handle valid ticket form submission with non-blocking retry logic.
 
-        NOTE: Uses exponential backoff with very short delays (10-200ms) for database
-        constraint retries. This is acceptable because:
-        1. Delays are minimal (< 200ms total across all retries)
-        2. IntegrityErrors on ticketno are rare (only during high concurrency)
-        3. Ticket creation requires synchronous feedback to user
-        4. Alternative solutions (background tasks) would break user experience
+        Uses cache-based retry coordination to eliminate blocking time.sleep().
+        Returns 429 status with Retry-After header if operation needs retry.
 
-        TODO: Consider moving to database-level sequence generator for ticketno
-        to eliminate the need for retries entirely.
+        Fixed: Eliminated blocking time.sleep() per .claude/rules.md Rule #14
         """
-        from apps.core.utils_new.retry_mechanism import exponential_backoff
+        from apps.core.utils_new.async_retry_mechanism import AsyncRetryCoordinator
         import logging
 
         logger = logging.getLogger(__name__)
         max_retries = 3
 
-        for attempt in range(max_retries):
-            try:
-                with transaction.atomic(using=get_current_db_name()):
-                    ticket = form.save(commit=False)
-                    ticket.uuid = request.POST.get("uuid")
-                    bu = ticket.bu_id if request.POST.get("pk") else None
-                    ticket = putils.save_userinfo(ticket, request.user, request.session, bu=bu)
-                    utils.store_ticket_history(ticket, request)
+        # Generate retry coordination key
+        operation_id = f"ticket_create:{request.user.id}"
+        context = {'path': request.path, 'user_id': request.user.id}
+        retry_key = AsyncRetryCoordinator.generate_retry_key(operation_id, context)
 
-                    return rp.JsonResponse({"pk": ticket.id}, status=200)
+        # Check if we should retry (non-blocking)
+        should_retry, attempt = AsyncRetryCoordinator.should_retry(
+            retry_key,
+            max_retries,
+            backoff_seconds=0.05  # 50ms base backoff
+        )
 
-            except IntegrityError as e:
-                if "ticketno" in str(e) and attempt < max_retries - 1:
-                    # Calculate exponential backoff delay with jitter
-                    delay = exponential_backoff(
-                        attempt=attempt,
-                        initial_delay=0.01,  # 10ms initial delay
-                        backoff_factor=2.0,
-                        max_delay=0.2,  # 200ms max delay
-                        jitter=True
-                    )
+        if not should_retry and attempt > 1:
+            # Backoff period not elapsed - return 429
+            backoff_time = AsyncRetryCoordinator._calculate_backoff(attempt, 0.05)
+            return rp.JsonResponse(
+                {
+                    'error': 'Ticket number conflict - please retry',
+                    'retry_after_ms': int(backoff_time * 1000),
+                    'attempt': attempt
+                },
+                status=429,
+                headers={'Retry-After': str(int(backoff_time))}
+            )
 
-                    logger.warning(
-                        f"IntegrityError on ticketno, retrying (attempt {attempt + 2}/{max_retries})",
-                        extra={
-                            'delay_ms': delay * 1000,
-                            'user': request.user.loginid if hasattr(request.user, 'loginid') else 'unknown'
-                        }
-                    )
+        try:
+            with transaction.atomic(using=get_current_db_name()):
+                ticket = form.save(commit=False)
+                ticket.uuid = request.POST.get("uuid")
+                bu = ticket.bu_id if request.POST.get("pk") else None
+                ticket = putils.save_userinfo(ticket, request.user, request.session, bu=bu)
+                utils.store_ticket_history(ticket, request)
 
-                    # NOTE: This time.sleep is acceptable here due to:
-                    # 1. Very short duration (10-200ms)
-                    # 2. Rare occurrence (only on ticket number collision)
-                    # 3. Synchronous operation requirement
-                    import time
-                    time.sleep(delay)
-                    continue
-                else:
+                # Success - clear retry state
+                AsyncRetryCoordinator.clear_retry_state(retry_key)
+                return rp.JsonResponse({"pk": ticket.id}, status=200)
+
+        except IntegrityError as e:
+            if "ticketno" in str(e):
+                logger.warning(
+                    f"IntegrityError on ticketno, attempt {attempt}/{max_retries}",
+                    extra={
+                        'attempt': attempt,
+                        'user': request.user.loginid if hasattr(request.user, 'loginid') else 'unknown'
+                    }
+                )
+
+                if attempt >= max_retries:
+                    # Max retries exhausted
+                    AsyncRetryCoordinator.clear_retry_state(retry_key)
                     logger.error(
                         f"Failed to create ticket after {max_retries} attempts",
                         extra={'error': str(e)},
                         exc_info=True
                     )
                     return utils.handle_intergrity_error("Ticket")
-    
+
+                # Return 429 - client should retry after backoff
+                backoff_time = AsyncRetryCoordinator._calculate_backoff(attempt + 1, 0.05)
+                return rp.JsonResponse(
+                    {
+                        'error': 'Ticket number conflict - please retry',
+                        'retry_after_ms': int(backoff_time * 1000),
+                        'attempt': attempt,
+                        'max_retries': max_retries
+                    },
+                    status=429,
+                    headers={'Retry-After': str(int(backoff_time))}
+                )
+            else:
+                # Different IntegrityError - don't retry
+                logger.error(f"IntegrityError (not ticketno): {e}", exc_info=True)
+                return utils.handle_intergrity_error("Ticket")
+
+
+@method_decorator(permission_required('activity.view_job', raise_exception=True), name='dispatch')
 class PostingOrderView(LoginRequiredMixin, View):
 
     params = {
@@ -261,6 +372,7 @@ class PostingOrderView(LoginRequiredMixin, View):
             return rp.JsonResponse({"data": objs}, status=200)
 
 
+@method_decorator(permission_required('y_helpdesk.view_uniform', raise_exception=True), name='dispatch')
 class UniformView(LoginRequiredMixin, View):
     params = {
         "template_list": "y_helpdesk/uniform_list.html",

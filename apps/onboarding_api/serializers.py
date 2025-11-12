@@ -2,7 +2,23 @@
 Serializers for Conversational Onboarding API (Phase 1 MVP)
 """
 from rest_framework import serializers
-from apps.onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge, UserFeedbackLearning
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation, AuthoritativeKnowledge
+from apps.core_onboarding.models import UserFeedbackLearning
+
+__all__ = [
+    'ConversationStartSerializer',
+    'ConversationSessionSerializer',
+    'ConversationProcessSerializer',
+    'LLMRecommendationSerializer',
+    'RecommendationApprovalSerializer',
+    'ConversationStatusSerializer',
+    'TaskStatusSerializer',
+    'AuthoritativeKnowledgeSerializer',
+    'UserFeedbackSerializer',
+    'VoiceInputSerializer',
+    'VoiceTranscriptionResponseSerializer',
+    'VoiceCapabilityResponseSerializer',
+]
 
 
 class ConversationStartSerializer(serializers.Serializer):
@@ -125,7 +141,7 @@ class VoiceInputSerializer(serializers.Serializer):
         Raises:
             ValidationError: If language is not supported
         """
-        from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+        from apps.core_onboarding.services.speech_service import OnboardingSpeechService
         service = OnboardingSpeechService()
 
         if not service.is_language_supported(value):

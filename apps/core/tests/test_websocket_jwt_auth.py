@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Comprehensive Unit Tests for WebSocket JWT Authentication
 
 Tests all WebSocket authentication middleware components:
@@ -573,7 +575,7 @@ class TestMiddlewareStackOrdering:
         # Execute JWT authentication
         try:
             await jwt_middleware(scope_base, AsyncMock(), send_mock)
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             pass  # May raise on invalid token
 
         # Verify user remains anonymous (auth failed)
@@ -675,11 +677,11 @@ class TestMiddlewareStackOrdering:
         assert scope_invalid_origin.get('reached_business_logic', False) == False, \
             "❌ Should NOT reach business logic when origin fails"
 
-        print("\n✅ Middleware Stack Ordering Test Passed:")
-        print("   - Origin validation executes FIRST (4403 on failure)")
-        print("   - JWT authentication executes SECOND (4401 on failure)")
-        print("   - Throttling executes THIRD (4429 on failure)")
-        print("   - Business logic executes LAST (only if all pass)")
+        logger.info("\n✅ Middleware Stack Ordering Test Passed:")
+        logger.error("   - Origin validation executes FIRST (4403 on failure)")
+        logger.error("   - JWT authentication executes SECOND (4401 on failure)")
+        logger.error("   - Throttling executes THIRD (4429 on failure)")
+        logger.info("   - Business logic executes LAST (only if all pass)")
 
     async def test_close_code_precedence_documented(self):
         """
@@ -695,9 +697,9 @@ class TestMiddlewareStackOrdering:
             1008: "Policy Violation (Generic)",
         }
 
-        print("\n📚 WebSocket Close Codes:")
+        logger.info("\n📚 WebSocket Close Codes:")
         for code, description in close_codes.items():
-            print(f"   {code}: {description}")
+            logger.info(f"   {code}: {description}")
 
         # Assert codes are distinct (no overlaps)
         assert len(close_codes) == len(set(close_codes.keys())), \

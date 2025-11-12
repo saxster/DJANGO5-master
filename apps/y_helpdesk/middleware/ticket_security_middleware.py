@@ -26,6 +26,8 @@ from django.utils import timezone
 from django.conf import settings
 
 from apps.y_helpdesk.security.ticket_security_service import (
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
     TicketSecurityService, SecurityEvent, SecurityViolationType, SecurityThreatLevel
 )
 from apps.y_helpdesk.services.ticket_audit_service import (
@@ -227,7 +229,7 @@ class TicketSecurityMiddleware(MiddlewareMixin):
                 # Re-raise security exceptions
                 raise
 
-            except Exception as e:
+            except SERIALIZATION_EXCEPTIONS as e:
                 logger.error(
                     f"Unexpected error in ticket security validation: {e}",
                     exc_info=True

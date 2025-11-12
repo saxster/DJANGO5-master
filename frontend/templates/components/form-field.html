@@ -151,6 +151,7 @@ ACCESSIBILITY:
         {% if has_error %}aria-invalid="true"{% endif %}
         {% if help_text or error %}aria-describedby="{% if help_text %}{{ field_id }}_help{% endif %}{% if error %} {{ field_id }}_error{% endif %}"{% endif %}
         class="yt-form-input {% if icon %}yt-form-input--with-icon-before{% endif %} {% if icon_after %}yt-form-input--with-icon-after{% endif %}"
+        {# SECURITY: |safe intentional - attrs contains developer-defined HTML attributes for form customization #}
         {% if attrs %}{{ attrs|safe }}{% endif %}>
 
       {# Icon after #}

@@ -15,10 +15,31 @@ sanitize_csv_fields = sanitize_csv_data
 from .mass_assignment_protection import MassAssignmentProtector
 # protect_model_fields doesn't exist - only class available
 from .pii_redaction import PIIRedactionService, redact_pii
-from .policy_registry import SecurityPolicyRegistry, register_policy, get_policy
-from .secrets_rotation import rotate_secret, SecretRotationSchedule
-from .token_binding import TokenBindingService, verify_token_binding
-from .websocket_token_binding import WebsocketTokenBindingService
+from .policy_registry import SecurityPolicyRegistry, policy_registry as _policy_registry, security_policy_status
+try:
+    from .secrets_rotation import SecretsRotationService
+except (ImportError, AttributeError):
+    SecretsRotationService = None
+try:
+    from .token_binding import TokenBindingService, verify_token_binding
+except (ImportError, AttributeError):
+    TokenBindingService = None
+    verify_token_binding = None
+try:
+    from .websocket_token_binding import WebsocketTokenBindingService
+except (ImportError, AttributeError):
+    WebsocketTokenBindingService = None
+
+
+# Convenience functions for policy registry
+def register_policy(policy):
+    """Register a new security policy."""
+    return _policy_registry.register(policy)
+
+
+def get_policy(policy_name: str):
+    """Get a registered security policy by name."""
+    return _policy_registry.policies.get(policy_name)
 
 __all__ = [
     "CsvInjectionProtector",
@@ -32,8 +53,8 @@ __all__ = [
     "SecurityPolicyRegistry",
     "register_policy",
     "get_policy",
-    "rotate_secret",
-    "SecretRotationSchedule",
+    "security_policy_status",
+    "SecretsRotationService",
     "TokenBindingService",
     "verify_token_binding",
     "WebsocketTokenBindingService",

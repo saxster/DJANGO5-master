@@ -73,6 +73,8 @@ class RateLimitBlockedIPAdmin(admin.ModelAdmin):
 
     actions = ['unblock_ips', 'extend_block_24h']
 
+    list_per_page = 50
+
     def status_badge(self, obj):
         """Display status as colored badge."""
         if obj.is_expired():
@@ -122,6 +124,7 @@ class RateLimitBlockedIPAdmin(admin.ModelAdmin):
 
 @admin.register(RateLimitTrustedIP)
 class RateLimitTrustedIPAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for trusted IPs."""
 
     list_display = [
@@ -182,6 +185,7 @@ class RateLimitTrustedIPAdmin(admin.ModelAdmin):
 
 @admin.register(RateLimitViolationLog)
 class RateLimitViolationLogAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for violation logs."""
 
     list_display = [

@@ -21,12 +21,12 @@ from django.conf import settings
 from apps.peoples.models import People, SecureString
 
 # Import our new security enhancements
-from apps.core.xss_protection import (
-    XSSProtectionMiddleware,
-    QueryAnalyzer,
-    CommonOptimizations,
-)
+from apps.core.xss_protection import XSSProtectionMiddleware
 from apps.core.decorators import atomic_task
+
+# Note: QueryOptimizationMixin, OptimizedQueryset, CommonOptimizations were moved to
+# apps.core.services.query_optimization_service.py, but these tests reference
+# the deprecated patterns. Tests updated to remove deprecated functionality.
 
 
 class SecurityFixesTestCase(TestCase):
@@ -177,51 +177,21 @@ class SecurityFixesTestCase(TestCase):
         # Verify legitimate parameter unchanged
         self.assertEqual(request.GET.get('page'), '1')
 
-    @pytest.mark.security
-    def test_query_optimization_mixin_functionality(self):
-        """Test QueryOptimizationMixin provides proper optimization methods."""
+    # DISABLED 2025-10-31: query_optimization.py deprecated (zero production usage)
+    # Functionality moved to apps/core/services/query_optimization_service.py
+    # @pytest.mark.security
+    # def test_query_optimization_mixin_functionality(self):
+    #     """Test QueryOptimizationMixin provides proper optimization methods."""
+    #     # This mixin pattern was never adopted in production
+    #     pass
 
-        class TestOptimizedModel(QueryOptimizationMixin):
-            @classmethod
-            def get_select_related_fields(cls):
-                return ['user', 'category', 'author']
-
-            @classmethod
-            def get_prefetch_related_fields(cls):
-                return ['attachments', 'comments', 'tags']
-
-        # Test field retrieval
-        select_fields = TestOptimizedModel.get_select_related_fields()
-        prefetch_fields = TestOptimizedModel.get_prefetch_related_fields()
-
-        self.assertEqual(select_fields, ['user', 'category', 'author'])
-        self.assertEqual(prefetch_fields, ['attachments', 'comments', 'tags'])
-
-    @pytest.mark.security
-    def test_optimized_queryset_pagination_security(self):
-        """Test OptimizedQueryset enforces secure pagination limits."""
-
-        # Create mock optimized queryset
-        mock_model = Mock()
-        mock_model.get_select_related_fields.return_value = ['user']
-        mock_model.get_prefetch_related_fields.return_value = ['tags']
-
-        optimized_qs = OptimizedQueryset(model=mock_model)
-
-        # Mock Django's Paginator
-        with patch('apps.core.utils_new.query_optimization.Paginator') as mock_paginator:
-            mock_page = Mock()
-            mock_paginator_instance = Mock()
-            mock_paginator_instance.page.return_value = mock_page
-            mock_paginator_instance.num_pages = 10
-            mock_paginator.return_value = mock_paginator_instance
-
-            # Test oversized page request gets limited
-            page = optimized_qs.paginate_efficiently(1, page_size=500)  # Exceeds max
-
-            # Should have been limited to max_page_size (100)
-            args, kwargs = mock_paginator.call_args
-            self.assertEqual(args[1], 100)
+    # DISABLED 2025-10-31: query_optimization.py deprecated (zero production usage)
+    # Pagination security is now handled at view/API level
+    # @pytest.mark.security
+    # def test_optimized_queryset_pagination_security(self):
+    #     """Test OptimizedQueryset enforces secure pagination limits."""
+    #     # OptimizedQueryset was never used in production
+    #     pass
 
     @pytest.mark.security
     def test_client_domains_environment_configuration(self):
@@ -266,25 +236,13 @@ class SecurityFixesTestCase(TestCase):
         for handler in expected_handlers:
             self.assertIn(handler, handlers, f"Handler {handler} should exist in logging config")
 
-    @pytest.mark.security
-    def test_common_query_optimizations(self):
-        """Test common query optimization patterns work correctly."""
-
-        # Create mock queryset
-        mock_qs = Mock()
-        mock_qs.select_related.return_value = mock_qs
-        mock_qs.prefetch_related.return_value = mock_qs
-
-        # Test user query optimizations
-        CommonOptimizations.optimize_user_queries(mock_qs)
-        mock_qs.select_related.assert_called_with('user', 'created_by', 'modified_by')
-
-        # Test ticket query optimizations
-        CommonOptimizations.optimize_ticket_queries(mock_qs)
-        expected_select = ('assignedtopeople', 'assignedtogroup', 'ticketcategory', 'bu')
-        expected_prefetch = ('attachments', 'history')
-        mock_qs.select_related.assert_called_with(*expected_select)
-        mock_qs.prefetch_related.assert_called_with(*expected_prefetch)
+    # DISABLED 2025-10-31: query_optimization.py deprecated (zero production usage)
+    # Query optimization now handled by apps/core/services/query_optimization_service.py
+    # @pytest.mark.security
+    # def test_common_query_optimizations(self):
+    #     """Test common query optimization patterns work correctly."""
+    #     # CommonOptimizations was never imported/used in production
+    #     pass
 
     def test_password_validation_enabled(self):
         """Test that password validation is properly enabled"""
@@ -708,10 +666,10 @@ class SecretValidationIntegrationTest(TestCase):
         except SecretValidationError as e:
             # This is what settings.py does - print error and exit
             import sys
-            print(f"\n🚨 CRITICAL SECURITY ERROR: {e}")
+            logger.error(f"\n🚨 CRITICAL SECURITY ERROR: {e}")
             if hasattr(e, 'remediation') and e.remediation:
-                print(f"🔧 REMEDIATION: {e.remediation}")
-            print("\n❌ Application startup aborted due to invalid secrets.")
+                logger.info(f"🔧 REMEDIATION: {e.remediation}")
+            logger.info("\n❌ Application startup aborted due to invalid secrets.")
             sys.exit(1)
 
         # sys.exit should have been called
@@ -783,7 +741,7 @@ class SecretValidationIntegrationTest(TestCase):
             try:
                 result = validator(secret_name, valid_value)
                 self.assertEqual(result, valid_value)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 self.fail(f"Production-grade {secret_name} should be valid: {e}")
 
             # Invalid values should fail
@@ -830,7 +788,7 @@ class SecretValidationIntegrationTest(TestCase):
             else:
                 try:
                     test_func()
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError, KeyError) as e:
                     self.fail(f"Rule 4 test failed: {description} - {e}")
 
 

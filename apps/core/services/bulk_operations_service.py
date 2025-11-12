@@ -18,7 +18,7 @@ Compliance with .claude/rules.md:
 import logging
 from typing import Dict, List, Optional, Any, Tuple, Type
 from dataclasses import dataclass, field
-from datetime import timezone
+from datetime import timezone as dt_timezone
 
 from django.db import models, transaction, DatabaseError
 from django.core.exceptions import ValidationError, PermissionDenied
@@ -204,7 +204,7 @@ class BulkOperationService:
                     transaction.set_rollback(True)
                     result.warnings.append("Dry run - no changes committed")
 
-        except Exception as e:
+        except (ValidationError, DatabaseError, InvalidTransitionError, PermissionDeniedError) as e:
             # Transaction was rolled back
             logger.error(f"Bulk transition failed: {e}", exc_info=True)
 
@@ -297,7 +297,7 @@ class BulkOperationService:
                     transaction.set_rollback(True)
                     result.warnings.append("Dry run - no changes committed")
 
-        except Exception as e:
+        except (ValidationError, DatabaseError) as e:
             logger.error(f"Bulk update failed: {e}", exc_info=True)
 
             if not result.was_rolled_back:

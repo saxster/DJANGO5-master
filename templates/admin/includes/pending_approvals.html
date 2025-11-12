@@ -1,0 +1,68 @@
+{% load static %}
+
+<div class="dashboard-widget" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px;">
+    <h3 style="color: #417690; margin-top: 0; border-bottom: 2px solid #417690; padding-bottom: 10px;">
+        ⏳ Pending Approvals
+        {% if pending_approvals %}
+            <span style="background-color: orange; color: white; padding: 2px 8px; border-radius: 10px; font-size: 14px; margin-left: 10px;">
+                {{ pending_approvals|length }}
+            </span>
+        {% endif %}
+    </h3>
+    
+    {% if pending_approvals %}
+        <ul class="approval-list" style="list-style: none; padding: 0; margin: 0;">
+            {% for approval in pending_approvals %}
+            <li style="border-bottom: 1px solid #eee; padding: 15px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1;">
+                        <strong style="color: #333; font-size: 16px;">
+                            {{ approval.requester.get_full_name|default:approval.requester.username }}
+                        </strong>
+                        <p style="margin: 5px 0; color: #666;">
+                            wants to <strong>{{ approval.action_description|truncatewords:10 }}</strong>
+                        </p>
+                        <small style="color: #999;">
+                            Requested {{ approval.requested_at|timesince }} ago
+                            {% if approval.expires_at %}
+                                • Expires {{ approval.expires_at|timeuntil }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <div class="approval-actions" style="display: flex; gap: 10px;">
+                        <a href="{% url 'admin:approve_approval_request' approval.id %}" 
+                           class="btn btn-sm btn-success" 
+                           style="background-color: green; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                            ✅ Approve
+                        </a>
+                        <a href="{% url 'admin:deny_approval_request' approval.id %}" 
+                           class="btn btn-sm btn-danger" 
+                           style="background-color: red; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                            ❌ Deny
+                        </a>
+                    </div>
+                </div>
+                
+                {% if approval.reason %}
+                <div style="background: #f8f9fa; padding: 10px; margin-top: 10px; border-radius: 4px; border-left: 3px solid #417690;">
+                    <strong>Reason:</strong> {{ approval.reason|truncatewords:20 }}
+                </div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        
+        <div style="margin-top: 15px; text-align: right;">
+            <a href="{% url 'admin:core_approvalrequest_changelist' %}?status__exact=WAITING" 
+               style="color: #417690; text-decoration: none; font-weight: bold;">
+                View All Pending Approvals →
+            </a>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 30px; color: #999;">
+            <p style="font-size: 18px; margin: 0;">🎉 No pending approvals!</p>
+            <small>All caught up - great job!</small>
+        </div>
+    {% endif %}
+</div>

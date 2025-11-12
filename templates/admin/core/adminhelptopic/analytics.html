@@ -1,0 +1,127 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Help Topics Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>📊 Help Topics Analytics</h1>
+            <p class="text-muted">View usage statistics and popular help topics</p>
+            
+            <!-- Summary Stats -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h3 class="text-primary">{{ stats.total_topics }}</h3>
+                            <p class="text-muted mb-0">Total Help Topics</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h3 class="text-success">{{ stats.total_views }}</h3>
+                            <p class="text-muted mb-0">Total Views</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h3 class="text-info">{{ stats.avg_helpful_rate|floatformat:1 }}%</h3>
+                            <p class="text-muted mb-0">Avg Helpful Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Popular Topics -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>🔥 Most Popular Topics</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Feature Name</th>
+                                <th>Category</th>
+                                <th>Views</th>
+                                <th>Helpful</th>
+                                <th>Helpful Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for topic in popular_topics %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'admin:core_adminhelptopic_change' topic.pk %}">
+                                        {{ topic.feature_name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge badge-primary">{{ topic.get_category_display }}</span>
+                                </td>
+                                <td>{{ topic.view_count }}</td>
+                                <td>{{ topic.helpful_count }}</td>
+                                <td>
+                                    {% if topic.view_count > 0 %}
+                                        {{ topic.helpful_count|mul:100|div:topic.view_count|floatformat:0 }}%
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No topics yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Usage by Category -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>📁 Usage by Category</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Topics</th>
+                                <th>Total Views</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in by_category %}
+                            <tr>
+                                <td>{{ cat.category }}</td>
+                                <td>{{ cat.count }}</td>
+                                <td>{{ cat.total_views }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No data yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'admin:core_adminhelptopic_changelist' %}" class="btn btn-secondary">
+                    ← Back to Help Topics
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

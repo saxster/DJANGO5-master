@@ -37,7 +37,7 @@ def check_mqtt_broker() -> Dict[str, Any]:
             mqtt_config = getattr(settings, "MQTT_CONFIG", {})
 
             broker_address = mqtt_config.get("BROKER_ADDRESS")
-            broker_port = mqtt_config.get("broker_port", 1883)
+            broker_port = mqtt_config.get("BROKER_PORT", 1883)
 
             if not broker_address:
                 return format_check_result(
@@ -63,6 +63,9 @@ def check_mqtt_broker() -> Dict[str, Any]:
             try:
                 test_client.connect(broker_address, broker_port, keepalive=3)
                 test_client.loop_start()
+                # SAFE: time.sleep() acceptable in health check (not in request path)
+                # - Called from management command or monitoring task
+                # - Brief delay required for MQTT connection handshake
                 time.sleep(1)
                 test_client.loop_stop()
             except ConnectionRefusedError as e:

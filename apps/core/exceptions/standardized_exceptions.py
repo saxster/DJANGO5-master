@@ -458,7 +458,7 @@ def safe_operation(operation_name: str, correlation_id: str = None, user_id: int
                 return StandardizedExceptionHandler.handle_security_violation(
                     e, operation_name, correlation_id
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 return StandardizedExceptionHandler.handle_generic_error(
                     e, operation_name, correlation_id, user_id
                 )

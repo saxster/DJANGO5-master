@@ -4,7 +4,7 @@
 {% block card_title %}
 Contract Details
 <div class="float-end">
-	<a href="{{ url('onboarding:contract') }}?template=true&classic=true" class="btn btn-sm btn-light-secondary me-2">
+	<a href="{{ url('admin:onboarding_contract_changelist') }}" class="btn btn-sm btn-light-secondary me-2">
 		<i class="bi bi-table"></i> Classic View
 	</a>
 	<button class="btn btn-sm btn-primary" id="header-add-new">
@@ -23,7 +23,7 @@ Contract Details
 <!----------- BEGIN PAGE BREADCUMBS ----------->
 {% block pagebreadcumb %}
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('onboarding:contract') }}?template=true" class="pe-3">Contract List</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('admin:onboarding_contract_changelist') }}" class="pe-3">Contract List</a></li>
 {% endblock pagebreadcumb %}
 <!----------- END PAGE BREADCUMBS ------------->
 
@@ -776,7 +776,7 @@ $(document).ready(function () {
 		$('#contract-empty').addClass('d-none');
 		
 		$.ajax({
-			url: '{{ url("onboarding:contract") }}?action=list',
+			/api/v1/admin/config/contracts/',
 			type: 'GET',
 			success: function(response) {
 				console.log('Response received:', response); // Debug

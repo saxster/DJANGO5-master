@@ -14,6 +14,7 @@ Chain of Thought Reasoning:
 """
 
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from django.utils import timezone
@@ -101,8 +102,8 @@ class AutomaticConversationGenerator:
                 logger.info(f"Successfully generated conversation {conversation.id} from delivery {delivery_log.id}")
                 return conversation
 
-        except Exception as e:
-            logger.error(f"Error processing intervention delivery {delivery_log.id}: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Error processing intervention delivery {delivery_log.id}: {e}", exc_info=True)
             return None
 
     def process_batch_deliveries(self, deliveries: List[InterventionDeliveryLog]) -> Dict:
@@ -293,8 +294,8 @@ class AutomaticConversationGenerator:
 
                 return conversation
 
-        except Exception as e:
-            logger.error(f"Error generating conversation from delivery {delivery_log.id}: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Error generating conversation from delivery {delivery_log.id}: {e}", exc_info=True)
             return None
 
     def _enhance_conversation_quality(self, conversation: WisdomConversation):
@@ -394,8 +395,8 @@ class AutomaticConversationGenerator:
                 else:
                     results['skipped'] += 1
 
-            except Exception as e:
-                logger.error(f"Error processing delivery {delivery.id}: {e}")
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Error processing delivery {delivery.id}: {e}", exc_info=True)
                 results['errors'] += 1
 
         return results
@@ -416,8 +417,8 @@ class AutomaticConversationGenerator:
                 elif recommendation['type'] == 'improve_thread_flow':
                     self._improve_thread_flow(user, recommendation)
 
-        except Exception as e:
-            logger.error(f"Error optimizing conversation flow for user {user.id}: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Error optimizing conversation flow for user {user.id}: {e}", exc_info=True)
 
     def _add_missing_bridges(self, user: User, recommendation: Dict):
         """Add missing narrative bridges to conversations"""

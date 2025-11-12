@@ -115,7 +115,7 @@ class Question(BaseModel, TenantAwareModel):
         max_length=55,
     )  # type in previous
     unit = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Unit"),
         on_delete=models.RESTRICT,
         related_name="unit_types",
@@ -123,7 +123,7 @@ class Question(BaseModel, TenantAwareModel):
         blank=True,
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -132,7 +132,7 @@ class Question(BaseModel, TenantAwareModel):
     isworkflow = models.BooleanField(_("WorkFlow"), default=False)
     enable = models.BooleanField(_("Enable"), default=True)
     category = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name=_("Category"),
         on_delete=models.RESTRICT,
         related_name="category_types",
@@ -236,7 +236,7 @@ class QuestionSet(BaseModel, TenantAwareModel):
     )
     type = models.CharField(_("Type"), choices=Type.choices, null=True, max_length=50)
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,
         related_name="qset_bus",
@@ -244,7 +244,7 @@ class QuestionSet(BaseModel, TenantAwareModel):
         blank=True,
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         related_name="qset_clients",
@@ -420,7 +420,7 @@ class QuestionSetBelonging(BaseModel, TenantAwareModel):
         help_text='Structured alert configuration. Format: {"numeric": {"below": 10.5, "above": 90.0}, "choice": ["Alert1"], "enabled": true}'
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Client"),
         on_delete=models.RESTRICT,
         null=True,
@@ -452,7 +452,7 @@ class QuestionSetBelonging(BaseModel, TenantAwareModel):
     #     "group": "labour_work"  # optional grouping for related questions
     # }
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name=_("Site"),
         on_delete=models.RESTRICT,
         null=True,
@@ -528,7 +528,7 @@ class QuestionSetBelonging(BaseModel, TenantAwareModel):
                 raise ValidationError({
                     'display_conditions': f"Invalid conditional logic: {str(e)}"
                 }) from e
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(

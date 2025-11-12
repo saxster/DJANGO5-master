@@ -336,15 +336,15 @@ def main():
                     f.write(f"Recommendation: {vuln['recommendation']}\n\n")
     else:
         # Print to console
-        print(f"SQL Injection Security Scan Report")
-        print(f"Total Vulnerabilities: {report['total_vulnerabilities']}")
-        print(f"Critical: {report['severity_breakdown']['critical']}")
-        print(f"High: {report['severity_breakdown']['high']}")
+        logger.debug(f"SQL Injection Security Scan Report")
+        logger.debug(f"Total Vulnerabilities: {report['total_vulnerabilities']}")
+        logger.debug(f"Critical: {report['severity_breakdown']['critical']}")
+        logger.debug(f"High: {report['severity_breakdown']['high']}")
 
         for vuln in report['vulnerabilities']:
-            print(f"\n[{vuln['severity'].upper()}] {vuln['file']}:{vuln['line']}")
-            print(f"  {vuln['description']}")
-            print(f"  Code: {vuln['code']}")
+            logger.debug(f"\n[{vuln['severity'].upper()}] {vuln['file']}:{vuln['line']}")
+            logger.debug(f"  {vuln['description']}")
+            logger.debug(f"  Code: {vuln['code']}")
 
 
 if __name__ == '__main__':

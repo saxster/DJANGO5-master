@@ -69,7 +69,7 @@ function ConfirmImport(){
     fd.append('google_drive_link','{{ google_drive_link }}')
     fd.append('table', localStorage.getItem('table'))
     $.ajax({
-        url:"{{ url('onboarding:import') }}",
+        url:"{{ url('admin:onboarding_typeassist_import') }}",
         data: fd,
         contentType: false,
         processData: false,
@@ -81,7 +81,7 @@ function ConfirmImport(){
                 icon: "success",
                 title: `Total ${res.totalrows} inserted successfully!`,
             }).then((res) => {
-                location.href = "{{ url('onboarding:import') }}?action=form"
+                location.href = "{{ url('admin:onboarding_typeassist_import') }}"
             })
         },
         error:function(xhr, status, error){

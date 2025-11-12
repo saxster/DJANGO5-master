@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.core.tasks.base import IdempotentTask
 from apps.noc.security_intelligence.services import NonNegotiablesService
 from apps.noc.security_intelligence.models import NonNegotiablesScorecard
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger('background_tasks.non_negotiables')
@@ -132,8 +132,11 @@ class EvaluateNonNegotiablesTask(IdempotentTask):
         except ValueError as e:
             logger.error(f"Invalid parameters: {e}", exc_info=True)
             raise
-        except Exception as e:
-            logger.error(f"Unexpected error in non-negotiables evaluation: {e}", exc_info=True)
+        except DatabaseError as e:
+            logger.error(f"Database error in non-negotiables evaluation: {e}", exc_info=True)
+            raise
+        except (TypeError, AttributeError, KeyError) as e:
+            logger.error(f"Data processing error in non-negotiables evaluation: {e}", exc_info=True)
             raise
 
 

@@ -29,6 +29,9 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from apps.core.observability.tracing import TracingService
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
 
 logger = logging.getLogger('monitoring.celery_tracing')
 
@@ -86,7 +89,7 @@ def inject_otel_span_on_task_publish(sender=None, headers=None, body=None, **kwa
                 'task_name': task_name
             })
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.warning(f"Error creating OTEL span for task publish: {e}")
 
 
@@ -139,7 +142,7 @@ def start_otel_span_on_task_start(sender=None, task_id=None, task=None, args=Non
             'task_id': task_id or 'unknown'
         })
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.warning(f"Error starting OTEL span for task execution: {e}")
 
 
@@ -194,13 +197,13 @@ def end_otel_span_on_task_complete(sender=None, task_id=None, task=None,
         # End span
         span.end()
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.warning(f"Error completing OTEL span for task: {e}")
         # Ensure span is ended even on error
         try:
             if hasattr(task.request, '_otel_span'):
                 task.request._otel_span.end()
-        except Exception:
+        except NETWORK_EXCEPTIONS:
             pass
 
 
@@ -239,7 +242,7 @@ def record_otel_exception_on_task_failure(sender=None, task_id=None, exception=N
         # Set error status
         span.set_status(Status(StatusCode.ERROR, str(exception) if exception else 'Task failed'))
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.warning(f"Error recording exception in OTEL span: {e}")
 
 
@@ -274,7 +277,7 @@ def record_otel_event_on_task_retry(sender=None, task_id=None, reason=None,
         # Update retry count attribute
         span.set_attribute('celery.retry_count', retries)
 
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         logger.warning(f"Error recording retry event in OTEL span: {e}")
 
 

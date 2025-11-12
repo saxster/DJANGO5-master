@@ -37,6 +37,8 @@ from django.utils import timezone
 from apps.core.services.base_service import BaseService
 from apps.core.models.cron_job_execution import CronJobExecution
 from apps.core.models.cron_job_definition import CronJobDefinition
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +217,7 @@ class ManagementCommandScheduler(BaseService):
                 result.error_message = str(e)
                 logger.error(f"Command error: {e}")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 result.success = False
                 result.exit_code = 2
                 result.error_message = f"Unexpected error: {str(e)}"
@@ -353,9 +355,12 @@ class ManagementCommandScheduler(BaseService):
                             'max_retries': max_retries
                         }
                     )
+                    # SAFE: time.sleep() acceptable in management command execution
+                    # - Runs in dedicated Celery worker or management command process
+                    # - Not in HTTP request path
                     time.sleep(retry_delay)
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 logger.error(
                     f"Job execution attempt failed",
                     extra={

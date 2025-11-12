@@ -89,8 +89,7 @@ Shift List
         }
 		////datatable initialization
         table = $(table_id).DataTable({
-			ajax: {
-                url    : '{{ url("onboarding:shift") }}?action=list',
+			ajax: { url: '/api/v1/admin/config/shifts/'',
             },
 			deferRender: true,
 			responsive : true,

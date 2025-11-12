@@ -276,7 +276,7 @@ class RefactoredFormsTestCase(TestCase):
         # Check that jobdesc is optional
         self.assertFalse(form.fields["jobdesc"].required)
 
-    @patch('apps.onboarding.models.TypeAssist.objects.filter_for_dd_notifycategory_field')
+    @patch('apps.core_onboarding.models.TypeAssist.objects.filter_for_dd_notifycategory_field')
     def test_form_dropdown_setup(self, mock_filter):
         """Test dropdown setup in forms."""
         mock_filter.return_value.all.return_value = []

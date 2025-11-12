@@ -7,7 +7,7 @@ This module contains views for basic asset operations.
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import response as rp
 from django.shortcuts import render
 from django.views.generic.base import View
@@ -21,9 +21,10 @@ from apps.activity.models.asset_model import Asset
 from apps.core import utils
 from apps.activity.utils import get_asset_jsonform
 import apps.activity.utils as av_utils
-import apps.onboarding.forms as obf
+from apps.client_onboarding import forms as client_forms
 import apps.peoples.utils as putils
 from apps.core.constants import ResponseConstants
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
 
@@ -163,19 +164,20 @@ class AssetView(LoginRequiredMixin, View):
         """Handle valid form submission for asset creation/update."""
         from apps.core.utils import handle_intergrity_error
         try:
-            asset = form.save(commit=False)
-            asset.gpslocation = form.cleaned_data["gpslocation"]
-            asset.save()
-            if av_utils.save_assetjsonform(jsonform, asset):
-                asset = putils.save_userinfo(
-                    asset, request.user, request.session, create=create
-                )
+            with transaction.atomic(using=get_current_db_name()):
+                asset = form.save(commit=False)
+                asset.gpslocation = form.cleaned_data["gpslocation"]
+                asset.save()
+                if av_utils.save_assetjsonform(jsonform, asset):
+                    asset = putils.save_userinfo(
+                        asset, request.user, request.session, create=create
+                    )
 
-                # AI Integration: Trigger quality assessment for asset
-                AssetView._trigger_quality_assessment(asset, is_new=create)
+                    # AI Integration: Trigger quality assessment for asset
+                    AssetView._trigger_quality_assessment(asset, is_new=create)
 
-            data = {"pk": asset.id}
-            return rp.JsonResponse(data, status=200)
+                data = {"pk": asset.id}
+                return rp.JsonResponse(data, status=200)
         except IntegrityError:
             return handle_intergrity_error("Asset")
 

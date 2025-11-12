@@ -17,7 +17,9 @@ from django.utils import timezone
 from .services import FeedbackIntegrationService, ActiveLearningService
 from .models import TrainingDataset, TrainingExample
 from apps.activity.models import MeterReading, VehicleEntry
-from apps.onboarding_api.services.ocr_service import get_ocr_service
+from apps.core_onboarding.services.ocr_service import get_ocr_service
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +87,7 @@ class ProductionTrainingIntegration:
             # Analyze for model performance tracking
             self._track_model_performance('meter_readings', confidence_score)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in meter reading integration: {str(e)}", exc_info=True)
             result['success'] = False
             result['error'] = str(e)
@@ -139,7 +141,7 @@ class ProductionTrainingIntegration:
             # Analyze for model performance tracking
             self._track_model_performance('vehicle_entries', confidence_score)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in vehicle entry integration: {str(e)}", exc_info=True)
             result['success'] = False
             result['error'] = str(e)
@@ -220,7 +222,7 @@ class ProductionTrainingIntegration:
             else:
                 result['error'] = feedback_result['error']
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error capturing user correction: {str(e)}", exc_info=True)
             result['error'] = str(e)
 
@@ -284,7 +286,7 @@ class ProductionTrainingIntegration:
 
             result['success'] = True
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error triggering active learning: {str(e)}", exc_info=True)
             result['error'] = str(e)
 
@@ -343,7 +345,7 @@ class ProductionTrainingIntegration:
 
             return {'success': True}
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error auto-importing meter reading: {str(e)}")
             return {'success': False, 'error': str(e)}
 
@@ -400,7 +402,7 @@ class ProductionTrainingIntegration:
 
             return {'success': True}
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error auto-importing vehicle entry: {str(e)}")
             return {'success': False, 'error': str(e)}
 
@@ -416,7 +418,7 @@ class ProductionTrainingIntegration:
             # - Alert thresholds for performance degradation
             # - A/B testing metrics
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Error tracking model performance: {str(e)}")
 
 

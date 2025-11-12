@@ -5,6 +5,7 @@ Handles provider configurations, embedding services, and cost controls.
 
 import os
 import environ
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
 env = environ.Env()
 
@@ -58,7 +59,7 @@ LLM_FALLBACK_ORDER = env.list('LLM_FALLBACK_ORDER', default=['openai', 'anthropi
 # Global LLM settings
 LLM_REQUEST_TIMEOUT = env.int('LLM_REQUEST_TIMEOUT', default=30)
 LLM_MAX_RETRIES = env.int('LLM_MAX_RETRIES', default=3)
-LLM_CACHE_TIMEOUT = env.int('LLM_CACHE_TIMEOUT', default=3600)  # 1 hour
+LLM_CACHE_TIMEOUT = env.int('LLM_CACHE_TIMEOUT', default=SECONDS_IN_HOUR)  # 1 hour
 
 # Quality and safety settings
 LLM_MIN_QUALITY_SCORE = env.float('LLM_MIN_QUALITY_SCORE', default=0.6)
@@ -127,7 +128,7 @@ AZURE_OPENAI_ENDPOINT = env('AZURE_OPENAI_ENDPOINT', default='')
 AZURE_OPENAI_API_VERSION = env('AZURE_OPENAI_API_VERSION', default='2024-02-01')
 
 # Global embedding settings
-EMBEDDING_CACHE_TIMEOUT = env.int('EMBEDDING_CACHE_TIMEOUT', default=86400)  # 24 hours
+EMBEDDING_CACHE_TIMEOUT = env.int('EMBEDDING_CACHE_TIMEOUT', default=SECONDS_IN_DAY)  # 24 hours
 EMBEDDING_MAX_BATCH_SIZE = env.int('EMBEDDING_MAX_BATCH_SIZE', default=100)
 EMBEDDING_RATE_LIMIT_PER_MINUTE = env.int('EMBEDDING_RATE_LIMIT_PER_MINUTE', default=60)
 
@@ -168,7 +169,7 @@ ONBOARDING_RATE_LIMITS = {
 }
 
 # Caching Configuration
-LLM_CACHE_TTL = env.int('LLM_CACHE_TTL', default=3600)  # 1 hour
+LLM_CACHE_TTL = env.int('LLM_CACHE_TTL', default=SECONDS_IN_HOUR)  # 1 hour
 LLM_MAX_CACHE_SIZE = env.int('LLM_MAX_CACHE_SIZE', default=10000)
 CACHE_VERSION = env('CACHE_VERSION', default='1.0')
 

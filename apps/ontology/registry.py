@@ -7,10 +7,16 @@ filtering, and exporting this metadata.
 """
 
 import json
+import logging
 import threading
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
+
+from django.conf import settings
+from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 
 class OntologyRegistry:
@@ -23,6 +29,7 @@ class OntologyRegistry:
 
     _instance = None
     _lock = threading.Lock()
+    _CACHE_DEFAULT_KEY = "apps.ontology.registry.snapshot"
 
     def __new__(cls):
         """Ensure singleton pattern."""
@@ -42,6 +49,8 @@ class OntologyRegistry:
         self._by_module: Dict[str, Set[str]] = defaultdict(set)
         self._deprecated: Set[str] = set()
         self._lock = threading.RLock()
+        self._auto_warm_attempted = False
+        self._warm_from_cache_or_source()
 
     @classmethod
     def register(cls, qualified_name: str, metadata: Dict[str, Any]) -> None:
@@ -54,28 +63,33 @@ class OntologyRegistry:
         """
         instance = cls()
         with instance._lock:
-            # Store the metadata
-            instance._metadata[qualified_name] = metadata
+            instance._register_unlocked(qualified_name, metadata)
+            instance._persist_snapshot_locked()
 
-            # Index by domain
-            if metadata.get("domain"):
-                instance._by_domain[metadata["domain"]].add(qualified_name)
+    def _register_unlocked(self, qualified_name: str, metadata: Dict[str, Any]) -> None:
+        """Internal helper that assumes the caller already holds ``self._lock``."""
+        # Store the metadata
+        self._metadata[qualified_name] = metadata
 
-            # Index by tags
-            for tag in metadata.get("tags", []):
-                instance._by_tag[tag].add(qualified_name)
+        # Index by domain
+        if metadata.get("domain"):
+            self._by_domain[metadata["domain"]].add(qualified_name)
 
-            # Index by type (function, class, etc.)
-            if metadata.get("type"):
-                instance._by_type[metadata["type"]].add(qualified_name)
+        # Index by tags
+        for tag in metadata.get("tags", []):
+            self._by_tag[tag].add(qualified_name)
 
-            # Index by module
-            if metadata.get("module"):
-                instance._by_module[metadata["module"]].add(qualified_name)
+        # Index by type (function, class, etc.)
+        if metadata.get("type"):
+            self._by_type[metadata["type"]].add(qualified_name)
 
-            # Track deprecated items
-            if metadata.get("deprecated"):
-                instance._deprecated.add(qualified_name)
+        # Index by module
+        if metadata.get("module"):
+            self._by_module[metadata["module"]].add(qualified_name)
+
+        # Track deprecated items
+        if metadata.get("deprecated"):
+            self._deprecated.add(qualified_name)
 
     @classmethod
     def get(cls, qualified_name: str) -> Optional[Dict[str, Any]]:
@@ -265,6 +279,7 @@ class OntologyRegistry:
             instance._by_type.clear()
             instance._by_module.clear()
             instance._deprecated.clear()
+            instance._persist_snapshot_locked()
 
     @classmethod
     def bulk_register(cls, items: List[Dict[str, Any]]) -> None:
@@ -279,4 +294,123 @@ class OntologyRegistry:
             for item in items:
                 qualified_name = item.get("qualified_name")
                 if qualified_name:
-                    cls.register(qualified_name, item)
+                    instance._register_unlocked(qualified_name, item)
+            instance._persist_snapshot_locked()
+
+    # -- Internal helpers -------------------------------------------------
+
+    def _warm_from_cache_or_source(self) -> None:
+        """Ensure the registry has data either from cache or by reloading registrations."""
+        if self._load_snapshot_from_cache():
+            return
+        self._warm_from_registrations()
+
+    def _load_snapshot_from_cache(self) -> bool:
+        """Attempt to hydrate the registry from the shared cache snapshot."""
+        if not self._cache_available():
+            return False
+
+        cache_key = self._get_setting('ONTOLOGY_REGISTRY_CACHE_KEY', self._CACHE_DEFAULT_KEY)
+        try:
+            snapshot = cache.get(cache_key)
+        except Exception as exc:  # pragma: no cover - defensive logging for cache errors
+            logger.debug("Unable to read ontology registry cache snapshot: %s", exc)
+            return False
+
+        if not snapshot:
+            return False
+
+        with self._lock:
+            self._apply_snapshot(snapshot)
+        return True
+
+    def _warm_from_registrations(self) -> None:
+        """Load data by executing the registration modules when cache is empty."""
+        if self._auto_warm_attempted:
+            return
+        self._auto_warm_attempted = True
+
+        if not self._get_setting('ONTOLOGY_REGISTRY_AUTO_WARM', True):
+            return
+
+        try:
+            from apps.ontology.registrations import load_all_registrations
+        except ImportError as exc:
+            logger.warning("Unable to auto-load ontology registrations: %s", exc)
+            return
+
+        load_all_registrations()
+
+    def _persist_snapshot_locked(self) -> None:
+        """Persist the in-memory snapshot so other processes can reuse it."""
+        if not self._cache_available():
+            return
+
+        timeout = self._get_setting('ONTOLOGY_REGISTRY_CACHE_TIMEOUT', 3600)
+        cache_key = self._get_setting('ONTOLOGY_REGISTRY_CACHE_KEY', self._CACHE_DEFAULT_KEY)
+        snapshot = self._build_snapshot()
+
+        try:
+            cache.set(cache_key, snapshot, timeout)
+        except Exception as exc:  # pragma: no cover - defensive logging for cache errors
+            logger.warning("Failed to persist ontology registry snapshot: %s", exc)
+
+    def _build_snapshot(self) -> Dict[str, Any]:
+        """
+        Create a serializable representation of the registry state.
+
+        Note: Filters out unpicklable lambda functions from metadata before caching.
+        The _lazy_source_loader lambda (added in decorators.py for lazy source loading)
+        cannot be pickled by Django cache, so we exclude it from the snapshot.
+
+        The lambda is kept in memory for runtime use but excluded from persistence.
+        This allows the registry to warm from cache on worker startup.
+        """
+        # Filter out unpicklable lambdas from metadata
+        serializable_metadata = {}
+        for key, value in self._metadata.items():
+            # Create a copy of the metadata dict without the lambda
+            if isinstance(value, dict) and '_lazy_source_loader' in value:
+                # Clone metadata entry without the lambda
+                filtered_entry = {k: v for k, v in value.items() if k != '_lazy_source_loader'}
+                serializable_metadata[key] = filtered_entry
+            else:
+                serializable_metadata[key] = value
+
+        return {
+            "metadata": serializable_metadata,
+            "by_domain": {key: set(values) for key, values in self._by_domain.items()},
+            "by_tag": {key: set(values) for key, values in self._by_tag.items()},
+            "by_type": {key: set(values) for key, values in self._by_type.items()},
+            "by_module": {key: set(values) for key, values in self._by_module.items()},
+            "deprecated": set(self._deprecated),
+        }
+
+    def _apply_snapshot(self, snapshot: Dict[str, Any]) -> None:
+        """Replace the current state with the provided snapshot."""
+        def _coerce(mapping: Optional[Dict[str, Set[str]]]) -> defaultdict:
+            target = defaultdict(set)
+            if mapping:
+                for key, values in mapping.items():
+                    target[key] = set(values)
+            return target
+
+        self._metadata = dict(snapshot.get("metadata", {}))
+        self._by_domain = _coerce(snapshot.get("by_domain"))
+        self._by_tag = _coerce(snapshot.get("by_tag"))
+        self._by_type = _coerce(snapshot.get("by_type"))
+        self._by_module = _coerce(snapshot.get("by_module"))
+        self._deprecated = set(snapshot.get("deprecated", set()))
+
+    def _cache_available(self) -> bool:
+        """Return True when the cache backend can be used for sharing snapshots."""
+        if not getattr(settings, "configured", False):
+            return False
+        return self._get_setting('ONTOLOGY_REGISTRY_CACHE_ENABLED', True)
+
+    @staticmethod
+    def _get_setting(name: str, default: Any) -> Any:
+        """Safely read Django settings with a default when the project isn't configured yet."""
+        if not getattr(settings, "configured", False):
+            return default
+        return getattr(settings, name, default)

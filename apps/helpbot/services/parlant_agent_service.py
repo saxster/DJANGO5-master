@@ -20,6 +20,7 @@ import asyncio
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from asgiref.sync import async_to_sync
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, PARSING_EXCEPTIONS
 
 logger = logging.getLogger('helpbot.parlant')
 
@@ -79,7 +80,7 @@ class ParlantAgentService:
             try:
                 self.agent = await self.server.get_agent(name=agent_name)
                 logger.info(f"Retrieved existing Parlant agent: {agent_name}")
-            except Exception:
+            except (NETWORK_EXCEPTIONS, PARSING_EXCEPTIONS):
                 # Agent doesn't exist, create it
                 self.agent = await self.server.create_agent(name=agent_name)
                 logger.info(f"Created new Parlant agent: {agent_name}")
@@ -214,7 +215,11 @@ class ParlantAgentService:
             return async_to_sync(self.process_message)(
                 session_id, user_message, session_data
             )
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, AttributeError) as e:
+            # RuntimeError: asgiref conversion errors
+            # ValueError: Invalid session data or message format
+            # TypeError: Type mismatches in async/sync conversion
+            # AttributeError: Missing required attributes
             logger.error(f"Error in sync wrapper: {e}", exc_info=True)
             return {
                 'success': False,
@@ -228,5 +233,8 @@ class ParlantAgentService:
             try:
                 await self.server.__aexit__(None, None, None)
                 logger.info("Parlant server cleaned up successfully")
-            except Exception as e:
+            except (RuntimeError, OSError, AttributeError) as e:
+                # RuntimeError: Async context manager errors
+                # OSError: I/O errors during cleanup
+                # AttributeError: Server object state issues
                 logger.error(f"Error cleaning up Parlant server: {e}")

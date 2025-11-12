@@ -23,7 +23,8 @@ from apps.activity.models.job_model import Jobneed
 from apps.activity.models.asset_model import Asset
 from apps.activity.models.question_model import QuestionSet
 from apps.y_helpdesk.models import Ticket
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.core.utils_new.atomic_json_updater import (
     AtomicJSONFieldUpdater,
     update_json_field_safely,
@@ -137,7 +138,7 @@ class TestAtomicJSONFieldUpdates(TransactionTestCase):
                     field_name='other_info',
                     update_func=increment_counter
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [
@@ -188,7 +189,7 @@ class TestAtomicJSONFieldUpdates(TransactionTestCase):
                     array_key='events',
                     item={'worker': worker_id, 'timestamp': str(timezone.now())}
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [
@@ -266,7 +267,7 @@ class TestAtomicJSONFieldUpdates(TransactionTestCase):
                     array_key='ticket_history',
                     item=history_item
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [

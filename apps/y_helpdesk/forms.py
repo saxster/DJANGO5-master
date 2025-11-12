@@ -1,7 +1,7 @@
 from django import forms
 from django.db.models import Q
 from .models import Ticket, EscalationMatrix
-from apps.onboarding.models import TypeAssist
+from apps.core_onboarding.models import TypeAssist
 from apps.core import utils
 from apps.peoples.models import Pgroup, People
 from apps.activity.models.location_model import Location

@@ -118,22 +118,29 @@ class AssetManager(TenantAwareManager):
         return qset or self.none()
     
     def get_smartplacelistview(self, request, related, fields, id=None):
+        # SECURITY FIX (IDOR-009): Validate params and id parameters
         S = request.session
-        P = request.GET['params']
+        P = request.GET.get('params', 'null')  # Use .get() with default
+
         qset = self.annotate(
             gps = AsWKT('gpslocation')
         ).select_related(*related)
 
         if id:
-            qset = qset.filter(enable=True, identifier='SMARTPLACE',id=id).values(*fields)[0]
+            # Validate id is numeric
+            try:
+                id = int(id)
+                qset = qset.filter(enable=True, identifier='SMARTPLACE', id=id).values(*fields)[0]
+            except (ValueError, TypeError, IndexError):
+                return None
         else:
             qset = qset.filter(enable=True, identifier='SMARTPLACE', bu_id = S['bu_id'], client_id = S['client_id']).values(*fields)
         return qset or self.none()
-    
+
     def get_assetlistview(self, related, fields, request):
-        
+        # SECURITY FIX (IDOR-010): Validate params parameter
         S = request.session
-        P = request.GET['params']
+        P = request.GET.get('params', 'null')  # Use .get() with default
         qset = self.annotate(gps = AsGeoJSON('gpslocation')).filter(
             ~Q(assetcode='NONE'),
             bu_id = S['bu_id'],

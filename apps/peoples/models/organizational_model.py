@@ -59,7 +59,7 @@ class PeopleOrganizational(OrganizationalQueryMixin, BaseModel):
     )
 
     department = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="Department",
         null=True,
         blank=True,
@@ -68,7 +68,7 @@ class PeopleOrganizational(OrganizationalQueryMixin, BaseModel):
     )
 
     designation = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="Designation",
         null=True,
         blank=True,
@@ -77,7 +77,7 @@ class PeopleOrganizational(OrganizationalQueryMixin, BaseModel):
     )
 
     peopletype = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="People Type",
         null=True,
         blank=True,
@@ -86,7 +86,7 @@ class PeopleOrganizational(OrganizationalQueryMixin, BaseModel):
     )
 
     worktype = models.ForeignKey(
-        "onboarding.TypeAssist",
+        "core_onboarding.TypeAssist",
         verbose_name="Work Type",
         null=True,
         blank=True,
@@ -95,7 +95,7 @@ class PeopleOrganizational(OrganizationalQueryMixin, BaseModel):
     )
 
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name="Client",
         null=True,
         blank=True,
@@ -104,7 +104,7 @@ class PeopleOrganizational(OrganizationalQueryMixin, BaseModel):
     )
 
     bu = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         verbose_name="Business Unit",
         null=True,
         blank=True,

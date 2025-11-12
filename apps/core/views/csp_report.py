@@ -13,11 +13,13 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
+from apps.core.decorators import rate_limit
 
 logger = logging.getLogger("security.csp")
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(rate_limit(max_requests=120, window_seconds=60), name='dispatch')
 class CSPReportView(View):
     """
     Endpoint to receive CSP violation reports from browsers.
@@ -27,22 +29,50 @@ class CSPReportView(View):
     - Legitimate inline scripts that need to be refactored
     - Actual XSS attempts
     - Third-party resources that need to be whitelisted
+    
+    Security: CSRF exempt is acceptable here (Rule #2 alternative protection):
+    - Browser-automated reports (not user-initiated)
+    - Read-only side effects (logging only)
+    - Content-Type validation enforced
+    - Content-Length limited to 64KB
+    - Rate limited to 120 requests/minute per IP
+    - No state modification or sensitive data access
     """
+    
+    # Maximum allowed size for CSP reports (64KB)
+    MAX_CONTENT_LENGTH = 64 * 1024  # 64KB
     
     def post(self, request):
         """
         Process CSP violation report.
         
         The browser sends a JSON payload with the violation details.
+        
+        Security validations:
+        - Content-Type enforcement
+        - Content-Length limit (64KB max)
+        - Rate limiting (120/minute)
         """
         try:
+            # Security: Enforce content length limit
+            content_length = int(request.META.get('CONTENT_LENGTH', 0))
+            if content_length > self.MAX_CONTENT_LENGTH:
+                logger.warning(
+                    f"CSP report rejected: Content too large ({content_length} bytes)",
+                    extra={'client_ip': self._get_client_ip(request), 'content_length': content_length}
+                )
+                return HttpResponse(status=413)  # Payload Too Large
+            
             # Parse the CSP report
             if request.content_type == 'application/csp-report':
                 report_data = json.loads(request.body.decode('utf-8'))
             elif request.content_type == 'application/json':
                 report_data = json.loads(request.body.decode('utf-8'))
             else:
-                logger.warning(f"Invalid content type for CSP report: {request.content_type}")
+                logger.warning(
+                    f"Invalid content type for CSP report: {request.content_type}",
+                    extra={'client_ip': self._get_client_ip(request)}
+                )
                 return HttpResponse(status=400)
                 
             # Extract the CSP report

@@ -504,7 +504,7 @@ class CronJobHealthMonitor(BaseService):
                     }
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to send NOC alerts: {e}")
 
 

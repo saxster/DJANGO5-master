@@ -772,7 +772,7 @@ class NonNegotiablesService(BaseService):
                                 f"(Pillar {pillar.pillar_id}, Severity: {violation['severity']})"
                             )
 
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError) as e:
                         logger.error(f"Error creating alert for violation: {e}", exc_info=True)
 
         return created_alert_ids

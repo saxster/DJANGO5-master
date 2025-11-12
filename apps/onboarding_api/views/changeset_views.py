@@ -10,13 +10,17 @@ Refactoring: Phase 3 - God File Elimination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.core.paginator import Paginator
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..permissions import CanApproveAIRecommendations
-from apps.onboarding.models import AIChangeSet, Bt, Shift, TypeAssist
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import AIChangeSet, TypeAssist
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +88,7 @@ class ChangeSetRollbackView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Changeset rollback error: {str(e)}")
             return Response(
                 {"error": "Rollback operation failed"},
@@ -202,7 +206,7 @@ class ChangeSetDiffPreviewView(APIView):
                 diff_preview['summary']['total_changes'] += 1
                 diff_preview['summary']['fields_modified'] += len(diff_entry['fields_changed'])
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error generating diff preview: {str(e)}")
             return Response(
                 {"error": f"Failed to generate preview: {str(e)}"},
@@ -267,7 +271,7 @@ class ChangeSetDiffPreviewView(APIView):
                     'tatype': ta.tatype.id if ta.tatype else None,
                     'enable': ta.enable
                 }
-        except Exception:
+        except ObjectDoesNotExist:
             return None
 
         return None

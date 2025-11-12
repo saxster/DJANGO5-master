@@ -30,7 +30,7 @@ from django.db import DatabaseError, IntegrityError
 import uuid
 
 from apps.core.services.unified_audit_service import EntityAuditService
-from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, CACHE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -139,13 +139,17 @@ def log_entity_save(sender, instance, created, **kwargs):
         if hasattr(instance, '_skip_audit') and instance._skip_audit:
             return
 
-        audit_service = EntityAuditService(user=actor)
+        audit_service = EntityAuditService(
+            user=actor,
+            correlation_id=str(correlation_id)
+        )
 
         if created:
             # Entity creation
             audit_service.log_entity_created(
                 entity=instance,
-                correlation_id=correlation_id
+                action=f"{sender._meta.label} created",
+                metadata={'correlation_id': str(correlation_id)}
             )
             logger.info(
                 f"Audit logged: Created {sender._meta.label} ID={instance.pk}",
@@ -159,9 +163,9 @@ def log_entity_save(sender, instance, created, **kwargs):
 
             audit_service.log_entity_updated(
                 entity=instance,
-                old_data=old_data,
-                new_data=new_data,
-                correlation_id=correlation_id
+                action=f"{sender._meta.label} updated",
+                changes={'before': old_data, 'after': new_data},
+                metadata={'correlation_id': str(correlation_id)}
             )
             logger.info(
                 f"Audit logged: Updated {sender._meta.label} ID={instance.pk}",
@@ -179,7 +183,7 @@ def log_entity_save(sender, instance, created, **kwargs):
                 'created': created,
             }
         )
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         # Catch any other unexpected errors
         logger.error(
             f"Unexpected error in audit logging: {e}",
@@ -205,14 +209,19 @@ def log_entity_delete(sender, instance, **kwargs):
         if hasattr(instance, '_skip_audit') and instance._skip_audit:
             return
 
-        audit_service = EntityAuditService(user=actor)
+        audit_service = EntityAuditService(
+            user=actor,
+            correlation_id=str(correlation_id)
+        )
         snapshot = get_model_snapshot(instance)
 
         audit_service.log_entity_deleted(
-            entity_type=ContentType.objects.get_for_model(sender),
-            entity_id=str(instance.pk),
-            snapshot=snapshot,
-            correlation_id=correlation_id
+            entity=instance,
+            action=f"{sender._meta.label} deleted",
+            metadata={
+                'snapshot': snapshot,
+                'correlation_id': str(correlation_id),
+            }
         )
 
         logger.info(
@@ -230,7 +239,7 @@ def log_entity_delete(sender, instance, **kwargs):
                 'instance_pk': instance.pk,
             }
         )
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(
             f"Unexpected error in delete audit logging: {e}",
             exc_info=True,
@@ -248,14 +257,22 @@ def log_state_transition(sender, instance, from_state, to_state, comments, **kwa
         actor = get_actor_from_context(instance)
         correlation_id = get_correlation_id(instance)
 
-        audit_service = EntityAuditService(user=actor)
+        audit_service = EntityAuditService(
+            user=actor,
+            correlation_id=str(correlation_id)
+        )
 
         audit_service.log_state_transition(
             entity=instance,
             from_state=from_state,
             to_state=to_state,
-            comments=comments or '',
-            correlation_id=correlation_id
+            action=comments or f"{sender._meta.label} state transition",
+            successful=kwargs.get('successful', True),
+            failure_reason=kwargs.get('failure_reason'),
+            metadata={
+                **(kwargs.get('metadata') or {}),
+                'correlation_id': str(correlation_id),
+            }
         )
 
         logger.info(
@@ -274,7 +291,7 @@ def log_state_transition(sender, instance, from_state, to_state, comments, **kwa
                 'to_state': to_state,
             }
         )
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(
             f"Unexpected error in state transition audit logging: {e}",
             exc_info=True

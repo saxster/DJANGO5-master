@@ -15,7 +15,8 @@ from django.core.exceptions import ValidationError
 from apps.y_helpdesk.models import Ticket
 from apps.y_helpdesk.forms import TicketForm
 from apps.y_helpdesk.views import TicketView
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 
 User = get_user_model()
 

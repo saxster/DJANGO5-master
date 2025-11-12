@@ -21,8 +21,11 @@ from rest_framework.views import APIView
 
 from ..permissions import CanApproveAIRecommendations
 from ..serializers import RecommendationApprovalSerializer
-from apps.onboarding.models import ConversationSession, ChangeSetApproval
+from apps.core_onboarding.models import ConversationSession
+from apps.core_onboarding.models import ChangeSetApproval
 import logging
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ class RecommendationApprovalView(APIView):
 
         try:
             return self._process_approval(request, data, session_id, security_logger)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return self._handle_approval_error(request, session_id, data, e, security_logger)
 
     def _check_feature_enabled(self):
@@ -267,7 +270,7 @@ class SecondaryApprovalView(APIView):
     def post(self, request, approval_id):
         """Process secondary approval decision"""
         from ..permissions import security_logger
-        from apps.onboarding.models import ChangeSetApproval
+        from apps.core_onboarding.models import ChangeSetApproval
 
         if not settings.ENABLE_CONVERSATIONAL_ONBOARDING:
             return Response(
@@ -296,7 +299,7 @@ class SecondaryApprovalView(APIView):
             # Process decision
             return self._process_decision(request, approval, decision, security_logger)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             return self._handle_secondary_approval_error(request, e, security_logger)
 
     def _validate_secondary_approval(self, user, approval, security_logger):
@@ -474,7 +477,7 @@ class SecondaryApprovalView(APIView):
                 }
             })
 
-        except Exception as escalation_error:
+        except (ValueError, TypeError, AttributeError) as escalation_error:
             logger.error(f"Failed to create escalation ticket: {str(escalation_error)}")
             return Response({
                 "decision": "escalated",

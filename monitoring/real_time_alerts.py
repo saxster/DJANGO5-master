@@ -27,6 +27,7 @@ from collections import defaultdict, deque
 
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -107,7 +108,7 @@ class AlertManager:
         """Create a new alert"""
         alert = Alert(
             id=self._generate_alert_id(),
-            timestamp=datetime.now(),
+            timestamp=timezone.now(),
             severity=severity,
             title=title,
             message=message,
@@ -140,7 +141,7 @@ class AlertManager:
         alert = self.active_alerts[alert_id]
         alert.status = AlertStatus.ACKNOWLEDGED
         alert.acknowledged_by = acknowledged_by
-        alert.acknowledged_at = datetime.now()
+        alert.acknowledged_at = timezone.now()
         
         # Notify subscribers
         self._notify_subscribers('alert_acknowledged', alert)
@@ -155,7 +156,7 @@ class AlertManager:
         
         alert = self.active_alerts[alert_id]
         alert.status = AlertStatus.RESOLVED
-        alert.resolved_at = datetime.now()
+        alert.resolved_at = timezone.now()
         
         # Remove from active alerts
         del self.active_alerts[alert_id]
@@ -182,7 +183,7 @@ class AlertManager:
     
     def get_alert_summary(self, hours: int = 24) -> Dict[str, Any]:
         """Get alert summary for the last N hours"""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = timezone.now() - timedelta(hours=hours)
         
         recent_alerts = [
             alert for alert in self.alert_history

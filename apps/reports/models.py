@@ -25,9 +25,9 @@ class ReportHistory(models.Model):
     export_type = models.CharField(max_length=55, default=ExportType.D.value)
     report_name = models.CharField(max_length=100)
     params = models.JSONField(encoder=DjangoJSONEncoder, null=True)
-    bu = models.ForeignKey("onboarding.Bt", null=True, on_delete=models.RESTRICT)
+    bu = models.ForeignKey("client_onboarding.Bt", null=True, on_delete=models.RESTRICT)
     client = models.ForeignKey(
-        "onboarding.Bt", null=True, on_delete=models.RESTRICT, related_name="rh_clients"
+        "client_onboarding.Bt", null=True, on_delete=models.RESTRICT, related_name="rh_clients"
     )
     cdtz = models.DateTimeField(_("cdtz"), default=now)
     mdtz = models.DateTimeField(_("mdtz"), default=now)
@@ -111,10 +111,10 @@ class ScheduleReport(BaseModel):
     lastgeneratedon = models.DateTimeField(_("Last Generated On"), null=True)
     report_params = models.JSONField(null=True, blank=True, default=report_params_json)
     bu = models.ForeignKey(
-        "onboarding.Bt", null=True, on_delete=models.RESTRICT, related_name="schd_sites"
+        "client_onboarding.Bt", null=True, on_delete=models.RESTRICT, related_name="schd_sites"
     )
     client = models.ForeignKey(
-        "onboarding.Bt",
+        "client_onboarding.Bt",
         null=True,
         on_delete=models.RESTRICT,
         related_name="schd_clients",

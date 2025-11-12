@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Comprehensive test suite for the new Django ORM queries.
 
 This test suite validates that the new ORM-based queries produce
@@ -159,7 +161,7 @@ class QueryRepositoryTestCase(TestCase):
     def test_get_childrens_of_bt_caching(self):
         """Test BT children caching."""
         # Create test BT
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         # Use get_or_create to avoid conflicts
         bt_type, _ = TypeAssist.objects.get_or_create(
@@ -189,7 +191,7 @@ class QueryIntegrationTestCase(TestCase):
     def setUp(self):
         """Set up comprehensive test data."""
         # Create test client and BU
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         client_type = TypeAssist.objects.create(
             tacode='CLIENT_INT', taname='Client Type'
         )
@@ -245,7 +247,7 @@ class QueryIntegrationTestCase(TestCase):
         try:
             result = get_query('get_web_caps_for_client')
             self.assertIsInstance(result, list)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"get_query failed with: {e}")
     
     def test_query_parameter_passing(self):
@@ -261,7 +263,7 @@ class QueryIntegrationTestCase(TestCase):
                 end_date=end_date
             )
             self.assertIsInstance(result, list)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Parameterized query failed with: {e}")
 
 
@@ -271,7 +273,7 @@ class QueryPerformanceTestCase(TestCase):
     def setUp(self):
         """Set up performance test data."""
         # Create multiple test records for performance testing
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
         client_type = TypeAssist.objects.create(
             tacode='PERF_CLIENT', taname='Performance Client Type'
         )
@@ -462,7 +464,7 @@ def create_test_data():
         parent=root_cap, cfor='WEB', enable=True
     )
     
-    print("Test data created successfully!")
+    logger.info("Test data created successfully!")
     return {
         'client': client,
         'bu': bu1,

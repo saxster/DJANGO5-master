@@ -6,23 +6,85 @@ Views for generating, highlighting, and manipulating PDF documents.
 Extracted from apps/reports/views/generation_views.py
 Date: 2025-10-10
 """
-from .base import *
+from .base import (
+    rp,
+    render,
+    LoginRequiredMixin,
+    View,
+    HTML,
+    CSS,
+    FontConfiguration,
+    BytesIO,
+    render_to_string,
+    FileResponse,
+    utils,
+    rutils,
+    rp_forms,
+    log,
+    debug_log,
+    IntegrationException,
+    MasterReportForm,
+    json,
+)
 import pandas as pd
 
 # Import centralized Frappe ERP service (Oct 2025 - technical debt elimination)
 from apps.reports.services.frappe_service import (
-    FrappeService,
     get_frappe_service,
     FrappeCompany,
     PayrollDocumentType,
-    FrappeServiceException
+    FrappeServiceException,
 )
-
-# Backward compatibility wrappers (DEPRECATED - Oct 2025)
-from .frappe_integration_views import getAllUAN
 
 # Import PDF utilities (and re-export for backward compatibility)
 from apps.reports.report_utils.pdf_utils import highlight_text_in_pdf
+
+
+def _empty_payroll_payload(document_type: PayrollDocumentType | None):
+    if document_type == PayrollDocumentType.PAYROLL:
+        return ([], [])
+    return tuple([] for _ in range(10))
+
+
+def _normalize_uan_tuple(data_tuple):
+    """Ensure we always return a 10-element tuple of lists for PF data."""
+    padded = [[] for _ in range(10)]
+    if isinstance(data_tuple, tuple):
+        for idx, value in enumerate(data_tuple[:10]):
+            padded[idx] = value
+    return tuple(padded)
+
+
+def _fetch_payroll_data(company, customer, site, periods, document_type):
+    """
+    Helper to fetch payroll/attendance data via the centralized Frappe service.
+    Returns empty lists on error to retain backward compatible behaviour.
+    """
+    try:
+        company_enum = FrappeCompany(company)
+    except ValueError:
+        log.error("Unsupported Frappe company %s", company)
+        return _empty_payroll_payload(None)
+
+    try:
+        doc_enum = PayrollDocumentType(document_type)
+    except ValueError:
+        log.error("Unsupported payroll document type %s", document_type)
+        return _empty_payroll_payload(None)
+
+    service = get_frappe_service()
+    try:
+        return service.get_payroll_data(
+            company_enum,
+            customer_code=customer,
+            site_code=site,
+            periods=periods,
+            document_type=doc_enum,
+        )
+    except FrappeServiceException as exc:
+        log.error("Payroll data fetch failed: %s", exc)
+        return _empty_payroll_payload(doc_enum)
+
 
 # Re-export for backward compatibility
 __all__ = ['GeneratePdf', 'GenerateLetter', 'GenerateDecalartionForm', 'highlight_text_in_pdf']
@@ -50,37 +112,25 @@ class GeneratePdf(LoginRequiredMixin, View):
             page_required = data["page_required"]
             file_path = rutils.find_file(data["file_name"])
             if file_path:
-                if data["document_type"] == "PF":
-                    uan_list = getAllUAN(
-                        data["company"],
-                        data["customer"],
-                        data["site"],
-                        data["period_from"],
-                        data["document_type"],
-                    )[0]
-                elif data["document_type"] == "ESIC":
-                    uan_list = getAllUAN(
-                        data["company"],
-                        data["customer"],
-                        data["site"],
-                        data["period_from"],
-                        data["document_type"],
-                    )[1]
+                try:
+                    doc_type_enum = PayrollDocumentType(data.get("document_type", "PF"))
+                except ValueError:
+                    doc_type_enum = PayrollDocumentType.PF
+
+                payroll_data = _fetch_payroll_data(
+                    data["company"],
+                    data["customer"],
+                    data["site"],
+                    data["period_from"],
+                    doc_type_enum.value,
+                )
+
+                if doc_type_enum == PayrollDocumentType.PF:
+                    uan_list = payroll_data[0]
+                elif doc_type_enum == PayrollDocumentType.ESIC:
+                    uan_list = payroll_data[1]
                 else:
-                    people_code = getAllUAN(
-                        data["company"],
-                        data["customer"],
-                        data["site"],
-                        data["period_from"],
-                        data["document_type"],
-                    )[0]
-                    people_acc_no = getAllUAN(
-                        data["company"],
-                        data["customer"],
-                        data["site"],
-                        data["period_from"],
-                        data["document_type"],
-                    )[1]
+                    people_code, people_acc_no = payroll_data or ([], [])
                     uan_list = [people_code, people_acc_no]
                 input_pdf_path = file_path
                 output_pdf_path = (
@@ -125,69 +175,25 @@ class GenerateLetter(LoginRequiredMixin, View):
         try:
             data = json.loads(request.body)
             person_data = {}
-            person_data["uan_list"] = getAllUAN(
+            payroll_tuple = _fetch_payroll_data(
                 data["company"],
                 data["customer"],
                 data["site"],
                 data["period_from"],
-                "PF",
-            )[0]
-            person_data["esic_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[1]
-            person_data["employee_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[2]
-            person_data["name_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[4]
-            person_data["designation_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[5]
-            person_data["pf_deduction_amount_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[6]
-            person_data["pf_employee_amount_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[7]
-            person_data["calcesi_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[8]
-            person_data["esi_employee_list"] = getAllUAN(
-                data["company"],
-                data["customer"],
-                data["site"],
-                data["period_from"],
-                "PF",
-            )[9]
+                PayrollDocumentType.PF.value,
+            )
+            (
+                person_data["uan_list"],
+                person_data["esic_list"],
+                person_data["employee_list"],
+                _bank_ac_no_list,
+                person_data["name_list"],
+                person_data["designation_list"],
+                person_data["pf_deduction_amount_list"],
+                person_data["pf_employee_amount_list"],
+                person_data["calcesi_list"],
+                person_data["esi_employee_list"],
+            ) = _normalize_uan_tuple(payroll_tuple)
             from django.http import HttpResponse
             from weasyprint import HTML
             from django.template.loader import render_to_string
@@ -237,8 +243,12 @@ class GenerateDecalartionForm(LoginRequiredMixin, View):
         try:
             data = json.loads(request.body)
             # Import wrapper for backward compatibility
-            from .frappe_integration_views import getClient
-            get_client = getClient("SPS")
+            from apps.reports.services.frappe_service import (
+                get_frappe_service,
+                FrappeCompany,
+            )
+            frappe_service = get_frappe_service()
+            get_client = frappe_service.get_client(FrappeCompany.SPS)
             doc_employee_detail = get_client.get_list(
                 "Employee", filters={"name": data["ticket_no"]}
             )

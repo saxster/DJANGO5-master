@@ -29,8 +29,9 @@ from .nfc_serializers import (
     NFCScanHistorySerializer,
     NFCScanHistoryResponseSerializer,
     NFCTagStatusUpdateSerializer,
-    NFCTagStatusUpdateResponseSerializer
+    NFCTagStatusUpdateResponseSerializer,
 )
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class NFCTagBindView(APIView):
                     status=http_status
                 )
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Unexpected error in NFC tag binding: {e}")
             return Response(
                 {'success': False, 'message': 'Internal server error'},
@@ -200,7 +201,7 @@ class NFCScanView(APIView):
                     status=http_status
                 )
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Unexpected error recording NFC scan: {e}")
             return Response(
                 {'success': False, 'scan_result': 'FAILED', 'message': 'Internal server error'},
@@ -257,7 +258,7 @@ class NFCScanHistoryView(APIView):
             response_serializer = NFCScanHistoryResponseSerializer(result)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Error retrieving NFC scan history: {e}")
             return Response(
                 {'message': 'Internal server error'},
@@ -321,7 +322,7 @@ class NFCTagStatusView(APIView):
                     status=http_status
                 )
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Error updating NFC tag status: {e}")
             return Response(
                 {'success': False, 'message': 'Internal server error'},

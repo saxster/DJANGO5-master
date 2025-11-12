@@ -29,6 +29,13 @@ from django.core.cache import cache
 
 from apps.core.models.query_execution_plans import QueryExecutionPlan, PlanRegressionAlert
 from apps.core.models.query_performance import SlowQueryAlert
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger("query_plan_analyzer")
 
@@ -82,7 +89,7 @@ class QueryPlanAnalyzer:
 
             return execution_plan
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to analyze slow query {slow_query_alert.query_hash}: {e}")
             return None
 
@@ -111,7 +118,7 @@ class QueryPlanAnalyzer:
 
             return execution_plan
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to manually capture plan for query {query_hash}: {e}")
             return None
 
@@ -147,7 +154,7 @@ class QueryPlanAnalyzer:
                 row = cursor.fetchone()
                 return row[0] if row else None
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to get query text for hash {query_hash}: {e}")
             return None
 
@@ -199,7 +206,7 @@ class QueryPlanAnalyzer:
 
                 return execution_plan
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to capture execution plan: {e}")
             return None
 
@@ -233,7 +240,7 @@ class QueryPlanAnalyzer:
             opportunities.extend(self._check_join_opportunities(plan_node))
             opportunities.extend(self._check_resource_opportunities(plan))
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Failed to analyze plan optimizations: {e}")
 
         return opportunities
@@ -333,7 +340,7 @@ class QueryPlanAnalyzer:
                     # Only create one alert per query
                     break
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to check for regression: {e}")
 
     def _detect_performance_regression(self, current_plan: QueryExecutionPlan,
@@ -369,7 +376,7 @@ class QueryPlanAnalyzer:
 
             return None
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.warning(f"Failed to detect regression: {e}")
             return None
 
@@ -377,11 +384,20 @@ class QueryPlanAnalyzer:
                               baseline_plan: QueryExecutionPlan) -> bool:
         """Check if current plan lost index usage compared to baseline."""
         try:
+            # Validate inputs
+            if not current_plan or not baseline_plan:
+                logger.warning("Missing execution plan for index usage comparison")
+                return False
+
             # Simplified check - could be more sophisticated
             current_has_seqscan = 'Seq Scan' in str(current_plan.execution_plan)
             baseline_has_seqscan = 'Seq Scan' in str(baseline_plan.execution_plan)
 
             return current_has_seqscan and not baseline_has_seqscan
 
-        except Exception:
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Invalid execution plan format: {e}", exc_info=True)
             return False
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error checking index usage: {e}", exc_info=True)
+            raise  # Re-raise database errors

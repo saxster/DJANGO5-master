@@ -35,7 +35,8 @@ class TestNOCAggregateSnapshotTask:
     @pytest.fixture
     def mock_client(self, mock_tenant):
         """Create mock client."""
-        from apps.onboarding.models import Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
         client_type = TypeAssist.objects.create(
             taname="CLIENT",
             tacode="CLIENT",
@@ -83,7 +84,8 @@ class TestNOCAlertBackpressureTask:
         """Test suppression when queue depth exceeds threshold."""
         from apps.noc.models import NOCAlertEvent
         from apps.tenants.models import Tenant
-        from apps.onboarding.models import Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
 
         tenant = Tenant.objects.create(tenantname="Test", subdomain_prefix="test")
         client_type = TypeAssist.objects.create(taname="CLIENT", tacode="CLIENT", tenant=tenant)
@@ -120,7 +122,8 @@ class TestNOCArchiveSnapshotsTask:
         """Test archival of snapshots older than 30 days."""
         from apps.noc.models import NOCMetricSnapshot
         from apps.tenants.models import Tenant
-        from apps.onboarding.models import Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
 
         tenant = Tenant.objects.create(tenantname="Test", subdomain_prefix="test")
         client_type = TypeAssist.objects.create(taname="CLIENT", tacode="CLIENT", tenant=tenant)
@@ -182,7 +185,8 @@ class TestNOCAlertEscalationTask:
         """Test escalation of unacknowledged critical alerts."""
         from apps.noc.models import NOCAlertEvent
         from apps.tenants.models import Tenant
-        from apps.onboarding.models import Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
 
         tenant = Tenant.objects.create(tenantname="Test", subdomain_prefix="test")
         client_type = TypeAssist.objects.create(taname="CLIENT", tacode="CLIENT", tenant=tenant)

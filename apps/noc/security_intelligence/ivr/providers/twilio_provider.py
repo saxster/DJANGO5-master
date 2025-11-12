@@ -14,6 +14,10 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any
 from .base import BaseIVRProvider
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.security_intelligence.ivr')
 
@@ -45,7 +49,7 @@ class TwilioProvider(BaseIVRProvider):
         except ImportError:
             logger.warning("twilio package not installed")
             self.client = None
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Twilio initialization error: {e}", exc_info=True)
             self.client = None
 
@@ -75,7 +79,7 @@ class TwilioProvider(BaseIVRProvider):
                 'error': None
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Twilio call error: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
@@ -95,7 +99,7 @@ class TwilioProvider(BaseIVRProvider):
                 'cost': Decimal(str(call.price or '0.00')).copy_abs(),
             }
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Twilio status fetch error: {e}", exc_info=True)
             return {'status': 'ERROR', 'error': str(e)}
 
@@ -114,7 +118,7 @@ class TwilioProvider(BaseIVRProvider):
         try:
             self.client.calls(call_sid).update(status='completed')
             return True
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Twilio hangup error: {e}", exc_info=True)
             return False
 

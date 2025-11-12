@@ -80,7 +80,7 @@ def default_ta():
         Unit = fields.Field(
             column_name="Unit",
             attribute="unit",
-            widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+            widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
             saves_null_values=True,
             default=default_ta,  # Uses this function
         )

@@ -11,6 +11,12 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from .models import TrainingDataset, TrainingExample, LabelingTask
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +27,7 @@ def update_dataset_stats_on_example_save(sender, instance, created, **kwargs):
     try:
         instance.dataset.update_stats()
         logger.debug(f"Updated stats for dataset {instance.dataset.id}")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to update dataset stats: {str(e)}")
 
 
@@ -31,7 +37,7 @@ def update_dataset_stats_on_example_delete(sender, instance, **kwargs):
     try:
         instance.dataset.update_stats()
         logger.debug(f"Updated stats for dataset {instance.dataset.id} after deletion")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to update dataset stats on deletion: {str(e)}")
 
 
@@ -44,7 +50,7 @@ def calculate_image_hash_on_save(sender, instance, created, **kwargs):
             if instance.image_hash:
                 instance.save(update_fields=['image_hash'])
                 logger.debug(f"Calculated image hash for example {instance.id}")
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to calculate image hash: {str(e)}")
 
 
@@ -56,7 +62,7 @@ def update_labeling_task_totals(sender, instance, action, pk_set, **kwargs):
             instance.total_examples = instance.examples.count()
             instance.save(update_fields=['total_examples'])
             logger.debug(f"Updated totals for labeling task {instance.id}")
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to update labeling task totals: {str(e)}")
 
 
@@ -70,7 +76,7 @@ def auto_start_labeling_task(sender, instance, created, **kwargs):
             # Auto-start task after assignment
             instance.start_task()
             logger.info(f"Auto-started labeling task {instance.id}")
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             logger.error(f"Failed to auto-start labeling task: {str(e)}")
 
 
@@ -97,5 +103,5 @@ def update_labeling_status_flags(sender, instance, **kwargs):
             instance.save(update_fields=['is_labeled', 'labeling_status'])
             logger.debug(f"Marked example {instance.id} as unlabeled")
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Failed to update labeling status flags: {str(e)}")

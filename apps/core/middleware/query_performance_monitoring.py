@@ -14,6 +14,8 @@ from django.utils.deprecation import MiddlewareMixin
 from django.core.cache import cache
 from apps.core.middleware.logging_sanitization import sanitized_warning, sanitized_info
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
+
 logger = logging.getLogger('query_performance')
 
 
@@ -334,7 +336,7 @@ class QueryPerformanceMonitoringMiddleware(MiddlewareMixin):
         })
 
         # Store updated metrics (expire after 1 hour)
-        cache.set(cache_key, existing_metrics, 3600)
+        cache.set(cache_key, existing_metrics, SECONDS_IN_HOUR)
 
 
 class QueryOptimizationEnforcementMiddleware(MiddlewareMixin):

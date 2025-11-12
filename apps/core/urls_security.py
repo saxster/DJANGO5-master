@@ -28,6 +28,7 @@ from apps.core.views.rate_limit_monitoring_views import (
     RateLimitAddTrustedIPView,
     RateLimitViolationAnalyticsView
 )
+from apps.core.views.csp_report import CSPReportView
 
 app_name = 'security'
 
@@ -65,4 +66,7 @@ urlpatterns = [
     path('rate-limiting/unblock/<str:ip_address>/', RateLimitUnblockIPView.as_view(), name='rate_limit_unblock'),
     path('rate-limiting/add-trusted/', RateLimitAddTrustedIPView.as_view(), name='rate_limit_add_trusted'),
     path('rate-limiting/analytics/', RateLimitViolationAnalyticsView.as_view(), name='rate_limit_analytics'),
+
+    # CSP violation reporting endpoint
+    path('csp-report/', CSPReportView.as_view(), name='csp_report'),
 ]

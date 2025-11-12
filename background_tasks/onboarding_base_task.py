@@ -23,6 +23,7 @@ from celery import Task
 from django.conf import settings
 from django.db import transaction, DatabaseError, OperationalError, IntegrityError
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 # Resilience imports
 from background_tasks.onboarding_retry_strategies import (
@@ -56,7 +57,19 @@ class OnboardingBaseTask(Task):
                 # Task logic here
                 result = do_work(arg1, arg2)
                 return self.task_success(result, correlation_id)
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
+                return self.handle_task_error(
+                    e,
+                    correlation_id=correlation_id,
+                    context={'arg1': arg1, 'arg2': arg2}
+                )
+            except NETWORK_EXCEPTIONS as e:
+                return self.handle_task_error(
+                    e,
+                    correlation_id=correlation_id,
+                    context={'arg1': arg1, 'arg2': arg2}
+                )
+            except VALIDATION_EXCEPTIONS as e:
                 return self.handle_task_error(
                     e,
                     correlation_id=correlation_id,
@@ -111,7 +124,7 @@ class OnboardingBaseTask(Task):
             'status': 'completed',
             'result': result,
             'correlation_id': correlation_id,
-            'completed_at': datetime.now().isoformat(),
+            'completed_at': timezone.now().isoformat(),
         }
 
         if metadata:
@@ -151,7 +164,7 @@ class OnboardingBaseTask(Task):
             'error': error_message,
             'error_type': error_type,
             'correlation_id': correlation_id,
-            'failed_at': datetime.now().isoformat(),
+            'failed_at': timezone.now().isoformat(),
         }
 
         if metadata:
@@ -306,9 +319,15 @@ class OnboardingBaseTask(Task):
                 correlation_id=correlation_id
             )
 
-        except Exception as dlq_error:
+        except DATABASE_EXCEPTIONS as dlq_error:
             task_logger.error(
-                f"Failed to send task to DLQ: {str(dlq_error)}",
+                f"Failed to send task to DLQ (database error): {str(dlq_error)}",
+                extra={'correlation_id': correlation_id},
+                exc_info=True
+            )
+        except (ValueError, TypeError, AttributeError) as dlq_error:
+            task_logger.error(
+                f"Failed to send task to DLQ (validation error): {str(dlq_error)}",
                 extra={'correlation_id': correlation_id},
                 exc_info=True
             )
@@ -357,10 +376,18 @@ class OnboardingBaseTask(Task):
         try:
             result = func(*args, **kwargs)
             return result, None
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
             if log_error:
                 task_logger.warning(
-                    f"Safe execution failed: {str(e)}",
+                    f"Safe execution failed ({type(e).__name__}): {str(e)}",
+                    extra={'function': func.__name__},
+                    exc_info=True
+                )
+            return fallback_value, e
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            if log_error:
+                task_logger.warning(
+                    f"Safe execution data error ({type(e).__name__}): {str(e)}",
                     extra={'function': func.__name__},
                     exc_info=True
                 )
@@ -408,7 +435,7 @@ def with_dlq_integration(task_func):
             result = task_func(self, *args, **kwargs)
             return result
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, LLM_API_EXCEPTIONS, VALIDATION_EXCEPTIONS) as e:
             # Check if final retry
             if hasattr(self, 'request') and self.request.retries >= self.max_retries:
                 # Send to DLQ

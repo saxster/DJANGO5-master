@@ -13,7 +13,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from apps.core import utils
 from apps.core.utils_new.cron_utilities import validate_cron_for_form
-import apps.onboarding.utils as ob_utils
+from apps.client_onboarding import utils as client_utils
 
 logger = logging.getLogger(__name__)
 

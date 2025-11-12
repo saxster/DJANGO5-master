@@ -5,7 +5,7 @@ from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from . import views, views_phase2, admin_views, knowledge_views, personalization_views, monitoring_views, views_ui, views_ui_compat
 from .views import site_audit  # Refactored 2025-10-12: site_audit_views.py → site_audit/ package
-from .openapi_schemas import schema_view
+from .openapi_schemas import schema_view, schema_json_view, schema_redoc_view
 
 # Backward compatibility alias
 site_audit_views = site_audit
@@ -545,17 +545,10 @@ urlpatterns = [
     path('', include(router.urls)),
 ]
 
-# ========== API DOCUMENTATION (Optional - requires drf-yasg) ==========
-# Only add these URLs if drf-yasg is installed
-if schema_view is not None:
-    urlpatterns += [
-        re_path(r'^swagger(?P<format>\.json|\.yaml)$',
-                schema_view.without_ui(cache_timeout=0),
-                name='schema-json'),
-        re_path(r'^swagger/$',
-                schema_view.with_ui('swagger', cache_timeout=0),
-                name='schema-swagger-ui'),
-        re_path(r'^redoc/$',
-                schema_view.with_ui('redoc', cache_timeout=0),
-                name='schema-redoc'),
-    ]
+# ========== API DOCUMENTATION (drf-spectacular - OpenAPI 3.0) ==========
+# Swagger UI and ReDoc documentation views
+urlpatterns += [
+    path('schema/', schema_json_view, name='schema'),
+    path('swagger/', schema_view, name='schema-swagger-ui'),
+    path('redoc/', schema_redoc_view, name='schema-redoc'),
+]

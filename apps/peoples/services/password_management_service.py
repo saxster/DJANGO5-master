@@ -19,7 +19,7 @@ Validation Rules (Django defaults):
   - NumericPasswordValidator: Not entirely numeric
   - UserAttributeSimilarityValidator: Not too similar to username/email
 Transaction: Atomic (with_transaction decorator ensures rollback on failure)
-Monitoring: BaseService integration for performance tracking (disabled: TODO fix decorator)
+Monitoring: BaseService integration with @monitor_service_performance decorator (active)
 """
 
 from __future__ import annotations

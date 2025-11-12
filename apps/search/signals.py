@@ -9,6 +9,9 @@ from django.dispatch import receiver
 from django.contrib.postgres.search import SearchVector
 import logging
 
+from apps.search.models import SearchIndex
+from apps.search.services.caching_service import SearchCacheService
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,3 +51,26 @@ def update_search_index(model_instance, entity_type, delete=False):
 
     except (AttributeError, ValueError) as e:
         logger.error(f"Failed to update search index: {e}")
+
+
+@receiver(post_save, sender=SearchIndex)
+def invalidate_cache_on_index_save(sender, instance, **kwargs):
+    """
+    When search index entries change, invalidate cached search results
+    for the affected entity type so reads see fresh data immediately.
+    """
+    if instance.tenant_id:
+        SearchCacheService.invalidate_entities(
+            tenant_id=instance.tenant_id,
+            entities=[instance.entity_type]
+        )
+
+
+@receiver(post_delete, sender=SearchIndex)
+def invalidate_cache_on_index_delete(sender, instance, **kwargs):
+    """Ensure caches are bounced when index entries are removed."""
+    if instance.tenant_id:
+        SearchCacheService.invalidate_entities(
+            tenant_id=instance.tenant_id,
+            entities=[instance.entity_type]
+        )

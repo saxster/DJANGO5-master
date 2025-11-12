@@ -15,6 +15,8 @@ Compliance with .claude/rules.md Rule #7 (<150 lines per view).
 
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
@@ -57,15 +59,17 @@ class WebSocketPerformanceDashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
+@login_required
+@staff_member_required
 @require_http_methods(["GET"])
 def websocket_metrics_api(request):
     """
     API endpoint for real-time WebSocket metrics.
 
     Returns JSON with current performance metrics.
+    
+    Security: Requires staff authentication (added in CRITICAL SECURITY FIX 3).
     """
-    if not request.user.is_staff:
-        return JsonResponse({'error': 'Staff access required'}, status=403)
 
     window_minutes = int(request.GET.get('window', MINUTES_IN_HOUR))
     stats = websocket_metrics.get_websocket_stats(window_minutes=window_minutes)

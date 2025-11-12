@@ -132,7 +132,7 @@ class MapManager(models.Manager):
                 try:
                     lon, lat = GeospatialService.extract_coordinates(obj.gpslocation)
                     result.append([lat, lon])  # Return [lat, lon] format
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     logger.warning(f"Failed to extract coordinates from tracking object: {e}")
                     continue
             return result
@@ -207,7 +207,7 @@ class MapManager(models.Manager):
         try:
             lon, lat = GeospatialService.extract_coordinates(event.gpslocation)
             gps_coords = [lat, lon]  # Return [lat, lon] format
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Failed to extract GPS coordinates: {e}")
             gps_coords = [0.0, 0.0]  # Fallback to default coordinates
 

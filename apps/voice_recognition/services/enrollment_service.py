@@ -19,6 +19,7 @@ Following .claude/rules.md:
 
 import logging
 import hashlib
+import os
 import time
 from typing import Dict, Any, List, Optional
 from datetime import timedelta
@@ -32,6 +33,12 @@ from apps.voice_recognition.models import (
     VoiceBiometricConfig,
 )
 from apps.voice_recognition.services.challenge_generator import ChallengeResponseGenerator
+from apps.voice_recognition.services.audio_processing import (
+    AudioSample,
+    compute_quality_metrics,
+    detect_audio_spoof,
+    extract_embedding,
+)
 from apps.face_recognition.models import FaceEmbedding
 import numpy as np
 
@@ -383,6 +390,7 @@ class VoiceEnrollmentService:
             EnrollmentSecurityError: If spoofing detected or quality insufficient
         """
         start_time = time.time()
+        audio_path = None
 
         try:
             result = {
@@ -471,53 +479,49 @@ class VoiceEnrollmentService:
             logger.error(f"Error collecting voice sample: {e}")
             raise EnrollmentError(f"Failed to collect voice sample: {str(e)}")
 
+        finally:
+            # CRITICAL: Always cleanup temporary audio file
+            # Voice biometric data must not persist on disk unencrypted
+            if audio_path and os.path.exists(audio_path):
+                try:
+                    os.unlink(audio_path)
+                    logger.debug(f"Cleaned up temp enrollment audio: {audio_path}")
+                except OSError as e:
+                    logger.error(f"Failed to delete temp audio file {audio_path}: {e}")
+
     def _validate_sample_quality(self, audio_path: str) -> Dict[str, Any]:
-        """
-        Validate audio sample meets quality requirements.
-
-        Enrollment requires HIGHER quality than verification.
-        """
+        """Validate that enrollment sample meets strict SNR/duration thresholds."""
         try:
-            # This would integrate with audio analysis library (librosa, pydub, etc.)
-            # For now, return mock quality assessment
+            audio_sample = AudioSample.from_file(audio_path)
+            metrics = compute_quality_metrics(audio_sample)
 
-            # In production, check:
-            # - SNR (signal-to-noise ratio) >20dB
-            # - Duration 3-15 seconds
-            # - No clipping/distortion
-            # - Clear speech (not muffled)
-            # - Minimal background noise
-            # - No echo or reverberation
+            issues = list(metrics.get('issues', []))
+            duration = metrics.get('duration_seconds', 0)
 
-            quality_score = 0.85  # Mock score
-            snr_db = 22.0  # Mock SNR
-            duration = 5.0  # Mock duration
-
-            issues = []
-            if snr_db < self.MIN_SNR_DB:
-                issues.append('LOW_SNR')
             if duration < self.MIN_SAMPLE_DURATION:
                 issues.append('TOO_SHORT')
             if duration > self.MAX_SAMPLE_DURATION:
                 issues.append('TOO_LONG')
+            if metrics.get('snr_db', 0) < self.MIN_SNR_DB:
+                issues.append('LOW_SNR')
 
-            passed = len(issues) == 0 and quality_score >= 0.7
+            passed = not issues and metrics.get('quality_score', 0) >= 0.7
 
-            return {
-                'passed': passed,
-                'quality_score': quality_score,
-                'snr_db': snr_db,
-                'duration_seconds': duration,
-                'issues': issues,
-                'reason': 'Quality passed' if passed else f"Quality issues: {', '.join(issues)}"
-            }
-
-        except (OSError, IOError, ValueError) as e:
-            logger.error(f"Error validating sample quality: {e}")
+            metrics.update(
+                {
+                    'passed': passed,
+                    'issues': issues,
+                    'reason': 'Quality passed' if passed else f"Quality issues: {', '.join(issues)}",
+                }
+            )
+            return metrics
+        except (OSError, IOError, ValueError) as exc:
+            logger.error(f"Error validating sample quality: {exc}")
             return {
                 'passed': False,
                 'quality_score': 0.0,
-                'reason': f'Error validating quality: {str(e)}'
+                'issues': ['ANALYSIS_ERROR'],
+                'reason': f'Error validating quality: {exc}',
             }
 
     def _detect_enrollment_spoofing(
@@ -535,36 +539,18 @@ class VoiceEnrollmentService:
         - Temporal coherence (response timing)
         """
         try:
-            # This would integrate with VoiceAntiSpoofingService
-            # For now, return mock result
-
-            fraud_indicators = []
-            spoof_detected = False
-            spoof_type = None
-
-            # In production:
-            # 1. Check for playback artifacts
-            # 2. Detect deepfake/TTS patterns
-            # 3. Analyze audio channel characteristics
-            # 4. Validate response timing
-
+            audio_sample = AudioSample.from_file(audio_path)
+            spoof_result = detect_audio_spoof(audio_sample, challenge)
+            spoof_result['detection_techniques_used'] = [
+                'SPECTRAL_ANALYSIS',
+                'CHALLENGE_RESPONSE',
+            ]
+            return spoof_result
+        except (OSError, IOError, ValueError) as exc:
+            logger.error(f"Error in anti-spoofing detection: {exc}")
             return {
-                'spoof_detected': spoof_detected,
-                'spoof_type': spoof_type,
-                'liveness_score': 0.92,  # Mock score
-                'fraud_indicators': fraud_indicators,
-                'detection_techniques_used': [
-                    'PLAYBACK_DETECTION',
-                    'DEEPFAKE_DETECTION',
-                    'CHANNEL_ANALYSIS'
-                ]
-            }
-
-        except (OSError, IOError, ValueError) as e:
-            logger.error(f"Error in anti-spoofing detection: {e}")
-            return {
-                'spoof_detected': False,  # Fail open for errors (should fail closed in production)
-                'error': str(e)
+                'spoof_detected': False,
+                'error': str(exc)
             }
 
     def _transcribe_audio(self, audio_path: str) -> str:
@@ -583,32 +569,21 @@ class VoiceEnrollmentService:
             return ""
 
     def _extract_voice_embedding(self, audio_path: str) -> Optional[np.ndarray]:
-        """
-        Extract voice embedding (voiceprint) from audio.
-
-        Integrates with Google Cloud Speaker Recognition API.
-        """
+        """Extract deterministic embedding for enrollment samples."""
         try:
-            # This would integrate with Google Cloud Speaker Recognition API
-            # or VoiceBiometricEngine
-            # For now, return mock 512-dimensional embedding
-            embedding = np.random.normal(0, 1, 512)
-            embedding = embedding / np.linalg.norm(embedding)  # Normalize
-            return embedding
-
-        except (OSError, IOError, ValueError, TypeError) as e:
-            logger.error(f"Error extracting voice embedding: {e}")
+            audio_sample = AudioSample.from_file(audio_path)
+            return extract_embedding(audio_sample, emb_dim=512)
+        except (OSError, IOError, ValueError, TypeError) as exc:
+            logger.error(f"Error extracting voice embedding: {exc}")
             return None
 
     # ========================================
     # PHASE 3: VOICEPRINT GENERATION
     # ========================================
 
-    def generate_voiceprint(
-        self,
+    def generate_voiceprint(self,
         user,
-        voice_samples: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        voice_samples: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate voiceprint from multiple voice samples.
 
@@ -649,7 +624,7 @@ class VoiceEnrollmentService:
                     f"Voice samples too inconsistent: {consistency_score:.2f} < {self.MIN_VOICE_CONSISTENCY}"
                 )
 
-            # Generate primary voiceprint (mean embedding)
+            # Generate primary voiceprint(mean embedding)
             primary_voiceprint = np.mean(embeddings, axis=0)
             primary_voiceprint = primary_voiceprint / np.linalg.norm(primary_voiceprint)
 
@@ -901,7 +876,28 @@ class VoiceEnrollmentService:
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
     def _save_temp_audio(self, audio_file, user_id: int, session_id: str) -> str:
-        """Save audio file temporarily for processing."""
+        """
+        Save uploaded audio to temporary file for enrollment processing.
+
+        Creates a temporary file with delete=False to allow processing by
+        external libraries (scipy.io.wavfile). The caller MUST delete the
+        file after use to prevent disk space leaks and privacy risks.
+
+        Args:
+            audio_file: Uploaded audio file from request
+            user_id: User ID for file naming
+            session_id: Enrollment session ID for tracking
+
+        Returns:
+            Path to temporary audio file
+
+        Note:
+            Caller is responsible for cleanup via os.unlink() in finally block.
+            Voice biometric data must not persist on disk unencrypted.
+
+        Raises:
+            EnrollmentError: If file write fails
+        """
         import tempfile
         import os
 
@@ -912,11 +908,13 @@ class VoiceEnrollmentService:
             with tempfile.NamedTemporaryFile(
                 suffix=suffix,
                 prefix=prefix,
-                delete=False,
+                delete=False,  # Caller handles cleanup in finally block
                 mode='wb'
             ) as tmp:
                 for chunk in audio_file.chunks():
                     tmp.write(chunk)
+                tmp.flush()  # Ensure data written to disk before processing
+                logger.debug(f"Saved temp enrollment audio for user {user_id}, session {session_id}: {tmp.name}")
                 return tmp.name
 
         except (OSError, IOError) as e:

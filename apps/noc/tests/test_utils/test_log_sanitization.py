@@ -357,5 +357,5 @@ class TestIntegrationSanitization:
             try:
                 result = sanitize_api_key_log(**test_input)
                 assert isinstance(result, dict)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 pytest.fail(f"Sanitization raised exception for {test_input}: {e}")

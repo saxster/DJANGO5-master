@@ -41,6 +41,9 @@ from .group_model import PermissionGroup, Pgroup
 from .membership_model import Pgbelonging
 from .capability_model import Capability
 from .device_registry import DeviceRegistration, DeviceRiskEvent
+from .user_session import UserSession
+from .session_activity import SessionActivityLog
+from .agent_skill import AgentSkill
 
 __all__ = [
     # Base classes
@@ -62,4 +65,11 @@ __all__ = [
     # Device Trust & Security (Sprint 1)
     'DeviceRegistration',
     'DeviceRiskEvent',
+
+    # Session Management
+    'UserSession',
+    'SessionActivityLog',
+    
+    # Smart Assignment
+    'AgentSkill',
 ]

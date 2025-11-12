@@ -169,19 +169,95 @@ class InputSanitizationMiddleware(MiddlewareMixin):
             request.GET = sanitized_get
 
     def _sanitize_file_uploads(self, request):
-        """Sanitize file upload filenames."""
+        """
+        Sanitize and validate file uploads with content inspection.
+
+        Security checks:
+        1. Filename sanitization (path traversal prevention)
+        2. Double extension detection
+        3. File content validation (magic number checking)
+        4. Integration with SecureFileUploadService
+        """
+        from apps.core.exceptions import SecurityException
+        from apps.core.services.secure_file_upload_service import SecureFileUploadService
+        from django.utils.text import get_valid_filename
+        import os
+
         if hasattr(request, 'FILES'):
             for file_field in request.FILES:
                 uploaded_file = request.FILES[file_field]
 
-                from django.utils.text import get_valid_filename
+                # Step 1: Filename sanitization
                 safe_filename = get_valid_filename(uploaded_file.name)
 
-                if '..' in safe_filename or '/' in safe_filename:
+                # Step 2: Path traversal check
+                if '..' in safe_filename or '/' in safe_filename or '\\' in safe_filename:
                     logger.warning(
                         f"Path traversal attempt in filename: {uploaded_file.name}",
-                        extra={'original': uploaded_file.name}
+                        extra={'original_filename': uploaded_file.name}
                     )
-                    raise SecurityException("Invalid filename detected")
+                    raise SecurityException(
+                        "Invalid filename detected: path traversal attempt",
+                        violation_type="PATH_TRAVERSAL"
+                    )
 
+                # Step 3: Double extension check
+                filename_parts = safe_filename.lower().split('.')
+
+                if len(filename_parts) > 2:  # More than one extension
+                    # Check for dangerous extensions in middle positions
+                    DANGEROUS_EXTENSIONS = {
+                        'exe', 'bat', 'cmd', 'com', 'pif', 'scr', 'vbs', 'js',
+                        'jar', 'sh', 'ps1', 'py', 'php', 'asp', 'aspx', 'jsp',
+                        'pl', 'cgi', 'dll', 'so', 'dylib'
+                    }
+
+                    for part in filename_parts[1:-1]:  # Check middle parts (not name or final ext)
+                        if part in DANGEROUS_EXTENSIONS:
+                            logger.error(
+                                f"Dangerous extension detected: .{part}",
+                                extra={'uploaded_filename': safe_filename}
+                            )
+                            raise SecurityException(
+                                f"File contains dangerous extension: .{part}",
+                                violation_type="DANGEROUS_FILE_EXTENSION"
+                            )
+
+                # Step 4: Detect file type from extension
+                file_extension = os.path.splitext(safe_filename)[1].lower()
+
+                # Map extensions to file types
+                if file_extension in SecureFileUploadService.FILE_TYPES.get('image', {}).get('extensions', []):
+                    file_type = 'image'
+                elif file_extension in SecureFileUploadService.FILE_TYPES.get('pdf', {}).get('extensions', []):
+                    file_type = 'pdf'
+                elif file_extension in SecureFileUploadService.FILE_TYPES.get('document', {}).get('extensions', []):
+                    file_type = 'document'
+                else:
+                    # Extension not in allowed types
+                    logger.warning(
+                        f"Unsupported file extension: {file_extension}",
+                        extra={'uploaded_filename': safe_filename}
+                    )
+                    raise SecurityException(
+                        f"Unsupported file type: {file_extension}",
+                        violation_type="UNSUPPORTED_FILE_TYPE"
+                    )
+
+                # Step 5: Validate file content matches extension
+                from django.core.exceptions import ValidationError
+                try:
+                    SecureFileUploadService._validate_file_security(uploaded_file, file_type)
+                    SecureFileUploadService._validate_file_content(uploaded_file, file_type)
+                except (ValidationError, OSError, IOError) as e:
+                    logger.error(
+                        f"File content validation failed: {e}",
+                        extra={'uploaded_filename': safe_filename, 'error_msg': str(e)}
+                    )
+                    raise SecurityException(
+                        f"File validation failed: {str(e)}",
+                        violation_type="FILE_CONTENT_VALIDATION_FAILED"
+                    )
+
+                # Step 6: Apply safe filename
                 uploaded_file.name = safe_filename

@@ -6,7 +6,7 @@ Date: 2025-10-27
 """
 
 import logging
-from datetime import timezone
+from datetime import timezone as dt_timezone
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache

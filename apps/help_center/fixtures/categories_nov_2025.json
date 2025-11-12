@@ -1,0 +1,156 @@
+[
+  {
+    "model": "help_center.helpcategory",
+    "pk": 100,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Security & Compliance",
+      "slug": "security-compliance",
+      "description": "Security improvements: CSRF protection, secure file downloads, API keys, rate limiting",
+      "icon": "🔒",
+      "color": "#c0392b",
+      "display_order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 101,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Reliability & Transactions",
+      "slug": "reliability-transactions",
+      "description": "Exception handling, transaction management, error recovery patterns",
+      "icon": "⚡",
+      "color": "#27ae60",
+      "display_order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 102,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Performance & Analytics",
+      "slug": "performance-analytics",
+      "description": "Worker performance tracking, BPI scoring, benchmarking, gamification",
+      "icon": "📊",
+      "color": "#2980b9",
+      "display_order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 103,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: SOAR Automation",
+      "slug": "premium-soar",
+      "description": "Automated alert remediation with playbooks (Gold tier)",
+      "icon": "🤖",
+      "color": "#8e44ad",
+      "display_order": 10,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 104,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: SLA Prevention",
+      "slug": "premium-sla",
+      "description": "Predictive SLA breach prevention with AI (Silver tier)",
+      "icon": "🎯",
+      "color": "#16a085",
+      "display_order": 11,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 105,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: Device Health",
+      "slug": "premium-device-health",
+      "description": "IoT device health monitoring and predictive maintenance (Silver tier)",
+      "icon": "📱",
+      "color": "#d35400",
+      "display_order": 12,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 106,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: Executive Scorecard",
+      "slug": "premium-scorecard",
+      "description": "Automated executive compliance reporting (Executive tier)",
+      "icon": "📈",
+      "color": "#2c3e50",
+      "display_order": 13,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 107,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: Shift Compliance",
+      "slug": "premium-shift",
+      "description": "Zero-no-show enforcement and roster intelligence (Silver tier)",
+      "icon": "📅",
+      "color": "#34495e",
+      "display_order": 14,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 108,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: AI Alert Triage",
+      "slug": "premium-ai-triage",
+      "description": "AI-powered alert prioritization (Silver tier)",
+      "icon": "🧠",
+      "color": "#e74c3c",
+      "display_order": 15,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 109,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Premium: Vendor Performance",
+      "slug": "premium-vendor",
+      "description": "Vendor accountability and performance tracking (Silver tier)",
+      "icon": "🏢",
+      "color": "#95a5a6",
+      "display_order": 16,
+      "is_active": true
+    }
+  },
+  {
+    "model": "help_center.helpcategory",
+    "pk": 110,
+    "fields": {
+      "tenant_id": 1,
+      "name": "Engineering & Development",
+      "slug": "engineering",
+      "description": "Technical guides for developers: testing, deployment, architecture",
+      "icon": "⚙️",
+      "color": "#7f8c8d",
+      "display_order": 20,
+      "is_active": true
+    }
+  }
+]

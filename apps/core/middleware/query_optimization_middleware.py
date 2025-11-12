@@ -7,7 +7,11 @@ to prevent N+1 query problems and improve performance.
 import time
 import logging
 from django.db import connection
+from django.core.cache import cache
+from django.conf import settings
+from django.utils.deprecation import MiddlewareMixin
 from apps.core.error_handling import ErrorHandler
+from apps.core.utils_new.sanitized_logging import sanitized_warning
 
 logger = logging.getLogger("query_optimization")
 

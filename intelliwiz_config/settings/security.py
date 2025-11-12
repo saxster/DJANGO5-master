@@ -24,6 +24,8 @@ from .security.authentication import *
 from .security.rate_limiting import *
 from .security.file_upload import *
 from .security.validation import *
+from .security.encryption import *
+from .security.sso import *
 
 # Security middleware configuration
 SECURITY_MIDDLEWARE = [
@@ -41,7 +43,7 @@ __MODULE_INFO__ = {
     'refactored_from': 'monolithic 282-line security.py',
     'refactored_date': '2025-09-26',
     'compliance_status': 'compliant',
-    'line_count': 42,  # This file line count
+    'line_count': 43,  # This file line count (updated)
     'submodules': {
         'headers.py': 37,
         'csp.py': 42,
@@ -49,7 +51,9 @@ __MODULE_INFO__ = {
         'authentication.py': 72,
         'rate_limiting.py': 16,
         'file_upload.py': 57,
-        'validation.py': 21
+        'validation.py': 21,
+        'encryption.py': 85,
+        'sso.py': 64,
     },
-    'total_security_lines': 263  # Sum of all submodules (vs 282 original)
+    'total_security_lines': 348  # Sum of all submodules (updated)
 }

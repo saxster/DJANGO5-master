@@ -21,6 +21,7 @@ from ..models import WisdomConversationTranslation, TranslationQualityFeedback
 
 @admin.register(WisdomConversationTranslation)
 class WisdomConversationTranslationAdmin(WellnessBaseModelAdmin):
+    list_per_page = 50
     """Comprehensive admin for wisdom conversation translations"""
 
     list_display = (
@@ -179,6 +180,7 @@ class WisdomConversationTranslationAdmin(WellnessBaseModelAdmin):
 
 @admin.register(TranslationQualityFeedback)
 class TranslationQualityFeedbackAdmin(WellnessBaseModelAdmin):
+    list_per_page = 50
     """Admin for translation quality feedback and improvement"""
 
     list_display = (

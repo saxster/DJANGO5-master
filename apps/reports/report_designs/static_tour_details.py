@@ -2,7 +2,7 @@ from apps.reports.report_utils import BaseReportsExport
 from apps.core.utils import get_timezone
 from django.utils import timezone as dtimezone
 from datetime import timezone as dt_timezone, timedelta
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.activity.models.job_model import Jobneed
 from django.conf import settings
 import logging

@@ -289,8 +289,8 @@ class TestFixedVulnerabilities(TestCase):
 
     def test_onboarding_manager_fix(self):
         """Test that onboarding manager vulnerabilities are fixed"""
-        from apps.onboarding.managers import BtManager
-        from apps.onboarding.bt_manager_orm import BtManagerORM
+        from apps.client_onboarding.managers import BtManager
+        from apps.client_onboarding.managers import BtManagerORM
 
         manager = BtManager()
 
@@ -371,6 +371,70 @@ class TestIntegrationSecurity(TestCase):
             mock_runrawsql.assert_called_once()
             called_params = mock_runrawsql.call_args[0][1]
             self.assertEqual(called_params, params)
+
+
+@pytest.mark.security
+class TestSQLInjectionPrevention:
+    """Test SQL injection prevention with table name validation"""
+
+    def test_table_name_validation_rejects_sql_injection(self):
+        """Test SQL injection attempts in table name are rejected."""
+        allowed_tables = {'users', 'products', 'orders'}
+
+        # SQL injection payloads
+        malicious_tables = [
+            "users; DROP TABLE users--",
+            "users' OR '1'='1",
+            "users UNION SELECT * FROM passwords",
+            "users/* comment */",
+        ]
+
+        for malicious in malicious_tables:
+            with pytest.raises(ValidationError) as exc:
+                SecureSQL.validate_sqlite_table_name(malicious, allowed_tables)
+
+            assert "not in allowed tables" in str(exc.value).lower()
+
+    def test_safe_count_query_uses_identifier_quoting(self):
+        """Test count query construction uses identifier quoting for safety."""
+        allowed_tables = {'users'}
+
+        # This should work for valid table
+        query, params = SecureSQL.build_safe_sqlite_count_query('users', allowed_tables)
+
+        # Query should contain the COUNT clause
+        assert 'SELECT COUNT(*) as count FROM' in query
+        # Params should be empty since table name is not parameterizable
+        assert params == []
+        # Query should contain table identifier (quoted or not)
+        assert 'users' in query or '"users"' in query
+
+    def test_safe_count_query_rejects_invalid_table(self):
+        """Test that invalid table names are rejected."""
+        allowed_tables = {'users', 'products'}
+
+        # Should raise ValidationError for table not in whitelist
+        with pytest.raises(ValidationError) as exc:
+            SecureSQL.build_safe_sqlite_count_query('malicious_table', allowed_tables)
+
+        assert "not in allowed tables" in str(exc.value).lower()
+
+    @pytest.mark.django_db
+    def test_django_orm_preferred_over_raw_sql(self):
+        """Test Django ORM count method is available as alternative."""
+        # Verify we can use Django ORM for safe counting
+        count = SecureSQL.get_table_count_via_orm('peoples', 'People')
+
+        # Should return an integer
+        assert isinstance(count, int)
+        assert count >= 0
+
+    def test_get_table_count_via_orm_invalid_model(self):
+        """Test that invalid models raise appropriate errors."""
+        with pytest.raises(ValidationError) as exc:
+            SecureSQL.get_table_count_via_orm('peoples', 'InvalidModel')
+
+        assert "Model not found" in str(exc.value)
 
 
 if __name__ == "__main__":

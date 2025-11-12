@@ -20,6 +20,7 @@ from django.utils import timezone
 from ..models import TrainingDataset, TrainingExample, LabelingTask
 from apps.activity.models import MeterReading, VehicleEntry
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -112,9 +113,12 @@ class FeedbackIntegrationService:
             else:
                 result['error'] = "Failed to create training example"
 
-        except Exception as e:
-            logger.error(f"Error capturing meter reading feedback: {str(e)}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Database error capturing meter reading feedback: {str(e)}", exc_info=True)
             result['error'] = f"Feedback capture failed: {str(e)}"
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Business logic error in feedback: {str(e)}", exc_info=True)
+            result['error'] = f"Feedback validation failed: {str(e)}"
 
         return result
 
@@ -183,7 +187,7 @@ class FeedbackIntegrationService:
             else:
                 result['error'] = "Failed to create training example"
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error capturing vehicle entry feedback: {str(e)}", exc_info=True)
             result['error'] = f"Feedback capture failed: {str(e)}"
 
@@ -230,7 +234,7 @@ class FeedbackIntegrationService:
                 f"({result['skipped']} skipped)"
             )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error in batch import: {str(e)}", exc_info=True)
             result['error'] = f"Batch import failed: {str(e)}"
 
@@ -315,7 +319,7 @@ class FeedbackIntegrationService:
                     f"with {result['examples_assigned']} examples"
                 )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error creating feedback labeling tasks: {str(e)}", exc_info=True)
             result['error'] = f"Task creation failed: {str(e)}"
 
@@ -382,7 +386,7 @@ class FeedbackIntegrationService:
 
             logger.info(f"Analyzed {analysis['total_feedback']} feedback examples")
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error analyzing feedback patterns: {str(e)}", exc_info=True)
             result['error'] = f"Analysis failed: {str(e)}"
 
@@ -418,7 +422,7 @@ class FeedbackIntegrationService:
 
             return dataset
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error getting/creating feedback dataset: {str(e)}")
             return None
 
@@ -466,7 +470,7 @@ class FeedbackIntegrationService:
                 labeling_priority=int((1.0 - (meter_reading.confidence_score or 0.5)) * 10)
             )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error creating meter reading example: {str(e)}")
             return None
 
@@ -513,7 +517,7 @@ class FeedbackIntegrationService:
                 labeling_priority=int((1.0 - (vehicle_entry.confidence_score or 0.5)) * 10)
             )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error creating vehicle entry example: {str(e)}")
             return None
 
@@ -560,14 +564,14 @@ class FeedbackIntegrationService:
                     )
                     result['imported'] += 1
 
-                except Exception as e:
+                except BUSINESS_LOGIC_EXCEPTIONS as e:
                     result['skipped'] += 1
                     result['errors'].append(f"Reading {reading.id}: {str(e)}")
 
             result['success'] = True
             result['dataset'] = dataset
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             result['errors'].append(f"Import failed: {str(e)}")
 
         return result
@@ -615,14 +619,14 @@ class FeedbackIntegrationService:
                     )
                     result['imported'] += 1
 
-                except Exception as e:
+                except BUSINESS_LOGIC_EXCEPTIONS as e:
                     result['skipped'] += 1
                     result['errors'].append(f"Entry {entry.id}: {str(e)}")
 
             result['success'] = True
             result['dataset'] = dataset
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             result['errors'].append(f"Import failed: {str(e)}")
 
         return result

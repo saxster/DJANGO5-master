@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from ..models import TrainingDataset, TrainingExample, LabelingTask
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class ActiveLearningService:
                 f"Found {len(result['examples'])} uncertain examples in dataset {dataset.id}"
             )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error detecting uncertain examples: {str(e)}", exc_info=True)
             result['error'] = f"Detection failed: {str(e)}"
 
@@ -165,7 +166,7 @@ class ActiveLearningService:
                 f"using {strategy} strategy"
             )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error selecting optimal batch: {str(e)}", exc_info=True)
             result['error'] = f"Selection failed: {str(e)}"
 
@@ -239,7 +240,7 @@ class ActiveLearningService:
                     f"for {assigned_to.peoplename}"
                 )
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error creating labeling task: {str(e)}", exc_info=True)
             result['error'] = f"Task creation failed: {str(e)}"
 
@@ -301,7 +302,7 @@ class ActiveLearningService:
 
             logger.info(f"Analyzed performance for dataset {dataset.id}: {updated_count} examples updated")
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error analyzing model performance: {str(e)}", exc_info=True)
             result['error'] = f"Analysis failed: {str(e)}"
 
@@ -331,7 +332,7 @@ class ActiveLearningService:
 
             return {'success': True, 'examples': examples, 'stats': stats}
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             return {'success': False, 'error': str(e)}
 
     def _select_by_diversity(
@@ -357,7 +358,7 @@ class ActiveLearningService:
 
             return {'success': True, 'examples': examples, 'stats': stats}
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             return {'success': False, 'error': str(e)}
 
     def _select_by_uncertainty_diversity(
@@ -393,7 +394,7 @@ class ActiveLearningService:
 
             return {'success': True, 'examples': selected, 'stats': stats}
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             return {'success': False, 'error': str(e)}
 
     def _diversify_selection(
@@ -492,7 +493,7 @@ class ActiveLearningService:
                 ).count()
             }
 
-        except Exception as e:
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
             logger.error(f"Error calculating uncertainty stats: {str(e)}")
             return {'error': str(e)}
 

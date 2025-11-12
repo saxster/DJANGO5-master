@@ -9,6 +9,8 @@ from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from apps.ontology import ontology
 
+from apps.core.constants.datetime_constants import SECONDS_IN_DAY
+
 logger = logging.getLogger("security")
 
 
@@ -373,7 +375,7 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
             
         nel_config = {
             "report_to": "security-endpoints",
-            "max_age": 86400,  # 1 day
+            "max_age": SECONDS_IN_DAY,  # 1 day
             "include_subdomains": True,
             "failure_fraction": 0.01,  # Report 1% of failures
             "success_fraction": 0.001   # Report 0.1% of successes

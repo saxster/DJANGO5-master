@@ -13,8 +13,10 @@ from celery import shared_task
 from django.core.cache import cache
 from django.core.mail import EmailMessage
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from apps.core.tasks.base import IdempotentTask
 from apps.core.constants import SECONDS_IN_HOUR
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, FILE_EXCEPTIONS
 from datetime import datetime, timezone as dt_timezone
 import logging
 import os
@@ -22,7 +24,11 @@ import os
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='generate_report_task')
+@shared_task(
+    name='generate_report_task',
+    soft_time_limit=3600,  # 1 hour - report generation
+    time_limit=4800         # 80 minutes hard limit
+)
 def generate_report_task(report_id, report_type, format, filters, user_id):
     """
     Generate report asynchronously.
@@ -87,22 +93,54 @@ def generate_report_task(report_id, report_type, format, filters, user_id):
 
         return {'status': 'completed', 'report_id': report_id}
 
-    except Exception as e:
-        logger.error(f"Report generation failed: {report_id} - {e}", exc_info=True)
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error in report generation {report_id}: {e}", exc_info=True)
+        error_msg = "Database error during report generation"
 
-        # Update status to failed
         cache.set(f'report_status:{report_id}', {
             'status': 'failed',
             'progress': 0,
             'download_url': None,
-            'error_message': str(e),
+            'error_message': error_msg,
             'created_at': datetime.now(dt_timezone.utc).isoformat()
         }, timeout=3600)
 
-        return {'status': 'failed', 'error': str(e)}
+        return {'status': 'failed', 'error': error_msg}
+
+    except FILE_EXCEPTIONS as e:
+        logger.error(f"File system error in report generation {report_id}: {e}", exc_info=True)
+        error_msg = "File system error during report generation"
+
+        cache.set(f'report_status:{report_id}', {
+            'status': 'failed',
+            'progress': 0,
+            'download_url': None,
+            'error_message': error_msg,
+            'created_at': datetime.now(dt_timezone.utc).isoformat()
+        }, timeout=3600)
+
+        return {'status': 'failed', 'error': error_msg}
+
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Data validation error in report generation {report_id}: {e}", exc_info=True)
+        error_msg = f"Invalid data: {str(e)}"
+
+        cache.set(f'report_status:{report_id}', {
+            'status': 'failed',
+            'progress': 0,
+            'download_url': None,
+            'error_message': error_msg,
+            'created_at': datetime.now(dt_timezone.utc).isoformat()
+        }, timeout=3600)
+
+        return {'status': 'failed', 'error': error_msg}
 
 
-@shared_task(name='send_helpdesk_notification_email')
+@shared_task(
+    name='send_helpdesk_notification_email',
+    soft_time_limit=120,  # 2 minutes - email notification
+    time_limit=240         # 4 minutes hard limit
+)
 def send_helpdesk_notification_email(ticket_id, notification_type, recipients):
     """
     Send email notification for helpdesk events.
@@ -155,14 +193,25 @@ View ticket: {settings.SITE_URL}/helpdesk/tickets/{ticket.id}/
         return {'status': 'sent', 'ticket_id': ticket_id}
 
     except Ticket.DoesNotExist:
-        logger.error(f"Ticket not found: {ticket_id}")
+        logger.error(f"Ticket not found: {ticket_id}", exc_info=True)
         return {'status': 'error', 'message': 'Ticket not found'}
-    except Exception as e:
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Invalid email configuration for ticket {ticket_id}: {e}", exc_info=True)
+        return {'status': 'error', 'message': 'Invalid email configuration'}
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error sending email for ticket {ticket_id}: {e}", exc_info=True)
+        return {'status': 'error', 'message': 'Database error processing notification'}
+    except (OSError, IOError) as e:
+        # SMTP errors (SMTPException inherits from OSError)
         logger.error(f"Email send failed for ticket {ticket_id}: {e}", exc_info=True)
-        return {'status': 'error', 'message': str(e)}
+        return {'status': 'error', 'message': 'Failed to send email notification'}
 
 
-@shared_task(name='check_sla_breaches')
+@shared_task(
+    name='check_sla_breaches',
+    soft_time_limit=300,  # 5 minutes - batch SLA checks
+    time_limit=600         # 10 minutes hard limit
+)
 def check_sla_breaches():
     """
     Periodic task to check for SLA breaches and send notifications.
@@ -206,9 +255,12 @@ def check_sla_breaches():
 
         return {'checked': breached_tickets.count(), 'notified': count}
 
-    except Exception as e:
-        logger.error(f"SLA breach check failed: {e}", exc_info=True)
-        return {'status': 'error', 'message': str(e)}
+    except DATABASE_EXCEPTIONS as e:
+        logger.error(f"Database error in SLA breach check: {e}", exc_info=True)
+        return {'status': 'error', 'message': 'Database error during SLA check'}
+    except (ValueError, AttributeError) as e:
+        logger.error(f"Configuration error in SLA breach check: {e}", exc_info=True)
+        return {'status': 'error', 'message': 'Configuration error during SLA check'}
 
 
 __all__ = [

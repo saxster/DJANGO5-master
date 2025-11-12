@@ -12,6 +12,7 @@ Following CLAUDE.md:
 Dashboard Agent Intelligence - Phase 2.1
 """
 
+import json
 import logging
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
@@ -19,9 +20,15 @@ from django.utils import timezone
 
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.core.validation_pydantic.agent_schemas import AgentRecommendationSchema
-from apps.onboarding_api.services.llm.provider_router import get_llm_router
-from apps.onboarding_api.services.llm.exceptions import AllProvidersFailedError
-from apps.onboarding.models import Bt
+from apps.core_onboarding.services.llm.provider_router import get_llm_router
+from apps.core_onboarding.services.llm.exceptions import AllProvidersFailedError
+from apps.client_onboarding.models import Bt
+from apps.core.services.agents.prompt_builder import (
+    AgentPromptComposer,
+    get_profile_for_tenant,
+)
+
+LOG_JSON_EXTRACTION_ERROR = "Gemini response did not contain valid JSON output"
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +61,7 @@ class BaseAgentService:
         self._llm_router = None
         self._maker_llm = None
         self._llm_provider_used = None
+        self._last_prompt_metadata: Dict[str, Any] = {}
 
     def get_llm(self):
         """
@@ -102,6 +110,109 @@ class BaseAgentService:
             NotImplementedError: If not overridden by subclass
         """
         raise NotImplementedError(f"{self.agent_name} must implement analyze() method")
+
+    # ------------------------------------------------------------------
+    # Prompt & context helpers
+    # ------------------------------------------------------------------
+
+    def _get_recent_recommendations(
+        self, module: str, site_id: int, limit: int = 3
+    ) -> List[Dict[str, Any]]:
+        queryset = AgentRecommendation.objects.filter(
+            module=module,
+            site_id=site_id,
+        ).order_by('-created_at')[:limit]
+        return [
+            {
+                'id': rec.id,
+                'summary': rec.summary,
+                'severity': rec.severity,
+                'status': rec.status,
+            }
+            for rec in queryset
+        ]
+
+    def _get_tenant_context(self, client_id: int, site_id: int) -> Dict[str, Any]:
+        site = Bt.objects.select_related('tenant', 'parent').filter(id=site_id).first()
+        client = Bt.objects.select_related('tenant').filter(id=client_id).first()
+        tenant = (client or site).tenant if (client or site) else None
+        return {
+            'client_name': client.buname if client else 'Unknown Client',
+            'client_code': client.bucode if client else 'UNKNOWN',
+            'site_name': site.buname if site else 'Unknown Site',
+            'site_code': site.bucode if site else 'UNKNOWN',
+            'tenant_name': getattr(tenant, 'tenantname', 'Unknown Tenant'),
+            'tenant_slug': getattr(tenant, 'subdomain_prefix', None),
+        }
+
+    def _build_prompt_bundle(
+        self,
+        *,
+        module: str,
+        site_id: int,
+        client_id: int,
+        metrics: Dict[str, Any],
+        time_range: Tuple[datetime, datetime],
+        focus: str,
+        additional_notes: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        tenant_context = self._get_tenant_context(client_id, site_id)
+        profile = get_profile_for_tenant(tenant_context.get('tenant_slug'))
+        history = self._get_recent_recommendations(module, site_id)
+        composer = AgentPromptComposer(
+            agent_name=self.agent_name,
+            module=module,
+            time_range=(time_range[0].isoformat(), time_range[1].isoformat()),
+            metrics=metrics,
+            tenant_context=tenant_context,
+            focus=focus,
+            profile=profile,
+            recent_recommendations=history,
+            additional_notes=additional_notes,
+        )
+        prompt = composer.render()
+        metadata = composer.context_summary()
+        metadata.update(
+            {
+                'profile_key': profile.key,
+                'recent_recommendation_ids': [rec['id'] for rec in history],
+                'prompt_char_count': len(prompt),
+            }
+        )
+        self._last_prompt_metadata = metadata
+        return {'prompt': prompt, 'metadata': metadata}
+
+    def _invoke_structured_llm(
+        self,
+        prompt_bundle: Dict[str, Any],
+        schema: Dict[str, Any],
+        generation_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        llm = self.get_llm()
+        schema_text = json.dumps(schema, indent=2)
+        instructions = (
+            "You must respond with VALID JSON that matches the schema above. "
+            "Do not include prose outside the JSON body."
+        )
+        final_prompt = (
+            f"{prompt_bundle['prompt']}\n\n"
+            f"## Output Schema\n{schema_text}\n\n{instructions}"
+        )
+        kwargs = {'temperature': 0.65, 'max_tokens': 2048}
+        if generation_kwargs:
+            kwargs.update(generation_kwargs)
+        response = llm.generate(final_prompt, **kwargs)
+        data = self._extract_json_payload(response)
+        return data
+
+    def _extract_json_payload(self, response_text: str) -> Dict[str, Any]:
+        start = response_text.find('{')
+        end = response_text.rfind('}')
+        if start == -1 or end == -1:
+            logger.error(LOG_JSON_EXTRACTION_ERROR, extra={'provider': self._llm_provider_used})
+            raise ValueError(LOG_JSON_EXTRACTION_ERROR)
+        raw_json = response_text[start:end + 1]
+        return json.loads(raw_json)
 
     def create_recommendation(
         self,

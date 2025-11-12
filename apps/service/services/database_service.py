@@ -240,7 +240,7 @@ def insert_or_update_record(record, tablename):
             if tablename == "attachment":
                 # Fix incorrect ownername_id from mobile app
                 if "ownername_id" in record:
-                    from apps.onboarding.models import TypeAssist
+                    from apps.core_onboarding.models import TypeAssist
                     # Check if the provided ownername_id exists
                     if not TypeAssist.objects.filter(id=record["ownername_id"]).exists():
                         log.warning(f"Invalid ownername_id {record['ownername_id']} provided")
@@ -477,7 +477,7 @@ def save_parent_childs(
     Returns:
         tuple: (rc, traceback, msg) where rc=0 on success
     """
-    from apps.onboarding.models import Bt
+    from apps.client_onboarding.models import Bt
     from apps.activity.models.question_model import QuestionSet
     from apps.work_order_management.models import Vendor
     from apps.work_order_management.views import WorkPermit

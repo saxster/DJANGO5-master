@@ -1,0 +1,172 @@
+[
+  {
+    "model": "help_center.helptag",
+    "pk": 300,
+    "fields": {
+      "name": "premium",
+      "slug": "premium",
+      "description": "Premium revenue-generating features",
+      "color": "#d946ef"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 301,
+    "fields": {
+      "name": "gold-tier",
+      "slug": "gold-tier",
+      "description": "Gold tier features ($500/month)",
+      "color": "#fbbf24"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 302,
+    "fields": {
+      "name": "silver-tier",
+      "slug": "silver-tier",
+      "description": "Silver tier features ($300/month)",
+      "color": "#94a3b8"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 303,
+    "fields": {
+      "name": "bronze-tier",
+      "slug": "bronze-tier",
+      "description": "Bronze tier features ($100/month)",
+      "color": "#cd7f32"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 304,
+    "fields": {
+      "name": "ml-powered",
+      "slug": "ml-powered",
+      "description": "Machine learning powered features",
+      "color": "#6366f1"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 305,
+    "fields": {
+      "name": "automation",
+      "slug": "automation",
+      "description": "Automated remediation and workflows",
+      "color": "#10b981"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 306,
+    "fields": {
+      "name": "predictive-analytics",
+      "slug": "predictive-analytics",
+      "description": "Predictive features (SLA, device failure, no-shows)",
+      "color": "#3b82f6"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 307,
+    "fields": {
+      "name": "executive-reporting",
+      "slug": "executive-reporting",
+      "description": "Board-ready reporting and scorecards",
+      "color": "#8b5cf6"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 308,
+    "fields": {
+      "name": "soar",
+      "slug": "soar",
+      "description": "Security Orchestration, Automation and Response",
+      "color": "#6366f1"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 309,
+    "fields": {
+      "name": "sla-prevention",
+      "slug": "sla-prevention",
+      "description": "SLA breach prediction and prevention",
+      "color": "#10b981"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 310,
+    "fields": {
+      "name": "device-health",
+      "slug": "device-health",
+      "description": "IoT device health monitoring",
+      "color": "#3b82f6"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 311,
+    "fields": {
+      "name": "shift-compliance",
+      "slug": "shift-compliance",
+      "description": "Zero no-show shift compliance",
+      "color": "#ef4444"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 312,
+    "fields": {
+      "name": "vendor-management",
+      "slug": "vendor-management",
+      "description": "Vendor performance tracking",
+      "color": "#06b6d4"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 313,
+    "fields": {
+      "name": "revenue-feature",
+      "slug": "revenue-feature",
+      "description": "Direct revenue-generating feature",
+      "color": "#10b981"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 314,
+    "fields": {
+      "name": "getting-started",
+      "slug": "getting-started",
+      "description": "Getting started guides for premium features",
+      "color": "#3b82f6"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 315,
+    "fields": {
+      "name": "advanced",
+      "slug": "advanced",
+      "description": "Advanced configuration and customization",
+      "color": "#8b5cf6"
+    }
+  },
+  {
+    "model": "help_center.helptag",
+    "pk": 316,
+    "fields": {
+      "name": "troubleshooting",
+      "slug": "troubleshooting",
+      "description": "Troubleshooting common issues",
+      "color": "#ef4444"
+    }
+  }
+]

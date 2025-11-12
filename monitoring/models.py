@@ -15,7 +15,7 @@ from django.db import models
 from django.utils import timezone
 from apps.peoples.models import BaseModel  # BaseModel is in peoples, not core
 
-__all__ = ['MonitoringEvent', 'PerformanceBaseline', 'SecurityEvent']
+__all__ = ['MonitoringEvent', 'PerformanceBaseline', 'SecurityEvent', 'InfrastructureMetric', 'AnomalyFeedback']
 
 
 class MonitoringEvent(BaseModel):
@@ -219,3 +219,77 @@ class SecurityEvent(BaseModel):
     def __str__(self):
         status = 'Blocked' if self.blocked else 'Allowed'
         return f"{self.event_type} from {self.source_ip} - {status}"
+
+
+class InfrastructureMetric(BaseModel):
+    """
+    Stores infrastructure metrics for anomaly detection.
+
+    Collects system, database, and application metrics at regular intervals.
+    Retention: 30 days (automated cleanup)
+    """
+
+    timestamp = models.DateTimeField(db_index=True, help_text='Metric collection time')
+    metric_name = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text='Name of the metric (cpu_percent, memory_percent, etc.)'
+    )
+    value = models.FloatField(help_text='Metric value')
+    tags = models.JSONField(
+        default=dict,
+        help_text='Tags for categorization (type, environment, host, etc.)'
+    )
+    metadata = models.JSONField(
+        default=dict,
+        help_text='Additional metric metadata (unit, percentile, etc.)'
+    )
+
+    class Meta:
+        db_table = 'monitoring_infrastructure_metric'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['metric_name', 'timestamp'], name='infra_metric_name_time'),
+            models.Index(fields=['timestamp', 'metric_name', 'value'], name='infra_time_name_value'),
+            models.Index(fields=['timestamp'], name='infra_timestamp'),
+        ]
+        verbose_name = 'Infrastructure Metric'
+        verbose_name_plural = 'Infrastructure Metrics'
+
+    def __str__(self):
+        return f"{self.metric_name}: {self.value} at {self.timestamp}"
+
+
+class AnomalyFeedback(BaseModel):
+    """
+    Stores feedback for anomaly detection threshold tuning.
+
+    Tracks false positive rates to automatically adjust detection thresholds.
+    """
+
+    metric_name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text='Name of the metric'
+    )
+    false_positive_count = models.IntegerField(
+        default=0,
+        help_text='Number of false positive anomaly detections'
+    )
+    threshold_adjustment = models.FloatField(
+        default=0.0,
+        help_text='Current threshold adjustment factor (positive = more lenient)'
+    )
+    last_adjusted = models.DateTimeField(
+        default=timezone.now,
+        help_text='Last time threshold was adjusted'
+    )
+
+    class Meta:
+        db_table = 'monitoring_anomaly_feedback'
+        ordering = ['-last_adjusted']
+        verbose_name = 'Anomaly Feedback'
+        verbose_name_plural = 'Anomaly Feedback'
+
+    def __str__(self):
+        return f"{self.metric_name}: {self.false_positive_count} FPs, {self.threshold_adjustment:+.2f} adjustment"

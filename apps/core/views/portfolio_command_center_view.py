@@ -21,7 +21,7 @@ from django.db import DatabaseError
 from django.views.generic import TemplateView
 
 from apps.core.models import UserScope
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)

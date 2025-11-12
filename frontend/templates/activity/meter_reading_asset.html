@@ -281,7 +281,7 @@
 <script>
 // Consumption Trend Chart
 const ctx1 = document.getElementById('consumptionChart').getContext('2d');
-const consumptionData = {{ analytics.trend_data|safe }};
+const consumptionData = {{ analytics.trend_data|escapejs }};
 
 new Chart(ctx1, {
     type: 'line',

@@ -14,7 +14,7 @@ from apps.onboarding_api.permissions import (
     CanManageKnowledgeBase,
     CanEscalateConversations,
 )
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 class UserCapabilitiesTest(TestCase):
@@ -334,7 +334,7 @@ class SecurityAuditTest(TestCase):
             # This should be handled gracefully
             result = user_no_caps.get_effective_permissions()
             self.assertIsInstance(result, dict)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"get_effective_permissions raised {e} unexpectedly")
 
 

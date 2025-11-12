@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Ticket Escalation Race Condition Tests
 
 Comprehensive tests for concurrent ticket escalation operations.
@@ -20,7 +22,8 @@ from django.db import transaction
 
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.y_helpdesk.services import TicketWorkflowService, InvalidTicketTransitionError
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 from apps.activity.models import Asset, QuestionSet
 from apps.peoples.models import Pgroup
 
@@ -115,7 +118,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
                     user=self.user
                 )
                 success_count[0] += 1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=escalate_ticket, args=(i,)) for i in range(5)]
@@ -135,7 +138,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
         self.assertTrue(ticket.isescalated, "Ticket should have escalated flag")
 
         logger_msg = f"Escalations attempted: 5, succeeded: {success_count[0]}, errors: {len(errors)}, final level: {ticket.level}"
-        print(logger_msg)
+        logger.info(logger_msg)
 
     def test_concurrent_status_transitions(self):
         """
@@ -159,7 +162,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
                 success_count[0] += 1
             except InvalidTicketTransitionError:
                 pass
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=transition_to_open, args=(i,)) for i in range(3)]
@@ -215,7 +218,7 @@ class TestTicketEscalationRaceConditions(TransactionTestCase):
                     ticket_id=ticket.id,
                     history_item=history_item
                 )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append((worker_id, e))
 
         threads = [threading.Thread(target=append_history, args=(i,)) for i in range(num_appends)]

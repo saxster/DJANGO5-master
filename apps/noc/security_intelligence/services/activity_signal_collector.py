@@ -124,6 +124,10 @@ class ActivitySignalCollector:
         """
         Collect tour checkpoint scans.
 
+        Counts completed checkpoint Jobneeds for tours assigned to the person.
+        A checkpoint is considered "scanned" when its Jobneed has endtime set
+        (indicating completion).
+
         Args:
             person: People instance
             start_time: Start of window
@@ -133,7 +137,26 @@ class ActivitySignalCollector:
             int: Count of checkpoint scans
         """
         try:
-            return 0
+            from apps.activity.models.job_model import Jobneed
+
+            # Count completed checkpoint jobneeds within time window
+            # Checkpoints are Jobneeds with parent__isnull=False (child jobneeds)
+            # Assigned to this person and completed in the time window
+            checkpoint_count = Jobneed.objects.filter(
+                people=person,
+                parent__isnull=False,  # Child jobneed (checkpoint, not parent tour)
+                endtime__gte=start_time,
+                endtime__lte=end_time,
+                endtime__isnull=False  # Must have been completed
+            ).count()
+
+            logger.debug(
+                f"Collected {checkpoint_count} tour checkpoints for {person.peoplename} "
+                f"in window {start_time} to {end_time}"
+            )
+
+            return checkpoint_count
+
         except (ValueError, AttributeError) as e:
             logger.error(f"Tour collection error: {e}", exc_info=True)
             return 0

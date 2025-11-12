@@ -18,6 +18,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import logging
 
 from apps.core.services.cross_device_sync_service import cross_device_sync_service
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS, SERIALIZATION_EXCEPTIONS
 from apps.api.v2.serializers import (
     DeviceListResponseSerializer,
     DeviceRegisterRequestSerializer,
@@ -152,7 +153,7 @@ class DeviceRegisterView(APIView):
 
             return Response(create_success_response(response_serializer.data))
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Device registration failed: {e}", exc_info=True)
             return Response(
                 create_error_response([APIError(
@@ -225,7 +226,7 @@ class DeviceDetailView(APIView):
                 )]),
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Device deactivation failed: {e}", exc_info=True)
             return Response(
                 create_error_response([APIError(
@@ -279,7 +280,7 @@ class DeviceSyncStateView(APIView):
                 )]),
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.error(f"Failed to get sync state: {e}", exc_info=True)
             return Response(
                 create_error_response([APIError(

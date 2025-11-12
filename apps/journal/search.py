@@ -897,10 +897,17 @@ def setup_elasticsearch_for_tenant(tenant_id):
 
 
 def reindex_all_tenants():
-    """Reindex all tenants' journal entries"""
+    """
+    Reindex all tenants' journal entries
+
+    Performance optimization (Nov 5, 2025): Use .only() to fetch minimal fields
+    """
     results = {}
 
-    for tenant in Tenant.objects.all():
+    # PERFORMANCE: Fetch only needed fields (id, tenantname)
+    tenants = Tenant.objects.only('id', 'tenantname').all()
+
+    for tenant in tenants:
         try:
             result = setup_elasticsearch_for_tenant(tenant.id)
             results[tenant.tenantname] = result

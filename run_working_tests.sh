@@ -6,7 +6,7 @@ echo "YOUTILITY5 WORKING TEST SUITE"
 echo "========================================="
 
 # Set environment variables
-export DJANGO_SETTINGS_MODULE=intelliwiz_config.settings.test
+export DJANGO_SETTINGS_MODULE=intelliwiz_config.settings_test
 export PYTHONPATH=/home/redmine/DJANGO5/YOUTILITY5:$PYTHONPATH
 
 # Python interpreter

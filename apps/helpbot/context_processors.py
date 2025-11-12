@@ -6,6 +6,7 @@ Enables template access to HelpBot settings and user-specific data.
 """
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 
 
 def helpbot_context(request):
@@ -52,7 +53,7 @@ def helpbot_context(request):
                 context['helpbot']['active_session_id'] = str(active_session.session_id)
                 context['helpbot']['active_session_type'] = active_session.session_type
 
-        except Exception:
+        except (ImportError, ObjectDoesNotExist):
             # Fail silently if HelpBot models aren't available yet
             context['helpbot']['has_active_session'] = False
 

@@ -15,6 +15,10 @@ import json
 from typing import Dict, List, Any
 
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -240,7 +244,7 @@ class Command(BaseCommand):
 
                 return {'index_statistics': index_stats}
 
-            except Exception as e:
+            except NETWORK_EXCEPTIONS as e:
                 if self.verbosity >= 1:
                     self.stdout.write(
                         self.style.WARNING(
@@ -267,7 +271,7 @@ class Command(BaseCommand):
 
                 return execution_time_ms
 
-            except Exception as e:
+            except NETWORK_EXCEPTIONS as e:
                 if self.verbosity >= 1:
                     self.stdout.write(
                         self.style.ERROR(f"Query failed: {query_name} - {e}")
@@ -363,7 +367,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f"Results exported to {filename}")
             )
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             self.stdout.write(
                 self.style.ERROR(f"Export failed: {e}")
             )

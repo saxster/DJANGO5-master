@@ -13,6 +13,10 @@ from django.db import transaction
 from django.forms import modelform_factory
 from apps.activity.models.question_model import QuestionSet, Question
 from apps.core.utils_new.db_utils import get_current_db_name
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import TEMPLATE_EXCEPTIONS
+
 
 logger = logging.getLogger("django")
 
@@ -77,7 +81,7 @@ class ReportTemplateService:
             logger.debug(f"Template data validation passed for: {qsetname}")
             return True, None
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Error validating template data: {str(e)}", exc_info=True)
             return False, "Validation error occurred"
 
@@ -140,7 +144,7 @@ class ReportTemplateService:
         except ValidationError as e:
             logger.warning(f"Template creation validation error: {str(e)}")
             return None, str(e)
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Error creating template: {str(e)}", exc_info=True)
             return None, "Failed to create template"
 
@@ -211,7 +215,7 @@ class ReportTemplateService:
             return None, str(e)
         except ObjectDoesNotExist:
             return None, "Template not found"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error updating template {template_id}: {str(e)}", exc_info=True)
             return None, "Failed to update template"
 
@@ -277,7 +281,7 @@ class ReportTemplateService:
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in template {template_id}: {str(e)}")
             return None, "Template configuration is corrupted"
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error getting template configuration {template_id}: {str(e)}", exc_info=True)
             return None, "Failed to retrieve template configuration"
 
@@ -331,7 +335,7 @@ class ReportTemplateService:
             logger.debug(f"Retrieved {len(questions)} questions for client {client_id}")
             return questions, None
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error getting questions for template: {str(e)}", exc_info=True)
             return [], "Failed to retrieve questions"
 
@@ -381,6 +385,6 @@ class ReportTemplateService:
             logger.info(f"Successfully duplicated template {template_id} as {new_template.id}")
             return new_template, None
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             logger.error(f"Error duplicating template {template_id}: {str(e)}", exc_info=True)
             return None, "Failed to duplicate template"

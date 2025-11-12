@@ -16,12 +16,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from apps.onboarding.models import (
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
     AIChangeSet,
     AIChangeRecord,
     ChangeSetApproval,
-    ConversationSession,
-    Bt
+    ConversationSession
 )
 
 User = get_user_model()

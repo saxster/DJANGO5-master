@@ -65,7 +65,7 @@ class TestRunner:
 
         # Set environment variables
         env = os.environ.copy()
-        env["DJANGO_SETTINGS_MODULE"] = "intelliwiz_config.settings.test"
+        env["DJANGO_SETTINGS_MODULE"] = "intelliwiz_config.settings_test"
         env["PYTHONPATH"] = str(self.project_root)
 
         print(f"Running: {' '.join(cmd)}")
@@ -91,7 +91,7 @@ class TestRunner:
         ]
 
         env = os.environ.copy()
-        env["DJANGO_SETTINGS_MODULE"] = "intelliwiz_config.settings.test"
+        env["DJANGO_SETTINGS_MODULE"] = "intelliwiz_config.settings_test"
 
         result = subprocess.run(cmd, env=env, capture_output=False, text=True)
         return result.returncode
@@ -111,7 +111,7 @@ class TestRunner:
         ]
 
         env = os.environ.copy()
-        env["DJANGO_SETTINGS_MODULE"] = "intelliwiz_config.settings.test"
+        env["DJANGO_SETTINGS_MODULE"] = "intelliwiz_config.settings_test"
 
         result = subprocess.run(cmd, env=env, capture_output=False, text=True)
         return result.returncode

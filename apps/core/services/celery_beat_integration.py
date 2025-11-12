@@ -216,7 +216,7 @@ class CeleryBeatIntegration(BaseService):
                 'unified_schedules_registered': unified_count
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to register enhanced NOC schedules: {e}")
             return {
                 'success': False,
@@ -351,7 +351,7 @@ class CeleryBeatIntegration(BaseService):
                 'unified_schedules_registered': unified_count
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to register enhanced onboarding schedules: {e}")
             return {
                 'success': False,
@@ -418,7 +418,7 @@ class CeleryBeatIntegration(BaseService):
                 'estimated_effort_days': 15
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to create migration plan: {e}")
             return {
                 'success': False,

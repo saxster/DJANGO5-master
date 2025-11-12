@@ -13,7 +13,7 @@ import logging
 from django.core.exceptions import ValidationError
 from typing import Dict, Any, Optional
 
-from apps.api.v1.services.base_sync_service import BaseSyncService
+from apps.core.services.sync.base_sync_service import BaseSyncService
 from apps.work_order_management.models import Wom
 
 logger = logging.getLogger(__name__)

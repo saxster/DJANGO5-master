@@ -1,0 +1,78 @@
+{% load static %}
+{# Quick Action Confirmation Dialog #}
+
+<div class="modal fade" id="quick-action-modal-{{ action.id }}" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">⚡ {{ action.name }}</h3>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <p class="description text-muted">{{ action.description }}</p>
+                
+                {% if action.automated_steps %}
+                <div class="will-happen mt-4 p-3 bg-light rounded">
+                    <h5 class="text-primary">🤖 What will happen automatically:</h5>
+                    <ul class="list-unstyled mt-3">
+                        {% for step in action.automated_steps %}
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success"></i>
+                            {{ step.action_label }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if action.manual_steps %}
+                <div class="you-need-to mt-4 p-3 bg-info-light rounded">
+                    <h5 class="text-info">👤 What you'll need to do:</h5>
+                    <ul class="list-unstyled mt-3">
+                        {% for step in action.manual_steps %}
+                        <li class="mb-2">
+                            <i class="fas fa-square text-secondary"></i>
+                            {{ step.instruction }}
+                            {% if step.needs_photo %}
+                                <span class="badge badge-secondary ml-2">📷 Photo required</span>
+                            {% endif %}
+                            {% if step.needs_note %}
+                                <span class="badge badge-secondary ml-2">📝 Note required</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    Maybe Later
+                </button>
+                <button type="button" 
+                        class="btn btn-primary btn-lg"
+                        onclick="executeQuickAction({{ action.id }}, {{ item_id }})">
+                    ⚡ Let's Do It!
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-info-light {
+    background-color: #e3f2fd;
+}
+.modal-title {
+    font-weight: bold;
+    color: #1976d2;
+}
+.description {
+    font-size: 1.1em;
+    margin-bottom: 1em;
+}
+</style>

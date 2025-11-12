@@ -6,10 +6,10 @@ and enhanced LLM understanding.
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from django.utils import timezone
 from apps.ontology.registry import OntologyRegistry
 
 
@@ -66,7 +66,7 @@ class JSONLDExporter:
             "description": "Ontology metadata for IntelliWiz facility management platform",
             "programmingLanguage": "Python",
             "runtimePlatform": "Django",
-            "dateModified": datetime.utcnow().isoformat(),
+            "dateModified": timezone.now().isoformat(),
             "codeRepository": "https://github.com/yourusername/intelliwiz",
             "hasPart": cls._convert_to_jsonld(all_metadata),
             "statistics": stats,

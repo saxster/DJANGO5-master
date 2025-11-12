@@ -1,6 +1,9 @@
 # mysite/celery.py
 from __future__ import absolute_import, unicode_literals
+
 import os
+
+import intelliwiz_config.bootstrap  # noqa: F401
 from celery import Celery
 from celery.schedules import crontab
 from django.conf import settings
@@ -58,6 +61,12 @@ try:
     setup_celery_otel_tracing()
 except ImportError:
     # Gracefully handle if core app is not installed
+    pass
+
+# Ensure tenant context is applied to all Celery tasks
+try:
+    import apps.tenants.task_context  # noqa: F401
+except ImportError:
     pass
 
 # Register onboarding schedules
@@ -267,12 +276,12 @@ app.conf.beat_schedule = {
     },
 
     # Email Generated Reports
-    # Runs: Every 27 minutes (CHANGED: better distribution)
-    # Rationale: Prime number for even distribution
-    # NOTE: Consider changing to hourly if load is high
+    # Runs: Every ~27 minutes at :02, :29, :56 (offset from :27 collision)
+    # Rationale: Prime number distribution, avoids DB pool contention with create_job
+    # FIXED (CELERY-001): Offset from :27 to prevent collision with create_job task
     "send_report_generated_on_mail": {  # FIXED: typo in key name
         'task': 'send_generated_report_on_mail',
-        'schedule': crontab(minute='*/27'),
+        'schedule': crontab(minute='2,29,56'),  # Every ~27min, offset from :27
         'options': {
             'expires': 1500,  # 25 minutes (buffer before next run)
             'queue': 'email',
@@ -342,6 +351,175 @@ app.conf.beat_schedule = {
     },
 
     # ============================================================================
+    # ML TRAINING & AI IMPROVEMENT TASKS
+    # ============================================================================
+
+    # Active Learning Sample Selection (ML Training)
+    # Runs: Every Sunday at 2:00 AM UTC
+    # Rationale: Weekly batch selection, off-peak hour, low collision risk
+    # Queue: ai_processing (ML/AI workloads)
+    # Purpose: Selects 50 most uncertain + diverse samples for human labeling
+    "ml_training_active_learning_weekly": {
+        'task': 'apps.ml_training.tasks.active_learning_loop',
+        'schedule': crontab(minute='0', hour='2', day_of_week='0'),  # Sunday 2:00 AM
+        'options': {
+            'expires': 3600,  # 1 hour (task should complete quickly)
+            'queue': 'ai_processing',
+            'soft_time_limit': 300,  # 5 minutes
+            'time_limit': 600,  # 10 minutes hard limit
+        }
+    },
+
+    # Track Conflict Prediction Outcomes
+    # Runs: Every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+    # Rationale: Check 24-hour-old predictions for actual outcomes
+    # Queue: ml_training (ML workloads, non-critical)
+    # Purpose: Update actual_conflict_occurred field, calculate accuracy metrics
+    "ml_track_conflict_prediction_outcomes": {
+        'task': 'ml.track_conflict_prediction_outcomes',
+        'schedule': crontab(minute='0', hour='*/6'),  # Every 6 hours
+        'options': {
+            'expires': 21600,  # 6 hours (before next run)
+            'queue': 'ml_training',
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,  # 10 minutes hard limit
+        }
+    },
+
+    # Weekly Conflict Model Retraining
+    # Runs: Every Monday at 3:00 AM UTC
+    # Rationale: Weekly retraining on 90 days data, off-peak hour
+    # Queue: ml_training (ML workloads, resource-intensive)
+    # Purpose: Extract data, train model, auto-activate if >5% improvement
+    "ml_retrain_conflict_model_weekly": {
+        'task': 'ml.retrain_conflict_model_weekly',
+        'schedule': crontab(minute='0', hour='3', day_of_week='1'),  # Monday 3:00 AM
+        'options': {
+            'expires': 7200,  # 2 hours (long-running task)
+            'queue': 'ml_training',
+            'soft_time_limit': 1620,  # 27 minutes
+            'time_limit': 1800,  # 30 minutes hard limit
+        }
+    },
+
+    # ============================================================================
+    # INFRASTRUCTURE MONITORING & ANOMALY DETECTION
+    # ============================================================================
+
+    # Collect Infrastructure Metrics (CPU, memory, disk, DB, app)
+    # Runs: Every 60 seconds
+    # Rationale: High-frequency monitoring for real-time anomaly detection
+    # Queue: monitoring (dedicated queue for metrics)
+    "monitoring_collect_infrastructure_metrics": {
+        'task': 'monitoring.collect_infrastructure_metrics',
+        'schedule': 60.0,  # Every 60 seconds
+        'options': {
+            'expires': 50,  # 50 seconds (before next run)
+            'queue': 'monitoring',
+            'soft_time_limit': 30,  # 30 seconds
+            'time_limit': 50,  # 50 seconds hard limit
+        }
+    },
+
+    # Detect Infrastructure Anomalies
+    # Runs: Every 5 minutes at :01, :06, :11, :16, :21, :26, :31, :36, :41, :46, :51, :56
+    # Rationale: Analyze last hour of data, offset by 1 minute from collection tasks
+    # Queue: monitoring (analytical processing)
+    "monitoring_detect_infrastructure_anomalies": {
+        'task': 'monitoring.detect_infrastructure_anomalies',
+        'schedule': crontab(minute='1,6,11,16,21,26,31,36,41,46,51,56'),  # Every 5 min, offset +1
+        'options': {
+            'expires': 240,  # 4 minutes (buffer before next run)
+            'queue': 'monitoring',
+            'soft_time_limit': 120,  # 2 minutes
+            'time_limit': 240,  # 4 minutes hard limit
+        }
+    },
+
+    # Cleanup Old Infrastructure Metrics
+    # Runs: Daily at 2:00 AM UTC
+    # Rationale: Off-peak hour, deletes metrics older than 30 days
+    # Queue: maintenance (low priority cleanup)
+    "monitoring_cleanup_infrastructure_metrics": {
+        'task': 'monitoring.cleanup_infrastructure_metrics',
+        'schedule': crontab(minute='0', hour='2'),  # Daily 2:00 AM UTC
+        'options': {
+            'expires': 3600,  # 1 hour
+            'queue': 'maintenance',
+            'soft_time_limit': 300,  # 5 minutes
+            'time_limit': 540,  # 9 minutes hard limit
+        }
+    },
+
+    # Auto-Tune Anomaly Detection Thresholds
+    # Runs: Weekly on Sunday at 3:00 AM UTC
+    # Rationale: Adjust thresholds based on false positive rates (weekly review)
+    # Queue: maintenance (low priority tuning)
+    "monitoring_auto_tune_anomaly_thresholds": {
+        'task': 'monitoring.auto_tune_anomaly_thresholds',
+        'schedule': crontab(minute='0', hour='3', day_of_week='0'),  # Sunday 3:00 AM
+        'options': {
+            'expires': 3600,  # 1 hour
+            'queue': 'maintenance',
+            'soft_time_limit': 120,  # 2 minutes
+            'time_limit': 240,  # 4 minutes hard limit
+        }
+    },
+
+    # ============================================================================
+    # PHASE 2: ML DRIFT MONITORING TASKS
+    # ============================================================================
+    # Daily tasks for model performance monitoring and drift detection
+    # Sequential execution: outcome tracking → metrics → statistical → performance
+    # ============================================================================
+
+    # REMOVED (INFRA-001): Duplicate task definition
+    # This was identical to ml_track_conflict_prediction_outcomes (line 369)
+    # The 6-hour version (line 369) is kept as it provides more frequent tracking
+
+    # Compute daily performance metrics
+    # Runs: Daily at 2:00 AM UTC
+    # Rationale: Aggregates yesterday's predictions after outcomes populated
+    "ml_compute_daily_metrics": {
+        'task': 'apps.ml.tasks.compute_daily_performance_metrics',
+        'schedule': crontab(minute='0', hour='2'),  # Daily 2:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'reports',
+            'soft_time_limit': 3300,  # 55 minutes
+            'time_limit': 3600,       # 1 hour
+        }
+    },
+
+    # Detect statistical drift (KS test)
+    # Runs: Daily at 3:00 AM UTC
+    # Rationale: Compare recent vs baseline prediction distributions
+    "ml_detect_statistical_drift": {
+        'task': 'apps.ml.tasks.detect_statistical_drift',
+        'schedule': crontab(minute='0', hour='3'),  # Daily 3:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'maintenance',
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,       # 10 minutes
+        }
+    },
+
+    # Detect performance drift (accuracy degradation)
+    # Runs: Daily at 4:00 AM UTC
+    # Rationale: Compare recent vs baseline performance metrics
+    "ml_detect_performance_drift": {
+        'task': 'apps.ml.tasks.detect_performance_drift',
+        'schedule': crontab(minute='0', hour='4'),  # Daily 4:00 AM
+        'options': {
+            'expires': 3600,
+            'queue': 'maintenance',
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,       # 10 minutes
+        }
+    },
+
+    # ============================================================================
     # ✅ SCHEDULE HEALTH SUMMARY & VALIDATION
     # ============================================================================
     #
@@ -357,6 +535,9 @@ app.conf.beat_schedule = {
     # :35 - reports (every 15min) ─────────────────── ✓ Safe zone
     # :45 - ticket escalation (every 30min) ───────── ✓ 15min offset from autoclose
     # :50 - reports (every 15min) ─────────────────── ✓ Safe zone
+    #
+    # WEEKLY TASKS:
+    # Sunday 2:00 AM - ML active learning ─────────── ✓ Off-peak, no conflicts
     #
     # ✓ DESIGN GOALS ACHIEVED:
     # - No overlaps at common times (:00, :15, :30, :45)

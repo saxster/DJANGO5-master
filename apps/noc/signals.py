@@ -22,6 +22,7 @@ __all__ = [
     # 'handle_device_status',  # Disabled - model doesn't exist
     'handle_attendance_exceptions',
     'invalidate_noc_cache_on_alert',
+    'auto_enrich_incident_context',
 ]
 
 
@@ -162,6 +163,43 @@ def invalidate_noc_cache_on_alert(sender, instance, created, **kwargs):
             f"noc:dashboard:tenant_{instance.tenant_id}"
         ]
         cache.delete_many(cache_keys)
+
+
+@receiver(post_save, sender='noc.NOCIncident')
+def auto_enrich_incident_context(sender, instance, created, **kwargs):
+    """
+    Automatically enrich incident with contextual data on creation.
+
+    Enriches with 5 context categories:
+    - Related alerts (30-min window)
+    - Recent changes (4-hour window)
+    - Historical incidents (90-day lookback)
+    - Affected resources
+    - Current system state
+
+    Signal handlers participate in the parent transaction automatically.
+    Do NOT add transaction.atomic here (Rule #17 guidance).
+
+    Industry benchmark: 58% MTTR reduction through context enrichment.
+    """
+    from .services import IncidentContextService
+
+    if not created:
+        return  # Only enrich on creation
+
+    try:
+        # Enrich incident with context (runs async-safe)
+        IncidentContextService.enrich_incident(instance)
+
+        logger.info(
+            f"Auto-enriched incident context",
+            extra={'incident_id': instance.id, 'tenant': instance.tenant_id}
+        )
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(
+            f"Incident context enrichment failed",
+            extra={'incident_id': instance.id, 'error': str(e)}
+        )
 
 
 def _create_and_broadcast_alert(alert_data):

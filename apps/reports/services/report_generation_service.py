@@ -15,6 +15,12 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from apps.core.decorators import rate_limit
 from background_tasks.tasks import create_save_report_async
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger("django")
 
@@ -72,7 +78,7 @@ class ReportGenerationService:
             logger.debug(f"Report request validation passed for type: {form_data['report_type']}")
             return True, None
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error validating report request: {str(e)}", exc_info=True)
             return False, "Validation error occurred"
 
@@ -143,7 +149,7 @@ class ReportGenerationService:
                 "message": f"Validation error: {str(e)}"
             }, status=400), str(e)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error processing report form: {str(e)}", exc_info=True)
             return JsonResponse({
                 "success": False,
@@ -188,7 +194,7 @@ class ReportGenerationService:
         except ValidationError as e:
             logger.warning(f"Report generation validation error: {str(e)}")
             return None, str(e)
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             logger.error(f"Error initiating async report generation: {str(e)}", exc_info=True)
             return None, "Failed to start report generation"
 
@@ -240,7 +246,7 @@ class ReportGenerationService:
         except ImportError as e:
             logger.error(f"Missing PDF generation dependencies: {str(e)}")
             return None, "PDF generation not available - missing dependencies"
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Error generating PDF: {str(e)}", exc_info=True)
             return None, "Failed to generate PDF"
 
@@ -329,6 +335,6 @@ class ReportGenerationService:
             logger.debug(f"Retrieved behavior config for report: {report_name}")
             return behavior_config
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Error getting report behavior config for {report_name}: {str(e)}")
             return {}  # Return empty config as fallback

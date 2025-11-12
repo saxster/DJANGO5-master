@@ -167,7 +167,7 @@ class OutboxProcessor:
                     OutboxProcessor._publish_event(event)
                     event.mark_published()
 
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     logger.error(
                         f"Failed to publish outbox event {event.event_id}: {e}",
                         exc_info=True

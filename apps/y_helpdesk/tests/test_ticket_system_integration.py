@@ -47,7 +47,8 @@ from apps.y_helpdesk.serializers.unified_ticket_serializer import (
 from apps.y_helpdesk.utils.query_monitor import monitor_queries
 
 from apps.peoples.models import People, Pgroup
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 
 
 class TicketSystemIntegrationTestCase(TestCase):
@@ -196,7 +197,7 @@ class TicketSystemIntegrationTestCase(TestCase):
                     self.ticket.id, self.assignee.id, context
                 )
                 return {'worker_id': worker_id, 'success': result.success}
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 return {'worker_id': worker_id, 'error': str(e)}
 
         # Run concurrent assignment operations

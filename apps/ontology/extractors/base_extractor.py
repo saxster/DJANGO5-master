@@ -79,9 +79,12 @@ class BaseExtractor(ABC):
                 try:
                     metadata = self.extract(file_path)
                     all_metadata.extend(metadata)
-                except Exception as e:
-                    self.add_error(file_path, str(e))
-                    logger.error(f"Error extracting from {file_path}: {e}", exc_info=True)
+                except (OSError, IOError, UnicodeDecodeError) as e:
+                    self.add_error(file_path, f"Error reading file: {str(e)}")
+                    logger.error(f"Error reading {file_path}: {e}", exc_info=True)
+                except (ValueError, TypeError, AttributeError, SyntaxError) as e:
+                    self.add_error(file_path, f"Error parsing file: {str(e)}")
+                    logger.error(f"Error parsing {file_path}: {e}", exc_info=True)
 
         return all_metadata
 

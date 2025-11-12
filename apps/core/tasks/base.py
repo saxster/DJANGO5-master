@@ -58,6 +58,10 @@ Observability Enhancement (2025-10-01):
 
 Usage:
     from apps.core.tasks.base import BaseTask, EmailTask, ExternalServiceTask
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
     @shared_task(base=BaseTask)
     def my_task(data):
@@ -104,21 +108,53 @@ class TaskMetrics:
 
     @staticmethod
     def increment_counter(metric_name: str, tags: Dict[str, str] = None):
-        """Increment a counter metric"""
+        """
+        Increment a counter metric.
+
+        Metrics are stored in both Redis cache and Prometheus (if enabled).
+
+        Args:
+            metric_name: Name of the counter metric
+            tags: Optional tags/labels dictionary
+        """
+        tags = tags or {}
         cache_key = f"task_metrics:{metric_name}"
         if tags:
-            cache_key += ":" + ":".join([f"{k}={v}" for k, v in tags.items()])
+            cache_key += ":" + ":".join([f"{k}={v}" for k, v in sorted(tags.items())])
 
+        # Store in cache (legacy behavior, 24hr TTL)
         current = cache.get(cache_key, 0)
         cache.set(cache_key, current + 1, timeout=SECONDS_IN_HOUR * 24)
 
+        # OBSERVABILITY: Export to Prometheus
+        if PROMETHEUS_ENABLED:
+            try:
+                prometheus.increment_counter(
+                    f"celery_{metric_name}_total",
+                    labels=tags,
+                    help_text=f"Total count of {metric_name} events"
+                )
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                logger.debug(f"Failed to record Prometheus counter: {e}", exc_info=True)
+
     @staticmethod
     def record_timing(metric_name: str, duration_ms: float, tags: Dict[str, str] = None):
-        """Record timing metric"""
+        """
+        Record timing metric (duration).
+
+        Metrics are stored in both Redis cache (histogram) and Prometheus.
+
+        Args:
+            metric_name: Name of the timing metric
+            duration_ms: Duration in milliseconds
+            tags: Optional tags/labels dictionary
+        """
+        tags = tags or {}
         cache_key = f"task_timing:{metric_name}"
         if tags:
-            cache_key += ":" + ":".join([f"{k}={v}" for k, v in tags.items()])
+            cache_key += ":" + ":".join([f"{k}={v}" for k, v in sorted(tags.items())])
 
+        # Store in cache (legacy behavior, last 1000 measurements)
         timings = cache.get(cache_key, [])
         timings.append(duration_ms)
 
@@ -127,6 +163,20 @@ class TaskMetrics:
             timings = timings[-1000:]
 
         cache.set(cache_key, timings, timeout=SECONDS_IN_HOUR * 24)
+
+        # OBSERVABILITY: Export to Prometheus as histogram
+        if PROMETHEUS_ENABLED:
+            try:
+                # Convert milliseconds to seconds for Prometheus convention
+                duration_seconds = duration_ms / 1000.0
+                prometheus.observe_histogram(
+                    f"celery_{metric_name}_seconds",
+                    duration_seconds,
+                    labels=tags,
+                    help_text=f"Duration histogram for {metric_name} in seconds"
+                )
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                logger.debug(f"Failed to record Prometheus histogram: {e}", exc_info=True)
 
     @staticmethod
     def record_retry(task_name: str, reason: str, retry_count: int):
@@ -165,7 +215,7 @@ class TaskMetrics:
                     f"reason={reason}, attempt={retry_count}"
                 )
 
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 # Don't fail task execution if metrics fail
                 logger.warning(f"Failed to record Prometheus retry metric: {e}")
 
@@ -345,7 +395,7 @@ class BaseTask(Task):
 
         try:
             yield context
-        except Exception as exc:
+        except (ValueError, TypeError, AttributeError) as exc:
             # Handle specific exception types
             if isinstance(exc, (DatabaseError, IntegrityError)):
                 logger.error(f"Database error in task {self.name}: {exc}")
@@ -385,11 +435,11 @@ class EmailTask(BaseTask):
                 raise ValueError(f"Missing required email field: {field}")
 
         # Sanitize email addresses
-        from apps.core.utils import sanitize_email
+        from apps.core.utils_new.form_security import InputSanitizer
         if isinstance(email_data['recipient'], list):
-            email_data['recipient'] = [sanitize_email(email) for email in email_data['recipient']]
+            email_data['recipient'] = [InputSanitizer.sanitize_email(email) for email in email_data['recipient']]
         else:
-            email_data['recipient'] = sanitize_email(email_data['recipient'])
+            email_data['recipient'] = InputSanitizer.sanitize_email(email_data['recipient'])
 
         return email_data
 
@@ -425,7 +475,7 @@ class ExternalServiceTask(BaseTask):
             duration_ms = (time.time() - start_time) * 1000
             TaskMetrics.record_timing('external_service_call', duration_ms, {'service': service_name, 'status': 'success'})
 
-        except Exception as exc:
+        except CELERY_EXCEPTIONS as exc:
             # Record failure
             self.circuit_breaker.record_failure(service_name)
             duration_ms = (time.time() - start_time) * 1000
@@ -452,7 +502,7 @@ class ReportTask(BaseTask):
                 if os.path.exists(file_path):
                     os.remove(file_path)
                     logger.info(f"Cleaned up temp file: {file_path}")
-            except Exception as exc:
+            except FILE_EXCEPTIONS as exc:
                 logger.warning(f"Failed to clean up temp file {file_path}: {exc}")
 
 
@@ -485,7 +535,7 @@ class MaintenanceTask(BaseTask):
                         try:
                             process_func(item)
                             processed += 1
-                        except Exception as exc:
+                        except (ValueError, TypeError, AttributeError) as exc:
                             failed += 1
                             logger.warning(f"Failed to process item {item}: {exc}")
 
@@ -494,7 +544,7 @@ class MaintenanceTask(BaseTask):
                     progress = (i + len(batch)) / total_items * 100
                     logger.info(f"Batch processing progress: {progress:.1f}% ({processed} processed, {failed} failed)")
 
-            except Exception as exc:
+            except DATABASE_EXCEPTIONS as exc:
                 logger.error(f"Batch processing failed for batch starting at index {i}: {exc}")
                 failed += len(batch)
 
@@ -642,7 +692,7 @@ class IdempotentTask(BaseTask):
 
             return result
 
-        except Exception as exc:
+        except CELERY_EXCEPTIONS as exc:
             # Cache error with shorter TTL to allow retries
             error_ttl = min(self.idempotency_ttl, SECONDS_IN_HOUR)
 
@@ -688,6 +738,7 @@ class IdempotentTask(BaseTask):
         return result
 # Re-export utility functions for backward compatibility
 from .utils import log_task_context
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 __all__ = ['BaseTask', 'IdempotentTask', 'EmailTask', 'ExternalServiceTask', 
            'MaintenanceTask', 'CriticalTask', 'TaskMetrics', 'log_task_context']

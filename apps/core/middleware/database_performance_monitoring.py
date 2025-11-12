@@ -26,6 +26,8 @@ from django.core.cache import cache
 from django.utils.deprecation import MiddlewareMixin
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
+from django.core.exceptions import SuspiciousOperation
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 
 logger = logging.getLogger('db_performance')
@@ -99,8 +101,19 @@ class ConnectionPoolMonitor:
 
             return stats
 
-        except Exception as e:
-            logger.error(f"Failed to get connection pool stats: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(
+                f"Database error getting connection pool stats: {e}",
+                exc_info=True,
+                extra={'database_alias': database_alias}
+            )
+            return {'error': str(e)}
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                f"Configuration error in connection pool stats: {e}",
+                exc_info=True,
+                extra={'database_alias': database_alias}
+            )
             return {'error': str(e)}
 
     def check_connection_alerts(self, stats: Dict[str, any]) -> None:
@@ -200,8 +213,23 @@ class DatabasePerformanceMonitoringMiddleware(MiddlewareMixin):
                 if self.request_counter % self.connection_monitor_frequency == 0:
                     self._monitor_connection_pool()
 
-        except Exception as e:
-            logger.error(f"Error in database performance monitoring: {e}", exc_info=True)
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(
+                f"Database error in performance monitoring: {e}",
+                exc_info=True,
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            logger.warning(
+                f"Data processing error in performance monitoring: {e}",
+                exc_info=True,
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
+        except SuspiciousOperation as e:
+            logger.warning(
+                f"Suspicious operation in performance monitoring: {e}",
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
 
         return response
 
@@ -216,8 +244,11 @@ class DatabasePerformanceMonitoringMiddleware(MiddlewareMixin):
         except AttributeError as e:
             logger.debug(f"Request object malformed during view name resolution: {e}")
             return request.path
-        except Exception as e:
-            logger.warning(f"Unexpected error resolving view name for {request.path}: {e}")
+        except (ValueError, TypeError, KeyError) as e:
+            logger.warning(
+                f"Data error resolving view name for {request.path}: {e}",
+                extra={'path': request.path}
+            )
             return request.path
 
     def _analyze_request_performance(self, request, response):
@@ -456,11 +487,27 @@ class DatabasePerformanceMonitoringMiddleware(MiddlewareMixin):
                         conn_stats = self.connection_monitor.get_connection_stats(alias)
                         if conn_stats and 'error' not in conn_stats:
                             self.connection_monitor.cache_connection_stats(conn_stats)
-                    except Exception as e:
-                        logger.debug(f"Failed to monitor connection pool for {alias}: {e}")
+                    except DATABASE_EXCEPTIONS as e:
+                        logger.debug(
+                            f"Database error monitoring connection pool for {alias}: {e}",
+                            extra={'database_alias': alias}
+                        )
+                    except (KeyError, ValueError, TypeError) as e:
+                        logger.debug(
+                            f"Configuration error monitoring connection pool for {alias}: {e}",
+                            extra={'database_alias': alias}
+                        )
 
-        except Exception as e:
-            logger.error(f"Connection pool monitoring failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(
+                f"Database error in connection pool monitoring: {e}",
+                exc_info=True
+            )
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                f"Configuration error in connection pool monitoring: {e}",
+                exc_info=True
+            )
 
 
 class QueryOptimizationRecommendations:

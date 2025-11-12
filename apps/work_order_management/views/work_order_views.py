@@ -18,8 +18,11 @@ from .base import (
     Wom, WomDetails, WorkOrderForm, QuestionSetBelonging, utils,
     get_current_db_name, save_with_audit
 )
+from apps.work_order_management.services.work_order_security_service import (
+    WorkOrderSecurityService
+)
+from django.core.exceptions import PermissionDenied
 import uuid
-import secrets
 
 
 class WorkOrderView(LoginRequiredMixin, View):
@@ -73,11 +76,13 @@ class WorkOrderView(LoginRequiredMixin, View):
         if R.get("template"):
             return render(request, P["template_list"])
 
-        # Return work order list data
+        # Return work order list data (filtered by user permissions)
         if R.get("action", None) == "list":
-            objs = P["model"].objects.get_workorder_list(
-                request, P["fields"], P["related"]
+            # Use security service to get filtered queryset
+            queryset = WorkOrderSecurityService.get_user_work_orders_queryset(
+                request.user
             )
+            objs = queryset.values(*P["fields"])
             return rp.JsonResponse(data={"data": list(objs)})
 
         # Return empty form
@@ -89,39 +94,75 @@ class WorkOrderView(LoginRequiredMixin, View):
             }
             resp = render(request, P["template_form"], cxt)
 
-        # Close work order
+        # Close work order (with authorization check)
         elif R.get("action") == "close_wo" and R.get("womid"):
-            Wom.objects.filter(id=R["womid"]).update(workstatus="CLOSED")
-            return rp.JsonResponse({"pk": R["womid"]}, status=200)
+            try:
+                wo = WorkOrderSecurityService.validate_close_permission(
+                    int(R["womid"]), request.user
+                )
+                wo.workstatus = "CLOSED"
+                wo.save()
+                return rp.JsonResponse({"pk": R["womid"]}, status=200)
+            except PermissionDenied as e:
+                return rp.JsonResponse({"error": str(e)}, status=403)
 
-        # Handle delete request
+        # Handle delete request (with authorization check)
         elif R.get("action", None) == "delete" and R.get("id", None):
-            resp = utils.render_form_for_delete(request, P, True)
+            try:
+                WorkOrderSecurityService.validate_delete_permission(
+                    int(R["id"]), request.user
+                )
+                resp = utils.render_form_for_delete(request, P, True)
+            except PermissionDenied as e:
+                return rp.JsonResponse({"error": str(e)}, status=403)
 
-        # Send work order email
+        # Send work order email (with authorization check)
         elif R.get("action") == "send_workorder_email":
-            from apps.work_order_management.utils import notify_wo_creation
-            notify_wo_creation(id=R["id"])
-            return rp.JsonResponse({"msg": "Email sent successfully"}, status=200)
+            try:
+                WorkOrderSecurityService.validate_work_order_access(
+                    int(R["id"]), request.user, allow_tenant_access=True
+                )
+                from apps.work_order_management.utils import notify_wo_creation
+                notify_wo_creation(id=R["id"])
+                return rp.JsonResponse({"msg": "Email sent successfully"}, status=200)
+            except PermissionDenied as e:
+                return rp.JsonResponse({"error": str(e)}, status=403)
 
-        # Get attachments
+        # Get attachments (with authorization check)
         if R.get("action") == "getAttachmentJND":
-            att = self.params["model_jnd"].objects.getAttachmentJND(R["id"])
-            return rp.JsonResponse(data={"data": list(att)})
+            try:
+                WorkOrderSecurityService.validate_work_order_access(
+                    int(R["id"]), request.user, allow_tenant_access=True
+                )
+                att = self.params["model_jnd"].objects.getAttachmentJND(R["id"])
+                return rp.JsonResponse(data={"data": list(att)})
+            except PermissionDenied as e:
+                return rp.JsonResponse({"error": str(e)}, status=403)
 
-        # Get work order details
+        # Get work order details (with authorization check)
         if R.get("action") == "get_wo_details" and R.get("womid"):
-            objs = self.params["model_jnd"].objects.get_wo_details(R["womid"])
-            return rp.JsonResponse({"data": list(objs)})
+            try:
+                WorkOrderSecurityService.validate_work_order_access(
+                    int(R["womid"]), request.user, allow_tenant_access=True
+                )
+                objs = self.params["model_jnd"].objects.get_wo_details(R["womid"])
+                return rp.JsonResponse({"data": list(objs)})
+            except PermissionDenied as e:
+                return rp.JsonResponse({"error": str(e)}, status=403)
 
-        # Return form with instance for update
+        # Return form with instance for update (with authorization check)
         elif R.get("id", None):
-            obj = utils.get_model_obj(int(R["id"]), request, P)
-            cxt = {
-                "woform": P["form_class"](request=request, instance=obj),
-                "ownerid": obj.uuid,
-            }
-            resp = render(request, P["template_form"], cxt)
+            try:
+                wo = WorkOrderSecurityService.validate_work_order_access(
+                    int(R["id"]), request.user, allow_tenant_access=True
+                )
+                cxt = {
+                    "woform": P["form_class"](request=request, instance=wo),
+                    "ownerid": wo.uuid,
+                }
+                resp = render(request, P["template_form"], cxt)
+            except PermissionDenied as e:
+                return rp.JsonResponse({"error": str(e)}, status=403)
 
         return resp
 
@@ -182,7 +223,8 @@ class WorkOrderView(LoginRequiredMixin, View):
                 workorder.other_data["created_at"] = timezone.now().strftime(
                     "%d-%b-%Y %H:%M:%S"
                 )
-                workorder.other_data["token"] = secrets.token_urlsafe(16)
+                # Generate secure token for email workflows
+                workorder.other_data["token"] = WorkOrderSecurityService.generate_secure_token()
                 workorder = save_with_audit(workorder, request.user, request.session, create=create)
 
                 if not workorder.ismailsent:
@@ -208,15 +250,18 @@ class ReplyWorkOrder(View):
     External vendor replies to work orders via email.
 
     Public view (no LoginRequiredMixin) for email-based workflows.
+    Uses token-based authentication for security.
 
     GET:
-        - action=accepted&womid=<id>: Accept work order, start progress
-        - action=declined&womid=<id>: Decline work order, mark cancelled
-        - action=request_for_submit_wod&womid=<id>: Load questionnaire form
+        - action=accepted&womid=<id>&token=<token>: Accept work order, start progress
+        - action=declined&womid=<id>&token=<token>: Decline work order, mark cancelled
+        - action=request_for_submit_wod&womid=<id>&token=<token>: Load questionnaire form
 
     POST:
-        - action=reply_form: Save vendor's reply/reason
-        - action=save_work_order_details: Submit questionnaire answers
+        - action=reply_form: Save vendor's reply/reason (with token validation)
+        - action=save_work_order_details: Submit questionnaire answers (with token validation)
+    
+    Security: All actions require valid token from email link to prevent IDOR attacks.
     """
 
     params = {
@@ -228,9 +273,15 @@ class ReplyWorkOrder(View):
     def get(self, request, *args, **kwargs):
         R = request.GET
         try:
-            # Accept work order
+            # Validate token for all actions (prevent IDOR)
+            if not R.get("token"):
+                return HttpResponse(str(_("Invalid or missing security token")), status=403)
+
+            # Accept work order (with token validation)
             if R["action"] == "accepted" and R["womid"]:
-                wo = Wom.objects.get(id=R["womid"])
+                wo = WorkOrderSecurityService.validate_vendor_access(
+                    int(R["womid"]), R["token"]
+                )
                 if wo.workstatus == Wom.Workstatus.COMPLETED:
                     return HttpResponse(str(_("The work order are already submitted!")))
 
@@ -241,9 +292,11 @@ class ReplyWorkOrder(View):
                 cxt = {"accepted": True, "wo": wo}
                 return render(request, self.params["template"], context=cxt)
 
-            # Decline work order
+            # Decline work order (with token validation)
             if R["action"] == "declined" and R["womid"]:
-                wo = Wom.objects.get(id=R["womid"])
+                wo = WorkOrderSecurityService.validate_vendor_access(
+                    int(R["womid"]), R["token"]
+                )
                 if wo.workstatus == Wom.Workstatus.COMPLETED:
                     return HttpResponse(str(_("The work order are already submitted!")))
 
@@ -254,9 +307,11 @@ class ReplyWorkOrder(View):
                 cxt = {"declined": True, "wo": wo}
                 return render(request, self.params["template"], context=cxt)
 
-            # Request questionnaire form
+            # Request questionnaire form (with token validation)
             if R["action"] == "request_for_submit_wod":
-                wo = Wom.objects.get(id=R["womid"])
+                wo = WorkOrderSecurityService.validate_vendor_access(
+                    int(R["womid"]), R["token"]
+                )
                 logger.info(f"wo status {wo.workstatus}")
 
                 if wo.workstatus == Wom.Workstatus.INPROGRESS:
@@ -287,7 +342,13 @@ class ReplyWorkOrder(View):
     def post(self, request, *args, **kwargs):
         R = request.POST
         try:
-            wo = self.params["model"].objects.get(id=R["womid"])
+            # Validate token for all POST actions (prevent IDOR)
+            if not R.get("token"):
+                return HttpResponse(str(_("Invalid or missing security token")), status=403)
+            
+            wo = WorkOrderSecurityService.validate_vendor_access(
+                int(R["womid"]), R["token"]
+            )
 
             # Save vendor reply
             if R.get("action") == "reply_form":
@@ -304,6 +365,8 @@ class ReplyWorkOrder(View):
                     request, self.params["template_emailform"], {"wod_saved": True}
                 )
 
+        except PermissionDenied as e:
+            return HttpResponse(str(e), status=403)
         except self.params["model"].DoesNotExist:
             return HttpResponse(str(_("The page you are looking for is not found")))
 
@@ -396,7 +459,7 @@ class ReplyWorkOrder(View):
             Attachment instance
         """
         from apps.activity.models.attachment_model import Attachment
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         ownername = TypeAssist.objects.filter(tacode="WOMDETAILS").first()
         return Attachment.objects.create(

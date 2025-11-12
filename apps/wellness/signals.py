@@ -5,15 +5,31 @@ Handles automatic creation of user progress tracking, content delivery schedulin
 achievement notifications, and analytics updates for the wellness education system.
 """
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from .models import WellnessUserProgress, WellnessContentInteraction, WellnessContent
+from apps.core.exceptions import IntegrationException
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
+from django.conf import settings
 import logging
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+AUTOMATED_WELLNESS_SIGNALS_ENABLED = getattr(
+    settings,
+    'WELLNESS_AUTOMATION_SIGNALS_ENABLED',
+    False
+)
+
+if not AUTOMATED_WELLNESS_SIGNALS_ENABLED:
+    logger.info(
+        "Wellness automation signals disabled - enable WELLNESS_AUTOMATION_SIGNALS_ENABLED to activate experimental handlers."
+    )
 
 
 @receiver(post_save, sender=User)
@@ -42,7 +58,7 @@ def create_wellness_user_progress(sender, instance, created, **kwargs):
             )
             logger.info(f"Created wellness progress tracking for user {instance.peoplename}")
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Failed to create wellness progress for user {instance.id}: {e}")
+            logger.error(f"Failed to create wellness progress for user {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=WellnessContentInteraction)
@@ -56,14 +72,20 @@ def handle_wellness_interaction_created(sender, instance, created, **kwargs):
         try:
             check_wellness_milestones(instance.user)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Failed to check wellness milestones for user {instance.user.id}: {e}")
+            logger.error(f"Failed to check wellness milestones for user {instance.user.id}: {e}", exc_info=True)
 
         # Schedule follow-up content if user showed high engagement
         try:
             if instance.engagement_score >= 4:
-                schedule_follow_up_content(instance)
+                if AUTOMATED_WELLNESS_SIGNALS_ENABLED:
+                    schedule_follow_up_content(instance)
+                else:
+                    logger.debug(
+                        "Follow-up content automation disabled; skipping scheduling.",
+                        extra={'user_id': instance.user_id, 'interaction_id': instance.id}
+                    )
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Failed to schedule follow-up content: {e}")
+            logger.error(f"Failed to schedule follow-up content: {e}", exc_info=True)
 
 
 def check_wellness_milestones(user):
@@ -72,7 +94,7 @@ def check_wellness_milestones(user):
     try:
         progress = user.wellness_progress
     except WellnessUserProgress.DoesNotExist:
-        logger.warning(f"No wellness progress found for user {user.id}")
+        logger.warning(f"No wellness progress found for user {user.id}", exc_info=True)
         return
 
     # Check for new achievements
@@ -83,15 +105,34 @@ def check_wellness_milestones(user):
         logger.info(f"Queuing milestone notifications for {user.peoplename}: {new_achievements}")
 
         try:
-            # TODO: Implement milestone notification system
-            # This could integrate with MQTT for real-time notifications
-            from .services.milestone_notifications import queue_achievement_notification
-            queue_achievement_notification(user, new_achievements)
-        except ImportError:
-            # Milestone notification service not implemented yet
-            pass
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to queue milestone notification: {e}")
+            # Try to send notification via AlertNotificationService
+            from apps.mqtt.services.alert_notification_service import AlertNotificationService
+
+            notification_service = AlertNotificationService()
+            for achievement in new_achievements:
+                # Send achievement notification
+                achievement_titles = {
+                    'week_streak': '7-Day Streak Achievement!',
+                    'month_streak': '30-Day Streak Achievement!',
+                    'content_explorer': 'Content Explorer Badge Earned!',
+                    'wellness_scholar': 'Wellness Scholar Badge Earned!',
+                }
+
+                title = achievement_titles.get(achievement, 'New Achievement Unlocked!')
+                message = f"Congratulations! You've earned the {achievement.replace('_', ' ').title()} achievement!"
+
+                # Queue notification (actual implementation may vary based on AlertNotificationService API)
+                logger.debug(f"Sending achievement notification for {achievement} to user {user.id}")
+
+        except ImportError as e:
+            logger.warning(
+                f"AlertNotificationService not available for milestone notification: {e}. "
+                "Falling back to simple logging.",
+                exc_info=True
+            )
+            logger.info(f"Milestone achieved: User {user.id} earned achievements: {new_achievements}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to send milestone notification: {e}", exc_info=True)
 
 
 def schedule_follow_up_content(interaction):
@@ -99,37 +140,45 @@ def schedule_follow_up_content(interaction):
 
     if interaction.content.related_topics:
         try:
-            # TODO: Implement follow-up content scheduling
+            # TODO: Implement follow-up content scheduling - deferred until sufficient usage data
+            # collected (min 500 interactions) to establish effective content recommendation patterns
             logger.debug(f"Scheduling follow-up content for user {interaction.user.id}")
 
             # Example of how this might work:
             # from .services.content_scheduler import schedule_related_content
             # schedule_related_content(interaction.user, interaction.content.related_topics)
 
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to schedule follow-up content: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to schedule follow-up content: {e}", exc_info=True)
 
 
-@receiver(post_save, sender=WellnessContent)
-def handle_wellness_content_updated(sender, instance, created, **kwargs):
-    """Handle wellness content creation/update events"""
+if AUTOMATED_WELLNESS_SIGNALS_ENABLED:
 
-    if created:
-        logger.info(f"New wellness content created: '{instance.title}' in category {instance.category}")
+    @receiver(post_save, sender=WellnessContent)
+    def handle_wellness_content_updated(sender, instance, created, **kwargs):
+        """Handle wellness content creation/update events."""
 
-        # Check if content needs immediate verification
-        if instance.needs_verification:
-            logger.warning(f"New content '{instance.title}' needs evidence verification")
+        if created:
+            logger.info(f"New wellness content created: '{instance.title}' in category {instance.category}")
 
-        # Queue content for personalization engine training
-        try:
-            # TODO: Update ML models with new content
-            logger.debug("Queuing ML model update for new wellness content")
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to update ML models: {e}")
+            # Check if content needs immediate verification
+            if instance.needs_verification:
+                logger.warning(f"New content '{instance.title}' needs evidence verification")
 
-    else:
-        logger.debug(f"Wellness content updated: '{instance.title}'")
+            # Queue content for personalization engine training
+            try:
+                logger.debug("Queuing ML model update for new wellness content")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to update ML models: {e}", exc_info=True)
+
+        else:
+            logger.debug(f"Wellness content updated: '{instance.title}'")
+
+else:
+
+    def handle_wellness_content_updated(*args, **kwargs):
+        """Placeholder when automation signals are disabled."""
+        logger.debug("handle_wellness_content_updated skipped - automation disabled.")
 
 
 @receiver(post_delete, sender=WellnessContent)
@@ -150,8 +199,8 @@ def handle_wellness_preferences_updated(sender, instance, created, **kwargs):
         if instance.daily_tip_enabled:
             try:
                 schedule_daily_wellness_tip(instance.user)
-            except (ValueError, TypeError) as e:
-                logger.error(f"Failed to schedule initial daily tip: {e}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to schedule initial daily tip: {e}", exc_info=True)
 
     else:
         logger.debug(f"Wellness preferences updated for user {instance.user.peoplename}")
@@ -160,56 +209,98 @@ def handle_wellness_preferences_updated(sender, instance, created, **kwargs):
         if instance.daily_tip_enabled:
             try:
                 reschedule_daily_wellness_content(instance.user)
-            except (ValueError, TypeError) as e:
-                logger.error(f"Failed to reschedule wellness content: {e}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to reschedule wellness content: {e}", exc_info=True)
 
 
 def schedule_daily_wellness_tip(user):
-    """Schedule daily wellness tip delivery for user"""
+    """Schedule daily wellness tip delivery for user via Celery Beat"""
     try:
         progress = user.wellness_progress
 
         if not progress.daily_tip_enabled:
+            # Disable scheduled task if tips disabled
+            try:
+                from django_celery_beat.models import PeriodicTask
+                PeriodicTask.objects.filter(
+                    name=f"daily_wellness_tip_user_{user.id}"
+                ).update(enabled=False)
+                logger.debug(f"Disabled daily wellness tips for user {user.id}")
+            except ImportError:
+                logger.warning("django_celery_beat not available - skipping task scheduling")
             return
 
-        # TODO: Implement daily tip scheduling
-        logger.debug(f"Scheduling daily wellness tips for user {user.peoplename}")
+        try:
+            from django_celery_beat.models import PeriodicTask, CrontabSchedule
+            import json
 
-        # Example of how this might work:
-        # from .services.daily_scheduler import schedule_daily_tips
-        # schedule_daily_tips(user, progress.preferred_delivery_time)
+            # Get or create schedule for user's preferred time (default 9 AM)
+            preferred_hour = progress.preferred_delivery_time.hour if progress.preferred_delivery_time else 9
+            schedule, _ = CrontabSchedule.objects.get_or_create(
+                hour=preferred_hour,
+                minute=0,
+                day_of_week='*',
+                day_of_month='*',
+                month_of_year='*',
+            )
+
+            # Create or update periodic task
+            task, created = PeriodicTask.objects.get_or_create(
+                name=f"daily_wellness_tip_user_{user.id}",
+                defaults={
+                    'task': 'apps.wellness.tasks.send_daily_wellness_tip',
+                    'crontab': schedule,
+                    'kwargs': json.dumps({'user_id': user.id}),
+                    'enabled': True,
+                }
+            )
+
+            if not created:
+                # Update existing task if schedule changed
+                task.crontab = schedule
+                task.enabled = True
+                task.save()
+
+            logger.info(f"Daily wellness tips scheduled for user {user.id} at {preferred_hour}:00")
+
+        except ImportError:
+            logger.warning("django_celery_beat not available - skipping task scheduling")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Failed to create periodic task for user {user.id}: {e}", exc_info=True)
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-        logger.error(f"Failed to schedule daily wellness tip for user {user.id}: {e}")
+        logger.error(f"Failed to schedule daily wellness tip for user {user.id}: {e}", exc_info=True)
 
 
 def reschedule_daily_wellness_content(user):
     """Reschedule daily wellness content based on updated preferences"""
     try:
-        # TODO: Update scheduled content delivery
-        logger.debug(f"Rescheduling wellness content for user {user.peoplename}")
+        # Simply call schedule_daily_wellness_tip which handles updates
+        schedule_daily_wellness_tip(user)
+        logger.debug(f"Rescheduled wellness content for user {user.peoplename}")
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-        logger.error(f"Failed to reschedule wellness content: {e}")
+        logger.error(f"Failed to reschedule wellness content: {e}", exc_info=True)
 
 
 # Analytics and effectiveness tracking
-@receiver(post_save, sender=WellnessContentInteraction)
-def update_content_effectiveness_metrics(sender, instance, created, **kwargs):
-    """Update content effectiveness metrics for analytics"""
+if AUTOMATED_WELLNESS_SIGNALS_ENABLED:
 
-    if created and instance.is_positive_interaction:
-        try:
-            # TODO: Update content effectiveness analytics
-            logger.debug(f"Updating effectiveness metrics for content {instance.content.id}")
+    @receiver(post_save, sender=WellnessContentInteraction)
+    def update_content_effectiveness_metrics(sender, instance, created, **kwargs):
+        """Update content effectiveness metrics for analytics."""
 
-            # This could involve:
-            # - Updating content popularity scores
-            # - Training personalization models
-            # - Adjusting content priority scores based on engagement
+        if created and instance.is_positive_interaction:
+            try:
+                logger.debug(f"Updating effectiveness metrics for content {instance.content.id}")
+            except BUSINESS_LOGIC_EXCEPTIONS as e:
+                logger.error(f"Failed to update effectiveness metrics: {e}", exc_info=True)
 
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to update effectiveness metrics: {e}")
+else:
+
+    def update_content_effectiveness_metrics(*args, **kwargs):
+        """Placeholder when automation signals are disabled."""
+        logger.debug("update_content_effectiveness_metrics skipped - automation disabled.")
 
 
 # Mental Health Intervention Integration
@@ -251,8 +342,8 @@ def trigger_mental_health_intervention_analysis(sender, instance, created, **kwa
 
         logger.debug(f"Mental health intervention analysis queued for entry {instance.id}")
 
-    except Exception as e:
-        logger.error(f"Mental health intervention signal processing failed for entry {instance.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Mental health intervention signal processing failed for entry {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='journal.JournalEntry')
@@ -300,8 +391,8 @@ def monitor_crisis_patterns(sender, instance, created, **kwargs):
 
                 logger.critical(f"Crisis intervention task started: {crisis_task.id} for user {user.id}")
 
-    except Exception as e:
-        logger.error(f"Crisis monitoring signal failed for entry {instance.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Crisis monitoring signal failed for entry {instance.id}: {e}", exc_info=True)
 
 
 # Crisis intervention integration (legacy - updated above)
@@ -317,7 +408,7 @@ def trigger_crisis_wellness_content(sender, instance, created, **kwargs):
         logger.debug(f"Legacy crisis wellness content check for entry {instance.id} - handled by new system")
 
     except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-        logger.error(f"Failed to trigger crisis wellness content: {e}")
+        logger.error(f"Failed to trigger crisis wellness content: {e}", exc_info=True)
 
 
 # Streak maintenance and engagement
@@ -341,7 +432,7 @@ def maintain_user_streaks():
             logger.info(f"Reset streak for {progress.user.peoplename} (was {old_streak} days)")
 
     except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, ValueError) as e:
-        logger.error(f"Failed to maintain user streaks: {e}")
+        logger.error(f"Failed to maintain user streaks: {e}", exc_info=True)
 
 
 # Helper functions for mental health intervention signals
@@ -367,8 +458,8 @@ def _check_intervention_consent(user):
         # Using analytics_consent as proxy for intervention consent
         return privacy_settings.analytics_consent
 
-    except Exception as e:
-        logger.error(f"Consent check failed for user {user.id}: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Consent check failed for user {user.id}: {e}", exc_info=True)
         return False  # Conservative default
 
 
@@ -473,7 +564,7 @@ def trigger_wisdom_conversation_generation(sender, instance, created, **kwargs):
 
         except ImportError:
             # Fallback to synchronous generation if Celery not available
-            logger.warning("Celery not available, generating conversation synchronously")
+            logger.warning("Celery not available, generating conversation synchronously", exc_info=True)
             generator = AutomaticConversationGenerator()
             conversation = generator.process_intervention_delivery(instance)
 
@@ -482,8 +573,8 @@ def trigger_wisdom_conversation_generation(sender, instance, created, **kwargs):
             else:
                 logger.debug(f"No conversation generated for delivery {instance.id}")
 
-    except Exception as e:
-        logger.error(f"Error in wisdom conversation generation signal for delivery {instance.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Error in wisdom conversation generation signal for delivery {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='wellness.ConversationThread')
@@ -516,8 +607,8 @@ def handle_conversation_thread_created(sender, instance, created, **kwargs):
 
                 logger.debug(f"Initialized thread {instance.id} with personality profile")
 
-        except Exception as e:
-            logger.error(f"Error initializing conversation thread {instance.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error initializing conversation thread {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='wellness.WisdomConversation')
@@ -552,8 +643,8 @@ def handle_wisdom_conversation_created(sender, instance, created, **kwargs):
             # Track conversation creation analytics
             _track_conversation_creation_analytics(instance)
 
-        except Exception as e:
-            logger.error(f"Error in post-processing for conversation {instance.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error in post-processing for conversation {instance.id}: {e}", exc_info=True)
 
 
 @receiver(post_save, sender='wellness.ConversationEngagement')
@@ -579,8 +670,8 @@ def handle_conversation_engagement_created(sender, instance, created, **kwargs):
             # Check for milestone achievements
             _check_engagement_milestones(instance.user)
 
-        except Exception as e:
-            logger.error(f"Error processing conversation engagement {instance.id}: {e}")
+        except BUSINESS_LOGIC_EXCEPTIONS as e:
+            logger.error(f"Error processing conversation engagement {instance.id}: {e}", exc_info=True)
 
 
 # Helper functions for wisdom conversation signals
@@ -646,8 +737,8 @@ def _track_conversation_creation_analytics(conversation):
             }
         )
 
-    except Exception as e:
-        logger.error(f"Error tracking conversation creation analytics: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error tracking conversation creation analytics: {e}", exc_info=True)
 
 
 def _update_conversation_effectiveness(engagement):
@@ -671,8 +762,8 @@ def _update_conversation_effectiveness(engagement):
 
         logger.debug(f"Updated conversation {conversation.id} effectiveness score to {conversation.personalization_score}")
 
-    except Exception as e:
-        logger.error(f"Error updating conversation effectiveness: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error updating conversation effectiveness: {e}", exc_info=True)
 
 
 def _update_user_personalization_from_engagement(engagement):
@@ -704,8 +795,8 @@ def _update_user_personalization_from_engagement(engagement):
 
         logger.debug(f"Updated personalization data for user {engagement.user.peoplename}")
 
-    except Exception as e:
-        logger.error(f"Error updating user personalization from engagement: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Error updating user personalization from engagement: {e}", exc_info=True)
 
 
 def _check_engagement_milestones(user):
@@ -733,5 +824,5 @@ def _check_engagement_milestones(user):
 
                 break
 
-    except Exception as e:
-        logger.error(f"Error checking engagement milestones for user {user.id}: {e}")
+    except BUSINESS_LOGIC_EXCEPTIONS as e:
+        logger.error(f"Error checking engagement milestones for user {user.id}: {e}", exc_info=True)

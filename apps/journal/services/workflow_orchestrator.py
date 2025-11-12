@@ -10,6 +10,8 @@ from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from apps.journal.logging import get_journal_logger
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = get_journal_logger(__name__)
 
@@ -90,7 +92,7 @@ class JournalWorkflowOrchestrator:
                 'error_type': 'validation_error'
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Unexpected error creating journal entry for user {user.id}: {e}")
             return {
                 'success': False,
@@ -155,7 +157,7 @@ class JournalWorkflowOrchestrator:
                 'error_type': 'validation_error'
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Unexpected error updating journal entry {journal_entry.id}: {e}")
             return {
                 'success': False,
@@ -204,7 +206,7 @@ class JournalWorkflowOrchestrator:
                 'analytics': analytics
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Analytics report generation failed for user {user.id}: {e}")
             return {
                 'success': False,
@@ -280,7 +282,7 @@ class JournalWorkflowOrchestrator:
 
                 return results
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Bulk processing failed for user {user.id}: {e}")
             results['success'] = False
             results['error'] = str(e)
@@ -334,7 +336,7 @@ class JournalWorkflowOrchestrator:
                 'privacy_impact_assessment': self._assess_privacy_impact(old_settings, new_settings)
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Privacy settings update failed for user {user.id}: {e}")
             return {
                 'success': False,
@@ -375,7 +377,7 @@ class JournalWorkflowOrchestrator:
                 'next_check_scheduled': True
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Wellness check scheduling failed for user {user.id}: {e}")
             return {
                 'success': False,
@@ -518,7 +520,7 @@ class JournalWorkflowOrchestrator:
 
             logger.info(f"Retroactive crisis check for user {user.id}: {crisis_count} interventions triggered")
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Retroactive crisis check failed for user {user.id}: {e}")
 
     def _assess_privacy_impact(self, old_settings, new_settings):

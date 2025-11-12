@@ -24,13 +24,101 @@ Date: 2025-09-30
 """
 
 import logging
+import json
 from typing import Tuple, Type, Optional, Callable, Any
+
+try:
+    import yaml  # Optional dependency
+except ImportError:  # pragma: no cover - yaml not installed in minimal envs
+    yaml = None  # type: ignore
+
+try:
+    import redis  # For cache exception grouping
+except ImportError:  # pragma: no cover - allow developer machines without Redis
+    redis = None  # type: ignore
+
+try:
+    from celery.exceptions import (
+        Retry,
+        MaxRetriesExceededError,
+        SoftTimeLimitExceeded,
+        TimeLimitExceeded,
+        Reject,
+        Ignore,
+        ChordError,
+    )
+except ImportError:  # pragma: no cover - Celery not installed during docs build/tests
+    class CeleryBaseException(Exception):
+        """Fallback Celery exception base when Celery is unavailable."""
+
+    class Retry(CeleryBaseException):
+        pass
+
+    class MaxRetriesExceededError(CeleryBaseException):
+        pass
+
+    class SoftTimeLimitExceeded(CeleryBaseException):
+        pass
+
+    class TimeLimitExceeded(CeleryBaseException):
+        pass
+
+    class Reject(CeleryBaseException):
+        pass
+
+    class Ignore(CeleryBaseException):
+        pass
+
+    class ChordError(CeleryBaseException):
+        pass
+
+try:
+    from rest_framework.exceptions import (
+        AuthenticationFailed,
+        NotAuthenticated,
+        PermissionDenied as DRFPermissionDenied,
+        ValidationError as DRFValidationError,
+        ParseError,
+    )
+except ImportError:  # pragma: no cover - DRF not installed for some tooling
+    class AuthenticationFailed(Exception):
+        pass
+
+    class NotAuthenticated(Exception):
+        pass
+
+    class DRFPermissionDenied(Exception):
+        pass
+
+    class DRFValidationError(Exception):
+        pass
+
+    class ParseError(Exception):
+        pass
+
+try:
+    from pydantic import ValidationError as PydanticValidationError
+except ImportError:  # pragma: no cover - pydantic optional
+    class PydanticValidationError(Exception):
+        pass
+
 from django.db import (
-    IntegrityError, OperationalError, DataError,
-    DatabaseError, InterfaceError
+    IntegrityError,
+    OperationalError,
+    DataError,
+    DatabaseError,
+    InterfaceError,
 )
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import (
+    ValidationError,
+    ObjectDoesNotExist,
+    PermissionDenied,
+    SuspiciousOperation,
+    SuspiciousFileOperation,
+)
+from django.template import TemplateDoesNotExist, TemplateSyntaxError
 import requests
+from cryptography.fernet import InvalidToken
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +155,12 @@ FILE_EXCEPTIONS = (
     NotADirectoryError,  # Expected directory, got file
 )
 
+# Extended file/stream operations (audio/video, uploads)
+FILE_IO_EXCEPTIONS = FILE_EXCEPTIONS + (
+    BrokenPipeError,
+    EOFError,
+)
+
 # Data Parsing/Serialization
 PARSING_EXCEPTIONS = (
     ValueError,          # Invalid value for conversion
@@ -99,10 +193,98 @@ VALIDATION_EXCEPTIONS = (
 # Backward compatibility alias
 VALIDATION_ERRORS = VALIDATION_EXCEPTIONS
 
+# Serialization (JSON/YAML/DRF/Pydantic)
+SERIALIZATION_EXCEPTIONS = (
+    getattr(json, "JSONDecodeError", ValueError),
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ParseError,
+    DRFValidationError,
+    PydanticValidationError,
+    yaml.YAMLError if yaml else ValueError,
+)
+
 # External API Operations
 API_EXCEPTIONS = NETWORK_EXCEPTIONS + (
     ValueError,          # Invalid response format
     KeyError,            # Missing expected key in response
+)
+
+# Business Logic Operations (general application logic)
+BUSINESS_LOGIC_EXCEPTIONS = (
+    ValidationError,     # Business rule validation
+    ValueError,          # Invalid value
+    TypeError,           # Type mismatch
+    KeyError,            # Missing required key
+    AttributeError,      # Missing attribute
+)
+
+# Encryption/security sensitive operations
+ENCRYPTION_EXCEPTIONS = (
+    InvalidToken,
+    ValueError,
+    TypeError,
+    UnicodeEncodeError,
+    UnicodeDecodeError,
+    AttributeError,
+)
+
+# Template rendering/dynamic HTML generation
+TEMPLATE_EXCEPTIONS = (
+    TemplateDoesNotExist,
+    TemplateSyntaxError,
+)
+
+# Security/authorization operations
+SECURITY_EXCEPTIONS = (
+    PermissionDenied,
+    SuspiciousOperation,
+    SuspiciousFileOperation,
+    AuthenticationFailed,
+    NotAuthenticated,
+    DRFPermissionDenied,
+    ValidationError,
+)
+
+# Cache/Redis operations
+if redis:
+    CACHE_EXCEPTIONS = (
+        redis.RedisError,
+        redis.ConnectionError,
+        redis.TimeoutError,
+        getattr(redis, "AuthenticationError", redis.RedisError),
+    )
+else:  # pragma: no cover - fallback for minimal setups
+    class _RedisError(Exception):
+        pass
+
+    class _RedisConnectionError(_RedisError):
+        pass
+
+    class _RedisTimeoutError(_RedisError):
+        pass
+
+    class _RedisAuthError(_RedisError):
+        pass
+
+    CACHE_EXCEPTIONS = (
+        _RedisError,
+        _RedisConnectionError,
+        _RedisTimeoutError,
+        _RedisAuthError,
+    )
+
+# Celery task/runtime operations
+CELERY_EXCEPTIONS = (
+    Retry,
+    MaxRetriesExceededError,
+    SoftTimeLimitExceeded,
+    TimeLimitExceeded,
+    Reject,
+    Ignore,
+    ChordError,
 )
 
 
@@ -486,12 +668,21 @@ __all__ = [
     'DATABASE_EXCEPTIONS',
     'NETWORK_EXCEPTIONS',
     'FILE_EXCEPTIONS',
+    'FILE_IO_EXCEPTIONS',
     'PARSING_EXCEPTIONS',
     'JSON_EXCEPTIONS',
     'MODEL_EXCEPTIONS',
     'API_EXCEPTIONS',
     'VALIDATION_EXCEPTIONS',
     'VALIDATION_ERRORS',  # Backward compatibility alias
+    'BUSINESS_LOGIC_EXCEPTIONS',
+    'SERIALIZATION_EXCEPTIONS',
+    'ENCRYPTION_EXCEPTIONS',
+    'TEMPLATE_EXCEPTIONS',
+    'SECURITY_EXCEPTIONS',
+    'CACHE_EXCEPTIONS',
+    'CELERY_EXCEPTIONS',
+    'ValidationError',
 
     # Handler functions
     'handle_database_operations',

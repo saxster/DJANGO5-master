@@ -160,7 +160,7 @@ def validate_coordinates(
         return validated_lat, validated_lon
     except ValidationError:
         raise
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         raise ValidationError(
             _(ERROR_INVALID_COORDINATES),
             params={'error': str(e)},

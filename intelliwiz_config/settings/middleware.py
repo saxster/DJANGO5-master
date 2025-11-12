@@ -43,6 +43,7 @@ MIDDLEWARE = [
     # ========================================================================
     # Layer 4: Input Validation and Attack Prevention
     # ========================================================================
+    "apps.core.middleware.input_sanitization_middleware.InputSanitizationMiddleware",  # XSS/Injection prevention (Nov 2025)
     "apps.core.sql_security.SQLInjectionProtectionMiddleware",
     "apps.core.xss_protection.XSSProtectionMiddleware",
 
@@ -50,11 +51,16 @@ MIDDLEWARE = [
     # Layer 5: Session and Multi-Tenancy
     # ========================================================================
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "apps.tenants.middlewares.TenantMiddleware",  # CRITICAL: Must be after SessionMiddleware
+
+    # Layer 5.5: Cache Security
+    "apps.core.middleware.cache_security_middleware.CacheSecurityMiddleware",
+
+    "waffle.middleware.WaffleMiddleware",
+    "apps.tenants.middleware_unified.UnifiedTenantMiddleware",  # CRITICAL: Must be after SessionMiddleware
     "django.middleware.locale.LocaleMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "apps.onboarding.middlewares.TimezoneMiddleware",
+    "apps.core.middleware.timezone_middleware.TimezoneMiddleware",
 
     # ========================================================================
     # Layer 6: Content Security and Static Files
@@ -76,8 +82,9 @@ MIDDLEWARE = [
     # Layer 9: Authentication and Authorization
     # ========================================================================
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "apps.onboarding_api.middleware.OnboardingAPIMiddleware",
-    "apps.onboarding_api.middleware.OnboardingAuditMiddleware",
+    # Removed: apps.onboarding_api middleware (orphaned app, not in INSTALLED_APPS)
+    # See: apps/onboarding_api/DEPRECATION_NOTICE.md
+    "apps.attendance.middleware.AttendanceAuditMiddleware",  # Attendance access audit logging (Nov 2025)
 
     # ========================================================================
     # Layer 10: Application Middleware
@@ -108,8 +115,8 @@ CRITICAL MIDDLEWARE ORDERING RULES:
 3. Rate limiting MUST come before origin validation
 4. Origin validation MUST come before SQL injection protection
 5. SQL/XSS protection MUST come before CSRF
-6. SessionMiddleware MUST come before TenantMiddleware
-7. TenantMiddleware MUST come before any DB access
+6. SessionMiddleware MUST come before UnifiedTenantMiddleware
+7. UnifiedTenantMiddleware MUST come before any DB access
 8. CsrfViewMiddleware MUST come before AuthenticationMiddleware
 9. GlobalExceptionMiddleware MUST be last (catch-all error handler)
 

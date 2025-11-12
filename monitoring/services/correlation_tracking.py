@@ -17,6 +17,7 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from django.core.cache import cache
+from django.utils import timezone
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 logger = logging.getLogger('monitoring.correlation')
@@ -33,14 +34,14 @@ class CorrelationContext:
 
     def __init__(self, correlation_id: str, metadata: Optional[Dict[str, Any]] = None):
         self.correlation_id = correlation_id
-        self.created_at = datetime.now()
+        self.created_at = timezone.now()
         self.metadata = metadata or {}
         self.events: List[Dict[str, Any]] = []
 
     def add_event(self, event_type: str, data: Optional[Dict[str, Any]] = None):
         """Add an event to this correlation context."""
         self.events.append({
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'type': event_type,
             'data': data or {}
         })

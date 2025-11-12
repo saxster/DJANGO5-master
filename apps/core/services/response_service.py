@@ -4,9 +4,11 @@ Provides centralized error handling and response formatting.
 """
 
 import logging
+from typing import Optional, Dict, List, Any
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.conf import settings
+from django.db import DatabaseError, IntegrityError
 from apps.core.error_handling import ErrorHandler
 
 logger = logging.getLogger(__name__)

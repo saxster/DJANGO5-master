@@ -85,20 +85,24 @@ class FullyOptimizedAdminMixin(TenantAwareAdminMixin, UserAwareAdminMixin):
 
 # Convenience base classes
 class OptimizedModelAdmin(OptimizedAdminMixin, admin.ModelAdmin):
+    list_per_page = 50
     """Base ModelAdmin with query optimization"""
     pass
 
 
 class OptimizedTenantModelAdmin(TenantAwareAdminMixin, admin.ModelAdmin):
+    list_per_page = 50
     """ModelAdmin for tenant-aware models"""
     pass
 
 
 class OptimizedUserModelAdmin(UserAwareAdminMixin, admin.ModelAdmin):
+    list_per_page = 50
     """ModelAdmin for user-tracked models"""
     pass
 
 
 class FullyOptimizedModelAdmin(FullyOptimizedAdminMixin, admin.ModelAdmin):
+    list_per_page = 50
     """ModelAdmin with all optimizations applied"""
     pass

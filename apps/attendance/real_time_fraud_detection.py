@@ -1,6 +1,10 @@
 """
-Real-Time Fraud Detection System for YOUTILITY5
-Advanced AI-powered fraud detection with immediate response capabilities
+Real-Time Fraud Detection System
+
+Advanced fraud detection with immediate response capabilities.
+
+Updated: November 3, 2025
+Status: Production-ready with real ML implementations (replaced mocks)
 """
 
 from __future__ import annotations
@@ -17,6 +21,14 @@ from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
 from apps.attendance.models import PeopleEventlog
+from apps.attendance.services.fraud_detection_orchestrator import FraudDetectionOrchestrator
+from apps.attendance.ml_models import (
+    BehavioralAnomalyDetector,
+    TemporalAnomalyDetector,
+    LocationAnomalyDetector,
+    DeviceFingerprintingDetector,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -628,45 +640,3 @@ class RealTimeFraudDetector:
             FraudSeverity.CRITICAL: 4
         }
         return levels.get(severity, 1)
-
-
-# Mock implementations for helper classes and methods
-class BehavioralAnomalyDetector:
-    """Behavioral anomaly detection model"""
-    pass
-
-class TemporalAnomalyDetector:
-    """Temporal pattern anomaly detection"""
-    pass
-
-class LocationAnomalyDetector:
-    """Location-based anomaly detection"""
-    pass
-
-class DeviceFingerprintingDetector:
-    """Device fingerprinting for fraud detection"""
-    pass
-
-class PatternAnalysisDetector:
-    """Pattern analysis for fraud detection"""
-    pass
-
-class RiskScoringEngine:
-    """Risk scoring calculation engine"""
-    pass
-
-class EmailNotificationChannel:
-    """Email notification channel"""
-    pass
-
-class SMSNotificationChannel:
-    """SMS notification channel"""
-    pass
-
-class WebhookNotificationChannel:
-    """Webhook notification channel"""
-    pass
-
-class DashboardNotificationChannel:
-    """Real-time dashboard notification channel"""
-    pass

@@ -1,0 +1,179 @@
+{
+  "dashboard": {
+    "title": "Celery Task Queue Monitoring",
+    "tags": ["celery", "task-queue", "message-bus"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Task Execution Rate (tasks/sec)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(celery_task_success_total[5m])",
+            "legendFormat": "{{task_name}} - Success",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(celery_task_failure_total[5m])",
+            "legendFormat": "{{task_name}} - Failure",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Tasks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Task Duration (p50, p95, p99)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(celery_task_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50 - {{task_name}}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(celery_task_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 - {{task_name}}",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(celery_task_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99 - {{task_name}}",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Task Failure Rate (%)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "100 * rate(celery_task_failure_total[5m]) / (rate(celery_task_success_total[5m]) + rate(celery_task_failure_total[5m]))",
+            "legendFormat": "{{task_name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Failure Rate", "max": 100, "min": 0},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "High Task Failure Rate",
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Task failure rate exceeds 5%",
+          "noDataState": "no_data",
+          "executionErrorState": "alerting"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Queue Depth by Queue",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "celery_queue_depth",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tasks Waiting"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "Critical Queue Backlog",
+          "conditions": [
+            {
+              "evaluator": {"params": [50], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Critical queue depth exceeds 50 tasks",
+          "noDataState": "no_data"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Task Retries by Reason",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(celery_task_retries_total[5m])",
+            "legendFormat": "{{task_name}} - {{reason}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Retries/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Worker Utilization",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "celery_worker_active_tasks",
+            "legendFormat": "{{worker}} - Active Tasks",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Active Tasks"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Top 10 Slowest Tasks (Average Duration)",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(10, avg by (task_name) (celery_task_duration_seconds))",
+            "format": "table",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 27,
+    "version": 1
+  }
+}

@@ -1,3 +1,7 @@
+
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Organizational query helper mixin for PeopleOrganizational model.
 
@@ -33,7 +37,7 @@ class OrganizationalQueryMixin:
         Example:
             team = manager.get_team_members()
             for member in team:
-                print(f"{member.peoplename} reports to {manager.peoplename}")
+                logger.debug(f"{member.peoplename} reports to {manager.peoplename}")
         """
         if not hasattr(self, 'organizational'):
             return self.__class__.objects.none()

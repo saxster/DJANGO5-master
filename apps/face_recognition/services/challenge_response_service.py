@@ -26,6 +26,7 @@ import numpy as np
 import cv2
 from django.core.cache import cache
 from django.utils import timezone
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ class ChallengeResponseService:
                 'expires_at': expires_at.isoformat()
             }
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error generating challenge: {e}")
             return {
                 'error': str(e)
@@ -168,7 +169,7 @@ class ChallengeResponseService:
                 'message': message
             }
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error validating challenge response: {e}")
             return {
                 'challenge_passed': False,
@@ -223,7 +224,7 @@ class ChallengeResponseService:
                 # Unknown action - return neutral result
                 return {'detected': True, 'confidence': 0.5}
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error detecting action {action}: {e}")
             return {'detected': False, 'confidence': 0.0, 'error': str(e)}
 
@@ -256,7 +257,7 @@ class ChallengeResponseService:
             else:
                 return {'detected': False, 'confidence': 0.3}
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Smile detection failed: {e}")
             return {'detected': False, 'confidence': 0.0}
 
@@ -285,7 +286,7 @@ class ChallengeResponseService:
             else:
                 return {'detected': False, 'confidence': 0.3}
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Blink detection failed: {e}")
             return {'detected': False, 'confidence': 0.0}
 
@@ -327,7 +328,7 @@ class ChallengeResponseService:
             else:
                 return {'detected': False, 'confidence': 0.3}
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Head turn detection failed: {e}")
             return {'detected': False, 'confidence': 0.0}
 
@@ -369,6 +370,6 @@ class ChallengeResponseService:
             else:
                 return {'detected': False, 'confidence': 0.3}
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Eyebrow detection failed: {e}")
             return {'detected': False, 'confidence': 0.0}

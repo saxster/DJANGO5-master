@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/3.2/howto/deployment/wsgi/
 
 import os
 
+import intelliwiz_config.bootstrap  # noqa: F401
+
 from django.core.wsgi import get_wsgi_application
 
 # Fail-closed: default to production for WSGI deployments.

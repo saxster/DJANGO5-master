@@ -27,8 +27,8 @@ Usage:
 """
 
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
+from django.core.mail import send_mail, BadHeaderError
+from django.template.loader import render_to_string, TemplateDoesNotExist
 from django.conf import settings
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -100,9 +100,16 @@ def send_password_setup_email(user, request=None):
     try:
         html_message = render_to_string('emails/password_setup.html', context)
         plain_message = render_to_string('emails/password_setup.txt', context)
-    except Exception as e:
+    except TemplateDoesNotExist as e:
         logger.error(
-            f"Failed to render password setup email templates: {e}",
+            f"Email template not found: {e}",
+            exc_info=True,
+            extra={'user_id': user.id, 'template_error': str(e)}
+        )
+        return False
+    except (OSError, IOError) as e:
+        logger.error(
+            f"Failed to read email template: {e}",
             exc_info=True,
             extra={'user_id': user.id, 'template_error': str(e)}
         )
@@ -129,7 +136,19 @@ def send_password_setup_email(user, request=None):
         )
         return True
 
-    except Exception as e:
+    except BadHeaderError as e:
+        logger.error(
+            f"Invalid email header for user {user.loginid}: {e}",
+            exc_info=True,
+            extra={
+                'user_id': user.id,
+                'email': user.email,
+                'error': str(e),
+                'security_event': 'password_setup_email_failed'
+            }
+        )
+        return False
+    except (OSError, IOError, ConnectionError, TimeoutError) as e:
         logger.error(
             f"Failed to send password setup email to {user.loginid}: {e}",
             exc_info=True,

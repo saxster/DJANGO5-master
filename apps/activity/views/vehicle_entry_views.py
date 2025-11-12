@@ -34,6 +34,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from apps.activity.models import Location, VehicleEntry, VehicleSecurityAlert
 from apps.activity.services.vehicle_entry_service import get_vehicle_entry_service
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class VehicleEntryUploadAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Unexpected error in vehicle upload API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
@@ -169,8 +170,8 @@ class VehicleExitAPIView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-        except Exception as e:
-            logger.error(f"Error in vehicle exit API: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in vehicle exit API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -217,8 +218,8 @@ class VehicleHistoryAPIView(APIView):
                 'entries': entries_data
             })
 
-        except Exception as e:
-            logger.error(f"Error fetching vehicle history: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error fetching vehicle history: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to fetch history'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -265,8 +266,8 @@ class ActiveVehiclesAPIView(APIView):
                 'active_vehicles': vehicles_data
             })
 
-        except Exception as e:
-            logger.error(f"Error fetching active vehicles: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error fetching active vehicles: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to fetch active vehicles'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -315,8 +316,8 @@ class VehicleEntryDashboard(LoginRequiredMixin, View):
 
             return render(request, 'activity/vehicle_entry_dashboard.html', context)
 
-        except Exception as e:
-            logger.error(f"Error loading vehicle dashboard: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error loading vehicle dashboard: {str(e)}", exc_info=True)
             messages.error(request, "Error loading dashboard")
             return render(request, 'activity/vehicle_entry_dashboard.html', {})
 
@@ -395,8 +396,8 @@ class VehicleEntryCapture(LoginRequiredMixin, View):
             else:
                 messages.error(request, f"Failed to process vehicle: {result['error']}")
 
-        except Exception as e:
-            logger.error(f"Error processing vehicle entry: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error processing vehicle entry: {str(e)}", exc_info=True)
             messages.error(request, "Error processing vehicle entry")
 
         return self.get(request)
@@ -462,8 +463,8 @@ class VehicleEntryApproval(LoginRequiredMixin, View):
             else:
                 messages.error(request, "Approval failed")
 
-        except Exception as e:
-            logger.error(f"Error processing approval: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error processing approval: {str(e)}", exc_info=True)
             messages.error(request, "Error processing approval")
 
         return self.get(request)
@@ -529,8 +530,8 @@ class VehicleSecurityAlerts(LoginRequiredMixin, View):
 
         except VehicleSecurityAlert.DoesNotExist:
             messages.error(request, "Alert not found")
-        except Exception as e:
-            logger.error(f"Error acknowledging alert: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error acknowledging alert: {str(e)}", exc_info=True)
             messages.error(request, "Error acknowledging alert")
 
         return self.get(request)

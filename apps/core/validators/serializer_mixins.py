@@ -25,7 +25,11 @@ from .field_validators import (
     validate_json_structure,
     validate_uuid_format,
     validate_sync_status,
-    validate_version_number
+    validate_version_number,
+)
+from apps.core.exceptions.patterns import (
+    DATABASE_EXCEPTIONS,
+    SERIALIZATION_EXCEPTIONS,
 )
 from .business_validators import (
     validate_tenant_access,
@@ -265,7 +269,7 @@ class ValidatedModelSerializer(
         except serializers.ValidationError as e:
             self._validation_logger.warning(f"Validation failed for {self.__class__.__name__}: {e}")
             raise
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             self._validation_logger.error(f"Unexpected validation error for {self.__class__.__name__}: {e}", exc_info=True)
             raise serializers.ValidationError("Validation failed due to unexpected error")
 
@@ -277,7 +281,7 @@ class ValidatedModelSerializer(
             return super().to_internal_value(data)
         except serializers.ValidationError:
             raise
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             self._validation_logger.error(f"Data conversion error: {e}", exc_info=True)
             raise serializers.ValidationError("Invalid data format")
 
@@ -289,6 +293,6 @@ class ValidatedModelSerializer(
             instance = super().save(**kwargs)
             self._validation_logger.debug(f"Successfully saved {self.__class__.__name__} instance")
             return instance
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self._validation_logger.error(f"Save failed for {self.__class__.__name__}: {e}", exc_info=True)
             raise

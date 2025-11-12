@@ -27,6 +27,7 @@ from .views.security_dashboard_views import (
     ThreatAnalysisView,
 )
 from .views.prometheus_exporter import PrometheusExporterView
+from .views.unified_dashboard_view import unified_dashboard_view
 
 app_name = 'monitoring'
 
@@ -62,4 +63,7 @@ urlpatterns = [
     path('security/', SecurityDashboardView.as_view(), name='security_dashboard'),
     path('security/sqli/', SQLInjectionDashboardView.as_view(), name='security_sqli'),
     path('security/threats/', ThreatAnalysisView.as_view(), name='security_threats'),
+
+    # Unified Monitoring Dashboard (Phase 4 - Infrastructure + ML)
+    path('unified-dashboard/', unified_dashboard_view, name='unified_dashboard'),
 ]

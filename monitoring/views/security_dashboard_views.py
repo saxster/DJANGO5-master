@@ -24,6 +24,7 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from apps.core.decorators import require_monitoring_api_key
 from apps.core.monitoring.sql_security_telemetry import sql_security_telemetry
 from monitoring.services.pii_redaction_service import MonitoringPIIRedactionService
@@ -57,7 +58,7 @@ class SecurityDashboardView(View):
         threat_score = self._calculate_threat_score(sqli_metrics)
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_hours': window_hours,
             'overall_threat_score': threat_score,
             'sqli_summary': self._summarize_sqli(sqli_metrics),
@@ -120,7 +121,7 @@ class SQLInjectionDashboardView(View):
         sqli_metrics = sql_security_telemetry.get_attack_trends(window_hours)
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_hours': window_hours,
             'total_attempts': sqli_metrics.get('total_violations', 0),
             'unique_ips': sqli_metrics.get('unique_ips', 0),
@@ -175,7 +176,7 @@ class ThreatAnalysisView(View):
         pattern_distribution = sqli_metrics.get('pattern_distribution', [])
 
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_hours': window_hours,
             'detected_patterns': len(pattern_distribution),
             'patterns': pattern_distribution,

@@ -12,6 +12,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from django.core.cache import cache
+from apps.noc.models import WebSocketConnection
 
 logger = logging.getLogger('noc.websocket')
 
@@ -25,9 +26,13 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
     Supports:
     - Client-specific alert subscriptions
     - Tenant-wide broadcasts
-    - Rate limiting (100 msg/min per connection)
+    - Rate limiting (100 msg/min per user, Redis-backed, prevents multi-connection bypass)
     - RBAC scope enforcement
     - Heartbeat for keep-alive
+
+    Security Note (Nov 2025):
+    Rate limiting is implemented per-user via Redis cache, not per-connection.
+    This prevents bypassing limits by opening multiple WebSocket connections.
     """
 
     RATE_LIMIT_WINDOW = 60
@@ -47,8 +52,6 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
 
         self.user = user
         self.tenant_id = user.tenant_id
-        self.message_count = 0
-        self.window_start = timezone.now()
 
         self.tenant_group = f'noc_tenant_{self.tenant_id}'
         await self.channel_layer.group_add(
@@ -57,6 +60,10 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         )
 
         await self.accept()
+
+        # Register connection for accurate recipient counting
+        await self._register_connection()
+
         logger.info(
             f"NOC WebSocket connected",
             extra={'user_id': user.id, 'tenant_id': self.tenant_id}
@@ -66,6 +73,9 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
+        # Unregister connection from tracking
+        await self._unregister_connection()
+
         if hasattr(self, 'tenant_group'):
             await self.channel_layer.group_discard(
                 self.tenant_group,
@@ -186,14 +196,111 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
             'timestamp': timezone.now().isoformat()
         }))
 
-    async def alert_notification(self, event):
-        """Handle alert broadcast from channel layer."""
+    async def handle_noc_event(self, event):
+        """
+        Unified NOC event router.
+
+        Routes events to specific handlers based on event type discriminator.
+        TASK 11: Gap #14 - Consolidated NOC Event Feed
+        """
+        event_type = event.get('type')
+
+        handlers = {
+            'alert_created': self.alert_created,
+            'alert_updated': self.alert_updated,
+            'finding_created': self.finding_created,
+            'anomaly_detected': self.anomaly_detected,
+            'ticket_updated': self.ticket_updated,
+        }
+
+        handler = handlers.get(event_type)
+        if handler:
+            await handler(event)
+        else:
+            # Fallback for unknown event types
+            await self.send(text_data=json.dumps(event))
+
+    async def alert_created(self, event):
+        """Handle alert created broadcast."""
         await self.send(text_data=json.dumps({
-            'type': 'alert_new',
+            'type': 'alert_created',
             'alert_id': event['alert_id'],
             'alert_type': event['alert_type'],
             'severity': event['severity'],
             'message': event['message'],
+            'timestamp': event.get('timestamp')
+        }))
+
+    async def alert_updated(self, event):
+        """Handle alert updated broadcast."""
+        await self.send(text_data=json.dumps({
+            'type': 'alert_updated',
+            'alert_id': event['alert_id'],
+            'status': event.get('status'),
+            'message': event['message'],
+            'timestamp': event.get('timestamp')
+        }))
+
+    async def alert_notification(self, event):
+        """
+        Handle alert broadcast from channel layer (legacy compatibility).
+
+        Maintained for backward compatibility with old broadcast methods.
+        Routes to unified handler.
+        """
+        # Convert legacy format to unified format
+        event['type'] = event.get('type', 'alert_created')
+        await self.handle_noc_event(event)
+
+    async def finding_created(self, event):
+        """Handle audit finding broadcast from channel layer."""
+        await self.send(text_data=json.dumps({
+            'type': 'finding_created',
+            'finding_id': event['finding_id'],
+            'finding_type': event['finding_type'],
+            'severity': event['severity'],
+            'category': event['category'],
+            'site_id': event.get('site_id'),
+            'site_name': event.get('site_name'),
+            'title': event['title'],
+            'evidence_summary': event.get('evidence_summary', ''),
+            'detected_at': event['detected_at']
+        }))
+
+    async def anomaly_detected(self, event):
+        """Handle attendance anomaly broadcast from channel layer."""
+        await self.send(text_data=json.dumps({
+            'type': 'anomaly_detected',
+            'anomaly_id': event['anomaly_id'],
+            'person_id': event['person_id'],
+            'person_name': event['person_name'],
+            'site_id': event['site_id'],
+            'site_name': event['site_name'],
+            'anomaly_type': event['anomaly_type'],
+            'fraud_score': event.get('fraud_score', 0.0),
+            'severity': event['severity'],
+            'timestamp': event['timestamp']
+        }))
+
+    async def ticket_updated(self, event):
+        """
+        Handle ticket state change broadcast from channel layer.
+
+        TASK 11: Gap #14 - Consolidated NOC Event Feed
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'ticket_updated',
+            'ticket_id': event['ticket_id'],
+            'ticket_no': event['ticket_no'],
+            'old_status': event['old_status'],
+            'new_status': event['new_status'],
+            'priority': event.get('priority'),
+            'assigned_to': event.get('assigned_to'),
+            'site_id': event.get('site_id'),
+            'site_name': event.get('site_name'),
+            'description': event.get('description', ''),
+            'updated_at': event.get('updated_at'),
+            'timestamp': event.get('timestamp')
         }))
 
     async def send_initial_status(self):
@@ -212,16 +319,46 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         }))
 
     async def _check_rate_limit(self):
-        """Check if message rate limit is exceeded."""
-        now = timezone.now()
+        """
+        Check if per-user message rate limit is exceeded.
 
-        if (now - self.window_start).total_seconds() > self.RATE_LIMIT_WINDOW:
-            self.message_count = 0
-            self.window_start = now
+        CRITICAL SECURITY FIX (Nov 2025):
+        Implements Redis-backed per-user rate limiting, not per-connection.
+        This prevents rate limit bypass via multiple WebSocket connections.
 
-        self.message_count += 1
+        Cache key: websocket:rate:{user.id}
+        Uses atomic cache.incr() for thread-safe counting across workers.
+        """
+        cache_key = f'websocket:rate:{self.user.id}'
 
-        return self.message_count <= self.RATE_LIMIT_MAX
+        try:
+            # Atomic increment with TTL
+            # Returns the new count after increment
+            current_count = cache.incr(cache_key)
+
+            # Set expiry on first message in window
+            if current_count == 1:
+                cache.expire(cache_key, self.RATE_LIMIT_WINDOW)
+
+            # Check if exceeded
+            if current_count > self.RATE_LIMIT_MAX:
+                logger.warning(
+                    f"WebSocket rate limit exceeded for user",
+                    extra={'user_id': self.user.id, 'count': current_count}
+                )
+                return False
+
+            return True
+
+        except Exception as e:
+            # Fail-open: allow request if cache unavailable
+            # This prevents blocking legitimate users due to Redis issues
+            logger.error(
+                f"Rate limit check failed: {e}",
+                exc_info=True,
+                extra={'user_id': self.user.id}
+            )
+            return True
 
     @database_sync_to_async
     def _has_noc_capability(self, user):
@@ -258,3 +395,47 @@ class NOCDashboardConsumer(AsyncWebsocketConsumer):
         """Get cached metrics for client."""
         from apps.noc.services.cache_service import NOCCacheService
         return NOCCacheService.get_metrics_cached(client_id) or {}
+
+    @database_sync_to_async
+    def _register_connection(self):
+        """Register WebSocket connection for recipient tracking."""
+        from apps.tenants.models import Tenant
+
+        try:
+            WebSocketConnection.objects.create(
+                tenant=Tenant.objects.get(id=self.tenant_id),
+                user=self.user,
+                channel_name=self.channel_name,
+                group_name=self.tenant_group,
+                consumer_type='noc_dashboard'
+            )
+            logger.debug(
+                f"Registered WebSocket connection: {self.channel_name}",
+                extra={'user_id': self.user.id, 'group': self.tenant_group}
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to register WebSocket connection: {e}",
+                exc_info=True
+            )
+
+    @database_sync_to_async
+    def _unregister_connection(self):
+        """Unregister WebSocket connection from tracking."""
+        if not hasattr(self, 'channel_name'):
+            return
+
+        try:
+            deleted_count, _ = WebSocketConnection.objects.filter(
+                channel_name=self.channel_name
+            ).delete()
+            if deleted_count > 0:
+                logger.debug(
+                    f"Unregistered WebSocket connection: {self.channel_name}",
+                    extra={'deleted_count': deleted_count}
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to unregister WebSocket connection: {e}",
+                exc_info=True
+            )

@@ -15,6 +15,12 @@ import logging
 from apps.y_helpdesk.models import Ticket, EscalationMatrix
 from apps.y_helpdesk.services.ticket_cache_service import TicketCacheService
 from apps.peoples.models import People
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +105,7 @@ class Command(BaseCommand):
                 )
             )
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             self.stdout.write(
                 self.style.ERROR(f"❌ Cache warming failed: {e}")
             )
@@ -116,7 +122,7 @@ class Command(BaseCommand):
         """Parse business unit IDs from command line argument."""
         if not business_units_str:
             # Get top 10 most active business units
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             return list(
                 Bt.objects.annotate(
                     ticket_count=models.Count('ticket')
@@ -127,7 +133,7 @@ class Command(BaseCommand):
 
     def _warm_escalation_matrix_cache(self, business_units: list, force_refresh: bool) -> int:
         """Warm escalation matrix cache."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         warmed_count = 0
 
@@ -169,7 +175,7 @@ class Command(BaseCommand):
                 if self.verbosity >= 2:
                     self.stdout.write(f"   Warmed escalation matrix for BU {bu_id}: {len(data)} rules")
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 if self.verbosity >= 1:
                     self.stdout.write(
                         self.style.WARNING(f"   Failed to warm escalation matrix for BU {bu_id}: {e}")
@@ -179,7 +185,7 @@ class Command(BaseCommand):
 
     def _warm_dashboard_stats_cache(self, business_units: list, days_back: int, force_refresh: bool) -> int:
         """Warm dashboard statistics cache."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         warmed_count = 0
         end_date = timezone.now().date()
@@ -238,7 +244,7 @@ class Command(BaseCommand):
                 if self.verbosity >= 2:
                     self.stdout.write(f"   Warmed dashboard stats for BU {bu_id}: {len(date_ranges)} date ranges")
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 if self.verbosity >= 1:
                     self.stdout.write(
                         self.style.WARNING(f"   Failed to warm dashboard stats for BU {bu_id}: {e}")
@@ -248,7 +254,7 @@ class Command(BaseCommand):
 
     def _warm_ticket_list_cache(self, business_units: list, days_back: int, force_refresh: bool) -> int:
         """Warm ticket list cache for common scenarios."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         warmed_count = 0
         end_date = timezone.now().date()
@@ -306,7 +312,7 @@ class Command(BaseCommand):
                 if self.verbosity >= 2:
                     self.stdout.write(f"   Warmed ticket lists for BU {bu_id}: {len(scenarios)} scenarios")
 
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 if self.verbosity >= 1:
                     self.stdout.write(
                         self.style.WARNING(f"   Failed to warm ticket lists for BU {bu_id}: {e}")
@@ -352,7 +358,7 @@ class Command(BaseCommand):
 
                 warmed_count += 1
 
-            except Exception as e:
+            except CACHE_EXCEPTIONS as e:
                 if self.verbosity >= 2:
                     self.stdout.write(
                         self.style.WARNING(f"   Failed to warm permissions for user {user.id}: {e}")

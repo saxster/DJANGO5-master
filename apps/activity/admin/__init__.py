@@ -16,18 +16,34 @@ All admins registered with Django's admin site automatically via @admin.register
 """
 
 # Import all admin classes for backward compatibility
-from apps.activity.admin.asset_admin import *  # noqa: F401, F403
-from apps.activity.admin.location_admin import *  # noqa: F401, F403
-from apps.activity.admin.meter_reading_admin import MeterReadingAdmin  # noqa: F401
-from apps.activity.admin.meter_alert_admin import MeterReadingAlertAdmin  # noqa: F401
-from apps.activity.admin.vehicle_entry_admin import VehicleEntryAdmin  # noqa: F401
-from apps.activity.admin.vehicle_alert_admin import VehicleSecurityAlertAdmin  # noqa: F401
+from apps.activity.admin.asset_admin import AssetResource, AssetResourceUpdate
+from apps.activity.admin.location_admin import LocationResource, LocationResourceUpdate
+from apps.activity.admin.meter_reading_admin import MeterReadingAdmin
+from apps.activity.admin.meter_alert_admin import MeterReadingAlertAdmin
+from apps.activity.admin.vehicle_entry_admin import VehicleEntryAdmin
+from apps.activity.admin.vehicle_alert_admin import VehicleSecurityAlertAdmin
 
 # Question admins are in question/ subdirectory and auto-registered
 
+# Explicit __all__ to control namespace (Rule #16: Wildcard Import Prevention)
 __all__ = [
+    # From asset_admin.py
+    'AssetResource',
+    'AssetResourceUpdate',
+
+    # From location_admin.py
+    'LocationResource',
+    'LocationResourceUpdate',
+
+    # From meter_reading_admin.py
     'MeterReadingAdmin',
+
+    # From meter_alert_admin.py
     'MeterReadingAlertAdmin',
+
+    # From vehicle_entry_admin.py
     'VehicleEntryAdmin',
+
+    # From vehicle_alert_admin.py
     'VehicleSecurityAlertAdmin',
 ]

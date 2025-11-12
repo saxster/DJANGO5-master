@@ -15,7 +15,7 @@ from django.db import IntegrityError
 from typing import Dict, Any, Optional
 
 from apps.ontology import ontology
-from apps.api.v1.services.base_sync_service import BaseSyncService
+from apps.core.services.sync.base_sync_service import BaseSyncService
 from apps.activity.models.job_model import Jobneed
 
 
@@ -270,6 +270,10 @@ class TaskSyncService(BaseSyncService):
         }
 
         if current_status not in allowed_transitions:
-            return True
+            logger.error(
+                f"Invalid current_status '{current_status}' in task status transition validation. "
+                f"Attempted transition to '{new_status}'. Rejecting unknown status."
+            )
+            return False  # Reject unknown statuses (SECURITY FIX)
 
         return new_status in allowed_transitions[current_status]

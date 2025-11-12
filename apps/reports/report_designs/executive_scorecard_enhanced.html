@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Executive Scorecard - {{ data.client }}</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; font-size: 11pt; }
+        .header { text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { max-height: 60px; }
+        .header h1 { color: #2c3e50; margin: 0; font-size: 24pt; }
+        .header .period { color: #7f8c8d; font-size: 14pt; margin-top: 5px; }
+        .section { margin-bottom: 30px; page-break-inside: avoid; }
+        .section-title { background: #2c3e50; color: white; padding: 10px 15px; font-size: 14pt; font-weight: bold; margin-bottom: 15px; }
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .metric-card { border: 1px solid #ddd; padding: 15px; background: #f8f9fa; }
+        .metric-label { font-size: 10pt; color: #7f8c8d; margin-bottom: 5px; }
+        .metric-value { font-size: 24pt; font-weight: bold; color: #2c3e50; }
+        .metric-value.good { color: #27ae60; }
+        .metric-value.warning { color: #f39c12; }
+        .metric-value.critical { color: #e74c3c; }
+        .mom-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9pt; margin-left: 8px; }
+        .mom-positive { background: #d4edda; color: #155724; }
+        .mom-negative { background: #f8d7da; color: #721c24; }
+        .callout-box { background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin: 10px 0; }
+        .callout-box h4 { margin: 0 0 10px 0; color: #856404; }
+        .risk-item { padding: 10px; margin: 5px 0; background: #fff3cd; border-left: 4px solid #f39c12; }
+        .risk-item.critical { background: #f8d7da; border-left-color: #e74c3c; }
+        .risk-item.high { background: #ffe0b2; border-left-color: #ff9800; }
+        .risk-item.medium { background: #fff9c4; border-left-color: #fbc02d; }
+        .trend-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .trend-table th { background: #34495e; color: white; padding: 10px; text-align: left; }
+        .trend-table td { padding: 10px; border-bottom: 1px solid #ddd; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #ecf0f1; text-align: center; color: #7f8c8d; font-size: 9pt; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="text-align: left;">
+            {% if data.client_logo %}
+            <img src="{{ data.client_logo }}" alt="Logo" class="logo">
+            {% endif %}
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <h1>📊 Monthly Executive Scorecard</h1>
+            <div class="period">{{ data.period }}</div>
+            <div class="period">{{ data.client }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">📊 Operational Excellence</div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Attendance Compliance</div>
+                <div class="metric-value {% if data.operational_excellence.attendance_compliance >= 95 %}good{% elif data.operational_excellence.attendance_compliance >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.attendance_compliance }}%
+                    {% if data.trends.attendance_compliance_mom != 0 %}
+                    <span class="mom-badge {% if data.trends.attendance_compliance_mom > 0 %}mom-positive{% else %}mom-negative{% endif %}">
+                        {{ data.trends.attendance_compliance_mom|floatformat:1 }}% MoM
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Tour Coverage</div>
+                <div class="metric-value {% if data.operational_excellence.tour_coverage >= 95 %}good{% elif data.operational_excellence.tour_coverage >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.tour_coverage }}%
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">SLA Performance</div>
+                <div class="metric-value {% if data.operational_excellence.sla_performance >= 95 %}good{% elif data.operational_excellence.sla_performance >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.sla_performance }}%
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Work Order Backlog</div>
+                <div class="metric-value {% if data.operational_excellence.work_order_backlog <= 10 %}good{% elif data.operational_excellence.work_order_backlog <= 25 %}warning{% else %}critical{% endif %}">
+                    {{ data.operational_excellence.work_order_backlog }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🔔 What Changed This Month</div>
+        {% for change_name, change_pct, change_abs in data.top_changes %}
+        <div class="callout-box">
+            <h4>{{ change_name }}</h4>
+            <p>
+                {% if change_pct > 0 %}↗{% else %}↘{% endif %}
+                {{ change_pct|floatformat:1 }}% change ({{ change_abs|stringformat:"+d" }} incidents)
+                {% if change_pct > 20 %}
+                - <strong>Significant increase</strong> requiring investigation
+                {% elif change_pct < -20 %}
+                - <strong>Major improvement</strong> from last month
+                {% endif %}
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section">
+        <div class="section-title">🎯 Quality Metrics</div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Helpdesk Sentiment</div>
+                <div class="metric-value {% if data.quality_metrics.helpdesk_sentiment >= 4.0 %}good{% elif data.quality_metrics.helpdesk_sentiment >= 3.0 %}warning{% else %}critical{% endif %}">
+                    {{ data.quality_metrics.helpdesk_sentiment }}/5.0
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">NOC Auto-Resolution</div>
+                <div class="metric-value good">
+                    {{ data.quality_metrics.noc_auto_resolution }}%
+                    {% if data.trends.auto_resolution_mom != 0 %}
+                    <span class="mom-badge {% if data.trends.auto_resolution_mom > 0 %}mom-positive{% else %}mom-negative{% endif %}">
+                        {{ data.trends.auto_resolution_mom|floatformat:1 }}% MoM
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Device Uptime</div>
+                <div class="metric-value {% if data.quality_metrics.device_uptime >= 95 %}good{% elif data.quality_metrics.device_uptime >= 85 %}warning{% else %}critical{% endif %}">
+                    {{ data.quality_metrics.device_uptime }}%
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Incident Response</div>
+                <div class="metric-value {% if data.quality_metrics.incident_response_minutes <= 10 %}good{% elif data.quality_metrics.incident_response_minutes <= 30 %}warning{% else %}critical{% endif %}">
+                    {{ data.quality_metrics.incident_response_minutes|floatformat:1 }} min
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🔍 Top 5 Risk Indicators</div>
+        {% if data.top_risks %}
+            {% for risk_name, risk_count, risk_level in data.top_risks %}
+            <div class="risk-item {{ risk_level }}">
+                <strong>{{ risk_name }}:</strong> {{ risk_count }} 
+                {% if risk_level == 'critical' %}⚠️ CRITICAL
+                {% elif risk_level == 'high' %}⚠ HIGH
+                {% else %}⚠ MEDIUM{% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="risk-item" style="background: #d4edda; border-left-color: #27ae60;">
+            ✓ No significant risks identified this month
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        <p>Generated: {{ data.generated_at }}</p>
+        <p>This report is confidential and intended for executive review only.</p>
+        <p style="margin-top: 10px; font-size: 8pt;">Automated delivery available via Slack webhook</p>
+    </div>
+</body>
+</html>

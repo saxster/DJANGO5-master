@@ -35,6 +35,8 @@ from django.middleware.csrf import get_token, rotate_token
 from django.utils.deprecation import MiddlewareMixin
 from django.utils import timezone
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+
 logger = logging.getLogger(__name__)
 security_logger = logging.getLogger('security')
 
@@ -365,8 +367,8 @@ class CSRFViolationTrackingMiddleware(MiddlewareMixin):
 
         self.enabled = getattr(settings, 'CSRF_VIOLATION_TRACKING_ENABLED', True)
         self.threshold = getattr(settings, 'CSRF_VIOLATION_THRESHOLD', 5)
-        self.window = getattr(settings, 'CSRF_VIOLATION_WINDOW', 3600)
-        self.block_duration = getattr(settings, 'CSRF_VIOLATION_BLOCK_DURATION', 86400)
+        self.window = getattr(settings, 'CSRF_VIOLATION_WINDOW', SECONDS_IN_HOUR)
+        self.block_duration = getattr(settings, 'CSRF_VIOLATION_BLOCK_DURATION', SECONDS_IN_DAY)
 
     def process_response(self, request, response):
         """

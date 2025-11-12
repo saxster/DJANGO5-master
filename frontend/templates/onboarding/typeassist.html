@@ -61,7 +61,7 @@ TypeAssist List
 
 		table = $(table_id).DataTable({
 			ajax:{
-				url: '{{ url("onboarding:typeassist") }}?action=list',
+				/api/v1/admin/config/type-assist/',
 			},
 			columns     : [
                 { "data": "id", title:"ID", className:'noVis' },

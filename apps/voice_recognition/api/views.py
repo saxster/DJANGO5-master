@@ -26,6 +26,7 @@ from django.core.files.base import ContentFile
 from django.db import DatabaseError, IntegrityError
 from django.utils import timezone
 from datetime import timedelta
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS, NETWORK_EXCEPTIONS, FILE_IO_EXCEPTIONS
 
 from apps.voice_recognition.models import VoiceEmbedding
 from apps.face_recognition.models import BiometricConsentLog  # Shared consent model
@@ -167,19 +168,19 @@ class VoiceEnrollmentView(APIView):
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         except (DatabaseError, IntegrityError) as e:
-            logger.error(f"Database error during voice enrollment: {e}")
+            logger.error(f"Database error during voice enrollment: {e}", exc_info=True)
             return Response(
                 {'success': False, 'message': 'Database error during enrollment'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        except Exception as e:
-            logger.error(f"Unexpected error during voice enrollment: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Unexpected error during voice enrollment: {e}", exc_info=True)
             # Clean up temp file
             try:
                 if 'audio_path' in locals():
                     default_storage.delete(audio_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -297,13 +298,13 @@ class VoiceVerificationView(APIView):
             response_serializer = VoiceVerificationResponseSerializer(response_data)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Unexpected error during voice verification: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Unexpected error during voice verification: {e}", exc_info=True)
             # Clean up temp file
             try:
                 if 'audio_path' in locals():
                     default_storage.delete(audio_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -360,13 +361,13 @@ class VoiceQualityView(APIView):
             response_serializer = AudioQualityAssessmentResponseSerializer(quality_result)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Error assessing audio quality: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Error assessing audio quality: {e}", exc_info=True)
             # Clean up temp file
             try:
                 if 'audio_path' in locals():
                     default_storage.delete(audio_path)
-            except Exception:
+            except FILE_EXCEPTIONS:
                 pass
 
             return Response(
@@ -453,8 +454,8 @@ class VoiceChallengeView(APIView):
             response_serializer = VoiceChallengeResponseSerializer(response_data)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Error generating voice challenge: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Error generating voice challenge: {e}", exc_info=True)
             return Response(
                 {'message': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

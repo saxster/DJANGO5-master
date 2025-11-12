@@ -15,7 +15,7 @@ from math import radians, sin, cos, sqrt, atan2
 from django.contrib.gis.geos import Point, Polygon
 from django.core.cache import cache
 from django.conf import settings
-from apps.onboarding.models import GeofenceMaster
+from apps.core_onboarding.models import GeofenceMaster
 
 logger = logging.getLogger(__name__)
 error_logger = logging.getLogger("error_logger")
@@ -186,7 +186,7 @@ class GeofenceService:
                 # Clear all geofence caches for client
                 # Note: This would require cache key pattern matching in production
                 # For now, we'll clear specific known keys
-                from apps.onboarding.models import Bt
+                from apps.client_onboarding.models import Bt
                 bus = Bt.objects.filter(client_id=client_id).values_list('id', flat=True)
                 for bu_id_item in bus:
                     cache_key = self.ACTIVE_GEOFENCES_KEY.format(client_id=client_id, bu_id=bu_id_item)

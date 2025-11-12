@@ -15,6 +15,7 @@ from apps.helpbot.models import HelpBotMessage
 
 @admin.register(HelpBotMessage)
 class HelpBotMessageAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for HelpBot messages."""
 
     list_display = [

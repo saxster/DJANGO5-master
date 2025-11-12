@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help Center - IntelliWiz</title>
+    <link rel="stylesheet" href="{% static 'help_center/css/help-styles.css' %}">
+</head>
+<body>
+    <div class="help-center-container">
+        <header class="help-header">
+            <h1>Help Center</h1>
+            <p>Find answers and get help with IntelliWiz features</p>
+        </header>
+
+        <div class="help-search-section">
+            <input
+                type="search"
+                id="help-search-input"
+                class="help-search-input"
+                placeholder="Search help articles..."
+                aria-label="Search help articles"
+            />
+            <button id="help-search-btn" class="help-search-button">Search</button>
+        </div>
+
+        <div class="help-categories">
+            <h2>Browse by Category</h2>
+            <div class="category-grid">
+                {% for category in categories %}
+                <div class="category-card">
+                    <div class="category-icon" style="background-color: {{ category.color }}">
+                        <span>{{ category.icon|default:"📁" }}</span>
+                    </div>
+                    <h3>{{ category.name }}</h3>
+                    <p>{{ category.description }}</p>
+                    <a href="/help/categories/{{ category.slug }}/" class="category-link">
+                        View articles →
+                    </a>
+                </div>
+                {% empty %}
+                <p>No categories available.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="help-popular">
+            <h2>Popular Articles</h2>
+            <ul class="article-list">
+                {% for article in popular_articles %}
+                <li>
+                    <a href="/help/articles/{{ article.slug }}/">
+                        {{ article.title }}
+                    </a>
+                    <span class="article-meta">
+                        {{ article.view_count }} views
+                    </span>
+                </li>
+                {% empty %}
+                <p>No articles available.</p>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="{% static 'help_center/js/help-button.js' %}"></script>
+    <script src="{% static 'help_center/js/tooltips.js' %}"></script>
+</body>
+</html>

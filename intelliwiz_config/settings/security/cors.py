@@ -30,6 +30,7 @@ Usage:
 
 import os
 from typing import List
+from apps.core.constants.datetime_constants import SECONDS_IN_DAY
 
 
 def get_cors_allowed_origins(is_debug: bool | None = None) -> List[str]:
@@ -115,7 +116,7 @@ CORS_ALLOW_HEADERS = [
 CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
 
 # Preflight cache duration (24 hours)
-CORS_PREFLIGHT_MAX_AGE = 86400
+CORS_PREFLIGHT_MAX_AGE = SECONDS_IN_DAY
 
 
 # Export all settings

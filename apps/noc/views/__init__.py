@@ -16,6 +16,8 @@ from . import analytics_views
 from . import export_views
 from . import utils
 from . import permissions
+from . import websocket_performance_dashboard
+from . import websocket_admin_tools
 
 __all__ = [
     'ui_views',
@@ -29,4 +31,6 @@ __all__ = [
     'export_views',
     'utils',
     'permissions',
+    'websocket_performance_dashboard',
+    'websocket_admin_tools',
 ]

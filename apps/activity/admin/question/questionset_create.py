@@ -19,7 +19,8 @@ from django.apps import apps
 from import_export import fields, resources
 from import_export import widgets as wg
 from apps.activity.models.question_model import QuestionSet
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 
 from .base import default_ta, AUTHORIZED_QUESTIONSET_TYPES
@@ -57,13 +58,13 @@ class QuestionSetResource(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=default_ta,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=default_ta,
     )
 

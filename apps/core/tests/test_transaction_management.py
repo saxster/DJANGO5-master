@@ -86,7 +86,9 @@ class ViewTransactionTests(TransactionTestCase):
     """Test transaction behavior in view handle_valid_form methods."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.factory = RequestFactory()
         self.tenant = Tenant.objects.create(
@@ -317,7 +319,9 @@ class DecoratorTests(TestCase):
     """Test transaction decorators."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Test Tenant",
@@ -380,7 +384,10 @@ class RealWorldScenarioTests(TransactionTestCase):
     """Test real-world transaction scenarios."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Test Tenant",
@@ -527,7 +534,8 @@ class RealWorldScenarioTests(TransactionTestCase):
         if there's an integrity constraint violation.
         """
         from apps.attendance.models import PeopleEventlog
-        from apps.onboarding.models import TypeAssist, Shift
+        from apps.client_onboarding.models import Shift
+        from apps.core_onboarding.models import TypeAssist
 
         event_type = TypeAssist.objects.create(
             tacode="CHECKIN",
@@ -585,7 +593,9 @@ class ConcurrentTransactionTests(TransactionTestCase):
         """
         from apps.work_order_management.models import Wom, Vendor
         from apps.activity.models.question_model import QuestionSet
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
         import threading
 
         tenant = Tenant.objects.create(tenantname="Concurrent Test", tenantcode="CONCURRENT")
@@ -628,7 +638,7 @@ class ConcurrentTransactionTests(TransactionTestCase):
                         client=client
                     )
                     results.append(('success', permit_num, wom.id))
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 results.append(('failed', permit_num, str(e)))
 
         threads = []

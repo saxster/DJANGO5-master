@@ -62,6 +62,29 @@ class WorkPermitViewSet(viewsets.GenericViewSet):
         super().__init__(*args, **kwargs)
         self.service = WorkPermitService()
 
+    def get_queryset(self):
+        """
+        Get optimized queryset with select_related for foreign keys.
+        
+        Prevents N+1 queries for:
+        - vendor (vendor.name)
+        - location (location.name)
+        - asset, ticketcategory, cuser, muser
+        """
+        return Wom.objects.select_related(
+            'vendor',
+            'location',
+            'asset',
+            'ticketcategory',
+            'cuser',
+            'muser',
+            'bu',
+            'client'
+        ).prefetch_related(
+            'approvers',
+            'verifiers'
+        )
+
     def list(self, request):
         """
         Get work permit records with filtering.

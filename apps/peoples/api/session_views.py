@@ -23,9 +23,9 @@ import logging
 from django.http import JsonResponse
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
+from apps.core.decorators import csrf_protect_ajax, rate_limit
 from apps.peoples.services.session_management_service import session_management_service
 
 logger = logging.getLogger(__name__)
@@ -75,12 +75,17 @@ class SessionListView(LoginRequiredMixin, View):
             }, status=500)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='dispatch')
+@method_decorator(rate_limit(max_requests=30, window_seconds=300), name='dispatch')
 class SessionRevokeView(LoginRequiredMixin, View):
     """
     Revoke a specific session.
 
     DELETE /api/sessions/{id}/
+    
+    Security:
+    - CSRF protected via csrf_protect_ajax (Rule #2 compliant)
+    - Rate limited to 30 requests per 5 minutes
     """
 
     def delete(self, request, session_id):
@@ -114,12 +119,17 @@ class SessionRevokeView(LoginRequiredMixin, View):
             }, status=500)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_protect_ajax, name='dispatch')
+@method_decorator(rate_limit(max_requests=10, window_seconds=300), name='dispatch')
 class SessionRevokeAllView(LoginRequiredMixin, View):
     """
     Revoke all sessions except current.
 
     POST /api/sessions/revoke-all/
+    
+    Security:
+    - CSRF protected via csrf_protect_ajax (Rule #2 compliant)
+    - Rate limited to 10 requests per 5 minutes (stricter due to bulk operation)
     """
 
     def post(self, request):

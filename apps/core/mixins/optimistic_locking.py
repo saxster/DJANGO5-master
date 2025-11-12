@@ -206,6 +206,8 @@ def with_optimistic_lock(func):
                     raise
 
                 import time
+                # SAFE: time.sleep() acceptable for optimistic lock retry in background tasks
+                # For request paths, use async_retry_mechanism instead
                 time.sleep(retry_delay * (2 ** attempt))
 
                 logger.info(

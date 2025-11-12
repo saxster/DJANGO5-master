@@ -31,7 +31,14 @@ logger = get_wellness_logger(__name__)
 
 
 class WellnessContentListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for wellness content lists"""
+    """
+    Lightweight serializer for wellness content lists
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        WellnessContent.objects.annotate(interaction_count=Count('interactions'))
+    Alternative (less efficient):
+        WellnessContent.objects.prefetch_related('interactions')
+    """
 
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     delivery_context_display = serializers.CharField(source='get_delivery_context_display', read_only=True)
@@ -57,11 +64,20 @@ class WellnessContentListSerializer(serializers.ModelSerializer):
 
     def get_interaction_count(self, obj) -> int:
         """Get total interaction count for this content"""
+        # Use annotated count if available, else count prefetched interactions
+        if hasattr(obj, 'interaction_count'):
+            return obj.interaction_count
         return obj.interactions.count()
 
 
 class WellnessContentDetailSerializer(serializers.ModelSerializer):
-    """Comprehensive serializer for wellness content details"""
+    """
+    Comprehensive serializer for wellness content details
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        WellnessContent.objects.select_related('created_by')
+                               .prefetch_related('interactions')
+    """
 
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     delivery_context_display = serializers.CharField(source='get_delivery_context_display', read_only=True)
@@ -169,7 +185,12 @@ class WellnessContentDetailSerializer(serializers.ModelSerializer):
 
 
 class WellnessUserProgressSerializer(PIIRedactionMixin, serializers.ModelSerializer):
-    """Serializer for user wellness progress and gamification"""
+    """
+    Serializer for user wellness progress and gamification
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        WellnessUserProgress.objects.select_related('user')
+    """
 
     # PII redaction configuration
     PII_ADMIN_FIELDS = ['user_name']  # Partially redact for admins
@@ -290,7 +311,13 @@ class WellnessUserProgressSerializer(PIIRedactionMixin, serializers.ModelSeriali
 
 
 class WellnessContentInteractionSerializer(PIIRedactionMixin, serializers.ModelSerializer):
-    """Serializer for wellness content interactions"""
+    """
+    Serializer for wellness content interactions
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        WellnessContentInteraction.objects.select_related('user', 'content', 
+                                                          'trigger_journal_entry')
+    """
 
     # PII redaction configuration
     PII_FIELDS = ['user_feedback', 'journal_entry_title']  # Always redact for non-owners

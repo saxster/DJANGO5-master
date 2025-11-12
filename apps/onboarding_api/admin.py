@@ -18,7 +18,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 # Import required models
 from apps.peoples.models import People
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 # Proxy models for separate admin interfaces
@@ -111,6 +111,8 @@ class PeopleConversationalOnboardingAdmin(admin.ModelAdmin):
         'remove_ai_approvers',
         'export_capability_report'
     ]
+
+    list_per_page = 50
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('client')
@@ -311,6 +313,8 @@ class TenantConversationalOnboardingAdmin(admin.ModelAdmin):
         'start_pilot_program',
         'full_rollout'
     ]
+
+    list_per_page = 50
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(

@@ -51,6 +51,7 @@ from opentelemetry.trace import Status, StatusCode
 
 from apps.core.observability.tracing import TracingService
 from apps.core.exceptions.patterns import VALIDATION_ERRORS
+from apps.core.exceptions.patterns import PARSING_EXCEPTIONS
 
 logger = logging.getLogger('monitoring.tracing_middleware')
 
@@ -167,7 +168,7 @@ class TracingMiddleware(MiddlewareMixin):
             if hasattr(request, '_tracing_span'):
                 try:
                     request._tracing_span.end()
-                except Exception:
+                except PARSING_EXCEPTIONS:
                     pass
 
         return response

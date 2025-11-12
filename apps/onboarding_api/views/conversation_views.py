@@ -15,8 +15,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import ConversationSession, LLMRecommendation
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation
 from ..serializers import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     ConversationStartSerializer,
     ConversationProcessSerializer,
     ConversationStatusSerializer,
@@ -210,7 +212,7 @@ class ConversationStartView(APIView):
 
             return self._success_response(session, enhanced_context, initial_questions)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return self._handle_llm_error(session, e)
 
     def _success_response(self, session, context, questions):
@@ -321,7 +323,7 @@ class ConversationProcessView(APIView):
                 "next_steps": result.get('next_steps', [])
             })
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error processing conversation: {str(e)}")
             return Response(
                 {"error": "Failed to process conversation"},

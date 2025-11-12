@@ -1,5 +1,17 @@
 import logging
-import psycopg2.errors as pg_errs
+
+try:
+    import psycopg2.errors as pg_errs
+except ImportError:  # pragma: no cover - dev environments without psycopg2
+    from django.db import DatabaseError
+
+    class _PGErrorShim:
+        class UniqueViolation(DatabaseError):
+            """Fallback UniqueViolation when psycopg2 is unavailable."""
+            pass
+
+    pg_errs = _PGErrorShim()
+
 from apps.core.utils_new.db_utils import get_current_db_name
 
 from django.contrib.auth.mixins import LoginRequiredMixin

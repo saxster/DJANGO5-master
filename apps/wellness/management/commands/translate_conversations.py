@@ -24,6 +24,7 @@ from apps.wellness.models.conversation_translation import WisdomConversationTran
 from apps.wellness.services.conversation_translation_service import ConversationTranslationService
 from apps.wellness.tasks import translate_conversation_async
 from apps.tenants.models import Tenant
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 User = get_user_model()
 
@@ -349,7 +350,7 @@ class Command(BaseCommand):
                         else:
                             self.stdout.write(f'\nTranslation failed: {conversation.id} → {language}: {error}')
 
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     failed_count += 1
 
                     if self.verbose:

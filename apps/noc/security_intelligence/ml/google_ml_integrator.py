@@ -12,6 +12,7 @@ Follows .claude/rules.md:
 
 import logging
 import json
+import warnings
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
@@ -20,10 +21,37 @@ logger = logging.getLogger('noc.security_intelligence.ml')
 
 
 class GoogleMLIntegrator:
-    """Google Cloud ML integration for fraud detection."""
+    """
+    Google ML Integrator (DEPRECATED).
+
+    ⚠️ DEPRECATION WARNING ⚠️
+    This class is deprecated and returns placeholder values only.
+
+    MIGRATION PATH:
+    - For training: Use FraudModelTrainer + train_fraud_model management command
+    - For prediction: Use PredictiveFraudDetector.predict_attendance_fraud()
+    - For export: Use FraudModelTrainer.export_training_data()
+
+    REMOVAL DATE: December 31, 2025
+
+    RATIONALE:
+    BigQuery ML integration replaced with local XGBoost training for:
+    - Zero cloud dependencies
+    - Lower latency (no network calls)
+    - Better control over model lifecycle
+    - Imbalanced class handling with scale_pos_weight
+    """
 
     BIGQUERY_DATASET = 'noc_security_intelligence'
     BIGQUERY_TABLE = 'fraud_detection_training'
+
+    def __init__(self):
+        warnings.warn(
+            "GoogleMLIntegrator is deprecated. "
+            "Use FraudModelTrainer for training and PredictiveFraudDetector for prediction.",
+            DeprecationWarning,
+            stacklevel=2
+        )
 
     @classmethod
     def export_training_data(cls, tenant, days=90):

@@ -8,6 +8,8 @@ Business logic delegated to respective services.
 import logging
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
 from django.shortcuts import render, redirect
 from django.views import View
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -17,12 +19,13 @@ from apps.peoples.services import (
     EmailVerificationService
 )
 from apps.peoples.forms import NoSiteForm
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(permission_required('peoples.change_people', raise_exception=True), name='dispatch')
 class ChangePeoplePassword(LoginRequiredMixin, View):
     """
     Refactored password change view using PasswordManagementService.

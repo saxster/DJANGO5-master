@@ -6,6 +6,7 @@ Follows .claude/rules.md testing standards.
 """
 
 import pytest
+import warnings
 from datetime import timedelta
 from django.utils import timezone
 
@@ -92,11 +93,27 @@ class TestBehavioralProfiler:
 class TestGoogleMLIntegrator:
     """Test Google ML integration methods."""
 
+    def test_deprecation_warning(self):
+        """Test deprecation warning is raised on instantiation."""
+        from apps.noc.security_intelligence.ml import GoogleMLIntegrator
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            integrator = GoogleMLIntegrator()
+
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
+            assert "FraudModelTrainer" in str(w[0].message)
+            assert "PredictiveFraudDetector" in str(w[0].message)
+
     def test_export_training_data(self, tenant):
         """Test training data export."""
         from apps.noc.security_intelligence.ml import GoogleMLIntegrator
 
-        result = GoogleMLIntegrator.export_training_data(tenant, days=30)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = GoogleMLIntegrator.export_training_data(tenant, days=30)
 
         assert 'success' in result
         if result['success']:

@@ -643,7 +643,7 @@
       people_webcaps: {{ request.session.people_webcaps|default([])|tojson }},
       client_webcaps: {{ request.session.client_webcaps|default([])|tojson }}
     };
-    const fileUploadUrl = "{{ url('onboarding:file_upload') }}";
+    const fileUploadUrl = "{{ url('admin:onboarding_typeassist_import') }}";
 
     // Block UI setup
     var dontBlock = false;

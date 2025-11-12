@@ -85,6 +85,8 @@ from .settings import websocket as websocket_settings
 # Runtime validation (only in development/test)
 if DEBUG:
     from .settings.health_checks import validate_settings_compliance
+    # Settings-specific exceptions
+    SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
     try:
         compliance_result = validate_settings_compliance()
@@ -93,7 +95,7 @@ if DEBUG:
                 f"Settings compliance violations detected: {compliance_result['violations']}",
                 UserWarning
             )
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         print(f"[SETTINGS] Warning: Could not run compliance check: {e}")
 
 # Legacy compatibility notice

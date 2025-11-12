@@ -16,6 +16,8 @@ Features:
 
 Usage:
     from apps.core.services.task_priority_service import priority_service
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
     
     priority = priority_service.calculate_priority(
         task_name='process_payment',
@@ -190,8 +192,8 @@ class TaskPriorityService:
             ...     'process_payment',
             ...     {'customer_tier': 'enterprise', 'age_hours': 2}
             ... )
-            >>> print(priority.priority)  # TaskPriority.CRITICAL
-            >>> print(priority.rationale)  # "Escalated: Enterprise SLA + aging"
+            >>> logger.info(priority.priority)  # TaskPriority.CRITICAL
+            >>> logger.info(priority.rationale)  # "Escalated: Enterprise SLA + aging"
         """
         context = context or {}
         
@@ -304,7 +306,7 @@ class TaskPriorityService:
             ...     task_args=(payment_id,),
             ...     context={'customer_tier': 'enterprise'}
             ... )
-            >>> print(result['new_task_id'])  # New Celery task ID
+            >>> logger.info(result['new_task_id'])  # New Celery task ID
         """
         from celery import current_app
         
@@ -323,7 +325,7 @@ class TaskPriorityService:
             task_func = current_app.tasks.get(task_name)
             if not task_func:
                 raise ValueError(f"Task {task_name} not found in Celery registry")
-        except Exception as exc:
+        except CELERY_EXCEPTIONS as exc:
             logger.error(f"Failed to get task {task_name}: {exc}")
             return {
                 'success': False,
@@ -357,7 +359,7 @@ class TaskPriorityService:
                 'rationale': rationale,
             }
             
-        except Exception as exc:
+        except CELERY_EXCEPTIONS as exc:
             logger.error(f"Failed to re-queue task {task_name}: {exc}", exc_info=True)
             return {
                 'success': False,

@@ -14,10 +14,10 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from apps.onboarding.models import (
-    Bt,
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
     LLMRecommendation,
-    AuthoritativeKnowledge,
+    AuthoritativeKnowledge
 )
 from apps.onboarding_api.services.learning import PreferenceProfile
 from apps.onboarding_api.services.experiments import (
@@ -671,7 +671,7 @@ class EnhancedKnowledgeEmbeddingsTestCase(TestCase):
 
     def test_chunked_knowledge_processing(self):
         """Test that knowledge documents are properly chunked for better retrieval"""
-        from apps.onboarding_api.services.knowledge import DocumentChunker
+        from apps.core_onboarding.services.knowledge import DocumentChunker
 
         chunker = DocumentChunker(chunk_size=500, chunk_overlap=100)
 
@@ -705,7 +705,7 @@ class EnhancedKnowledgeEmbeddingsTestCase(TestCase):
 
     def test_semantic_search_quality(self):
         """Test semantic search quality with embeddings"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
 
         service = get_knowledge_service()
 
@@ -722,7 +722,7 @@ class EnhancedKnowledgeEmbeddingsTestCase(TestCase):
 
     def test_knowledge_validation_against_sources(self):
         """Test recommendation validation against authoritative knowledge"""
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
 
         service = get_knowledge_service()
 
@@ -1178,7 +1178,7 @@ class IntegrationTestSuite(TestCase):
             self.assertIsNotNone(idempotency_manager)
             self.assertIsNotNone(audit_logger)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"Cross-feature compatibility issue: {str(e)}")
 
 

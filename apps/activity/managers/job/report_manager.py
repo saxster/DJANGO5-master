@@ -25,9 +25,19 @@ Usage:
 """
 
 from .base import (
-    models, Q, F, V, Count, Case, When, Concat, Cast,
-    datetime, timezone,
-    logger, json,
+    models,
+    Q,
+    F,
+    V,
+    Count,
+    Case,
+    When,
+    Concat,
+    Cast,
+    datetime,
+    timezone,
+    logger,
+    json,
 )
 from django.contrib.gis.db.models.functions import AsGeoJSON, Distance
 from django.db.models import (
@@ -67,7 +77,7 @@ class ReportManager(models.Manager):
             # apps/reports/services/report_data_service.py:
             data = Jobneed.objects.get_jobneed_for_report(pk=123)
             for row in data:
-                print(row.peoplename, row.cplandatetime, row.buname)
+                logger.debug(row.peoplename, row.cplandatetime, row.buname)
         """
         qset = self.raw(
             """
@@ -114,7 +124,7 @@ class ReportManager(models.Manager):
             # apps/reports/report_designs/RP_SiteVisitReport.py:
             hierarchy = Jobneed.objects.get_hdata_for_report(pk=123)
             for row in hierarchy:
-                print(f"Section: {row.jobdesc}, Q: {row.quesname}, A: {row.answer}")
+                logger.debug(f"Section: {row.jobdesc}, Q: {row.quesname}, A: {row.answer}")
         """
         qset = self.raw("""WITH RECURSIVE nodes_cte(jobneedid, parent_id, jobdesc, people_id, qset_id, plandatetime, cdtz, depth, path, top_parent_id, pseqno, buid) AS
         (
@@ -159,7 +169,7 @@ class ReportManager(models.Manager):
             deviation = Jobneed.objects.get_deviation_jn(pk=123)
             if deviation:
                 for row in deviation:
-                    print(f"Deviation: {row.jobdesc} by {row.peoplename}")
+                    logger.debug(f"Deviation: {row.jobdesc} by {row.peoplename}")
         """
         qset = self.raw(
             """
@@ -213,9 +223,9 @@ class ReportManager(models.Manager):
             # apps/reports/views/pdf_views.py:
             details = Jobneed.objects.get_sitereportdetails(id=123)
             for section_name, questions in details.items():
-                print(f"Section: {section_name}")
+                logger.debug(f"Section: {section_name}")
                 for q in questions:
-                    print(f"  Q: {q['question__quesname']}, A: {q['answer']}")
+                    logger.debug(f"  Q: {q['question__quesname']}, A: {q['answer']}")
         """
         qset = self.filter(parent_id=id).values('id', 'jobdesc')
         # Use the JobneedDetails model directly instead of its manager
@@ -261,7 +271,7 @@ class ReportManager(models.Manager):
             # apps/reports/views/template_views.py:
             reports = Jobneed.objects.get_sitereportlist(request)
             for report in reports:
-                print(f"{report['jobdesc']} - {report['distance']} - {report['time_spent']}")
+                logger.debug(f"{report['jobdesc']} - {report['distance']} - {report['time_spent']}")
         """
         from apps.peoples.models import Pgbelonging
         from apps.activity.models import Attachment
@@ -356,7 +366,7 @@ class ReportManager(models.Manager):
             # apps/reports/views/template_views.py:
             reports, atts = Jobneed.objects.get_incidentreportlist(request)
             for report in reports:
-                print(f"Incident: {report['jobdesc']} at {report['buname']}")
+                logger.debug(f"Incident: {report['jobdesc']} at {report['buname']}")
         """
         from apps.peoples.models import Pgbelonging
         from apps.activity.models import Attachment, QuestionSet

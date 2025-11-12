@@ -295,7 +295,7 @@ class TestViewRequestTypes:
 
                             response = view.get(request)
                             assert response is not None
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 # Some parameters might fail due to missing dependencies,
                 # but the view should handle them gracefully
                 pass

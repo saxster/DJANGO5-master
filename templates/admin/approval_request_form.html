@@ -1,0 +1,186 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Request Approval - {{ action_description }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .approval-form-container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .approval-header {
+        border-bottom: 3px solid #417690;
+        padding-bottom: 15px;
+        margin-bottom: 25px;
+    }
+    
+    .approval-header h1 {
+        color: #417690;
+        font-size: 24px;
+        margin: 0 0 5px 0;
+    }
+    
+    .approval-header p {
+        color: #666;
+        margin: 0;
+    }
+    
+    .info-box {
+        background: #f8f9fa;
+        border-left: 4px solid #417690;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    
+    .info-box strong {
+        color: #417690;
+    }
+    
+    .warning-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .form-group textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 14px;
+    }
+    
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #417690;
+        box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #417690;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2e5468;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #545b62;
+    }
+    
+    .affected-items {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 10px 0;
+    }
+    
+    .affected-items strong {
+        color: #004085;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="approval-form-container">
+    <div class="approval-header">
+        <h1>⏳ Request Approval</h1>
+        <p>This action requires approval before it can be executed</p>
+    </div>
+    
+    <div class="info-box">
+        <strong>📋 Action:</strong> {{ action_description }}<br>
+        <strong>👥 Approver Group:</strong> {{ approval_group_name }}<br>
+        <strong>⏰ Expires in:</strong> {{ expires_hours }} hours<br>
+    </div>
+    
+    <div class="affected-items">
+        <strong>🎯 Affected Items:</strong> {{ queryset_count }} item(s) selected
+    </div>
+    
+    <div class="warning-box">
+        <strong>⚠️ Important:</strong> This request will be sent to the <strong>{{ approval_group_name }}</strong> group for approval. 
+        You will receive an email notification when your request is approved or denied.
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Pass along the selected items -->
+        {% for obj in queryset %}
+            <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+        {% endfor %}
+        
+        <input type="hidden" name="action" value="{{ request.POST.action }}">
+        <input type="hidden" name="confirm_approval_request" value="1">
+        
+        <div class="form-group">
+            <label for="approval_reason">
+                Why do you need to do this? <span style="color: red;">*</span>
+            </label>
+            <textarea 
+                name="approval_reason" 
+                id="approval_reason" 
+                required
+                placeholder="Please provide a business justification for this action. For example: 'These cameras are being relocated to building B as part of the security upgrade project.'"
+            ></textarea>
+            <small style="color: #666;">Be specific - this helps approvers make informed decisions.</small>
+        </div>
+        
+        <div class="button-group">
+            <button type="submit" class="btn btn-primary">
+                ✅ Submit Approval Request
+            </button>
+            <a href="{% url 'admin:'|add:opts.app_label|add:'_'|add:opts.model_name|add:'_changelist' %}" class="btn btn-secondary">
+                ❌ Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -138,7 +138,7 @@ Import Data
     const DATA = {{ data |default ("[]") | tojson }}
     var table = null;
     var instructions = null;
-    const urlname = '{{ url("onboarding:import") }}'
+    const urlname = '{% url 'admin:onboarding_typeassist_import' %}'
 
     function getFormData(){
         var fd = new FormData();

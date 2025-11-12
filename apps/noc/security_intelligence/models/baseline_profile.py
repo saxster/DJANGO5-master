@@ -34,7 +34,7 @@ class BaselineProfile(BaseModel, TenantAwareModel):
     ]
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         related_name='baseline_profiles',
         help_text="Site for this baseline"
@@ -114,6 +114,25 @@ class BaselineProfile(BaseModel, TenantAwareModel):
         help_text="Anomaly detection sensitivity"
     )
 
+    # Dynamic threshold tuning (Gap #6)
+    false_positive_rate = models.FloatField(
+        default=0.0,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Rolling 30-day false positive rate (0.0-1.0)"
+    )
+
+    dynamic_threshold = models.FloatField(
+        default=3.0,
+        validators=[MinValueValidator(1.5), MaxValueValidator(5.0)],
+        help_text="Dynamically adjusted z-score threshold based on FP rate"
+    )
+
+    last_threshold_update = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When threshold was last updated"
+    )
+
     class Meta(BaseModel.Meta):
         db_table = 'noc_baseline_profile'
         verbose_name = 'Baseline Profile'
@@ -129,9 +148,12 @@ class BaselineProfile(BaseModel, TenantAwareModel):
 
     def is_anomalous(self, observed_value):
         """
-        Determine if observed value is anomalous.
+        Determine if observed value is anomalous using dynamic thresholds.
 
-        Uses robust z-score based on sensitivity setting.
+        Uses robust z-score with adaptive threshold based on:
+        - Sample count (more sensitive for stable baselines)
+        - False positive rate (less sensitive if high FP rate)
+        - Dynamic threshold value from baseline tuning
 
         Args:
             observed_value: Float value to check
@@ -142,19 +164,21 @@ class BaselineProfile(BaseModel, TenantAwareModel):
         if not self.is_stable or self.std_dev == 0:
             return False, 0.0, 0.0
 
+        # Use dynamic threshold (was: fixed threshold from sensitivity map)
+        z_threshold = self.dynamic_threshold
+
+        # More sensitive for stable baselines (sample_count > 100)
+        if self.sample_count > 100:
+            z_threshold = 2.5
+
+        # Less sensitive for high false positive rate (> 0.3)
+        if self.false_positive_rate > 0.3:
+            z_threshold = 4.0
+
         z_score = (observed_value - self.mean) / self.std_dev
+        is_anomalous = abs(z_score) > z_threshold
 
-        threshold_map = {
-            'LOW': 3.0,
-            'MEDIUM': 2.0,
-            'HIGH': 1.5,
-        }
-
-        threshold = threshold_map.get(self.sensitivity, 2.0)
-
-        is_anomalous = abs(z_score) > threshold
-
-        return is_anomalous, z_score, threshold
+        return is_anomalous, z_score, z_threshold
 
     def update_baseline(self, new_sample):
         """

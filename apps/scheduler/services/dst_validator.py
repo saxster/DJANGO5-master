@@ -33,7 +33,7 @@ Usage:
     )
 
     if result['has_issues']:
-        print(result['recommendations'])
+        logger.debug(result['recommendations'])
 
     # Get DST transitions for a year
     transitions = validator.get_dst_transitions(2025, 'US/Eastern')
@@ -245,9 +245,9 @@ validator = DSTValidator()
 transitions = validator.get_dst_transitions(2025, 'Europe/London')
 
 for trans in transitions:
-    print(f"{trans['date']}: {trans['type']}")
-    print(f"  Impact: {trans['impact']}")
-    print(f"  Offset change: {trans['before_offset']} → {trans['after_offset']}")
+    logger.debug(f"{trans['date']}: {trans['type']}")
+    logger.debug(f"  Impact: {trans['impact']}")
+    logger.debug(f"  Offset change: {trans['before_offset']} → {trans['after_offset']}")
 
 # Output:
 # 2025-03-30 01:00:00: spring_forward
@@ -268,7 +268,7 @@ alternatives = validator.recommend_dst_safe_alternative(
 )
 
 for alt in alternatives:
-    print(f"{alt['time']} - {alt['reason']} (Priority: {alt['priority']})")
+    logger.debug(f"{alt['time']} - {alt['reason']} (Priority: {alt['priority']})")
 
 # Output:
 # 04:00 - Safe: 2 hours after DST risk window (Priority: high)

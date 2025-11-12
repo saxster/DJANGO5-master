@@ -6,7 +6,33 @@ Views for scheduling automated email reports and testing report designs.
 Extracted from apps/reports/views/generation_views.py
 Date: 2025-10-10
 """
-from .base import *
+from .base import (
+    rp,
+    render,
+    render_to_string,
+    HTML,
+    CSS,
+    FontConfiguration,
+    HttpResponse,
+    JsonResponse,
+    json,
+    ValidationError,
+    utils,
+    rutils,
+    log,
+    debug_log,
+    IntegrationException,
+    MasterReportForm,
+    LoginRequiredMixin,
+    View,
+    rp_forms,
+    messages,
+    redirect,
+    IntegrityError,
+    DatabaseError,
+    ObjectDoesNotExist,
+    asyncio,
+)
 import pandas as pd
 
 from apps.reports.models import ScheduleReport
@@ -27,7 +53,7 @@ class DesignReport(LoginRequiredMixin, View):
             return self.render_using_pandoc(html_string)
         # excel file
         if R.get("text") == "xl":
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
 
             data = Bt.objects.get_sample_data()
             return self.render_excelfile(data)
@@ -222,7 +248,7 @@ class ScheduleEmailReport(LoginRequiredMixin, View):
                 cxt = {"errors": form.errors}
                 return utils.handle_invalid_form(request, self.P, cxt)
         except IntegrityError as e:
-            error_log.error(f"Integrity error occured {e}")
+            log.error(f"Integrity error occured {e}")
             cxt = {"errors": "Scheduled report with these criteria is already exist"}
             return utils.handle_invalid_form(request, self.P, cxt)
 

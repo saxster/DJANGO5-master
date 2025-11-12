@@ -168,10 +168,26 @@ class DeadLetterQueueHandler:
         try:
             # Get queue index
             index_key = f"{self.cache_prefix}index"
-            task_ids = cache.get(index_key, [])
+
+            # Try to get from Redis SET first (if using atomic operations)
+            try:
+                cache_client = cache.client.get_client()
+                if hasattr(cache_client, 'smembers'):
+                    # Redis SET - convert bytes to strings
+                    task_ids_set = cache_client.smembers(index_key)
+                    task_ids = [
+                        tid.decode('utf-8') if isinstance(tid, bytes) else str(tid)
+                        for tid in task_ids_set
+                    ]
+                else:
+                    # Fallback to list-based cache
+                    task_ids = cache.get(index_key, [])
+            except (AttributeError, Exception):
+                # Fallback to list-based cache
+                task_ids = cache.get(index_key, [])
 
             tasks = []
-            for task_id in task_ids[:limit]:
+            for task_id in list(task_ids)[:limit]:
                 task = self.get_dlq_task(task_id)
                 if task:
                     # Apply filter if provided
@@ -291,26 +307,100 @@ class DeadLetterQueueHandler:
         return sanitized
 
     def _add_to_queue_index(self, task_id: str):
-        """Add task ID to queue index for listing."""
+        """
+        Add task ID to queue index for listing.
+        Uses atomic Redis SADD if available, otherwise uses distributed lock.
+        """
         index_key = f"{self.cache_prefix}index"
-        task_ids = cache.get(index_key, [])
 
-        if task_id not in task_ids:
-            task_ids.append(task_id)
-            cache.set(index_key, task_ids, timeout=self.cache_timeout)
+        # Try Redis SADD for atomic set operations
+        try:
+            cache_client = cache.client.get_client()
+            if hasattr(cache_client, 'sadd'):
+                # Use Redis SET operations (atomic)
+                cache_client.sadd(index_key, task_id)
+                cache_client.expire(index_key, self.cache_timeout)
+                return
+        except (AttributeError, Exception) as e:
+            # Fallback to lock-based approach
+            dlq_logger.debug(f"Redis SADD not available, using lock-based approach: {str(e)}")
+
+        # Fallback: Use distributed lock for atomic updates
+        lock_key = f"{index_key}:lock"
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            # Try to acquire lock (1 second timeout)
+            if cache.add(lock_key, True, timeout=1):
+                try:
+                    # Lock acquired, safely update list
+                    task_ids = cache.get(index_key, [])
+                    if task_id not in task_ids:
+                        task_ids.append(task_id)
+                        cache.set(index_key, task_ids, timeout=self.cache_timeout)
+                    break
+                finally:
+                    # Always release lock
+                    cache.delete(lock_key)
+            else:
+                # Lock held by another process, wait briefly and retry
+                import time
+                time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+
+        if attempt == max_retries - 1:
+            dlq_logger.warning(
+                f"Failed to acquire lock for DLQ index update after {max_retries} attempts"
+            )
 
     def _remove_from_dlq(self, task_id: str):
-        """Remove task from DLQ and index."""
+        """
+        Remove task from DLQ and index.
+        Uses atomic Redis SREM if available, otherwise uses distributed lock.
+        """
         # Remove from cache
         cache_key = f"{self.cache_prefix}{task_id}"
         cache.delete(cache_key)
 
         # Remove from index
         index_key = f"{self.cache_prefix}index"
-        task_ids = cache.get(index_key, [])
-        if task_id in task_ids:
-            task_ids.remove(task_id)
-            cache.set(index_key, task_ids, timeout=self.cache_timeout)
+
+        # Try Redis SREM for atomic set operations
+        try:
+            cache_client = cache.client.get_client()
+            if hasattr(cache_client, 'srem'):
+                # Use Redis SET operations (atomic)
+                cache_client.srem(index_key, task_id)
+                return
+        except (AttributeError, Exception) as e:
+            # Fallback to lock-based approach
+            dlq_logger.debug(f"Redis SREM not available, using lock-based approach: {str(e)}")
+
+        # Fallback: Use distributed lock for atomic updates
+        lock_key = f"{index_key}:lock"
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            # Try to acquire lock (1 second timeout)
+            if cache.add(lock_key, True, timeout=1):
+                try:
+                    # Lock acquired, safely update list
+                    task_ids = cache.get(index_key, [])
+                    if task_id in task_ids:
+                        task_ids.remove(task_id)
+                        cache.set(index_key, task_ids, timeout=self.cache_timeout)
+                    break
+                finally:
+                    # Always release lock
+                    cache.delete(lock_key)
+            else:
+                # Lock held by another process, wait briefly and retry
+                import time
+                time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+
+        if attempt == max_retries - 1:
+            dlq_logger.warning(
+                f"Failed to acquire lock for DLQ index removal after {max_retries} attempts"
+            )
 
     def _is_critical_task(self, task_name: str) -> bool:
         """Check if task is critical (requires immediate alert)."""

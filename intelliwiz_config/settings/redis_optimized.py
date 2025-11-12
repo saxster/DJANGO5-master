@@ -16,6 +16,7 @@ import logging
 import environ
 from functools import lru_cache
 from typing import Dict, Any, Optional
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
 env = environ.Env()
 logger = logging.getLogger(__name__)
@@ -52,15 +53,14 @@ def get_redis_password(environment: str = 'development') -> str:
             "Set via environment variable or .env.redis.production file."
         )
 
-    # Development/Testing: Use safe default with warning
+    # Development/Testing: Require password even for dev (no hardcoded defaults)
     if not password:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(
-            f"REDIS_PASSWORD not set for {environment} environment. "
-            f"Using development default. DO NOT use in production!"
+        raise ValueError(
+            f"REDIS_PASSWORD must be set for {environment} environment. "
+            f"Set via environment variable or create .env.redis.{environment} file with REDIS_PASSWORD=your_password. "
+            f"Even development environments require explicit password configuration for security awareness. "
+            f"Example: Create .env.redis.development with REDIS_PASSWORD=dev_redis_pass_2024"
         )
-        password = 'dev_redis_password_2024'
 
     return password
 
@@ -95,6 +95,7 @@ def get_redis_tls_config(environment: str = 'production') -> Dict[str, Any]:
         from datetime import datetime, timezone as dt_timezone
 
         # PCI DSS Compliance Enforcement Date: April 1, 2025
+        # STATUS (Nov 2025): Enforcement is ACTIVE - production deployments without TLS will FAIL
         compliance_deadline = datetime(2025, 4, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
         current_time = datetime.now(dt_timezone.utc)
         days_until_deadline = (compliance_deadline - current_time).days
@@ -203,6 +204,13 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
     # Get TLS/SSL configuration (PCI DSS Level 1 compliance)
     tls_config = get_redis_tls_config(environment)
 
+    # Determine default error-handling behaviour (production should fail fast)
+    ignore_exceptions_default = environment != 'production'
+    ignore_exceptions = env.bool(
+        'DJANGO_REDIS_IGNORE_EXCEPTIONS',
+        default=ignore_exceptions_default,
+    )
+
     # Environment-specific optimizations
     if environment == 'production':
         connection_pool_kwargs = {
@@ -223,7 +231,6 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         # Production performance settings
         serializer = 'django_redis.serializers.json.JSONSerializer'
         compressor = 'django_redis.compressors.zlib.ZlibCompressor'
-        ignore_exceptions = False
 
     elif environment == 'testing':
         connection_pool_kwargs = {
@@ -238,7 +245,6 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         # JSON serializer for consistency across environments (compliance-friendly)
         serializer = 'django_redis.serializers.json.JSONSerializer'
         compressor = None
-        ignore_exceptions = True              # Don't fail tests on cache issues
 
     else:  # development
         connection_pool_kwargs = {
@@ -253,7 +259,6 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         # Development settings - balance performance and debugging
         serializer = 'django_redis.serializers.json.JSONSerializer'
         compressor = None                     # No compression for easier debugging
-        ignore_exceptions = False
 
     # Add TLS configuration to connection pool
     if tls_config:
@@ -282,6 +287,7 @@ def get_optimized_redis_config(environment: str = 'development') -> Dict[str, An
         'SERIALIZER': serializer,
         'IGNORE_EXCEPTIONS': ignore_exceptions,
         'KEY_PREFIX': f'youtility_{environment}',
+        'KEY_FUNCTION': 'apps.core.cache.key_functions.tenant_key',
         'VERSION': 1,
         # Connection pool class for better management
         'CONNECTION_POOL_CLASS': 'redis.connection.BlockingConnectionPool',
@@ -358,13 +364,13 @@ def get_optimized_caches_config(environment: str = 'development') -> Dict[str, A
                     'MAX_ENTRIES': 10000 if environment == 'production' else 1000,
                     'CULL_FREQUENCY': 3,
                 },
-                'TIMEOUT': 3600 if environment == 'production' else 900,  # 1 hour vs 15 min
+                'TIMEOUT': SECONDS_IN_HOUR if environment == 'production' else 900,  # 1 hour vs 15 min
                 'KEY_PREFIX': f'select2_mv_{environment}',
             })
 
         elif cache_name == 'sessions':
             # Session-specific optimizations
-            cache_config['TIMEOUT'] = 7200  # 2 hours for sessions
+            cache_config['TIMEOUT'] = 2 * SECONDS_IN_HOUR  # 2 hours for sessions
             cache_config['OPTIONS']['KEY_PREFIX'] = f'sessions_{environment}'
 
             # Session-specific connection pool (fewer connections needed)
@@ -405,7 +411,7 @@ def get_channel_layers_config(environment: str = 'development') -> Dict[str, Any
             "hosts": [redis_url],
             "capacity": 50000,        # Higher capacity for production
             "expiry": 120,            # 2 minutes message expiry
-            "group_expiry": 86400,    # 24 hours group expiry
+            "group_expiry": SECONDS_IN_DAY,    # 24 hours group expiry
             "symmetric_encryption_keys": [env('CHANNELS_ENCRYPTION_KEY', default='')],
         }
     elif environment == 'testing':
@@ -420,7 +426,7 @@ def get_channel_layers_config(environment: str = 'development') -> Dict[str, Any
             "hosts": [redis_url],
             "capacity": 1000,         # Lower for development
             "expiry": 60,             # 1 minute expiry
-            "group_expiry": 3600,     # 1 hour group expiry
+            "group_expiry": SECONDS_IN_HOUR,     # 1 hour group expiry
         }
 
     return {

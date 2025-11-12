@@ -1,0 +1,242 @@
+{% load static %}
+
+<!-- Save View Button -->
+<button class="btn btn-secondary" id="save-view-btn" onclick="showSaveViewDialog()" style="margin-left: 10px;">
+    💾 Save This View
+</button>
+
+<!-- Save View Dialog Modal -->
+<div id="save-view-dialog" class="modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px;">
+        <span class="close" onclick="closeSaveDialog()" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+        
+        <h2>💾 Save This View</h2>
+        <p>Save your current filters and configuration for quick access later.</p>
+        
+        <form id="save-view-form" style="margin-top: 20px;">
+            <div style="margin-bottom: 15px;">
+                <label for="view-name" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                    View Name: <span style="color: red;">*</span>
+                </label>
+                <input type="text" id="view-name" name="name" 
+                       placeholder="e.g., My Open High Priority Tickets" 
+                       required
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="view-description" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                    Description (optional):
+                </label>
+                <textarea id="view-description" name="description" 
+                          placeholder="What does this view show?"
+                          rows="3"
+                          style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="sharing-level" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                    Share with:
+                </label>
+                <select id="sharing-level" name="sharing_level" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="PRIVATE">🔒 Just me</option>
+                    <option value="TEAM">👥 My team</option>
+                    <option value="SITE">🏢 Everyone at my site</option>
+                    <option value="PUBLIC">🌍 All users</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center;">
+                    <input type="checkbox" id="set-default" name="set_default" style="margin-right: 8px;">
+                    <span>⭐ Make this my default view</span>
+                </label>
+            </div>
+            
+            <hr style="margin: 20px 0;">
+            
+            <h3 style="font-size: 16px; margin-bottom: 10px;">📧 Optional: Email me this report</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="email-frequency" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                    Frequency:
+                </label>
+                <select id="email-frequency" name="email_frequency" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="NONE">Don't email</option>
+                    <option value="DAILY">Daily at 8 AM</option>
+                    <option value="WEEKLY">Weekly on Monday</option>
+                    <option value="MONTHLY">Monthly on 1st</option>
+                </select>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="button" onclick="closeSaveDialog()" 
+                        style="padding: 10px 20px; margin-right: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" 
+                        style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    💾 Save View
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showSaveViewDialog() {
+    document.getElementById('save-view-dialog').style.display = 'block';
+}
+
+function closeSaveDialog() {
+    document.getElementById('save-view-dialog').style.display = 'none';
+    document.getElementById('save-view-form').reset();
+}
+
+// Close when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('save-view-dialog');
+    if (event.target == modal) {
+        closeSaveDialog();
+    }
+}
+
+// Helper function to get current scope from page
+function getCurrentScope() {
+    // Extract from URL params or page state
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+        tenant: urlParams.get('tenant') || '',
+        client: urlParams.get('client') || '',
+        site: urlParams.get('site') || '',
+        time_range: urlParams.get('time_range') || '',
+        shift: urlParams.get('shift') || '',
+    };
+}
+
+// Helper function to get current filters
+function getCurrentFilters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters = {};
+    
+    // Common filter params
+    ['status', 'priority', 'assigned_to', 'created_by', 'date_from', 'date_to'].forEach(key => {
+        const value = urlParams.get(key);
+        if (value) filters[key] = value;
+    });
+    
+    return filters;
+}
+
+// Helper function to get visible panels (if applicable)
+function getVisiblePanels() {
+    // If page has toggleable panels, track which are visible
+    const panels = [];
+    document.querySelectorAll('.dashboard-panel:not(.hidden)').forEach(panel => {
+        panels.push(panel.id);
+    });
+    return panels;
+}
+
+// Helper function to get current sort order
+function getCurrentSortOrder() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderBy = urlParams.get('o');
+    return orderBy ? [orderBy] : [];
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Form submission
+document.getElementById('save-view-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        name: formData.get('name'),
+        description: formData.get('description') || '',
+        view_type: '{{ view_type|default:"CUSTOM" }}',
+        page_url: window.location.pathname,
+        scope_config: getCurrentScope(),
+        filters: getCurrentFilters(),
+        visible_panels: getVisiblePanels(),
+        sort_order: getCurrentSortOrder(),
+        sharing_level: formData.get('sharing_level'),
+        is_default: document.getElementById('set-default').checked,
+        email_frequency: formData.get('email_frequency')
+    };
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Saving...';
+    
+    try {
+        const response = await fetch('/admin/api/save-view/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ ' + result.message);
+            closeSaveDialog();
+            
+            // Optionally redirect to saved views page
+            if (confirm('Would you like to view all your saved views?')) {
+                window.location.href = '/admin/my-saved-views/';
+            }
+        } else {
+            alert('❌ Error: ' + result.error);
+            submitBtn.disabled = false;
+            submitBtn.textContent = '💾 Save View';
+        }
+    } catch (error) {
+        console.error('Error saving view:', error);
+        alert('❌ Failed to save view. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '💾 Save View';
+    }
+});
+</script>
+
+<style>
+#save-view-dialog label {
+    color: #333;
+}
+
+#save-view-dialog input[type="text"],
+#save-view-dialog textarea,
+#save-view-dialog select {
+    font-size: 14px;
+}
+
+#save-view-dialog button:hover {
+    opacity: 0.9;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+</style>

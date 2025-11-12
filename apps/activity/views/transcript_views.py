@@ -73,8 +73,24 @@ class TranscriptStatusView(LoginRequiredMixin, View):
             return rp.JsonResponse(response_data, status=200)
 
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Error in TranscriptStatusView: {str(e)}", exc_info=True)
-            return rp.JsonResponse({"error": "Internal server error"}, status=500)
+            from apps.core.error_handling import ErrorHandler
+            from apps.core.middleware.correlation_id_middleware import get_correlation_id
+
+            correlation_id = get_correlation_id() or getattr(request, 'correlation_id', None)
+            ErrorHandler.handle_exception(
+                e,
+                context={'view': 'TranscriptStatusView', 'path': request.path},
+                correlation_id=correlation_id,
+                level='error'
+            )
+            return rp.JsonResponse({
+                "success": False,
+                "error": {
+                    "code": "DATABASE_ERROR",
+                    "message": "Unable to retrieve transcript status",
+                    "correlation_id": correlation_id
+                }
+            }, status=500)
 
 
 class TranscriptManagementView(LoginRequiredMixin, View):
@@ -112,8 +128,24 @@ class TranscriptManagementView(LoginRequiredMixin, View):
                 return rp.JsonResponse({"error": f"Unknown action: {action}"}, status=400)
 
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Error in TranscriptManagementView: {str(e)}", exc_info=True)
-            return rp.JsonResponse({"error": "Internal server error"}, status=500)
+            from apps.core.error_handling import ErrorHandler
+            from apps.core.middleware.correlation_id_middleware import get_correlation_id
+
+            correlation_id = get_correlation_id() or getattr(request, 'correlation_id', None)
+            ErrorHandler.handle_exception(
+                e,
+                context={'view': 'TranscriptManagementView', 'path': request.path, 'action': action},
+                correlation_id=correlation_id,
+                level='error'
+            )
+            return rp.JsonResponse({
+                "success": False,
+                "error": {
+                    "code": "DATABASE_ERROR",
+                    "message": "Unable to process transcript operation",
+                    "correlation_id": correlation_id
+                }
+            }, status=500)
 
     def _retry_transcription(self, jobneed_detail):
         """Retry transcription for a JobneedDetails instance"""
@@ -194,5 +226,21 @@ class SpeechServiceStatusView(LoginRequiredMixin, View):
             return rp.JsonResponse(response_data, status=200)
 
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
-            logger.error(f"Error in SpeechServiceStatusView: {str(e)}", exc_info=True)
-            return rp.JsonResponse({"error": "Internal server error"}, status=500)
+            from apps.core.error_handling import ErrorHandler
+            from apps.core.middleware.correlation_id_middleware import get_correlation_id
+
+            correlation_id = get_correlation_id() or getattr(request, 'correlation_id', None)
+            ErrorHandler.handle_exception(
+                e,
+                context={'view': 'SpeechServiceStatusView', 'path': request.path},
+                correlation_id=correlation_id,
+                level='error'
+            )
+            return rp.JsonResponse({
+                "success": False,
+                "error": {
+                    "code": "DATABASE_ERROR",
+                    "message": "Unable to check speech service status",
+                    "correlation_id": correlation_id
+                }
+            }, status=500)

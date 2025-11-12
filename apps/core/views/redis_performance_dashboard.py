@@ -27,6 +27,10 @@ from django.contrib import messages
 from apps.core.services.redis_metrics_collector import redis_metrics_collector
 from apps.core.services.redis_memory_manager import redis_memory_manager
 from apps.core.health_checks.cache import (
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     check_redis_connectivity, check_redis_memory_health,
     check_redis_performance, check_default_cache
 )
@@ -90,7 +94,7 @@ class RedisPerformanceDashboardView(TemplateView):
                     'dashboard_timestamp': timezone.now(),
                 })
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             messages.error(self.request, f'Dashboard error: {str(e)}')
             context.update({
                 'dashboard_error': str(e),
@@ -186,7 +190,7 @@ class RedisMetricsAPIView(View):
 
             return JsonResponse(metrics_data)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             return JsonResponse({
                 'error': f'Metrics collection failed: {str(e)}',
                 'timestamp': timezone.now().isoformat()
@@ -218,7 +222,7 @@ class RedisPerformanceTrendsAPIView(View):
                 'timestamp': timezone.now().isoformat()
             }, status=400)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return JsonResponse({
                 'error': f'Trends analysis failed: {str(e)}',
                 'timestamp': timezone.now().isoformat()
@@ -248,7 +252,7 @@ class RedisMemoryOptimizationView(View):
                 'timestamp': timezone.now().isoformat()
             })
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return JsonResponse({
                 'error': f'Memory optimization failed: {str(e)}',
                 'timestamp': timezone.now().isoformat()
@@ -294,7 +298,7 @@ class RedisMemoryOptimizationView(View):
                 'timestamp': timezone.now().isoformat()
             })
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             return JsonResponse({
                 'error': f'Memory status retrieval failed: {str(e)}',
                 'timestamp': timezone.now().isoformat()
@@ -353,7 +357,7 @@ class RedisHealthCheckAPIView(View):
                 'error_checks': len([s for s in all_statuses if s == 'error'])
             })
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             return JsonResponse({
                 'error': f'Health check failed: {str(e)}',
                 'timestamp': timezone.now().isoformat()

@@ -19,6 +19,7 @@ Date: October 2025
 import logging
 from typing import Dict, Any, Optional
 from django.conf import settings
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, FILE_IO_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +70,9 @@ class GoogleSpeechService:
                     self._client_initialized = True
                     logger.info("Google Speech client initialized successfully")
                 else:
-                    logger.warning("Google Speech client not available")
-            except Exception as e:
-                logger.error(f"Failed to initialize Google Speech client: {e}")
+                    logger.warning("Google Speech client not available", exc_info=True)
+            except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+                logger.error(f"Failed to initialize Google Speech client: {e}", exc_info=True)
                 self._client = None
 
         return self._client
@@ -146,8 +147,8 @@ class GoogleSpeechService:
                 'success': True
             }
 
-        except Exception as e:
-            logger.error(f"Failed to transcribe audio: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to transcribe audio: {e}", exc_info=True)
             return {
                 'transcript': '',
                 'confidence': 0.0,
@@ -209,8 +210,8 @@ class GoogleSpeechService:
                 'issues': issues
             }
 
-        except Exception as e:
-            logger.error(f"Failed to validate audio format: {e}")
+        except (NETWORK_EXCEPTIONS + FILE_IO_EXCEPTIONS) as e:
+            logger.error(f"Failed to validate audio format: {e}", exc_info=True)
             return {
                 'valid': False,
                 'error': str(e),

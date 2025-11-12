@@ -172,7 +172,7 @@ class TypeAssistFilterMixin:
         session = self.request.session
         client_id = session.get('client_id')
 
-        from apps.onboarding.models import TypeAssist
+        from apps.core_onboarding.models import TypeAssist
 
         for field_name, tacode in field_mapping.items():
             if field_name not in self.fields:

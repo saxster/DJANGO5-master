@@ -1,0 +1,111 @@
+{% load static %}
+
+<div class="threat-intelligence-widget" id="threat-intelligence-widget">
+    <div class="widget-header">
+        <h3>
+            <i class="fas fa-shield-alt"></i>
+            Threat Intelligence Alerts
+            {% if critical_threat_count > 0 %}
+            <span class="critical-count-badge">{{ critical_threat_count }}</span>
+            {% endif %}
+        </h3>
+        <div class="widget-controls">
+            <button class="btn-icon" id="refresh-threats" title="Refresh alerts">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="btn-icon" id="filter-threats" title="Filter alerts">
+                <i class="fas fa-filter"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="widget-status">
+        <div class="connection-indicator" id="threat-ws-status">
+            <span class="status-dot connecting"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="threat-alerts-container" id="threat-alerts-list">
+        {% if recent_threat_alerts %}
+            {% for alert in recent_threat_alerts %}
+            <div class="threat-alert-item" data-alert-id="{{ alert.id }}" data-severity="{{ alert.severity }}">
+                <div class="alert-header">
+                    <span class="severity-badge severity-{{ alert.severity|lower }}">
+                        {{ alert.severity }}
+                    </span>
+                    <span class="alert-distance">
+                        <i class="fas fa-map-marker-alt"></i>
+                        {{ alert.distance_km|floatformat:1 }} km
+                    </span>
+                    <span class="alert-time" data-timestamp="{{ alert.created_at|date:'c' }}">
+                        {{ alert.created_at|timesince }} ago
+                    </span>
+                </div>
+                
+                <div class="alert-content">
+                    <h4 class="alert-title">{{ alert.threat_event.title }}</h4>
+                    <p class="alert-description">
+                        {{ alert.threat_event.description|truncatewords:20 }}
+                    </p>
+                    {% if alert.threat_event.incident_type %}
+                    <div class="alert-metadata">
+                        <span class="alert-type">
+                            <i class="fas fa-tag"></i>
+                            {{ alert.threat_event.incident_type }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="alert-actions">
+                    <button class="btn btn-sm btn-primary action-acknowledge" data-alert-id="{{ alert.id }}">
+                        <i class="fas fa-check"></i> Acknowledge
+                    </button>
+                    <button class="btn btn-sm btn-warning action-false-positive" data-alert-id="{{ alert.id }}">
+                        <i class="fas fa-times-circle"></i> False Positive
+                    </button>
+                    <button class="btn btn-sm btn-secondary action-view-details" data-alert-id="{{ alert.id }}">
+                        <i class="fas fa-info-circle"></i> Details
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state" id="threat-empty-state">
+            <i class="fas fa-shield-check"></i>
+            <p>No active threat alerts</p>
+            <small>You'll be notified in real-time when threats are detected</small>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Critical Alert Banner (hidden by default) -->
+    <div class="critical-alert-banner" id="critical-alert-banner" style="display: none;">
+        <div class="banner-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span class="banner-text"></span>
+        </div>
+        <button class="btn-close-banner">×</button>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div class="modal fade" id="threatDetailModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Threat Alert Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>×</span>
+                </button>
+            </div>
+            <div class="modal-body" id="threat-detail-content">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="{% static 'noc/css/threat_intelligence.css' %}">
+<script src="{% static 'noc/js/threat_intelligence.js' %}"></script>

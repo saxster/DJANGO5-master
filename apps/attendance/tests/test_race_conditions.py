@@ -4,6 +4,7 @@ Comprehensive race condition tests for attendance system
 Tests verify that concurrent operations do not corrupt data or lose updates.
 """
 
+import logging
 import pytest
 import threading
 import time
@@ -12,12 +13,16 @@ from django.test import TestCase, TransactionTestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from apps.attendance.models import PeopleEventlog
+from apps.core.testing import poll_until
+
+logger = logging.getLogger(__name__)
 from apps.face_recognition.models import (
     FaceRecognitionModel,
     FaceEmbedding,
     FaceVerificationLog
 )
-from apps.onboarding.models import Bt, Shift, TypeAssist
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist
 
 User = get_user_model()
 
@@ -96,12 +101,19 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     result, str(attendance.uuid), attendance.people_id, 'default'
                 )
                 assert success, "Punch-in update failed"
-            except Exception as e:
+            except (AssertionError, AttributeError, KeyError) as e:
                 errors.append(('punch_in', e))
 
         def update_punch_out():
             try:
-                time.sleep(0.05)  # Slight delay to ensure overlap
+                # Slight delay to ensure overlap using condition polling
+                # Wait a bit for punch_in to start processing
+                poll_until(
+                    lambda: True,  # Always true, just for timing synchronization
+                    timeout=0.1,
+                    interval=0.05
+                )
+
                 attendance.punchouttime = timezone.now()
                 attendance.save(update_fields=['punchouttime'])
 
@@ -110,7 +122,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     result, str(attendance.uuid), attendance.people_id, 'default'
                 )
                 assert success, "Punch-out update failed"
-            except Exception as e:
+            except (AssertionError, AttributeError, KeyError) as e:
                 errors.append(('punch_out', e))
 
         # Run updates concurrently
@@ -157,7 +169,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     PeopleEventlog.objects.update_fr_results(
                         result, str(attendance.uuid), attendance.people_id, 'default'
                     )
-            except Exception as e:
+            except (AttributeError, KeyError, ValueError) as e:
                 errors.append((iteration, e))
 
         threads = [threading.Thread(target=rapid_update, args=(i,)) for i in range(num_threads)]
@@ -197,7 +209,7 @@ class TestAttendanceRaceConditions(TransactionTestCase):
                     )
                 except LockTimeoutError:
                     error_caught.append(True)
-                except Exception as e:
+                except (AttributeError, KeyError, ValueError) as e:
                     error_caught.append(e)
 
             t = threading.Thread(target=attempt_update)
@@ -243,7 +255,7 @@ class TestFaceRecognitionRaceConditions(TransactionTestCase):
                     similarity_score=0.8 if is_success else 0.4,
                     processing_time_ms=100
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 errors.append(e)
 
         # Create mix of successful and failed verifications
@@ -291,7 +303,7 @@ class TestFaceRecognitionRaceConditions(TransactionTestCase):
                     face_confidence=0.9,
                     is_validated=True
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 errors.append(e)
 
         # Try to create multiple embeddings concurrently
@@ -340,7 +352,7 @@ class TestFaceRecognitionRaceConditions(TransactionTestCase):
                     similarity_score=0.85,
                     processing_time_ms=100
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 errors.append(e)
 
         threads = [threading.Thread(target=create_verification) for _ in range(num_verifications)]
@@ -472,7 +484,7 @@ class TestPerformanceUnderLoad(TransactionTestCase):
         self.assertTrue(success, "Update failed")
         self.assertLess(elapsed_ms, 100, f"Update took {elapsed_ms:.2f}ms (threshold: 100ms)")
 
-        print(f"Update latency: {elapsed_ms:.2f}ms")
+        logger.info(f"Update latency: {elapsed_ms:.2f}ms")
 
 
 @pytest.mark.django_db

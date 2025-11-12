@@ -125,6 +125,104 @@ print(f"Domains: {stats['domains']}")
 - ⏳ JSON-LD exporter for semantic web (next)
 - ⏳ Auto-completion suggestions (next)
 
+### Phase 6: Premium Features Registration (COMPLETE - Nov 5, 2025)
+
+**38 Components Registered** - November 5, 2025:
+
+**Security Features** (11 components):
+- ✅ CSRF protected endpoints (sessions, uploads)
+- ✅ SecureFileDownloadService integration
+- ✅ Rate limiting (sessions, CSP, monitoring)
+- ✅ Prometheus API key authentication
+- ✅ File streaming optimization
+
+**Reliability Features** (5 components):
+- ✅ Specific exception handling (middleware, services)
+- ✅ Transaction.atomic operations (3 services)
+- ✅ Database performance monitoring
+- ✅ Sentry enrichment
+
+**Performance Analytics** (15 components):
+- ✅ Worker/Team metrics tracking
+- ✅ BPI calculation engine
+- ✅ Cohort benchmarking
+- ✅ Gamification system
+- ✅ REST APIs (7 endpoints)
+- ✅ Celery aggregation tasks
+
+**Premium Features** (7 components):
+- ✅ SOAR-Lite Automation
+- ✅ SLA Breach Prevention
+- ✅ Device Health Monitoring
+- ✅ Executive Scorecards
+- ✅ Shift Compliance Intelligence
+- ✅ AI Alert Triage
+- ✅ Vendor Performance Tracking
+
+**Revenue Impact**: $1.4M ARR potential documented in ontology
+
+**Load Registrations**:
+```python
+from apps.ontology.registrations.november_2025_improvements import register_november_2025_improvements
+register_november_2025_improvements()
+```
+
+### Phase 7: Performance Optimization Patterns (COMPLETE - Nov 6, 2025)
+
+**25+ Components Registered** - November 6, 2025:
+
+**Core Concepts** (4 components):
+- ✅ N+1 Query Problem explanation with examples
+- ✅ select_related() - ForeignKey/OneToOne optimization
+- ✅ prefetch_related() - ManyToMany/Reverse FK optimization
+- ✅ Prefetch Object - Advanced nested optimizations
+
+**Optimization Techniques** (2 components):
+- ✅ Custom Manager Methods (with_full_details pattern)
+- ✅ Query Result Caching integration
+
+**Detection & Monitoring** (2 tools):
+- ✅ NPlusOneDetector - Runtime N+1 detection
+- ✅ QueryOptimizer Service - Automated optimization
+
+**Testing Utilities** (3 concepts):
+- ✅ assertNumQueries - Regression prevention
+- ✅ Performance Benchmarking patterns
+- ✅ Query Count Testing best practices
+
+**Real-World Examples** (3 case studies):
+- ✅ NOC Incident optimization (97% query reduction)
+- ✅ People Manager optimization (99.7% query reduction)
+- ✅ Reports Service optimization (96% query reduction)
+
+**Anti-Patterns** (3 pitfalls):
+- ✅ Over-prefetching warnings
+- ✅ Missing to_attr pitfalls
+- ✅ Queryset in loop anti-pattern
+
+**Manager Implementations** (3 components):
+- ✅ OptimizedManager base class
+- ✅ PeopleManager.with_full_details
+- ✅ NOCIncidentManager.with_full_details
+
+**Documentation** (2 references):
+- ✅ Query Optimization Architecture
+- ✅ N+1 Optimization Deliverables
+
+**Load Registrations**:
+```bash
+# Command line
+python manage.py load_performance_ontology --stats
+
+# Python
+from apps.ontology.registrations.performance_optimization_patterns import register_performance_optimization_patterns
+register_performance_optimization_patterns()
+```
+
+**Documentation**:
+- Complete Guide: `docs/ontology/PERFORMANCE_OPTIMIZATION_ONTOLOGY.md`
+- Quick Reference: `docs/ontology/PERFORMANCE_QUICK_REFERENCE.md`
+
 ## Extractors
 
 ### ASTExtractor
@@ -155,6 +253,19 @@ Specialized for REST API components:
 - Permissions and authentication
 - Throttling configuration
 
+### PremiumFeaturesExtractor (NEW - Nov 2025)
+
+Specialized for revenue-generating features:
+- SOAR automation playbook handlers
+- ML-based prediction models (SLA, device failure)
+- Health scoring services
+- Executive reporting
+- Shift compliance & no-show detection
+- AI alert triage & routing
+- Vendor performance analytics
+- Celery scheduled tasks
+- **Business metadata**: Revenue impact, ROI, pricing tiers
+
 ## Decorator Metadata Fields
 
 | Field | Type | Description |
@@ -172,6 +283,11 @@ Specialized for REST API components:
 | security_notes | str | Security considerations |
 | performance_notes | str | Performance characteristics |
 | examples | list | Usage examples |
+| **business_value** | **str** | **Business impact description (NEW)** |
+| **revenue_impact** | **str** | **Revenue/pricing info (e.g., "+$150/mo/site") (NEW)** |
+| **roi** | **str** | **Return on investment metrics (NEW)** |
+| **tier** | **str** | **Premium tier (bronze/silver/gold) (NEW)** |
+| **criticality** | **str** | **System criticality (high/medium/low) (NEW)** |
 
 ## Registry API
 

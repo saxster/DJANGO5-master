@@ -40,6 +40,8 @@ from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth import get_user_model
 
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+
 logger = logging.getLogger("security.api")
 User = get_user_model()
 
@@ -323,14 +325,14 @@ class APIAuthenticationMiddleware(MiddlewareMixin):
             period_seconds = {
                 's': 1,
                 'm': 60,
-                'h': 3600,
-                'd': 86400,
-            }.get(period, 3600)
-            
+                'h': SECONDS_IN_HOUR,
+                'd': SECONDS_IN_DAY,
+            }.get(period, SECONDS_IN_HOUR)
+
         except (ValueError, KeyError):
             # Default to 1000 requests per hour
             limit = 1000
-            period_seconds = 3600
+            period_seconds = SECONDS_IN_HOUR
             
         # Check current count
         cache_key = f"api_rate:{api_key_obj['id']}"

@@ -340,7 +340,12 @@ class TaskStateMachine(BaseStateMachine):
             f"Notifying assignee for task {self.instance.id}",
             extra={'task_id': self.instance.id}
         )
-        # TODO: Implement email/push notification
+        # TODO: Implement notification delivery
+        # Options:
+        # 1. Email via apps.core.services.notification_service
+        # 2. Push notification via mobile SDK WebSocket
+        # 3. In-app notification via MQTT message bus
+        # See: docs/features/DOMAIN_SPECIFIC_SYSTEMS.md for notification patterns
 
     def _update_completion_metrics(self, context: TransitionContext):
         """Update task completion metrics"""
@@ -363,7 +368,14 @@ class TaskStateMachine(BaseStateMachine):
                 'status': self._get_current_state(self.instance)
             }
         )
-        # TODO: Send escalation notification
+        # TODO: Implement escalation notification delivery
+        # Requirements:
+        # 1. Alert task supervisor/manager via email
+        # 2. Create helpdesk ticket for tracking (apps.y_helpdesk)
+        # 3. Trigger NOC dashboard alert (apps.noc.services.alert_service)
+        # 4. Log to unified audit trail for compliance
+        # Priority: HIGH - SLA breaches require immediate attention
+        # See: apps/core/services/unified_audit_service.py for audit patterns
 
     def _log_sla_breach(self, context: TransitionContext):
         """Log SLA breach for reporting"""

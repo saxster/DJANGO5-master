@@ -92,7 +92,7 @@ class ConditionalMiddlewareLoader(MiddlewareMixin):
                 'django.contrib.sessions.middleware.SessionMiddleware',
                 'corsheaders.middleware.CorsMiddleware',
                 'django.middleware.common.CommonMiddleware',
-                'apps.onboarding.middlewares.TimezoneMiddleware',
+                'apps.core.middleware.timezone_middleware.TimezoneMiddleware',
                 'apps.core.middleware.csp_nonce.CSPNonceMiddleware',
                 'whitenoise.middleware.WhiteNoiseMiddleware',
                 'django.middleware.csrf.CsrfViewMiddleware',
@@ -230,7 +230,7 @@ class OptimizedMiddlewareSettings:
             "django.middleware.common.CommonMiddleware",
 
             # Application-specific middleware
-            "apps.onboarding.middlewares.TimezoneMiddleware",
+            "apps.core.middleware.timezone_middleware.TimezoneMiddleware",
             "apps.core.middleware.csp_nonce.CSPNonceMiddleware",
             "whitenoise.middleware.WhiteNoiseMiddleware",
 

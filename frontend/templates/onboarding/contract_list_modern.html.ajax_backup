@@ -1,0 +1,934 @@
+{% extends "globals/base_list.html" %}
+
+<!---- BEGIN CARD TITLE ------>
+{% block card_title %}
+Contract Details
+<div class="float-end">
+	<a href="{{ url('admin:onboarding_contract_changelist') }}" class="btn btn-sm btn-light-secondary me-2">
+		<i class="bi bi-table"></i> Classic View
+	</a>
+	<button class="btn btn-sm btn-primary" id="header-add-new">
+		<i class="bi bi-plus"></i> Add New
+	</button>
+</div>
+{% endblock card_title %}
+<!---- END CARD TITLE -------->
+
+<!---- BEGIN PAGE TITLE ------>
+{% block page_title %}
+Contract Details
+{% endblock page_title %}
+<!----- END PAGE TITLE -------->
+
+<!----------- BEGIN PAGE BREADCUMBS ----------->
+{% block pagebreadcumb %}
+{{ super() }}
+<li class="breadcrumb-item pe-3"><a href="{{ url('admin:onboarding_contract_changelist') }}" class="pe-3">Contract List</a></li>
+{% endblock pagebreadcumb %}
+<!----------- END PAGE BREADCUMBS ------------->
+
+<!---- BEGIN EXTRA STYLES ------>
+{% block extra_styles %}
+<style>
+	/* Premium Modern Contract List Styles */
+	body {
+		background-color: #f8fafc !important;
+		font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+	}
+	
+	/* Premium Animations */
+	@keyframes fadeInUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.7;
+		}
+	}
+	
+	/* Loading and Empty States */
+	.card-body .premium-loading, 
+	.card-body .premium-empty {
+		padding: 80px 32px !important;
+		text-align: center !important;
+		color: #6b7280 !important;
+		background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%) !important;
+	}
+	
+	.card-body .premium-loading .spinner-border {
+		color: #3b82f6 !important;
+		width: 3rem !important;
+		height: 3rem !important;
+		border-width: 0.3em !important;
+	}
+	
+	.card-body .premium-loading h5, 
+	.card-body .premium-empty h5 {
+		color: #374151 !important;
+		font-weight: 600 !important;
+		margin-top: 1.5rem !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+	}
+	
+	.card-body .premium-loading p, 
+	.card-body .premium-empty p {
+		color: #9ca3af !important;
+		font-size: 15px !important;
+		margin-top: 0.5rem !important;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+	}
+	
+	/* Responsive Design */
+	@media (max-width: 1024px) {
+		.card-body .modern-header-controls {
+			padding: 1.5rem 2rem !important;
+		}
+		
+		.card-body .modern-search {
+			max-width: 350px !important;
+			margin-right: 1.5rem !important;
+		}
+		
+		.card-body .modern-filter-group {
+			gap: 8px !important;
+		}
+		
+		.card-body .modern-filter-btn {
+			padding: 8px 14px !important;
+			font-size: 13px !important;
+		}
+	}
+	
+	@media (max-width: 768px) {
+		.card-body .modern-header-controls {
+			padding: 1.25rem 1.5rem !important;
+		}
+		
+		.card-body .modern-header-controls > div {
+			flex-direction: column !important;
+			gap: 1.5rem !important;
+		}
+		
+		.card-body .modern-search {
+			max-width: 100% !important;
+			margin-right: 0 !important;
+		}
+		
+		.card-body .modern-filter-group {
+			width: 100% !important;
+			justify-content: center !important;
+			flex-wrap: wrap !important;
+		}
+		
+		.card-body .modern-action-group {
+			margin-left: 0 !important;
+			justify-content: center !important;
+		}
+		
+		.card-body .premium-loading, 
+		.card-body .premium-empty {
+			padding: 60px 24px !important;
+		}
+	}
+	
+	@media (max-width: 640px) {
+		.card-body .modern-filter-btn {
+			flex: 1 !important;
+			justify-content: center !important;
+			min-width: 120px !important;
+		}
+		
+		.card-body .modern-action-group {
+			width: 100% !important;
+			justify-content: stretch !important;
+		}
+		
+		.card-body .modern-export-btn, 
+		.card-body .modern-add-btn {
+			flex: 1 !important;
+			justify-content: center !important;
+		}
+	}
+</style>
+{% endblock extra_styles %}
+<!---- END EXTRA STYLES ------>
+
+<!------------------ BEGIN CONTRACT TABLE ------------------------->
+{% block table %}
+<!-- Modern Header Controls -->
+<div style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); 
+            padding: 2rem 2.5rem; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+            margin-bottom: 2rem; 
+            border: 1px solid #e2e8f0; 
+            backdrop-filter: blur(10px); 
+            position: relative; 
+            z-index: 1;">
+	<div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+		<!-- Search Bar -->
+		<div style="position: relative; flex: 1; max-width: 400px; margin-right: 2rem;">
+			<i class="bi bi-search" style="position: absolute; 
+                                           left: 18px; 
+                                           top: 50%; 
+                                           transform: translateY(-50%); 
+                                           color: #6b7280; 
+                                           z-index: 10; 
+                                           font-size: 16px; 
+                                           font-weight: 500;"></i>
+			<input type="text" id="modern-search-input" 
+			       placeholder="Search contracts by site name, code, or type..."
+			       style="width: 100%; 
+                      padding: 14px 20px 14px 52px; 
+                      background-color: #ffffff; 
+                      border: 2px solid #e5e7eb; 
+                      border-radius: 12px; 
+                      font-size: 15px; 
+                      font-weight: 500; 
+                      color: #1f2937; 
+                      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06); 
+                      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                      height: auto;"
+			       onfocus="this.style.borderColor='#3b82f6'; 
+                        this.style.boxShadow='0 0 0 4px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1)'; 
+                        this.style.transform='translateY(-1px)';"
+			       onblur="this.style.borderColor='#e5e7eb'; 
+                       this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)'; 
+                       this.style.transform='translateY(0)';">
+		</div>
+		
+		<!-- Filter Buttons -->
+		<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+			<button class="filter-btn active-filter" id="filter-all" 
+				style="padding: 10px 18px; 
+                       border: 2px solid #e5e7eb; 
+                       border-radius: 10px; 
+                       background: linear-gradient(135deg, #3b82f6, #2563eb); 
+                       color: white; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4), 0 2px 4px -1px rgba(59, 130, 246, 0.2); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal; 
+                       transform: translateY(-1px);"
+				onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)'; 
+                             this.style.transform='translateY(-2px)'; 
+                             this.style.boxShadow='0 6px 8px -1px rgba(59, 130, 246, 0.5), 0 4px 6px -1px rgba(59, 130, 246, 0.3)';"
+				onmouseout="if(this.classList.contains('active-filter')) { 
+                                this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)'; 
+                                this.style.transform='translateY(-1px)'; 
+                                this.style.boxShadow='0 4px 6px -1px rgba(59, 130, 246, 0.4), 0 2px 4px -1px rgba(59, 130, 246, 0.2)'; 
+                            } else { 
+                                this.style.background='#ffffff'; 
+                                this.style.color='#6b7280';
+                                this.style.transform='translateY(0)'; 
+                                this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1)'; 
+                            }">
+				<i class="bi bi-grid-3x3-gap"></i>
+				All Contracts
+			</button>
+			<button class="filter-btn" id="filter-active"
+				style="padding: 10px 18px; 
+                       border: 2px solid #e5e7eb; 
+                       border-radius: 10px; 
+                       background: #ffffff; 
+                       color: #6b7280; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal;"
+				onmouseover="if(!this.classList.contains('active-filter')) { 
+                                this.style.background='#f9fafb'; 
+                                this.style.borderColor='#d1d5db'; 
+                                this.style.color='#374151'; 
+                                this.style.transform='translateY(-1px)'; 
+                                this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'; 
+                            }"
+				onmouseout="if(!this.classList.contains('active-filter')) { 
+                               this.style.background='#ffffff'; 
+                               this.style.borderColor='#e5e7eb'; 
+                               this.style.color='#6b7280'; 
+                               this.style.transform='translateY(0)'; 
+                               this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1)'; 
+                           }">
+				<i class="bi bi-check-circle"></i>
+				Active
+			</button>
+			<button class="filter-btn" id="filter-inactive"
+				style="padding: 10px 18px; 
+                       border: 2px solid #e5e7eb; 
+                       border-radius: 10px; 
+                       background: #ffffff; 
+                       color: #6b7280; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal;"
+				onmouseover="if(!this.classList.contains('active-filter')) { 
+                                this.style.background='#f9fafb'; 
+                                this.style.borderColor='#d1d5db'; 
+                                this.style.color='#374151'; 
+                                this.style.transform='translateY(-1px)'; 
+                                this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'; 
+                            }"
+				onmouseout="if(!this.classList.contains('active-filter')) { 
+                               this.style.background='#ffffff'; 
+                               this.style.borderColor='#e5e7eb'; 
+                               this.style.color='#6b7280'; 
+                               this.style.transform='translateY(0)'; 
+                               this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1)'; 
+                           }">
+				<i class="bi bi-x-circle"></i>
+				Inactive
+			</button>
+			<button class="filter-btn" id="filter-parent"
+				style="padding: 10px 18px; 
+                       border: 2px solid #e5e7eb; 
+                       border-radius: 10px; 
+                       background: #ffffff; 
+                       color: #6b7280; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal;"
+				onmouseover="if(!this.classList.contains('active-filter')) { 
+                                this.style.background='#f9fafb'; 
+                                this.style.borderColor='#d1d5db'; 
+                                this.style.color='#374151'; 
+                                this.style.transform='translateY(-1px)'; 
+                                this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'; 
+                            }"
+				onmouseout="if(!this.classList.contains('active-filter')) { 
+                               this.style.background='#ffffff'; 
+                               this.style.borderColor='#e5e7eb'; 
+                               this.style.color='#6b7280'; 
+                               this.style.transform='translateY(0)'; 
+                               this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1)'; 
+                           }">
+				<i class="bi bi-diagram-3"></i>
+				With Parent
+			</button>
+		</div>
+		
+		<!-- Action Buttons -->
+		<div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+			<button id="export-pdf-btn"
+				style="padding: 10px 18px; 
+                       border: 2px solid #d1d5db; 
+                       border-radius: 10px; 
+                       background: #ffffff; 
+                       color: #6b7280; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal;"
+				onmouseover="this.style.background='#f9fafb'; 
+                             this.style.borderColor='#9ca3af'; 
+                             this.style.color='#374151'; 
+                             this.style.transform='translateY(-1px)'; 
+                             this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';"
+				onmouseout="this.style.background='#ffffff'; 
+                            this.style.borderColor='#d1d5db'; 
+                            this.style.color='#6b7280'; 
+                            this.style.transform='translateY(0)'; 
+                            this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1)';">
+				<i class="bi bi-file-pdf"></i>
+				PDF
+			</button>
+			<button id="export-excel-btn"
+				style="padding: 10px 18px; 
+                       border: 2px solid #d1d5db; 
+                       border-radius: 10px; 
+                       background: #ffffff; 
+                       color: #6b7280; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal;"
+				onmouseover="this.style.background='#f9fafb'; 
+                             this.style.borderColor='#9ca3af'; 
+                             this.style.color='#374151'; 
+                             this.style.transform='translateY(-1px)'; 
+                             this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';"
+				onmouseout="this.style.background='#ffffff'; 
+                            this.style.borderColor='#d1d5db'; 
+                            this.style.color='#6b7280'; 
+                            this.style.transform='translateY(0)'; 
+                            this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.1)';">
+				<i class="bi bi-file-excel"></i>
+				Excel
+			</button>
+			<button id="add-new-btn"
+				style="padding: 10px 18px; 
+                       border: 2px solid #10b981; 
+                       border-radius: 10px; 
+                       background: linear-gradient(135deg, #10b981, #059669); 
+                       color: white; 
+                       font-size: 14px; 
+                       font-weight: 600; 
+                       cursor: pointer; 
+                       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                       display: inline-flex; 
+                       align-items: center; 
+                       gap: 8px; 
+                       white-space: nowrap; 
+                       box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2); 
+                       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+                       letter-spacing: 0.025em; 
+                       text-decoration: none; 
+                       height: auto; 
+                       line-height: normal;"
+				onmouseover="this.style.background='linear-gradient(135deg, #059669, #047857)'; 
+                             this.style.transform='translateY(-1px)'; 
+                             this.style.boxShadow='0 6px 8px -1px rgba(16, 185, 129, 0.5), 0 4px 6px -1px rgba(16, 185, 129, 0.3)';"
+				onmouseout="this.style.background='linear-gradient(135deg, #10b981, #059669)'; 
+                            this.style.transform='translateY(0)'; 
+                            this.style.boxShadow='0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -1px rgba(16, 185, 129, 0.2)';">
+				<i class="bi bi-plus-lg"></i>
+				Add Contract
+			</button>
+		</div>
+	</div>
+</div>
+
+<div class="premium-contract-list" 
+     style="background: linear-gradient(135deg, #ffffff 0%, #fefefe 100%); 
+            border-radius: 16px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+            border: 1px solid #e5e7eb; 
+            overflow: hidden; 
+            backdrop-filter: blur(10px);">
+	<!-- Table Header -->
+	<div style="display: flex; 
+                align-items: center; 
+                min-height: 48px; 
+                padding: 12px 16px; 
+                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+                border-bottom: 2px solid #e2e8f0; 
+                font-weight: 600; 
+                font-size: 13px; 
+                color: #475569; 
+                text-transform: uppercase; 
+                letter-spacing: 0.05em; 
+                font-family: 'Inter', system-ui, sans-serif;">
+		<div style="width: 64px; margin-right: 16px;"><!-- Avatar space --></div>
+		<div style="flex: 1; display: grid; grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1fr; gap: 16px; align-items: center;">
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-building" style="margin-right: 6px; font-size: 12px;"></i>Site Details
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-hash" style="margin-right: 6px; font-size: 12px;"></i>SOL ID
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-tag" style="margin-right: 6px; font-size: 12px;"></i>Type
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-diagram-3" style="margin-right: 6px; font-size: 12px;"></i>Parent
+			</div>
+			<div style="font-weight: 700; color: #1e293b;">
+				<i class="bi bi-people" style="margin-right: 6px; font-size: 12px;"></i>Strength
+			</div>
+		</div>
+		<div style="min-width: 150px; text-align: center; font-weight: 700; color: #1e293b;">
+			<i class="bi bi-shield" style="margin-right: 6px; font-size: 12px;"></i>Status
+		</div>
+		<div style="min-width: 100px; text-align: center; font-weight: 700; color: #1e293b;">
+			<i class="bi bi-gear" style="margin-right: 6px; font-size: 12px;"></i>Actions
+		</div>
+	</div>
+
+	<div id="contract-loading" class="premium-loading">
+		<div class="spinner-border" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<h5>Loading contracts...</h5>
+		<p>Please wait while we fetch your contract data</p>
+	</div>
+
+	<div id="contract-list" class="d-none">
+		<!-- Contracts will be populated here -->
+	</div>
+
+	<div id="contract-empty" class="premium-empty d-none">
+		<i class="bi bi-file-text" style="font-size: 4rem; color: #d1d5db; margin-bottom: 1rem;"></i>
+		<h5>No contracts found</h5>
+		<p>Try adjusting your search criteria or filters to find what you're looking for</p>
+	</div>
+</div>
+{% endblock table %}
+<!------------------ END CONTRACT TABLE --------------------------->
+
+<!--------- BEGIN EXTRA SCRIPTS ------------------------------>
+{% block extra_scripts %}
+<script>
+$(document).ready(function () {
+	let currentFilter = 'all';
+	let currentSearch = '';
+	let contracts = [];
+	
+	// Avatar color classes with gradients
+	const avatarGradients = {
+		'avatar-blue': 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+		'avatar-green': 'linear-gradient(135deg, #10b981, #059669)',
+		'avatar-purple': 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+		'avatar-orange': 'linear-gradient(135deg, #f59e0b, #d97706)',
+		'avatar-pink': 'linear-gradient(135deg, #ec4899, #be185d)',
+		'avatar-indigo': 'linear-gradient(135deg, #6366f1, #4f46e5)',
+		'avatar-red': 'linear-gradient(135deg, #ef4444, #dc2626)',
+		'avatar-teal': 'linear-gradient(135deg, #14b8a6, #0d9488)'
+	};
+	
+	const avatarColors = Object.keys(avatarGradients);
+	
+	// Get avatar color based on name
+	function getAvatarColor(name) {
+		const index = (name ? name.length : 0) % avatarColors.length;
+		return avatarColors[index];
+	}
+	
+	// Get avatar initials
+	function getInitials(name) {
+		if (!name) return 'CT';
+		return name.split(' ')
+			.map(word => word.charAt(0).toUpperCase())
+			.join('')
+			.substring(0, 2);
+	}
+	
+	// Render contract item
+	function renderContract(contract, index) {
+		const initials = getInitials(contract.buname);
+		const avatarColor = getAvatarColor(contract.buname);
+		
+		const siteName = contract.buname || 'Unnamed Site';
+		const siteCode = contract.bucode || 'N/A';
+		const solId = contract.solid || 'Not Assigned';
+		const siteType = contract.butype__taname || 'Not Configured';
+		const parent = contract.parent__buname || 'No Parent';
+		const strength = contract.bupreferences__total_people_count || '0';
+		
+		let badges = [];
+		const badgeBaseStyle = "padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.025em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; font-family: 'Inter', system-ui, sans-serif;";
+		
+		// Status badge
+		if (contract.enable === true) {
+			badges.push(`<span style="${badgeBaseStyle} background: #dcfdf4; color: #065f46;">
+				<i class="bi bi-check-circle-fill" style="font-size: 9px;"></i> ACTIVE
+			</span>`);
+		} else {
+			badges.push(`<span style="${badgeBaseStyle} background: #fef2f2; color: #991b1b;">
+				<i class="bi bi-x-circle-fill" style="font-size: 9px;"></i> INACTIVE
+			</span>`);
+		}
+
+		const rowOpacity = contract.enable === false ? '0.7' : '1';
+		const rowBackground = contract.enable === false ? '#fafafa' : 'white';
+
+		const html = `
+			<div style="display: flex; 
+                        align-items: center; 
+                        min-height: 64px; 
+                        padding: 12px 16px; 
+                        border-bottom: 1px solid #f1f5f9; 
+                        background: ${rowBackground}; 
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+                        cursor: pointer; 
+                        opacity: 0; 
+                        animation: fadeInUp 0.5s ease forwards; 
+                        animation-delay: ${index * 0.03}s;" 
+				 onmouseover="this.style.background='#f8fafc'; 
+                              this.style.boxShadow='inset 3px 0 0 #3b82f6';" 
+				 onmouseout="this.style.background='${rowBackground}'; 
+                             this.style.boxShadow='none';" 
+				 data-id="${contract.id}">
+				
+				<div style="width: 48px; 
+                            height: 48px; 
+                            border-radius: 12px; 
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center; 
+                            font-weight: 600; 
+                            font-size: 16px; 
+                            color: white; 
+                            margin-right: 16px; 
+                            flex-shrink: 0; 
+                            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); 
+                            background: ${avatarGradients[avatarColor] || avatarGradients['avatar-blue']}; 
+                            opacity: ${rowOpacity};">
+					${initials}
+				</div>
+				
+				<div style="flex: 1; 
+                            min-width: 0; 
+                            display: grid; 
+                            grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1fr; 
+                            gap: 16px; 
+                            align-items: center; 
+                            opacity: ${rowOpacity};">
+					<div style="min-width: 0;">
+						<h6 style="font-size: 14px; 
+                                   font-weight: 600; 
+                                   color: #0f172a; 
+                                   margin: 0 0 2px 0; 
+                                   line-height: 1.3; 
+                                   font-family: 'Inter', system-ui, sans-serif; 
+                                   white-space: nowrap; 
+                                   overflow: hidden; 
+                                   text-overflow: ellipsis;">
+							${siteName}
+						</h6>
+						<div style="font-size: 11px; 
+                                    color: #3b82f6; 
+                                    font-weight: 600;">
+							${siteCode}
+						</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; 
+                                    color: #475569; 
+                                    font-weight: 500; 
+                                    white-space: nowrap; 
+                                    overflow: hidden; 
+                                    text-overflow: ellipsis;">
+							${solId}
+						</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; 
+                                    color: #475569; 
+                                    font-weight: 500; 
+                                    white-space: nowrap; 
+                                    overflow: hidden; 
+                                    text-overflow: ellipsis;">
+							<i class="bi bi-tag" style="font-size: 10px; 
+                                                        opacity: 0.6; 
+                                                        margin-right: 4px;"></i>
+							${siteType}
+						</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; 
+                                    color: #475569; 
+                                    font-weight: 500; 
+                                    white-space: nowrap; 
+                                    overflow: hidden; 
+                                    text-overflow: ellipsis;">
+							<i class="bi bi-diagram-3" style="font-size: 10px; 
+                                                              opacity: 0.6; 
+                                                              margin-right: 4px;"></i>
+							${parent}
+						</div>
+					</div>
+					
+					<div style="min-width: 0;">
+						<div style="font-size: 12px; 
+                                    color: #475569; 
+                                    font-weight: 600;">
+							<i class="bi bi-people" style="font-size: 10px; 
+                                                          opacity: 0.6; 
+                                                          margin-right: 4px;"></i>
+							${strength}
+						</div>
+					</div>
+				</div>
+				
+				<div style="display: flex; 
+                            align-items: center; 
+                            gap: 4px; 
+                            margin: 0 12px; 
+                            min-width: 150px; 
+                            justify-content: flex-end;">
+					${badges.join('')}
+				</div>
+				
+				<div style="display: flex; gap: 4px;">
+					<button onclick="editContract(${contract.id})" 
+					        title="Edit" 
+							style="width: 28px; 
+                                   height: 28px; 
+                                   border-radius: 5px; 
+                                   border: 1px solid #e2e8f0; 
+                                   background: white; 
+                                   color: #64748b; 
+                                   cursor: pointer; 
+                                   transition: all 0.2s ease; 
+                                   display: flex; 
+                                   align-items: center; 
+                                   justify-content: center; 
+                                   font-size: 12px;"
+							onmouseover="this.style.background='#f1f5f9'; 
+                                         this.style.borderColor='#cbd5e1'; 
+                                         this.style.color='#3b82f6';"
+							onmouseout="this.style.background='white'; 
+                                        this.style.borderColor='#e2e8f0'; 
+                                        this.style.color='#64748b';">
+						<i class="bi bi-pencil"></i>
+					</button>
+					<button onclick="viewContract(${contract.id})" 
+					        title="View"
+							style="width: 28px; 
+                                   height: 28px; 
+                                   border-radius: 5px; 
+                                   border: 1px solid #e2e8f0; 
+                                   background: white; 
+                                   color: #64748b; 
+                                   cursor: pointer; 
+                                   transition: all 0.2s ease; 
+                                   display: flex; 
+                                   align-items: center; 
+                                   justify-content: center; 
+                                   font-size: 12px;"
+							onmouseover="this.style.background='#f1f5f9'; 
+                                         this.style.borderColor='#cbd5e1'; 
+                                         this.style.color='#10b981';"
+							onmouseout="this.style.background='white'; 
+                                        this.style.borderColor='#e2e8f0'; 
+                                        this.style.color='#64748b';">
+						<i class="bi bi-eye"></i>
+					</button>
+				</div>
+			</div>
+		`;
+		
+		return html;
+	}
+	
+	// Load contracts
+	function loadContracts() {
+		console.log('Loading contracts...'); // Debug
+		$('#contract-loading').removeClass('d-none');
+		$('#contract-list').addClass('d-none');
+		$('#contract-empty').addClass('d-none');
+		
+		$.ajax({
+			url: '{{ url("onboarding:contract") }}?action=list',
+			type: 'GET',
+			success: function(response) {
+				console.log('Response received:', response); // Debug
+				console.log('Data array:', response.data); // Debug data structure
+				contracts = response.data || [];
+				applyFiltersAndRender();
+			},
+			error: function(xhr, status, error) {
+				console.error('Failed to load contracts:', error); // Debug
+				console.error('XHR response:', xhr.responseText); // Debug error response
+				$('#contract-loading').addClass('d-none');
+				$('#contract-empty').removeClass('d-none');
+			}
+		});
+	}
+	
+	// Apply filters and search
+	function applyFiltersAndRender() {
+		console.log('Applying filters. Total contracts:', contracts.length); // Debug
+		console.log('Current filter:', currentFilter); // Debug
+		
+		let filteredContracts = [...contracts];
+		
+		// Apply filter
+		if (currentFilter === 'active') {
+			filteredContracts = filteredContracts.filter(c => c.enable === true);
+		} else if (currentFilter === 'inactive') {
+			filteredContracts = filteredContracts.filter(c => c.enable === false);
+		} else if (currentFilter === 'parent') {
+			filteredContracts = filteredContracts.filter(c => c.parent__buname && c.parent__buname !== 'None');
+		}
+		
+		// Apply search
+		if (currentSearch) {
+			const searchLower = currentSearch.toLowerCase();
+			filteredContracts = filteredContracts.filter(c => 
+				(c.buname && c.buname.toLowerCase().includes(searchLower)) ||
+				(c.bucode && c.bucode.toLowerCase().includes(searchLower)) ||
+				(c.solid && c.solid.toString().toLowerCase().includes(searchLower)) ||
+				(c.butype__taname && c.butype__taname.toLowerCase().includes(searchLower)) ||
+				(c.parent__buname && c.parent__buname.toLowerCase().includes(searchLower))
+			);
+		}
+		
+		console.log('Filtered contracts:', filteredContracts.length); // Debug
+		renderContracts(filteredContracts);
+	}
+	
+	// Render contracts
+	function renderContracts(contractsToRender) {
+		console.log('Rendering', contractsToRender.length, 'contracts'); // Debug
+		$('#contract-loading').addClass('d-none');
+		
+		if (contractsToRender.length === 0) {
+			$('#contract-empty').removeClass('d-none');
+			$('#contract-list').addClass('d-none');
+			return;
+		}
+		
+		const html = contractsToRender.map((c, index) => renderContract(c, index)).join('');
+		$('#contract-list').html(html).removeClass('d-none');
+		$('#contract-empty').addClass('d-none');
+	}
+	
+	// Search handler with debounce
+	let searchTimeout;
+	$('#modern-search-input').on('input', function() {
+		clearTimeout(searchTimeout);
+		const searchValue = $(this).val();
+		searchTimeout = setTimeout(function() {
+			currentSearch = searchValue;
+			applyFiltersAndRender();
+		}, 300);
+	});
+	
+	// Filter handlers
+	function setActiveFilter(button) {
+		// Reset all filter buttons to inactive state
+		$('.filter-btn').each(function() {
+			$(this).removeClass('active-filter');
+			this.style.background = '#ffffff';
+			this.style.color = '#6b7280';
+			this.style.borderColor = '#e5e7eb';
+			this.style.transform = 'translateY(0)';
+			this.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+		});
+		
+		// Set active state for selected button
+		$(button).addClass('active-filter');
+		button.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+		button.style.color = 'white';
+		button.style.borderColor = '#3b82f6';
+		button.style.transform = 'translateY(-1px)';
+		button.style.boxShadow = '0 4px 6px -1px rgba(59, 130, 246, 0.4), 0 2px 4px -1px rgba(59, 130, 246, 0.2)';
+	}
+	
+	$('#filter-all').click(function() {
+		if (currentFilter === 'all') return;
+		setActiveFilter(this);
+		currentFilter = 'all';
+		applyFiltersAndRender();
+	});
+	
+	$('#filter-active').click(function() {
+		if (currentFilter === 'active') return;
+		setActiveFilter(this);
+		currentFilter = 'active';
+		applyFiltersAndRender();
+	});
+	
+	$('#filter-inactive').click(function() {
+		if (currentFilter === 'inactive') return;
+		setActiveFilter(this);
+		currentFilter = 'inactive';
+		applyFiltersAndRender();
+	});
+	
+	$('#filter-parent').click(function() {
+		if (currentFilter === 'parent') return;
+		setActiveFilter(this);
+		currentFilter = 'parent';
+		applyFiltersAndRender();
+	});
+	
+	// Add new button handlers
+	$('#header-add-new, #add-new-btn').click(function() {
+		window.location.href = '{{ url("admin_panel:contracts_list") }}?action=form';
+	});
+	
+	// Export buttons
+	$('#export-pdf-btn').click(function() {
+		// Trigger DataTables PDF export
+		alert('PDF export functionality to be implemented');
+	});
+	
+	$('#export-excel-btn').click(function() {
+		// Trigger DataTables Excel export
+		alert('Excel export functionality to be implemented');
+	});
+	
+	// Action functions
+	window.editContract = function(id) {
+		window.location.href = `{{ url("admin_panel:contracts_list") }}?id=${id}`;
+	};
+	
+	window.viewContract = function(id) {
+		window.location.href = `{{ url("admin_panel:contracts_list") }}?id=${id}`;
+	};
+	
+	// Initialize
+	loadContracts();
+});
+</script>
+{% endblock extra_scripts %}
+<!-------- END EXTRA SCRIPTS ------------------------------->

@@ -18,6 +18,7 @@ Usage:
 """
 
 from django.contrib.auth import get_user_model
+from apps.tenants.models import TenantAwareModel
 
 # Enhanced base models and mixins
 from .enhanced_base_model import (
@@ -29,20 +30,25 @@ from .enhanced_base_model import (
     EnhancedSyncModel,
     EnhancedTenantModel,
     EnhancedTenantSyncModel,
-    BaseModelCompat
+    BaseModelCompat,
 )
+BaseModel = BaseModelCompat
+
+# Admin help system
+from .admin_help import AdminHelpTopic
+
+# Admin mentor system
+from .admin_mentor import AdminMentorSession, AdminMentorTip
 
 # Cron job management
 from .cron_job_definition import CronJobDefinition
 from .cron_job_execution import CronJobExecution
 
-# Image metadata and EXIF
-from .image_metadata import (
-    ImageMetadata,
-    PhotoAuthenticityLog,
-    CameraFingerprint,
-    ImageQualityAssessment
-)
+# Image metadata and EXIF (refactored into 4 modules)
+from .image_metadata_core import ImageMetadata
+from .photo_authenticity import PhotoAuthenticityLog
+from .camera_fingerprint import CameraFingerprint
+from .image_quality import ImageQualityAssessment
 
 # Security and audit models
 from .security_models import (
@@ -104,6 +110,11 @@ from .sync_analytics import (
     SyncAnalyticsSnapshot,
     SyncDeviceHealth,
 )
+from .sync_payloads import (
+    BehavioralSyncEvent,
+    SessionSyncEvent,
+    DeviceMetricSnapshot,
+)
 
 # Query performance monitoring
 from .query_performance import (
@@ -120,6 +131,9 @@ from .query_execution_plans import (
 
 # Sync idempotency
 from .sync_idempotency import SyncIdempotencyRecord
+
+# Sync tracking (ML conflict prediction - Nov 2025)
+from .sync_tracking import SyncLog, ConflictResolution
 
 # Sync mixins (additional sync-related functionality)
 from .sync_mixins import (
@@ -182,9 +196,23 @@ from .encrypted_secret import EncryptedSecret
 from .user_scope import UserScope
 from .dashboard_saved_view import DashboardSavedView
 
+# Quality metrics tracking (Phase 7)
+from .quality_metrics import QualityMetric
+
+# Quick Actions (Runbooks/Playbooks)
+from .quick_action import QuickAction, QuickActionExecution, QuickActionChecklist
+
+# Admin Panel Enhancements
+from .admin_runbook import Runbook, RunbookExecution
+from .admin_approval import ApprovalRequest, ApprovalAction
+from .operations_queue import OperationsQueueItem
+from .sla_prediction import SLAPrediction
+
 # Explicit __all__ for clarity and documentation
 __all__ = [
     # Enhanced base models and mixins
+    "TenantAwareModel",
+    "BaseModel",
     "TimestampMixin",
     "AuditMixin",
     "MobileSyncMixin",
@@ -235,6 +263,9 @@ __all__ = [
     # Sync analytics
     "SyncAnalyticsSnapshot",
     "SyncDeviceHealth",
+    "BehavioralSyncEvent",
+    "SessionSyncEvent",
+    "DeviceMetricSnapshot",
     # Query performance
     "QueryPerformanceSnapshot",
     "SlowQueryAlert",
@@ -244,6 +275,9 @@ __all__ = [
     "PlanRegressionAlert",
     # Sync idempotency
     "SyncIdempotencyRecord",
+    # Sync tracking (ML conflict prediction)
+    "SyncLog",
+    "ConflictResolution",
     # Sync mixins
     "SyncableModelMixin",
     "ConflictTrackingMixin",
@@ -286,4 +320,17 @@ __all__ = [
     # User scope (Command Center - Phase 1)
     "UserScope",
     "DashboardSavedView",
+    # Quality metrics (Phase 7)
+    "QualityMetric",
+    # Quick Actions (Runbooks/Playbooks)
+    "QuickAction",
+    "QuickActionExecution",
+    "QuickActionChecklist",
+    # Admin Panel Enhancements
+    "Runbook",
+    "RunbookExecution",
+    "ApprovalRequest",
+    "ApprovalAction",
+    "OperationsQueueItem",
+    "SLAPrediction",
 ]

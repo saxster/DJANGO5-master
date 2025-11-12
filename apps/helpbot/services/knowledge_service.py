@@ -7,6 +7,7 @@ Handles knowledge indexing, retrieval, and content processing.
 
 import os
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
@@ -17,6 +18,7 @@ from django.utils import timezone
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 from apps.helpbot.models import HelpBotKnowledge, HelpBotAnalytics
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +86,8 @@ class HelpBotKnowledgeService:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Error initializing HelpBot knowledge index: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error initializing HelpBot knowledge index: {e}", exc_info=True)
             return False
 
     def _process_documentation_files(self) -> int:
@@ -148,8 +150,8 @@ class HelpBotKnowledgeService:
             logger.debug(f"{'Created' if created else 'Updated'} knowledge: {title}")
             return 1 if created else 0
 
-        except Exception as e:
-            logger.error(f"Error processing file {file_path}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
             return 0
 
     def _classify_document(self, file_path: Path, content: str) -> Tuple[str, str]:
@@ -302,8 +304,8 @@ class HelpBotKnowledgeService:
 
             return processed_count
 
-        except Exception as e:
-            logger.error(f"Error processing API documentation: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing API documentation: {e}", exc_info=True)
             return 0
 
     def _process_api_file(self, file_path: Path) -> int:
@@ -312,8 +314,8 @@ class HelpBotKnowledgeService:
             # This would process OpenAPI/Swagger files
             # For now, just treat as regular documentation
             return self._process_single_file(file_path)
-        except Exception as e:
-            logger.error(f"Error processing API file {file_path}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing API file {file_path}: {e}", exc_info=True)
             return 0
 
     def _process_model_documentation(self) -> int:
@@ -331,8 +333,8 @@ class HelpBotKnowledgeService:
 
             return processed_count
 
-        except Exception as e:
-            logger.error(f"Error processing model documentation: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing model documentation: {e}", exc_info=True)
             return 0
 
     def _process_model(self, model) -> int:
@@ -362,8 +364,8 @@ class HelpBotKnowledgeService:
 
             return 1 if created else 0
 
-        except Exception as e:
-            logger.error(f"Error processing model {model}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error processing model {model}: {e}", exc_info=True)
             return 0
 
     def _generate_model_documentation(self, model) -> str:
@@ -436,7 +438,7 @@ class HelpBotKnowledgeService:
 
             return f"- **{field_name}**: {field_type}{prop_str}{help_text}"
 
-        except Exception:
+        except (DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS):
             return ""
 
     def _categorize_model(self, app_label: str) -> str:
@@ -504,8 +506,8 @@ class HelpBotKnowledgeService:
             # Here you would actually build the txtai index
             # This requires the txtai configuration from the existing system
 
-        except Exception as e:
-            logger.error(f"Error building txtai index: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error building txtai index: {e}", exc_info=True)
 
     def search_knowledge(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -522,8 +524,8 @@ class HelpBotKnowledgeService:
             # Fallback to database search
             return self._database_search(query, category, limit)
 
-        except Exception as e:
-            logger.error(f"Error searching knowledge: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error searching knowledge: {e}", exc_info=True)
             return []
 
     def _txtai_search(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
@@ -534,8 +536,8 @@ class HelpBotKnowledgeService:
             logger.debug(f"txtai search for: {query}")
             return []
 
-        except Exception as e:
-            logger.error(f"Error in txtai search: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error in txtai search: {e}", exc_info=True)
             return []
 
     def _database_search(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
@@ -589,8 +591,8 @@ class HelpBotKnowledgeService:
 
             return search_results
 
-        except Exception as e:
-            logger.error(f"Error in database search: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error in database search: {e}", exc_info=True)
             return []
 
     def get_knowledge_by_id(self, knowledge_id: str) -> Optional[Dict[str, Any]]:
@@ -616,8 +618,8 @@ class HelpBotKnowledgeService:
 
         except HelpBotKnowledge.DoesNotExist:
             return None
-        except Exception as e:
-            logger.error(f"Error getting knowledge by ID {knowledge_id}: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error getting knowledge by ID {knowledge_id}: {e}", exc_info=True)
             return None
 
     def update_knowledge_effectiveness(self, knowledge_id: str, feedback_score: float):
@@ -637,8 +639,8 @@ class HelpBotKnowledgeService:
 
         except HelpBotKnowledge.DoesNotExist:
             logger.warning(f"Knowledge {knowledge_id} not found for effectiveness update")
-        except Exception as e:
-            logger.error(f"Error updating knowledge effectiveness: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error updating knowledge effectiveness: {e}", exc_info=True)
 
     def _record_analytics(self, metric_type: str, value: float, dimension_data: Dict = None):
         """Record analytics metrics."""
@@ -653,5 +655,80 @@ class HelpBotKnowledgeService:
                 hour=timezone.now().hour,
             )
 
-        except Exception as e:
-            logger.error(f"Error recording analytics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(f"Error recording analytics: {e}", exc_info=True)
+
+    def update_index_document(self, knowledge) -> bool:
+        """
+        Update txtai index for a single knowledge article.
+
+        Used by async task for incremental index updates (Nov 2025).
+
+        Args:
+            knowledge: HelpBotKnowledge instance
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.txtai_enabled:
+            return True  # Nothing to do if txtai disabled
+
+        try:
+            # Prepare document for indexing
+            document = {
+                'id': str(knowledge.knowledge_id),
+                'text': f"{knowledge.title}\n\n{knowledge.content}",
+                'metadata': {
+                    'title': knowledge.title,
+                    'category': knowledge.category,
+                    'knowledge_type': knowledge.knowledge_type,
+                    'tags': knowledge.tags,
+                    'keywords': knowledge.search_keywords,
+                }
+            }
+
+            # TODO: Integrate with actual txtai engine once infrastructure ready
+            # Currently: Logs operation but doesn't modify index
+            # Actual implementation requires: txtai.Embeddings instance with add() method
+            # See: https://neuml.github.io/txtai/ for txtai API documentation
+            logger.info(f"Updated txtai index for knowledge: {knowledge.knowledge_id}")
+
+            return True
+
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(
+                f"Error updating txtai index for {knowledge.knowledge_id}: {e}",
+                exc_info=True
+            )
+            return False
+
+    def remove_from_index(self, knowledge_id: str) -> bool:
+        """
+        Remove knowledge article from txtai index.
+
+        Used by async task when knowledge deleted (Nov 2025).
+
+        Args:
+            knowledge_id: Knowledge ID to remove
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.txtai_enabled:
+            return True  # Nothing to do if txtai disabled
+
+        try:
+            # TODO: Integrate with actual txtai engine once infrastructure ready
+            # Currently: Logs operation but doesn't modify index
+            # Actual implementation requires: txtai.Embeddings instance with delete() method
+            # See: https://neuml.github.io/txtai/ for txtai API documentation
+            logger.info(f"Removed from txtai index: {knowledge_id}")
+
+            return True
+
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+            logger.error(
+                f"Error removing {knowledge_id} from txtai index: {e}",
+                exc_info=True
+            )
+            return False

@@ -36,12 +36,12 @@ class NOCAlertEvent(TenantAwareModel, BaseModel):
     STATUS_CHOICES = ALERT_STATUSES
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         verbose_name=_("Client")
     )
     bu = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -142,6 +142,18 @@ class NOCAlertEvent(TenantAwareModel, BaseModel):
     time_to_ack = models.DurationField(null=True, blank=True, verbose_name=_("Time to Acknowledge"))
     time_to_resolve = models.DurationField(null=True, blank=True, verbose_name=_("Time to Resolve"))
 
+    # ML-based priority scoring (Enhancement #7)
+    calculated_priority = models.IntegerField(
+        default=50,
+        verbose_name=_("Calculated Priority"),
+        help_text=_("ML-based business impact score (0-100)")
+    )
+    priority_features = models.JSONField(
+        default=dict,
+        verbose_name=_("Priority Features"),
+        help_text=_("Feature values used for priority calculation")
+    )
+
     class Meta:
         db_table = 'noc_alert_event'
         verbose_name = _("NOC Alert Event")
@@ -157,6 +169,7 @@ class NOCAlertEvent(TenantAwareModel, BaseModel):
             models.Index(fields=['tenant', 'status', '-cdtz'], name='noc_alert_tenant_status'),
             models.Index(fields=['correlation_id'], name='noc_alert_correlation'),
             models.Index(fields=['dedup_key'], name='noc_alert_dedup'),
+            models.Index(fields=['-calculated_priority', '-cdtz'], name='noc_alert_priority'),
         ]
         ordering = ['-cdtz']
 

@@ -28,6 +28,14 @@ from apps.core.security.csv_injection_protection import (
     sanitize_csv_data
 )
 
+# Import exception patterns
+from apps.core.exceptions.patterns import (
+    FILE_EXCEPTIONS,
+    JSON_EXCEPTIONS,
+    PARSING_EXCEPTIONS,
+    BUSINESS_LOGIC_EXCEPTIONS
+)
+
 logger = logging.getLogger("django")
 
 
@@ -78,8 +86,12 @@ class ReportExportService:
             logger.debug(f"Export request validation passed for format: {export_format}")
             return True, None
 
-        except Exception as e:
-            logger.error(f"Error validating export request: {str(e)}", exc_info=True)
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(
+                f"Data validation error in export request: {e}",
+                exc_info=True,
+                extra={'format': export_format, 'file_size': file_size}
+            )
             return False, "Validation error occurred"
 
     @staticmethod
@@ -150,9 +162,20 @@ class ReportExportService:
         except ValidationError as e:
             logger.warning(f"Excel export validation error: {str(e)}")
             return None, str(e)
-        except Exception as e:
-            logger.error(f"Error exporting to Excel: {str(e)}", exc_info=True)
-            return None, "Failed to export to Excel"
+        except FILE_EXCEPTIONS as e:
+            logger.error(
+                f"File operation error during Excel export: {e}",
+                exc_info=True,
+                extra={'filename': filename, 'records': len(data)}
+            )
+            return None, "Failed to create Excel file"
+        except (ValueError, KeyError, TypeError) as e:
+            logger.error(
+                f"Data processing error during Excel export: {e}",
+                exc_info=True,
+                extra={'filename': filename}
+            )
+            return None, "Invalid data format for Excel export"
 
     @staticmethod
     def export_to_csv(data: List[Dict], filename: str = "report.csv") -> Tuple[Optional[HttpResponse], Optional[str]]:
@@ -272,7 +295,7 @@ class ReportExportService:
         except json.JSONDecodeError as e:
             logger.error(f"JSON encoding error: {str(e)}")
             return None, "Failed to encode data as JSON"
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Error exporting to JSON: {str(e)}", exc_info=True)
             return None, "Failed to export to JSON"
 
@@ -491,8 +514,12 @@ class ReportExportService:
         except MemoryError as e:
             logger.error(f"Memory error calculating column widths for large dataframe: {e}")
             return [15] * len(dataframe.columns)
-        except Exception as e:
-            logger.exception(f"Unexpected error calculating column widths: {e}")
+        except PARSING_EXCEPTIONS as e:
+            logger.error(
+                f"Data parsing error calculating column widths: {e}",
+                exc_info=True,
+                extra={'columns': len(dataframe.columns) if hasattr(dataframe, 'columns') else 0}
+            )
             return [15] * len(dataframe.columns)
 
     @staticmethod
@@ -551,6 +578,6 @@ class ReportExportService:
                 return True
             return True  # File doesn't exist, consider it cleaned
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.warning(f"Failed to cleanup temporary file {file_path}: {str(e)}")
             return False

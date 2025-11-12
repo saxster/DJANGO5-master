@@ -14,12 +14,14 @@ Following CLAUDE.md Rule #7: <150 lines
 Dashboard Agent Intelligence - Phase 2.4
 """
 
+import json
 import logging
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime
 
 from apps.core.services.agents.base_agent_service import BaseAgentService
 from apps.core.models.agent_recommendation import AgentRecommendation
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -90,27 +92,103 @@ class AlertAgentService(BaseAgentService):
         self, site_id: int, time_range: Tuple[datetime, datetime], metrics: Dict
     ) -> Optional[AgentRecommendation]:
         """Recommend system health check when no alerts found"""
-        return self.create_recommendation(
-            module='alerts',
-            site_id=site_id,
-            client_id=self.tenant_id,
-            summary="No alerts generated - validate sensor and data pipeline integrity",
-            details=[{
-                'entity_id': 'system-health-check',
-                'reason': 'Zero alerts may indicate system issue',
-                'priority': 'medium',
-                'suggested_action': 'Run diagnostics on alert pipeline and sensor connectivity'
-            }],
-            confidence=0.75,
-            severity='medium',
-            actions=[
+        try:
+            focus = (
+                "Zero alerts were emitted. Determine whether this is a positive"
+                " signal or a system failure. Provide diagnostic steps for"
+                " sensors, ingestion, and notification channels."
+            )
+
+            prompt_bundle = self._build_prompt_bundle(
+                module='alerts',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                metrics=metrics,
+                time_range=time_range,
+                focus=focus,
+                additional_notes={'trigger': 'no_alerts'}
+            )
+
+            schema = {
+                'type': 'object',
+                'properties': {
+                    'summary': {'type': 'string'},
+                    'severity': {'type': 'string', 'enum': ['low', 'medium', 'high', 'critical']},
+                    'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                    'diagnostics': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'entity_id': {'type': 'string'},
+                                'reason': {'type': 'string'},
+                                'priority': {'type': 'string'},
+                                'suggested_action': {'type': 'string'}
+                            },
+                            'required': ['reason']
+                        }
+                    },
+                    'actions': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'label': {'type': 'string'},
+                                'type': {'type': 'string'},
+                                'endpoint': {'type': 'string'},
+                                'payload': {'type': 'object'},
+                                'url': {'type': 'string'}
+                            },
+                            'required': ['label', 'type']
+                        }
+                    },
+                    'narrative_chunks': {'type': 'array', 'items': {'type': 'string'}}
+                },
+                'required': ['summary', 'severity', 'confidence', 'diagnostics']
+            }
+
+            analysis = self._invoke_structured_llm(
+                prompt_bundle,
+                schema,
+                generation_kwargs={'temperature': 0.35, 'max_tokens': 1200}
+            )
+
+            summary = analysis.get('summary') or (
+                "No alerts generated - validate sensor and data pipeline integrity"
+            )
+            severity = analysis.get('severity', 'medium')
+            confidence = float(analysis.get('confidence', 0.75))
+            diagnostics = analysis.get('diagnostics', [])
+            actions = analysis.get('actions') or [
                 {
                     'label': 'Run Diagnostics',
                     'type': 'workflow_trigger',
                     'endpoint': '/api/system/diagnostics',
                     'payload': {'check_type': 'alert_pipeline'}
                 }
-            ],
-            time_range=time_range,
-            context_metrics=metrics
-        )
+            ]
+
+            context_metrics = {
+                **metrics,
+                'prompt_context': prompt_bundle['metadata'],
+                'schema': 'alertbot.healthcheck.v2',
+            }
+            if analysis.get('narrative_chunks'):
+                context_metrics['narrative_chunks'] = analysis['narrative_chunks']
+
+            return self.create_recommendation(
+                module='alerts',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                summary=summary,
+                details=diagnostics,
+                confidence=confidence,
+                severity=severity,
+                actions=actions,
+                time_range=time_range,
+                context_metrics=context_metrics
+            )
+
+        except (LLMProviderError, json.JSONDecodeError, ValueError) as e:
+            logger.error(f"AlertBot health-check recommendation failed: {e}", exc_info=True)
+            return None

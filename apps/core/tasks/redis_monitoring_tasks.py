@@ -11,6 +11,10 @@ from django.utils import timezone
 from django.core.mail import mail_admins
 from django.conf import settings
 from apps.core.services.redis_metrics_collector import redis_metrics_collector
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +83,7 @@ def collect_redis_performance_metrics(self, instance_name='main'):
             'timestamp': timezone.now().isoformat()
         }
 
-    except Exception as exc:
+    except CACHE_EXCEPTIONS as exc:
         logger.error(f"Redis metrics collection failed for {instance_name}: {exc}")
 
         # Retry with exponential backoff
@@ -172,7 +176,7 @@ def analyze_redis_performance_trends(self, hours_back=24):
         logger.info(f"Redis trend analysis completed: {len(insights)} insights generated")
         return result
 
-    except Exception as exc:
+    except (ValueError, TypeError, AttributeError) as exc:
         logger.error(f"Redis trend analysis failed: {exc}")
 
         if self.request.retries < self.max_retries:
@@ -280,7 +284,7 @@ def generate_redis_capacity_report():
         logger.info("Redis capacity planning report generated successfully")
         return report
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to generate Redis capacity report: {e}")
         return {
             'status': 'failed',
@@ -326,7 +330,7 @@ def _send_performance_alerts(instance_name, alerts, metrics):
         mail_admins(subject, message, fail_silently=False)
         logger.info(f"Redis performance alert email sent for {instance_name}")
 
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         logger.error(f"Failed to send Redis performance alert email: {e}")
 
 
@@ -371,7 +375,7 @@ def _send_trend_analysis_email(analysis_result):
         mail_admins(subject, message, fail_silently=False)
         logger.info("Redis trend analysis email sent successfully")
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Failed to send trend analysis email: {e}")
 
 

@@ -19,7 +19,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'youtility.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelliwiz_config.settings.base')
 django.setup()
 
 from django.db import connection
@@ -57,7 +57,7 @@ class QueryPerformanceAnalyzer:
                 'description': 'Capability tree traversal queries'
             },
             'bt_hierarchy': {
-                'models': ['onboarding.Bt'],
+                'models': ['client_onboarding.Bt'],
                 'fields': ['parent_id', 'identifier_id', 'bucode'],
                 'description': 'Business unit hierarchy queries'
             },
@@ -249,7 +249,7 @@ class QueryPerformanceAnalyzer:
     
     def _benchmark_bt_hierarchy(self) -> Tuple[float, int]:
         """Benchmark BT hierarchy query"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         
         start_time = time.time()
         

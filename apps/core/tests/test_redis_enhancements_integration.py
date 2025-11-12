@@ -381,7 +381,7 @@ class TestRedisConfigurationIntegration:
             cache.delete(test_key)
             assert cache.get(test_key) is None
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             pytest.fail(f"Cache connectivity test failed: {e}")
 
     def test_select2_cache_independence(self):
@@ -439,7 +439,7 @@ class TestRedisMonitoringIntegration:
                 assert hasattr(metrics, 'hit_ratio')
                 assert hasattr(metrics, 'connected_clients')
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             # Redis not running in test environment is acceptable
             pytest.skip(f"Redis not available in test environment: {e}")
 
@@ -461,7 +461,7 @@ class TestRedisMonitoringIntegration:
             assert isinstance(cache_result, dict)
             assert 'status' in cache_result
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             pytest.skip(f"Health checks require Redis: {e}")
 
 

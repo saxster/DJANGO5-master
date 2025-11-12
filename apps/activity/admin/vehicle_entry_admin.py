@@ -132,6 +132,8 @@ class VehicleEntryAdmin(IntelliWizModelAdmin):
         'record_exits',
     ]
 
+    list_per_page = 50
+
     @admin.display(description="Type", ordering="entry_type")
     def entry_type_badge(self, obj):
         """Display entry type as a badge."""

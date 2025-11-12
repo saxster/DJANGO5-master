@@ -92,7 +92,13 @@ class JournalPrivacySettingsSerializer(PrivacyValidationMixin, serializers.Model
 
 
 class JournalEntryListSerializer(PIIRedactionMixin, serializers.ModelSerializer):
-    """Lightweight serializer for journal entry lists"""
+    """
+    Lightweight serializer for journal entry lists
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        JournalEntry.objects.select_related('user')
+                           .prefetch_related('media_attachments')
+    """
 
     # PII redaction configuration
     PII_FIELDS = ['title', 'subtitle']  # Always redact for non-owners
@@ -135,7 +141,13 @@ class JournalEntryListSerializer(PIIRedactionMixin, serializers.ModelSerializer)
 
 
 class JournalEntryDetailSerializer(PIIRedactionMixin, ComprehensiveJournalValidationMixin, serializers.ModelSerializer):
-    """Comprehensive serializer for journal entry details"""
+    """
+    Comprehensive serializer for journal entry details
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        JournalEntry.objects.select_related('user')
+                           .prefetch_related('media_attachments')
+    """
 
     # PII redaction configuration
     PII_FIELDS = [

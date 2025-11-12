@@ -24,6 +24,7 @@ from apps.core.constants.datetime_constants import MINUTES_IN_HOUR, MINUTES_IN_D
 from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.db import connection
 from django.core.cache import cache
 from django.conf import settings
@@ -49,7 +50,7 @@ class HealthCheckEndpoint(View):
         """Perform health checks and return status"""
         health_status = {
             'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'checks': {}
         }
         
@@ -100,7 +101,7 @@ class MetricsEndpoint(View):
         else:
             # Return JSON format
             metrics_data = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': timezone.now().isoformat(),
                 'uptime': time.time() - metrics_collector.start_time,
                 'metrics': HealthCheckView.get_metrics_summary(),
                 'system': self._get_system_metrics()
@@ -176,7 +177,7 @@ class QueryPerformanceView(View):
         slow_queries.sort(key=lambda x: x['time'], reverse=True)
         
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_minutes': window_minutes,
             'query_performance': query_stats,
             'queries_per_request': query_count_stats,
@@ -251,7 +252,7 @@ class CachePerformanceView(View):
         hit_rate = (total_hits / total_requests * 100) if total_requests > 0 else 0
         
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'window_minutes': window_minutes,
             'hit_rate': hit_rate,
             'total_requests': total_requests,
@@ -314,7 +315,7 @@ class AlertsView(View):
                 alerts_by_level[level].append(alert)
         
         response_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'total_alerts': len(alerts),
             'alerts': alerts_by_level,
             'thresholds': metrics_collector.THRESHOLDS,
@@ -346,7 +347,7 @@ class DashboardDataView(View):
         }
         
         dashboard_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'current_alerts': len(metrics_collector.check_thresholds()),
             'time_series': {},
             'correlation_id': getattr(request, 'correlation_id', None)

@@ -92,10 +92,12 @@ EXAMPLES:
   <a
     href="{{ href }}"
     class="{{ all_classes }}"
+    {# SECURITY: |safe intentional - attrs contains developer-defined HTML attributes (data-*, aria-*, etc.) #}
     {% if attrs %}{{ attrs|safe }}{% endif %}>
 {% else %}
   <div
     class="{{ all_classes }}"
+    {# SECURITY: |safe intentional - attrs contains developer-defined HTML attributes (data-*, aria-*, etc.) #}
     {% if attrs %}{{ attrs|safe }}{% endif %}>
 {% endif %}
 
@@ -117,6 +119,7 @@ EXAMPLES:
 
       {% if header_actions %}
         <div class="yt-card__header-actions">
+          {# SECURITY: |safe intentional - header_actions contains pre-rendered button components #}
           {{ header_actions|safe }}
         </div>
       {% endif %}
@@ -131,6 +134,7 @@ EXAMPLES:
   {# Footer #}
   {% if footer %}
     <div class="yt-card__footer">
+      {# SECURITY: |safe intentional - footer contains pre-rendered HTML from component caller #}
       {{ footer|safe }}
     </div>
   {% endif %}

@@ -26,7 +26,7 @@ from apps.core.services.agents.base_agent_service import BaseAgentService
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.activity.models.job_model import Jobneed
 from apps.reports.services.frappe_service import get_frappe_service
-from apps.onboarding_api.services.llm.exceptions import LLMProviderError
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -118,49 +118,110 @@ class TaskAgentService(BaseAgentService):
     ) -> Optional[AgentRecommendation]:
         """Use Gemini to analyze overdue tasks and recommend escalation"""
         try:
-            # Build prompt for Gemini
-            prompt = f"""Analyze these task metrics and recommend actions:
-- Pending: {metrics['pending']}
-- Overdue: {metrics['overdue']}
-- In Progress: {metrics['inprogress']}
+            focus = (
+                "Evaluate task health for the site. Identify up to five concrete"
+                " escalation candidates, propose how to reassign teams, and flag"
+                " any SLA or safety risk. Reference the provided metrics and"
+                " recent recommendations so you do not repeat prior advice."
+            )
 
-Determine:
-1. Which tasks to escalate (prioritize by urgency)
-2. Assignment strategy
-3. Expected impact
+            prompt_bundle = self._build_prompt_bundle(
+                module='tasks',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                metrics=metrics,
+                time_range=time_range,
+                focus=focus,
+                additional_notes={'trigger': 'overdue_threshold', 'pending_threshold': 15},
+            )
 
-Return JSON: {{"tasks_to_escalate": [...], "assignment_strategy": "...", "impact": "..."}}"""
+            schema = {
+                'type': 'object',
+                'properties': {
+                    'summary': {'type': 'string', 'minLength': 20},
+                    'severity': {
+                        'type': 'string',
+                        'enum': ['low', 'medium', 'high', 'critical']
+                    },
+                    'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                    'tasks_to_escalate': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'entity_id': {'type': 'string'},
+                                'reason': {'type': 'string'},
+                                'priority': {'type': 'string'},
+                                'suggested_action': {'type': 'string'},
+                            },
+                            'required': ['entity_id', 'reason', 'priority']
+                        },
+                        'maxItems': 5
+                    },
+                    'actions': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'label': {'type': 'string'},
+                                'type': {'type': 'string'},
+                                'endpoint': {'type': 'string'},
+                                'payload': {'type': 'object'},
+                                'url': {'type': 'string'},
+                            },
+                            'required': ['label', 'type']
+                        },
+                        'minItems': 1,
+                        'maxItems': 3
+                    },
+                    'narrative_chunks': {
+                        'type': 'array',
+                        'items': {'type': 'string'},
+                        'description': 'Ordered sentences that can be streamed to UI'
+                    }
+                },
+                'required': ['summary', 'severity', 'confidence', 'tasks_to_escalate', 'actions']
+            }
 
-            llm = self.get_llm()
-            response = llm.generate(prompt, temperature=0.3)
-
-            # Parse Gemini response
-            analysis = json.loads(response)
+            analysis = self._invoke_structured_llm(
+                prompt_bundle,
+                schema,
+                generation_kwargs={'temperature': 0.55, 'max_tokens': 1536},
+            )
 
             # Create recommendation
+            summary = analysis.get('summary') or (
+                f"Escalate {metrics['overdue']} overdue tasks; reassign pending workload"
+            )
+            severity = analysis.get('severity', 'medium')
+            confidence = float(analysis.get('confidence', 0.85))
+            details = analysis.get('tasks_to_escalate', [])
+            llm_actions = analysis.get('actions') or [
+                {
+                    'label': 'View Task List',
+                    'type': 'link',
+                    'url': '/operations/tasks/?status=overdue'
+                }
+            ]
+            context_metrics = {
+                **metrics,
+                'prompt_context': prompt_bundle['metadata'],
+                'schema': 'taskbot.escalation.v2',
+            }
+            if analysis.get('narrative_chunks'):
+                context_metrics['narrative_chunks'] = analysis['narrative_chunks']
+
             return self.create_recommendation(
                 module='tasks',
                 site_id=site_id,
                 client_id=self.tenant_id,
-                summary=f"Escalate {metrics['overdue']} overdue tasks and assign {metrics['pending']} pending tasks",
-                details=analysis.get('tasks_to_escalate', []),
-                confidence=0.92 if metrics['overdue'] > 10 else 0.85,
-                severity='high' if metrics['overdue'] > 10 else 'medium',
-                actions=[
-                    {
-                        'label': 'Escalate Overdue',
-                        'type': 'workflow_trigger',
-                        'endpoint': '/api/tasks/escalate',
-                        'payload': {'count': metrics['overdue']}
-                    },
-                    {
-                        'label': 'View Task List',
-                        'type': 'link',
-                        'url': '/operations/tasks/?status=overdue'
-                    }
-                ],
+                summary=summary,
+                details=details,
+                confidence=confidence,
+                severity=severity,
+                actions=llm_actions,
                 time_range=time_range,
-                context_metrics=metrics
+                context_metrics=context_metrics
             )
 
         except (LLMProviderError, json.JSONDecodeError, ValueError) as e:

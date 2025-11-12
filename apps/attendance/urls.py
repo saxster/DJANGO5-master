@@ -1,5 +1,6 @@
 from django.urls import path
 from apps.attendance import views
+from apps.attendance.views.shift_adherence_dashboard import ShiftAdherenceDashboardView
 
 # Import AI analytics dashboard
 try:
@@ -14,6 +15,11 @@ urlpatterns = [
     path("travel_expense/", views.Conveyance.as_view(), name="conveyance"),
     path(
         "geofencetracking/", views.GeofenceTracking.as_view(), name="geofencetracking"
+    ),
+    path(
+        "shift-tracker/",
+        ShiftAdherenceDashboardView.as_view(),
+        name="shift_adherence_dashboard"
     ),
 ]
 

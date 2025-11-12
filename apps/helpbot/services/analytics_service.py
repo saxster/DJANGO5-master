@@ -6,6 +6,7 @@ Integrates with existing monitoring infrastructure.
 """
 
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
@@ -81,8 +82,8 @@ class HelpBotAnalyticsService:
                 logger.debug(f"Recorded session metrics for {session.session_id}")
                 return True
 
-        except Exception as e:
-            logger.error(f"Error recording session metrics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error recording session metrics: {e}", exc_info=True)
             return False
 
     def record_response_time(self, message: HelpBotMessage) -> bool:
@@ -108,8 +109,8 @@ class HelpBotAnalyticsService:
 
                 return True
 
-        except Exception as e:
-            logger.error(f"Error recording response time: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error recording response time: {e}", exc_info=True)
             return False
 
     def record_knowledge_usage(self, knowledge_id: str, context: Dict[str, Any] = None) -> bool:
@@ -131,8 +132,8 @@ class HelpBotAnalyticsService:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Error recording knowledge usage: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error recording knowledge usage: {e}", exc_info=True)
             return False
 
     def record_error_rate(self, error_type: str, context: Dict[str, Any] = None) -> bool:
@@ -154,8 +155,8 @@ class HelpBotAnalyticsService:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Error recording error rate: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error recording error rate: {e}", exc_info=True)
             return False
 
     def _increment_metric(self, metric_type: str, value: float, date: date,
@@ -179,8 +180,8 @@ class HelpBotAnalyticsService:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Error incrementing metric: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error incrementing metric: {e}", exc_info=True)
             return False
 
     def _record_metric(self, metric_type: str, value: float, date: date,
@@ -197,8 +198,8 @@ class HelpBotAnalyticsService:
 
             return True
 
-        except Exception as e:
-            logger.error(f"Error recording metric: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error recording metric: {e}", exc_info=True)
             return False
 
     def get_dashboard_data(self, days: int = 30) -> Dict[str, Any]:
@@ -232,8 +233,8 @@ class HelpBotAnalyticsService:
 
             return dashboard_data
 
-        except Exception as e:
-            logger.error(f"Error getting dashboard data: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting dashboard data: {e}", exc_info=True)
             return {'error': str(e)}
 
     def _get_overview_metrics(self, start_date: date, end_date: date) -> Dict[str, Any]:
@@ -279,8 +280,8 @@ class HelpBotAnalyticsService:
                 'completion_rate': round(completion_rate, 2),
             }
 
-        except Exception as e:
-            logger.error(f"Error getting overview metrics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting overview metrics: {e}", exc_info=True)
             return {}
 
     def _get_usage_trends(self, start_date: date, end_date: date) -> Dict[str, Any]:
@@ -317,8 +318,8 @@ class HelpBotAnalyticsService:
                 'session_types': list(session_types),
             }
 
-        except Exception as e:
-            logger.error(f"Error getting usage trends: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting usage trends: {e}", exc_info=True)
             return {}
 
     def _get_performance_metrics(self, start_date: date, end_date: date) -> Dict[str, Any]:
@@ -368,8 +369,8 @@ class HelpBotAnalyticsService:
                 'high_confidence_rate': round(high_confidence_rate, 2),
             }
 
-        except Exception as e:
-            logger.error(f"Error getting performance metrics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting performance metrics: {e}", exc_info=True)
             return {}
 
     def _get_knowledge_analytics(self, start_date: date, end_date: date) -> Dict[str, Any]:
@@ -428,8 +429,8 @@ class HelpBotAnalyticsService:
                 'total_knowledge_references': sum(knowledge_usage.values()),
             }
 
-        except Exception as e:
-            logger.error(f"Error getting knowledge analytics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting knowledge analytics: {e}", exc_info=True)
             return {}
 
     def _get_satisfaction_metrics(self, start_date: date, end_date: date) -> Dict[str, Any]:
@@ -478,8 +479,8 @@ class HelpBotAnalyticsService:
                 'total_feedback': total_feedback,
             }
 
-        except Exception as e:
-            logger.error(f"Error getting satisfaction metrics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting satisfaction metrics: {e}", exc_info=True)
             return {}
 
     def _get_error_analysis(self, start_date: date, end_date: date) -> Dict[str, Any]:
@@ -522,8 +523,8 @@ class HelpBotAnalyticsService:
                 'common_error_patterns': dict(error_patterns),
             }
 
-        except Exception as e:
-            logger.error(f"Error getting error analysis: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting error analysis: {e}", exc_info=True)
             return {}
 
     def generate_insights(self, days: int = 30) -> List[Dict[str, Any]]:
@@ -599,8 +600,8 @@ class HelpBotAnalyticsService:
 
             return insights
 
-        except Exception as e:
-            logger.error(f"Error generating insights: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error generating insights: {e}", exc_info=True)
             return []
 
     def get_user_analytics(self, user, days: int = 30) -> Dict[str, Any]:
@@ -642,8 +643,8 @@ class HelpBotAnalyticsService:
 
             return analytics
 
-        except Exception as e:
-            logger.error(f"Error getting user analytics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error getting user analytics: {e}", exc_info=True)
             return {}
 
     def cleanup_old_analytics(self, days: int = 90) -> int:
@@ -658,6 +659,6 @@ class HelpBotAnalyticsService:
             logger.info(f"Cleaned up {deleted_count} old analytics records")
             return deleted_count
 
-        except Exception as e:
-            logger.error(f"Error cleaning up analytics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error cleaning up analytics: {e}", exc_info=True)
             return 0

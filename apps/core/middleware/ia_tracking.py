@@ -7,6 +7,10 @@ from django.urls import resolve, Resolver404
 from django.conf import settings
 from django.utils import timezone
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from apps.core.url_router import URLRouter
 from apps.core.models.monitoring import (
     PageView, NavigationClick, ErrorLog, LegacyURLAccess, NavigationPath
@@ -108,7 +112,7 @@ class IATrackingMiddleware(MiddlewareMixin):
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             # Don't let tracking errors break the site
             if settings.DEBUG:
-                print(f"Error tracking page view: {e}")
+                logger.error(f"Error tracking page view: {e}")
     
     def _track_legacy_url(self, request):
         """Track access to legacy URLs"""
@@ -125,7 +129,7 @@ class IATrackingMiddleware(MiddlewareMixin):
             )
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
-                print(f"Error tracking legacy URL: {e}")
+                logger.error(f"Error tracking legacy URL: {e}")
     
     def _track_error(self, request, response):
         """Track error responses"""
@@ -148,7 +152,7 @@ class IATrackingMiddleware(MiddlewareMixin):
             )
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
-                print(f"Error tracking error: {e}")
+                logger.error(f"Error tracking error: {e}")
     
     def _update_navigation_path(self, request):
         """Update user's navigation path in session"""
@@ -173,7 +177,7 @@ class IATrackingMiddleware(MiddlewareMixin):
                 self._save_navigation_path(request, path_list, goal)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
-                print(f"Error updating navigation path: {e}")
+                logger.error(f"Error updating navigation path: {e}")
     
     def _check_goal_completion(self, path_list):
         """Check if the navigation path completes a known goal"""
@@ -230,7 +234,7 @@ class IATrackingMiddleware(MiddlewareMixin):
             request.session['ia_session_start'] = timezone.now().isoformat()
         except (DatabaseError, IntegrityError, ObjectDoesNotExist) as e:
             if settings.DEBUG:
-                print(f"Error saving navigation path: {e}")
+                logger.error(f"Error saving navigation path: {e}")
     
     def _determine_page_type(self, request):
         """Determine the type of page being viewed"""
@@ -303,7 +307,7 @@ class NavigationClickTrackingMiddleware(MiddlewareMixin):
             )
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
-                print(f"Error tracking navigation click: {e}")
+                logger.error(f"Error tracking navigation click: {e}")
 
 
 class HeatmapTrackingMiddleware(MiddlewareMixin):
@@ -361,10 +365,11 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
                 'sessionId': session.session_id
             })
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'initialize_heatmap_session'})
             if settings.DEBUG:
-                print(f"Error initializing heatmap session: {e}")
-            from django.http import JsonResponse
-            return JsonResponse({'error': str(e)}, status=500)
+                logger.error(f"Error initializing heatmap session: {e} [correlation_id={correlation_id}]")
+            return ErrorHandler.create_error_response("Failed to initialize tracking session", error_code="TRACKING_ERROR", correlation_id=correlation_id)
     
     def _end_session(self, request, data):
         """End a heatmap tracking session"""
@@ -381,10 +386,11 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
             from django.http import JsonResponse
             return JsonResponse({'error': 'Session not found'}, status=404)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'end_heatmap_session'})
             if settings.DEBUG:
-                print(f"Error ending heatmap session: {e}")
-            from django.http import JsonResponse
-            return JsonResponse({'error': str(e)}, status=500)
+                logger.error(f"Error ending heatmap session: {e} [correlation_id={correlation_id}]")
+            return ErrorHandler.create_error_response("Failed to end tracking session", error_code="TRACKING_ERROR", correlation_id=correlation_id)
     
     def _track_data(self, request, data):
         """Track heatmap data from frontend"""
@@ -458,10 +464,11 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
             from django.http import JsonResponse
             return JsonResponse({'error': 'Session not found'}, status=404)
         except (DatabaseError, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
+            from apps.core.error_handling import ErrorHandler
+            correlation_id = ErrorHandler.handle_exception(e, context={'view': 'track_heatmap_data'})
             if settings.DEBUG:
-                print(f"Error tracking heatmap data: {e}")
-            from django.http import JsonResponse
-            return JsonResponse({'error': str(e)}, status=500)
+                logger.error(f"Error tracking heatmap data: {e} [correlation_id={correlation_id}]")
+            return ErrorHandler.create_error_response("Failed to track data", error_code="TRACKING_ERROR", correlation_id=correlation_id)
     
     def _check_aggregation_needed(self, page_url):
         """Check if aggregation is needed for this page"""
@@ -500,7 +507,7 @@ class HeatmapTrackingMiddleware(MiddlewareMixin):
             )
         except (DatabaseError, IntegrationException, IntegrityError, ObjectDoesNotExist, TypeError, ValueError, json.JSONDecodeError) as e:
             if settings.DEBUG:
-                print(f"Error aggregating heatmap data: {e}")
+                logger.error(f"Error aggregating heatmap data: {e}")
     
     def _get_client_ip(self, request):
         """Get client IP address"""

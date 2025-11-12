@@ -236,8 +236,9 @@ class LiveMetricsAPIView(LoginRequiredMixin, UserPassesTestMixin, View):
             variant_conversions = recent_conversions.filter(assignment__variant=variant)
             
             conversion_rate = 0
-            if variant_assignments.count() > 0:
-                conversion_rate = variant_conversions.count() / variant_assignments.count()
+            assignment_count = variant_assignments.count()
+            if assignment_count > 0:
+                conversion_rate = variant_conversions.count() / assignment_count
             
             variant_data.append({
                 'id': variant.id,

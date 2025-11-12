@@ -5,12 +5,12 @@ from django.db.models.functions import Concat, Cast
 from django.contrib.gis.db.models.functions import AsGeoJSON
 import logging
 
-from apps.core.managers.tenant_manager import TenantQuerySet
+from apps.tenants.managers import TenantAwareManager
 
 log = logging.getLogger("django")
 
 
-class PeopleManager(BaseUserManager):
+class PeopleManager(TenantAwareManager, BaseUserManager):
     """
     Enhanced People Manager with tenant filtering capabilities and query optimization.
 
@@ -47,9 +47,21 @@ class PeopleManager(BaseUserManager):
         "cuser",
     ]
 
-    def get_queryset(self):
-        """Return TenantQuerySet for automatic tenant filtering."""
-        return TenantQuerySet(self.model, using=self._db)
+    def for_client(self, client_id):
+        if client_id is None:
+            return self.none()
+        return self.get_queryset().filter(client_id=client_id)
+
+    def for_business_unit(self, bu_id):
+        if bu_id is None:
+            return self.none()
+        return self.get_queryset().filter(bu_id=bu_id)
+
+    def for_user(self, user):
+        if not user or not hasattr(user, 'client_id'):
+            log.warning("User does not have client_id attribute for tenant filtering")
+            return self.none()
+        return self.for_client(user.client_id)
 
     def with_profile(self):
         """
@@ -194,7 +206,7 @@ class PeopleManager(BaseUserManager):
         return qset or self.none()
 
     def get_assigned_sites(self, clientid, peopleid):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         qset = (
             Bt.objects.filter(id__gte=12, id__lte=150)
@@ -367,7 +379,7 @@ class PeopleManager(BaseUserManager):
         return qset or self.none()
 
     def get_sitemanager_or_emergencycontact(self, bu):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         if Bt.objects.filter(
             ~Q(siteincharge_id=1), id=bu.id, siteincharge__isnull=False
@@ -376,7 +388,7 @@ class PeopleManager(BaseUserManager):
         return self.filter(people_extras__isemergencycontact=True, bu_id=bu.id).first()
 
 
-class CapabilityManager(models.Manager):
+class CapabilityManager(TenantAwareManager):
     use_in_migrations = True
 
     def get_webparentdata(self):
@@ -463,7 +475,7 @@ class CapabilityManager(models.Manager):
         return result
 
 
-class PgblngManager(models.Manager):
+class PgblngManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",
@@ -545,7 +557,7 @@ class PgblngManager(models.Manager):
         return qset or self.none()
 
     def make_choices_of_sites(self, ids):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         qset = (
             Bt.objects.annotate(text=Concat(F("buname"), V(" ("), F("bucode"), V(")")))
@@ -555,7 +567,7 @@ class PgblngManager(models.Manager):
         return qset or self.none()
 
     def return_sites_for_service(self, ids, fields):
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         qset = Bt.objects.filter(id__in=ids).annotate(bu_id=F("id")).values(*fields)
         return qset or self.none()
@@ -564,7 +576,7 @@ class PgblngManager(models.Manager):
         self, peopleid, makechoice=False, forservice=False
     ):
         from apps.peoples.models import People
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # get default site of people
         people = People.objects.filter(id=peopleid).first()
@@ -626,7 +638,7 @@ class PgblngManager(models.Manager):
         return total_assigned_sites
 
 
-class PgroupManager(models.Manager):
+class PgroupManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",

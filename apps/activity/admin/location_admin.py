@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 from import_export import fields, resources
 from import_export import widgets as wg
 from apps.activity.models.location_model import Location
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 from apps.core.utils_new.db_utils import (
     get_or_create_none_typeassist,
@@ -23,13 +24,13 @@ class LocationResource(resources.ModelResource):
     Client = fields.Field(
         column_name="Client*",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
     BV = fields.Field(
         column_name="Site*",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -46,7 +47,7 @@ class LocationResource(resources.ModelResource):
     Type = fields.Field(
         column_name="Type*",
         attribute="type",
-        widget=wg.ForeignKeyWidget(om.TypeAssist, "tacode"),
+        widget=wg.ForeignKeyWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -143,14 +144,14 @@ class LocationResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         saves_null_values=True,
         default=get_or_create_none_bv,
     )
@@ -166,7 +167,7 @@ class LocationResourceUpdate(resources.ModelResource):
     Type = fields.Field(
         column_name="Type",
         attribute="type",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )

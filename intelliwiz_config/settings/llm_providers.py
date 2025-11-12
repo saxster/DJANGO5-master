@@ -128,6 +128,13 @@ LLM_PROVIDERS_ENABLED = {
     'gemini': bool(GOOGLE_API_KEY),
 }
 
+# Optional tenant-specific override chains
+LLM_PROVIDER_OVERRIDES = {
+    1: ["gemini", "anthropic", "openai"],  # Enterprise reliability cohort
+    5: ["anthropic", "openai"],            # CS pilot prefers Claude first
+    12: ["openai"],                        # Legacy contract, OpenAI-only
+}
+
 # =============================================================================
 # VALIDATION
 # =============================================================================

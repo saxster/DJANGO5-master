@@ -21,6 +21,8 @@ import logging
 import uuid
 from typing import Dict, List, Optional, Any
 from django.core.exceptions import ImproperlyConfigured
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 
 logger = logging.getLogger('settings.validation')
 
@@ -126,7 +128,7 @@ class SettingsValidator:
             if 'CONN_MAX_AGE' not in default_db or default_db['CONN_MAX_AGE'] == 0:
                 self.warnings.append("Connection pooling disabled (CONN_MAX_AGE=0) - performance impact")
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.failed_checks.append(f"Database validation error: {str(e)}")
 
     def _validate_secret_keys(self) -> None:
@@ -147,7 +149,7 @@ class SettingsValidator:
                 elif len(encrypt_key) < 32:
                     self.failed_checks.append(f"ENCRYPT_KEY too short (< 32 chars)")
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.failed_checks.append(f"Secret key validation error: {str(e)}")
 
     def _validate_middleware_stack(self) -> None:
@@ -176,17 +178,19 @@ class SettingsValidator:
                     f"SecurityMiddleware must be first, found: {middleware[0]}"
                 )
 
-            # Check TenantMiddleware comes after SessionMiddleware
-            if 'apps.tenants.middlewares.TenantMiddleware' in middleware:
+            unified_middleware = 'apps.tenants.middleware_unified.UnifiedTenantMiddleware'
+            if unified_middleware not in middleware:
+                self.failed_checks.append("UnifiedTenantMiddleware missing from MIDDLEWARE")
+            else:
                 if 'django.contrib.sessions.middleware.SessionMiddleware' in middleware:
                     session_idx = middleware.index('django.contrib.sessions.middleware.SessionMiddleware')
-                    tenant_idx = middleware.index('apps.tenants.middlewares.TenantMiddleware')
+                    tenant_idx = middleware.index(unified_middleware)
                     if tenant_idx < session_idx:
                         self.failed_checks.append(
-                            "TenantMiddleware must come after SessionMiddleware"
+                            "UnifiedTenantMiddleware must come after SessionMiddleware"
                         )
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.failed_checks.append(f"Middleware validation error: {str(e)}")
 
     def _validate_cors_configuration(self) -> None:
@@ -209,7 +213,7 @@ class SettingsValidator:
                         "CORS wildcard (*) conflicts with CORS_ALLOW_CREDENTIALS=True"
                     )
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.failed_checks.append(f"CORS validation error: {str(e)}")
 
     def _validate_cookie_security(self) -> None:
@@ -244,7 +248,7 @@ class SettingsValidator:
                     f"SESSION_COOKIE_SAMESITE should be 'Lax' or 'Strict', got: {session_samesite}"
                 )
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.failed_checks.append(f"Cookie security validation error: {str(e)}")
 
     def _validate_production_security(self) -> None:
@@ -276,7 +280,7 @@ class SettingsValidator:
                     f"SECURE_HSTS_SECONDS should be >= 31536000 (1 year), got: {hsts_seconds}"
                 )
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.failed_checks.append(f"Production security validation error: {str(e)}")
 
     def _validate_development_settings(self) -> None:
@@ -292,7 +296,7 @@ class SettingsValidator:
             if not allowed_hosts:
                 self.warnings.append("ALLOWED_HOSTS is empty (may cause issues)")
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             self.warnings.append(f"Development settings validation error: {str(e)}")
 
     def _report_validation_results(self, environment: str) -> None:

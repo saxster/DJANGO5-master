@@ -18,10 +18,16 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from apps.onboarding.models import (
-    Bt, Shift, TypeAssist, ConversationSession, LLMRecommendation
+from apps.client_onboarding.models import (
+    Bt,
+    Shift
 )
-from apps.onboarding_api.services.translation import GoogleTranslateService
+from apps.core_onboarding.models import (
+    TypeAssist,
+    ConversationSession,
+    LLMRecommendation
+)
+from apps.core_onboarding.services.translation import GoogleTranslateService
 
 User = get_user_model()
 
@@ -150,7 +156,7 @@ class TranslationServiceImportTests(TestCase):
 
     def test_datetime_import_available(self):
         """Test that datetime is properly imported in translation service"""
-        from apps.onboarding_api.services.translation import datetime
+        from apps.core_onboarding.services.translation import datetime
 
         # This should not raise ImportError
         self.assertTrue(hasattr(datetime, 'now'))
@@ -499,14 +505,16 @@ class RegressionTests(TestCase):
     def test_all_model_imports_successful(self):
         """Test that all required models can be imported"""
         try:
-            from apps.onboarding.models import (
-                Bt,
-                Shift,
-                TypeAssist,
-                ConversationSession,
-                LLMRecommendation,
-                AuthoritativeKnowledge,
-            )
+            from apps.client_onboarding.models import (
+    Bt,
+    Shift
+)
+from apps.core_onboarding.models import (
+    TypeAssist,
+    ConversationSession,
+    LLMRecommendation,
+    AuthoritativeKnowledge
+)
             # If we get here, all imports succeeded
             self.assertTrue(True)
         except ImportError as e:
@@ -522,7 +530,7 @@ class RegressionTests(TestCase):
     def test_services_can_be_imported(self):
         """Test that all services can be imported without errors"""
         try:
-            from apps.onboarding_api.services.translation import (
+            from apps.core_onboarding.services.translation import (
                 TranslationService,
                 GoogleTranslateService,
             )

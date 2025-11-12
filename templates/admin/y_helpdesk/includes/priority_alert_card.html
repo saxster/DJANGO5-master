@@ -1,0 +1,134 @@
+{% if priority_alert %}
+<div class="alert-card alert-{{ priority_alert.risk_level }}" style="
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 5px solid {% if priority_alert.risk_level == 'high' %}#dc3545{% elif priority_alert.risk_level == 'medium' %}#ffc107{% else %}#28a745{% endif %};
+    background: {% if priority_alert.risk_level == 'high' %}#fff5f5{% elif priority_alert.risk_level == 'medium' %}#fff8e1{% else %}#f1f8f4{% endif %};
+">
+    <h3 style="margin-top: 0; color: {% if priority_alert.risk_level == 'high' %}#dc3545{% elif priority_alert.risk_level == 'medium' %}#ff9800{% else %}#28a745{% endif %};">
+        {{ priority_alert.badge }} Priority Alert
+    </h3>
+    
+    {% if priority_alert.risk_factors %}
+    <div class="risk-factors" style="margin: 15px 0;">
+        <h4 style="font-size: 16px; margin-bottom: 10px;">Why this ticket needs attention:</h4>
+        <ul style="list-style: none; padding: 0;">
+            {% for factor in priority_alert.risk_factors %}
+            <li class="factor-{{ factor.severity }}" style="
+                margin: 8px 0;
+                padding: 10px;
+                border-radius: 4px;
+                background: white;
+                border-left: 3px solid {% if factor.severity == 'high' %}#dc3545{% elif factor.severity == 'medium' %}#ffc107{% else %}#28a745{% endif %};
+            ">
+                <span class="icon" style="font-size: 18px; margin-right: 8px;">{{ factor.icon }}</span>
+                <span>{{ factor.message }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% if priority_alert.suggestions %}
+    <div class="suggestions" style="margin: 15px 0;">
+        <h4 style="font-size: 16px; margin-bottom: 10px;">What you can do right now:</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            {% for suggestion in priority_alert.suggestions %}
+            <button 
+                class="suggestion-btn" 
+                data-action="{{ suggestion.action }}"
+                data-person-id="{{ suggestion.suggested_person_id|default:'' }}"
+                style="
+                    padding: 10px 15px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    background: white;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-size: 14px;
+                "
+                onmouseover="this.style.background='#f5f5f5'; this.style.borderColor='#999';"
+                onmouseout="this.style.background='white'; this.style.borderColor='#ddd';"
+            >
+                {{ suggestion.icon }} {{ suggestion.text }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if priority_alert.sla_metrics %}
+    <div class="sla-metrics" style="margin: 15px 0; padding: 10px; background: white; border-radius: 4px;">
+        <h4 style="font-size: 14px; margin-bottom: 8px; color: #666;">SLA Information:</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
+            {% if priority_alert.sla_metrics.remaining_minutes %}
+            <div>
+                <strong>Time Remaining:</strong>
+                <span>{{ priority_alert.sla_metrics.remaining_minutes|floatformat:0 }} min</span>
+            </div>
+            {% endif %}
+            {% if priority_alert.sla_metrics.elapsed_minutes %}
+            <div>
+                <strong>Time Elapsed:</strong>
+                <span>{{ priority_alert.sla_metrics.elapsed_minutes|floatformat:0 }} min</span>
+            </div>
+            {% endif %}
+            {% if priority_alert.sla_metrics.sla_compliance_percentage %}
+            <div>
+                <strong>SLA Compliance:</strong>
+                <span>{{ priority_alert.sla_metrics.sla_compliance_percentage|floatformat:1 }}%</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div style="margin-top: 15px; text-align: right;">
+        <button 
+            class="btn-acknowledge" 
+            onclick="acknowledgeAlert({{ original.id }})"
+            style="
+                padding: 8px 20px;
+                background: #28a745;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: bold;
+            "
+            onmouseover="this.style.background='#218838';"
+            onmouseout="this.style.background='#28a745';"
+        >
+            I've got this ✓
+        </button>
+    </div>
+</div>
+
+<script>
+function acknowledgeAlert(ticketId) {
+    if (confirm('Mark this alert as acknowledged?')) {
+        // AJAX call to acknowledge alert
+        fetch(`/api/v1/helpdesk/tickets/${ticketId}/acknowledge-alert/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Alert acknowledged! The card will disappear on next refresh.');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error acknowledging alert. Please try again.');
+        });
+    }
+}
+</script>
+{% endif %}

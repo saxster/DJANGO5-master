@@ -65,7 +65,7 @@ Usage:
     </span>
     <div class="menu-sub menu-sub-accordion">
       <div class="menu-item">
-        <a class="menu-link" href="{% url 'onboarding:bu_list' %}?template=true">
+        <a class="menu-link" href="{% url 'admin:onboarding_bt_changelist' %}">
           <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
           <span class="menu-title">Business Units</span>
         </a>
@@ -77,7 +77,7 @@ Usage:
         </a>
       </div>
       <div class="menu-item">
-        <a class="menu-link" href="{% url 'onboarding:geofence' %}?template=true">
+        <a class="menu-link" href="{% url 'admin:onboarding_geofencemaster_changelist' %}">
           <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
           <span class="menu-title">Geofences</span>
         </a>
@@ -387,13 +387,13 @@ Usage:
         </span>
         <div class="menu-sub menu-sub-accordion">
           <div class="menu-item">
-            <a class="menu-link" href="{% url 'onboarding:client' %}?template=true">
+            <a class="menu-link" href="{% url 'admin:onboarding_client_changelist' %}">
               <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
               <span class="menu-title">Clients</span>
             </a>
           </div>
           <div class="menu-item">
-            <a class="menu-link" href="{% url 'onboarding:shift' %}?template=true">
+            <a class="menu-link" href="{% url 'admin:onboarding_shift_changelist' %}">
               <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
               <span class="menu-title">Shifts</span>
             </a>
@@ -413,13 +413,13 @@ Usage:
         </a>
       </div>
       <div class="menu-item">
-        <a class="menu-link" href="{% url 'onboarding:typeassist' %}?template=true">
+        <a class="menu-link" href="{% url 'admin:onboarding_typeassist_changelist' %}">
           <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
           <span class="menu-title">Type Assist</span>
         </a>
       </div>
       <div class="menu-item">
-        <a class="menu-link" href="{% url 'onboarding:import' %}?action=form">
+        <a class="menu-link" href="{% url 'admin:onboarding_typeassist_import' %}">
           <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
           <span class="menu-title">Import/Export</span>
         </a>

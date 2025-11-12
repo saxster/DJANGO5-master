@@ -31,10 +31,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import (
-    ConversationSession,
-    OnboardingSite,
-)
+from apps.client_onboarding.models import from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+from apps.core_onboarding.models import ConversationSession
+from apps.site_onboarding.models import OnboardingSite
 
 from ...serializer_modules.site_audit_serializers import (
     NextQuestionsSerializer,
@@ -231,7 +230,7 @@ def speak_text(request, session_id):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"TTS error: {str(e)}", exc_info=True)
         return Response(
             {'error': 'Speech synthesis failed'},

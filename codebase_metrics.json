@@ -1,0 +1,283 @@
+{
+  "codebase_summary": {
+    "total_python_files": 34222,
+    "total_size_gb": 2.6,
+    "total_lines_of_code": 744560,
+    "num_apps": 35,
+    "analysis_date": "2025-11-05"
+  },
+  "top_20_largest_files": [
+    {
+      "path": "background_tasks/journal_wellness_tasks.py",
+      "lines": 1515,
+      "violation_multiple": 10.1
+    },
+    {
+      "path": "apps/journal/ml/analytics_engine.py",
+      "lines": 1504,
+      "violation_multiple": 10.0
+    },
+    {
+      "path": "apps/face_recognition/ai_enhanced_engine.py",
+      "lines": 1481,
+      "violation_multiple": 9.9
+    },
+    {
+      "path": "apps/core/data/excel_examples.py",
+      "lines": 1458,
+      "violation_multiple": 9.7
+    },
+    {
+      "path": "background_tasks/onboarding_tasks_phase2.py",
+      "lines": 1447,
+      "violation_multiple": 9.6
+    },
+    {
+      "path": "apps/core_onboarding/background_tasks/conversation_tasks.py",
+      "lines": 1447,
+      "violation_multiple": 9.6
+    },
+    {
+      "path": "apps/scheduler/import_export_resources.py",
+      "lines": 1313,
+      "violation_multiple": 8.8
+    },
+    {
+      "path": "apps/onboarding_api/tests/test_high_impact_features.py",
+      "lines": 1312,
+      "violation_multiple": 8.7
+    },
+    {
+      "path": "apps/wellness/services/crisis_prevention_system.py",
+      "lines": 1255,
+      "violation_multiple": 8.4
+    },
+    {
+      "path": "apps/core/tests/test_command_center_phase1.py",
+      "lines": 1251,
+      "violation_multiple": 8.3
+    },
+    {
+      "path": "apps/api/mobile_consumers.py",
+      "lines": 1250,
+      "violation_multiple": 8.3
+    },
+    {
+      "path": "apps/attendance/managers.py",
+      "lines": 1230,
+      "violation_multiple": 8.2
+    },
+    {
+      "path": "background_tasks/mental_health_intervention_tasks.py",
+      "lines": 1196,
+      "violation_multiple": 8.0
+    },
+    {
+      "path": "apps/face_recognition/enhanced_engine.py",
+      "lines": 1151,
+      "violation_multiple": 7.7
+    },
+    {
+      "path": "apps/wellness/services/intervention_response_tracker.py",
+      "lines": 1149,
+      "violation_multiple": 7.7
+    },
+    {
+      "path": "apps/journal/services/analytics_service.py",
+      "lines": 1145,
+      "violation_multiple": 7.6
+    },
+    {
+      "path": "apps/onboarding_api/knowledge_views.py",
+      "lines": 1122,
+      "violation_multiple": 7.5
+    },
+    {
+      "path": "apps/onboarding_api/integration/mapper.py",
+      "lines": 1106,
+      "violation_multiple": 7.4
+    },
+    {
+      "path": "apps/core/validation.py",
+      "lines": 1070,
+      "violation_multiple": 7.1
+    },
+    {
+      "path": "apps/journal/services/pattern_analyzer.py",
+      "lines": 1059,
+      "violation_multiple": 7.1
+    }
+  ],
+  "app_statistics": {
+    "by_file_count": [
+      {
+        "name": "core",
+        "files": 704,
+        "loc": 95000,
+        "tests": 116,
+        "coverage": 0.2,
+        "violations": 8
+      },
+      {
+        "name": "noc",
+        "files": 246,
+        "loc": 40000,
+        "tests": 54,
+        "coverage": 0.28,
+        "violations": 4
+      },
+      {
+        "name": "activity",
+        "files": 138,
+        "loc": 25000,
+        "tests": 10,
+        "coverage": 0.08,
+        "violations": 3
+      },
+      {
+        "name": "attendance",
+        "files": 134,
+        "loc": 22000,
+        "tests": 17,
+        "coverage": 0.15,
+        "violations": 2
+      },
+      {
+        "name": "core_onboarding",
+        "files": 101,
+        "loc": 18000,
+        "tests": 8,
+        "coverage": 0.09,
+        "violations": 2
+      },
+      {
+        "name": "peoples",
+        "files": 101,
+        "loc": 18000,
+        "tests": 11,
+        "coverage": 0.12,
+        "violations": 1
+      },
+      {
+        "name": "onboarding_api",
+        "files": 85,
+        "loc": 18000,
+        "tests": 31,
+        "coverage": 0.57,
+        "violations": 5
+      },
+      {
+        "name": "reports",
+        "files": 79,
+        "loc": 16000,
+        "tests": 16,
+        "coverage": 0.25,
+        "violations": 0
+      },
+      {
+        "name": "wellness",
+        "files": 77,
+        "loc": 16000,
+        "tests": 2,
+        "coverage": 0.03,
+        "violations": 7
+      },
+      {
+        "name": "api",
+        "files": 77,
+        "loc": 15000,
+        "tests": 16,
+        "coverage": 0.26,
+        "violations": 1
+      }
+    ],
+    "zero_coverage": [
+      "ml_training",
+      "people_onboarding",
+      "clientbilling",
+      "onboarding"
+    ],
+    "low_coverage": [
+      "activity",
+      "core_onboarding",
+      "peoples",
+      "helpbot",
+      "journal",
+      "wellness"
+    ]
+  },
+  "violation_summary": {
+    "settings_violations": 15,
+    "settings_total_lines": 3832,
+    "model_violations": 15,
+    "service_violations": 15,
+    "total_files_over_limits": 444
+  },
+  "critical_risks": [
+    {
+      "risk": "Wellness + Journal tight coupling",
+      "impact": "Crisis system failures affect analytics",
+      "severity": "CRITICAL",
+      "affected_apps": [
+        "wellness",
+        "journal",
+        "core"
+      ]
+    },
+    {
+      "risk": "Core app hub bottleneck",
+      "impact": "Changes to core ripple to 25+ apps",
+      "severity": "CRITICAL",
+      "affected_apps": [
+        "core"
+      ]
+    },
+    {
+      "risk": "Low wellness test coverage",
+      "impact": "Mental health system inadequately tested",
+      "severity": "CRITICAL",
+      "affected_apps": [
+        "wellness",
+        "journal"
+      ]
+    },
+    {
+      "risk": "No ml_training tests",
+      "impact": "ML training pipeline unvalidated",
+      "severity": "HIGH",
+      "affected_apps": [
+        "ml_training"
+      ]
+    }
+  ],
+  "refactoring_priorities": {
+    "p0_critical": [
+      {
+        "file": "journal/ml/analytics_engine.py",
+        "lines": 1504,
+        "effort_days": 5
+      },
+      {
+        "file": "wellness/services/crisis_prevention_system.py",
+        "lines": 1255,
+        "effort_days": 6
+      },
+      {
+        "file": "journal/services/analytics_service.py",
+        "lines": 1145,
+        "effort_days": 5
+      },
+      {
+        "file": "wellness/services/intervention_response_tracker.py",
+        "lines": 1149,
+        "effort_days": 5
+      },
+      {
+        "file": "face_recognition/ai_enhanced_engine.py",
+        "lines": 1481,
+        "effort_days": 4
+      }
+    ],
+    "total_p0_effort_days": 25
+  }
+}

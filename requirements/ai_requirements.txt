@@ -28,6 +28,8 @@ hnswlib>=0.7.0    # Hierarchical Navigable Small World graphs
 # numpy>=1.24.0  # Already in base.txt line 139
 # pandas>=2.0.0  # Already in base.txt line 159
 # scipy>=1.11.0  # Already in base.txt line 208
+xgboost>=2.0.0  # Gradient boosting for fraud detection and imbalanced classification
+shap>=0.45.0    # SHAP explainability for ML model interpretability (Phase 4)
 
 # Deep Learning and Transformers
 # NOTE: These are already in base.txt - duplicates removed to avoid conflicts
@@ -56,12 +58,14 @@ neuralforecast>=1.6.0
 hierarchicalforecast>=0.3.0
 
 # OpenAI and LLM integrations
-openai>=1.3.0
+openai>=1.45.0
 anthropic>=0.7.0  # For Claude integration (backup/fallback)
 google-generativeai>=0.8.3  # Google Gemini (primary LLM for agent intelligence)
 # langchain>=0.1.0  # REMOVED: Not used in codebase (Parlant is used instead)
 # langchain-community>=0.0.10  # REMOVED: Not used in codebase
-parlant>=3.0.0  # Conversational AI framework with ensured rule compliance (LangChain alternative)
+# Parlant SDK is optional and currently pins nonexistent OpenTelemetry builds.
+# Install manually if needed once upstream pins are fixed.
+# parlant>=3.0.0
 
 # Database and Caching
 redis>=5.0.0      # For caching and real-time features
@@ -91,7 +95,7 @@ seaborn>=0.12.0
 
 # HTTP and API clients
 requests>=2.32.4  # Security update: CVE-2024-47081
-httpx>=0.25.0     # Modern HTTP client
+httpx==0.28.1     # Modern HTTP client (compatible with parlant/openai)
 aiohttp>=3.9.0    # Async HTTP client
 
 # Configuration and Environment

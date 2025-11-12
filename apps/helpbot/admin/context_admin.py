@@ -13,6 +13,7 @@ from apps.helpbot.models import HelpBotContext
 
 @admin.register(HelpBotContext)
 class HelpBotContextAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """Admin interface for HelpBot context tracking."""
 
     list_display = [

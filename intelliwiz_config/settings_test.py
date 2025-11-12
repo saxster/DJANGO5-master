@@ -131,7 +131,9 @@ TIME_ZONE = 'UTC'
 # Test-specific middleware (remove some production middleware)
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'apps.core.middleware.input_sanitization_middleware.InputSanitizationMiddleware',  # XSS/Injection prevention (Nov 2025)
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'apps.core.middleware.cache_security_middleware.CacheSecurityMiddleware',  # Cache poisoning prevention
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

@@ -20,11 +20,12 @@ from django.core.cache import cache
 from apps.core import utils
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
-from apps.onboarding.models import Shift
-from apps.onboarding.models import GeofenceMaster
+from apps.client_onboarding.models import Shift
+from apps.core_onboarding.models import GeofenceMaster
 from itertools import chain
 import json
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger("django")
 Q = models.Q
@@ -107,7 +108,7 @@ class OptimizedPELManager(models.Manager):
             result = queryset.values('people_id', 'id', 'uuid').first()
             return result if result else self.none()
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_people_attachment_optimized: {str(e)}", exc_info=True)
             return self.none()
 
@@ -154,7 +155,7 @@ class OptimizedPELManager(models.Manager):
 
             return qset or self.none()
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_peopleevents_listview_optimized: {str(e)}", exc_info=True)
             return self.none()
 
@@ -187,7 +188,7 @@ class OptimizedPELManager(models.Manager):
 
             return qset or self.none()
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_lastmonth_conveyance_optimized: {str(e)}", exc_info=True)
             return self.none()
 
@@ -235,7 +236,7 @@ class OptimizedPELManager(models.Manager):
 
             return qset or self.none()
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_peopleeventlog_history_optimized: {str(e)}", exc_info=True)
             return self.none()
 
@@ -263,7 +264,7 @@ class OptimizedPELManager(models.Manager):
                 ).order_by('-datefor')  # Added explicit ordering
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in fetch_sos_events_optimized: {str(e)}", exc_info=True)
             return self.none()
 
@@ -291,7 +292,7 @@ class OptimizedPELManager(models.Manager):
 
             return merged_events
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_sos_listview_optimized: {str(e)}", exc_info=True)
             return []
 
@@ -310,7 +311,7 @@ class OptimizedPELManager(models.Manager):
 
             return {att["owner"]: att for att in attachments}
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in fetch_attachments_optimized: {str(e)}", exc_info=True)
             return {}
 
@@ -353,7 +354,7 @@ class OptimizedPELManager(models.Manager):
 
             return results
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_people_event_log_punch_ins_optimized: {str(e)}", exc_info=True)
             return []
 
@@ -397,7 +398,7 @@ class OptimizedPELManager(models.Manager):
             results = base_query.values(*fields).order_by(dir)[start:start + length]
             return total, total, results
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_geofencetracking_optimized: {str(e)}", exc_info=True)
             return 0, 0, self.none()
 
@@ -425,7 +426,7 @@ class OptimizedPELManager(models.Manager):
                 ).order_by('-punchouttime')  # Added explicit ordering
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_sitevisited_log_optimized: {str(e)}", exc_info=True)
             return self.none()
 
@@ -440,7 +441,7 @@ class OptimizedPELManager(models.Manager):
             return cached_types
 
         try:
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
 
             types = list(
                 TypeAssist.objects.select_related("tatype").filter(
@@ -453,7 +454,7 @@ class OptimizedPELManager(models.Manager):
 
             return types
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in get_sitecrisis_types_optimized: {str(e)}", exc_info=True)
             return []
 
@@ -481,7 +482,7 @@ class OptimizedPELManager(models.Manager):
                 ).order_by('-datefor')  # Added explicit ordering
             )
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error in fetch_sitecrisis_events_optimized: {str(e)}", exc_info=True)
             return self.none()
 

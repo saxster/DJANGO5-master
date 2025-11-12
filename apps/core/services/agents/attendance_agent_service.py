@@ -14,6 +14,7 @@ Following CLAUDE.md Rule #7: <150 lines
 Dashboard Agent Intelligence - Phase 2.6
 """
 
+import json
 import logging
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime
@@ -21,6 +22,7 @@ from datetime import datetime
 from apps.core.services.agents.base_agent_service import BaseAgentService
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.attendance.models import PeopleEventlog
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -101,32 +103,103 @@ class AttendanceAgentService(BaseAgentService):
         """Recommend staffing adjustments"""
         shortage = metrics['expected'] - metrics['today_present']
 
-        return self.create_recommendation(
-            module='attendance',
-            site_id=site_id,
-            client_id=self.tenant_id,
-            summary=f"Low attendance ({metrics['percentage']}%) - {shortage} staff short",
-            details=[{
-                'entity_id': 'staffing-shortage',
-                'reason': f"Only {metrics['today_present']}/{metrics['expected']} staff present",
-                'priority': 'high',
-                'suggested_action': 'Contact backup staff or adjust task assignments'
-            }],
-            confidence=0.90,
-            severity='high' if shortage > 5 else 'medium',
-            actions=[
+        try:
+            focus = (
+                "Attendance dropped below plan. Explain staffing risk,"
+                " recommend immediate mitigation (reassignments, overtime,"
+                " backup call-ins), and estimate operational impact."
+            )
+
+            prompt_bundle = self._build_prompt_bundle(
+                module='attendance',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                metrics=metrics,
+                time_range=time_range,
+                focus=focus,
+                additional_notes={'shortage': shortage}
+            )
+
+            schema = {
+                'type': 'object',
+                'properties': {
+                    'summary': {'type': 'string'},
+                    'severity': {'type': 'string', 'enum': ['low', 'medium', 'high', 'critical']},
+                    'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                    'staffing_actions': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'entity_id': {'type': 'string'},
+                                'reason': {'type': 'string'},
+                                'priority': {'type': 'string'},
+                                'suggested_action': {'type': 'string'}
+                            },
+                            'required': ['reason']
+                        },
+                        'maxItems': 5
+                    },
+                    'actions': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'label': {'type': 'string'},
+                                'type': {'type': 'string'},
+                                'endpoint': {'type': 'string'},
+                                'payload': {'type': 'object'},
+                                'url': {'type': 'string'}
+                            },
+                            'required': ['label', 'type']
+                        }
+                    },
+                    'narrative_chunks': {'type': 'array', 'items': {'type': 'string'}}
+                },
+                'required': ['summary', 'severity', 'confidence', 'staffing_actions']
+            }
+
+            analysis = self._invoke_structured_llm(
+                prompt_bundle,
+                schema,
+                generation_kwargs={'temperature': 0.4, 'max_tokens': 1400}
+            )
+
+            summary = analysis.get('summary') or (
+                f"Low attendance ({metrics['percentage']}%) - {shortage} staff short"
+            )
+            severity = analysis.get('severity', 'high' if shortage > 5 else 'medium')
+            confidence = float(analysis.get('confidence', 0.9))
+            details = analysis.get('staffing_actions', [])
+            actions = analysis.get('actions') or [
                 {
                     'label': 'View Attendance',
                     'type': 'link',
                     'url': '/people/attendance/'
-                },
-                {
-                    'label': 'Suggest Reassignments',
-                    'type': 'workflow_trigger',
-                    'endpoint': '/api/tasks/reassign',
-                    'payload': {'shortage': shortage}
                 }
-            ],
-            time_range=time_range,
-            context_metrics=metrics
-        )
+            ]
+
+            context_metrics = {
+                **metrics,
+                'prompt_context': prompt_bundle['metadata'],
+                'schema': 'attendancebot.staffing.v2',
+            }
+            if analysis.get('narrative_chunks'):
+                context_metrics['narrative_chunks'] = analysis['narrative_chunks']
+
+            return self.create_recommendation(
+                module='attendance',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                summary=summary,
+                details=details,
+                confidence=confidence,
+                severity=severity,
+                actions=actions,
+                time_range=time_range,
+                context_metrics=context_metrics
+            )
+
+        except (LLMProviderError, json.JSONDecodeError, ValueError) as e:
+            logger.error(f"AttendanceBot staffing recommendation failed: {e}", exc_info=True)
+            return None

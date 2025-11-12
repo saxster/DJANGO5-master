@@ -276,7 +276,6 @@ class AssetSerializer(ValidatedModelSerializer):
             'gpslocation',
             'iscritical',
             'enable',
-            'asset_extras',
             'bu',
             'client',
             'ctzoffset',

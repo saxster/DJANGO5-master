@@ -292,7 +292,7 @@ class JobneedViewSet(viewsets.ModelViewSet):
                 'job_ids': [job.id for job in generated_jobs]
             })
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error generating jobs: {e}", exc_info=True)
             return Response(
                 {'error': 'Failed to generate jobs'},

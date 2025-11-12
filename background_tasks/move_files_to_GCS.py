@@ -21,6 +21,7 @@ For new code, prefer:
 from datetime import datetime, timedelta
 import os
 from logging import getLogger
+from django.utils import timezone
 
 # Import production-grade GCS upload service
 from apps.core.services.gcs_upload_service import move_files_to_GCS as _upload_service
@@ -47,7 +48,7 @@ def get_files(path, skipDays=60):
     """
     log.info(f"Scanning for files older than {skipDays} days in {path}")
     old_files = []
-    skipTimestamp = (datetime.now() - timedelta(days=skipDays)).timestamp()
+    skipTimestamp = (timezone.now() - timedelta(days=skipDays)).timestamp()
 
     try:
         for root, _, files in os.walk(path):

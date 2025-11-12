@@ -60,3 +60,47 @@ try:
 except (ImportError, AttributeError, OSError) as e:
     # Functions may have been refactored elsewhere
     pass
+
+# Legacy NONE-object helpers (backwards compatibility with older modules)
+try:
+    from apps.core.utils_new.db.none_objects import (
+    get_or_create_none_people,
+    get_or_create_none_pgroup,
+    get_or_create_none_cap,
+    get_or_create_none_typeassist,
+    get_none_typeassist,
+    get_or_create_none_bv,
+        get_or_create_none_tenant,
+        get_or_create_none_location,
+        get_or_create_none_jobneed,
+        get_or_create_none_wom,
+        get_or_create_none_qset,
+        get_or_create_none_question,
+        get_or_create_none_qsetblng,
+        get_or_create_none_asset,
+        get_or_create_none_ticket,
+        get_or_create_none_job,
+        get_or_create_none_gf,
+    )
+
+    __all__.extend([
+        'get_or_create_none_people',
+        'get_or_create_none_pgroup',
+        'get_or_create_none_cap',
+        'get_or_create_none_typeassist',
+        'get_none_typeassist',
+        'get_or_create_none_bv',
+        'get_or_create_none_tenant',
+        'get_or_create_none_location',
+        'get_or_create_none_jobneed',
+        'get_or_create_none_wom',
+        'get_or_create_none_qset',
+        'get_or_create_none_question',
+        'get_or_create_none_qsetblng',
+        'get_or_create_none_asset',
+        'get_or_create_none_ticket',
+        'get_or_create_none_job',
+        'get_or_create_none_gf',
+    ])
+except (ImportError, ModuleNotFoundError):
+    pass

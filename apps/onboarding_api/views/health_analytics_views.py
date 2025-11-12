@@ -15,6 +15,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 import logging
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +112,7 @@ def cache_health_check(request):
             'recommendations': cache_status.get('recommendations', [])
         }, status=http_status)
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"Cache health check error: {str(e)}")
         return Response({
             'error': 'Cache health check failed',
@@ -148,7 +150,7 @@ def logging_health_check(request):
             'critical_issues': logging_health.get('critical_issues', [])
         }, status=http_status)
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"Logging health check error: {str(e)}")
         return Response({
             'error': 'Logging health check failed',
@@ -202,7 +204,7 @@ def preflight_validation(request):
             client_id = data.get('client_id')
             if client_id:
                 try:
-                    from apps.onboarding.models import Bt
+                    from apps.client_onboarding.models import Bt
                     client = Bt.objects.get(id=client_id)
                 except Bt.DoesNotExist:
                     return Response({
@@ -596,7 +598,7 @@ def system_health_monitoring(request):
 
         return Response(response_data, status=http_status)
 
-    except Exception as e:
+    except NETWORK_EXCEPTIONS as e:
         logger.error(f"System health monitoring error: {str(e)}")
         return Response({
             'error': 'System health monitoring failed',

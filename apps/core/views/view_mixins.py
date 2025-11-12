@@ -21,6 +21,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from apps.core.validators import validate_tenant_access, validate_user_permissions
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -281,7 +283,7 @@ class EnhancedViewMixin(
                 return self.error_response(str(e), status_code=403)
             else:
                 return HttpResponseForbidden(str(e))
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Unexpected error in view dispatch: {e}", exc_info=True)
             if request.accepts('application/json'):
                 return self.error_response("Internal server error", status_code=500)

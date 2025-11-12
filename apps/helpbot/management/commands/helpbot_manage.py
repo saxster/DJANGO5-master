@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 import logging
 
 from apps.helpbot.services import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
     HelpBotKnowledgeService,
     HelpBotAnalyticsService,
     HelpBotContextService
@@ -104,7 +106,7 @@ class Command(BaseCommand):
             else:
                 raise CommandError(f"Unknown action: {action}")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Command failed: {e}")
             raise CommandError(f"Command failed: {e}")
 
@@ -335,7 +337,7 @@ class Command(BaseCommand):
         try:
             HelpBotKnowledge.objects.count()
             checks.append(("Database", "✅ Connected"))
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             checks.append(("Database", f"❌ Error: {e}"))
 
         # Knowledge base health
@@ -345,7 +347,7 @@ class Command(BaseCommand):
                 checks.append(("Knowledge Base", f"✅ {active_count} active articles"))
             else:
                 checks.append(("Knowledge Base", "⚠️ No active articles"))
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             checks.append(("Knowledge Base", f"❌ Error: {e}"))
 
         # Recent activity
@@ -357,7 +359,7 @@ class Command(BaseCommand):
                 checks.append(("Recent Activity", f"✅ {recent_sessions} sessions in 24h"))
             else:
                 checks.append(("Recent Activity", "ℹ️ No recent activity"))
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             checks.append(("Recent Activity", f"❌ Error: {e}"))
 
         # Performance check
@@ -377,7 +379,7 @@ class Command(BaseCommand):
                     checks.append(("Performance", f"❌ Slow response: {recent_avg_response:.0f}ms"))
             else:
                 checks.append(("Performance", "ℹ️ No recent response data"))
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             checks.append(("Performance", f"❌ Error: {e}"))
 
         # Settings check
@@ -387,7 +389,7 @@ class Command(BaseCommand):
                 checks.append(("Configuration", "✅ HelpBot enabled"))
             else:
                 checks.append(("Configuration", "⚠️ HelpBot disabled"))
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             checks.append(("Configuration", f"❌ Error: {e}"))
 
         # Display results

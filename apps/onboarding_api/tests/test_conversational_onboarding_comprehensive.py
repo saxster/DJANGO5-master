@@ -599,7 +599,7 @@ class PerformanceTestCase(ConversationalOnboardingBaseTestCase):
                     'duration': time.time() - start_time,
                     'success': response.status_code in [201, 409]  # 409 is expected for concurrent requests
                 })
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 results.append({
                     'error': str(e),
                     'duration': time.time() - start_time,

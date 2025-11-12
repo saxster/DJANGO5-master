@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Performance and load tests for geofence calculations
 
 Tests the scalability and performance characteristics of geofence operations
@@ -65,8 +67,8 @@ class TestGeofencePerformance(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Circular geofence: {len(self.test_points)} validations in {duration:.3f}s")
-        print(f"Rate: {len(self.test_points)/duration:.0f} validations/second")
+        logger.info(f"Circular geofence: {len(self.test_points)} validations in {duration:.3f}s")
+        logger.info(f"Rate: {len(self.test_points)/duration:.0f} validations/second")
 
         # Should process at least 1000 validations per second
         self.assertLess(duration, 1.0)
@@ -81,8 +83,8 @@ class TestGeofencePerformance(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Complex polygon: {len(self.test_points)} validations in {duration:.3f}s")
-        print(f"Rate: {len(self.test_points)/duration:.0f} validations/second")
+        logger.info(f"Complex polygon: {len(self.test_points)} validations in {duration:.3f}s")
+        logger.info(f"Rate: {len(self.test_points)/duration:.0f} validations/second")
 
         # Should complete within reasonable time (allow more time for complex polygons)
         self.assertLess(duration, 5.0)
@@ -97,8 +99,8 @@ class TestGeofencePerformance(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Very complex polygon: 100 validations in {duration:.3f}s")
-        print(f"Rate: {100/duration:.0f} validations/second")
+        logger.info(f"Very complex polygon: 100 validations in {duration:.3f}s")
+        logger.info(f"Rate: {100/duration:.0f} validations/second")
 
         # Should complete within reasonable time
         self.assertLess(duration, 2.0)
@@ -129,8 +131,8 @@ class TestGeofencePerformance(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Distance calculations: {len(distances)} calculations in {duration:.3f}s")
-        print(f"Rate: {len(distances)/duration:.0f} calculations/second")
+        logger.info(f"Distance calculations: {len(distances)} calculations in {duration:.3f}s")
+        logger.info(f"Rate: {len(distances)/duration:.0f} calculations/second")
 
         # Should be very fast
         self.assertLess(duration, 0.1)
@@ -147,14 +149,14 @@ class TestGeofencePerformance(TestCase):
         for lat, lon in test_coordinates:
             try:
                 GeospatialService.validate_coordinates(lat, lon)
-            except:
+            except (ValueError, TypeError):
                 pass  # Some coordinates might be invalid, that's expected
 
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Coordinate validation: {len(test_coordinates)} validations in {duration:.3f}s")
-        print(f"Rate: {len(test_coordinates)/duration:.0f} validations/second")
+        logger.info(f"Coordinate validation: {len(test_coordinates)} validations in {duration:.3f}s")
+        logger.info(f"Rate: {len(test_coordinates)/duration:.0f} validations/second")
 
         # Should be very fast
         self.assertLess(duration, 0.5)
@@ -168,14 +170,14 @@ class TestGeofencePerformance(TestCase):
             try:
                 point = GeospatialService.create_point(lat, lon)
                 points.append(point)
-            except:
+            except (ValueError, TypeError):
                 pass  # Some coordinates might be invalid
 
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Point creation: {len(points)} points in {duration:.3f}s")
-        print(f"Rate: {len(points)/duration:.0f} points/second")
+        logger.info(f"Point creation: {len(points)} points in {duration:.3f}s")
+        logger.info(f"Rate: {len(points)/duration:.0f} points/second")
 
         # Should be reasonably fast
         self.assertLess(duration, 2.0)
@@ -241,9 +243,9 @@ class TestConcurrentGeofenceOperations(TransactionTestCase):
         total_validations = sum(r['count'] for r in results)
         max_thread_duration = max(r['duration'] for r in results)
 
-        print(f"Concurrent validation: {total_validations} validations in {total_duration:.3f}s")
-        print(f"Max thread duration: {max_thread_duration:.3f}s")
-        print(f"Throughput: {total_validations/total_duration:.0f} validations/second")
+        logger.info(f"Concurrent validation: {total_validations} validations in {total_duration:.3f}s")
+        logger.info(f"Max thread duration: {max_thread_duration:.3f}s")
+        logger.info(f"Throughput: {total_validations/total_duration:.0f} validations/second")
 
         # Should complete efficiently
         self.assertLess(total_duration, 5.0)
@@ -287,7 +289,7 @@ class TestConcurrentGeofenceOperations(TransactionTestCase):
                     assert distance >= 0
                     assert isinstance(is_inside, bool)
 
-            except Exception as e:
+            except (ValueError, TypeError, AssertionError) as e:
                 thread_errors.append(f"Thread {thread_id}: {str(e)}")
 
             return thread_errors
@@ -307,8 +309,8 @@ class TestConcurrentGeofenceOperations(TransactionTestCase):
         if errors:
             self.fail(f"Thread safety errors: {errors}")
 
-        print(f"Thread safety test: {num_threads} threads, {operations_per_thread} ops each")
-        print("All operations completed without errors")
+        logger.info(f"Thread safety test: {num_threads} threads, {operations_per_thread} ops each")
+        logger.error("All operations completed without errors")
 
 
 @pytest.mark.performance
@@ -350,8 +352,8 @@ class TestMemoryUsage(TestCase):
 
         memory_growth = final_memory - initial_memory
 
-        print(f"Memory usage: {initial_memory:.1f}MB -> {final_memory:.1f}MB")
-        print(f"Memory growth: {memory_growth:.1f}MB")
+        logger.info(f"Memory usage: {initial_memory:.1f}MB -> {final_memory:.1f}MB")
+        logger.info(f"Memory growth: {memory_growth:.1f}MB")
 
         # Memory growth should be reasonable (less than 50MB for this test)
         self.assertLess(memory_growth, 50)
@@ -381,8 +383,8 @@ class TestMemoryUsage(TestCase):
 
         object_growth = final_objects - initial_objects
 
-        print(f"Object count: {initial_objects} -> {final_objects}")
-        print(f"Object growth: {object_growth}")
+        logger.info(f"Object count: {initial_objects} -> {final_objects}")
+        logger.info(f"Object growth: {object_growth}")
 
         # Object growth should be minimal (allow some growth for test infrastructure)
         self.assertLess(object_growth, 100)
@@ -416,8 +418,8 @@ class TestScalability(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Large geofence test: 1 point vs {len(geofences)} geofences in {duration:.3f}s")
-        print(f"Rate: {len(geofences)/duration:.0f} checks/second")
+        logger.info(f"Large geofence test: 1 point vs {len(geofences)} geofences in {duration:.3f}s")
+        logger.info(f"Rate: {len(geofences)/duration:.0f} checks/second")
 
         # Should be fast
         self.assertLess(duration, 1.0)
@@ -441,9 +443,9 @@ class TestScalability(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"Large point test: {len(large_point_set)} points vs 1 geofence in {duration:.3f}s")
-        print(f"Rate: {len(large_point_set)/duration:.0f} points/second")
-        print(f"Points inside geofence: {inside_count}")
+        logger.info(f"Large point test: {len(large_point_set)} points vs 1 geofence in {duration:.3f}s")
+        logger.info(f"Rate: {len(large_point_set)/duration:.0f} points/second")
+        logger.info(f"Points inside geofence: {inside_count}")
 
         # Should complete within reasonable time
         self.assertLess(duration, 10.0)
@@ -466,8 +468,8 @@ class TestScalability(TestCase):
         end_time = time.time()
         duration = end_time - start_time
 
-        print(f"High precision test: {len(high_precision_points)} points in {duration:.3f}s")
-        print(f"Rate: {len(high_precision_points)/duration:.0f} points/second")
+        logger.info(f"High precision test: {len(high_precision_points)} points in {duration:.3f}s")
+        logger.info(f"Rate: {len(high_precision_points)/duration:.0f} points/second")
 
         # Should not be significantly slower than normal precision
         self.assertLess(duration, 5.0)

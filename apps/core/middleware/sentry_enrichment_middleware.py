@@ -25,6 +25,7 @@ import logging
 from typing import Callable, Any
 
 from django.http import HttpRequest, HttpResponse
+from django.contrib.auth.models import AnonymousUser
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +80,13 @@ class SentryEnrichmentMiddleware:
                 level='info',
             )
 
-        except Exception as e:
-            logger.warning(f"Failed to set request context: {e}")
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            logger.warning(
+                f"Data serialization error setting request context: {e}",
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
+        except ImportError as e:
+            logger.debug(f"Sentry SDK not available: {e}")
 
     def _set_user_context(self, request: HttpRequest):
         """Set user context in Sentry."""
@@ -102,8 +108,13 @@ class SentryEnrichmentMiddleware:
                 if hasattr(user, 'is_superuser'):
                     sentry_sdk.set_tag('user.is_superuser', user.is_superuser)
 
-        except Exception as e:
-            logger.warning(f"Failed to set user context: {e}")
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                f"Data error setting user context: {e}",
+                extra={'user_id': getattr(getattr(request, 'user', None), 'id', 'unknown')}
+            )
+        except ImportError as e:
+            logger.debug(f"Sentry SDK not available: {e}")
 
     def _set_tenant_context(self, request: HttpRequest):
         """Set tenant context in Sentry."""
@@ -119,10 +130,13 @@ class SentryEnrichmentMiddleware:
                 })
                 sentry_sdk.set_tag('tenant.database', tenant_db)
 
-        except (ImportError, AttributeError) as e:
-            logger.debug(f"Tenant context not available: {e}")
-        except Exception as e:
-            logger.warning(f"Failed to set tenant context: {e}")
+        except ImportError as e:
+            logger.debug(f"Tenant utilities not available: {e}")
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                f"Data error setting tenant context: {e}",
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
 
     def _start_transaction(self, request: HttpRequest):
         """Start Sentry performance transaction."""
@@ -140,8 +154,13 @@ class SentryEnrichmentMiddleware:
             # Store transaction in request for later finishing
             request._sentry_transaction = transaction
 
-        except Exception as e:
-            logger.warning(f"Failed to start Sentry transaction: {e}")
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                f"Data error starting Sentry transaction: {e}",
+                extra={'path': getattr(request, 'path', 'unknown')}
+            )
+        except ImportError as e:
+            logger.debug(f"Sentry SDK not available: {e}")
 
     def _finish_transaction(self, request: HttpRequest, response: HttpResponse):
         """Finish Sentry performance transaction."""
@@ -152,8 +171,16 @@ class SentryEnrichmentMiddleware:
                 transaction.set_http_status(response.status_code)
                 transaction.finish()
 
-        except Exception as e:
-            logger.warning(f"Failed to finish Sentry transaction: {e}")
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                f"Data error finishing Sentry transaction: {e}",
+                extra={
+                    'path': getattr(request, 'path', 'unknown'),
+                    'status_code': getattr(response, 'status_code', 'unknown')
+                }
+            )
+        except ImportError as e:
+            logger.debug(f"Sentry SDK not available: {e}")
 
     def process_exception(self, request: HttpRequest, exception: Exception):
         """Capture exception with enriched context."""
@@ -169,5 +196,11 @@ class SentryEnrichmentMiddleware:
                 level='error',
             )
 
-        except Exception as e:
-            logger.error(f"Failed to capture exception in Sentry: {e}", exc_info=True)
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(
+                f"Data error capturing exception in Sentry: {e}",
+                exc_info=True,
+                extra={'exception_type': type(exception).__name__}
+            )
+        except ImportError as e:
+            logger.debug(f"Sentry SDK not available: {e}")

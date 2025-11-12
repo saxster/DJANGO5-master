@@ -16,6 +16,7 @@ Compliance:
 
 import os
 from typing import Dict, Any
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 # Service metadata
 SERVICE_NAME = os.getenv('SERVICE_NAME', 'intelliwiz')
@@ -117,7 +118,7 @@ TENANT_CACHE_METRICS_ENABLED = os.getenv('TENANT_CACHE_METRICS_ENABLED', 'true')
 CACHE_LEAK_DETECTION_ENABLED = os.getenv('CACHE_LEAK_DETECTION_ENABLED', 'true').lower() == 'true'
 
 # Scan interval for cache leaks (seconds)
-CACHE_LEAK_SCAN_INTERVAL = int(os.getenv('CACHE_LEAK_SCAN_INTERVAL', 3600))  # 1 hour
+CACHE_LEAK_SCAN_INTERVAL = int(os.getenv('CACHE_LEAK_SCAN_INTERVAL', SECONDS_IN_HOUR))  # 1 hour
 
 # ============================================================================
 # UNIFIED OBSERVABILITY DASHBOARD

@@ -12,10 +12,10 @@ Tests include:
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from apps.onboarding.models import (
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
     ConversationSession,
-   LLMRecommendation,
-    Bt,
+    LLMRecommendation
 )
 from apps.onboarding_api.services.learning import (
     FeatureExtractor,
@@ -820,7 +820,7 @@ class SecurityTestCase(TestCase):
 
     def test_pii_detection(self):
         """Test PII detection capabilities"""
-        from apps.onboarding_api.services.security import PIIDetector
+        from apps.core_onboarding.services.security import PIIDetector
 
         pii_detector = PIIDetector()
 
@@ -847,7 +847,7 @@ class SecurityTestCase(TestCase):
 
     def test_anomaly_detection(self):
         """Test anomaly detection for suspicious behavior"""
-        from apps.onboarding_api.services.security import AnomalyDetector
+        from apps.core_onboarding.services.security import AnomalyDetector
 
         anomaly_detector = AnomalyDetector()
 
@@ -882,7 +882,7 @@ class SecurityTestCase(TestCase):
 
     def test_access_control(self):
         """Test role-based access control"""
-        from apps.onboarding_api.services.security import AccessControlService
+        from apps.core_onboarding.services.security import AccessControlService
 
         access_control = AccessControlService()
 
@@ -911,7 +911,7 @@ class SecurityTestCase(TestCase):
 
     def test_data_redaction_preserves_learning_value(self):
         """Test that PII redaction preserves learning value"""
-        from apps.onboarding_api.services.security import DataRedactionService
+        from apps.core_onboarding.services.security import DataRedactionService
 
         redaction_service = DataRedactionService()
 

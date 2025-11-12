@@ -37,6 +37,12 @@ import logging
 import time
 from datetime import timedelta
 from typing import Dict, List, Optional
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger("database_optimization")
 
@@ -120,7 +126,7 @@ class Command(BaseCommand):
             # Display summary
             self._display_maintenance_summary()
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Database optimization failed: {e}", exc_info=True)
             raise CommandError(f"Optimization failed: {e}")
 
@@ -193,7 +199,7 @@ class Command(BaseCommand):
                             f"scans: {scans}, efficiency: {efficiency:.1f}%"
                         )
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to check database bloat: {e}")
             raise
 
@@ -239,7 +245,7 @@ class Command(BaseCommand):
                             self.stdout.write(f"Analyzing {full_table_name}...")
                             cursor.execute(f"ANALYZE {full_table_name};")
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Failed to analyze tables: {e}")
             raise
 
@@ -301,7 +307,7 @@ class Command(BaseCommand):
                             else:
                                 cursor.execute(f"VACUUM ANALYZE {full_table_name};")
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to vacuum tables: {e}")
             raise
 
@@ -355,7 +361,7 @@ class Command(BaseCommand):
                         self.stdout.write("Reindexing system catalogs...")
                         cursor.execute("REINDEX SYSTEM CONCURRENTLY postgres;")
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Failed to reindex: {e}")
             raise
 
@@ -397,7 +403,7 @@ class Command(BaseCommand):
                     stmt_count = cursor.fetchone()[0]
                     self.stdout.write(f"pg_stat_statements tracking {stmt_count} queries")
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.warning(f"Failed to update extension stats: {e}")
 
     def _display_maintenance_summary(self) -> None:

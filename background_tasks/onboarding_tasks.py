@@ -12,9 +12,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.db import transaction, DatabaseError, OperationalError, IntegrityError
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 # Local imports
-from apps.onboarding.models import ConversationSession, LLMRecommendation
+from apps.core_onboarding.models import ConversationSession, LLMRecommendation
 from apps.onboarding_api.services.llm import get_llm_service, get_checker_service
 from apps.onboarding_api.services.knowledge import get_knowledge_service
 from apps.onboarding_api.services.translation import get_conversation_translator
@@ -36,6 +37,8 @@ task_logger = logging.getLogger("celery.task")
 @shared_task(
     bind=True,
     name='process_conversation_step',
+    soft_time_limit=600,   # 10 minutes - LLM processing
+    time_limit=900,         # 15 minutes hard limit
     **llm_api_task_config()  # Apply LLM API retry config with exponential backoff
 )
 def process_conversation_step(self, conversation_id: str, user_input: str, context: Dict[str, Any], task_id: str):
@@ -168,7 +171,7 @@ def process_conversation_step(self, conversation_id: str, user_input: str, conte
             session.current_state = ConversationSession.StateChoices.AWAITING_USER_APPROVAL
             session.collected_data.update({
                 'task_id': task_id,
-                'processed_at': datetime.now().isoformat(),
+                'processed_at': timezone.now().isoformat(),
                 'recommendation_id': str(recommendation.recommendation_id)
             })
             session.save()
@@ -458,7 +461,7 @@ def _create_consensus(maker_result: Dict[str, Any], checker_result: Dict[str, An
         'checker_validated': True,
         'risk_assessment': checker_result.get('risk_assessment', 'unknown'),
         'compliance_check': checker_result.get('compliance_check', 'not_checked'),
-        'consensus_created_at': datetime.now().isoformat()
+        'consensus_created_at': timezone.now().isoformat()
     }
 
     return consensus
@@ -563,7 +566,12 @@ def cleanup_old_sessions(self, days_old: int = 30):
         }
 
 
-@shared_task(bind=True, name='cleanup_failed_tasks')
+@shared_task(
+    bind=True,
+    name='cleanup_failed_tasks',
+    soft_time_limit=180,  # 3 minutes - cleanup
+    time_limit=360         # 6 minutes hard limit
+)
 def cleanup_failed_tasks(self):
     """
     Clean up failed conversation tasks and reset session states

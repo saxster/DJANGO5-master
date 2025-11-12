@@ -27,6 +27,10 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
 
 logger = logging.getLogger('security.sql_telemetry')
 
@@ -251,7 +255,7 @@ class SQLSecurityTelemetry:
 
             requests.post(slack_webhook, json=payload, timeout=NETWORK_TIMEOUT_TUPLE)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to send Slack alert: {e}", exc_info=True)
 
     def _send_email_alert(self, level: str, message: str, details: Dict):
@@ -267,7 +271,7 @@ class SQLSecurityTelemetry:
                 fail_silently=True
             )
 
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.error(f"Failed to send email alert: {e}", exc_info=True)
 
     def _send_webhook_alert(self, level: str, message: str, details: Dict):
@@ -287,7 +291,7 @@ class SQLSecurityTelemetry:
 
             requests.post(webhook_url, json=payload, timeout=NETWORK_TIMEOUT_TUPLE)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to send webhook alert: {e}", exc_info=True)
 
     def _recommend_ip_block(self, ip_address: str, ip_stats: Dict):

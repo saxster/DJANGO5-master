@@ -488,7 +488,7 @@ class ConcurrencyAndPerformanceTest(TestCase):
 
                 results.put(f"thread_{thread_id}_success")
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.put(f"Thread {thread_id}: {str(e)}")
 
         # Create multiple threads
@@ -606,7 +606,7 @@ class SecurityComplianceTest(TestCase):
         payload = encrypted[len("FERNET_V1:"):]
         try:
             base64.urlsafe_b64decode(payload)
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             self.fail("Encrypted payload should be valid base64")
 
     def test_side_channel_resistance(self):

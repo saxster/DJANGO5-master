@@ -14,10 +14,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import ConversationSession
+from apps.core_onboarding.models import ConversationSession
 from ..services.llm import get_llm_service
 from ..utils.security import require_tenant_scope
 import logging
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,7 @@ class ConversationVoiceInputView(APIView):
 
     def _process_voice_input(self, session, audio_file, language, request):
         """Process voice input"""
-        from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+        from apps.core_onboarding.services.speech_service import OnboardingSpeechService
         speech_service = OnboardingSpeechService()
 
         if not speech_service.is_language_supported(language):
@@ -131,7 +133,7 @@ class ConversationVoiceInputView(APIView):
                 "voice_interaction_count": session.voice_interaction_count
             }, status=status.HTTP_200_OK)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(
                 f"Error processing voice input through LLM: {str(e)}",
                 exc_info=True,
@@ -166,7 +168,7 @@ class VoiceCapabilityView(APIView):
 
     def get(self, request):
         """Return voice capability information"""
-        from apps.onboarding_api.services.speech_service import OnboardingSpeechService
+        from apps.core_onboarding.services.speech_service import OnboardingSpeechService
 
         speech_service = OnboardingSpeechService()
 

@@ -69,7 +69,7 @@ class CSPNonceMiddlewareTest(TestCase):
         try:
             decoded = base64.b64decode(nonce)
             self.assertGreater(len(decoded), 0)
-        except Exception:
+        except (ValueError, TypeError, AttributeError, KeyError):
             self.fail("Nonce should be valid base64")
 
         # Verify nonce has good entropy (not all same characters)

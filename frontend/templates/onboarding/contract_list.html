@@ -4,7 +4,7 @@
 {% block card_title %}
 Contract Details List - Classic View
 <div class="float-end">
-	<a href="{{ url('onboarding:contract') }}?template=true" class="btn btn-sm btn-light-primary me-2">
+	<a href="{{ url('admin:onboarding_contract_changelist') }}" class="btn btn-sm btn-light-primary me-2">
 		<i class="bi bi-grid-3x3-gap"></i> Modern View
 	</a>
 </div>
@@ -50,7 +50,7 @@ Contract Details List
 		//BEGIN DATATABLE INITIALIZATION
 		var table = $('#bt_table').DataTable({
 			ajax:{
-				url: '{{ url("onboarding:contract") }}?action=list',
+				/api/v1/admin/config/contracts/',
 			},
 			deferRender: true,
 			language: {

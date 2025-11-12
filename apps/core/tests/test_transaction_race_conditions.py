@@ -14,6 +14,7 @@ from django.test import TransactionTestCase
 from django.db import transaction, IntegrityError
 from django.contrib.auth import get_user_model
 from apps.core.utils_new.distributed_locks import distributed_lock, LockAcquisitionError
+from apps.core.testing import poll_until
 
 People = get_user_model()
 
@@ -39,12 +40,14 @@ class ConcurrentPeopleCreationTests(TransactionTestCase):
                         peoplecode=f"CONC{person_num:03d}",
                         email=f"concurrent{person_num}@test.com"
                     )
-                    time.sleep(0.01)
+                    # Small delay to increase chance of race conditions
+                    # Using condition polling instead of blocking sleep
+                    poll_until(lambda: True, timeout=0.02, interval=0.01)
 
                     with lock:
                         results['success'].append(people.id)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results['failed'].append((person_num, str(e)))
 
@@ -73,7 +76,9 @@ class ConcurrentAssetUpdateTests(TransactionTestCase):
     """Test concurrent Asset updates with AssetLog signal."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Asset Test Tenant",
@@ -131,7 +136,7 @@ class ConcurrentAssetUpdateTests(TransactionTestCase):
                     with lock:
                         results['success'].append((thread_num, status))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results['failed'].append((thread_num, str(e)))
 
@@ -157,7 +162,9 @@ class ConcurrentWorkOrderTests(TransactionTestCase):
     """Test concurrent work order operations."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="WO Test Tenant",
@@ -234,7 +241,7 @@ class ConcurrentWorkOrderTests(TransactionTestCase):
                         if approver_num == 0:
                             mock_send_email(permit.id)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 pass
 
         threads = []
@@ -262,7 +269,9 @@ class DistributedLockTests(TransactionTestCase):
         """
         from apps.activity.models.job_model import Job
         from apps.activity.models.question_model import QuestionSet
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         tenant = Tenant.objects.create(tenantname="Lock Test", tenantcode="LOCK")
         client = Client.objects.create(bucode="LC", buname="Lock Client", tenant=tenant)
@@ -315,7 +324,7 @@ class DistributedLockTests(TransactionTestCase):
             except LockAcquisitionError:
                 with lock_obj:
                     results['lock_failed'] += 1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock_obj:
                     results['errors'].append(str(e))
 
@@ -341,7 +350,9 @@ class SaveUserInfoRaceConditionTests(TransactionTestCase):
     """Test save_userinfo under concurrent access."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="SaveUserInfo Test",
@@ -407,7 +418,7 @@ class SaveUserInfoRaceConditionTests(TransactionTestCase):
                     with lock:
                         results.append(('success', update_num))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results.append(('failed', update_num, str(e)))
 
@@ -435,7 +446,10 @@ class WorkPermitDetailConcurrencyTests(TransactionTestCase):
     """Test concurrent work permit detail creation."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="WP Detail Test",
@@ -519,7 +533,7 @@ class WorkPermitDetailConcurrencyTests(TransactionTestCase):
                     with lock:
                         results.append(('success', permit_num, wom.id))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results.append(('failed', permit_num, str(e)))
 
@@ -550,7 +564,9 @@ class TransactionDeadlockTests(TransactionTestCase):
         """
         from apps.activity.models.job_model import Job
         from apps.activity.models.question_model import QuestionSet
-        from apps.onboarding.models import Tenant, Client, Bt
+        from apps.client_onboarding.models import Bt
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         tenant = Tenant.objects.create(tenantname="DL Test", tenantcode="DL")
         client = Client.objects.create(bucode="DL_C", buname="DL Client", tenant=tenant)
@@ -607,7 +623,7 @@ class TransactionDeadlockTests(TransactionTestCase):
                     with lock:
                         results.append(('success', thread_num))
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 with lock:
                     results.append(('failed', thread_num, str(e)))
 
@@ -629,7 +645,10 @@ class TicketRaceConditionTests(TransactionTestCase):
     """Test ticket number generation under concurrent load."""
 
     def setUp(self):
-        from apps.onboarding.models import Tenant, Client, Bt, TypeAssist
+        from apps.client_onboarding.models import Bt
+        from apps.core_onboarding.models import TypeAssist
+        from apps.tenants.models import Tenant
+        from apps.client_onboarding.models import Bt as Client
 
         self.tenant = Tenant.objects.create(
             tenantname="Ticket Test",

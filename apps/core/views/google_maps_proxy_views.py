@@ -30,7 +30,7 @@ from django.core.exceptions import ValidationError
 
 from apps.core.middleware.rate_limiting import rate_limit_view
 from apps.core.services.google_maps_service import google_maps_service
-from apps.core.utils_new.spatial_validation import (
+from apps.core.utils_new.spatial import (
     validate_coordinates,
     sanitize_coordinate_string
 )
@@ -110,7 +110,7 @@ def geocode_proxy(request: HttpRequest) -> JsonResponse:
             'message': 'Invalid JSON in request body'
         }, status=400)
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Geocoding proxy error: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -199,7 +199,7 @@ def reverse_geocode_proxy(request: HttpRequest) -> JsonResponse:
             'message': 'Invalid JSON in request body'
         }, status=400)
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Reverse geocoding proxy error: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -331,7 +331,7 @@ def route_optimize_proxy(request: HttpRequest) -> JsonResponse:
             'message': 'Invalid JSON in request body'
         }, status=400)
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Route optimization proxy error: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -391,7 +391,7 @@ def map_config_proxy(request: HttpRequest) -> JsonResponse:
             'config': safe_config
         })
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Map config proxy error: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
@@ -423,7 +423,7 @@ def maps_health_check(request: HttpRequest) -> JsonResponse:
             'version': '1.0.0'
         })
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Maps health check error: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'unhealthy',

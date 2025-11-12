@@ -30,7 +30,7 @@ from apps.core.serializers.scope_serializers import (
     ScopeUpdateRequest,
     ScopeResponse,
 )
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)

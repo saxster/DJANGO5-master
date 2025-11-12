@@ -585,7 +585,7 @@ class CachePerformanceTestCase(TestCase):
                 response = concurrent_view(request)
                 data = json.loads(response.content)
                 results.append(data['timestamp'])
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 errors.append(str(e))
 
         # Run multiple concurrent requests

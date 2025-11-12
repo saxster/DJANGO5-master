@@ -172,23 +172,29 @@ class NOCMTTRAnalyticsView(APIView):
         return results
 
     def _calculate_mttr_by_client(self, clients, window_start):
-        """Calculate MTTR per client."""
-        results = []
-
-        for client in clients[:10]:
-            alerts = NOCAlertEvent.objects.filter(
-                client=client,
-                resolved_at__gte=window_start,
-                time_to_resolve__isnull=False
-            )
-
-            avg_time = alerts.aggregate(avg=Avg('time_to_resolve'))['avg']
-
-            results.append({
-                'client_id': client.id,
-                'client_name': client.buname,
-                'count': alerts.count(),
-                'avg_minutes': (avg_time.total_seconds() / 60) if avg_time else 0
-            })
-
-        return results
+        """Calculate MTTR per client - optimized with single aggregated query."""
+        from django.db.models import Avg, Count, F
+        from django.db.models.functions import Extract
+        
+        # Single query with aggregation per client
+        results = NOCAlertEvent.objects.filter(
+            client__in=clients[:10],
+            resolved_at__gte=window_start,
+            time_to_resolve__isnull=False
+        ).values(
+            'client', 'client__buname'
+        ).annotate(
+            count=Count('id'),
+            avg_time=Avg('time_to_resolve')
+        ).order_by('-count')[:10]
+        
+        # Convert to expected format
+        return [
+            {
+                'client_id': r['client'],
+                'client_name': r['client__buname'],
+                'count': r['count'],
+                'avg_minutes': (r['avg_time'].total_seconds() / 60) if r['avg_time'] else 0
+            }
+            for r in results
+        ]

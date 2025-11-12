@@ -9,7 +9,7 @@ from apps.activity.models.attachment_model import Attachment
 from django.contrib.staticfiles import finders
 from django.conf import settings
 from django.shortcuts import render
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from django.shortcuts import render
 from .forms import ReportForm
 from .models import ReportHistory

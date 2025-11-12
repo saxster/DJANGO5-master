@@ -267,7 +267,7 @@ class TestPeopleEventlogModel:
 
     def test_people_eventlog_tenant_isolation(self, people_eventlog_factory):
         """Test PeopleEventlog multi-tenant data isolation"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         # Create two different clients
         client1 = Bt.objects.create(bucode="CLIENT1", buname="Client 1", enable=True)

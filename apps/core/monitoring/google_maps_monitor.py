@@ -13,6 +13,12 @@ from django.db import models
 from django.utils import timezone
 from dataclasses import dataclass, asdict
 import json
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import SERIALIZATION_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +93,7 @@ class GoogleMapsMonitor:
             # Check for alerts
             self._check_alerts()
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to record Google Maps metric: {str(e)}")
 
     def _store_metric(self, metric: GoogleMapsMetric):
@@ -126,7 +132,7 @@ class GoogleMapsMonitor:
 
             cache.set(stats_key, current_stats, timeout=self.metrics_retention_hours * 3600)
 
-        except Exception as e:
+        except CACHE_EXCEPTIONS as e:
             logger.error(f"Failed to store metric: {str(e)}")
 
     def get_performance_stats(self) -> Dict[str, Any]:
@@ -273,7 +279,7 @@ class GoogleMapsMonitor:
 
             return metrics
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to get recent metrics: {str(e)}")
             return []
 
@@ -283,7 +289,7 @@ class GoogleMapsMonitor:
             stats_key = f"{self.cache_key_prefix}:stats:current"
             cache.delete(stats_key)
             logger.info("Google Maps metrics cleared")
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to clear metrics: {str(e)}")
 
     def export_metrics(self, format: str = 'json') -> str:
@@ -315,7 +321,7 @@ class GoogleMapsMonitor:
             else:
                 return json.dumps(stats, indent=2, default=str)
 
-        except Exception as e:
+        except SERIALIZATION_EXCEPTIONS as e:
             logger.error(f"Failed to export metrics: {str(e)}")
             return f"Export failed: {str(e)}"
 

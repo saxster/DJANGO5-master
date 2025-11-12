@@ -77,7 +77,7 @@ class VoiceScriptManager:
         Returns:
             dict: TTS result with audio_url
         """
-        from apps.onboarding_api.services.tts_service import TTSService
+        from apps.core_onboarding.services.tts_service import TTSService
 
         try:
             cache_key = f"tts_audio:{hash(script_text + language)}"

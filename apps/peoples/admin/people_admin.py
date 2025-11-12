@@ -14,6 +14,8 @@ Security:
 """
 
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from import_export.admin import ImportExportModelAdmin
 
 from apps.peoples import models as pm
@@ -22,6 +24,7 @@ from .import_export_resources import PeopleResource
 
 @admin.register(pm.People)
 class PeopleAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     """
     Admin interface for People with privacy-safe display.
 
@@ -163,3 +166,10 @@ class PeopleAdmin(ImportExportModelAdmin):
         return "••••••••" if obj.password else "-"
 
     password_masked.short_description = "Password"
+    
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Add timeline link to change view"""
+        extra_context = extra_context or {}
+        extra_context['timeline_url'] = reverse('admin:person_timeline', args=[object_id])
+        extra_context['show_timeline_link'] = True
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)

@@ -27,7 +27,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db.models import Q, Count
 from apps.attendance.models import PeopleEventlog
-from apps.onboarding.models import Bt, Shift
+from apps.client_onboarding.models import Bt, Shift
 from apps.peoples.models import People, Pgbelonging
 
 logger = logging.getLogger(__name__)

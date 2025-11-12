@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.utils import timezone
 
 from monitoring.alerts import check_and_send_alerts
 from monitoring.django_monitoring import metrics_collector
@@ -80,7 +81,7 @@ class Command(BaseCommand):
         """Run all monitoring tasks"""
         start_time = time.time()
         
-        self.stdout.write(f'Running monitoring tasks at {datetime.now()}')
+        self.stdout.write(f'Running monitoring tasks at {timezone.now()}')
         
         # 1. Check and send alerts
         alerts = check_and_send_alerts()
@@ -128,7 +129,7 @@ class Command(BaseCommand):
         # - APM systems (New Relic, Datadog)
         
         snapshot = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': timezone.now().isoformat(),
             'response_time': metrics_collector.get_stats('response_time', 5),
             'query_performance': metrics_collector.get_stats('query_time', 5),
             'error_rate': self._calculate_error_rate(5),

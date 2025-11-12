@@ -23,8 +23,10 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.conf import settings
 
 from apps.activity.models import Location, VehicleEntry, VehicleSecurityAlert
-from apps.onboarding_api.services.ocr_service import get_ocr_service
+from apps.core_onboarding.services.ocr_service import get_ocr_service
 from apps.peoples.models import People
+from apps.ml_training.integrations import track_vehicle_entry_result
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +129,23 @@ class VehicleEntryService:
                 result['vehicle_entry'] = vehicle_entry
                 result['success'] = True
 
+                # ML Training Integration: Track low-confidence license plate readings
+                # Only capture uncertain predictions (confidence < 0.7) for active learning
+                if ocr_result['confidence'] < 0.7:
+                    try:
+                        track_vehicle_entry_result(
+                            vehicle_entry=vehicle_entry,
+                            confidence_score=ocr_result['confidence'],
+                            raw_ocr_text=ocr_result.get('raw_text', '')
+                        )
+                        logger.debug(
+                            f"Low-confidence vehicle entry tracked for ML training: "
+                            f"plate={license_plate}, confidence={ocr_result['confidence']:.2f}"
+                        )
+                    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                        # Non-critical: Log but don't fail the main operation
+                        logger.warning(f"Failed to track vehicle entry for ML training: {e}")
+
                 # Check for security alerts
                 alerts = self._check_security_alerts(vehicle_entry)
                 result['alerts'] = alerts
@@ -141,7 +160,7 @@ class VehicleEntryService:
         except DatabaseError as e:
             logger.error(f"Database error in vehicle processing: {str(e)}")
             result['error'] = f"Database error: {str(e)}"
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Unexpected error in vehicle processing: {str(e)}", exc_info=True)
             result['error'] = f"Processing error: {str(e)}"
 
@@ -185,7 +204,7 @@ class VehicleEntryService:
                 'duration': active_entry.actual_duration
             }
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error recording vehicle exit: {str(e)}")
             return {
                 'success': False,
@@ -212,7 +231,7 @@ class VehicleEntryService:
                 .order_by('-entry_timestamp')[:limit]
             )
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error fetching vehicle history for {license_plate}: {str(e)}")
             return []
 
@@ -234,7 +253,7 @@ class VehicleEntryService:
                 .order_by('-entry_timestamp')
             )
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error fetching active vehicles: {str(e)}")
             return []
 
@@ -262,7 +281,7 @@ class VehicleEntryService:
         except VehicleEntry.DoesNotExist:
             logger.error(f"Vehicle entry {entry_id} not found")
             return False
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error approving entry {entry_id}: {str(e)}")
             return False
 
@@ -297,7 +316,7 @@ class VehicleEntryService:
                 'processing_metadata': ocr_result
             }
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error extracting license plate: {str(e)}")
             return {
                 'success': False,
@@ -461,7 +480,7 @@ class VehicleEntryService:
                 )
                 alerts.append(alert)
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error creating security alerts: {str(e)}")
 
         return alerts
@@ -473,7 +492,7 @@ class VehicleEntryService:
             content = photo.read()
             photo.seek(0)
             return hashlib.sha256(content).hexdigest()
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.warning(f"Error calculating image hash: {str(e)}")
             return hashlib.sha256(str(datetime.now()).encode()).hexdigest()
 
@@ -511,7 +530,7 @@ class VehicleEntryService:
             # Return relative path
             return os.path.relpath(file_path, settings.MEDIA_ROOT)
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error saving vehicle image: {str(e)}")
             return ""
 

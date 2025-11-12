@@ -21,6 +21,7 @@ import json
 from ..models.wisdom_conversations import (
     ConversationThread, WisdomConversation, ConversationEngagement, ConversationBookmark
 )
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 User = get_user_model()
 
@@ -87,6 +88,8 @@ class ConversationThreadAdmin(admin.ModelAdmin):
     )
 
     actions = ['update_thread_stats', 'export_thread_data', 'archive_threads']
+
+    list_per_page = 50
 
     def user_link(self, obj):
         """Link to user in admin"""
@@ -201,6 +204,8 @@ class WisdomConversationAdmin(admin.ModelAdmin):
         'mark_as_milestone', 'update_personalization_scores'
     ]
 
+    list_per_page = 50
+
     def conversation_preview(self, obj):
         """Short preview of conversation text"""
         preview = obj.conversation_text[:100] + '...' if len(obj.conversation_text) > 100 else obj.conversation_text
@@ -283,7 +288,7 @@ class WisdomConversationAdmin(admin.ModelAdmin):
                     if new_conversation:
                         regenerated += 1
 
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     self.message_user(request, f'Error regenerating conversation {old_id}: {e}', level='ERROR')
 
         self.message_user(request, f'Regenerated {regenerated} conversations.')
@@ -386,6 +391,8 @@ class ConversationEngagementAdmin(admin.ModelAdmin):
 
     actions = ['export_engagement_data', 'analyze_engagement_patterns']
 
+    list_per_page = 50
+
     def user_link(self, obj):
         """Link to user in admin"""
         if obj.user:
@@ -470,6 +477,8 @@ class ConversationBookmarkAdmin(admin.ModelAdmin):
     )
 
     actions = ['export_bookmark_data', 'send_reminders']
+
+    list_per_page = 50
 
     def user_link(self, obj):
         """Link to user in admin"""

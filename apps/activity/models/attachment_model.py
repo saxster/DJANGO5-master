@@ -23,7 +23,7 @@ class Attachment(BaseModel, TenantAwareModel):
     )
     filename = models.ImageField(null=False, blank=False, default="default.jpg")
     ownername = models.ForeignKey(
-        "onboarding.Typeassist",
+        "core_onboarding.TypeAssist",
         on_delete=models.RESTRICT,
         null=False,
         blank=False,
@@ -31,7 +31,7 @@ class Attachment(BaseModel, TenantAwareModel):
     )
     owner = models.CharField(null=False, max_length=255, default="None")
     bu = models.ForeignKey(
-        "onboarding.Bt", null=True, blank=False, on_delete=models.RESTRICT
+        "client_onboarding.Bt", null=True, blank=False, on_delete=models.RESTRICT
     )
     datetime = models.DateTimeField(editable=True, default=timezone.now)
     attachmenttype = models.CharField(
@@ -51,7 +51,15 @@ class Attachment(BaseModel, TenantAwareModel):
 
     class Meta(BaseModel.Meta):
         db_table = "attachment"
+        verbose_name = "Attachment"
+        verbose_name_plural = "Attachments"
+        ordering = ['-datetime', 'filename']
         get_latest_by = ["mdtz", "cdtz"]
+        indexes = [
+            models.Index(fields=['owner']),
+            models.Index(fields=['attachmenttype', 'datetime']),
+            models.Index(fields=['bu', 'datetime']),
+        ]
 
     def __str__(self):
         return self.filename.name

@@ -5,6 +5,8 @@ Provides common bulk actions that can be used across all admin classes.
 
 Usage:
     from apps.core.admin.bulk_actions import BulkActionsMixin
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
     class MyModelAdmin(BulkActionsMixin, IntelliWizModelAdmin):
         actions = [
@@ -129,7 +131,7 @@ class BulkActionsMixin:
             try:
                 obj.save()
                 cloned += 1
-            except Exception as e:
+            except DATABASE_EXCEPTIONS as e:
                 self.message_user(
                     request,
                     f"Failed to clone {obj}: {str(e)}",

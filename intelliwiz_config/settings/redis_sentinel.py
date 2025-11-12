@@ -20,6 +20,7 @@ import logging
 import environ
 from typing import Dict, List, Any, Optional
 from django.core.exceptions import ImproperlyConfigured
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
 logger = logging.getLogger(__name__)
 env = environ.Env()
@@ -189,7 +190,7 @@ def get_sentinel_caches_config(environment: str = 'production') -> Dict[str, Any
                     'MAX_ENTRIES': 10000 if environment == 'production' else 1000,
                     'CULL_FREQUENCY': 3,
                 },
-                'TIMEOUT': 3600 if environment == 'production' else 900,
+                'TIMEOUT': SECONDS_IN_HOUR if environment == 'production' else 900,
                 'KEY_PREFIX': f'select2_mv_sentinel_{environment}',
             })
         else:
@@ -199,7 +200,7 @@ def get_sentinel_caches_config(environment: str = 'production') -> Dict[str, Any
             # Cache-specific optimizations
             if cache_name == 'sessions':
                 cache_config.update({
-                    'TIMEOUT': 7200,  # 2 hours for sessions
+                    'TIMEOUT': 2 * SECONDS_IN_HOUR,  # 2 hours for sessions
                     'KEY_PREFIX': f'sessions_sentinel_{environment}'
                 })
 
@@ -291,7 +292,7 @@ def get_sentinel_channel_layers_config(environment: str = 'production') -> Dict[
                 "master_name": sentinel_settings['service_name'],
                 "capacity": 50000 if environment == 'production' else 1000,
                 "expiry": 120 if environment == 'production' else 60,
-                "group_expiry": 86400 if environment == 'production' else 3600,
+                "group_expiry": SECONDS_IN_DAY if environment == 'production' else SECONDS_IN_HOUR,
                 "db": 2,  # Use database 2 for channels
             },
         },
@@ -346,7 +347,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
                 'connected': True
             }
 
-        except Exception as e:
+        except SETTINGS_EXCEPTIONS as e:
             validation_results['errors'].append(f"Master connection failed: {e}")
             validation_results['valid'] = False
 
@@ -368,7 +369,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
                     'status': 'connected'
                 })
 
-            except Exception as e:
+            except SETTINGS_EXCEPTIONS as e:
                 validation_results['sentinel_nodes'].append({
                     'node': i,
                     'host': host,
@@ -387,7 +388,7 @@ def validate_sentinel_configuration() -> Dict[str, Any]:
     except ImportError:
         validation_results['errors'].append("redis-py sentinel support not available")
         validation_results['valid'] = False
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         validation_results['errors'].append(f"Sentinel validation failed: {e}")
         validation_results['valid'] = False
 
@@ -409,7 +410,7 @@ if env.bool('REDIS_SENTINEL_ENABLED', default=False):
         if DJANGO_ENVIRONMENT == 'production':
             raise ImproperlyConfigured(error_msg)
         else:
-            logger.warning(error_msg)
+            logger.warning(error_msg, exc_info=True)
 
     # Export optimized configurations
     SENTINEL_CACHES = get_sentinel_caches_config(DJANGO_ENVIRONMENT)
@@ -421,6 +422,8 @@ else:
 
     # Fallback to non-Sentinel configurations
     from .redis_optimized import (
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
         get_optimized_caches_config,
         get_channel_layers_config,
         get_celery_redis_config

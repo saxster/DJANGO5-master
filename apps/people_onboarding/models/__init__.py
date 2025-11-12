@@ -25,6 +25,7 @@ from .background_check import BackgroundCheck, VerificationStatus
 from .access_provisioning import AccessProvisioning, AccessType
 from .training_assignment import TrainingAssignment, TrainingStatus
 from .onboarding_task import OnboardingTask, TaskPriority
+from .worker_document import WorkerDocument
 
 __all__ = [
     # Core models
@@ -34,6 +35,7 @@ __all__ = [
     # Document management
     'DocumentSubmission',
     'DocumentType',
+    'WorkerDocument',
 
     # Approval workflow
     'ApprovalWorkflow',

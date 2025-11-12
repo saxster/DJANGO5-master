@@ -153,6 +153,66 @@ class DashboardSavedView(BaseModel, TenantAwareModel):
         help_text=_("URL path where this view applies")
     )
 
+    # Email subscription (new enhancement)
+    class EmailFrequency(models.TextChoices):
+        NONE = "NONE", _("No Email")
+        DAILY = "DAILY", _("Daily Summary")
+        WEEKLY = "WEEKLY", _("Weekly Summary")
+        MONTHLY = "MONTHLY", _("Monthly Summary")
+
+    email_frequency = models.CharField(
+        _("Email Frequency"),
+        max_length=20,
+        choices=EmailFrequency.choices,
+        default=EmailFrequency.NONE,
+        help_text=_("How often to email this view's data")
+    )
+
+    email_recipients = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="subscribed_views",
+        blank=True,
+        verbose_name=_("Email Recipients"),
+        help_text=_("Who receives scheduled emails")
+    )
+
+    last_email_sent_at = models.DateTimeField(
+        _("Last Email Sent At"),
+        null=True,
+        blank=True,
+        help_text=_("When the last scheduled email was sent")
+    )
+
+    # Export configuration (new enhancement)
+    class ExportFormat(models.TextChoices):
+        NONE = "NONE", _("No Export")
+        CSV = "CSV", _("CSV File")
+        EXCEL = "EXCEL", _("Excel Spreadsheet")
+        PDF = "PDF", _("PDF Report")
+
+    export_format = models.CharField(
+        _("Export Format"),
+        max_length=20,
+        choices=ExportFormat.choices,
+        default=ExportFormat.NONE,
+        help_text=_("Format for automated exports")
+    )
+
+    export_schedule = models.CharField(
+        _("Export Schedule"),
+        max_length=100,
+        blank=True,
+        default="",
+        help_text=_("Cron expression for export schedule (e.g., '0 8 * * 1' for Mondays at 8am)")
+    )
+
+    last_export_at = models.DateTimeField(
+        _("Last Export At"),
+        null=True,
+        blank=True,
+        help_text=_("When the last export was generated")
+    )
+
     class Meta(BaseModel.Meta):
         db_table = "dashboard_saved_view"
         verbose_name = "Dashboard Saved View"

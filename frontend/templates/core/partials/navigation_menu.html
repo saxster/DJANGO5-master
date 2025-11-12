@@ -8,8 +8,9 @@
         
         {% if item.children %}
             <!-- Dropdown Menu -->
-            <a class="nav-link dropdown-toggle" href="#" role="button" 
+            <a class="nav-link dropdown-toggle" href="#" role="button"
                data-bs-toggle="dropdown" aria-expanded="false"
+               {# SECURITY: |safe intentional - onclick contains sanitized tracking attributes from template tag #}
                {% track_navigation_click item.name item.url as onclick %}{{ onclick|safe }}>
                 {% if item.icon %}
                     <i class="material-icons">{{ item.icon }}</i>
@@ -19,8 +20,9 @@
             <ul class="dropdown-menu">
                 {% for child in item.children %}
                 <li>
-                    <a class="dropdown-item {% navigation_active_class child.url %}" 
+                    <a class="dropdown-item {% navigation_active_class child.url %}"
                        href="{{ child.url }}"
+                       {# SECURITY: |safe intentional - child_onclick contains sanitized tracking attributes from template tag #}
                        {% track_navigation_click child.name child.url as child_onclick %}{{ child_onclick|safe }}>
                         {% if child.icon %}
                             <i class="material-icons me-2">{{ child.icon }}</i>
@@ -33,6 +35,7 @@
         {% else %}
             <!-- Regular Menu Item -->
             <a class="nav-link" href="{{ item.url }}"
+               {# SECURITY: |safe intentional - onclick contains sanitized tracking attributes from template tag #}
                {% track_navigation_click item.name item.url as onclick %}{{ onclick|safe }}>
                 {% if item.icon %}
                     <i class="material-icons">{{ item.icon }}</i>

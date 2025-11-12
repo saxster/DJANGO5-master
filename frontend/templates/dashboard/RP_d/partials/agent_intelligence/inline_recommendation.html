@@ -24,6 +24,7 @@
         </div>
 
         <div class="recommendation-body">
+            <div class="narrative-stream text-gray-800 mb-2"></div>
             <p class="recommendation-details text-gray-700 mb-3"></p>
 
             <div class="recommendation-actions d-flex gap-2">
@@ -72,4 +73,20 @@
 .badge-high { background-color: #fd7e14; color: white; }
 .badge-medium { background-color: #ffc107; color: black; }
 .badge-low { background-color: #28a745; color: white; }
+
+.narrative-stream {
+    min-height: 1rem;
+    font-size: 0.92rem;
+}
+
+.narrative-chunk {
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.narrative-chunk.show {
+    opacity: 1;
+    transform: translateY(0);
+}
 </style>

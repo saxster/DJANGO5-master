@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Prometheus metrics (lazy import for optional dependency)
 try:
     from prometheus_client import (
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
         Counter, Histogram, Gauge, Summary, generate_latest, REGISTRY
     )
     METRICS_ENABLED = True
@@ -99,7 +100,7 @@ try:
 
 except ImportError:
     METRICS_ENABLED = False
-    logger.warning("prometheus_client not installed. Metrics collection disabled.")
+    logger.warning("prometheus_client not installed. Metrics collection disabled.", exc_info=True)
 
 
 class SearchMetricsCollector:
@@ -177,7 +178,7 @@ class SearchMetricsCollector:
                 search_zero_results_total.labels(tenant_id=tenant_str).inc()
 
         except (AttributeError, ValueError) as e:
-            logger.warning(f"Failed to record query metrics: {e}")
+            logger.warning(f"Failed to record query metrics: {e}", exc_info=True)
 
     def record_error(
         self,
@@ -213,7 +214,7 @@ class SearchMetricsCollector:
             )
 
         except (AttributeError, ValueError) as e:
-            logger.warning(f"Failed to record error metrics: {e}")
+            logger.warning(f"Failed to record error metrics: {e}", exc_info=True)
 
     def update_cache_size(self, tenant_id: int, size_bytes: int):
         """
@@ -229,7 +230,7 @@ class SearchMetricsCollector:
         try:
             search_cache_size.labels(tenant_id=str(tenant_id)).set(size_bytes)
         except (AttributeError, ValueError) as e:
-            logger.warning(f"Failed to update cache size: {e}")
+            logger.warning(f"Failed to update cache size: {e}", exc_info=True)
 
     def record_click_through(
         self,
@@ -254,7 +255,7 @@ class SearchMetricsCollector:
                 tenant_id=str(tenant_id)
             ).observe(ctr)
         except (AttributeError, ValueError) as e:
-            logger.warning(f"Failed to record CTR: {e}")
+            logger.warning(f"Failed to record CTR: {e}", exc_info=True)
 
     @staticmethod
     def export_metrics() -> bytes:
@@ -269,7 +270,7 @@ class SearchMetricsCollector:
 
         try:
             return generate_latest(REGISTRY)
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS + NETWORK_EXCEPTIONS) as e:
             logger.error(f"Failed to export metrics: {e}", exc_info=True)
             return b"# Error exporting metrics\n"
 

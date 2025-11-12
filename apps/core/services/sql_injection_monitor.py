@@ -572,10 +572,14 @@ Please investigate this security incident immediately.
                 # Check for pattern escalations
                 self._check_pattern_escalations()
 
+                # SAFE: time.sleep() acceptable in background monitoring loop
+                # - Runs in separate monitoring thread (not request path)
+                # - Part of security monitoring infrastructure
                 time.sleep(self.config['monitoring_interval_seconds'])
 
             except (ConnectionError, ValueError) as e:
                 logger.error(f"Error in monitoring loop: {e}")
+                # SAFE: time.sleep() acceptable in background monitoring loop
                 time.sleep(5)  # Short delay before retrying
 
     def _cleanup_expired_data(self):

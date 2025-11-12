@@ -6,7 +6,34 @@ Views for exporting and downloading reports with async processing.
 Extracted from apps/reports/views/generation_views.py
 Date: 2025-10-10
 """
-from .base import *
+from .base import (
+    rp,
+    render,
+    redirect,
+    json,
+    utils,
+    log,
+    debug_log,
+    IntegrationException,
+    MasterReportForm,
+    ValidationError,
+    LoginRequiredMixin,
+    View,
+    rp_forms,
+    rutils,
+    on_core,
+    Asset,
+    QuestionSet,
+    messages,
+    IntegrityError,
+    DatabaseError,
+    ObjectDoesNotExist,
+    asyncio,
+    create_save_report_async,
+    AsyncResult,
+    pformat,
+    login_required,
+)
 
 
 class DownloadReports(LoginRequiredMixin, View):
@@ -27,7 +54,7 @@ class DownloadReports(LoginRequiredMixin, View):
 
         if R.get("action") == "get_site" and R.get("of_site") and R.get("of_type"):
             qset = (
-                on.TypeAssist.objects.filter(
+                on_core.TypeAssist.objects.filter(
                     bu_id=R["of_site"],
                     client_id=S["client_id"],
                     tatype__tacode=R["of_type"],
@@ -116,8 +143,17 @@ class DownloadReports(LoginRequiredMixin, View):
 
 @login_required
 def return_status_of_report(request):
-    """Check async report generation status and download if ready"""
+    """
+    Check async report generation status and download if ready.
+    
+    SECURITY: Uses SecureFileDownloadService for path validation and permission checks.
+    Complies with Rule #14 from .claude/rules.md - File Download Security
+    """
     if request.method == "GET":
+        from apps.core.services.secure_file_download_service import SecureFileDownloadService
+        from django.core.exceptions import PermissionDenied, SuspiciousFileOperation
+        from django.http import Http404
+        
         form = rp_forms.ReportForm(request=request)
         template = "reports/report_export_form.html"
         cxt = {
@@ -128,22 +164,70 @@ def return_status_of_report(request):
         if task.status == "SUCCESS":
             result = task.get()
             if result["status"] == 200 and result.get("filepath"):
-                if not os.path.exists(result["filepath"]):
+                try:
+                    # SECURITY: Use SecureFileDownloadService for comprehensive validation
+                    response = SecureFileDownloadService.validate_and_serve_file(
+                        filepath=result["filepath"],
+                        filename=result.get("filename", "report.pdf"),
+                        user=request.user,
+                        owner_id=None  # Report files are user-specific, validated via staff check
+                    )
+                    
+                    # Schedule file cleanup after download completes (async)
+                    from apps.reports.tasks import schedule_report_cleanup
+                    schedule_report_cleanup.apply_async(
+                        args=[result["filepath"]],
+                        countdown=300  # Delete after 5 minutes (enough time for download)
+                    )
+                    
+                    log.info(
+                        "Report file download initiated",
+                        extra={
+                            'user_id': request.user.id,
+                            'task_id': R["task_id"],
+                            'filename': result.get("filename")
+                        }
+                    )
+                    
+                    return response
+                    
+                except (PermissionDenied, SuspiciousFileOperation) as e:
+                    log.error(
+                        "Security violation during report download",
+                        extra={
+                            'user_id': request.user.id,
+                            'task_id': R["task_id"],
+                            'error': str(e)
+                        },
+                        exc_info=True
+                    )
+                    messages.error(
+                        request,
+                        "Access denied: Security validation failed",
+                        "alert-danger"
+                    )
+                    return render(request, template, cxt)
+                    
+                except Http404:
                     messages.error(
                         request, "Report file not found on server", "alert-danger"
                     )
                     return render(request, template, cxt)
-                else:
-                    try:
-                        file = open(result["filepath"], "rb")
-                        response = FileResponse(file)
-                        filename = result["filename"]
-                        response[
-                            "Content-Disposition"
-                        ] = f'attachment; filename="{filename}"'
-                        return response
-                    finally:
-                        remove_reportfile(result["filepath"])
+                    
+                except (OSError, IOError, FileNotFoundError) as e:
+                    log.error(
+                        "File system error during report download",
+                        extra={
+                            'user_id': request.user.id,
+                            'task_id': R["task_id"],
+                            'error': str(e)
+                        },
+                        exc_info=True
+                    )
+                    messages.error(
+                        request, "Error accessing report file", "alert-danger"
+                    )
+                    return render(request, template, cxt)
             if result["status"] == 404:
                 messages.error(request, result["message"], "alert-danger")
                 return render(request, template, cxt)

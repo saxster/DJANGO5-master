@@ -28,6 +28,7 @@ from ...models.wisdom_conversations import (
 from ...models.mental_health_interventions import InterventionDeliveryLog
 from ...services.automatic_conversation_generator import AutomaticConversationGenerator
 from ...services.conversation_flow_manager import ConversationFlowManager
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -141,8 +142,8 @@ class Command(BaseCommand):
             if options['optimize_flow'] and not self.dry_run:
                 self._optimize_conversation_flow(results)
 
-        except Exception as e:
-            logger.error(f"Command failed: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Command failed: {e}", exc_info=True)
             raise CommandError(f"Failed to generate conversations: {e}")
 
     def _process_single_user(self, user_identifier: str, options: Dict) -> Dict:
@@ -244,8 +245,8 @@ class Command(BaseCommand):
                     total_results['errors'] += user_results['errors']
                     total_results['processed_users'].append(user.peoplename)
 
-            except Exception as e:
-                logger.error(f"Error processing user {user.peoplename}: {e}")
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Error processing user {user.peoplename}: {e}", exc_info=True)
                 total_results['errors'] += 1
 
         return total_results
@@ -369,8 +370,8 @@ class Command(BaseCommand):
                     else:
                         results['skipped'] += 1
 
-            except Exception as e:
-                logger.error(f"Error processing delivery {delivery.id}: {e}")
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Error processing delivery {delivery.id}: {e}", exc_info=True)
                 results['errors'] += 1
 
         return results
@@ -409,8 +410,8 @@ class Command(BaseCommand):
 
                 return conversation
 
-        except Exception as e:
-            logger.error(f"Failed to generate conversation for delivery {delivery.id}: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Failed to generate conversation for delivery {delivery.id}: {e}", exc_info=True)
             return None
 
     def _optimize_conversation_flow(self, results: Dict):
@@ -433,8 +434,8 @@ class Command(BaseCommand):
                     # Apply basic flow improvements
                     self._apply_flow_recommendations(user, recommendations)
 
-            except Exception as e:
-                logger.error(f"Error optimizing flow for user {username}: {e}")
+            except DATABASE_EXCEPTIONS as e:
+                logger.error(f"Error optimizing flow for user {username}: {e}", exc_info=True)
 
     def _apply_flow_recommendations(self, user: User, recommendations: List[Dict]):
         """Apply flow recommendations for a user"""

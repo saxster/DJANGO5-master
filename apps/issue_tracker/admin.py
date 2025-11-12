@@ -48,6 +48,8 @@ class AnomalySignatureAdmin(admin.ModelAdmin):
         })
     )
 
+    list_per_page = 50
+
     def mttr_display(self, obj):
         if obj.mttr_seconds is None:
             return "N/A"
@@ -116,6 +118,8 @@ class AnomalyOccurrenceAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+    list_per_page = 50
 
     def resolution_time_display(self, obj):
         time_seconds = obj.resolution_time_seconds
@@ -196,6 +200,8 @@ class FixSuggestionAdmin(admin.ModelAdmin):
         })
     )
 
+    list_per_page = 50
+
     def effectiveness_score(self, obj):
         return f"{obj.effectiveness_score:.2f}"
     effectiveness_score.short_description = "Effectiveness Score"
@@ -264,6 +270,8 @@ class FixActionAdmin(admin.ModelAdmin):
         })
     )
 
+    list_per_page = 50
+
     def commit_sha_short(self, obj):
         if obj.commit_sha:
             return obj.commit_sha[:8]
@@ -318,6 +326,8 @@ class RecurrenceTrackerAdmin(admin.ModelAdmin):
             'fields': ('updated_at',)
         })
     )
+
+    list_per_page = 50
 
     def fix_success_rate_display(self, obj):
         if obj.fix_success_rate is None:

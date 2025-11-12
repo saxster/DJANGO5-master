@@ -19,6 +19,8 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.activity.models import NFCTag, NFCDevice, NFCScanLog, Asset
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +114,7 @@ class NFCService:
                 'message': 'Database error during tag binding'
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Unexpected error binding NFC tag: {e}")
             return {
                 'success': False,
@@ -231,7 +233,7 @@ class NFCService:
                 'scan_result': 'FAILED'
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Unexpected error recording NFC scan: {e}")
             return {
                 'success': False,
@@ -299,7 +301,7 @@ class NFCService:
                 }
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error retrieving scan history: {e}")
             return {
                 'scans': [],
@@ -349,7 +351,7 @@ class NFCService:
                 'message': f'NFC tag not found: {tag_uid}'
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Error updating tag status: {e}")
             return {
                 'success': False,

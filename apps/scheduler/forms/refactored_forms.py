@@ -16,7 +16,8 @@ from django_select2 import forms as s2forms
 
 from apps.activity.models.question_model import QuestionSet
 from apps.activity.models.job_model import Job
-import apps.onboarding.models as ob
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 import apps.peoples.models as pm
 from apps.scheduler.forms.base_forms import BaseTourForm, BaseTaskForm, BaseJobneedForm
 from apps.core.utils_new.business_logic import initailize_form_fields
@@ -35,7 +36,7 @@ class InternalTourForm(BaseTourForm):
     # Configure cached dropdown fields for performance
     cached_dropdown_fields = {
         'ticketcategory': {
-            'model': ob.TypeAssist,
+            'model': TypeAssist,
             'filter_method': 'filter_for_dd_notifycategory_field',
             'sitewise': True,
             'version': '1.0'
@@ -142,9 +143,9 @@ class ExternalTourForm(BaseTourForm):
 
         # Set initial value for ticketcategory
         try:
-            autoclosed = ob.TypeAssist.objects.get(tacode="AUTOCLOSED")
+            autoclosed = TypeAssist.objects.get(tacode="AUTOCLOSED")
             self.fields["ticketcategory"].initial = autoclosed
-        except ob.TypeAssist.DoesNotExist:
+        except TypeAssist.DoesNotExist:
             logger.warning("AUTOCLOSED TypeAssist not found")
 
     def setup_external_dropdowns(self):
@@ -177,7 +178,7 @@ class ExternalTourForm(BaseTourForm):
         )
 
         # Shifts
-        self.fields["shift"].queryset = ob.Shift.objects.filter(
+        self.fields["shift"].queryset = Shift.objects.filter(
             ~Q(shiftname="NONE"),
             client_id=session.get("client_id"),
             bu_id=session.get("bu_id"),
@@ -232,7 +233,7 @@ class TaskForm(BaseTaskForm):
 
         # Setup dropdowns using session context
         self.fields["ticketcategory"].queryset = (
-            ob.TypeAssist.objects.filter_for_dd_notifycategory_field(
+            TypeAssist.objects.filter_for_dd_notifycategory_field(
                 self.request, sitewise=True
             )
         )
@@ -281,8 +282,8 @@ class TaskForm(BaseTaskForm):
                         self.request, sitewise=config["sitewise"]
                     )
                 )
-        except Exception as e:
-            logger.warning(f"Failed to setup {field_name} queryset: {e}")
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.warning(f"Failed to setup {field_name} queryset: {e}", exc_info=True)
 
 
 class InternalTourJobneedForm(BaseJobneedForm):
@@ -320,7 +321,7 @@ class InternalTourJobneedForm(BaseJobneedForm):
         # Setup ticket category if available
         if self.request:
             self.fields["ticketcategory"].queryset = (
-                ob.TypeAssist.objects.filter_for_dd_notifycategory_field(
+                TypeAssist.objects.filter_for_dd_notifycategory_field(
                     self.request, sitewise=True
                 )
             )
@@ -363,8 +364,8 @@ class InternalTourCheckpointForm(BaseJobneedForm):
                 client_id=self.request.session.get("client_id"),
                 enable=True,
             )
-        except Exception as e:
-            logger.warning(f"Failed to setup asset queryset: {e}")
+        except (AttributeError, TypeError, ValueError) as e:
+            logger.warning(f"Failed to setup asset queryset: {e}", exc_info=True)
 
 
 # Legacy compatibility - these will be gradually phased out

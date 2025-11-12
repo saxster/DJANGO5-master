@@ -2,7 +2,7 @@ import logging
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import response as rp
 from django.shortcuts import render
 from django.views.generic.base import View
@@ -12,6 +12,7 @@ from apps.activity.models.location_model import Location
 from apps.activity.forms.location_form import LocationForm
 import apps.peoples.utils as putils
 from apps.core import utils
+from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger("django")
 
@@ -128,14 +129,15 @@ class LocationView(LoginRequiredMixin, View):
         from apps.core.utils import handle_intergrity_error
 
         try:
-            location = form.save(commit=False)
-            location.gpslocation = form.cleaned_data["gpslocation"]
-            location.save()
-            location = putils.save_userinfo(
-                location, request.user, request.session, create=create
-            )
-            logger.info("location form saved")
-            data = {"pk": location.id}
-            return rp.JsonResponse(data, status=200)
+            with transaction.atomic(using=get_current_db_name()):
+                location = form.save(commit=False)
+                location.gpslocation = form.cleaned_data["gpslocation"]
+                location.save()
+                location = putils.save_userinfo(
+                    location, request.user, request.session, create=create
+                )
+                logger.info("location form saved")
+                data = {"pk": location.id}
+                return rp.JsonResponse(data, status=200)
         except IntegrityError:
             return handle_intergrity_error("Location")

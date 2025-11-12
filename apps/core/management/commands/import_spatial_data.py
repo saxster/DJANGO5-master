@@ -4,7 +4,7 @@ Django management command for importing spatial data using LayerMapping.
 Usage examples:
 python manage.py import_spatial_data assets.shp activity.Asset --mapping='{"assetname": "NAME", "gpslocation": "GEOMETRY"}'
 python manage.py import_spatial_data locations.geojson activity.Location --inspect
-python manage.py import_spatial_data sites.kml onboarding.Bt --template
+python manage.py import_spatial_data sites.kml client_onboarding.Bt --template
 """
 
 import json
@@ -13,6 +13,10 @@ from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ValidationError
 from apps.core.services.spatial_data_import_service import SpatialDataImportService, ImportResult
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import TEMPLATE_EXCEPTIONS
+
 
 
 class Command(BaseCommand):
@@ -109,7 +113,7 @@ class Command(BaseCommand):
 
             self._handle_import(service, file_path, options)
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             raise CommandError(f"Command failed: {str(e)}")
 
     def _handle_inspect(self, service, file_path, options):
@@ -141,7 +145,7 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Inspection results saved to: {output_path}")
                 )
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             raise CommandError(f"Inspection failed: {str(e)}")
 
     def _handle_template(self, service, file_path, options):
@@ -190,7 +194,7 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Template saved to: {output_path}")
                 )
 
-        except Exception as e:
+        except TEMPLATE_EXCEPTIONS as e:
             raise CommandError(f"Template generation failed: {str(e)}")
 
     def _handle_import(self, service, file_path, options):
@@ -233,7 +237,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.SUCCESS("✓ Field mapping validated"))
 
-            except Exception as e:
+            except FILE_EXCEPTIONS as e:
                 raise CommandError(f"Dry run validation failed: {str(e)}")
             return
 
@@ -251,7 +255,7 @@ class Command(BaseCommand):
             # Display results
             self._display_import_results(result)
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             raise CommandError(f"Import failed: {str(e)}")
 
     def _get_model_class(self, model_string):

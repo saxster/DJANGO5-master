@@ -7,6 +7,8 @@ Updated: 2025-10-31 - Removed unused GCS imports (optimization)
 """
 from celery import shared_task
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError, IntegrityError
+from apps.core.exceptions import IntegrationException
 from .report_tasks import (
     get_scheduled_reports_fromdb,
     generate_scheduled_report,
@@ -35,9 +37,9 @@ from apps.core.tasks.utils import task_retry_policy
 from apps.core.utils_new.db_utils import get_current_db_name
 from apps.core.validation import XSSPrevention
 # from apps.face_recognition.services import get_face_recognition_service  # Unused import - removed Oct 2025
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
-from apps.reminder.models import Reminder
+from apps.scheduler.models.reminder import Reminder
 from apps.reports import utils as rutils
 from apps.reports.models import ScheduleReport
 from apps.reports.report_designs.service_level_agreement import (
@@ -95,13 +97,18 @@ import time
 import traceback as tb
 import uuid
 
+# Initialize logger for job tasks
+logger = logging.getLogger('background_tasks.job')
+
 
 @shared_task(
     base=IdempotentTask,
     bind=True,
     name="auto_close_jobs",
     idempotency_scope='global',
-    idempotency_ttl=14400  # 4 hours (from SECONDS_IN_HOUR * 4)
+    idempotency_ttl=14400,  # 4 hours (from SECONDS_IN_HOUR * 4)
+    soft_time_limit=600,     # 10 minutes - batch job closing
+    time_limit=900            # 15 minutes hard limit
 )
 def autoclose_job(self, jobneedid=None):
     from django.template.loader import render_to_string
@@ -207,7 +214,12 @@ def autoclose_job(self, jobneedid=None):
     return resp
 
 
-@shared_task(name="create_ppm_job")
+@shared_task(
+    name="create_ppm_job",
+    soft_time_limit=1800,  # 30 minutes soft limit (processes multiple jobs)
+    time_limit=2400,        # 40 minutes hard limit
+    max_retries=2
+)
 def create_ppm_job(jobid=None):
     F, d = {}, []
     # resp = {'story':"", 'traceback':""}
@@ -308,7 +320,12 @@ def create_ppm_job(jobid=None):
     return resp, F, d, result
 
 
-@shared_task(bind=True, name="task_every_min")
+@shared_task(
+    bind=True,
+    name="task_every_min",
+    soft_time_limit=30,  # 30 seconds - health check
+    time_limit=60         # 1 minute hard limit
+)
 def task_every_min(self):
     from django.utils import timezone
 

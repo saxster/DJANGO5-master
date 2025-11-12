@@ -8,12 +8,15 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from apps.onboarding.models import (
-    Bt, ConversationSession, LLMRecommendation,
-    AuthoritativeKnowledge, AuthoritativeKnowledgeChunk
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import (
+    ConversationSession,
+    LLMRecommendation,
+    AuthoritativeKnowledge,
+    AuthoritativeKnowledgeChunk
 )
-from apps.onboarding_api.services.llm import EnhancedCheckerLLM, ConsensusEngine
-from apps.onboarding_api.services.security import PIIRedactor, SecurityGuardian, RateLimitExceeded
+from apps.core_onboarding.services.llm import EnhancedCheckerLLM, ConsensusEngine
+from apps.core_onboarding.services.security import PIIRedactor, SecurityGuardian, RateLimitExceeded
 from apps.onboarding_api.services.observability import CostTracker, MetricsCollector
 
 User = get_user_model()
@@ -463,7 +466,7 @@ class Phase2SecurityTestCase(TestCase):
     @override_settings(ONBOARDING_API_MAX_REQUESTS=2)
     def test_rate_limiting_enforcement(self):
         """Test rate limiting enforcement"""
-        from apps.onboarding_api.services.security import RateLimiter
+        from apps.core_onboarding.services.security import RateLimiter
 
         rate_limiter = RateLimiter()
 
@@ -532,7 +535,7 @@ class Phase2IntegrationTestCase(TestCase):
         )
 
         # Test knowledge retrieval
-        from apps.onboarding_api.services.knowledge import get_knowledge_service
+        from apps.core_onboarding.services.knowledge import get_knowledge_service
         knowledge_service = get_knowledge_service()
 
         context_results = knowledge_service.retrieve_grounded_context(

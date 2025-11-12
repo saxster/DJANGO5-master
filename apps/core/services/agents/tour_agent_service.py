@@ -14,6 +14,7 @@ Following CLAUDE.md Rule #7: <150 lines
 Dashboard Agent Intelligence - Phase 2.3
 """
 
+import json
 import logging
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
@@ -22,6 +23,7 @@ from django.utils import timezone
 from apps.core.services.agents.base_agent_service import BaseAgentService
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.activity.models.job_model import Jobneed
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -98,51 +100,109 @@ class TourAgentService(BaseAgentService):
     ) -> Optional[AgentRecommendation]:
         """Use Gemini to analyze tour patterns and recommend optimizations"""
         try:
-            # Build prompt for Gemini
-            prompt = f"""Analyze these tour metrics and recommend optimizations:
-- Autoclosed: {metrics['autoclosed']}
-- Partial: {metrics['partial']}
-- Completed: {metrics['completed']}
+            focus = (
+                "Investigate why tours are being autoclosed or partially completed."
+                " Identify the top root causes, which SOP steps fail most often,"
+                " and provide concrete adjustments (route, staffing, schedule)."
+                " Reference the metrics exactly and avoid repeating stale advice."
+            )
 
-Issues to investigate:
-1. Why high autoclosed rate?
-2. SOP compliance gaps
-3. Schedule adjustment needs
+            prompt_bundle = self._build_prompt_bundle(
+                module='tours',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                metrics=metrics,
+                time_range=time_range,
+                focus=focus,
+                additional_notes={'trigger': 'autoclosed_anomaly'}
+            )
 
-Return JSON: {{"root_causes": [...], "sop_issues": [...], "recommendations": [...]}}"""
+            schema = {
+                'type': 'object',
+                'properties': {
+                    'summary': {'type': 'string'},
+                    'severity': {'type': 'string', 'enum': ['low', 'medium', 'high', 'critical']},
+                    'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                    'sop_issues': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'entity_id': {'type': 'string'},
+                                'reason': {'type': 'string'},
+                                'priority': {'type': 'string'},
+                                'suggested_action': {'type': 'string'}
+                            },
+                            'required': ['reason']
+                        },
+                        'maxItems': 5
+                    },
+                    'actions': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'label': {'type': 'string'},
+                                'type': {'type': 'string'},
+                                'endpoint': {'type': 'string'},
+                                'payload': {'type': 'object'},
+                                'url': {'type': 'string'}
+                            },
+                            'required': ['label', 'type']
+                        },
+                        'minItems': 1,
+                        'maxItems': 3
+                    },
+                    'narrative_chunks': {
+                        'type': 'array',
+                        'items': {'type': 'string'}
+                    }
+                },
+                'required': ['summary', 'severity', 'confidence', 'sop_issues']
+            }
 
-            llm = self.get_llm()
-            response = llm.generate(prompt, temperature=0.4)
+            analysis = self._invoke_structured_llm(
+                prompt_bundle,
+                schema,
+                generation_kwargs={'temperature': 0.5, 'max_tokens': 1600}
+            )
 
-            analysis = json.loads(response)
-
-            # Create recommendation
             autoclosed_rate = metrics['autoclosed'] / max(1, metrics['completed'] + metrics['autoclosed'])
-            severity = 'high' if autoclosed_rate > 0.5 else 'medium'
+            fallback_severity = 'high' if autoclosed_rate > 0.5 else 'medium'
+
+            summary = analysis.get('summary') or (
+                f"High autoclosed tours ({metrics['autoclosed']}) - SOP audit recommended"
+            )
+            severity = analysis.get('severity', fallback_severity)
+            confidence = float(analysis.get('confidence', 0.85))
+            sop_issues = analysis.get('sop_issues', [])
+            actions = analysis.get('actions') or [
+                {
+                    'label': 'View Autoclosed Tours',
+                    'type': 'link',
+                    'url': '/operations/tours/?status=autoclosed'
+                }
+            ]
+
+            context_metrics = {
+                **metrics,
+                'prompt_context': prompt_bundle['metadata'],
+                'schema': 'tourbot.optimization.v2',
+            }
+            if analysis.get('narrative_chunks'):
+                context_metrics['narrative_chunks'] = analysis['narrative_chunks']
 
             return self.create_recommendation(
                 module='tours',
                 site_id=site_id,
                 client_id=self.tenant_id,
-                summary=f"High autoclosed tours ({metrics['autoclosed']}) - SOP audit recommended",
-                details=analysis.get('sop_issues', []),
-                confidence=0.88,
+                summary=summary,
+                details=sop_issues,
+                confidence=confidence,
                 severity=severity,
-                actions=[
-                    {
-                        'label': 'View Autoclosed Tours',
-                        'type': 'link',
-                        'url': '/operations/tours/?status=autoclosed'
-                    },
-                    {
-                        'label': 'Schedule SOP Review',
-                        'type': 'workflow_trigger',
-                        'endpoint': '/api/tours/schedule-review',
-                        'payload': {'metrics': metrics}
-                    }
-                ],
+                actions=actions,
                 time_range=time_range,
-                context_metrics=metrics
+                context_metrics=context_metrics
             )
 
         except (LLMProviderError, json.JSONDecodeError, ValueError) as e:

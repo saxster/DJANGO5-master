@@ -50,6 +50,7 @@ from .device_admin import (
     DeviceRiskEventAdmin,
     DeviceRiskEventInline,
 )
+from .skill_admin import AgentSkillAdmin
 
 # Import existing security and session admins (if available)
 try:
@@ -91,4 +92,5 @@ __all__ = [
     "DeviceRegistrationAdmin",
     "DeviceRiskEventAdmin",
     "DeviceRiskEventInline",
+    "AgentSkillAdmin",
 ]

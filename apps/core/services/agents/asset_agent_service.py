@@ -14,6 +14,7 @@ Following CLAUDE.md Rule #7: <150 lines
 Dashboard Agent Intelligence - Phase 2.5
 """
 
+import json
 import logging
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime
@@ -21,6 +22,7 @@ from datetime import datetime
 from apps.core.services.agents.base_agent_service import BaseAgentService
 from apps.core.models.agent_recommendation import AgentRecommendation
 from apps.activity.models.asset_model import Asset
+from apps.core_onboarding.services.llm.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -92,47 +94,106 @@ class AssetAgentService(BaseAgentService):
         self, site_id: int, time_range: Tuple[datetime, datetime], metrics: Dict
     ) -> Optional[AgentRecommendation]:
         """Recommend asset replacement or redeployment"""
-        details = []
+        try:
+            focus = (
+                "Review asset lifecycle risk. Highlight scrapped inventory that"
+                " must be replaced, standby assets that can be redeployed, and"
+                " any maintenance hotspots. Provide concrete actions."
+            )
 
-        if metrics['scrapped'] > 0:
-            details.append({
-                'entity_id': 'scrapped-assets',
-                'reason': f"{metrics['scrapped']} scrapped assets need replacement",
-                'priority': 'high',
-                'suggested_action': 'Initiate procurement workflow'
-            })
+            prompt_bundle = self._build_prompt_bundle(
+                module='assets',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                metrics=metrics,
+                time_range=time_range,
+                focus=focus,
+                additional_notes={'trigger': 'lifecycle_anomaly'}
+            )
 
-        if metrics['standby'] > 5:
-            details.append({
-                'entity_id': 'standby-assets',
-                'reason': f"{metrics['standby']} assets in standby - consider redeployment",
-                'priority': 'medium',
-                'suggested_action': 'Review asset utilization and redeploy'
-            })
+            schema = {
+                'type': 'object',
+                'properties': {
+                    'summary': {'type': 'string'},
+                    'severity': {'type': 'string', 'enum': ['low', 'medium', 'high', 'critical']},
+                    'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                    'asset_issues': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'entity_id': {'type': 'string'},
+                                'reason': {'type': 'string'},
+                                'priority': {'type': 'string'},
+                                'suggested_action': {'type': 'string'}
+                            },
+                            'required': ['reason']
+                        },
+                        'maxItems': 5
+                    },
+                    'actions': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'label': {'type': 'string'},
+                                'type': {'type': 'string'},
+                                'endpoint': {'type': 'string'},
+                                'payload': {'type': 'object'},
+                                'url': {'type': 'string'}
+                            },
+                            'required': ['label', 'type']
+                        },
+                        'minItems': 1,
+                        'maxItems': 3
+                    },
+                    'narrative_chunks': {'type': 'array', 'items': {'type': 'string'}}
+                },
+                'required': ['summary', 'severity', 'confidence', 'asset_issues']
+            }
 
-        severity = 'high' if metrics['scrapped'] > 3 else 'medium'
+            analysis = self._invoke_structured_llm(
+                prompt_bundle,
+                schema,
+                generation_kwargs={'temperature': 0.45, 'max_tokens': 1500}
+            )
 
-        return self.create_recommendation(
-            module='assets',
-            site_id=site_id,
-            client_id=self.tenant_id,
-            summary=f"Asset lifecycle action needed - {metrics['scrapped']} scrapped, {metrics['standby']} standby",
-            details=details,
-            confidence=0.86,
-            severity=severity,
-            actions=[
+            severity = analysis.get('severity', 'medium')
+            confidence = float(analysis.get('confidence', 0.86))
+            details = analysis.get('asset_issues', [])
+            actions = analysis.get('actions') or [
                 {
                     'label': 'View Asset Status',
                     'type': 'link',
                     'url': '/assets/inventory/?status=scrapped,standby'
-                },
-                {
-                    'label': 'Initiate Procurement',
-                    'type': 'workflow_trigger',
-                    'endpoint': '/api/assets/procure',
-                    'payload': {'count': metrics['scrapped']}
                 }
-            ],
-            time_range=time_range,
-            context_metrics=metrics
-        )
+            ]
+
+            summary = analysis.get('summary') or (
+                f"Asset lifecycle action needed - {metrics['scrapped']} scrapped, {metrics['standby']} standby"
+            )
+
+            context_metrics = {
+                **metrics,
+                'prompt_context': prompt_bundle['metadata'],
+                'schema': 'assetbot.lifecycle.v2',
+            }
+            if analysis.get('narrative_chunks'):
+                context_metrics['narrative_chunks'] = analysis['narrative_chunks']
+
+            return self.create_recommendation(
+                module='assets',
+                site_id=site_id,
+                client_id=self.tenant_id,
+                summary=summary,
+                details=details,
+                confidence=confidence,
+                severity=severity,
+                actions=actions,
+                time_range=time_range,
+                context_metrics=context_metrics
+            )
+
+        except (LLMProviderError, json.JSONDecodeError, ValueError) as e:
+            logger.error(f"AssetBot lifecycle recommendation failed: {e}", exc_info=True)
+            return None

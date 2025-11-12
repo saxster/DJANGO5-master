@@ -6,12 +6,49 @@ Follows .claude/rules.md Rule #7 (models <150 lines).
 """
 
 from django.db import models
+from django.db.models import Count, Prefetch
 from django.utils.translation import gettext_lazy as _
 from apps.tenants.models import TenantAwareModel
+from apps.tenants.managers import TenantAwareManager
 from apps.peoples.models import BaseModel
 from ..constants import INCIDENT_STATES
 
-__all__ = ['NOCIncident']
+__all__ = ['NOCIncident', 'OptimizedIncidentManager']
+
+
+class OptimizedIncidentManager(TenantAwareManager):
+    """Manager with optimized querysets for common operations."""
+    
+    def with_full_details(self):
+        """All related data for detail views."""
+        from apps.noc.models import NOCAlertEvent
+        return self.select_related(
+            'assigned_to', 'client', 'site', 'created_by', 'ticket', 'work_order'
+        ).prefetch_related(
+            Prefetch('alerts', 
+                queryset=NOCAlertEvent.objects.select_related('device', 'reported_by', 'bu')
+            )
+        )
+    
+    def with_counts(self):
+        """Annotated counts for list views."""
+        return self.annotate(
+            alert_count=Count('alerts', distinct=True)
+        )
+    
+    def for_export(self):
+        """Minimal data for CSV export with counts."""
+        return self.select_related(
+            'assigned_to', 'client', 'site'
+        ).annotate(
+            alert_count=Count('alerts', distinct=True)
+        )
+    
+    def active_incidents(self):
+        """Active incidents with optimized queries."""
+        return self.with_counts().filter(
+            state__in=['NEW', 'ACKNOWLEDGED', 'ASSIGNED', 'IN_PROGRESS']
+        )
 
 
 class NOCIncident(TenantAwareModel, BaseModel):
@@ -28,9 +65,42 @@ class NOCIncident(TenantAwareModel, BaseModel):
     STATE_CHOICES = INCIDENT_STATES
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         verbose_name=_("Client")
+    )
+    site = models.ForeignKey(
+        'client_onboarding.Bt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='noc_incidents',
+        verbose_name=_("Site")
+    )
+
+    title = models.CharField(
+        max_length=255,
+        verbose_name=_("Incident Title")
+    )
+    description = models.TextField(
+        verbose_name=_("Incident Description")
+    )
+    severity = models.CharField(
+        max_length=20,
+        choices=[
+            ('CRITICAL', 'Critical'),
+            ('HIGH', 'High'),
+            ('MEDIUM', 'Medium'),
+            ('LOW', 'Low'),
+            ('INFO', 'Informational'),
+        ],
+        default='MEDIUM',
+        verbose_name=_("Severity")
+    )
+    metadata = models.JSONField(
+        default=dict,
+        verbose_name=_("Metadata"),
+        help_text=_("Enrichment context and additional metadata")
     )
 
     alerts = models.ManyToManyField(
@@ -93,6 +163,8 @@ class NOCIncident(TenantAwareModel, BaseModel):
     time_to_ack = models.DurationField(null=True, blank=True)
     time_to_assign = models.DurationField(null=True, blank=True)
     time_to_resolve = models.DurationField(null=True, blank=True)
+
+    objects = OptimizedIncidentManager()
 
     class Meta:
         db_table = 'noc_incident'

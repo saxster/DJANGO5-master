@@ -144,7 +144,21 @@ class AIEnhancedAttendanceView(LoginRequiredMixin, View):
             
             # User behavior insights
             elif action == 'behavior_insights':
-                user_id = request.GET.get('user_id', request.user.id)
+                # SECURITY FIX (IDOR-001): Validate user_id parameter
+                user_id_param = request.GET.get('user_id')
+                if user_id_param:
+                    # Validate ID is numeric
+                    if not str(user_id_param).isdigit():
+                        return JsonResponse({'error': 'Invalid user ID'}, status=400)
+                    user_id = int(user_id_param)
+                    # Enforce tenant isolation: users can only view their own data or subordinates
+                    if user_id != request.user.id and not request.user.is_superuser:
+                        # Check if user has permission to view other user's data
+                        if not request.user.has_perm('attendance.view_others_attendance'):
+                            return JsonResponse({'error': 'Access denied'}, status=403)
+                else:
+                    user_id = request.user.id
+
                 insights_data = await self._get_behavior_insights(user_id)
                 return JsonResponse(insights_data, status=200)
             

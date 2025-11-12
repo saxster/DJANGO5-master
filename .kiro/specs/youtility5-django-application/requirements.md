@@ -169,7 +169,7 @@ The application features advanced AI integration, real-time IoT connectivity, mo
 
 #### Acceptance Criteria
 
-1. WHEN mobile apps connect THEN the system SHALL provide GraphQL API endpoints for efficient data transfer
+1. WHEN mobile apps connect THEN the system SHALL provide REST API endpoints for efficient data transfer
 2. WHEN API authentication is required THEN the system SHALL use JWT tokens for secure access
 3. WHEN offline functionality is needed THEN the system SHALL support data synchronization when connectivity returns
 4. WHEN mobile-specific features are used THEN the system SHALL support GPS tracking and camera integration

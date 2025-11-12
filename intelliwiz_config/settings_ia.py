@@ -281,7 +281,7 @@ def validate_ia_settings():
         cache.set('ia_test', 'test', 1)
         if cache.get('ia_test') != 'test':
             warnings.append("Cache backend may not be working properly for IA features")
-    except Exception as e:
+    except SETTINGS_EXCEPTIONS as e:
         errors.append(f"Cache configuration error: {e}")
     
     # Check middleware order
@@ -322,6 +322,8 @@ if validation_result['errors']:
     raise ImproperlyConfigured(f"IA Settings errors: {validation_result['errors']}")
 if validation_result['warnings']:
     import warnings
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
     for warning in validation_result['warnings']:
         warnings.warn(f"IA Settings: {warning}")
 """

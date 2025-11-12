@@ -9,6 +9,7 @@ from typing import Dict, Iterable, Optional
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError, IntegrityError
 from pydantic import ValidationError as PydanticValidationError
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS
 
 from apps.activity.models.question_model import (
     Question,
@@ -142,7 +143,7 @@ def _enhance_with_dependency_logic(
                 question["dependency_map"] = clean_dependency_map
                 question["has_conditional_logic"] = bool(has_conditional_logic)
                 enhanced_records.append(question)
-        except Exception:  # noqa: BLE001
+        except (DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS):
             log.warning(
                 "Dependency processing failed for qset %s",
                 group_qset_id,

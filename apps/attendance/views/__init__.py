@@ -18,18 +18,40 @@ from .geofence_views import GeofenceTracking
 
 # Import sync and bulk operation views (if they exist)
 try:
-    from .attendance_sync_views import *
+    from .attendance_sync_views import AttendanceSyncView, AttendanceChangesView
 except ImportError:
     pass
 
 try:
-    from .bulk_operations import *
+    from .bulk_operations import (
+        AttendanceBulkTransitionView,
+        AttendanceBulkApproveView,
+        AttendanceBulkRejectView,
+        AttendanceBulkLockView,
+        AttendanceBulkUpdateView,
+    )
 except ImportError:
     pass
 
-# Export all views for backward compatibility
+# Explicit __all__ to control namespace (Rule #16: Wildcard Import Prevention)
 __all__ = [
+    # From attendance_views.py
     'Attendance',
+
+    # From conveyance_views.py
     'Conveyance',
+
+    # From geofence_views.py
     'GeofenceTracking',
+
+    # From attendance_sync_views.py (if exists)
+    'AttendanceSyncView',
+    'AttendanceChangesView',
+
+    # From bulk_operations.py (if exists)
+    'AttendanceBulkTransitionView',
+    'AttendanceBulkApproveView',
+    'AttendanceBulkRejectView',
+    'AttendanceBulkLockView',
+    'AttendanceBulkUpdateView',
 ]

@@ -286,16 +286,21 @@ class RecommendationMiddleware(MiddlewareMixin):
                 current_url = request.path
 
             # Look for recommendation tracking parameters
+            # SECURITY FIX (IDOR-007): Validate rec_id parameter
             rec_id = request.GET.get('rec_id')
             rec_type = request.GET.get('rec_type')
-            
+
             if rec_id and rec_type == 'content':
-                # Track content recommendation click
-                try:
-                    rec = ContentRecommendation.objects.get(id=rec_id, user=request.user)
-                    rec.mark_clicked()
-                except ContentRecommendation.DoesNotExist:
-                    pass
+                # Validate rec_id is numeric
+                if not str(rec_id).isdigit():
+                    logger.warning(f"Invalid rec_id parameter: {rec_id}")
+                else:
+                    # Track content recommendation click
+                    try:
+                        rec = ContentRecommendation.objects.get(id=rec_id, user=request.user)
+                        rec.mark_clicked()
+                    except ContentRecommendation.DoesNotExist:
+                        pass
             
             # Track dismissals via AJAX (would be handled separately in views)
             

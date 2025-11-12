@@ -15,6 +15,7 @@ Based on clinical outcome measurement research and digital health analytics.
 """
 
 import logging
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 from django.utils import timezone
 from django.db.models import Q, Avg, Count, F, Case, When
 from django.db import transaction
@@ -119,8 +120,8 @@ class InterventionResponseTracker:
             logger.info(f"Response tracking complete: effectiveness={effectiveness_analysis['overall_effectiveness_score']:.2f}")
             return result
 
-        except Exception as e:
-            logger.error(f"Response tracking failed for delivery {delivery_log_id}: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Response tracking failed for delivery {delivery_log_id}: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
@@ -1039,8 +1040,8 @@ class InterventionResponseTracker:
             progress.save()
             logger.debug(f"Updated intervention profile for user {user.id}")
 
-        except Exception as e:
-            logger.error(f"Failed to update user intervention profile: {e}")
+        except DATABASE_EXCEPTIONS as e:
+            logger.error(f"Failed to update user intervention profile: {e}", exc_info=True)
 
     def _generate_learning_insights(self, delivery_log, effectiveness_analysis):
         """Generate insights for system learning and improvement"""

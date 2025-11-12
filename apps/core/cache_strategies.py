@@ -531,7 +531,7 @@ class CacheWarmer:
     
     def _warm_asset_hierarchies(self) -> int:
         """Warm asset hierarchy caches"""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         
         # Get active business units
         active_bus = Bt.objects.filter(
@@ -648,7 +648,7 @@ class CacheWarmer:
         
         try:
             # Warm type assist lookup caches
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
             
             important_categories = ['JOBSTATUS', 'PRIORITY', 'ASSET_TYPE', 'FREQUENCY', 'SCANTYPE']
             for category in important_categories:

@@ -18,18 +18,20 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, DatabaseError
 from django.utils import timezone
 
-from apps.onboarding.models import (
-    OnboardingSite,
-    OnboardingZone,
-    CoveragePlan,
-    SOP,
-    Shift,
+from apps.client_onboarding.models import Shift
+from apps.core_onboarding.models import (
     TypeAssist,
     ConversationSession,
     AIChangeSet,
     AIChangeRecord
 )
-from apps.onboarding.models.business_unit import Bt
+from apps.site_onboarding.models import (
+    OnboardingSite,
+    OnboardingZone,
+    CoveragePlan,
+    SOP
+)
+from apps.client_onboarding.models.business_unit import Bt
 from apps.peoples.models import People
 from apps.onboarding_api.integration.site_audit_mapper import SiteAuditMapper
 

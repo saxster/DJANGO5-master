@@ -15,6 +15,8 @@ from django.db.models import Count, Q
 from apps.core.utils_new.db_utils import get_current_db_name
 from ..models import NOCMetricSnapshot, MaintenanceWindow
 from ..constants import DEFAULT_METRIC_WINDOW_MINUTES
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 __all__ = ['NOCAggregationService']
 
@@ -40,8 +42,8 @@ class NOCAggregationService:
             DatabaseError: If database operation fails
             ValueError: If client_id is invalid
         """
-        from apps.onboarding.models import Bt
-        from apps.onboarding.managers import BtManager
+        from apps.client_onboarding.models import Bt
+        from apps.client_onboarding.managers import BtManager
 
         try:
             client = Bt.objects.select_related('tenant', 'identifier').get(id=client_id)
@@ -109,7 +111,7 @@ class NOCAggregationService:
             sla_calculator = SLACalculator()
             overdue_ticket_qs = sla_calculator.get_overdue_tickets(site_ids=site_ids)
             overdue_tickets = overdue_ticket_qs.count()
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning(f"SLA calculation failed, using fallback: {e}")
             # Fallback to simple status-based count
             overdue_tickets = tickets.filter(status='OPEN').count()
@@ -149,7 +151,7 @@ class NOCAggregationService:
                 'compliance_percentage': metrics.get('compliance_percentage', 100.0),
             }
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.warning(f"Attendance expectation service failed, using fallback: {e}")
             # Fallback to basic count
             from apps.attendance.models import PeopleEventlog
@@ -193,7 +195,7 @@ class NOCAggregationService:
         - Critical alerts (offline >2hr)
         - Total registered devices
         """
-        from apps.onboarding.models import Device
+        from apps.client_onboarding.models import Device
         from django.utils import timezone
         from datetime import timedelta
 

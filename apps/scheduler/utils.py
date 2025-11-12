@@ -5,7 +5,7 @@ from apps.core import utils
 from datetime import datetime, timezone as dt_timezone, timedelta
 from django.utils import timezone
 from django.db.models.query import QuerySet
-from apps.reminder.models import Reminder
+from apps.scheduler.models import Reminder  # Migrated from apps.reminder (Nov 11, 2025)
 import random
 import traceback as tb
 from celery import shared_task
@@ -568,7 +568,7 @@ def get_service_requirements(R):
         try:
             lon, lat = GeospatialService.extract_coordinates(R[0]['cplocation'])
             startp = {"lat": float(lat), "lng": float(lon)}
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             log.warning(f"Failed to extract start point coordinates: {e}")
             startp = {"lat": 0.0, "lng": 0.0}
 
@@ -576,7 +576,7 @@ def get_service_requirements(R):
         try:
             lon, lat = GeospatialService.extract_coordinates(R[-1]['cplocation'])
             endp = {"lat": float(lat), "lng": float(lon)}
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             log.warning(f"Failed to extract end point coordinates: {e}")
             endp = {"lat": 0.0, "lng": 0.0}
 
@@ -586,7 +586,7 @@ def get_service_requirements(R):
             try:
                 lon, lat = GeospatialService.extract_coordinates(R[i]['cplocation'])
                 waypoints.append({"lat": float(lat), "lng": float(lon)})
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 log.warning(f"Failed to extract waypoint coordinates at index {i}: {e}")
                 continue
 

@@ -22,7 +22,59 @@ Structure:
 """
 
 # Import everything from admin package for backward compatibility
-from apps.peoples.admin import *  # noqa: F401, F403
+from apps.peoples.admin import (
+    # Helper functions
+    save_people_passwd,
+    clean_value,
+    default_ta,
+    # Widgets
+    PgroupFKW,
+    PeopleFKW,
+    SiteFKW,
+    # Resources
+    PeopleResource,
+    PeopleResourceUpdate,
+    GroupResource,
+    GroupResourceUpdate,
+    GroupBelongingResource,
+    GroupBelongingResourceUpdate,
+    CapabilityResource,
+    # Admin classes
+    PeopleAdmin,
+    GroupAdmin,
+    PgbelongingAdmin,
+    CapabilityAdmin,
+    DeviceRegistrationAdmin,
+    DeviceRiskEventAdmin,
+    DeviceRiskEventInline,
+)
+
+__all__ = [
+    # Helper functions
+    "save_people_passwd",
+    "clean_value",
+    "default_ta",
+    # Widgets
+    "PgroupFKW",
+    "PeopleFKW",
+    "SiteFKW",
+    # Resources
+    "PeopleResource",
+    "PeopleResourceUpdate",
+    "GroupResource",
+    "GroupResourceUpdate",
+    "GroupBelongingResource",
+    "GroupBelongingResourceUpdate",
+    "CapabilityResource",
+    # Admin classes
+    "PeopleAdmin",
+    "GroupAdmin",
+    "PgbelongingAdmin",
+    "CapabilityAdmin",
+    "DeviceRegistrationAdmin",
+    "DeviceRiskEventAdmin",
+    "DeviceRiskEventInline",
+]
 
 # This file exists solely for backward compatibility.
 # All actual implementation is in apps/peoples/admin/ package.

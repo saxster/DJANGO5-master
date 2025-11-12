@@ -134,7 +134,7 @@ class InboxProcessor:
 
                     return True
 
-                except Exception as e:
+                except DATABASE_EXCEPTIONS as e:
                     # Mark as failed
                     inbox_event.status = 'failed'
                     inbox_event.error_message = str(e)

@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from ..models.wisdom_conversations import WisdomConversation
 from ..models.conversation_translation import WisdomConversationTranslation, TranslationQualityFeedback
 from ..services.conversation_translation_service import ConversationTranslationService
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ def translate_conversation(request):
             'code': 'VALIDATION_ERROR'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Translation API error: {e}", exc_info=True)
         return Response({
             'success': False,
@@ -157,7 +158,7 @@ def get_supported_languages(request):
             }
         }, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Get supported languages API error: {e}", exc_info=True)
         return Response({
             'success': False,
@@ -218,7 +219,7 @@ def get_translation_status(request, conversation_id):
             }
         }, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Get translation status API error: {e}", exc_info=True)
         return Response({
             'success': False,
@@ -288,7 +289,7 @@ def submit_translation_feedback(request):
             }
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Submit translation feedback API error: {e}", exc_info=True)
         return Response({
             'success': False,
@@ -324,7 +325,7 @@ def get_translation_analytics(request):
             'data': stats
         }, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Get translation analytics API error: {e}", exc_info=True)
         return Response({
             'success': False,
@@ -396,7 +397,7 @@ def batch_translate_conversations(request):
             }
         }, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except DATABASE_EXCEPTIONS as e:
         logger.error(f"Batch translate API error: {e}", exc_info=True)
         return Response({
             'success': False,

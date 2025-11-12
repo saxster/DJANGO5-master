@@ -650,7 +650,7 @@ class HelpBot {
         try {
             this.showLoading('Starting conversation...');
 
-            const response = await fetch('/api/v1/helpbot/api/v1/chat/', {
+            const response = await fetch('/api/v2/helpbot/chat/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -711,7 +711,7 @@ class HelpBot {
             }
 
             // Send to API
-            const response = await fetch('/api/v1/helpbot/api/v1/chat/', {
+            const response = await fetch('/api/v2/helpbot/chat/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -835,7 +835,7 @@ class HelpBot {
         if (!this.lastMessageId) return;
 
         try {
-            await fetch('/api/v1/helpbot/api/v1/feedback/', {
+            await fetch('/api/v2/helpbot/feedback/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

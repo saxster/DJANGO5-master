@@ -17,6 +17,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class PublicSchemaView(SpectacularAPIView):
         """Return OpenAPI schema with mobile-friendly metadata."""
         try:
             return super().get(request, *args, **kwargs)
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             logger.error(f"Failed to generate OpenAPI schema: {e}", exc_info=True)
             return JsonResponse({
                 'error': 'Schema generation failed',

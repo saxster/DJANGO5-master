@@ -16,6 +16,10 @@ Usage:
 import ast
 from pathlib import Path
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 
@@ -243,7 +247,7 @@ class ImportAnalyzer:
 
     def analyze_all_files(self) -> Dict:
         """Analyze all Python files in the apps directory."""
-        print("🔍 Analyzing Python files for import issues...")
+        logger.debug("🔍 Analyzing Python files for import issues...")
 
         python_files = list(self.apps_root.rglob('*.py'))
         all_file_info = []
@@ -262,10 +266,10 @@ class ImportAnalyzer:
                 self.issues['style_inconsistencies'].extend(style_issues)
 
         # Build dependency graph and find circular imports
-        print("🔗 Building dependency graph...")
+        logger.debug("🔗 Building dependency graph...")
         self.build_dependency_graph(all_file_info)
 
-        print("🔄 Analyzing circular dependencies...")
+        logger.debug("🔄 Analyzing circular dependencies...")
         circular_imports = self.find_circular_imports()
         self.issues['circular_imports'].extend(circular_imports)
 
@@ -353,14 +357,14 @@ class ImportAnalyzer:
                     if 0 <= line_idx < len(lines):
                         lines.pop(line_idx)
                         fixed_count += 1
-                        print(f"✅ Fixed: {issue['import_statement']} in {file_path}:{issue['line']}")
+                        logger.info(f"✅ Fixed: {issue['import_statement']} in {file_path}:{issue['line']}")
 
                 # Write back the modified file
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.writelines(lines)
 
             except (FileNotFoundError, IOError, OSError, PermissionError) as e:
-                print(f"❌ Error fixing {file_path}: {str(e)}")
+                logger.error(f"❌ Error fixing {file_path}: {str(e)}")
 
         return fixed_count
 

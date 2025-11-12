@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Performance tests for scheduler module improvements.
 
 This module tests the performance improvements made:
@@ -300,7 +302,7 @@ class PerformanceTestCase(TestCase):
         if connection.queries:
             total_time = sum(float(query['time']) for query in connection.queries)
             if total_time > 1.0:
-                print(f"Warning: Test queries took {total_time:.3f}s total")
+                logger.warning(f"Warning: Test queries took {total_time:.3f}s total")
 
     @classmethod
     def tearDownClass(cls):

@@ -18,7 +18,8 @@ from django.core.exceptions import ValidationError
 from import_export import fields, resources
 from import_export import widgets as wg
 from apps.activity.models.question_model import Question
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core.widgets import EnabledTypeAssistWidget
 from apps.core import utils
 from apps.service.validators import clean_string
@@ -60,7 +61,7 @@ class QuestionResourceUpdate(resources.ModelResource):
     Unit = fields.Field(
         column_name="Unit",
         attribute="unit",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -68,7 +69,7 @@ class QuestionResourceUpdate(resources.ModelResource):
     Category = fields.Field(
         column_name="Category",
         attribute="category",
-        widget=EnabledTypeAssistWidget(om.TypeAssist, "tacode"),
+        widget=EnabledTypeAssistWidget(TypeAssist, "tacode"),
         saves_null_values=True,
         default=default_ta,
     )
@@ -76,8 +77,8 @@ class QuestionResourceUpdate(resources.ModelResource):
     Client = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
-        default=lambda: om.Bt.objects.get_or_create(bucode="NONE")[0],
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
+        default=lambda: Bt.objects.get_or_create(bucode="NONE")[0],
     )
 
     ID = fields.Field(attribute="id", column_name="ID*")

@@ -12,6 +12,7 @@
 - [Development Best Practices](#development-best-practices)
 - [📚 Complete Documentation](#-complete-documentation)
 - [Support](#support)
+- [Recent Updates](#recent-updates)
 
 ---
 
@@ -35,7 +36,19 @@ source venv/bin/activate
 python --version  # Should show: Python 3.11.9
 ```
 
-### Installation (Platform-Specific)
+### Installation
+
+⚠️ **IMPORTANT**: Do NOT use `pip install -r requirements.txt` (this file has been removed to prevent platform conflicts).
+
+**Recommended: Smart Installer (Detects your platform automatically)**
+```bash
+source venv/bin/activate
+python scripts/install_dependencies.py              # Full installation
+python scripts/install_dependencies.py --dry-run    # Preview what will be installed
+python scripts/install_dependencies.py --minimal    # Core dependencies only
+```
+
+**Alternative: Manual Platform-Specific Installation**
 
 **macOS:**
 ```bash
@@ -52,6 +65,59 @@ pip install -r requirements/observability.txt
 pip install -r requirements/encryption.txt
 pip install -r requirements/ai_requirements.txt
 ```
+
+**What's the difference?**
+- **macOS**: Uses Metal Performance Shaders (MPS) for GPU acceleration, NO CUDA packages
+- **Linux**: Includes NVIDIA CUDA 12.1 libraries for GPU acceleration
+
+📖 **See**: [Complete Installation Guide](.github/INSTALL_GUIDE.md) for troubleshooting and platform-specific details
+
+### Infrastructure Requirements
+
+⚠️ **CRITICAL**: The following infrastructure is **required** for production deployment:
+
+#### Redis (MANDATORY)
+
+**Required for**: Journal rate limiting, Celery task queue, caching layer
+
+**Backend**: Must use `django-redis` cache backend (NOT memcached or filesystem)
+
+```python
+# intelliwiz_config/settings/base.py
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_KWARGS': {'max_connections': 50},
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+        }
+    }
+}
+```
+
+**Why**: Journal security middleware uses Redis sorted sets for cross-worker rate limiting (Nov 2025 fix). In-memory rate limiting was removed because it:
+- Resets on worker restart
+- Doesn't work across multiple workers
+- Allows rate limit bypass in multi-process deployments
+
+**Deployment validation**:
+```bash
+# Verify Redis connectivity
+python manage.py shell -c "from django.core.cache import cache; cache.client.get_client().ping(); print('✅ Redis OK')"
+```
+
+**Startup check**: Journal middleware validates Redis backend on initialization. Check logs for:
+```
+✅ Journal rate limiting: Redis connection verified
+```
+
+If Redis unavailable, middleware logs warning and operates in **fail-open mode** (allows all requests - less secure but prevents blocking legitimate users).
+
+📖 **See**: `intelliwiz_config/settings/base.py` for complete Redis configuration
 
 ### Top 10 Commands
 
@@ -72,13 +138,19 @@ python manage.py init_intelliwiz default                # Initialize
 
 ## Code quality
 python scripts/validate_code_quality.py --verbose
+python scripts/check_file_sizes.py --verbose              # Check file size limits
+python scripts/detect_god_files.py --path apps/your_app   # Find refactoring candidates
+
+## Refactoring verification
+python scripts/verify_attendance_models_refactoring.py    # Verify model refactorings
+python manage.py check                                    # Check for import errors
 
 ## Schedule validation
 python manage.py validate_schedules --verbose
 python manage.py validate_schedules --check-orphaned-tasks
 ```
 
-**📖 See**: [Complete Command Reference](docs/workflows/COMMON_COMMANDS.md)
+📖 **More commands**: Check `scripts/` directory and app-level documentation
 
 ---
 
@@ -95,8 +167,44 @@ python manage.py validate_schedules --check-orphaned-tasks
 | `@csrf_exempt` | Disables CSRF protection | Document alternative protection mechanism |
 | Debug info in responses | Exposes internal architecture | Sanitize all error responses |
 | File upload without validation | Path traversal, injection attacks | Use `perform_secure_uploadattachment` |
+| File download without permissions | IDOR, cross-tenant access | Use `SecureFileDownloadService` with validation |
 | Missing network timeouts | Workers hang indefinitely | `requests.get(url, timeout=(5, 15))` |
 | Secrets without validation | Runtime failures in production | Validate on settings load |
+
+### 🔒 Secure File Access Standards
+
+**ALL file downloads MUST use `SecureFileDownloadService` for permission validation:**
+
+```python
+# ✅ CORRECT: Secure file download with multi-layer validation
+from apps.core.services.secure_file_download_service import SecureFileDownloadService
+
+# Validate attachment access (ownership, tenant, permissions)
+attachment = SecureFileDownloadService.validate_attachment_access(
+    attachment_id=request.GET['id'],
+    user=request.user
+)
+
+# Serve file securely (path validation + permission check)
+response = SecureFileDownloadService.validate_and_serve_file(
+    filepath=attachment.filepath,
+    filename=attachment.filename,
+    user=request.user,
+    owner_id=attachment.owner
+)
+
+# ❌ FORBIDDEN: Direct file access without validation
+attachment = Attachment.objects.get(id=request.GET['id'])  # No permission check
+with open(attachment.path, 'rb') as f:  # IDOR vulnerability
+    return FileResponse(f)
+```
+
+**Security Layers Enforced:**
+1. **Tenant Isolation** - Cross-tenant access blocked
+2. **Ownership Validation** - User must own file or have permissions
+3. **Path Traversal Prevention** - MEDIA_ROOT boundary enforcement
+4. **Audit Logging** - All access attempts logged with correlation IDs
+5. **Default Deny** - Explicit permission required for access
 
 ### 📐 Architecture Limits (MANDATORY)
 
@@ -169,7 +277,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 **Enterprise facility management platform** for multi-tenant security guarding, facilities, and asset management.
 
 - **Framework**: Django 5.2.1 + PostgreSQL 14.2 with PostGIS
-- **APIs**: REST at `/api/v1/` and `/api/v2/`
+- **APIs**: Primary REST API at `/api/v2/` (type-safe, Pydantic-validated); Legacy endpoints at `/api/v1/` for specialized use cases only
 - **Task Queue**: Celery with PostgreSQL-native session storage
 - **Authentication**: Custom user model (`peoples.People`) with multi-model architecture
 - **Multi-tenancy**: Tenant-aware models with database routing
@@ -184,6 +292,7 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 | **Help Desk** | `y_helpdesk` | Ticketing, escalations, SLAs |
 | **Reports** | `reports` | Analytics, scheduled reports |
 | **Security** | `noc`, `face_recognition` | AI monitoring, biometrics |
+| **AI/ML** | `ml_training` | ML training data platform, dataset management, labeling, active learning |
 | **Wellness** | `journal`, `wellness` | Wellbeing aggregation, evidence-based interventions |
 
 ### URL Structure
@@ -195,14 +304,27 @@ from datetime import timezone  # Conflicts with django.utils.timezone
 /help-desk/      # Tickets, escalations
 /reports/        # Analytics
 /admin/          # Administration
+/ml-training/    # ML training data platform (dataset management, labeling, active learning)
 /api/journal/    # Journal entries from mobile (Kotlin)
 /api/wellness/   # Wellness content delivery
 /journal/analytics/  # Wellbeing trends dashboard (admin)
 ```
 
-**Note on Wellness Architecture**: The `journal` and `wellness` apps work together as an **aggregation system**. Journal entries originate from Kotlin mobile frontends with mood/stress/energy ratings. The backend analyzes these entries in real-time (`JournalAnalyticsService`) and delivers contextual, evidence-based wellness content. Site admins view aggregated wellbeing metrics through Django Admin and analytics dashboards. See [Wellness & Journal System](docs/features/DOMAIN_SPECIFIC_SYSTEMS.md#wellness--journal-system) for complete details.
+**Note on Wellness Architecture**: The `journal` and `wellness` apps work together as an **aggregation system**. Journal entries originate from Kotlin mobile frontends with mood/stress/energy ratings. The backend analyzes these entries in real-time (`JournalAnalyticsService`) and delivers contextual, evidence-based wellness content. Site admins view aggregated wellbeing metrics through Django Admin and analytics dashboards.
 
-**📖 See**: [Complete System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)
+**Note on API Versioning (V1→V2 Migration - Nov 2025)**:
+- **Primary API**: `/api/v2/` - Type-safe REST with Pydantic validation, comprehensive endpoints for all business domains
+- **Legacy V1 Endpoints**: The following V1 endpoints remain active for specialized hardware/legacy client support:
+  - `/api/v1/biometrics/` - Biometric device integrations (face recognition, fingerprint)
+  - `/api/v1/assets/nfc/` - NFC tag scanning for asset management
+  - `/api/v1/journal/` - Mobile journal entry submission (Kotlin app)
+  - `/api/v1/wellness/` - Wellness content delivery (legacy mobile clients)
+  - `/api/v1/search/` - Global search endpoint
+  - `/api/v1/helpbot/` - AI chatbot interactions
+- **Migration Status**: All core REST API functionality migrated to V2 (Nov 7-8, 2025). Generic V1 sync serializers relocated to `apps/core/serializers/sync_base_serializers.py` for backward compatibility.
+- **Deprecation Timeline**: Legacy V1 endpoints will remain active until all specialized clients migrate to V2 equivalents.
+
+📖 **See**: [Architecture Decision Records](docs/architecture/adr/) and [Documentation Index](docs/DOCUMENTATION_INDEX.md)
 
 ---
 
@@ -284,49 +406,24 @@ for user in People.objects.all():
 
 ## 📚 Complete Documentation
 
-### Architecture & Design
+> **Note**: Most documentation removed during V2 migration (Nov 2025) has been archived. See [docs/reference/DEPRECATED_DOCS.md](docs/reference/DEPRECATED_DOCS.md) for removed documentation and replacement resources.
 
-- **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)** - Complete architectural overview, business domains, security architecture, refactored modules
-- **Custom User Model** - Multi-model design (People, PeopleProfile, PeopleOrganizational)
-- **URL Structure** - Domain-driven organization with backward compatibility
+### Documentation Index
 
-### Workflows & Operations
+📖 **[Complete Documentation Catalog](docs/DOCUMENTATION_INDEX.md)** - Comprehensive index of all project documentation with status tracking and navigation.
 
-- **[Common Commands](docs/workflows/COMMON_COMMANDS.md)** - Complete command reference organized by category
-- **[Background Processing](docs/workflows/BACKGROUND_PROCESSING.md)** - Enterprise Celery with specialized queues, monitoring, circuit breakers
-- **[Celery Configuration Guide](docs/workflows/CELERY_CONFIGURATION_GUIDE.md)** ⚠️ **MANDATORY** - Complete Celery standards (decorators, naming, organization, beat schedule)
-- **[Idempotency Framework](docs/workflows/IDEMPOTENCY_FRAMEWORK.md)** - Duplicate task prevention with Redis + PostgreSQL fallback
+### Architecture Decision Records (Active)
 
-### Testing & Quality
+- **[ADRs](docs/architecture/adr/)** - Documented architectural decisions with context and consequences
+- Latest: ADR-008 (Ultrathink Technical Debt Remediation - Nov 2025)
 
-- **[Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)** - Comprehensive testing docs, code quality validation, pre-commit hooks, quality metrics
-- **Code Smell Detection** - Automated anti-pattern detection
-- **Exception Handling Migration** - Tools for migrating to specific exceptions
-- **Race Condition Testing** - Critical data integrity tests
+### Key Reference Documents (Root Directory)
 
-### API & Integration
-
-- **[Type-Safe API Contracts](docs/api/TYPE_SAFE_CONTRACTS.md)** - REST v1/v2 with Pydantic, WebSocket patterns, Kotlin/Swift codegen, OpenAPI schemas
-
-### Features & Systems
-
-- **[Domain-Specific Systems](docs/features/DOMAIN_SPECIFIC_SYSTEMS.md)** - Security AI Mentor (7 pillars), Stream Testbench, Caching Strategy, Face Recognition, NOC, Reports System
-
-### Configuration & Setup
-
-- **[Settings & Configuration](docs/configuration/SETTINGS_AND_CONFIG.md)** - Environment files, settings structure, database config, logging, Redis, security settings
-
-### Troubleshooting
-
-- **[Common Issues](docs/troubleshooting/COMMON_ISSUES.md)** - Solutions to pre-commit hooks, CI/CD, legacy API quirks, idempotency, Celery, Flake8, database, Redis, performance issues
-
-### Key Reference Documents
-
-**Core:**
-- **DateTime Standards**: `docs/DATETIME_FIELD_STANDARDS.md`
+**Core Architecture & Refactoring:**
 - **God File Refactoring**: `GOD_FILE_REFACTORING_PHASES_5-7_COMPLETE.md`
 - **Security Mentor**: `SECURITY_FACILITY_MENTOR_PHASE2_COMPLETE.md`
 - **Operator Guide**: `NON_NEGOTIABLES_OPERATOR_GUIDE.md`
+- **Exception Handling**: `EXCEPTION_HANDLING_PART3_COMPLETE.md` - 100% remediation (554→0 violations)
 
 **Quality & Monitoring:**
 - **Removed Code Inventory**: `REMOVED_CODE_INVENTORY.md`
@@ -352,13 +449,22 @@ for user in People.objects.all():
 ## Support
 
 - **Security issues**: Contact security team immediately
-- **Architecture questions**: Review [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md) and domain guides
-- **Quality violations**: Run validation tools before asking - see [Testing & Quality Guide](docs/testing/TESTING_AND_QUALITY_GUIDE.md)
-- **Common problems**: Check [Troubleshooting Guide](docs/troubleshooting/COMMON_ISSUES.md) first
-- **New features**: Follow architecture limits and refactoring patterns
+- **Architecture questions**: Review [Architecture Decision Records](docs/architecture/adr/) and completion reports
+- **Quality violations**: Run validation tools before asking - see `.claude/rules.md`
+- **Common problems**: Check `KNOWN_RACE_CONDITIONS.md` and GitHub issues
+- **New features**: Follow architecture limits in CLAUDE.md and `.claude/rules.md`
 
 ---
 
-**Last Updated**: October 29, 2025 (Documentation restructuring - 75% size reduction)
+**Last Updated**: November 11, 2025
 **Maintainer**: Development Team
 **Review Cycle**: Quarterly or on major architecture changes
+
+## Recent Updates
+
+- **Nov 11, 2025**: Ultrathink Phase 7 - Race condition fix + 3 technical debt items ([details](ULTRATHINK_REMEDIATION_PHASE7_COMPLETE.md))
+- **Nov 11, 2025**: Ultrathink Phase 6 - ML conflict prediction infrastructure ([details](ULTRATHINK_REMEDIATION_PHASE6_COMPLETE.md))
+- **Nov 11, 2025**: Ultrathink Phase 5 - 11 security vulnerabilities + critical bugs fixed ([details](ULTRATHINK_REMEDIATION_PHASE5_COMPLETE.md))
+- **Nov 10, 2025**: Installation improvements - Smart dependency installer ([details](.github/INSTALL_GUIDE.md))
+
+**Full History**: See [Detailed Changelog](docs/project-history/CHANGELOG_DETAILED.md) and [docs/project-history/](docs/project-history/)

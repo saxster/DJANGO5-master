@@ -29,6 +29,12 @@ from django.conf import settings
 import logging
 from typing import List, Dict, Optional
 from decimal import Decimal
+from apps.core.exceptions.patterns import ENCRYPTION_EXCEPTIONS
+
+from apps.core.exceptions.patterns import FILE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
 
 logger = logging.getLogger("slow_query_analyzer")
 
@@ -111,7 +117,7 @@ class Command(BaseCommand):
             # Display summary
             self._display_analysis_summary(analysis_results)
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Slow query analysis failed: {e}", exc_info=True)
             raise CommandError(f"Analysis failed: {e}")
 
@@ -125,7 +131,7 @@ class Command(BaseCommand):
                     )
                 """)
                 return cursor.fetchone()[0]
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Failed to check pg_stat_statements: {e}")
             return False
 
@@ -135,7 +141,7 @@ class Command(BaseCommand):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT pg_stat_statements_reset()")
                 logger.info("pg_stat_statements statistics reset")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to reset statistics: {e}")
             raise
 
@@ -208,7 +214,7 @@ class Command(BaseCommand):
                     'threshold_ms': self.threshold_ms
                 }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Failed to analyze slow queries: {e}")
             raise
 
@@ -255,12 +261,12 @@ class Command(BaseCommand):
                             self.stdout.write(
                                 f"Captured execution plan for query {query_data['query_hash']}"
                             )
-                    except Exception as e:
+                    except FILE_EXCEPTIONS as e:
                         logger.warning(f"Failed to analyze execution plan for query {query_data['query_hash']}: {e}")
 
             return alerts_created
 
-        except Exception as e:
+        except ENCRYPTION_EXCEPTIONS as e:
             logger.error(f"Failed to create slow query alerts: {e}")
             raise
 
@@ -283,7 +289,7 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"Analysis report exported to {self.export_file}")
             )
 
-        except Exception as e:
+        except FILE_EXCEPTIONS as e:
             logger.error(f"Failed to export report: {e}")
             raise
 

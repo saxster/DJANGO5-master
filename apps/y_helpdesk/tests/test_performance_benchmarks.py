@@ -1,4 +1,6 @@
 """
+import logging
+logger = logging.getLogger(__name__)
 Performance Benchmark Tests
 
 Measures actual performance improvements from ticket system refactoring:
@@ -26,7 +28,8 @@ from apps.y_helpdesk.utils.query_monitor import monitor_queries, compare_query_p
 from apps.y_helpdesk.serializers.unified_ticket_serializer import serialize_for_web_api
 
 from apps.peoples.models import People, Pgroup
-from apps.onboarding.models import Bt, TypeAssist
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import TypeAssist
 
 
 class TicketPerformanceBenchmarkTestCase(TestCase):
@@ -145,10 +148,10 @@ class TicketPerformanceBenchmarkTestCase(TestCase):
         self.assertGreater(comparison['improvements']['time_improvement_percent'], 30)
         self.assertIn(comparison['improvements']['performance_rating'], ['EXCELLENT', 'GOOD'])
 
-        print(f"\n📊 Ticket List Performance Improvement:")
-        print(f"   Query reduction: {comparison['improvements']['query_reduction_percent']:.1f}%")
-        print(f"   Time improvement: {comparison['improvements']['time_improvement_percent']:.1f}%")
-        print(f"   Rating: {comparison['improvements']['performance_rating']}")
+        logger.info(f"\n📊 Ticket List Performance Improvement:")
+        logger.info(f"   Query reduction: {comparison['improvements']['query_reduction_percent']:.1f}%")
+        logger.info(f"   Time improvement: {comparison['improvements']['time_improvement_percent']:.1f}%")
+        logger.info(f"   Rating: {comparison['improvements']['performance_rating']}")
 
     @override_settings(DEBUG=True)
     def test_dashboard_stats_performance(self):
@@ -187,9 +190,9 @@ class TicketPerformanceBenchmarkTestCase(TestCase):
         self.assertLessEqual(avg_time, 100)  # Should be under 100ms
         self.assertLessEqual(avg_queries, 3)  # Should be very few queries
 
-        print(f"\n📊 Dashboard Stats Performance:")
-        print(f"   Average time: {avg_time:.2f}ms")
-        print(f"   Query count: {avg_queries}")
+        logger.info(f"\n📊 Dashboard Stats Performance:")
+        logger.info(f"   Average time: {avg_time:.2f}ms")
+        logger.info(f"   Query count: {avg_queries}")
 
     def test_cache_performance_impact(self):
         """Measure cache performance impact."""
@@ -223,10 +226,10 @@ class TicketPerformanceBenchmarkTestCase(TestCase):
 
         cache_improvement = ((cache_miss_time - cache_hit_time) / cache_miss_time) * 100
 
-        print(f"\n📊 Cache Performance Impact:")
-        print(f"   Cache miss time: {cache_miss_time:.2f}ms")
-        print(f"   Cache hit time: {cache_hit_time:.2f}ms")
-        print(f"   Performance improvement: {cache_improvement:.1f}%")
+        logger.info(f"\n📊 Cache Performance Impact:")
+        logger.info(f"   Cache miss time: {cache_miss_time:.2f}ms")
+        logger.info(f"   Cache hit time: {cache_hit_time:.2f}ms")
+        logger.info(f"   Performance improvement: {cache_improvement:.1f}%")
 
         # Cache hit should be at least 50% faster
         self.assertGreater(cache_improvement, 50)
@@ -256,9 +259,9 @@ class TicketPerformanceBenchmarkTestCase(TestCase):
         self.assertLessEqual(avg_time, 50)  # Should serialize quickly
         self.assertEqual(len(data), len(tickets))  # All tickets serialized
 
-        print(f"\n📊 Unified Serializer Performance:")
-        print(f"   Average time: {avg_time:.2f}ms for {len(tickets)} tickets")
-        print(f"   Min/Max: {min_time:.2f}ms / {max_time:.2f}ms")
+        logger.info(f"\n📊 Unified Serializer Performance:")
+        logger.info(f"   Average time: {avg_time:.2f}ms for {len(tickets)} tickets")
+        logger.info(f"   Min/Max: {min_time:.2f}ms / {max_time:.2f}ms")
 
     def test_state_machine_validation_performance(self):
         """Benchmark state machine validation performance."""
@@ -287,6 +290,6 @@ class TicketPerformanceBenchmarkTestCase(TestCase):
         # Should be very fast
         self.assertLessEqual(avg_time_per_validation, 1.0)  # Under 1ms per validation
 
-        print(f"\n📊 State Machine Performance:")
-        print(f"   {iterations} validations in {total_time:.2f}ms")
-        print(f"   Average per validation: {avg_time_per_validation:.3f}ms")
+        logger.info(f"\n📊 State Machine Performance:")
+        logger.info(f"   {iterations} validations in {total_time:.2f}ms")
+        logger.info(f"   Average per validation: {avg_time_per_validation:.3f}ms")

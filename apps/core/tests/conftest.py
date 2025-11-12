@@ -6,7 +6,7 @@ import time
 from django.test import RequestFactory, Client
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 User = get_user_model()
 

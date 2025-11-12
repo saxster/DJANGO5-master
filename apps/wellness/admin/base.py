@@ -9,7 +9,7 @@ CLAUDE.md Compliance: <200 lines
 """
 
 from django.utils.html import format_html
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from apps.core.admin.base_admin import IntelliWizModelAdmin
 
 
@@ -44,7 +44,7 @@ class WellnessAdminMixin:
         try:
             url = reverse('admin:peoples_people_change', args=[user.id])
             return format_html('<a href="{}">{}</a>', url, display_name)
-        except Exception:
+        except NoReverseMatch:
             return display_name
 
     def percentage_display(self, value, decimal_places=1):

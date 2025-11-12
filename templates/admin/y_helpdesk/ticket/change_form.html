@@ -1,0 +1,75 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block after_field_sets %}
+{{ block.super }}
+
+{% if assignment_suggestions %}
+<div class="smart-assignment-panel" style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #333;">🤖 Smart Assignment Suggestions</h3>
+    <p style="color: #666;">Based on skills, availability, and performance:</p>
+    
+    {% for suggestion in assignment_suggestions %}
+    <div class="suggestion-card" style="
+        background: white; 
+        padding: 15px; 
+        margin-bottom: 15px; 
+        border-radius: 5px; 
+        border-left: 4px solid {% if suggestion.score >= 80 %}#28a745{% elif suggestion.score >= 60 %}#ffc107{% else %}#6c757d{% endif %};
+    ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div>
+                <h4 style="margin: 0; color: #333;">
+                    {{ suggestion.agent.get_full_name }}
+                    <span style="
+                        background: {% if suggestion.score >= 80 %}#28a745{% elif suggestion.score >= 60 %}#ffc107{% else %}#6c757d{% endif %}; 
+                        color: white; 
+                        padding: 3px 10px; 
+                        border-radius: 3px; 
+                        font-size: 14px;
+                        margin-left: 10px;
+                    ">{{ suggestion.score }}/100</span>
+                </h4>
+                <div style="color: #666; margin-top: 5px;">
+                    Current workload: <strong>{{ suggestion.current_workload }}</strong> open tasks
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 10px;">
+            <strong style="color: #333;">Why this person?</strong>
+            <ul style="margin: 5px 0 10px 20px; padding: 0;">
+                {% for reason in suggestion.reasons %}
+                <li style="color: #555; margin: 3px 0;">{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <button 
+                type="button"
+                class="button" 
+                style="background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 3px; cursor: pointer;"
+                onclick="assignTo{{ forloop.counter }}()">
+                ✅ Assign to {{ suggestion.agent.first_name }}
+            </button>
+        </div>
+        
+        <script>
+        function assignTo{{ forloop.counter }}() {
+            // Set the assignedtopeople field
+            const assigneeField = document.querySelector('#id_assignedtopeople');
+            if (assigneeField) {
+                assigneeField.value = '{{ suggestion.agent.id }}';
+                // Trigger change event
+                assigneeField.dispatchEvent(new Event('change'));
+                // Show success message
+                alert('Assigned to {{ suggestion.agent.get_full_name }}. Click Save to confirm.');
+            }
+        }
+        </script>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

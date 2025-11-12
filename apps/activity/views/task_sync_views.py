@@ -19,12 +19,12 @@ from django.db import DatabaseError
 
 from apps.activity.services.task_sync_service import TaskSyncService
 from apps.activity.serializers.task_sync_serializers import TaskSyncSerializer
-from apps.api.v1.serializers.sync_base_serializers import (
+from apps.core.serializers.sync_base_serializers import (
     SyncRequestSerializer,
     SyncResponseSerializer,
     DeltaSyncRequestSerializer,
 )
-from apps.api.v1.services.idempotency_service import IdempotencyService
+from apps.core.services.sync.idempotency_service import IdempotencyService
 
 logger = logging.getLogger(__name__)
 

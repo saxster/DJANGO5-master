@@ -14,6 +14,8 @@ Follows .claude/rules.md:
 import logging
 from django.db import transaction
 from django.utils import timezone
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+
 
 logger = logging.getLogger('noc.security_intelligence')
 
@@ -49,6 +51,64 @@ class SecurityAnomalyOrchestrator:
             if not config or not config.is_active:
                 return {'anomalies': [], 'biometric_logs': [], 'gps_logs': []}
 
+            # Predictive ML fraud detection
+            from apps.noc.security_intelligence.ml.predictive_fraud_detector import PredictiveFraudDetector
+
+            ml_prediction_result = None
+            if config and getattr(config, 'predictive_fraud_enabled', True):
+                try:
+                    person = attendance_event.people
+                    site = attendance_event.bu
+                    ml_prediction_result = PredictiveFraudDetector.predict_attendance_fraud(
+                        person=person,
+                        site=site,
+                        scheduled_time=attendance_event.punchintime
+                    )
+
+                    # Log prediction for feedback loop
+                    PredictiveFraudDetector.log_prediction(
+                        person=person,
+                        site=site,
+                        scheduled_time=attendance_event.punchintime,
+                        prediction_result=ml_prediction_result
+                    )
+
+                    # Log with confidence interval info if available
+                    interval_info = ""
+                    if 'confidence_interval_width' in ml_prediction_result:
+                        interval_info = f", CI width: {ml_prediction_result['confidence_interval_width']:.3f}"
+
+                    logger.info(
+                        f"ML fraud prediction for {person.peoplename}: "
+                        f"{ml_prediction_result['fraud_probability']:.2%} "
+                        f"({ml_prediction_result['risk_level']}){interval_info}"
+                    )
+
+                    # Confidence-aware escalation (Phase 1)
+                    # High-risk predictions with narrow intervals → auto-ticket
+                    # High-risk predictions with wide intervals → alert for human review
+                    if ml_prediction_result['risk_level'] in ['HIGH', 'CRITICAL']:
+                        is_narrow = ml_prediction_result.get('is_narrow_interval', False)
+
+                        if is_narrow:
+                            # High confidence: Create ticket for immediate action
+                            cls._create_ml_fraud_ticket(
+                                attendance_event=attendance_event,
+                                prediction=ml_prediction_result,
+                                config=config
+                            )
+                        else:
+                            # Low confidence: Create alert for human review
+                            cls._create_ml_prediction_alert(
+                                attendance_event=attendance_event,
+                                prediction=ml_prediction_result,
+                                config=config
+                            )
+
+                except DATABASE_EXCEPTIONS as e:
+                    logger.warning(f"ML prediction failed for {attendance_event.people.peoplename}: {e}")
+                    # Continue with heuristic fraud detection
+
             attendance_detector = AttendanceAnomalyDetector(config)
             biometric_detector = BiometricFraudDetector(config)
             location_detector = LocationFraudDetector(config)
@@ -67,6 +127,10 @@ class SecurityAnomalyOrchestrator:
                 if log:
                     results['anomalies'].append(log)
                     cls._create_noc_alert(log, config)
+
+                    # Real-time WebSocket broadcast (Gap #11)
+                    from apps.noc.services.websocket_service import NOCWebSocketService
+                    NOCWebSocketService.broadcast_anomaly(log)
 
             fraud_checks = {
                 'buddy_punching': biometric_detector.detect_buddy_punching(attendance_event),
@@ -201,6 +265,8 @@ class SecurityAnomalyOrchestrator:
             NOCAlertEvent instance
         """
         from apps.noc.services import AlertCorrelationService
+        from django.conf import settings
+        from datetime import timedelta
 
         try:
             fraud_types_str = ', '.join(fraud_score_result['fraud_types'])
@@ -226,8 +292,292 @@ class SecurityAnomalyOrchestrator:
 
             alert = AlertCorrelationService.process_alert(alert_data)
             logger.info(f"Created fraud alert: {alert}")
+
+            # Auto-create ticket for high fraud scores (Gap #9)
+            fraud_score = fraud_score_result['fraud_score']
+            fraud_threshold = settings.NOC_CONFIG.get('FRAUD_SCORE_TICKET_THRESHOLD', 0.80)
+
+            if fraud_score >= fraud_threshold:
+                cls._create_fraud_ticket(
+                    attendance_event=attendance_event,
+                    fraud_score_result=fraud_score_result,
+                    alert=alert
+                )
+
             return alert
 
         except (ValueError, AttributeError) as e:
             logger.error(f"Fraud alert creation error: {e}", exc_info=True)
+            return None
+
+    @classmethod
+    @transaction.atomic
+    def _create_fraud_ticket(cls, attendance_event, fraud_score_result, alert):
+        """
+        Create ticket for high fraud score detections.
+
+        Args:
+            attendance_event: PeopleEventlog instance
+            fraud_score_result: dict from FraudScoreCalculator
+            alert: NOCAlertEvent instance
+
+        Returns:
+            Ticket instance or None
+        """
+        from apps.y_helpdesk.models import Ticket
+        from django.conf import settings
+        from datetime import timedelta
+
+        try:
+            person = attendance_event.people
+            site = attendance_event.bu
+            fraud_score = fraud_score_result['fraud_score']
+            fraud_types = fraud_score_result['fraud_types']
+            evidence = fraud_score_result['evidence']
+
+            # Deduplication check (max 1 ticket per person per 24h per fraud type)
+            dedup_hours = settings.NOC_CONFIG.get('FRAUD_DEDUPLICATION_HOURS', 24)
+            recent_cutoff = timezone.now() - timedelta(hours=dedup_hours)
+            fraud_type = fraud_types[0] if fraud_types else 'UNKNOWN'
+
+            # Check for existing fraud tickets in deduplication window
+            from django.db.models import Q
+            existing_ticket = Ticket.objects.filter(
+                Q(ticketdesc__icontains=person.peoplename) & Q(ticketdesc__icontains='FRAUD ALERT'),
+                assignedtopeople__isnull=False,  # Only check assigned tickets
+                bu=site,
+                status__in=['NEW', 'OPEN', 'ASSIGNED', 'IN_PROGRESS'],
+                cdtz__gte=recent_cutoff
+            ).first()
+
+            if existing_ticket:
+                # Get workflow to check metadata
+                workflow = existing_ticket.get_or_create_workflow()
+                workflow_fraud_type = workflow.workflow_data.get('fraud_type')
+
+                if workflow_fraud_type == fraud_type:
+                    logger.info(
+                        f"Skipping duplicate fraud ticket for {person.peoplename} "
+                        f"(type: {fraud_type}, existing: {existing_ticket.id})"
+                    )
+                    return None
+
+            # Determine assigned_to
+            assigned_to = None
+            if hasattr(site, 'security_manager') and site.security_manager:
+                assigned_to = site.security_manager
+            elif hasattr(site, 'site_manager') and site.site_manager:
+                assigned_to = site.site_manager
+
+            # Format detection reasons
+            detection_reasons = []
+            if 'buddy_punching' in evidence:
+                detection_reasons.append('Buddy Punching')
+            if 'gps_spoofing' in evidence:
+                detection_reasons.append('GPS Spoofing')
+            if 'geofence_violation' in evidence:
+                detection_reasons.append('Geofence Violation')
+
+            # Create ticket
+            ticket = Ticket.objects.create(
+                ticketdesc=f"[FRAUD ALERT] {person.peoplename} - {fraud_type}\n\n"
+                          f"High Fraud Probability Detected\n\n"
+                          f"Fraud Score: {fraud_score:.2%}\n"
+                          f"Detection Methods: {', '.join(detection_reasons)}\n\n"
+                          f"Evidence:\n{evidence}",
+                assignedtopeople=assigned_to,
+                identifier=Ticket.Identifier.TICKET,
+                client=site.get_client_parent() if hasattr(site, 'get_client_parent') else None,
+                bu=site,
+                priority=Ticket.Priority.HIGH,
+                status=Ticket.Status.NEW,
+                ticketsource=Ticket.TicketSource.SYSTEMGENERATED,
+                tenant=attendance_event.tenant,
+                cuser=assigned_to,
+                muser=assigned_to,
+            )
+
+            # Add metadata to workflow
+            workflow = ticket.get_or_create_workflow()
+            workflow.workflow_data.update({
+                'alert_id': str(alert.id) if alert else None,
+                'fraud_score': fraud_score,
+                'fraud_type': fraud_type,
+                'fraud_types': fraud_types,
+                'auto_created': True,
+                'created_by': 'SecurityAnomalyOrchestrator',
+                'person_id': person.id,
+                'person_name': person.peoplename,
+                'attendance_event_id': attendance_event.id,
+                'evidence': evidence,
+            })
+            workflow.save(update_fields=['workflow_data'])
+
+            logger.info(
+                f"Auto-created fraud ticket {ticket.id} for {person.peoplename} "
+                f"(score: {fraud_score:.2%}, type: {fraud_type})"
+            )
+            return ticket
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"Fraud ticket creation error: {e}", exc_info=True)
+            return None
+
+    @classmethod
+    @transaction.atomic
+    def _create_ml_prediction_alert(cls, attendance_event, prediction, config):
+        """
+        Create alert for high ML fraud prediction.
+
+        Args:
+            attendance_event: PeopleEventlog instance
+            prediction: dict from PredictiveFraudDetector
+            config: SecurityAnomalyConfig instance
+
+        Returns:
+            NOCAlertEvent instance or None
+        """
+        from apps.noc.services import AlertCorrelationService
+
+        try:
+            fraud_probability = prediction['fraud_probability']
+            risk_level = prediction['risk_level']
+
+            alert_data = {
+                'tenant': attendance_event.tenant,
+                'client': attendance_event.bu.get_client_parent(),
+                'bu': attendance_event.bu,
+                'alert_type': 'ML_FRAUD_PREDICTION',
+                'severity': 'HIGH' if risk_level == 'HIGH' else 'CRITICAL',
+                'message': f"ML model predicts {fraud_probability:.1%} fraud probability for {attendance_event.people.peoplename}",
+                'entity_type': 'attendance_prediction',
+                'entity_id': attendance_event.id,
+                'metadata': {
+                    'ml_prediction': prediction,
+                    'model_version': prediction.get('model_version'),
+                    'features': prediction.get('features', {}),
+                    'person_id': attendance_event.people.id,
+                    'person_name': attendance_event.people.peoplename,
+                    'prediction_method': prediction.get('prediction_method'),
+                    'behavioral_risk': prediction.get('behavioral_risk', 0.0),
+                }
+            }
+
+            alert = AlertCorrelationService.process_alert(alert_data)
+            logger.info(f"Created ML prediction alert {alert.id} for {attendance_event.people.peoplename}")
+            return alert
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"ML prediction alert creation error: {e}", exc_info=True)
+            return None
+
+    @classmethod
+    @transaction.atomic
+    def _create_ml_fraud_ticket(cls, attendance_event, prediction, config):
+        """
+        Create ticket for high-confidence ML fraud predictions (Phase 1).
+
+        Only called for HIGH/CRITICAL risk with narrow confidence intervals.
+        Enables human-out-of-loop automation with high certainty.
+
+        Args:
+            attendance_event: PeopleEventlog instance
+            prediction: dict from PredictiveFraudDetector with confidence intervals
+            config: SecurityAnomalyConfig instance
+
+        Returns:
+            Ticket instance or None
+        """
+        from apps.y_helpdesk.models import Ticket
+        from django.conf import settings
+        from datetime import timedelta
+
+        try:
+            person = attendance_event.people
+            site = attendance_event.bu
+            fraud_probability = prediction['fraud_probability']
+            risk_level = prediction['risk_level']
+
+            # Deduplication: max 1 ML fraud ticket per person per 24h
+            dedup_hours = settings.NOC_CONFIG.get('FRAUD_DEDUPLICATION_HOURS', 24)
+            recent_cutoff = timezone.now() - timedelta(hours=dedup_hours)
+
+            from django.db.models import Q
+            existing_ticket = Ticket.objects.filter(
+                tenant=person.tenant,
+                people=person,
+                created__gte=recent_cutoff,
+                workflow_data__created_by='MLFraudDetector',
+                status__in=[Ticket.Status.NEW, Ticket.Status.PENDINGACTION]
+            ).first()
+
+            if existing_ticket:
+                logger.info(
+                    f"Skipping ML fraud ticket for {person.peoplename} "
+                    f"- existing ticket #{existing_ticket.id} within {dedup_hours}h window"
+                )
+                return None
+
+            # Ticket assignment logic
+            assigned_to = None
+            # Try to assign to site security manager
+            if site and hasattr(site, 'securitymanager') and site.securitymanager:
+                assigned_to = site.securitymanager
+            # Fallback to site manager
+            elif site and hasattr(site, 'sitesupervisor') and site.sitesupervisor:
+                assigned_to = site.sitesupervisor
+
+            # Create ticket
+            ticket = Ticket.objects.create(
+                tenant=person.tenant,
+                client=site.get_client_parent() if site else None,
+                site=site,
+                people=person,
+                subject=f"High-Confidence ML Fraud Prediction: {person.peoplename}",
+                description=(
+                    f"ML model detected high fraud probability ({fraud_probability:.1%}) "
+                    f"with high confidence (narrow prediction interval).\n\n"
+                    f"Risk Level: {risk_level}\n"
+                    f"Model Version: {prediction.get('model_version')}\n"
+                    f"Confidence Interval: [{prediction.get('prediction_lower_bound', 'N/A'):.3f}, "
+                    f"{prediction.get('prediction_upper_bound', 'N/A'):.3f}]\n"
+                    f"Interval Width: {prediction.get('confidence_interval_width', 'N/A'):.3f}\n\n"
+                    f"This ticket was auto-created due to high prediction confidence. "
+                    f"Please investigate the attendance event and take appropriate action."
+                ),
+                status=Ticket.Status.NEW,
+                priority=Ticket.Priority.HIGH,
+                source=Ticket.TicketSource.SYSTEMGENERATED,
+                assigned_to=assigned_to,
+                workflow_id='ml_fraud_investigation',
+            )
+
+            # Store workflow metadata
+            workflow = ticket.workflow_data_model or ticket
+            workflow.workflow_data.update({
+                'auto_created': True,
+                'created_by': 'MLFraudDetector',
+                'prediction': {
+                    'fraud_probability': fraud_probability,
+                    'risk_level': risk_level,
+                    'confidence_interval_width': prediction.get('confidence_interval_width'),
+                    'model_version': prediction.get('model_version'),
+                    'is_narrow_interval': prediction.get('is_narrow_interval'),
+                },
+                'person_id': person.id,
+                'person_name': person.peoplename,
+                'attendance_event_id': attendance_event.id,
+                'site_id': site.id if site else None,
+                'features': prediction.get('features', {}),
+            })
+            workflow.save(update_fields=['workflow_data'])
+
+            logger.info(
+                f"Auto-created ML fraud ticket {ticket.id} for {person.peoplename} "
+                f"(probability: {fraud_probability:.2%}, CI width: {prediction.get('confidence_interval_width', 0):.3f})"
+            )
+            return ticket
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"ML fraud ticket creation error: {e}", exc_info=True)
             return None

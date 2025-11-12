@@ -6,7 +6,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "intelliwiz_config.settings")
 django.setup()
 
 from django.contrib.auth import get_user_model
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 @pytest.fixture

@@ -7,6 +7,7 @@ import time
 import logging
 from typing import Dict, List, Any
 from .utils import timeout_check, format_check_result
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def check_sentinel_cluster_health() -> Dict[str, Any]:
 
                 cluster_info['connected_sentinels'] += 1
 
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 sentinel_status = {
                     'node': i,
                     'host': host,
@@ -110,8 +111,8 @@ def check_sentinel_cluster_health() -> Dict[str, Any]:
 
             cluster_info['replica_count'] = master_info.get('num-slaves', 0)
 
-        except Exception as e:
-            logger.error(f"Master discovery failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Master discovery failed: {e}", exc_info=True)
 
         # Determine quorum status
         if cluster_info['connected_sentinels'] >= 2:  # Majority of 3
@@ -156,7 +157,7 @@ def check_sentinel_cluster_health() -> Dict[str, Any]:
             duration_ms=(time.time() - start_time) * 1000,
         )
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Sentinel cluster health check error: {e}")
         return format_check_result(
@@ -256,7 +257,7 @@ def check_master_replica_status() -> Dict[str, Any]:
             duration_ms=duration,
         )
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Master/replica status check error: {e}")
         return format_check_result(
@@ -312,7 +313,7 @@ def check_sentinel_quorum() -> Dict[str, Any]:
                         'response': 'ok'
                     })
 
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 quorum_info['sentinel_responses'].append({
                     'node': i,
                     'host': host,
@@ -341,7 +342,7 @@ def check_sentinel_quorum() -> Dict[str, Any]:
             duration_ms=duration,
         )
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Sentinel quorum check error: {e}")
         return format_check_result(
@@ -389,8 +390,8 @@ def check_sentinel_failover_capability() -> Dict[str, Any]:
             )
             master.ping()
             failover_status['can_discover_master'] = True
-        except Exception as e:
-            logger.warning(f"Master discovery failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.warning(f"Master discovery failed: {e}", exc_info=True)
 
         # Test replica discovery
         try:
@@ -401,16 +402,16 @@ def check_sentinel_failover_capability() -> Dict[str, Any]:
             if replicas:
                 replicas.ping()
                 failover_status['can_discover_replicas'] = True
-        except Exception as e:
-            logger.warning(f"Replica discovery failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.warning(f"Replica discovery failed: {e}", exc_info=True)
 
         # Check if we have sufficient replicas for failover
         try:
             replica_list = sentinel.sentinel_slaves(sentinel_settings['service_name'])
             healthy_replicas = len([r for r in replica_list if 'down' not in r.get('flags', '')])
             failover_status['sufficient_replicas'] = healthy_replicas > 0
-        except Exception as e:
-            logger.warning(f"Replica count check failed: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.warning(f"Replica count check failed: {e}", exc_info=True)
 
         # Check quorum (from previous check)
         quorum_result = check_sentinel_quorum()
@@ -455,7 +456,7 @@ def check_sentinel_failover_capability() -> Dict[str, Any]:
             duration_ms=(time.time() - start_time) * 1000,
         )
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         duration = (time.time() - start_time) * 1000
         logger.error(f"Sentinel failover capability check error: {e}")
         return format_check_result(

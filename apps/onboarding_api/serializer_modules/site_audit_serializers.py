@@ -16,10 +16,10 @@ from rest_framework import serializers
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-from apps.onboarding.models import (
+from apps.core_onboarding.models import Observation
+from apps.site_onboarding.models import (
     OnboardingSite,
     OnboardingZone,
-    Observation,
     SitePhoto,
     Asset,
     Checkpoint,

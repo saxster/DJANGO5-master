@@ -80,6 +80,8 @@ class JournalEntryAdmin(admin.ModelAdmin):
         }),
     )
 
+    list_per_page = 50
+
     def user_display(self, obj):
         """Display user name with link to user profile"""
         return format_html(
@@ -157,6 +159,8 @@ class JournalMediaAttachmentAdmin(admin.ModelAdmin):
         'is_hero_image', 'mobile_id', 'sync_status', 'is_deleted'
     )
 
+    list_per_page = 50
+
     def journal_entry_title(self, obj):
         """Display journal entry title with link"""
         return format_html(
@@ -217,6 +221,8 @@ class JournalPrivacySettingsAdmin(admin.ModelAdmin):
             'fields': ('data_retention_days', 'auto_delete_enabled'),
         }),
     )
+
+    list_per_page = 50
 
     def user_display(self, obj):
         """Display user name with link"""

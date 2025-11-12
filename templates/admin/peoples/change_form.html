@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    {% if show_timeline_link and timeline_url %}
+    <div class="submit-row" style="margin-top: 10px;">
+        <a href="{{ timeline_url }}" class="button" style="background: #417690; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">
+            📅 View Activity Timeline
+        </a>
+    </div>
+    {% endif %}
+{% endblock %}

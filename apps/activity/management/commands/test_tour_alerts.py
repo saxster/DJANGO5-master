@@ -27,7 +27,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from apps.activity.models.job_model import Jobneed, JobneedDetails
         from apps.activity.models.question_model import Question, QuestionSet, QuestionSetBelonging
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
         from apps.peoples.models import People
         from apps.activity.models.asset_model import Asset
         from background_tasks.utils import alert_observation
@@ -36,7 +36,7 @@ class Command(BaseCommand):
         
         try:
             # Get or create test data
-            from apps.onboarding.models import TypeAssist
+            from apps.core_onboarding.models import TypeAssist
             
             # Find CLIENT and SITE TypeAssist records
             client_type = TypeAssist.objects.filter(taname='Client').first()

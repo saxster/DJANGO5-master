@@ -24,6 +24,11 @@ class PeopleEventlogSerializer(ValidatedModelSerializer):
     - Cross-field validation for attendance logic
     - Business rule validation for shift compliance
     - Timezone normalization for mobile clients
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        PeopleEventlog.objects.select_related('people', 'shift', 'verifiedby', 
+                                               'peventtype', 'bu', 'client', 
+                                               'geofence', 'post', 'post_assignment')
     """
 
     xss_protect_fields = ['remarks']

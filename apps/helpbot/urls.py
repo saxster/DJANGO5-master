@@ -6,26 +6,37 @@ for HelpBot functionality.
 """
 
 from django.urls import path, include
-from . import views
+from .views import (
+    SecurityScorecardView,
+    HelpBotChatView,
+    HelpBotFeedbackView,
+    HelpBotKnowledgeView,
+    HelpBotAnalyticsView,
+    HelpBotContextView,
+    HelpBotWidgetView,
+    helpbot_health,
+    helpbot_config,
+    HelpBotChatPageView,
+)
 
 app_name = 'helpbot'
 
 # REST API endpoints
 api_patterns = [
-    path('chat/', views.HelpBotChatView.as_view(), name='api_chat'),
-    path('feedback/', views.HelpBotFeedbackView.as_view(), name='api_feedback'),
-    path('knowledge/', views.HelpBotKnowledgeView.as_view(), name='api_knowledge'),
-    path('analytics/', views.HelpBotAnalyticsView.as_view(), name='api_analytics'),
-    path('context/', views.HelpBotContextView.as_view(), name='api_context'),
-    path('scorecard/', views.SecurityScorecardView.as_view(), name='api_scorecard'),
-    path('health/', views.helpbot_health, name='api_health'),
-    path('config/', views.helpbot_config, name='api_config'),
+    path('chat/', HelpBotChatView.as_view(), name='api_chat'),
+    path('feedback/', HelpBotFeedbackView.as_view(), name='api_feedback'),
+    path('knowledge/', HelpBotKnowledgeView.as_view(), name='api_knowledge'),
+    path('analytics/', HelpBotAnalyticsView.as_view(), name='api_analytics'),
+    path('context/', HelpBotContextView.as_view(), name='api_context'),
+    path('scorecard/', SecurityScorecardView.as_view(), name='api_scorecard'),
+    path('health/', helpbot_health, name='api_health'),
+    path('config/', helpbot_config, name='api_config'),
 ]
 
 # Traditional Django view endpoints for widget integration
 widget_patterns = [
-    path('widget/', views.HelpBotWidgetView.as_view(), name='widget'),
-    path('chat/', views.HelpBotChatPageView.as_view(), name='chat_page'),
+    path('widget/', HelpBotWidgetView.as_view(), name='widget'),
+    path('chat/', HelpBotChatPageView.as_view(), name='chat_page'),
 ]
 
 urlpatterns = [

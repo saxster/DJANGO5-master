@@ -40,7 +40,7 @@ from apps.scheduler.services.schedule_uniqueness_service import (
     BusinessLogicException,
 )
 from apps.scheduler.services.schedule_coordinator import ScheduleCoordinator
-from apps.onboarding.models import BusinessUnit
+from apps.client_onboarding.models import Bt as BusinessUnit
 from apps.activity.models import Asset
 
 

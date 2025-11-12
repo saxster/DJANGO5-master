@@ -1,0 +1,258 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .dashboard-header {
+        background: #417690;
+        color: white;
+        padding: 20px;
+        margin: -20px -20px 20px -20px;
+    }
+    .dashboard-header h1 {
+        margin: 0;
+        color: white;
+    }
+    .metric-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .metric-card h3 {
+        margin-top: 0;
+        color: #417690;
+        border-bottom: 2px solid #417690;
+        padding-bottom: 10px;
+    }
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .metric-label {
+        font-weight: bold;
+    }
+    .metric-value {
+        color: #333;
+    }
+    .metric-good { color: green; }
+    .metric-warning { color: orange; }
+    .metric-bad { color: red; }
+    .model-section {
+        border: 2px solid #417690;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 30px;
+        background: #f9f9f9;
+    }
+    .confusion-matrix {
+        display: grid;
+        grid-template-columns: 100px 150px 150px;
+        gap: 5px;
+        margin: 20px 0;
+    }
+    .confusion-cell {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: center;
+        background: white;
+    }
+    .confusion-header {
+        font-weight: bold;
+        background: #417690;
+        color: white;
+    }
+    .confusion-label {
+        font-weight: bold;
+        background: #e8e8e8;
+    }
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .stat-box {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        text-align: center;
+    }
+    .stat-box .number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #417690;
+    }
+    .stat-box .label {
+        color: #666;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>{{ title }}</h1>
+    <p>Real-time monitoring of fraud detection model performance</p>
+</div>
+
+{% if error %}
+<div class="errornote">
+    <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+{% if not dashboard_data %}
+<div class="metric-card">
+    <p>No active fraud detection models found. Train a model first using:</p>
+    <pre>python manage.py train_fraud_model --tenant=&lt;tenant_id&gt;</pre>
+</div>
+{% endif %}
+
+{% for data in dashboard_data %}
+<div class="model-section">
+    <h2>{{ data.model.tenant.name }} - {{ data.model.model_version }}</h2>
+
+    <!-- Model Metrics -->
+    <div class="metric-card">
+        <h3>Model Performance Metrics</h3>
+        <div class="metric-row">
+            <span class="metric-label">PR-AUC (Training):</span>
+            <span class="metric-value {% if data.model.pr_auc >= 0.7 %}metric-good{% elif data.model.pr_auc >= 0.5 %}metric-warning{% else %}metric-bad{% endif %}">
+                {{ data.model.pr_auc|floatformat:3 }}
+            </span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Precision @ 80% Recall:</span>
+            <span class="metric-value {% if data.model.precision_at_80_recall >= 0.5 %}metric-good{% elif data.model.precision_at_80_recall >= 0.3 %}metric-warning{% else %}metric-bad{% endif %}">
+                {{ data.model.precision_at_80_recall|floatformat:3 }}
+            </span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Optimal Threshold:</span>
+            <span class="metric-value">{{ data.model.optimal_threshold|floatformat:3 }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Training Samples:</span>
+            <span class="metric-value">{{ data.model.train_samples }} ({{ data.model.class_imbalance_ratio|floatformat:2 }}% fraud)</span>
+        </div>
+    </div>
+
+    <!-- Prediction Volume -->
+    <div class="metric-card">
+        <h3>Prediction Volume (Last 30 Days)</h3>
+        <div class="stat-grid">
+            <div class="stat-box">
+                <div class="number">{{ data.total_predictions }}</div>
+                <div class="label">Total Predictions</div>
+            </div>
+            <div class="stat-box">
+                <div class="number" style="color: red;">{{ data.high_risk_count }}</div>
+                <div class="label">High/Critical Risk</div>
+            </div>
+            <div class="stat-box">
+                <div class="number" style="color: orange;">{{ data.medium_risk_count }}</div>
+                <div class="label">Medium Risk</div>
+            </div>
+            <div class="stat-box">
+                <div class="number" style="color: green;">{{ data.low_risk_count }}</div>
+                <div class="label">Low/Minimal Risk</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production Accuracy -->
+    <div class="metric-card">
+        <h3>Production Accuracy ({{ data.predictions_with_outcomes }} predictions with outcomes)</h3>
+
+        {% if data.predictions_with_outcomes > 0 %}
+        <!-- Confusion Matrix -->
+        <div class="confusion-matrix">
+            <div class="confusion-cell"></div>
+            <div class="confusion-cell confusion-header">Predicted Fraud</div>
+            <div class="confusion-cell confusion-header">Predicted Normal</div>
+
+            <div class="confusion-cell confusion-label">Actual Fraud</div>
+            <div class="confusion-cell" style="background: #c8e6c9;">
+                <strong>{{ data.true_positives }}</strong><br>
+                <small>True Positives</small>
+            </div>
+            <div class="confusion-cell" style="background: #ffcdd2;">
+                <strong>{{ data.false_negatives }}</strong><br>
+                <small>False Negatives</small>
+            </div>
+
+            <div class="confusion-cell confusion-label">Actual Normal</div>
+            <div class="confusion-cell" style="background: #ffcdd2;">
+                <strong>{{ data.false_positives }}</strong><br>
+                <small>False Positives</small>
+            </div>
+            <div class="confusion-cell" style="background: #c8e6c9;">
+                <strong>{{ data.true_negatives }}</strong><br>
+                <small>True Negatives</small>
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="stat-grid">
+            <div class="stat-box">
+                <div class="number {% if data.accuracy >= 0.8 %}metric-good{% elif data.accuracy >= 0.6 %}metric-warning{% else %}metric-bad{% endif %}">
+                    {{ data.accuracy|floatformat:3 }}
+                </div>
+                <div class="label">Accuracy</div>
+            </div>
+            <div class="stat-box">
+                <div class="number {% if data.precision >= 0.5 %}metric-good{% elif data.precision >= 0.3 %}metric-warning{% else %}metric-bad{% endif %}">
+                    {{ data.precision|floatformat:3 }}
+                </div>
+                <div class="label">Precision</div>
+            </div>
+            <div class="stat-box">
+                <div class="number {% if data.recall >= 0.7 %}metric-good{% elif data.recall >= 0.5 %}metric-warning{% else %}metric-bad{% endif %}">
+                    {{ data.recall|floatformat:3 }}
+                </div>
+                <div class="label">Recall</div>
+            </div>
+            <div class="stat-box">
+                <div class="number {% if data.false_positive_rate <= 0.1 %}metric-good{% elif data.false_positive_rate <= 0.3 %}metric-warning{% else %}metric-bad{% endif %}">
+                    {{ data.false_positive_rate|floatformat:3 }}
+                </div>
+                <div class="label">False Positive Rate</div>
+            </div>
+        </div>
+
+        <div class="metric-row" style="margin-top: 20px;">
+            <span class="metric-label">Average Prediction Accuracy:</span>
+            <span class="metric-value {% if data.avg_prediction_accuracy >= 0.7 %}metric-good{% elif data.avg_prediction_accuracy >= 0.5 %}metric-warning{% else %}metric-bad{% endif %}">
+                {{ data.avg_prediction_accuracy|floatformat:3 }}
+            </span>
+        </div>
+
+        {% else %}
+        <p><em>No predictions with confirmed outcomes yet. Outcomes are tracked after 30 days.</em></p>
+        {% endif %}
+    </div>
+
+    <!-- Alerts -->
+    {% if data.false_positive_rate > 0.3 %}
+    <div class="metric-card" style="border-left: 4px solid red;">
+        <h3 style="color: red;">⚠️ High False Positive Rate Alert</h3>
+        <p>False positive rate is {{ data.false_positive_rate|floatformat:1 }}%, which is above the 30% threshold.</p>
+        <p><strong>Recommended Actions:</strong></p>
+        <ul>
+            <li>Review feature importance and consider adding/removing features</li>
+            <li>Adjust optimal_threshold to reduce false positives</li>
+            <li>Retrain model with more balanced data</li>
+            <li>Check for data quality issues in training set</li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% endblock %}

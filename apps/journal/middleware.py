@@ -17,7 +17,17 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError, IntegrityError, ObjectDoesNotExist
+from django.core.cache import cache
 import logging
+
+# Redis-specific exceptions for proper error handling
+from redis.exceptions import (
+    RedisError,
+    ConnectionError as RedisConnectionError,
+    TimeoutError as RedisTimeoutError
+)
 
 from .models import JournalEntry, JournalPrivacySettings
 from .privacy import JournalPrivacyManager
@@ -60,14 +70,20 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         self.get_response = get_response
         self.logger = logging.getLogger('security.journal')
         self.privacy_manager = JournalPrivacyManager()
+        self.redis_rate_limiter_ready = False
+        self._rate_limit_warning_logged = False
 
-        # In-memory rate limiting storage (in production, use Redis)
-        self.rate_limit_storage = {}
+        # Rate limiting now uses Redis via Django cache backend
+        # No in-memory storage needed - Redis handles multi-worker coordination
+
+        # Validate Redis backend on startup (Nov 2025 security requirement)
+        self._validate_redis_backend()
 
     def __call__(self, request):
         """Process request with security checks"""
         start_time = time.time()
         correlation_id = str(uuid.uuid4())
+        response = None
 
         # Add correlation ID to request for tracking
         request.correlation_id = correlation_id
@@ -95,8 +111,17 @@ class JournalSecurityMiddleware(MiddlewareMixin):
                 f"Security middleware error: {e}",
                 extra={'correlation_id': correlation_id, 'path': request.path}
             )
-            # Don't block request for middleware errors
-            return self.get_response(request)
+
+            if response is not None:
+                return response
+
+            return JsonResponse(
+                {
+                    'detail': 'Journal security controls unavailable. Please retry shortly.',
+                    'correlation_id': correlation_id
+                },
+                status=503
+            )
 
     def _is_journal_wellness_endpoint(self, path):
         """Check if path is a journal or wellness endpoint"""
@@ -108,6 +133,48 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         ]
 
         return any(path.startswith(prefix) for prefix in journal_wellness_paths)
+
+    def _validate_redis_backend(self):
+        """
+        Validate Redis backend is available for rate limiting.
+
+        Critical security requirement (Nov 2025): Journal middleware requires
+        django-redis backend for cross-worker rate limiting enforcement.
+
+        Logs warning if Redis unavailable (fail-open mode).
+        """
+        try:
+            # Attempt to get Redis client
+            redis_client = cache.client.get_client()
+
+            # Verify connection with ping
+            redis_client.ping()
+
+            self.redis_rate_limiter_ready = True
+            self.logger.info(
+                "✅ Journal rate limiting: Redis connection verified. "
+                "Cross-worker rate limits active."
+            )
+
+        except AttributeError:
+            self.redis_rate_limiter_ready = False
+            # cache.client.get_client() doesn't exist - wrong backend
+            self.logger.critical(
+                "❌ Journal rate limiting: django-redis backend NOT configured. "
+                "Current cache backend does not support Redis sorted sets. "
+                "Rate limiting will be DISABLED (fail-open mode). "
+                "SECURITY RISK: Users can bypass rate limits. "
+                "See CLAUDE.md 'Infrastructure Requirements' for setup instructions."
+            )
+
+        except (RedisError, RedisConnectionError, RedisTimeoutError, ConnectionError, Exception) as e:
+            self.redis_rate_limiter_ready = False
+            # Redis server unavailable
+            self.logger.warning(
+                f"⚠️ Journal rate limiting: Redis unavailable - {type(e).__name__}: {e}. "
+                "Rate limiting will be DISABLED (fail-open mode). "
+                "Requests will be allowed to prevent blocking legitimate users."
+            )
 
     def _apply_security_checks(self, request, correlation_id):
         """Apply comprehensive security checks"""
@@ -157,45 +224,88 @@ class JournalSecurityMiddleware(MiddlewareMixin):
         if not rate_config:
             return {'allowed': True}
 
-        # Generate rate limit key
-        rate_key = f"{request.user.id}:{endpoint}"
+        if not getattr(self, 'redis_rate_limiter_ready', False):
+            if not self._rate_limit_warning_logged:
+                self.logger.warning(
+                    "Journal rate limiting bypassed: Redis backend not ready.",
+                    extra={'correlation_id': correlation_id, 'endpoint': endpoint}
+                )
+                self._rate_limit_warning_logged = True
+            return {'allowed': True}
+
+        # Redis-based rate limiting (works across multiple workers)
+        rate_key = f"journal_rate_limit:{request.user.id}:{endpoint}"
         current_time = time.time()
         window_seconds = rate_config['window_minutes'] * 60
 
-        # Get current request count
-        user_requests = self.rate_limit_storage.get(rate_key, [])
+        try:
+            # Try to get Redis client for sorted set operations
+            redis_client = cache.client.get_client()
 
-        # Remove old requests outside window
-        user_requests = [
-            req_time for req_time in user_requests
-            if current_time - req_time < window_seconds
-        ]
+            # Add current request timestamp to sorted set
+            redis_client.zadd(rate_key, {correlation_id: current_time})
 
-        # Check if limit exceeded
-        if len(user_requests) >= rate_config['requests']:
-            self.logger.warning(
-                f"Rate limit exceeded for user {request.user.id} on {endpoint}",
-                extra={
-                    'correlation_id': correlation_id,
-                    'user_id': request.user.id,
-                    'endpoint': endpoint,
-                    'request_count': len(user_requests),
-                    'limit': rate_config['requests']
-                }
+            # Remove old entries outside the window
+            redis_client.zremrangebyscore(
+                rate_key,
+                '-inf',
+                current_time - window_seconds
             )
 
-            return {
-                'allowed': False,
-                'reason': 'rate_limit_exceeded',
-                'status_code': 429,
-                'retry_after': window_seconds
-            }
+            # Count requests in window
+            request_count = redis_client.zcard(rate_key)
 
-        # Add current request
-        user_requests.append(current_time)
-        self.rate_limit_storage[rate_key] = user_requests
+            # Set expiry to window duration (cleanup old keys)
+            redis_client.expire(rate_key, int(window_seconds))
 
-        return {'allowed': True}
+            # Check if limit exceeded
+            if request_count > rate_config['requests']:
+                self.logger.warning(
+                    f"Rate limit exceeded for user {request.user.id} on {endpoint}",
+                    extra={
+                        'correlation_id': correlation_id,
+                        'user_id': request.user.id,
+                        'endpoint': endpoint,
+                        'request_count': request_count,
+                        'limit': rate_config['requests']
+                    }
+                )
+
+                return {
+                    'allowed': False,
+                    'reason': 'rate_limit_exceeded',
+                    'status_code': 429,
+                    'retry_after': window_seconds
+                }
+
+            return {'allowed': True}
+
+        except (RedisError, RedisConnectionError, RedisTimeoutError) as e:
+            # Redis unavailable or operation failed - graceful degradation
+            # Better to allow requests than block legitimate users (fail-open)
+            self.logger.warning(
+                f"Rate limiting unavailable (Redis error: {type(e).__name__}): {e}. "
+                "Allowing request (fail-open mode).",
+                extra={
+                    'correlation_id': correlation_id,
+                    'endpoint': endpoint,
+                    'error_type': type(e).__name__
+                }
+            )
+            return {'allowed': True}
+
+        except AttributeError as e:
+            # Programming error - wrong cache backend or method doesn't exist
+            # This should fail fast in development
+            self.logger.error(
+                f"Rate limiting implementation error (AttributeError): {e}. "
+                "This indicates django-redis backend not configured or code bug. "
+                "Allowing request to prevent blocking users.",
+                exc_info=True,
+                extra={'correlation_id': correlation_id, 'endpoint': endpoint}
+            )
+            # In production, allow request; in development, you might want to raise
+            return {'allowed': True}
 
     def _check_tenant_isolation(self, request, correlation_id):
         """Check multi-tenant isolation"""
@@ -473,12 +583,21 @@ class PrivacyViolationDetectionMiddleware(MiddlewareMixin):
         violations = []
 
         # Check for cross-user data access attempts
-        if 'user_id' in request.GET and request.GET['user_id'] != str(request.user.id):
-            if not request.user.has_perm('journal.view_others_journalentry'):
+        # SECURITY FIX (IDOR-003): Validate user_id parameter
+        if 'user_id' in request.GET:
+            user_id_param = request.GET['user_id']
+            # Validate ID is numeric
+            if not user_id_param or not str(user_id_param).isdigit():
                 violations.append({
-                    'type': 'unauthorized_cross_user_access',
-                    'details': f"User {request.user.id} attempted to access data for user {request.GET['user_id']}"
+                    'type': 'invalid_user_id_parameter',
+                    'details': f"Invalid user_id parameter: {user_id_param}"
                 })
+            elif user_id_param != str(request.user.id):
+                if not request.user.has_perm('journal.view_others_journalentry'):
+                    violations.append({
+                        'type': 'unauthorized_cross_user_access',
+                        'details': f"User {request.user.id} attempted to access data for user {user_id_param}"
+                    })
 
         # Check for analytics access without consent
         if '/analytics/' in request.path:

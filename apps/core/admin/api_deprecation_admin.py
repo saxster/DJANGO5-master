@@ -15,6 +15,7 @@ from apps.core.models.api_deprecation import APIDeprecation, APIDeprecationUsage
 
 @admin.register(APIDeprecation)
 class APIDeprecationAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for managing API deprecations.
     """
@@ -127,6 +128,7 @@ class APIDeprecationAdmin(admin.ModelAdmin):
 
 @admin.register(APIDeprecationUsage)
 class APIDeprecationUsageAdmin(admin.ModelAdmin):
+    list_per_page = 50
     """
     Admin interface for viewing deprecation usage logs.
     """

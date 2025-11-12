@@ -7,6 +7,10 @@ from django.utils import timezone
 from apps.core.url_router_optimized import OptimizedURLRouter
 from apps.core.middleware.navigation_tracking import NavigationTrackingMiddleware
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 User = get_user_model()
 
 
@@ -368,7 +372,7 @@ class Command(BaseCommand):
                 'summary': self.get_summary_stats(),
                 'details': self.results
             }
-            print(json.dumps(report_data, indent=2))
+            logger.debug(json.dumps(report_data, indent=2))
         
         elif output_format == 'html':
             self.generate_html_report()

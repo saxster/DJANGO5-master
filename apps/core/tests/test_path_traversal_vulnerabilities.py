@@ -34,7 +34,7 @@ class PathTraversalUploadTests(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         self.user = User.objects.create(
             loginid='test_user',
@@ -163,6 +163,15 @@ class PathTraversalUploadTests(TestCase):
             # Should not contain dangerous characters
             for char in ['<', '>', '|', '@', '#', '$', '%', '^', '&', '*']:
                 self.assertNotIn(char, result_path, f"Unsafe character '{char}' in path: {result_path}")
+
+    def test_upload_peopleimg_errors_when_secure_service_unavailable(self):
+        """upload_peopleimg should raise when the secure service fails."""
+        with patch(
+            'apps.peoples.services.file_upload_service.SecureFileUploadService.generate_secure_upload_path',
+            side_effect=ValueError("secure path failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                upload_peopleimg(self.user, 'photo.jpg')
 
 
 class ArbitraryFileWriteTests(TestCase):
@@ -404,7 +413,7 @@ class IntegrationPathTraversalTests(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         self.user = User.objects.create(
             loginid='integration_user',

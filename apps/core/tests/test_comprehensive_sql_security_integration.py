@@ -21,7 +21,6 @@ from apps.core.services.sql_injection_scanner import SQLInjectionScanner
 from apps.core.services.secure_query_logger import secure_query_logger
 from apps.core.services.sql_injection_monitor import sql_injection_monitor
 from apps.core.services.query_sanitization_service import query_sanitizer
-from apps.mentor.storage.index_db import MentorIndexDB
 
 
 class ComprehensiveSQLSecurityTests(TestCase):
@@ -73,45 +72,7 @@ class ComprehensiveSQLSecurityTests(TestCase):
         safe_query = SecureSQL.build_safe_sqlite_count_query('files', allowed_tables)
         self.assertEqual(safe_query, "SELECT COUNT(*) as count FROM files")
 
-    def test_mentor_index_db_security_integration(self):
-        """Test MentorIndexDB security integration."""
-        db = MentorIndexDB()
-
-        # Mock database connection to avoid actual database operations
-        with patch.object(db, 'connect') as mock_connect:
-            mock_cursor = MagicMock()
-            mock_cursor.fetchone.return_value = {'count': 5}
-            mock_connect.return_value.execute.return_value = mock_cursor
-
-            # Test that stats are retrieved safely
-            stats = db.get_stats()
-
-            # Verify all allowed tables are processed
-            for table in db.ALLOWED_TABLES:
-                self.assertIn(table, stats)
-                self.assertEqual(stats[table], 5)
-
-        # Test that malicious table names are rejected at the class level
-        original_allowed = db.ALLOWED_TABLES.copy()
-
-        # Try to inject malicious table
-        try:
-            db.ALLOWED_TABLES.add("files'; DROP TABLE symbols--")
-
-            with patch.object(db, 'connect') as mock_connect:
-                mock_cursor = MagicMock()
-                mock_cursor.fetchone.return_value = {'count': 0}
-                mock_connect.return_value.execute.return_value = mock_cursor
-
-                # This should handle the malicious table safely
-                stats = db.get_stats()
-
-                # Malicious table should result in 0 count due to error handling
-                self.assertEqual(stats.get("files'; DROP TABLE symbols--", 0), 0)
-
-        finally:
-            # Restore original allowed tables
-            db.ALLOWED_TABLES = original_allowed
+    # test_mentor_index_db_security_integration removed - mentor module deleted in Phase 5
 
     def test_sql_injection_scanner_integration(self):
         """Test SQL injection scanner integration."""
@@ -291,7 +252,7 @@ def another_vulnerable():
                 for indicator in sql_indicators:
                     self.assertNotIn(indicator, content)
 
-            except Exception:
+            except (ValueError, TypeError, AttributeError, KeyError):
                 # Some endpoints might not exist in test environment
                 pass
 

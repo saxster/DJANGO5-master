@@ -12,6 +12,12 @@ class WomSerializers(ValidatedModelSerializer):
     Secure Work Order Management serializer with comprehensive validation.
 
     Compliance with Rule #13: Form Validation Requirements
+    
+    N+1 Query Optimization: ViewSets should use optimized queryset:
+        Wom.objects.select_related('asset', 'location', 'qset', 'vendor', 
+                                    'parent', 'ticketcategory', 'bu', 'client', 
+                                    'cuser', 'muser', 'performedby')
+                   .prefetch_related('categories')
     """
 
     xss_protect_fields = ['description']
@@ -95,6 +101,9 @@ class WomSerializers(ValidatedModelSerializer):
 class WomDetailsSerializers(ValidatedModelSerializer):
     """
     Secure Work Order Details serializer with comprehensive validation.
+    
+    N+1 Optimization: Use with queryset optimized via:
+        WomDetails.objects.select_related('wom', 'question', 'qset', 'cuser', 'muser')
     """
 
     class Meta:

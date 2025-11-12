@@ -28,6 +28,7 @@ from django.utils import timezone
 
 from apps.core.json_utils import safe_json_parse_params
 from apps.peoples.models import Pgbelonging
+from apps.tenants.managers import TenantAwareManager
 
 # Import advanced caching service
 from ..services.ticket_cache_service import (
@@ -443,7 +444,7 @@ class OptimizedTicketManagerMixin:
 
 
 # Patch the existing TicketManager with optimized methods
-class OptimizedTicketManager(models.Manager, OptimizedTicketManagerMixin):
+class OptimizedTicketManager(OptimizedTicketManagerMixin, TenantAwareManager):
     """Manager providing optimized query methods for Ticket model."""
 
     def __init__(self):

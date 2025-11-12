@@ -34,12 +34,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.onboarding.models import (
-    OnboardingSite,
-    SOP,
-    CoveragePlan,
+from apps.client_onboarding.models import (
+    from apps.core.exceptions.patterns import CELERY_EXCEPTIONS,
+    from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+)
+from apps.core_onboarding.models import (
     ConversationSession,
     LLMRecommendation
+)
+from apps.site_onboarding.models import (
+    OnboardingSite,
+    SOP,
+    CoveragePlan
 )
 
 from ...serializer_modules.site_audit_serializers import (
@@ -52,8 +58,8 @@ from ...serializer_modules.site_audit_serializers import (
 from apps.onboarding_api.services.sop_generator import SOPGeneratorService
 from apps.onboarding_api.services.site_coverage import get_coverage_planner_service
 from apps.onboarding_api.services.reporting import get_reporting_service
-from apps.onboarding_api.services.llm import get_llm_service, get_checker_service, get_consensus_engine
-from apps.onboarding_api.services.knowledge import get_knowledge_service
+from apps.core_onboarding.services.llm import get_llm_service, get_checker_service, get_consensus_engine
+from apps.core_onboarding.services.knowledge import get_knowledge_service
 from apps.core.utils_new.db_utils import get_current_db_name
 
 logger = logging.getLogger(__name__)
@@ -95,7 +101,7 @@ class AuditAnalysisView(APIView):
                 {'error': 'Audit session not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except CELERY_EXCEPTIONS as e:
             logger.error(f"Analysis failed: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Analysis failed'},
@@ -389,7 +395,7 @@ class AuditReportView(APIView):
                 {'error': 'Audit session not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Report generation failed: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Report generation failed'},

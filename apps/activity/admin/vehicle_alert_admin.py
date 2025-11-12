@@ -86,6 +86,8 @@ class VehicleSecurityAlertAdmin(IntelliWizModelAdmin):
         'mark_resolved',
     ]
 
+    list_per_page = 50
+
     @admin.display(description="License Plate", ordering="vehicle_entry__license_plate")
     def vehicle_entry_license(self, obj):
         """Display vehicle license plate with link to entry."""

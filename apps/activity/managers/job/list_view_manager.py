@@ -29,9 +29,21 @@ Usage:
 """
 
 from .base import (
-    models, Q, F, V, Count, Case, When, Concat, Cast,
-    datetime, timedelta, timezone,
-    logger, json, utils,
+    models,
+    Q,
+    F,
+    V,
+    Count,
+    Case,
+    When,
+    Concat,
+    Cast,
+    datetime,
+    timedelta,
+    timezone,
+    logger,
+    json,
+    utils,
 )
 from django.contrib.gis.db.models.functions import AsGeoJSON
 
@@ -43,6 +55,15 @@ class ListViewManager(models.Manager):
     Provides optimized queries for list views with pagination,
     filtering, and sorting. Supports DataTables integration.
     """
+
+    def _validate_parent_id(self, parent_id):
+        """SECURITY: Validate parent_id parameter"""
+        if not parent_id:
+            raise ValueError("parent_id parameter is required")
+        try:
+            return int(parent_id)
+        except (ValueError, TypeError):
+            raise ValueError("Invalid parent_id parameter")
 
     def get_adhoctasks_listview(self, R, task=True):
         """
@@ -182,7 +203,7 @@ class ListViewManager(models.Manager):
             # Map ASSIGNED to PENDING for database query (since database uses PENDING but dashboard shows ASSIGNED)
             status_filter = 'PENDING' if P['jobstatus'] == 'ASSIGNED' else P['jobstatus']
             qobjs = qobjs.filter(jobstatus=status_filter)
-            print(f"[TASK LIST DEBUG] After status filter '{status_filter}': {qobjs.count()} records")
+            logger.debug(f"[TASK LIST DEBUG] After status filter '{status_filter}': {qobjs.count()} records")
 
         if P.get('alerts') and P.get('alerts') == 'TASK':
             qobjs = qobjs.filter(alerts=True)
@@ -203,7 +224,7 @@ class ListViewManager(models.Manager):
             QuerySet of asset maintenance jobneeds
 
         Example:
-            # apps/activity/views/asset_views.py:
+            # apps/activity/views/asset/:
             maintenance = Jobneed.objects.get_assetmaintainance_list(
                 request=request,
                 related=['asset', 'performedby', 'bu'],
@@ -439,7 +460,7 @@ class ListViewManager(models.Manager):
             # apps/scheduler/views/internal_tour_views.py:
             checkpoints = Jobneed.objects.get_tourdetails(request.GET)
             for cp in checkpoints:
-                print(f"Checkpoint: {cp['asset__assetname']}, Attachments: {cp['attachmentcount']}")
+                logger.debug(f"Checkpoint: {cp['asset__assetname']}, Attachments: {cp['attachmentcount']}")
         """
         qset = self.annotate(gps=AsGeoJSON('gpslocation')).select_related(
             'parent', 'asset', 'qset', 'performedby', 'bu').filter(parent_id=R['parent_id']).values(
@@ -595,11 +616,11 @@ class ListViewManager(models.Manager):
             gps=AsGeoJSON('gpslocation'),
             bu__gpslocation=AsGeoJSON('bu__gpslocation'),
             duration=V(None, output_field=models.CharField(null=True))).select_related(*related).filter(
-            parent_id=request.GET['parent_id'],
+            parent_id=self._validate_parent_id(request.GET.get('parent_id')),
             identifier='EXTERNALTOUR',
             job__enable=True
         ).order_by('seqno').values(*fields)
-        # print('External Tour',qset)
+        logger.debug('External Tour queryset: %s', qset)
         return qset or self.none()
 
 

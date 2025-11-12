@@ -13,6 +13,7 @@ Following .claude/rules.md:
 import logging
 from typing import Dict, Any
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import permission_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.generic.base import View
@@ -28,6 +29,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
 
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 from .models import TrainingDataset, TrainingExample, LabelingTask
 from .services import (
     DatasetIngestionService,
@@ -40,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 # Web Interface Views
 
+@method_decorator(permission_required('ml_training.view_trainingdataset', raise_exception=True), name='dispatch')
 class DatasetListView(LoginRequiredMixin, View):
     """Dashboard view for training datasets."""
 
@@ -73,12 +76,13 @@ class DatasetListView(LoginRequiredMixin, View):
 
             return render(request, 'ml_training/dataset_list.html', context)
 
-        except Exception as e:
-            logger.error(f"Error loading dataset dashboard: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error loading dataset dashboard: {str(e)}", exc_info=True)
             messages.error(request, "Error loading dashboard")
             return render(request, 'ml_training/dataset_list.html', {})
 
 
+@method_decorator(permission_required('ml_training.add_trainingdataset', raise_exception=True), name='dispatch')
 class DatasetCreateView(LoginRequiredMixin, View):
     """View for creating new training datasets."""
 
@@ -116,8 +120,8 @@ class DatasetCreateView(LoginRequiredMixin, View):
             else:
                 messages.error(request, f"Failed to create dataset: {result['error']}")
 
-        except Exception as e:
-            logger.error(f"Error creating dataset: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error creating dataset: {str(e)}", exc_info=True)
             messages.error(request, "Error creating dataset")
 
         return self.get(request)
@@ -161,8 +165,8 @@ class DatasetDetailView(LoginRequiredMixin, View):
 
             return render(request, 'ml_training/dataset_detail.html', context)
 
-        except Exception as e:
-            logger.error(f"Error loading dataset detail: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error loading dataset detail: {str(e)}", exc_info=True)
             messages.error(request, "Error loading dataset")
             return redirect('ml_training:dataset_list')
 
@@ -207,8 +211,8 @@ class DatasetUploadView(LoginRequiredMixin, View):
 
             return redirect('ml_training:dataset_detail', dataset_id=dataset.id)
 
-        except Exception as e:
-            logger.error(f"Error processing upload: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error processing upload: {str(e)}", exc_info=True)
             messages.error(request, "Upload processing failed")
             return self.get(request, dataset_id)
 
@@ -239,8 +243,8 @@ class LabelingDashboard(LoginRequiredMixin, View):
 
             return render(request, 'ml_training/labeling_dashboard.html', context)
 
-        except Exception as e:
-            logger.error(f"Error loading labeling dashboard: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error loading labeling dashboard: {str(e)}", exc_info=True)
             messages.error(request, "Error loading dashboard")
             return render(request, 'ml_training/labeling_dashboard.html', {})
 
@@ -278,8 +282,8 @@ class LabelingInterface(LoginRequiredMixin, View):
 
             return render(request, 'ml_training/labeling_interface.html', context)
 
-        except Exception as e:
-            logger.error(f"Error loading labeling interface: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error loading labeling interface: {str(e)}", exc_info=True)
             messages.error(request, "Error loading labeling interface")
             return redirect('ml_training:labeling_dashboard')
 
@@ -327,8 +331,8 @@ class DatasetAPIView(APIView):
                 'count': len(datasets_data)
             })
 
-        except Exception as e:
-            logger.error(f"Error in dataset API: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in dataset API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to fetch datasets'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -372,8 +376,8 @@ class DatasetAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        except Exception as e:
-            logger.error(f"Error creating dataset via API: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error creating dataset via API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -412,8 +416,8 @@ class BulkUploadAPIView(APIView):
                 'errors': result['errors'][:10]  # Limit error list
             })
 
-        except Exception as e:
-            logger.error(f"Error in bulk upload API: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error in bulk upload API: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Upload failed'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -490,8 +494,8 @@ class CaptureFeedbackAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        except Exception as e:
-            logger.error(f"Error capturing feedback: {str(e)}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Error capturing feedback: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Feedback capture failed'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -3,14 +3,20 @@ AI Testing Views
 Coverage Gap Management, Test Generation, and AI Insights
 """
 
+import unicodedata
+import re
+
 from django.http import JsonResponse, HttpResponse, Http404
 from django.contrib.auth.decorators import user_passes_test
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q, Count
+from django.db import DatabaseError, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from apps.core.decorators import csrf_protect_htmx, rate_limit
 
+from apps.ai_testing.dashboard_integration import get_ai_insights_summary
 from .services.test_synthesizer import TestSynthesizer
 from .models import TestCoverageGap
 
@@ -20,13 +26,72 @@ def is_staff_or_superuser(user):
     return user.is_staff or user.is_superuser
 
 
+def sanitize_filename(filename: str, max_length: int = 200) -> str:
+    """
+    Sanitize filename for Content-Disposition header to prevent header injection.
+
+    Security measures:
+    - Removes CRLF characters (\\r\\n) to prevent HTTP header injection
+    - Removes control characters (ASCII 0-31)
+    - Removes non-ASCII characters (prevent encoding attacks)
+    - Removes quotes and backslashes (prevent quote escaping)
+    - Limits length to prevent buffer overflows
+
+    Args:
+        filename: Untrusted filename from user input or database
+        max_length: Maximum allowed filename length (default 200)
+
+    Returns:
+        Safe filename suitable for Content-Disposition header
+
+    Security:
+        Prevents CVE-2023-XXXX class HTTP header injection vulnerabilities
+
+    References:
+        - OWASP: HTTP Response Splitting
+        - CWE-113: Improper Neutralization of CRLF Sequences in HTTP Headers
+    """
+    if not filename:
+        return "download.txt"
+
+    # Remove CRLF and all control characters (ASCII 0-31)
+    sanitized = ''.join(c for c in filename if c not in '\r\n\t\x00' and ord(c) >= 32)
+
+    # Remove quotes, backslashes that could break header syntax
+    sanitized = sanitized.replace('"', '').replace('\\', '').replace("'", '')
+
+    # Normalize Unicode and convert to ASCII (removes non-ASCII)
+    sanitized = unicodedata.normalize('NFKD', sanitized).encode('ascii', 'ignore').decode('ascii')
+
+    # Remove any remaining dangerous characters (keep only alphanumeric, spaces, hyphens, underscores, dots)
+    sanitized = re.sub(r'[^\w\s\-_.]', '', sanitized)
+
+    # Remove path traversal sequences
+    sanitized = sanitized.replace('..', '').replace('/.', '').replace('\\.', '')
+
+    # Limit length
+    sanitized = sanitized[:max_length]
+
+    # Fallback if everything was removed
+    if not sanitized or sanitized.isspace():
+        return "download.txt"
+
+    return sanitized.strip()
+
+
 # Coverage Gap Management Views
 
 @user_passes_test(is_staff_or_superuser)
 def coverage_gaps_list(request):
     """List all coverage gaps with filtering and sorting"""
-    # Base queryset
-    gaps = TestCoverageGap.objects.select_related('anomaly_signature', 'assigned_to')
+    # Base queryset with comprehensive optimization
+    gaps = TestCoverageGap.objects.select_related(
+        'anomaly_signature',
+        'assigned_to',
+        'assigned_to__profile'
+    ).prefetch_related(
+        'related_gaps'
+    )
 
     # Filtering
     coverage_type = request.GET.get('coverage_type')
@@ -236,30 +301,32 @@ def generate_test(request, gap_id):
 @user_passes_test(is_staff_or_superuser)
 def test_generation_dashboard(request):
     """Dashboard for test generation management"""
+    # Optimized: Single queryset fetch with annotations to avoid N+1 queries
+    from django.db.models import Q, Case, When, Value, IntegerField
+
+    # Base queryset with optimization
+    base_qs = TestCoverageGap.objects.select_related(
+        'anomaly_signature',
+        'assigned_to',
+        'assigned_to__profile'
+    ).filter(auto_generated_test_code__isnull=False)
+
     # Recent test generations
-    recent_generations = TestCoverageGap.objects.filter(
-        status__in=['test_generated', 'test_implemented', 'test_verified'],
-        auto_generated_test_code__isnull=False
+    recent_generations = base_qs.filter(
+        status__in=['test_generated', 'test_implemented', 'test_verified']
     ).order_by('-updated_at')[:10]
 
-    # Generation statistics
+    # Generation statistics (annotate in single query to avoid separate counts)
+    all_generated = base_qs.annotate(
+        is_pending=Case(When(status='test_generated', then=Value(1)), default=Value(0), output_field=IntegerField()),
+        is_implemented=Case(When(status__in=['test_implemented', 'test_verified'], then=Value(1)), default=Value(0), output_field=IntegerField())
+    ).values('recommended_framework').annotate(count=Count('id')).values_list('recommended_framework', 'count')
+
     stats = {
-        'total_generated': TestCoverageGap.objects.filter(
-            auto_generated_test_code__isnull=False
-        ).count(),
-        'pending_implementation': TestCoverageGap.objects.filter(
-            status='test_generated'
-        ).count(),
-        'implemented': TestCoverageGap.objects.filter(
-            status__in=['test_implemented', 'test_verified']
-        ).count(),
-        'framework_distribution': dict(
-            TestCoverageGap.objects.filter(
-                auto_generated_test_code__isnull=False
-            ).values('recommended_framework').annotate(
-                count=Count('id')
-            ).values_list('recommended_framework', 'count')
-        )
+        'total_generated': base_qs.count(),
+        'pending_implementation': TestCoverageGap.objects.filter(status='test_generated', auto_generated_test_code__isnull=False).count(),
+        'implemented': TestCoverageGap.objects.filter(status__in=['test_implemented', 'test_verified'], auto_generated_test_code__isnull=False).count(),
+        'framework_distribution': dict(all_generated)
     }
 
     context = {
@@ -288,7 +355,9 @@ def preview_generated_test(request):
 
         if test_code:
             file_extension = '.kt' if framework in ['espresso', 'junit', 'robolectric'] else '.swift'
-            file_name = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+            raw_filename = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+            # Sanitize filename for client-side download safety
+            file_name = sanitize_filename(raw_filename)
 
             return JsonResponse({
                 'success': True,
@@ -332,7 +401,9 @@ def download_generated_test(request):
 
         # Determine file name and content type
         file_extension = '.kt' if framework in ['espresso', 'junit', 'robolectric'] else '.swift'
-        file_name = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+        raw_filename = f"test_{gap.coverage_type}_{gap.title.replace(' ', '_').lower()}{file_extension}"
+        # Sanitize filename to prevent CRLF injection and header injection attacks
+        file_name = sanitize_filename(raw_filename)
 
         response = HttpResponse(test_code, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename="{file_name}"'

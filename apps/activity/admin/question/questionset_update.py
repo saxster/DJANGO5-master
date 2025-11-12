@@ -20,7 +20,8 @@ from import_export import fields, resources
 from import_export import widgets as wg
 
 from apps.activity.models.question_model import QuestionSet
-import apps.onboarding.models as om
+from apps.client_onboarding.models import Bt, Shift
+from apps.core_onboarding.models import TypeAssist, GeofenceMaster, Bu
 from apps.core import utils
 
 from .base import (
@@ -35,14 +36,14 @@ class QuestionSetResourceUpdate(resources.ModelResource):
     CLIENT = fields.Field(
         column_name="Client",
         attribute="client",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 
     BV = fields.Field(
         column_name="Site",
         attribute="bu",
-        widget=wg.ForeignKeyWidget(om.Bt, "bucode"),
+        widget=wg.ForeignKeyWidget(Bt, "bucode"),
         default=get_or_create_none_bv,
     )
 

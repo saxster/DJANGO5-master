@@ -12,7 +12,7 @@ from django.test import TestCase
 
 from apps.tenants.models import Tenant
 from apps.peoples.models import People
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 
 
 @pytest.mark.django_db

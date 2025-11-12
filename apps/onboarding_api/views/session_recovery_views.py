@@ -23,6 +23,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from apps.onboarding_api.services.session_recovery import (
+from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS
+
     get_session_recovery_service,
     CheckpointNotFoundError
 )
@@ -104,7 +106,7 @@ class SessionCheckpointView(APIView):
     def _verify_session_ownership(self, session_id: str, user_id: int) -> bool:
         """Verify user owns the session"""
         try:
-            from apps.onboarding.models import ConversationSession
+            from apps.core_onboarding.models import ConversationSession
             session = ConversationSession.objects.get(session_id=session_id)
             return session.user_id == user_id
         except ConversationSession.DoesNotExist:
@@ -234,7 +236,7 @@ class SessionCheckpointHistoryView(APIView):
     def _verify_session_ownership(self, session_id: str, user_id: int) -> bool:
         """Verify user owns the session"""
         try:
-            from apps.onboarding.models import ConversationSession
+            from apps.core_onboarding.models import ConversationSession
             session = ConversationSession.objects.get(session_id=session_id)
             return session.user_id == user_id
         except ConversationSession.DoesNotExist:
@@ -297,7 +299,7 @@ class AbandonmentRiskView(APIView):
 
             return Response(risk_assessment)
 
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Error getting risk assessment: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to assess risk'},
@@ -307,7 +309,7 @@ class AbandonmentRiskView(APIView):
     def _verify_session_ownership(self, session_id: str, user_id: int) -> bool:
         """Verify user owns the session"""
         try:
-            from apps.onboarding.models import ConversationSession
+            from apps.core_onboarding.models import ConversationSession
             session = ConversationSession.objects.get(session_id=session_id)
             return session.user_id == user_id
         except ConversationSession.DoesNotExist:
@@ -382,7 +384,7 @@ class AtRiskSessionsView(APIView):
                 {'error': 'Invalid query parameters', 'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:
+        except NETWORK_EXCEPTIONS as e:
             logger.error(f"Error getting at-risk sessions: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Failed to retrieve at-risk sessions'},

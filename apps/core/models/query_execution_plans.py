@@ -25,6 +25,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 
 class QueryExecutionPlan(models.Model):
@@ -179,7 +180,7 @@ class QueryExecutionPlan(models.Model):
             normalized_plan = self._normalize_plan_structure(self.execution_plan)
             plan_string = json.dumps(normalized_plan, sort_keys=True)
             return hashlib.sha256(plan_string.encode()).hexdigest()
-        except Exception:
+        except DATABASE_EXCEPTIONS:
             # Fallback to simple hash if normalization fails
             plan_string = json.dumps(self.execution_plan, sort_keys=True)
             return hashlib.sha256(plan_string.encode()).hexdigest()
@@ -237,7 +238,7 @@ class QueryExecutionPlan(models.Model):
 
             return " | ".join(summary_parts)
 
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             return f"Error generating summary: {str(e)}"
 
     @property

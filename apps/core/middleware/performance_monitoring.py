@@ -27,6 +27,7 @@ from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.core.utils_new.sql_security import QueryValidator
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR, SECONDS_IN_DAY
 
 
 logger = logging.getLogger(__name__)
@@ -218,7 +219,7 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
         try:
             # Store individual request metrics
             cache_key = f"perf_request_{metrics['request_id']}"
-            cache.set(cache_key, metrics, timeout=3600)  # 1 hour
+            cache.set(cache_key, metrics, timeout=SECONDS_IN_HOUR)  # 1 hour
 
             # Update aggregated statistics
             self._update_performance_stats(metrics)
@@ -284,7 +285,7 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
             }
 
             # Update cache
-            cache.set(self.PERFORMANCE_STATS_KEY, stats, timeout=86400)  # 24 hours
+            cache.set(self.PERFORMANCE_STATS_KEY, stats, timeout=SECONDS_IN_DAY)  # 24 hours
 
         except (ConnectionError, ValueError) as e:
             logger.error(f"Failed to update performance stats: {str(e)}")
@@ -312,7 +313,7 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
             # Keep only last 100 slow requests
             slow_requests = slow_requests[-100:]
 
-            cache.set(self.SLOW_REQUESTS_KEY, slow_requests, timeout=86400)
+            cache.set(self.SLOW_REQUESTS_KEY, slow_requests, timeout=SECONDS_IN_DAY)
 
         except (ConnectionError, ValueError) as e:
             logger.error(f"Failed to store slow request: {str(e)}")
@@ -364,7 +365,7 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
             # Keep only last 50 alerts
             current_alerts = current_alerts[-50:]
 
-            cache.set(self.PERFORMANCE_ALERTS_KEY, current_alerts, timeout=86400)
+            cache.set(self.PERFORMANCE_ALERTS_KEY, current_alerts, timeout=SECONDS_IN_DAY)
 
             # Log critical alerts
             for alert in alerts:

@@ -133,7 +133,7 @@ class TestCorrelationIDMiddleware(TestCase):
         # Should not raise exception
         try:
             middleware.process_request(request)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             self.fail(f"process_request raised {e}")
 
         self.assertTrue(hasattr(request, 'correlation_id'))

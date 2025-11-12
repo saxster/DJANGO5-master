@@ -1,0 +1,257 @@
+{% load static %}
+{# Quick Action Manual Checklist #}
+
+<div class="checklist-container p-4">
+    <div class="checklist-header mb-4">
+        <h3 class="mb-3">⚡ {{ execution.quick_action.name }}</h3>
+        <p class="text-muted">Complete these steps to finish the action</p>
+        
+        {# Progress Bar #}
+        <div class="progress" style="height: 30px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                 id="checklist-progress"
+                 role="progressbar"
+                 style="width: {{ checklist.completion_percentage }}%"
+                 aria-valuenow="{{ checklist.completion_percentage }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+                {{ checklist.completion_percentage|floatformat:0 }}%
+            </div>
+        </div>
+    </div>
+    
+    {# Automated Steps Results (Read-only) #}
+    {% if execution.automated_results %}
+    <div class="automated-results mb-4 p-3 bg-light rounded">
+        <h5 class="text-success">✅ Automated Steps Completed:</h5>
+        <ul class="list-unstyled mt-3">
+            {% for result in execution.automated_results %}
+            <li class="mb-2">
+                {% if result.status == 'Done ✓' %}
+                    <i class="fas fa-check-circle text-success"></i>
+                {% else %}
+                    <i class="fas fa-times-circle text-danger"></i>
+                {% endif %}
+                {{ result.step }}
+                <small class="text-muted d-block ml-4">{{ result.details }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {# Manual Steps Checklist #}
+    <div class="manual-steps">
+        <h5 class="text-primary mb-3">👤 Your Tasks:</h5>
+        
+        {% for step in checklist.steps %}
+        <div class="checklist-item card mb-3 {% if step.completed %}completed{% endif %}"
+             data-step-index="{{ forloop.counter0 }}">
+            <div class="card-body">
+                <div class="form-check">
+                    <input type="checkbox"
+                           class="form-check-input step-checkbox"
+                           id="step-{{ forloop.counter0 }}"
+                           data-step-index="{{ forloop.counter0 }}"
+                           {% if step.completed %}checked{% endif %}
+                           onchange="toggleStepCompletion({{ checklist.id }}, {{ forloop.counter0 }})">
+                    <label class="form-check-label" for="step-{{ forloop.counter0 }}">
+                        <strong>{{ forloop.counter }}. {{ step.instruction }}</strong>
+                    </label>
+                </div>
+                
+                {# Photo Upload #}
+                {% if step.needs_photo %}
+                <div class="mt-3 photo-section">
+                    {% if step.photo_url %}
+                        <div class="uploaded-photo">
+                            <img src="{{ step.photo_url }}" 
+                                 class="img-thumbnail" 
+                                 style="max-width: 200px;">
+                        </div>
+                    {% else %}
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                onclick="$('#photo-upload-{{ forloop.counter0 }}').click()">
+                            📷 Add Photo
+                        </button>
+                        <input type="file"
+                               id="photo-upload-{{ forloop.counter0 }}"
+                               class="d-none"
+                               accept="image/*"
+                               data-step-index="{{ forloop.counter0 }}"
+                               onchange="uploadStepPhoto({{ checklist.id }}, {{ forloop.counter0 }}, this.files[0])">
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {# Note Field #}
+                {% if step.needs_note %}
+                <div class="mt-3 note-section">
+                    <textarea class="form-control"
+                              id="note-{{ forloop.counter0 }}"
+                              rows="3"
+                              placeholder="Add your notes here..."
+                              data-step-index="{{ forloop.counter0 }}"
+                              onblur="saveStepNote({{ checklist.id }}, {{ forloop.counter0 }}, this.value)">{{ step.note|default:'' }}</textarea>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {# Completion Button #}
+    <div class="completion-actions mt-4">
+        {% if checklist.completion_percentage == 100 %}
+        <div class="alert alert-success">
+            <h4>🎉 Great job! All steps completed!</h4>
+            <p>The quick action has been finished successfully.</p>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <strong>Note:</strong> Complete all required steps to finish this action.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.checklist-item.completed {
+    background-color: #f0f9ff;
+    border-left: 4px solid #10b981;
+}
+
+.checklist-item .card-body {
+    padding: 1.25rem;
+}
+
+.step-checkbox {
+    transform: scale(1.3);
+    margin-right: 0.5rem;
+}
+
+.uploaded-photo {
+    margin-top: 0.5rem;
+}
+
+.progress {
+    margin-bottom: 1rem;
+}
+
+.progress-bar {
+    font-size: 1rem;
+    font-weight: bold;
+}
+</style>
+
+<script>
+function toggleStepCompletion(checklistId, stepIndex) {
+    const checkbox = document.getElementById('step-' + stepIndex);
+    const isCompleted = checkbox.checked;
+    
+    // Call API to update step completion
+    fetch(`/api/quick-actions/checklist/${checklistId}/step/${stepIndex}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            completed: isCompleted
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateProgress(data.completion_percentage);
+            
+            if (data.all_completed) {
+                showSuccessMessage();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error updating step:', error);
+        checkbox.checked = !isCompleted; // Revert on error
+    });
+}
+
+function uploadStepPhoto(checklistId, stepIndex, file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('step_index', stepIndex);
+    
+    fetch(`/api/quick-actions/checklist/${checklistId}/upload-photo/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Refresh to show uploaded photo
+        }
+    })
+    .catch(error => {
+        console.error('Error uploading photo:', error);
+        alert('Failed to upload photo. Please try again.');
+    });
+}
+
+function saveStepNote(checklistId, stepIndex, note) {
+    fetch(`/api/quick-actions/checklist/${checklistId}/step/${stepIndex}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            note: note
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Note saved successfully');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving note:', error);
+    });
+}
+
+function updateProgress(percentage) {
+    const progressBar = document.getElementById('checklist-progress');
+    progressBar.style.width = percentage + '%';
+    progressBar.setAttribute('aria-valuenow', percentage);
+    progressBar.textContent = Math.round(percentage) + '%';
+}
+
+function showSuccessMessage() {
+    const container = document.querySelector('.completion-actions');
+    container.innerHTML = `
+        <div class="alert alert-success">
+            <h4>🎉 Great job! All steps completed!</h4>
+            <p>The quick action has been finished successfully.</p>
+        </div>
+    `;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>

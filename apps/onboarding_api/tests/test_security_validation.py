@@ -11,7 +11,8 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from apps.onboarding.models import Bt, ConversationSession
+from apps.client_onboarding.models import Bt
+from apps.core_onboarding.models import ConversationSession
 from apps.onboarding_api.utils.security import (
     TenantScopeValidator,
     IdempotencyManager,

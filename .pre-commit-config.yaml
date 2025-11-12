@@ -1,37 +1,12 @@
-# Pre-commit hooks configuration for AI Mentor integration
+# Pre-commit hooks configuration
 # See https://pre-commit.com for more information
 
 repos:
-  # AI Mentor System Hooks
+  # Local validation hooks
   - repo: local
     hooks:
-      - id: mentor-guard-validation
-        name: AI Mentor Guard Validation
-        entry: python manage.py mentor_guard --validate
-        language: system
-        files: '\.py$'
-        stages: [commit]
-
-      - id: mentor-security-scan
-        name: AI Mentor Security Scan
-        entry: python manage.py mentor_security_scan --quick
-        language: system
-        files: '\.py$'
-        stages: [commit]
-
-      - id: mentor-quality-check
-        name: AI Mentor Quality Check
-        entry: python manage.py mentor_quality_check --threshold 7.0
-        language: system
-        files: '\.py$'
-        stages: [commit]
-
-      - id: mentor-secret-scan
-        name: AI Mentor Secret Scanner
-        entry: python manage.py mentor_secret_scan
-        language: system
-        files: '\.(py|js|jsx|ts|tsx|json|yaml|yml|env)$'
-        stages: [commit]
+      # NOTE: AI Mentor hooks removed (apps.mentor moved to separate service - Nov 1, 2025)
+      # Removed hooks: mentor-guard-validation, mentor-security-scan, mentor-quality-check, mentor-secret-scan
 
       # GITLEAKS SECRET SCANNER (Industry-standard)
       - id: gitleaks-protect
@@ -186,6 +161,69 @@ if violations:
         language: system
         files: '^apps/.*\.py$'
         exclude: '(migrations|tests)'
+
+      # COMPREHENSIVE FILE SIZE LIMITS
+      - id: file-size-validation
+        name: File Size Limits (Architecture Rules)
+        entry: python scripts/check_file_sizes.py --pre-commit
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+
+      # CYCLOMATIC COMPLEXITY VALIDATION
+      - id: cyclomatic-complexity-check
+        name: Cyclomatic Complexity Check (max 10 per method)
+        entry: python -c "
+import sys, ast, re
+violations = []
+for filepath in sys.argv[1:]:
+    if not filepath.endswith('.py') or 'migrations' in filepath or 'test_' in filepath: continue
+    try:
+        with open(filepath, 'r') as f:
+            content = f.read()
+        tree = ast.parse(content, filename=filepath)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                # Simple complexity metric: count decision points
+                complexity = 1  # Base complexity
+                for child in ast.walk(node):
+                    if isinstance(child, (ast.If, ast.While, ast.For, ast.AsyncFor,
+                                         ast.ExceptHandler, ast.With, ast.AsyncWith,
+                                         ast.BoolOp)):
+                        complexity += 1
+                if complexity > 10:
+                    violations.append(f'{filepath}:{node.lineno}: Method {node.name} has complexity {complexity} (max: 10)')
+    except Exception:
+        pass
+if violations:
+    print('Cyclomatic complexity violations found:')
+    for v in violations[:20]: print(f'  {v}')
+    if len(violations) > 20: print(f'  ... and {len(violations)-20} more')
+    print('Refactor complex methods into smaller, focused functions')
+    sys.exit(1)
+"
+        language: system
+        files: '^apps/.*\.py$'
+        exclude: '(migrations|tests)'
+
+      # NETWORK TIMEOUT VALIDATION
+      - id: network-timeout-validation
+        name: Network Timeout Validation (requests must have timeout)
+        entry: python scripts/check_network_timeouts.py --pre-commit
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+
+      # CIRCULAR DEPENDENCY DETECTION
+      - id: circular-dependency-check
+        name: Circular Dependency Detection
+        entry: python scripts/check_circular_deps.py --pre-commit
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
 
       # IMPORT ORGANIZATION VALIDATION HOOKS
       - id: import-validation

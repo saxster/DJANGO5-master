@@ -21,7 +21,7 @@ from django.db.models.signals import post_save, pre_delete
 from django.contrib.sessions.models import Session
 from user_agents import parse
 
-from apps.peoples.models.session_models import UserSession, SessionActivityLog
+from apps.peoples.models import UserSession, SessionActivityLog
 
 logger = logging.getLogger('security.sessions')
 
@@ -46,10 +46,8 @@ def track_user_login(sender, request, user, **kwargs):
         ip_address = _get_client_ip(request)
 
         # Generate device fingerprint
-        device_fingerprint = UserSession.generate_device_fingerprint(
-            user_agent_string,
-            ip_address
-        )
+        device_fingerprint = UserSession.generate_device_fingerprint(user_agent_string,
+            ip_address)
 
         # Get or create Django session
         if not request.session.session_key:

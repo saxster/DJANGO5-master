@@ -188,9 +188,9 @@ result = service.create_location(
 )
 
 if result.success:
-    print(f"Location created: {result.location.locname} at {result.location.gpslocation}")
+    logger.debug(f"Location created: {result.location.locname} at {result.location.gpslocation}")
 else:
-    print(f"Error: {result.error_message}")
+    logger.error(f"Error: {result.error_message}")
 """
         },
         {
@@ -235,9 +235,9 @@ nearby_locations = Location.objects.filter(
 # Check if user is within geofence
 if nearby_locations.exists():
     nearest = nearby_locations.first()
-    print(f"User within {nearest.distance.m:.1f}m of {nearest.locname}")
+    logger.debug(f"User within {nearest.distance.m:.1f}m of {nearest.locname}")
 else:
-    print("User outside all geofences - attendance not allowed")
+    logger.debug("User outside all geofences - attendance not allowed")
 """
         },
         {
@@ -257,9 +257,9 @@ result = service.update_location(
 
 # select_for_update() prevents concurrent GPS updates
 if result.success:
-    print(f"GPS updated to {result.location.gpslocation}")
+    logger.debug(f"GPS updated to {result.location.gpslocation}")
 else:
-    print(f"Error: {result.error_message}")
+    logger.error(f"Error: {result.error_message}")
 """
         },
         {
@@ -271,9 +271,9 @@ result = service.delete_location(location_id=123)
 if not result.success:
     if 'in use' in result.error_message:
         # RESTRICT constraint triggered (Assets/Jobs reference this location)
-        print("Cannot delete: Location has active assets or scheduled tasks")
+        logger.debug("Cannot delete: Location has active assets or scheduled tasks")
     else:
-        print(f"Error: {result.error_message}")
+        logger.error(f"Error: {result.error_message}")
 """
         }
     ]

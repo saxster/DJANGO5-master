@@ -26,6 +26,7 @@ from apps.y_helpdesk.models import Ticket
 from apps.activity.models import Task
 from apps.core.models import APIAccessLog, CSPViolation
 from apps.core.serializers.frontend_serializers import FrontendResponseMixin
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
 
     def get_dashboard_stats(self):
         """
-        Get key statistics for dashboard
+        Get key statistics for dashboard with optimized queries
         """
         try:
             # Cache stats for 5 minutes
@@ -73,10 +74,19 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
                 now = timezone.now()
                 last_month = now - timedelta(days=30)
 
+                # Optimize: Use annotate to get multiple counts in fewer queries
+                from django.db.models import Case, When, Value, IntegerField
+
+                people_stats = People.objects.aggregate(
+                    total=Count('id'),
+                    active=Count(Case(When(enable=True, then=1), output_field=IntegerField())),
+                    new_this_month=Count(Case(When(cdtz__gte=last_month, then=1), output_field=IntegerField()))
+                )
+
                 stats = {
-                    'total_users': People.objects.count(),
-                    'active_users': People.objects.filter(enable=True).count(),
-                    'new_users_this_month': People.objects.filter(cdtz__gte=last_month).count(),
+                    'total_users': people_stats['total'],
+                    'active_users': people_stats['active'],
+                    'new_users_this_month': people_stats['new_this_month'],
                     'active_sessions': self.get_active_sessions_count(),
                     'avg_session_duration': '45m',  # Would calculate from session data
                     'open_tickets': self.get_open_tickets_count(),
@@ -89,7 +99,7 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
 
             return stats
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             # Return safe defaults on error
             return {
                 'total_users': 0,
@@ -204,7 +214,7 @@ class ModernAdminDashboardView(FrontendResponseMixin, TemplateView):
 
             return activities[:5]
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             return [{
                 'description': 'Dashboard data unavailable',
                 'user': 'System',
@@ -320,7 +330,7 @@ def admin_chart_data_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -362,7 +372,7 @@ def admin_recent_activity_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=[],
@@ -411,7 +421,7 @@ def admin_export_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -441,7 +451,7 @@ def admin_system_check_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -481,7 +491,7 @@ def admin_clear_caches_api(request):
 
         return Response(envelope)
 
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         response_mixin = FrontendResponseMixin()
         envelope = response_mixin.get_response_envelope(
             data=None,
@@ -537,7 +547,7 @@ def perform_system_health_check():
             'message': 'Database is accessible',
             'response_time_ms': 10
         })
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         results['checks'].append({
             'name': 'Database Connectivity',
             'status': 'fail',
@@ -556,7 +566,7 @@ def perform_system_health_check():
             'message': 'Cache is working normally',
             'response_time_ms': 5
         })
-    except Exception as e:
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
         results['checks'].append({
             'name': 'Cache System',
             'status': 'fail',
@@ -631,7 +641,7 @@ class AdminUserManagementView(TemplateView):
         Get user distribution by business unit
         """
         try:
-            from apps.onboarding.models import Bt
+            from apps.client_onboarding.models import Bt
             return Bt.objects.annotate(
                 user_count=Count('people')
             ).values('buname', 'user_count').order_by('-user_count')[:10]

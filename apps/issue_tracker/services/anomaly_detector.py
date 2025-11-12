@@ -1,11 +1,17 @@
 """
 Anomaly Detection Engine for Stream Testbench
 Detects patterns in stream events and creates anomaly signatures
+
+Performance Optimization (Nov 2025):
+- Module-level caching for YAML rules (prevents disk I/O on every instantiation)
+- 5-minute TTL for cache invalidation
+- Manual reload via reload_anomaly_rules()
 """
 
 import hashlib
 import json
 import logging
+import time
 import yaml
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
@@ -21,28 +27,49 @@ from ..models import AnomalySignature, AnomalyOccurrence, RecurrenceTracker
 
 logger = logging.getLogger('issue_tracker.anomaly')
 
+# Module-level cache for YAML rules (prevents repeated file I/O)
+_RULES_CACHE: Optional[Dict[str, Any]] = None
+_CACHE_TIMESTAMP: Optional[float] = None
+CACHE_TTL_SECONDS = 300  # 5 minutes
 
-class AnomalyDetector:
+
+def reload_anomaly_rules():
     """
-    AI-powered anomaly detection engine with rule-based fallbacks
+    Force reload of anomaly detection rules from YAML.
+
+    Call this manually after editing rules/anomalies.yaml to refresh the cache
+    without restarting workers.
+
+    Usage:
+        from apps.issue_tracker.services.anomaly_detector import reload_anomaly_rules
+        reload_anomaly_rules()
     """
+    global _RULES_CACHE, _CACHE_TIMESTAMP
+    _RULES_CACHE = None
+    _CACHE_TIMESTAMP = None
+    logger.info("Anomaly detection rules cache invalidated - will reload on next access")
 
-    def __init__(self):
-        self.rules = self._load_detection_rules()
-        self.thresholds = self._load_thresholds()
 
-    def _load_detection_rules(self) -> Dict[str, Any]:
-        """Load anomaly detection rules from configuration"""
-        try:
-            rules_path = Path(__file__).parent.parent / 'rules' / 'anomalies.yaml'
-            if rules_path.exists():
-                with open(rules_path, 'r') as f:
-                    return yaml.safe_load(f)
-        except (FileNotFoundError, IOError, OSError, PermissionError) as e:
-            logger.warning(f"Could not load rules file: {e}")
+def _load_detection_rules_from_disk() -> Dict[str, Any]:
+    """
+    Load anomaly detection rules from YAML file.
 
-        # Default rules if file not found
-        return {
+    This function performs the actual file I/O and should only be called
+    when the cache is invalid.
+    """
+    try:
+        rules_path = Path(__file__).parent.parent / 'rules' / 'anomalies.yaml'
+        if rules_path.exists():
+            with open(rules_path, 'r') as f:
+                rules = yaml.safe_load(f)
+                logger.info(f"Loaded anomaly detection rules from {rules_path}")
+                return rules
+    except (FileNotFoundError, IOError, OSError, PermissionError) as e:
+        logger.warning(f"Could not load rules file: {e}")
+
+    # Default rules if file not found
+    logger.info("Using default anomaly detection rules")
+    return {
             'rules': [
                 {
                     'name': 'high_latency_websocket',
@@ -126,6 +153,46 @@ class AnomalyDetector:
                 }
             ]
         }
+
+
+class AnomalyDetector:
+    """
+    AI-powered anomaly detection engine with rule-based fallbacks.
+
+    Performance Optimization:
+    - Uses module-level cache for YAML rules (5-minute TTL)
+    - Prevents disk I/O on every instantiation
+    - Manual cache invalidation via reload_anomaly_rules()
+    """
+
+    def __init__(self):
+        self.rules = self._load_detection_rules()
+        self.thresholds = self._load_thresholds()
+
+    def _load_detection_rules(self) -> Dict[str, Any]:
+        """
+        Load anomaly detection rules with caching.
+
+        Uses module-level cache with 5-minute TTL to prevent repeated
+        file I/O operations during stream processing.
+        """
+        global _RULES_CACHE, _CACHE_TIMESTAMP
+
+        now = time.time()
+
+        # Check if cache is valid
+        if _RULES_CACHE is not None and _CACHE_TIMESTAMP is not None:
+            cache_age = now - _CACHE_TIMESTAMP
+            if cache_age < CACHE_TTL_SECONDS:
+                logger.debug(f"Using cached anomaly rules (age: {cache_age:.1f}s)")
+                return _RULES_CACHE
+
+        # Cache miss or expired - load from disk
+        logger.info("Cache miss or expired - loading anomaly rules from disk")
+        _RULES_CACHE = _load_detection_rules_from_disk()
+        _CACHE_TIMESTAMP = now
+
+        return _RULES_CACHE
 
     def _load_thresholds(self) -> Dict[str, float]:
         """Load detection thresholds from YAML configuration"""

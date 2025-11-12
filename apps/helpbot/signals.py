@@ -33,8 +33,8 @@ def handle_session_save(sender, instance, created, **kwargs):
             analytics_service.record_session_metrics(instance)
             logger.debug(f"Recorded analytics for completed session: {instance.session_id}")
 
-    except Exception as e:
-        logger.error(f"Error in session save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in session save signal: {e}", exc_info=True)
 
 
 @receiver(pre_save, sender=HelpBotSession)
@@ -54,8 +54,8 @@ def handle_session_pre_save(sender, instance, **kwargs):
             except HelpBotSession.DoesNotExist:
                 pass
 
-    except Exception as e:
-        logger.error(f"Error in session pre_save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in session pre_save signal: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=HelpBotMessage)
@@ -91,8 +91,8 @@ def handle_message_save(sender, instance, created, **kwargs):
                             }
                         )
 
-    except Exception as e:
-        logger.error(f"Error in message save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in message save signal: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=HelpBotFeedback)
@@ -119,8 +119,8 @@ def handle_feedback_save(sender, instance, created, **kwargs):
                             f"Updated knowledge effectiveness for {source['id']}: {effectiveness_score}"
                         )
 
-    except Exception as e:
-        logger.error(f"Error in feedback save signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in feedback save signal: {e}", exc_info=True)
 
 
 @receiver(post_save, sender=HelpBotKnowledge)
@@ -130,25 +130,40 @@ def handle_knowledge_save(sender, instance, created, **kwargs):
         if created:
             logger.debug(f"New knowledge article created: {instance.knowledge_id}")
 
-            # TODO: Trigger txtai index update if enabled
-            # This would integrate with the existing txtai infrastructure
+            # Trigger async txtai index update (Nov 2025 implementation)
             try:
-                from apps.helpbot.services import HelpBotKnowledgeService
-                knowledge_service = HelpBotKnowledgeService()
+                from apps.helpbot.tasks import update_txtai_index_task
 
-                if knowledge_service.txtai_enabled:
-                    logger.debug(f"Would update txtai index for knowledge: {instance.knowledge_id}")
-                    # knowledge_service._build_txtai_index()  # Uncomment when txtai is ready
+                # Queue background task with 5-second delay for batching
+                update_txtai_index_task.apply_async(
+                    args=[str(instance.knowledge_id), 'add'],
+                    countdown=5  # 5-second delay allows aggregation
+                )
 
-            except ImportError:
-                logger.debug("txtai integration not available")
+                logger.debug(
+                    f"Queued txtai index update for knowledge: {instance.knowledge_id}"
+                )
+
+            except ImportError as e:
+                logger.debug(f"txtai task not available: {e}")
 
         else:
-            # Existing knowledge updated
+            # Existing knowledge updated - trigger index refresh
             logger.debug(f"Knowledge article updated: {instance.knowledge_id}")
 
-    except Exception as e:
-        logger.error(f"Error in knowledge save signal: {e}")
+            try:
+                from apps.helpbot.tasks import update_txtai_index_task
+
+                update_txtai_index_task.apply_async(
+                    args=[str(instance.knowledge_id), 'update'],
+                    countdown=5
+                )
+
+            except ImportError as e:
+                logger.debug(f"txtai task not available: {e}")
+
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in knowledge save signal: {e}", exc_info=True)
 
 
 @receiver(post_delete, sender=HelpBotKnowledge)
@@ -157,11 +172,25 @@ def handle_knowledge_delete(sender, instance, **kwargs):
     try:
         logger.debug(f"Knowledge article deleted: {instance.knowledge_id}")
 
-        # TODO: Update txtai index to remove deleted knowledge
-        # This would integrate with the existing txtai infrastructure
+        # Trigger async txtai index cleanup (Nov 2025 implementation)
+        try:
+            from apps.helpbot.tasks import update_txtai_index_task
 
-    except Exception as e:
-        logger.error(f"Error in knowledge delete signal: {e}")
+            # Queue background task to remove from index
+            update_txtai_index_task.apply_async(
+                args=[str(instance.knowledge_id), 'delete'],
+                countdown=5  # 5-second delay for batching
+            )
+
+            logger.debug(
+                f"Queued txtai index removal for knowledge: {instance.knowledge_id}"
+            )
+
+        except ImportError as e:
+            logger.debug(f"txtai task not available: {e}")
+
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in knowledge delete signal: {e}", exc_info=True)
 
 
 # Optional: Handle other model signals for comprehensive tracking
@@ -183,19 +212,20 @@ def handle_user_activity(sender, instance, created, **kwargs):
                 logger.debug(f"User {instance.email} has active HelpBot sessions during profile update")
                 # Could trigger context refresh here
 
-    except Exception as e:
-        logger.error(f"Error in user activity signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error in user activity signal: {e}", exc_info=True)
 
 
 # Error handling for signal failures
 def handle_signal_error(sender, **kwargs):
     """Generic error handler for signal failures."""
     exception = kwargs.get('exception')
-    logger.error(f"Signal error in {sender}: {exception}")
+    logger.error(f"Signal error in {sender}: {exception}", exc_info=True)
 
 
 # Optional: Connect to Django's got_request_exception for error tracking
 from django.core.signals import got_request_exception
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 
 @receiver(got_request_exception)
@@ -215,5 +245,5 @@ def handle_request_exception(sender, request, **kwargs):
                     'user_agent': request.META.get('HTTP_USER_AGENT', ''),
                 }
 
-    except Exception as e:
-        logger.error(f"Error handling request exception signal: {e}")
+    except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+        logger.error(f"Error handling request exception signal: {e}", exc_info=True)

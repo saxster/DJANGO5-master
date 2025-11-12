@@ -67,6 +67,8 @@ class PreferenceProfileAdmin(ModelAdmin):
         })
     )
 
+    list_per_page = 50
+
     def acceptance_rate_display(self, obj):
         """Display acceptance rate as percentage"""
         rate = obj.calculate_acceptance_rate()
@@ -115,6 +117,7 @@ class PreferenceProfileAdmin(ModelAdmin):
 
 
 class ExperimentAdmin(ModelAdmin):
+    list_per_page = 50
     """Admin interface for experiments"""
     list_display = ['name', 'status', 'owner', 'scope', 'started_at', 'arms_count', 'assignment_count', 'results_link']
     list_filter = ['status', 'scope', 'primary_metric', 'started_at']
@@ -255,6 +258,7 @@ class ExperimentAdmin(ModelAdmin):
 
 
 class RecommendationInteractionAdmin(ModelAdmin):
+    list_per_page = 50
     """Admin interface for recommendation interactions"""
     list_display = ['recommendation', 'event_type', 'occurred_at', 'user_display', 'time_to_decision_display']
     list_filter = ['event_type', 'occurred_at', 'session__conversation_type']
@@ -301,11 +305,14 @@ class RecommendationInteractionAdmin(ModelAdmin):
 
 
 class ExperimentAssignmentAdmin(ModelAdmin):
+    list_per_page = 50
     """Admin interface for experiment assignments"""
     list_display = ['experiment', 'user', 'client', 'arm', 'assigned_at', 'is_active_display']
     list_filter = ['arm', 'assigned_at', 'experiment__status']
     search_fields = ['experiment__name', 'user__email', 'client__buname']
     readonly_fields = ['assignment_id', 'assigned_at', 'arm_config_display']
+
+    list_per_page = 50
 
     def is_active_display(self, obj):
         """Display if assignment is active"""

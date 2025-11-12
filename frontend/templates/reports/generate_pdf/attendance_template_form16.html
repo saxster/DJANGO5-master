@@ -599,7 +599,7 @@
     }
 
     function initializeAttendanceTables() {
-        const attendanceData = {{ attendance_data.site_attendance_data|safe }};
+        const attendanceData = {{ attendance_data.site_attendance_data|escapejs }};
         const periodText = "{{ attendance_data.period }}";
         Object.entries(attendanceData).forEach(([contractKey, contractDataArray], contractIndex) => {
             contractDataArray.forEach((contractData, dataIndex) => {

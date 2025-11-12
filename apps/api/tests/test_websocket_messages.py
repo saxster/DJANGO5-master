@@ -370,6 +370,50 @@ class TestParseWebSocketMessage(TestCase):
 class TestMessageTypeConsistency(TestCase):
     """Test message type field consistency."""
 
+    @staticmethod
+    def _create_message_instance(model_class):
+        """Factory method to create minimal valid message instances."""
+        if model_class == ConnectionEstablishedMessage:
+            return model_class(
+                user_id='123',
+                device_id='test',
+                server_time=timezone.now()
+            )
+        if model_class == HeartbeatMessage:
+            return model_class(timestamp=timezone.now())
+        if model_class == SyncStartMessage:
+            return model_class(domain='task', device_id='test')
+        if model_class == SyncDataMessage:
+            return model_class(
+                payload={},
+                idempotency_key='key-1234567890123456',
+                domain='task',
+                client_timestamp=timezone.now()
+            )
+        if model_class == SyncCompleteMessage:
+            return model_class(domain='task', item_count=0)
+        if model_class == ServerDataRequestMessage:
+            return model_class(domain='task', entity_ids=[], request_id='req-1')
+        if model_class == ServerDataMessage:
+            return model_class(
+                domain='task',
+                data=[],
+                server_timestamp=timezone.now()
+            )
+        if model_class == ConflictNotificationMessage:
+            return model_class(
+                conflicts=[],
+                resolution_required=False,
+                conflict_ids=[]
+            )
+        if model_class == ConflictResolutionMessage:
+            return model_class(conflict_id='c-1', strategy='client_wins')
+        if model_class == SyncStatusMessage:
+            return model_class(domain='task', status='pending')
+        if model_class == ErrorMessage:
+            return model_class(error_code='TEST', message='Test error')
+        return None
+
     def test_all_messages_have_type_field(self):
         """Test all message types have correct type field value."""
         test_cases = [
@@ -387,47 +431,8 @@ class TestMessageTypeConsistency(TestCase):
         ]
 
         for model_class, expected_type in test_cases:
-            # Create minimal valid instance
-            if model_class == ConnectionEstablishedMessage:
-                instance = model_class(
-                    user_id='123',
-                    device_id='test',
-                    server_time=timezone.now()
-                )
-            elif model_class == HeartbeatMessage:
-                instance = model_class(timestamp=timezone.now())
-            elif model_class == SyncStartMessage:
-                instance = model_class(domain='task', device_id='test')
-            elif model_class == SyncDataMessage:
-                instance = model_class(
-                    payload={},
-                    idempotency_key='key-1234567890123456',
-                    domain='task',
-                    client_timestamp=timezone.now()
-                )
-            elif model_class == SyncCompleteMessage:
-                instance = model_class(domain='task', item_count=0)
-            elif model_class == ServerDataRequestMessage:
-                instance = model_class(domain='task', entity_ids=[], request_id='req-1')
-            elif model_class == ServerDataMessage:
-                instance = model_class(
-                    domain='task',
-                    data=[],
-                    server_timestamp=timezone.now()
-                )
-            elif model_class == ConflictNotificationMessage:
-                instance = model_class(
-                    conflicts=[],
-                    resolution_required=False,
-                    conflict_ids=[]
-                )
-            elif model_class == ConflictResolutionMessage:
-                instance = model_class(conflict_id='c-1', strategy='client_wins')
-            elif model_class == SyncStatusMessage:
-                instance = model_class(domain='task', status='pending')
-            elif model_class == ErrorMessage:
-                instance = model_class(error_code='TEST', message='Test error')
-
+            instance = self._create_message_instance(model_class)
+            self.assertIsNotNone(instance)
             self.assertEqual(instance.type, expected_type)
 
 
@@ -517,58 +522,62 @@ class TestParseWebSocketMessageIntegration(TestCase):
         self.assertIsInstance(message, HeartbeatMessage)
         # Extra fields should not cause errors
 
+    @staticmethod
+    def _create_raw_message_data(message_type):
+        """Factory method to create minimal valid raw message data for each type."""
+        if message_type == 'connection_established':
+            return {
+                'type': message_type,
+                'user_id': '123',
+                'device_id': 'test',
+                'server_time': timezone.now().isoformat(),
+            }
+        if message_type == 'heartbeat':
+            return {'type': message_type, 'timestamp': timezone.now().isoformat()}
+        if message_type == 'start_sync':
+            return {'type': message_type, 'domain': 'task', 'device_id': 'test'}
+        if message_type == 'sync_data':
+            return {
+                'type': message_type,
+                'payload': {},
+                'idempotency_key': '1234567890123456',
+                'domain': 'task',
+                'client_timestamp': timezone.now().isoformat(),
+            }
+        if message_type == 'sync_complete':
+            return {'type': message_type, 'domain': 'task', 'item_count': 0}
+        if message_type == 'server_data_request':
+            return {
+                'type': message_type,
+                'domain': 'task',
+                'entity_ids': [],
+                'request_id': 'req-1',
+            }
+        if message_type == 'server_data':
+            return {
+                'type': message_type,
+                'domain': 'task',
+                'data': [],
+                'server_timestamp': timezone.now().isoformat(),
+            }
+        if message_type == 'conflict_notification':
+            return {
+                'type': message_type,
+                'conflicts': [],
+                'resolution_required': False,
+                'conflict_ids': [],
+            }
+        if message_type == 'conflict_resolution':
+            return {'type': message_type, 'conflict_id': 'c-1', 'strategy': 'client_wins'}
+        if message_type == 'sync_status':
+            return {'type': message_type, 'domain': 'task', 'status': 'pending'}
+        if message_type == 'error':
+            return {'type': message_type, 'error_code': 'TEST', 'message': 'Test'}
+        return {}
+
     def test_parse_all_registered_types(self):
         """Test all MESSAGE_TYPE_MAP entries are parseable."""
         for message_type, model_class in MESSAGE_TYPE_MAP.items():
-            # Create minimal valid data for each type
-            if message_type == 'connection_established':
-                raw = {
-                    'type': message_type,
-                    'user_id': '123',
-                    'device_id': 'test',
-                    'server_time': timezone.now().isoformat(),
-                }
-            elif message_type == 'heartbeat':
-                raw = {'type': message_type, 'timestamp': timezone.now().isoformat()}
-            elif message_type == 'start_sync':
-                raw = {'type': message_type, 'domain': 'task', 'device_id': 'test'}
-            elif message_type == 'sync_data':
-                raw = {
-                    'type': message_type,
-                    'payload': {},
-                    'idempotency_key': '1234567890123456',
-                    'domain': 'task',
-                    'client_timestamp': timezone.now().isoformat(),
-                }
-            elif message_type == 'sync_complete':
-                raw = {'type': message_type, 'domain': 'task', 'item_count': 0}
-            elif message_type == 'server_data_request':
-                raw = {
-                    'type': message_type,
-                    'domain': 'task',
-                    'entity_ids': [],
-                    'request_id': 'req-1',
-                }
-            elif message_type == 'server_data':
-                raw = {
-                    'type': message_type,
-                    'domain': 'task',
-                    'data': [],
-                    'server_timestamp': timezone.now().isoformat(),
-                }
-            elif message_type == 'conflict_notification':
-                raw = {
-                    'type': message_type,
-                    'conflicts': [],
-                    'resolution_required': False,
-                    'conflict_ids': [],
-                }
-            elif message_type == 'conflict_resolution':
-                raw = {'type': message_type, 'conflict_id': 'c-1', 'strategy': 'client_wins'}
-            elif message_type == 'sync_status':
-                raw = {'type': message_type, 'domain': 'task', 'status': 'pending'}
-            elif message_type == 'error':
-                raw = {'type': message_type, 'error_code': 'TEST', 'message': 'Test'}
-
+            raw = self._create_raw_message_data(message_type)
             message = parse_websocket_message(raw)
             self.assertIsInstance(message, model_class)

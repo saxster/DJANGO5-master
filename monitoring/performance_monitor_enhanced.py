@@ -36,7 +36,7 @@ from django.utils.deprecation import MiddlewareMixin
 from django.utils import timezone
 from django.template.loader import render_to_string
 
-from apps.core.utils_new.query_optimizer import NPlusOneDetector
+from apps.core.utils_new.performance import NPlusOneDetector
 
 logger = logging.getLogger('performance_monitor')
 
@@ -459,40 +459,83 @@ Please investigate the performance issue.
 
 
 class PerformanceMonitoringMiddleware(MiddlewareMixin):
-    """Middleware for automatic performance monitoring"""
-    
+    """
+    Middleware for automatic performance monitoring.
+
+    Uses Django's execute_wrapper for query tracking (works in all environments,
+    not just DEBUG=True). Thread-local storage ensures isolation between requests.
+    """
+
     def __init__(self, get_response):
         super().__init__(get_response)
         self.monitor = PerformanceMonitor()
-    
+        self._local_storage = threading.local()
+
     def process_request(self, request):
-        """Process request start"""
+        """
+        Process request start.
+
+        Note: Uses execute_wrapper instead of connection.queries for production compatibility.
+        connection.queries is only populated when DEBUG=True, making it useless for
+        production monitoring.
+        """
         request._monitoring_start_time = time.time()
-        request._monitoring_start_queries = len(connection.queries)
-        
+
+        # Initialize query tracking in thread-local storage
+        self._local_storage.queries = []
+
+        # Register query interceptor that works in all environments
+        def query_tracker(execute, sql, params, many, context):
+            start_time = time.time()
+            try:
+                result = execute(sql, params, many, context)
+                return result
+            finally:
+                end_time = time.time()
+                duration = end_time - start_time
+
+                # Store query data in thread-local storage
+                if hasattr(self._local_storage, 'queries'):
+                    self._local_storage.queries.append({
+                        'sql': sql,
+                        'time': duration,
+                        'params': params,
+                    })
+
+        # Attach wrapper to request so we can remove it later
+        request._monitoring_query_wrapper = query_tracker
+        connection.execute_wrappers.append(query_tracker)
+
         # Start N+1 detection if debug mode
         if settings.DEBUG:
             self.monitor.n_plus_one_detector.start_monitoring()
-    
+
     def process_response(self, request, response):
-        """Process request completion"""
+        """Process request completion with production-compatible query monitoring."""
+        # Remove query wrapper
+        if hasattr(request, '_monitoring_query_wrapper'):
+            try:
+                connection.execute_wrappers.remove(request._monitoring_query_wrapper)
+            except (ValueError, AttributeError):
+                pass  # Already removed or never added
+
         if not hasattr(request, '_monitoring_start_time'):
             return response
-        
+
         # Calculate metrics
         end_time = time.time()
         response_time = end_time - request._monitoring_start_time
-        
-        query_count = len(connection.queries) - request._monitoring_start_queries
-        
+
+        # Get queries from thread-local storage (works in all environments)
+        queries = getattr(self._local_storage, 'queries', [])
+        query_count = len(queries)
+
         # Calculate average query time
         avg_query_time = 0
         if query_count > 0:
-            total_query_time = sum(
-                float(q['time']) for q in connection.queries[-query_count:]
-            )
+            total_query_time = sum(q['time'] for q in queries)
             avg_query_time = total_query_time / query_count
-        
+
         # Record metrics
         endpoint = f"{request.method} {request.path}"
         tags = {
@@ -501,16 +544,16 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
             'status_code': response.status_code,
             'user_id': getattr(request.user, 'id', None) if hasattr(request, 'user') else None
         }
-        
+
         self.monitor.record_metric('response_time', response_time, tags)
         self.monitor.record_metric('query_count', query_count, tags)
-        
+
         if query_count > 0:
             self.monitor.record_metric('avg_query_time', avg_query_time, tags)
-        
+
         # Check for slow queries
-        for query in connection.queries[-query_count:]:
-            query_time = float(query['time'])
+        for query in queries:
+            query_time = query['time']
             if query_time >= self.monitor.config['slow_query_threshold']:
                 self.monitor.record_slow_query(
                     sql=query['sql'],
@@ -518,11 +561,11 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
                     request_path=request.path,
                     user_id=tags['user_id']
                 )
-        
+
         # Update baseline and check for regressions
         self.monitor.update_baseline(endpoint, response_time, query_count, avg_query_time)
         self.monitor.check_performance_regression(endpoint, response_time, query_count, avg_query_time)
-        
+
         # Check for N+1 queries if in debug mode
         if settings.DEBUG and hasattr(self.monitor, 'n_plus_one_detector'):
             try:
@@ -531,7 +574,11 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
                     logger.warning(f"N+1 queries detected in {endpoint}: {len(analysis['n_plus_one_issues'])} issues")
             except Exception as e:
                 logger.error(f"Error in N+1 detection: {e}")
-        
+
+        # Clean up thread-local storage
+        if hasattr(self._local_storage, 'queries'):
+            delattr(self._local_storage, 'queries')
+
         return response
 
 

@@ -4,7 +4,7 @@
 {% block card_title %}
 GeoFence Directory
 <div class="float-end">
-	<a href="{{ url('onboarding:geofence') }}?template=true&classic=true" class="btn btn-sm btn-light-secondary me-2">
+	<a href="{{ url('admin:onboarding_geofencemaster_changelist') }}" class="btn btn-sm btn-light-secondary me-2">
 		<i class="bi bi-table"></i> Classic View
 	</a>
 	<button class="btn btn-sm btn-primary" id="header-add-new">
@@ -23,7 +23,7 @@ GeoFence Directory
 <!----------- BEGIN PAGE BREADCUMBS ----------->
 {% block pagebreadcumb %}
 {{ super() }}
-<li class="breadcrumb-item pe-3"><a href="{{ url('onboarding:geofence') }}?template=true" class="pe-3">GeoFences</a></li>
+<li class="breadcrumb-item pe-3"><a href="{{ url('admin:onboarding_geofencemaster_changelist') }}" class="pe-3">GeoFences</a></li>
 {% endblock pagebreadcumb %}
 <!----------- END PAGE BREADCUMBS ------------->
 
@@ -639,7 +639,7 @@ $(document).ready(function () {
 		$('#geofence-empty').addClass('d-none');
 		
 		$.ajax({
-			url: '{{ url("onboarding:geofence") }}?action=list',
+			/api/v1/admin/config/geofences/',
 			type: 'GET',
 			success: function(response) {
 				console.log('Response received:', response); // Debug
@@ -765,7 +765,7 @@ $(document).ready(function () {
 	
 	// Add new button handlers
 	$('#header-add-new, #add-new-btn').click(function() {
-		window.location.href = '{{ url("onboarding:geofence") }}?action=form';
+		window.location.href = '{% url 'admin:onboarding_geofencemaster_add' %}'';
 	});
 	
 	// Export button

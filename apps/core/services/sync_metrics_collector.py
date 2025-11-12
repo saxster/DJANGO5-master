@@ -24,6 +24,7 @@ from django.db.models import Avg, Sum, Count, Max, F
 
 from apps.core.models.sync_analytics import SyncAnalyticsSnapshot, SyncDeviceHealth
 from apps.core.models.sync_conflict_policy import ConflictResolutionLog
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ def sync_metrics_decorator(operation_type: str = 'unknown', domain: str = None):
                     if hasattr(org, 'bu') and org.bu and hasattr(org.bu, 'tenant'):
                         tenant_id = org.bu.tenant.id
 
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 logger.warning(f"Failed to extract sync context: {e}")
 
             # Execute the original function
@@ -81,7 +82,7 @@ def sync_metrics_decorator(operation_type: str = 'unknown', domain: str = None):
                 result = func(*args, **kwargs)
                 success = True
                 error_message = None
-            except Exception as e:
+            except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
                 result = {'synced_items': 0, 'failed_items': 0, 'errors': [str(e)]}
                 success = False
                 error_message = str(e)
@@ -103,8 +104,8 @@ def sync_metrics_decorator(operation_type: str = 'unknown', domain: str = None):
                         result=result,
                         error_message=error_message
                     )
-                except Exception as e:
-                    logger.error(f"Failed to record sync metrics: {e}")
+                except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+                    logger.error(f"Failed to record sync metrics: {e}", exc_info=True)
 
             return result
 
@@ -180,7 +181,7 @@ class SyncMetricsCollector:
                 success=success
             )
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Error recording sync operation metrics: {e}", exc_info=True)
 
     def _update_device_health(
@@ -233,8 +234,8 @@ class SyncMetricsCollector:
 
                 device_health.save()
 
-        except Exception as e:
-            logger.error(f"Failed to update device health: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to update device health: {e}", exc_info=True)
 
     def _record_aggregated_metrics(
         self,
@@ -285,8 +286,8 @@ class SyncMetricsCollector:
             seconds_until_next_hour = 3600 - (current_time.minute * 60 + current_time.second)
             cache.set(cache_key, cached_metrics, seconds_until_next_hour)
 
-        except Exception as e:
-            logger.error(f"Failed to record aggregated metrics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to record aggregated metrics: {e}", exc_info=True)
 
     def _update_realtime_cache(
         self,
@@ -336,8 +337,8 @@ class SyncMetricsCollector:
             # Cache for 5 minutes
             cache.set(cache_key, realtime_metrics, self.metrics_cache_ttl)
 
-        except Exception as e:
-            logger.error(f"Failed to update real-time cache: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to update real-time cache: {e}", exc_info=True)
 
     def create_analytics_snapshot(self, tenant_id: Optional[int] = None) -> Optional[SyncAnalyticsSnapshot]:
         """
@@ -364,7 +365,7 @@ class SyncMetricsCollector:
                 logger.info(f"Created analytics snapshot for tenant {tenant_id}: {snapshot.id}")
                 return snapshot
 
-        except Exception as e:
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
             logger.error(f"Failed to create analytics snapshot: {e}", exc_info=True)
             return None
 
@@ -422,8 +423,8 @@ class SyncMetricsCollector:
                 'domain_breakdown': {}  # Could populate from cache
             }
 
-        except Exception as e:
-            logger.error(f"Failed to aggregate metrics: {e}")
+        except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS) as e:
+            logger.error(f"Failed to aggregate metrics: {e}", exc_info=True)
             return {}
 
     def get_realtime_metrics(self, tenant_id: Optional[int] = None, domain: Optional[str] = None) -> Dict[str, Any]:

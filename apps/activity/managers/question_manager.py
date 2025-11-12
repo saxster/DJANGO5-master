@@ -18,9 +18,10 @@ logger = logging.getLogger(__name__)
 
 import apps.peoples.models as pm
 from apps.core import utils
+from apps.tenants.managers import TenantAwareManager
 
 
-class QuestionSetManager(models.Manager):
+class QuestionSetManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",
@@ -339,7 +340,7 @@ class QuestionSetManager(models.Manager):
         return qset or self.none()
 
 
-class QuestionManager(models.Manager):
+class QuestionManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",
@@ -423,7 +424,7 @@ class QuestionManager(models.Manager):
         ).values(*fields).first()
 
 
-class QsetBlngManager(models.Manager):
+class QsetBlngManager(TenantAwareManager):
     use_in_migrations = True
     fields = [
         "id",

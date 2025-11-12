@@ -10,6 +10,7 @@ from .logging import setup_logging
 from .security import get_production_security_settings
 from .integrations import get_production_integrations
 from .rest_api import REST_FRAMEWORK, SIMPLE_JWT, API_VERSION_CONFIG, SPECTACULAR_SETTINGS
+from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ except SecretValidationError as e:
     sys.stderr.write(f"📋 Review secure logs: /var/log/youtility4/security.log\n")
     sys.stderr.write(f"🚨 Production startup aborted for security\n\n")
     sys.exit(1)
-except Exception as e:
+except SETTINGS_EXCEPTIONS as e:
     import sys
     import uuid
     correlation_id = str(uuid.uuid4())
@@ -113,13 +114,17 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 EMAIL_FROM_ADDRESS = DEFAULT_FROM_EMAIL
 
 # Database configuration with SSL and optimized connection pooling
+# POOLING STRATEGY: Django's CONN_MAX_AGE (inherited from database.py, overridden here for production)
+# This is the SINGLE source of truth for connection pooling. No psycopg3 pool config in use.
+# See intelliwiz_config/settings/database.py for base configuration and pooling strategy rationale.
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "USER": env("DBUSER"), "NAME": env("DBNAME"), "PASSWORD": env("DBPASS"),
         "HOST": env("DBHOST"), "PORT": "5432",
-        # Production-optimized connection pooling
-        "CONN_MAX_AGE": 3600,  # 1 hour - longer for production stability
+        # Production-optimized connection pooling via CONN_MAX_AGE
+        # Overrides base config value (600s) with 1 hour for production stability
+        "CONN_MAX_AGE": SECONDS_IN_HOUR,  # 3600s (1 hour) - production-specific value
         "CONN_HEALTH_CHECKS": True,  # Enable connection health checks
         "OPTIONS": {
             "sslmode": "require",
@@ -133,7 +138,7 @@ DATABASES = {
 }
 
 # OPTIMIZED Redis Configuration - Connection Pool & Performance Enhancements
-from .redis_optimized import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
+from .redis import OPTIMIZED_CACHES, OPTIMIZED_CHANNEL_LAYERS, REDIS_PERFORMANCE_SETTINGS
 
 # Cache configuration with optimized connection pooling
 CACHES = OPTIMIZED_CACHES
@@ -182,6 +187,8 @@ LANGUAGE_COOKIE_SECURE = True  # Protect language preference cookie over HTTPS
 
 # Template performance optimization (disable auto-reload in production)
 from copy import deepcopy
+# Settings-specific exceptions
+SETTINGS_EXCEPTIONS = (ValueError, TypeError, AttributeError, KeyError, ImportError, OSError, IOError)
 TEMPLATES = deepcopy(TEMPLATES)
 if len(TEMPLATES) > 1:  # Jinja2 template config
     TEMPLATES[1]['OPTIONS']['auto_reload'] = False
@@ -203,6 +210,22 @@ setup_logging('production', '/var/log/youtility4')
 # Feature flags (conservative for production)
 ENABLE_CONVERSATIONAL_ONBOARDING = env.bool('ENABLE_CONVERSATIONAL_ONBOARDING', default=False)
 ENABLE_CONVERSATIONAL_ONBOARDING_CHECKER = env.bool('ENABLE_CONVERSATIONAL_ONBOARDING_CHECKER', default=False)
+PEOPLE_ONBOARDING_ENABLE_AI_DOCUMENT_PARSING = env.bool(
+    'PEOPLE_ONBOARDING_ENABLE_AI_DOCUMENT_PARSING',
+    default=False,
+)
+PEOPLE_ONBOARDING_MAX_DOCUMENT_PAGES = env.int(
+    'PEOPLE_ONBOARDING_MAX_DOCUMENT_PAGES',
+    default=12,
+)
+PEOPLE_ONBOARDING_MAX_DOCUMENT_SIZE_MB = env.int(
+    'PEOPLE_ONBOARDING_MAX_DOCUMENT_SIZE_MB',
+    default=10,
+)
+PEOPLE_ONBOARDING_OCR_CONFIDENCE_THRESHOLD = env.float(
+    'PEOPLE_ONBOARDING_OCR_CONFIDENCE_THRESHOLD',
+    default=0.65,
+)
 ENABLE_ONBOARDING_KB = env.bool('ENABLE_ONBOARDING_KB', default=False)
 ENABLE_ONBOARDING_SSE = env.bool('ENABLE_ONBOARDING_SSE', default=False)
 

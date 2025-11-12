@@ -36,6 +36,10 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import cache_page
 
 from apps.core.constants.datetime_constants import (
+from apps.core.exceptions.patterns import CACHE_EXCEPTIONS
+
+from apps.core.exceptions.patterns import CELERY_EXCEPTIONS
+
     SECONDS_IN_MINUTE,
     SECONDS_IN_HOUR,
     SECONDS_IN_DAY,
@@ -193,7 +197,7 @@ def _compute_dashboard_metrics() -> Dict[str, Any]:
         scheduled_tasks = inspect.scheduled()
 
         queue_stats = _compute_queue_stats(active_tasks, scheduled_tasks)
-    except Exception as e:
+    except CELERY_EXCEPTIONS as e:
         queue_stats = {
             'error': str(e),
             'active_count': 0,
@@ -622,7 +626,7 @@ def api_clear_idempotency_cache(request):
             'message': 'Idempotency cache cleared'
         })
 
-    except Exception as e:
+    except CACHE_EXCEPTIONS as e:
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -752,7 +756,7 @@ def retry_dlq_task(request, task_id):
         else:
             messages.error(request, f"Retry failed: {result.get('error', 'Unknown error')}")
 
-    except Exception as exc:
+    except CELERY_EXCEPTIONS as exc:
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error retrying DLQ task {task_id}: {exc}", exc_info=True)

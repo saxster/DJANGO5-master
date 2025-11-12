@@ -42,7 +42,7 @@ class TaskComplianceConfig(BaseModel, TenantAwareModel):
     )
 
     client = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -51,7 +51,7 @@ class TaskComplianceConfig(BaseModel, TenantAwareModel):
     )
 
     site = models.ForeignKey(
-        'onboarding.Bt',
+        'client_onboarding.Bt',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

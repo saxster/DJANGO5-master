@@ -22,7 +22,7 @@ from apps.y_helpdesk.models.sla_policy import SLAPolicy
 from apps.y_helpdesk.services.sla_calculator import SLACalculator
 from apps.attendance.services.attendance_expectation_service import AttendanceExpectationService
 from apps.noc.services.aggregation_service import NOCAggregationService
-from apps.onboarding.models import Bt
+from apps.client_onboarding.models import Bt
 from apps.peoples.models import People, Pgbelonging
 
 

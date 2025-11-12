@@ -9,9 +9,9 @@ from django.views.generic.base import View
 from apps.activity.models.attachment_model import Attachment
 from apps.activity.models.job_model import Job
 import apps.activity.utils as av_utils
-import apps.onboarding.models as obm
+from apps.core_onboarding.models import GeofenceMaster
 from apps.core import utils
-from apps.onboarding.utils import is_point_in_geofence, polygon_to_address
+from apps.client_onboarding.utils import is_point_in_geofence, polygon_to_address
 from apps.service.services.database_service import get_model_or_form
 import time
 from requests.exceptions import RequestException
@@ -45,8 +45,10 @@ def get_address(lat, lon):
                     f"Geocoding retry attempt {attempt + 2}/{max_retries} after {delay:.2f}s",
                     extra={'error': str(e)}
                 )
-                # NOTE: This time.sleep is acceptable for geocoding API retries
-                # due to synchronous operation requirement and short total duration
+                # SAFE: time.sleep() acceptable for geocoding API retries (external API constraint)
+                # - Not in hot request path (geocoding is optional background enhancement)
+                # - Short duration with exponential backoff (max 4.0s total)
+                # - Required by Google Maps API rate limiting
                 import time
                 time.sleep(delay)
             else:
@@ -228,7 +230,7 @@ class PreviewImage(LoginRequiredMixin, View):
 
                 if get_people:
                     get_geofence_data = (
-                        obm.GeofenceMaster.objects.filter(
+                        GeofenceMaster.objects.filter(
                             id=get_people[0]["geofence_id"], enable=True
                         )
                         .exclude(id=1)

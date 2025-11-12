@@ -30,7 +30,8 @@ from django.template.loader import render_to_string
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 from django.urls import reverse
-from apps.onboarding import models as on
+from apps.client_onboarding import models as on_client
+from apps.core_onboarding import models as on_core
 from apps.peoples import utils as putils
 from apps.core import utils
 from apps.activity.forms.question_form import QsetBelongingForm
@@ -48,6 +49,70 @@ from apps.activity.models.question_model import QuestionSet, Question
 from apps.core.decorators import csrf_protect_ajax, rate_limit
 from datetime import datetime
 from apps.core.utils_new.db_utils import get_current_db_name
+
+
+# Explicit __all__ to control namespace (Rule #16: Wildcard Import Prevention)
+__all__ = [
+    # Imports and modules
+    'logging',
+    'json',
+    'asyncio',
+    'pformat',
+    'redirect',
+    'render',
+    '_',
+    'LoginRequiredMixin',
+    'login_required',
+    'transaction',
+    'IntegrityError',
+    'DatabaseError',
+    'ObjectDoesNotExist',
+    'ValidationError',
+    'View',
+    'messages',
+    'JsonResponse',
+    'QueryDict',
+    'rp',
+    'FileResponse',
+    'HttpResponse',
+    'BytesIO',
+    'render_to_string',
+    'HTML',
+    'CSS',
+    'FontConfiguration',
+    'reverse',
+    'on_client',
+    'on_core',
+    'putils',
+    'utils',
+    'QsetBelongingForm',
+    'rp_forms',
+    'subprocess',
+    'os',
+    'settings',
+    'rutils',
+    'create_save_report_async',
+    'remove_reportfile',
+    'AsyncResult',
+    'Asset',
+    'Jobneed',
+    'QuestionSet',
+    'Question',
+    'csrf_protect_ajax',
+    'rate_limit',
+    'datetime',
+    'get_current_db_name',
+    # Classes
+    'IntegrationException',
+    'MasterReportForm',
+    'MasterReportBelonging',
+    'SiteReportTemplateForm',
+    'IncidentReportTemplateForm',
+    # Loggers
+    'log',
+    'debug_log',
+    'error_log',
+]
 
 
 # Exception for integration errors (if not defined elsewhere)

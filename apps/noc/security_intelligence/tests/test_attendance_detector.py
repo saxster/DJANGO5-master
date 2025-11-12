@@ -55,7 +55,7 @@ class TestAttendanceAnomalyDetector:
         """Test detection of impossible consecutive shifts."""
         from apps.noc.security_intelligence.services import AttendanceAnomalyDetector
         from apps.attendance.models import PeopleEventlog
-        from apps.onboarding.models import Bt
+        from apps.client_onboarding.models import Bt
 
         distant_site = Bt.objects.create(
             tenant=attendance_event.tenant,
