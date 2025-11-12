@@ -9,7 +9,10 @@ Usage:
 
 FEATURES = {
     # Phase 2: HelpBot ontology integration
-    'HELPBOT_USE_ONTOLOGY': False,  # Default: OFF (manual enable)
+    # ✅ ENABLED after passing Phase 2 performance gate (2025-11-12)
+    # Performance: P95 latency 0.26ms (500x under 500ms threshold)
+    # See: PHASE2_GATE_RESULTS.md for full test results
+    'HELPBOT_USE_ONTOLOGY': True,
 
     # Phase 3: Article auto-generation
     'ENABLE_ARTICLE_AUTO_GENERATION': False,
