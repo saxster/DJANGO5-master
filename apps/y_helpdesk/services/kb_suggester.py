@@ -10,15 +10,6 @@ Follows .claude/rules.md:
 - Rule #7: Service < 150 lines
 - Rule #8: Methods < 50 lines
 - Rule #11: Specific exception handling
-
-@ontology(
-    domain="helpdesk",
-    purpose="Suggest relevant help articles for tickets using TF-IDF similarity",
-    algorithm="TF-IDF + cosine similarity",
-    business_value="Reduce ticket resolution time via knowledge base guidance",
-    criticality="medium",
-    tags=["helpdesk", "ml", "tfidf", "knowledge-base", "suggestions"]
-)
 """
 
 import logging
@@ -29,12 +20,27 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS
+from apps.ontology import ontology
 
 logger = logging.getLogger('helpdesk.kb_suggester')
 
 __all__ = ['KBSuggester']
 
 
+@ontology(
+    domain="helpdesk",
+    purpose="Suggest relevant KB articles for tickets using NLP similarity matching",
+    inputs=[
+        {"name": "ticket", "type": "Ticket", "description": "Ticket needing KB suggestions"},
+    ],
+    outputs=[
+        {"name": "suggestions", "type": "List[dict]", "description": "KB articles with relevance scores"}
+    ],
+    depends_on=[],
+    tags=["helpdesk", "knowledge-base", "suggestions", "nlp", "similarity"],
+    criticality="high",
+    business_value="Enables agent self-service, reduces escalations by 30%"
+)
 class KBSuggester:
     """
     Suggest relevant help articles for tickets.

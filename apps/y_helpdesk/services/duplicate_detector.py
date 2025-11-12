@@ -8,14 +8,6 @@ Follows .claude/rules.md:
 - Rule #7: Service < 150 lines
 - Rule #8: Methods < 30 lines
 - Rule #11: Specific exception handling
-
-@ontology(
-    domain="helpdesk",
-    purpose="Detect duplicate tickets using similarity scoring",
-    business_value="Reduced duplicate work, faster resolution",
-    criticality="low",
-    tags=["helpdesk", "deduplication", "similarity", "nlp"]
-)
 """
 
 import logging
@@ -24,12 +16,28 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, PARSING_EXCEPTIONS
+from apps.ontology import ontology
 
 logger = logging.getLogger('y_helpdesk.duplicate_detector')
 
 __all__ = ['DuplicateDetectorService']
 
 
+@ontology(
+    domain="helpdesk",
+    purpose="Detect duplicate tickets using similarity scoring to reduce redundant work",
+    inputs=[
+        {"name": "ticket", "type": "Ticket", "description": "Ticket to check for duplicates"},
+        {"name": "limit", "type": "int", "description": "Maximum duplicates to return"}
+    ],
+    outputs=[
+        {"name": "duplicates", "type": "List[Tuple[Ticket, float]]", "description": "List of (ticket, similarity_score) tuples"}
+    ],
+    depends_on=[],
+    tags=["helpdesk", "deduplication", "similarity", "nlp"],
+    criticality="low",
+    business_value="Reduced duplicate work, faster resolution"
+)
 class DuplicateDetectorService:
     """Detect duplicate tickets using text similarity."""
     

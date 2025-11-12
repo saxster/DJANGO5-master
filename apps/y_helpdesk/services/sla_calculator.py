@@ -26,10 +26,28 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from apps.y_helpdesk.models import Ticket
 from apps.y_helpdesk.models.sla_policy import SLAPolicy
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="helpdesk",
+    purpose="Calculate SLA compliance, overdue status, and escalation triggers with business calendar support",
+    inputs=[
+        {"name": "ticket", "type": "Ticket", "description": "Ticket to calculate SLA metrics for"},
+        {"name": "current_time", "type": "datetime", "description": "Reference time for calculations"}
+    ],
+    outputs=[
+        {"name": "sla_metrics", "type": "Dict[str, Any]", "description": "SLA compliance metrics including overdue status and escalation triggers"}
+    ],
+    depends_on=[
+        "apps.y_helpdesk.models.sla_policy.SLAPolicy"
+    ],
+    tags=["helpdesk", "sla", "compliance", "escalation", "business-calendar"],
+    criticality="high",
+    business_value="Ensures timely ticket resolution and prevents SLA breaches"
+)
 class SLACalculator:
     """
     Service for calculating SLA compliance and overdue status.
