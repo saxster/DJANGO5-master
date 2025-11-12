@@ -22,3 +22,18 @@ def pytest_configure(config):
     except RuntimeError:
         # Django already configured
         pass
+
+
+@pytest.fixture
+def test_tenant(db):
+    """Create test tenant for Phase 3 performance tests."""
+    from apps.tenants.models import Tenant
+
+    tenant, created = Tenant.objects.get_or_create(
+        subdomain_prefix='test',
+        defaults={
+            'tenantname': 'Test Tenant',
+            'is_active': True,
+        }
+    )
+    return tenant
