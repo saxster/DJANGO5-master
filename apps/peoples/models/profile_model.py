@@ -373,3 +373,59 @@ class PeopleProfile(BaseModel):
         """Override save to perform validation."""
         self.clean()
         super().save(*args, **kwargs)
+
+    def calculate_completion_percentage(self) -> int:
+        """
+        Calculate profile completion based on required fields.
+
+        Required fields: peopleimg, dateofbirth, dateofjoin, gender
+
+        Returns:
+            Integer 0-100
+
+        Side Effects:
+            Updates self.profile_completion_percentage if value changed
+        """
+        required_fields = ['peopleimg', 'dateofbirth', 'dateofjoin', 'gender']
+
+        # Count completed fields
+        completed = sum(1 for field in required_fields if getattr(self, field, None))
+
+        # Calculate percentage
+        percentage = int((completed / len(required_fields)) * 100)
+
+        # Update stored value if changed
+        if self.profile_completion_percentage != percentage:
+            self.profile_completion_percentage = percentage
+            self.save(update_fields=['profile_completion_percentage'])
+
+        return percentage
+
+    def get_missing_profile_fields(self) -> list:
+        """
+        Returns list of dicts with missing required fields.
+
+        Returns:
+            [{"field": "peopleimg", "display_name": "Profile Image"}, ...]
+        """
+        required = {
+            'peopleimg': 'Profile Image',
+            'dateofbirth': 'Date of Birth',
+            'dateofjoin': 'Date of Joining',
+            'gender': 'Gender',
+        }
+
+        return [
+            {'field': k, 'display_name': v}
+            for k, v in required.items()
+            if not getattr(self, k, None)
+        ]
+
+    def is_profile_complete(self) -> bool:
+        """
+        Quick check if profile is 100% complete.
+
+        Returns:
+            True if all 4 required fields are filled
+        """
+        return self.profile_completion_percentage == 100
