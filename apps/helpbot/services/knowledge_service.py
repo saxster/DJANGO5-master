@@ -56,6 +56,17 @@ class HelpBotKnowledgeService:
         # Initialize txtai integration if available
         self._init_txtai_integration()
 
+        # Initialize ontology integration (lazy loaded, only if feature flag enabled)
+        self.ontology_service = None
+        if settings.FEATURES.get('HELPBOT_USE_ONTOLOGY', False):
+            try:
+                from apps.core.services.ontology_query_service import OntologyQueryService
+                self.ontology_service = OntologyQueryService()
+                logger.info("Ontology integration enabled for HelpBot")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"Could not initialize ontology integration: {e}")
+                self.ontology_service = None
+
         # Documentation paths based on codebase analysis
         self.doc_paths = [
             settings.BASE_DIR / 'docs',
@@ -531,18 +542,41 @@ class HelpBotKnowledgeService:
 
     def search_knowledge(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Search knowledge base using semantic search.
-        Returns list of relevant knowledge entries.
+        Search knowledge base using semantic search with optional ontology integration.
+
+        Args:
+            query: Search query
+            category: Optional category filter
+            limit: Max results
+
+        Returns:
+            List of knowledge entries with source attribution
         """
         try:
-            # First try txtai semantic search if available
-            if self.txtai_enabled:
-                results = self._txtai_search(query, category, limit)
-                if results:
-                    return results
+            results = []
 
-            # Fallback to database search
-            return self._database_search(query, category, limit)
+            # 1. Query static KB (always - txtai or database search)
+            if self.txtai_enabled:
+                kb_results = self._txtai_search(query, category, limit)
+                if kb_results:
+                    results.extend(kb_results)
+            else:
+                kb_results = self._database_search(query, category, limit)
+                results.extend(kb_results)
+
+            # 2. Query ontology (if enabled via feature flag)
+            if self.ontology_service is not None:
+                try:
+                    ontology_results = self._search_ontology(query, limit)
+                    results.extend(ontology_results)
+                except (NETWORK_EXCEPTIONS, DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
+                    logger.error(f"Ontology query failed (graceful degradation): {e}")
+                    # Continue with static KB results only
+
+            # 3. Merge and rank results
+            merged = self._merge_results(results, limit)
+
+            return merged
 
         except (DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS, PARSING_EXCEPTIONS) as e:
             logger.error(f"Error searching knowledge: {e}", exc_info=True)
@@ -752,3 +786,112 @@ class HelpBotKnowledgeService:
                 exc_info=True
             )
             return False
+
+    def _search_ontology(self, query: str, limit: int = 5) -> List[Dict]:
+        """
+        Query ontology registry for code components.
+
+        Args:
+            query: Search query
+            limit: Max results (default 5)
+
+        Returns:
+            List of knowledge entries with source='ontology'
+        """
+        ontology_results = self.ontology_service.query(query, limit)
+
+        # Format for knowledge service
+        formatted = []
+        for result in ontology_results:
+            formatted.append({
+                'id': f"ontology_{result['qualified_name']}",
+                'title': result.get('purpose', result['qualified_name']),
+                'content': self._format_ontology_entry(result),
+                'category': result.get('domain', 'code'),
+                'knowledge_type': 'code',
+                'source': 'ontology',
+                'relevance': self._calculate_relevance(query, result)
+            })
+
+        return formatted
+
+    def _format_ontology_entry(self, metadata: Dict) -> str:
+        """
+        Format ontology metadata as readable text.
+
+        Args:
+            metadata: Ontology component metadata
+
+        Returns:
+            Formatted markdown content
+        """
+        lines = [
+            f"# {metadata['qualified_name']}",
+            "",
+            f"**Purpose:** {metadata.get('purpose', 'No description')}",
+            f"**Domain:** {metadata.get('domain', 'N/A')}",
+            f"**Tags:** {', '.join(metadata.get('tags', []))}",
+        ]
+
+        if metadata.get('business_value'):
+            lines.append(f"**Business Value:** {metadata['business_value']}")
+
+        if metadata.get('depends_on'):
+            lines.append(f"**Dependencies:** {', '.join(metadata['depends_on'])}")
+
+        if metadata.get('performance_notes'):
+            lines.append(f"\n**Performance:** {metadata['performance_notes']}")
+
+        if metadata.get('security_notes'):
+            lines.append(f"\n**Security:** {metadata['security_notes']}")
+
+        return "\n".join(lines)
+
+    def _merge_results(self, results: List[Dict], limit: int) -> List[Dict]:
+        """
+        Merge and rank results from multiple sources.
+
+        Args:
+            results: List of results from different sources
+            limit: Max results to return
+
+        Returns:
+            Merged and ranked results
+        """
+        # Sort by relevance score (if available)
+        sorted_results = sorted(
+            results,
+            key=lambda x: x.get('relevance', 0.5),
+            reverse=True
+        )
+
+        return sorted_results[:limit]
+
+    def _calculate_relevance(self, query: str, metadata: Dict) -> float:
+        """
+        Calculate relevance score for ontology result.
+
+        Args:
+            query: Search query
+            metadata: Ontology component metadata
+
+        Returns:
+            Relevance score (0.0 - 1.0)
+        """
+        score = 0.5  # Base score
+
+        query_lower = query.lower()
+
+        # Check purpose
+        if query_lower in metadata.get('purpose', '').lower():
+            score += 0.3
+
+        # Check tags
+        if any(query_lower in tag.lower() for tag in metadata.get('tags', [])):
+            score += 0.2
+
+        # Check domain
+        if query_lower in metadata.get('domain', '').lower():
+            score += 0.1
+
+        return min(score, 1.0)
