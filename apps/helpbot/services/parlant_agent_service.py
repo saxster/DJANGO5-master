@@ -21,10 +21,29 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from asgiref.sync import async_to_sync
 from apps.core.exceptions.patterns import NETWORK_EXCEPTIONS, PARSING_EXCEPTIONS
+from apps.ontology import ontology
 
 logger = logging.getLogger('helpbot.parlant')
 
 
+@ontology(
+    domain="help",
+    purpose="Parlant 3.0 conversational AI agent for guided workflows and security scorecard reviews",
+    inputs=[
+        {"name": "session", "type": "HelpBotSession", "description": "Session context"},
+        {"name": "journey", "type": "str", "description": "Journey type: scorecard_review, emergency_escalation, violation_resolution"},
+    ],
+    outputs=[
+        {"name": "response", "type": "dict", "description": "Parlant agent response with guidance"}
+    ],
+    depends_on=[
+        "parlant==3.0",
+        "apps.helpbot.parlant.guidelines.non_negotiables_guidelines"
+    ],
+    tags=["help", "ai", "parlant", "security", "guided-workflows", "journeys"],
+    criticality="high",
+    business_value="Security Facility Mentor - guides compliance with 7 non-negotiables, multi-language support (en/hi/te)"
+)
 class ParlantAgentService:
     """
     Wrapper service for Parlant conversational AI framework.

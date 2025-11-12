@@ -11,6 +11,7 @@ import logging
 import re
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+from apps.ontology import ontology
 
 logger = logging.getLogger('helpbot.ticket_intent')
 
@@ -26,6 +27,20 @@ class IntentClassification:
     ticket_number: Optional[str] = None
 
 
+@ontology(
+    domain="help",
+    purpose="NLP-based ticket intent classification for intelligent routing and deflection",
+    inputs=[
+        {"name": "message", "type": "str", "description": "User message text"}
+    ],
+    outputs=[
+        {"name": "classification", "type": "IntentClassification", "description": "Intent with confidence, priority, category, deflection score"}
+    ],
+    depends_on=[],
+    tags=["help", "nlp", "intent-classification", "ticket-deflection", "routing"],
+    criticality="high",
+    business_value="Improves ticket deflection rates by identifying answerable questions vs. issues requiring tickets"
+)
 class TicketIntentClassifier:
     """
     Classify user intent for ticket-related conversations.

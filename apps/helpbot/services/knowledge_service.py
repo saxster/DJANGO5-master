@@ -19,10 +19,30 @@ from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 from apps.helpbot.models import HelpBotKnowledge, HelpBotAnalytics
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, NETWORK_EXCEPTIONS
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="help",
+    purpose="txtai knowledge base management with semantic search and documentation indexing",
+    inputs=[
+        {"name": "query", "type": "str", "description": "Search query"},
+        {"name": "category", "type": "str", "description": "Optional category filter"},
+        {"name": "limit", "type": "int", "description": "Max results (default 10)"}
+    ],
+    outputs=[
+        {"name": "results", "type": "List[Dict]", "description": "Ranked knowledge articles"}
+    ],
+    depends_on=[
+        "txtai",
+        "django.contrib.postgres.search"
+    ],
+    tags=["help", "knowledge-base", "txtai", "semantic-search", "rag"],
+    criticality="high",
+    business_value="Powers HelpBot knowledge retrieval with semantic search over documentation corpus"
+)
 class HelpBotKnowledgeService:
     """
     Core knowledge management service for HelpBot.

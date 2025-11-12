@@ -19,10 +19,30 @@ from django.contrib.sessions.models import Session
 from apps.helpbot.models import HelpBotContext, HelpBotSession
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, BUSINESS_LOGIC_EXCEPTIONS
 from apps.core.exceptions.patterns import PARSING_EXCEPTIONS, NETWORK_EXCEPTIONS
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="help",
+    purpose="User context tracking with journey analysis for intelligent help suggestions",
+    inputs=[
+        {"name": "user", "type": "People", "description": "User instance"},
+        {"name": "request", "type": "HttpRequest", "description": "Django request object"},
+        {"name": "session", "type": "HelpBotSession", "description": "Optional HelpBot session"}
+    ],
+    outputs=[
+        {"name": "context", "type": "HelpBotContext", "description": "Captured user context"},
+        {"name": "suggestions", "type": "List[Dict]", "description": "Context-aware help suggestions"}
+    ],
+    depends_on=[
+        "django.contrib.sessions"
+    ],
+    tags=["help", "context", "journey-tracking", "suggestions", "navigation"],
+    criticality="medium",
+    business_value="Enables context-aware help by tracking user journey, page context, and errors for intelligent suggestions"
+)
 class HelpBotContextService:
     """
     Service for managing user context and journey tracking.

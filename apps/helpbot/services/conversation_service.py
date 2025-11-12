@@ -23,10 +23,32 @@ from apps.helpbot.services.knowledge_service import HelpBotKnowledgeService
 from apps.helpbot.services.context_service import HelpBotContextService
 from django.core.exceptions import ValidationError
 from apps.noc.security_intelligence.services import NonNegotiablesService
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="help",
+    purpose="Orchestrate multi-turn conversations with context tracking and intent classification",
+    inputs=[
+        {"name": "session", "type": "HelpBotSession", "description": "Conversation session"},
+        {"name": "message", "type": "str", "description": "User message"},
+        {"name": "user", "type": "People", "description": "User context"}
+    ],
+    outputs=[
+        {"name": "response", "type": "str", "description": "Bot response"},
+        {"name": "suggestions", "type": "List[str]", "description": "Follow-up suggestions"}
+    ],
+    depends_on=[
+        "apps.helpbot.services.KnowledgeService",
+        "apps.helpbot.services.ContextService",
+        "apps.helpbot.services.ParlantAgentService"
+    ],
+    tags=["help", "chatbot", "conversation", "multi-turn", "intent"],
+    criticality="high",
+    business_value="Powers conversational help interface, supports 8 session types including security mentor"
+)
 class HelpBotConversationService:
     """
     Core conversation management service for HelpBot.
