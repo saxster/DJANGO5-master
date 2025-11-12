@@ -455,7 +455,7 @@ for file in $staged_py_files; do
         if grep -n "password.*=.*[\"'][^\"']*[\"']\|secret.*=.*[\"'][^\"']*[\"']\|key.*=.*[\"'][^\"']*[\"']" "$file" 2>/dev/null; then
             # Exclude obvious non-secrets
             if ! grep -n "password.*=.*[\"']password[\"']\|secret.*=.*[\"']secret[\"']\|key.*=.*[\"']key[\"']" "$file" 2>/dev/null; then
-                report_violation "Potential Hardcoded Secret" "$file" "$(grep -n 'password.*=.*[\"\']\|secret.*=.*[\"\']\|key.*=.*[\"\''] "$file" | head -1 | cut -d: -f1)" \
+                report_violation "Potential Hardcoded Secret" "$file" "$(grep -n "password.*=.*[\"']\|secret.*=.*[\"']\|key.*=.*[\"']" "$file" | head -1 | cut -d: -f1)" \
                     "Possible hardcoded secret detected. Use environment variables." "Security Best Practice"
             fi
         fi
@@ -521,13 +521,13 @@ for file in $staged_py_files; do
     if [ -f "$file" ]; then
         # Block eval() usage (code injection risk)
         if grep -n "eval(" "$file" 2>/dev/null | grep -v "#.*eval\|\"eval\|'eval" 2>/dev/null; then
-            report_violation "Code Injection Risk: eval()" "$file" "$(grep -n 'eval(' "$file" | grep -v '#.*eval\|"eval\|'"'"'eval' | cut -d: -f1 | head -1)" \
+            report_violation "Code Injection Risk: eval()" "$file" "$(grep -n 'eval(' "$file" | grep -v '#.*eval\|\"eval\|'\''eval' | cut -d: -f1 | head -1)" \
                 "eval() enables code injection vulnerabilities. Use explicit functions/config instead." "Security Critical"
         fi
 
         # Block exec() usage (code injection risk)
         if grep -n "exec(" "$file" 2>/dev/null | grep -v "#.*exec\|\"exec\|'exec" 2>/dev/null; then
-            report_violation "Code Injection Risk: exec()" "$file" "$(grep -n 'exec(' "$file" | grep -v '#.*exec\|"exec\|'"'"'exec' | cut -d: -f1 | head -1)" \
+            report_violation "Code Injection Risk: exec()" "$file" "$(grep -n 'exec(' "$file" | grep -v '#.*exec\|"exec\|'\''exec' | cut -d: -f1 | head -1)" \
                 "exec() enables code injection vulnerabilities. Refactor to use safe alternatives." "Security Critical"
         fi
     fi
