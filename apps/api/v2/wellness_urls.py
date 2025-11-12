@@ -18,6 +18,8 @@ app_name = 'wellness'
 urlpatterns = [
     # Journal endpoints (V2)
     path('journal/', wellness_views.JournalEntriesView.as_view(), name='journal'),
+    path('journal/<uuid:entry_id>/media/', wellness_views.JournalMediaUploadView.as_view(), name='journal-media-upload'),
+    path('journal/<uuid:entry_id>/media/list/', wellness_views.JournalMediaListView.as_view(), name='journal-media-list'),
 
     # Wellness content (V2)
     path('content/', wellness_views.WellnessContentView.as_view(), name='content'),

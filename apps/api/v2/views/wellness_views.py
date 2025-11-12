@@ -20,7 +20,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.db import DatabaseError
+from django.core.exceptions import ObjectDoesNotExist
+
+from apps.peoples.permissions import HasVoiceFeatureAccess
 
 logger = logging.getLogger(__name__)
 
@@ -211,4 +215,238 @@ class PrivacySettingsView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-__all__ = ['JournalEntriesView', 'WellnessContentView', 'WellnessAnalyticsView', 'PrivacySettingsView']
+class JournalMediaUploadView(APIView):
+    """
+    POST /api/v2/wellness/journal/<entry_id>/media/
+
+    Upload media attachment to journal entry.
+    Checks HasVoiceFeatureAccess for AUDIO uploads.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    MAX_AUDIO_SIZE = 50 * 1024 * 1024  # 50MB
+    MAX_DURATION = 300  # 5 minutes
+    ALLOWED_AUDIO_FORMATS = {'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/aac', 'audio/ogg'}
+
+    def post(self, request, entry_id):
+        """Upload media attachment."""
+        from apps.journal.models import JournalEntry, JournalMediaAttachment
+
+        correlation_id = str(uuid.uuid4())
+        media_type = request.data.get('media_type')
+
+        # Check voice capability for AUDIO uploads
+        if media_type == 'AUDIO':
+            voice_permission = HasVoiceFeatureAccess()
+            if not voice_permission.has_permission(request, self):
+                return Response({
+                    'success': False,
+                    'error': {
+                        'code': 'PERMISSION_DENIED',
+                        'message': 'You do not have permission to upload audio files'
+                    },
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get journal entry with ownership + tenant checks
+        try:
+            entry = JournalEntry.objects.get(
+                id=entry_id,
+                user=request.user,
+                tenant_id=request.user.client_id
+            )
+        except ObjectDoesNotExist:
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'NOT_FOUND',
+                    'message': 'Journal entry not found or you do not have access'
+                },
+                'meta': {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Validate file
+        if 'file' not in request.FILES:
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'VALIDATION_ERROR',
+                    'message': 'No file provided'
+                },
+                'meta': {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        file = request.FILES['file']
+
+        # AUDIO-specific validation
+        if media_type == 'AUDIO':
+            if file.size > self.MAX_AUDIO_SIZE:
+                return Response({
+                    'success': False,
+                    'error': {
+                        'code': 'FILE_TOO_LARGE',
+                        'message': f'Audio file too large. Maximum: 50MB'
+                    },
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if file.content_type not in self.ALLOWED_AUDIO_FORMATS:
+                allowed = ', '.join(self.ALLOWED_AUDIO_FORMATS)
+                return Response({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_FORMAT',
+                        'message': f'Invalid audio format. Allowed: {allowed}'
+                    },
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            duration = int(request.data.get('duration', 0))
+            if duration > self.MAX_DURATION:
+                return Response({
+                    'success': False,
+                    'error': {
+                        'code': 'DURATION_TOO_LONG',
+                        'message': f'Audio duration too long. Maximum: {self.MAX_DURATION} seconds'
+                    },
+                    'meta': {
+                        'correlation_id': correlation_id,
+                        'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create media attachment
+        try:
+            attachment = JournalMediaAttachment.objects.create(
+                journal_entry=entry,
+                media_type=media_type,
+                file=file,
+                original_filename=file.name,
+                mime_type=file.content_type,
+                file_size=file.size,
+                caption=request.data.get('caption', ''),
+            )
+
+            # Build file URL
+            file_url = request.build_absolute_uri(attachment.file.url) if attachment.file else None
+
+            return Response({
+                'success': True,
+                'data': {
+                    'id': str(attachment.id),
+                    'journal_entry_id': str(entry.id),
+                    'media_type': attachment.media_type,
+                    'file_url': file_url,
+                    'caption': attachment.caption,
+                    'duration': int(request.data.get('duration', 0)) if media_type == 'AUDIO' else None,
+                    'file_size': attachment.file_size,
+                    'created_at': attachment.created_at.isoformat(),
+                },
+                'meta': {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                }
+            }, status=status.HTTP_201_CREATED)
+
+        except DatabaseError as e:
+            logger.error(f"Database error creating media attachment: {e}", exc_info=True)
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'DATABASE_ERROR',
+                    'message': 'Failed to save media attachment'
+                },
+                'meta': {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class JournalMediaListView(APIView):
+    """
+    GET /api/v2/wellness/journal/<entry_id>/media/
+
+    List all media attachments for a journal entry.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, entry_id):
+        """List all media attachments for entry."""
+        from apps.journal.models import JournalEntry, JournalMediaAttachment
+
+        correlation_id = str(uuid.uuid4())
+
+        # Get journal entry with ownership + tenant checks
+        try:
+            entry = JournalEntry.objects.get(
+                id=entry_id,
+                user=request.user,
+                tenant_id=request.user.client_id
+            )
+        except ObjectDoesNotExist:
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'NOT_FOUND',
+                    'message': 'Journal entry not found or you do not have access'
+                },
+                'meta': {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all media attachments
+        attachments = JournalMediaAttachment.objects.filter(
+            journal_entry=entry,
+            is_deleted=False
+        ).order_by('display_order', 'created_at')
+
+        # Serialize attachments
+        media_list = []
+        for attachment in attachments:
+            file_url = request.build_absolute_uri(attachment.file.url) if attachment.file else None
+            media_list.append({
+                'id': str(attachment.id),
+                'media_type': attachment.media_type,
+                'file_url': file_url,
+                'caption': attachment.caption,
+                'file_size': attachment.file_size,
+                'created_at': attachment.created_at.isoformat(),
+            })
+
+        return Response({
+            'success': True,
+            'data': media_list,
+            'meta': {
+                'correlation_id': correlation_id,
+                'timestamp': datetime.now(dt_timezone.utc).isoformat()
+            }
+        }, status=status.HTTP_200_OK)
+
+
+__all__ = [
+    'JournalEntriesView',
+    'WellnessContentView',
+    'WellnessAnalyticsView',
+    'PrivacySettingsView',
+    'JournalMediaUploadView',
+    'JournalMediaListView',
+]
