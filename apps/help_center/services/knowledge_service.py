@@ -21,10 +21,34 @@ from django.utils.text import slugify
 from django.utils import timezone
 from apps.help_center.models import HelpArticle, HelpCategory
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="help",
+    purpose="Knowledge article CRUD, versioning, and publishing workflows",
+    inputs=[
+        {"name": "tenant", "type": "Tenant", "description": "Multi-tenant context"},
+        {"name": "title", "type": "str", "description": "Article title"},
+        {"name": "content", "type": "str", "description": "Markdown content"},
+        {"name": "category_id", "type": "int", "description": "HelpCategory ID"},
+        {"name": "created_by", "type": "People", "description": "Article author"}
+    ],
+    outputs=[
+        {"name": "article", "type": "HelpArticle", "description": "Created/updated help article"}
+    ],
+    depends_on=[
+        "django.contrib.postgres.search.SearchVector",
+        "apps.help_center.tasks.generate_article_embedding"
+    ],
+    tags=["help", "knowledge-management", "crud", "versioning", "publishing"],
+    criticality="high",
+    business_value="Enables scalable knowledge base management with versioning and workflow",
+    performance_notes="Auto-generates search vectors and embeddings asynchronously via Celery",
+    security_notes="Multi-tenant isolated, validates category ownership, uses select_for_update for concurrency"
+)
 class KnowledgeService:
     """Service for managing help article lifecycle."""
 

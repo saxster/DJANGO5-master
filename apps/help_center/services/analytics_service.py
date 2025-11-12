@@ -20,10 +20,33 @@ from datetime import timedelta
 from apps.help_center.models import (
     HelpArticle, HelpSearchHistory, HelpArticleInteraction, HelpTicketCorrelation
 )
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="help",
+    purpose="Track help article engagement, search analytics, and knowledge gap identification",
+    inputs=[
+        {"name": "tenant", "type": "Tenant", "description": "Tenant for analytics scope"},
+        {"name": "date_from", "type": "datetime", "description": "Start date for metrics"},
+        {"name": "date_to", "type": "datetime", "description": "End date for metrics"}
+    ],
+    outputs=[
+        {"name": "dashboard", "type": "dict", "description": "Effectiveness metrics including usage, ticket deflection, content gaps"}
+    ],
+    depends_on=[
+        "apps.help_center.models.HelpArticleInteraction",
+        "apps.help_center.models.HelpSearchHistory",
+        "apps.help_center.models.HelpTicketCorrelation"
+    ],
+    tags=["help", "analytics", "metrics", "engagement", "ticket-deflection"],
+    criticality="medium",
+    business_value="Quantifies help system ROI: ticket deflection rate, resolution time improvement, content gap analysis",
+    performance_notes="Optimized queries with aggregations, caches results for dashboard views",
+    security_notes="Multi-tenant isolated, role-based access to analytics data"
+)
 class AnalyticsService:
     """Help system effectiveness tracking."""
 

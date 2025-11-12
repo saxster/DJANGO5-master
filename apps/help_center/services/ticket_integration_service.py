@@ -19,10 +19,31 @@ from django.utils import timezone
 from datetime import timedelta
 from apps.help_center.models import HelpTicketCorrelation, HelpArticleInteraction, HelpSearchHistory
 from apps.help_center.services.search_service import SearchService
+from apps.ontology import ontology
 
 logger = logging.getLogger(__name__)
 
 
+@ontology(
+    domain="help",
+    purpose="Correlate help articles with support tickets to measure KB effectiveness",
+    inputs=[
+        {"name": "ticket", "type": "Ticket", "description": "Support ticket to analyze"},
+        {"name": "user", "type": "People", "description": "Ticket creator"}
+    ],
+    outputs=[
+        {"name": "correlation", "type": "HelpTicketCorrelation", "description": "Help usage correlation data"}
+    ],
+    depends_on=[
+        "apps.help_center.services.SearchService",
+        "apps.y_helpdesk.models.Ticket"
+    ],
+    tags=["help", "integration", "tickets", "effectiveness", "analytics"],
+    criticality="medium",
+    business_value="Measures ticket deflection effectiveness, identifies content gaps from ticket patterns",
+    performance_notes="Lookback window: 30 minutes before ticket, asynchronous processing via signals",
+    security_notes="Multi-tenant isolated, correlates only user's own help activity"
+)
 class TicketIntegrationService:
     """Correlate help usage with ticket creation."""
 
