@@ -56,9 +56,50 @@ def default_capabilities():
     AI-powered user capabilities.
 
     Returns:
-        dict: Default AI capabilities configuration
+        dict: Default AI capabilities configuration with all 13 flags
     """
-    return {}
+    return {
+        # Module access capabilities
+        'canAccessPeople': True,
+        'canAccessAttendance': True,
+        'canAccessOperations': True,
+        'canAccessHelpdesk': True,
+        'canAccessJournal': True,
+        'canAccessReports': False,
+        'canAccessCalendar': True,
+
+        # Onboarding and voice capabilities (default OFF for security)
+        'canAccessOnboarding': False,
+        'canUseVoiceFeatures': False,
+        'canUseVoiceBiometrics': False,
+
+        # Workflow capabilities
+        'canApproveJobs': False,
+        'canManageTeam': False,
+        'canViewAnalytics': False,
+    }
+
+
+def get_admin_capabilities() -> dict:
+    """
+    Full capabilities for admin/staff users.
+
+    Admin users have all features enabled by default.
+
+    Returns:
+        dict: Admin capabilities with all features enabled
+    """
+    caps = default_capabilities()
+    caps.update({
+        'canAccessReports': True,
+        'canAccessOnboarding': True,
+        'canUseVoiceFeatures': True,
+        'canUseVoiceBiometrics': True,
+        'canApproveJobs': True,
+        'canManageTeam': True,
+        'canViewAnalytics': True,
+    })
+    return caps
 
 
 def default_device_id():
