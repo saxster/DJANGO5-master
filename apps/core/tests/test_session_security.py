@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings, Client
 from django.contrib.sessions.models import Session
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from apps.core.testing import poll_until
 
 
 class SessionSecurityTest(TestCase):
@@ -169,18 +170,23 @@ class SessionFunctionalityTest(TestCase):
         original_session_key = session.session_key
 
         # Wait for session to expire
-        time.sleep(2)
+        import datetime
 
-        # Try to access expired session
-        try:
-            expired_session = Session.objects.get(session_key=original_session_key)
-            # Session should be expired
-            import datetime
-            now = datetime.datetime.now()
-            self.assertLess(expired_session.expire_date, now)
-        except Session.DoesNotExist:
-            # Session cleaned up - this is acceptable
-            pass
+        def session_expired():
+            try:
+                expired_session = Session.objects.get(session_key=original_session_key)
+                now = datetime.datetime.now()
+                return expired_session.expire_date < now
+            except Session.DoesNotExist:
+                # Session cleaned up - acceptable
+                return True
+
+        poll_until(
+            session_expired,
+            timeout=5,
+            interval=0.1,
+            error_message="Session did not expire within timeout"
+        )
 
     def test_concurrent_session_handling(self):
         """Test multiple concurrent sessions are handled correctly"""
