@@ -68,6 +68,12 @@ class OntologyRegistry:
 
     def _register_unlocked(self, qualified_name: str, metadata: Dict[str, Any]) -> None:
         """Internal helper that assumes the caller already holds ``self._lock``."""
+        # Ensure qualified_name is in metadata (critical for article generation)
+        # This fixes the data quality issue where 109/110 components were missing qualified_name
+        if "qualified_name" not in metadata or metadata["qualified_name"] is None:
+            metadata = metadata.copy()  # Don't mutate caller's dict
+            metadata["qualified_name"] = qualified_name
+
         # Store the metadata
         self._metadata[qualified_name] = metadata
 
