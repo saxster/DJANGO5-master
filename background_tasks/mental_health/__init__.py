@@ -1,35 +1,31 @@
 """
-Mental Health Intervention Background Tasks - Compatibility Facade
+Mental Health Intervention Tasks Package
 
-This module provides backward compatibility by re-exporting all tasks from the
-refactored mental_health package.
+Modular mental health intervention task system with focused responsibilities:
 
-DEPRECATED: Import directly from background_tasks.mental_health instead.
+- crisis_intervention.py: Crisis intervention processing, professional escalation
+- intervention_delivery.py: Content scheduling and multi-channel delivery
+- effectiveness_tracking.py: Intervention effectiveness and wellness monitoring
+- helper_functions.py: Shared utilities for content generation, analysis, notifications
 
-Original file (1212 lines) has been refactored into 4 focused modules:
-- crisis_intervention.py (~400 lines): Crisis response, professional escalation
-- intervention_delivery.py (~450 lines): Content scheduling and delivery
-- effectiveness_tracking.py (~350 lines): Effectiveness monitoring and tracking
-- helper_functions.py (~300 lines): Shared utilities and helpers
-
-All functionality is preserved. This facade maintains backward compatibility for
-existing imports.
+All tasks integrate with existing apps.core.tasks infrastructure.
 """
 
-# Re-export all tasks from refactored modules
-from background_tasks.mental_health import (
-    # Crisis intervention tasks
+# Import all public tasks for backward compatibility
+from background_tasks.mental_health.crisis_intervention import (
     process_crisis_mental_health_intervention,
     trigger_professional_escalation,
     schedule_crisis_follow_up_monitoring,
+)
 
-    # Intervention delivery tasks
+from background_tasks.mental_health.intervention_delivery import (
     schedule_weekly_positive_psychology_interventions,
     _schedule_immediate_intervention_delivery,
     _schedule_intervention_delivery,
     _deliver_intervention_content,
+)
 
-    # Effectiveness tracking tasks
+from background_tasks.mental_health.effectiveness_tracking import (
     track_intervention_effectiveness,
     review_escalation_level,
     monitor_user_wellness_status,
