@@ -20,6 +20,19 @@ class HelpBotConfig(AppConfig):
         except ImportError:
             pass
 
+        # Import services to trigger ontology registration
+        try:
+            from apps.helpbot.services import (  # noqa: F401
+                conversation_service,
+                knowledge_service,
+                parlant_agent_service,
+                context_service,
+                ticket_intent_classifier,
+            )
+        except (ImportError, RuntimeError):
+            # Services may not be importable in all contexts
+            pass
+
         # Initialize knowledge indexing if enabled
         from django.conf import settings
         if getattr(settings, 'HELPBOT_AUTO_INDEX_ON_STARTUP', False):

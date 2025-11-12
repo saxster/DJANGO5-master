@@ -11,5 +11,18 @@ class HelpCenterConfig(AppConfig):
     verbose_name = 'Help Center'
 
     def ready(self):
-        """Import signal handlers when app is ready."""
+        """Import signal handlers and register ontology components."""
         import apps.help_center.signals  # noqa: F401
+
+        # Import services to trigger ontology registration
+        try:
+            from apps.help_center.services import (  # noqa: F401
+                ai_assistant_service,
+                search_service,
+                knowledge_service,
+                analytics_service,
+                ticket_integration_service,
+            )
+        except (ImportError, RuntimeError):
+            # Services may not be importable in all contexts (e.g., during migrations)
+            pass
