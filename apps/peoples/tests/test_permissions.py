@@ -456,3 +456,132 @@ class TestPermissionAudit:
             peopleid=basic_user
         ).exists()
         assert not exists
+
+
+# ============================================================================
+# DRF Capability-Based Permission Tests
+# ============================================================================
+
+
+@pytest.fixture
+def api_request_factory():
+    """Request factory for creating mock HTTP requests."""
+    from rest_framework.test import APIRequestFactory
+    return APIRequestFactory()
+
+
+@pytest.fixture
+def mock_view():
+    """Mock view for permission checks."""
+    return None
+
+
+@pytest.mark.django_db
+class TestHasOnboardingAccess:
+    """Test HasOnboardingAccess permission class."""
+
+    def test_permission_granted_when_capability_true(self, basic_user, api_request_factory, mock_view):
+        """User with canAccessOnboarding=True should pass."""
+        from apps.peoples.permissions import HasOnboardingAccess
+
+        basic_user.capabilities = {'canAccessOnboarding': True}
+        basic_user.save()
+
+        request = api_request_factory.get('/')
+        request.user = basic_user
+
+        permission = HasOnboardingAccess()
+        assert permission.has_permission(request, mock_view) is True
+
+    def test_permission_denied_when_capability_false(self, basic_user, api_request_factory, mock_view):
+        """User with canAccessOnboarding=False should fail."""
+        from apps.peoples.permissions import HasOnboardingAccess
+
+        basic_user.capabilities = {'canAccessOnboarding': False}
+        basic_user.save()
+
+        request = api_request_factory.get('/')
+        request.user = basic_user
+
+        permission = HasOnboardingAccess()
+        assert permission.has_permission(request, mock_view) is False
+
+    def test_permission_denied_for_unauthenticated(self, api_request_factory, mock_view):
+        """Unauthenticated users should fail."""
+        from django.contrib.auth.models import AnonymousUser
+        from apps.peoples.permissions import HasOnboardingAccess
+
+        request = api_request_factory.get('/')
+        request.user = AnonymousUser()
+
+        permission = HasOnboardingAccess()
+        assert permission.has_permission(request, mock_view) is False
+
+    def test_permission_has_custom_error_message(self):
+        """Permission should have user-friendly error message."""
+        from apps.peoples.permissions import HasOnboardingAccess
+
+        permission = HasOnboardingAccess()
+        assert 'onboarding features' in permission.message.lower()
+
+
+@pytest.mark.django_db
+class TestHasVoiceFeatureAccess:
+    """Test HasVoiceFeatureAccess permission class."""
+
+    def test_permission_granted_when_capability_true(self, basic_user, api_request_factory, mock_view):
+        """User with canUseVoiceFeatures=True should pass."""
+        from apps.peoples.permissions import HasVoiceFeatureAccess
+
+        basic_user.capabilities = {'canUseVoiceFeatures': True}
+        basic_user.save()
+
+        request = api_request_factory.get('/')
+        request.user = basic_user
+
+        permission = HasVoiceFeatureAccess()
+        assert permission.has_permission(request, mock_view) is True
+
+    def test_permission_denied_when_capability_false(self, basic_user, api_request_factory, mock_view):
+        """User with canUseVoiceFeatures=False should fail."""
+        from apps.peoples.permissions import HasVoiceFeatureAccess
+
+        basic_user.capabilities = {'canUseVoiceFeatures': False}
+        basic_user.save()
+
+        request = api_request_factory.get('/')
+        request.user = basic_user
+
+        permission = HasVoiceFeatureAccess()
+        assert permission.has_permission(request, mock_view) is False
+
+
+@pytest.mark.django_db
+class TestHasVoiceBiometricAccess:
+    """Test HasVoiceBiometricAccess permission class."""
+
+    def test_permission_granted_when_capability_true(self, basic_user, api_request_factory, mock_view):
+        """User with canUseVoiceBiometrics=True should pass."""
+        from apps.peoples.permissions import HasVoiceBiometricAccess
+
+        basic_user.capabilities = {'canUseVoiceBiometrics': True}
+        basic_user.save()
+
+        request = api_request_factory.get('/')
+        request.user = basic_user
+
+        permission = HasVoiceBiometricAccess()
+        assert permission.has_permission(request, mock_view) is True
+
+    def test_permission_denied_when_capability_false(self, basic_user, api_request_factory, mock_view):
+        """User with canUseVoiceBiometrics=False should fail."""
+        from apps.peoples.permissions import HasVoiceBiometricAccess
+
+        basic_user.capabilities = {'canUseVoiceBiometrics': False}
+        basic_user.save()
+
+        request = api_request_factory.get('/')
+        request.user = basic_user
+
+        permission = HasVoiceBiometricAccess()
+        assert permission.has_permission(request, mock_view) is False
