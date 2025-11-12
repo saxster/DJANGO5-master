@@ -1,0 +1,43 @@
+{
+  "timestamp": 1762927533.203934,
+  "baseline_type": "simplified_phase1",
+  "note": "Simplified baseline measuring service availability and import overhead",
+  "memory": {
+    "initial_mb": 383.453125,
+    "final_mb": 386.4375,
+    "delta_mb": 2.984375
+  },
+  "service_availability": {
+    "helpbot": {
+      "import_time_ms": 7.878624834120274,
+      "memory_delta_mb": 2.234375,
+      "available": true
+    },
+    "help_center": {
+      "import_time_ms": 0.5980003625154495,
+      "memory_delta_mb": 0.0,
+      "available": true
+    },
+    "kb_suggester": {
+      "import_time_ms": 0.0017080456018447876,
+      "memory_delta_mb": 0.0,
+      "available": true
+    }
+  },
+  "mock_benchmarks": {
+    "helpbot": {
+      "p50": 0.12091686949133873,
+      "p95": 0.13795914128422737,
+      "p99": 8.132332935929298,
+      "mean": 0.20445039961487055,
+      "note": "Mock baseline - measuring service initialization only"
+    },
+    "help_center": {
+      "p50": 4.190951585769653e-05,
+      "p95": 4.237517714500427e-05,
+      "p99": 8.335337042808533e-05,
+      "mean": 3.374181687831879e-05,
+      "note": "Mock baseline - measuring service availability only"
+    }
+  }
+}
