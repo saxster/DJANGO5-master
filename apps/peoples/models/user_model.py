@@ -373,3 +373,41 @@ class People(PeopleCapabilityMixin, PeopleCompatibilityMixin, AbstractBaseUser, 
     # Capability management methods are now provided by PeopleCapabilityMixin
     # Methods available: has_capability, add_capability, remove_capability,
     # get_all_capabilities, set_ai_capabilities, get_effective_permissions
+
+    # Onboarding tracking methods
+    def has_completed_onboarding(self) -> bool:
+        """
+        Check if user has completed or skipped onboarding.
+
+        Returns:
+            True if user completed onboarding OR explicitly skipped it
+            False if user has not engaged with onboarding yet
+        """
+        return self.onboarding_completed_at is not None or self.onboarding_skipped
+
+    def can_access_onboarding(self) -> bool:
+        """
+        Check if user is authorized to access onboarding module.
+
+        Returns:
+            True if user has canAccessOnboarding capability
+            False otherwise
+        """
+        capabilities = self.get_all_capabilities()
+        return capabilities.get('canAccessOnboarding', False)
+
+    def get_onboarding_status_summary(self) -> dict:
+        """
+        Get comprehensive onboarding status for dashboards.
+
+        Returns:
+            Dict with onboarding flags and metadata
+        """
+        return {
+            'has_completed': self.has_completed_onboarding(),
+            'completed_at': self.onboarding_completed_at.isoformat() if self.onboarding_completed_at else None,
+            'skipped': self.onboarding_skipped,
+            'first_login_completed': self.first_login_completed,
+            'can_access': self.can_access_onboarding(),
+            'completed_steps': self.people_extras.get('onboarding', {}).get('completed_steps', []),
+        }
