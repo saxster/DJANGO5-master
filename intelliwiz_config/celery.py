@@ -520,6 +520,34 @@ app.conf.beat_schedule = {
     },
 
     # ============================================================================
+    # HELP CENTER: ONTOLOGY ARTICLE SYNC
+    # ============================================================================
+    # Auto-generate help articles from ontology metadata (daily sync)
+    # ============================================================================
+
+    # Sync Ontology Articles
+    # Runs: Daily at 2:00 AM UTC
+    # Rationale: Off-peak hours, auto-generates code reference articles from ontology
+    # Rate-limited: 1 article/second to prevent DB overload
+    # Filters: Only high-criticality components (production-critical code)
+    # Queue: default (batch processing, non-urgent)
+    "help_center_sync_ontology_articles": {
+        'task': 'help_center.sync_ontology_articles',
+        'schedule': crontab(minute='0', hour='2'),  # Daily 2:00 AM
+        'options': {
+            'expires': 3600,  # 1 hour
+            'queue': 'default',
+            'priority': 3,  # Low priority (batch processing)
+            'soft_time_limit': 540,  # 9 minutes
+            'time_limit': 600,       # 10 minutes hard limit
+        },
+        'kwargs': {
+            'dry_run': False,
+            'criticality': 'high'  # Only sync high-criticality components
+        }
+    },
+
+    # ============================================================================
     # ✅ SCHEDULE HEALTH SUMMARY & VALIDATION
     # ============================================================================
     #
