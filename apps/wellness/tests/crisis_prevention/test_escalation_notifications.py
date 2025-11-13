@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import patch, MagicMock, call
 from django.core.mail import EmailMultiAlternatives
 from smtplib import SMTPException
-from apps.wellness.services.crisis_prevention_system import CrisisPreventionSystem
+from apps.wellness.services.crisis_prevention import CrisisPreventionSystem
 from .conftest import create_journal_entry, create_intervention_log
 
 
@@ -98,8 +98,8 @@ class TestNotificationFallback:
         mock_email = mocker.patch('django.core.mail.send_mail')
         mock_email.side_effect = SMTPException("SMTP server unavailable")
 
-        # Mock SMS success
-        mock_sms = mocker.patch('apps.wellness.services.crisis_prevention_system.send_sms')
+        # Mock SMS success (updated path)
+        mock_sms = mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_sms')
         mock_sms.return_value = True
 
         result = crisis_system.initiate_professional_escalation(
@@ -122,10 +122,10 @@ class TestNotificationFallback:
         mocker.patch('django.core.mail.send_mail', side_effect=SMTPException)
 
         # Mock SMS failure
-        mocker.patch('apps.wellness.services.crisis_prevention_system.send_sms', side_effect=Exception("SMS API down"))
+        mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_sms', side_effect=Exception("SMS API down"))
 
         # Mock webhook success
-        mock_webhook = mocker.patch('apps.wellness.services.crisis_prevention_system.send_webhook')
+        mock_webhook = mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_webhook')
         mock_webhook.return_value = True
 
         result = crisis_system.initiate_professional_escalation(
@@ -149,11 +149,11 @@ class TestNotificationFallback:
 
         # Mock all channels failing
         mocker.patch('django.core.mail.send_mail', side_effect=SMTPException)
-        mocker.patch('apps.wellness.services.crisis_prevention_system.send_sms', side_effect=Exception)
-        mocker.patch('apps.wellness.services.crisis_prevention_system.send_webhook', side_effect=Exception)
+        mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_sms', side_effect=Exception)
+        mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_webhook', side_effect=Exception)
 
         # Mock admin alert
-        mock_admin_alert = mocker.patch('apps.wellness.services.crisis_prevention_system.send_admin_alert')
+        mock_admin_alert = mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_admin_alert')
 
         result = crisis_system.initiate_professional_escalation(
             user=test_user,

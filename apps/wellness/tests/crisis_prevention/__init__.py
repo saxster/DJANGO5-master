@@ -2,7 +2,7 @@
 Crisis Prevention System Test Suite
 
 Comprehensive tests for safety-critical mental health crisis detection and intervention.
-Target: 100% code coverage for apps/wellness/services/crisis_prevention_system.py
+Target: 100% code coverage for apps/wellness/services/crisis_prevention/
 
 Test Categories:
 - Crisis detection accuracy (threshold validation)

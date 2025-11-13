@@ -48,58 +48,18 @@ def set_serial_no_for_ticket(sender, instance, **kwargs):
 # =============================================================================
 # TASK 10: TICKET STATE CHANGE BROADCASTS
 # =============================================================================
-
-@receiver(pre_save, sender=Ticket)
-def track_ticket_status_change(sender, instance, **kwargs):
-    """
-    Track original status before save for state change detection.
-
-    Stores original status in instance._original_status for use by post_save signal.
-    TASK 10: Gap #13 - Ticket State Change Broadcasts
-    """
-    if instance.pk:
-        try:
-            original = Ticket.objects.get(pk=instance.pk)
-            instance._original_status = original.status
-        except Ticket.DoesNotExist:
-            instance._original_status = None
-    else:
-        instance._original_status = None
-
-
-@receiver(post_save, sender=Ticket)
-def broadcast_ticket_state_change(sender, instance, created, **kwargs):
-    """
-    Broadcast ticket state changes via WebSocket.
-
-    Triggers on status change (not on creation) and broadcasts to:
-    - Tenant group: noc_tenant_{tenant_id}
-    - Site group (if site exists): noc_site_{site_id}
-
-    TASK 10: Gap #13 - Ticket State Change Broadcasts
-    """
-    if not created and hasattr(instance, '_original_status'):
-        old_status = instance._original_status
-        if old_status and old_status != instance.status:
-            logger.info(
-                f"Ticket {instance.id} status changed: {old_status} → {instance.status}",
-                extra={
-                    'ticket_id': instance.id,
-                    'old_status': old_status,
-                    'new_status': instance.status,
-                    'tenant_id': instance.tenant_id
-                }
-            )
-
-            # Lazy import to avoid circular dependency
-            try:
-                from apps.noc.services.websocket_service import NOCWebSocketService
-                NOCWebSocketService.broadcast_ticket_update(instance, old_status)
-            except (ImportError, AttributeError) as e:
-                logger.warning(
-                    f"Failed to import NOCWebSocketService: {e}",
-                    extra={'ticket_id': instance.id}
-                )
+# REMOVED: Signal handlers moved to Ticket model methods (Django best practice)
+# - track_ticket_status_change → Ticket.__init__()
+# - broadcast_ticket_state_change → Ticket.save() + Ticket._broadcast_status_change()
+#
+# Rationale:
+# 1. Eliminates N+1 query (Ticket.objects.get() in pre_save signal)
+# 2. Moves business logic from signals to model (Django best practice)
+# 3. Uses transaction.on_commit() for WebSocket broadcasts (safer)
+# 4. Maintains backward compatibility with existing functionality
+#
+# Date: 2025-11-12
+# =============================================================================
 
 
 # =============================================================================

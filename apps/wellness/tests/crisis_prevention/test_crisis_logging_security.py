@@ -1,7 +1,7 @@
 import pytest
 import logging
 from unittest.mock import Mock
-from apps.wellness.services.crisis_prevention_system import CrisisPreventionSystem
+from apps.wellness.services.crisis_prevention import CrisisPreventionSystem
 
 
 @pytest.mark.security

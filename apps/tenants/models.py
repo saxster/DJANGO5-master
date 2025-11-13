@@ -203,11 +203,11 @@ class TenantAwareModel(models.Model):
         Security Enforcement:
             - Checks if 'objects' manager is defined on the subclass
             - If custom manager is used, validates it inherits from TenantAwareManager
-            - Logs warnings for vulnerable configurations
-            - Does NOT block (to avoid breaking existing code during migration)
+            - RAISES TypeError for vulnerable configurations (prevents bypass)
+            - Blocks deployment of models with insecure managers
 
-        Note: This is a defense-in-depth measure. The primary defense is
-        TenantAwareManager.get_queryset() which filters by tenant context.
+        Critical Security: Prevents accidental manager override that would bypass
+        tenant isolation and create IDOR vulnerabilities.
         """
         super().__init_subclass__(**kwargs)
 
@@ -232,8 +232,9 @@ class TenantAwareModel(models.Model):
                 from apps.tenants.managers import TenantAwareManager
 
                 if not issubclass(manager_class, TenantAwareManager):
+                    # CRITICAL: Raise TypeError to prevent insecure manager
                     logger.error(
-                        f"SECURITY WARNING: {cls.__name__}.objects uses {manager_class.__name__} "
+                        f"SECURITY VIOLATION: {cls.__name__}.objects uses {manager_class.__name__} "
                         f"which does NOT inherit from TenantAwareManager. "
                         f"This creates an IDOR vulnerability - queries will NOT be filtered by tenant!",
                         extra={
@@ -242,6 +243,13 @@ class TenantAwareModel(models.Model):
                             'security_event': 'TENANT_MANAGER_INHERITANCE_VIOLATION',
                             'severity': 'CRITICAL'
                         }
+                    )
+                    raise TypeError(
+                        f"{cls.__name__}.objects must inherit from TenantAwareManager "
+                        f"to prevent cross-tenant data leaks. "
+                        f"Current manager: {manager_class.__name__}. "
+                        f"Either use TenantAwareManager directly or create a custom manager "
+                        f"that inherits from it."
                     )
                 else:
                     logger.debug(

@@ -21,7 +21,7 @@ from datetime import datetime, timezone as dt_timezone
 from unittest.mock import patch, MagicMock
 
 from apps.peoples.models import People
-from apps.tenants.models import Client, BusinessUnit
+from apps.tenants.models import Tenant
 
 
 @pytest.mark.django_db
@@ -33,8 +33,9 @@ class TestJournalViewSet(TestCase):
         self.client_obj = APIClient()
 
         # Create test tenant
-        self.tenant = Client.objects.create(
-            name="Test Client",
+        self.tenant = Tenant.objects.create(
+            tenantname="Test Client",
+            subdomain_prefix="test-client",
             is_active=True
         )
 
@@ -43,7 +44,7 @@ class TestJournalViewSet(TestCase):
             username="testuser",
             email="test@example.com",
             password="testpass123",
-            client=self.tenant,
+            tenant=self.tenant,
         )
 
         # Authenticate
@@ -76,7 +77,8 @@ class TestJournalViewSet(TestCase):
         response = self.client_obj.get(url)
 
         # Should succeed (returns empty list if no entries)
-        self.assertIn(response.status_code, [200, 503])  # 503 if journal not available
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.data, list)
 
     def test_list_journal_entries_with_filters(self):
         """Test journal entries with filters"""
@@ -87,7 +89,8 @@ class TestJournalViewSet(TestCase):
             'limit': 10
         })
 
-        self.assertIn(response.status_code, [200, 503])
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.data, list)
 
     def test_retrieve_journal_entry_not_found(self):
         """Test retrieve non-existent journal entry"""
@@ -95,7 +98,7 @@ class TestJournalViewSet(TestCase):
 
         response = self.client_obj.get(url)
 
-        self.assertIn(response.status_code, [404, 503])
+        self.assertEqual(response.status_code, 404)
 
 
 @pytest.mark.django_db
@@ -150,7 +153,12 @@ class TestWellnessContentViewSet(TestCase):
             'preferred_category': 'stress_management'
         })
 
+        # Can return 200 with content or 404 if no content available
         self.assertIn(response.status_code, [200, 404])
+        if response.status_code == 200:
+            self.assertIn('id', response.data)
+            self.assertIn('title', response.data)
+            self.assertEqual(response.data['category'], 'stress_management')
 
     def test_personalized_content_success(self):
         """Test personalized content retrieval"""

@@ -179,16 +179,16 @@ def mock_notification_service(mocker):
     mock_email = mocker.patch('django.core.mail.send_mail')
     mock_email.return_value = 1  # Success
 
-    # Mock SMS if implemented
-    mocker.patch('apps.wellness.services.crisis_prevention_system.send_sms', return_value=True)
+    # Mock SMS if implemented (update to new module path)
+    mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_sms', return_value=True)
 
-    # Mock webhook if implemented
-    mocker.patch('apps.wellness.services.crisis_prevention_system.send_webhook', return_value=True)
+    # Mock webhook if implemented (update to new module path)
+    mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_webhook', return_value=True)
 
     return {
         'email': mock_email,
-        'sms': mocker.patch('apps.wellness.services.crisis_prevention_system.send_sms'),
-        'webhook': mocker.patch('apps.wellness.services.crisis_prevention_system.send_webhook'),
+        'sms': mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_sms'),
+        'webhook': mocker.patch('apps.wellness.services.crisis_prevention.crisis_notification_service.send_webhook'),
     }
 
 

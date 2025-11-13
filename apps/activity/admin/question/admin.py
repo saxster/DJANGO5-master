@@ -47,16 +47,3 @@ try:
     admin.site.register(Question, QuestionAdmin)
 except AlreadyRegistered:
     pass
-
-
-# Note: QuestionSet and QuestionSetBelonging are NOT registered in admin
-# They are only used via import/export resources in bulk operations
-# If admin registration is needed, create separate admin classes:
-#
-# class QuestionSetAdmin(ImportExportModelAdmin):
-#     resource_class = QuestionSetResource
-#     list_display = ["id", "qsetname", "type"]
-#
-# class QuestionSetBelongingAdmin(ImportExportModelAdmin):
-#     resource_class = QuestionSetBelongingResource
-#     list_display = ["id", "question", "qset"]

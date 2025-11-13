@@ -406,7 +406,7 @@ for user in People.objects.all():
 
 ## 📚 Complete Documentation
 
-> **Note**: Most documentation removed during V2 migration (Nov 2025) has been archived. See [docs/reference/DEPRECATED_DOCS.md](docs/reference/DEPRECATED_DOCS.md) for removed documentation and replacement resources.
+> **Note**: Most documentation removed during V2 migration (Nov 2025) has been archived. See [TRANSITIONAL_ARTIFACTS_TRACKER.md](TRANSITIONAL_ARTIFACTS_TRACKER.md) for deprecated endpoints and transitional code scheduled for removal.
 
 ### Documentation Index
 

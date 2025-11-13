@@ -346,13 +346,61 @@ service_registry = ServiceRegistry()
 
 def injectable(service_type: Type[BaseService]):
     """
-    Decorator to mark a class as injectable.
+    Decorator to mark a class as injectable with automatic registration.
+
+    Simplifies service registration by automatically adding the decorated class
+    to the service registry at import time. Use this for service implementations
+    that should be available application-wide without manual registration.
+
+    Features:
+    - Automatic service registration at module import
+    - Type-safe service interface validation
+    - Works with dependency injection via @inject
+    - Supports service discovery and testing
 
     Args:
-        service_type: Service interface type
+        service_type: Service interface type (base class) that this implementation
+            satisfies. Must be a subclass of BaseService. The decorated class
+            must inherit from or implement this interface.
 
     Returns:
-        Decorated class
+        Decorated class unchanged (decorator is non-invasive).
+
+    Raises:
+        ValueError: If decorated class does not implement service_type interface.
+
+    Example:
+        >>> # Define service interface
+        >>> class NotificationService(BaseService):
+        ...     @abstractmethod
+        ...     def send_notification(self, user_id, message):
+        ...         pass
+        ...
+        >>> # Register concrete implementation
+        >>> @injectable(NotificationService)
+        ... class EmailNotificationService(NotificationService):
+        ...     def send_notification(self, user_id, message):
+        ...         # Send email implementation
+        ...         pass
+        ...
+        >>> # Service automatically registered and available
+        >>> service = service_registry.get(NotificationService)
+        >>> service.send_notification(user_id=123, message="Hello")
+
+        >>> # Multiple implementations for same interface
+        >>> @injectable(NotificationService)
+        ... class SMSNotificationService(NotificationService):
+        ...     def send_notification(self, user_id, message):
+        ...         # Send SMS implementation
+        ...         pass
+
+    Common Use Cases:
+    - Service layer implementations (data access, business logic)
+    - Strategy pattern implementations
+    - Plugin architectures
+    - Test mock registration
+
+    Related: service_registry.register(), @inject, get_service()
     """
     def decorator(cls):
         # Auto-register the service
@@ -363,14 +411,77 @@ def injectable(service_type: Type[BaseService]):
 
 def inject(service_type: Type[BaseService], name: Optional[str] = None):
     """
-    Decorator to inject a service into a method parameter.
+    Decorator to inject a service dependency into a method parameter.
+
+    Automatically provides service instances to methods via keyword arguments,
+    eliminating manual service instantiation and lookup. Enables loose coupling
+    and testability by making dependencies explicit and replaceable.
+
+    Features:
+    - Automatic dependency resolution from service registry
+    - Lazy injection (service created only when method called)
+    - Test-friendly (easy to override with mocks)
+    - Maintains original function signature
+    - No performance overhead when service already provided
 
     Args:
-        service_type: Service type to inject
-        name: Optional service name
+        service_type: Service interface type to inject. Must be registered
+            in service_registry via @injectable or manual registration.
+        name: Optional parameter name for injected service. Defaults to
+            service_type.__name__. Use when method parameter name differs
+            from service class name.
 
     Returns:
-        Decorator function
+        Decorator function that wraps the method with injection logic.
+
+    Example:
+        >>> # Basic service injection
+        >>> class UserController:
+        ...     @inject(UserService)
+        ...     def create_user(self, user_data, UserService=None):
+        ...         # UserService automatically injected if not provided
+        ...         return UserService.create(user_data)
+        ...
+        >>> controller = UserController()
+        >>> user = controller.create_user({'name': 'John'})
+
+        >>> # Custom parameter name
+        >>> @inject(NotificationService, name='notifier')
+        ... def send_welcome(user_id, notifier=None):
+        ...     notifier.send_notification(user_id, "Welcome!")
+
+        >>> # Multiple injections
+        >>> class OrderProcessor:
+        ...     @inject(InventoryService)
+        ...     @inject(PaymentService)
+        ...     def process_order(self, order_data,
+        ...                      InventoryService=None,
+        ...                      PaymentService=None):
+        ...         InventoryService.reserve(order_data['items'])
+        ...         PaymentService.charge(order_data['payment'])
+
+        >>> # Testing with mock
+        >>> mock_service = Mock(spec=UserService)
+        >>> controller.create_user(user_data, UserService=mock_service)
+
+    Common Use Cases:
+    - Controller methods needing service layer access
+    - Business logic requiring multiple services
+    - Testing with dependency injection
+    - API endpoints with service dependencies
+
+    Anti-Pattern to Avoid:
+        # DON'T: Forget default parameter
+        @inject(UserService)
+        def create_user(self, user_data):  # Missing UserService parameter!
+            return UserService.create(user_data)  # NameError!
+
+        # DO: Include parameter with default None
+        @inject(UserService)
+        def create_user(self, user_data, UserService=None):
+            return UserService.create(user_data)
+
+    Related: @injectable, service_registry.get(), get_service()
     """
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -386,13 +497,59 @@ def inject(service_type: Type[BaseService], name: Optional[str] = None):
 
 def get_service(service_type: Type[BaseService], request_id: Optional[str] = None) -> BaseService:
     """
-    Convenience function to get a service instance.
+    Convenience function to retrieve a service instance from the registry.
+
+    Simplified interface for service_registry.get(). Use when you need a service
+    instance directly without decorator injection. Handles service lifecycle based
+    on registration scope (singleton, transient, or request-scoped).
 
     Args:
-        service_type: Service type
-        request_id: Optional request ID
+        service_type: Service interface type to retrieve. Must be registered
+            via @injectable or service_registry.register(). Can be interface
+            class or string name.
+        request_id: Optional request identifier for request-scoped services.
+            Required when retrieving services registered with ServiceScope.REQUEST.
+            Use request correlation ID or session ID to ensure proper scoping.
 
     Returns:
-        Service instance
+        Service instance based on registration scope:
+        - SINGLETON: Same instance returned for all calls
+        - TRANSIENT: New instance created for each call
+        - REQUEST: Same instance within request_id context
+
+    Raises:
+        ValueError: If service_type not registered in service_registry
+        ValueError: If request_id required but not provided (REQUEST scope)
+
+    Example:
+        >>> # Basic service retrieval
+        >>> user_service = get_service(UserService)
+        >>> user = user_service.create({'name': 'John'})
+
+        >>> # Request-scoped service (e.g., per-request cache)
+        >>> cache_service = get_service(CacheService, request_id='req-123')
+
+        >>> # Use in functions without decorator
+        >>> def process_order(order_data):
+        ...     inventory = get_service(InventoryService)
+        ...     payment = get_service(PaymentService)
+        ...     inventory.reserve(order_data['items'])
+        ...     payment.charge(order_data['total'])
+
+        >>> # String-based lookup
+        >>> service = get_service('NotificationService')
+
+    Common Use Cases:
+    - One-off service access in utility functions
+    - Dynamic service selection based on runtime conditions
+    - Legacy code refactoring (gradual migration to @inject)
+    - Script-based service usage
+
+    Performance Note:
+    - SINGLETON services cached after first call (O(1) subsequent lookups)
+    - TRANSIENT services create new instance each call (overhead per call)
+    - REQUEST services cached per request_id (O(1) within request)
+
+    Related: @inject (preferred for methods), service_registry.get()
     """
     return service_registry.get(service_type, request_id)

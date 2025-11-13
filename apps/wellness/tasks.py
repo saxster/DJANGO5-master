@@ -20,8 +20,8 @@ import logging
 
 from apps.journal.models import JournalEntry
 from apps.wellness.services.mental_health_coordinator import MentalHealthInterventionCoordinator
-from apps.wellness.services.crisis_prevention_system import CrisisPreventionSystem
-from apps.wellness.services.intervention_response_tracker import InterventionResponseTracker
+from apps.wellness.services.crisis_prevention import CrisisPreventionSystem
+from apps.wellness.services.intervention_tracking import InterventionResponseTracker
 from apps.wellness.services.adaptive_intervention_learning import AdaptiveInterventionLearningSystem
 from apps.wellness.services.conversation_translation_service import ConversationTranslationService
 

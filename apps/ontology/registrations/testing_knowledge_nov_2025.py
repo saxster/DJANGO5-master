@@ -1450,8 +1450,17 @@ class PeoplesIDORTestCase(TestCase):
 
 
 # Auto-register on module import (if registry available)
+from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS, VALIDATION_EXCEPTIONS
+
 try:
     count = register_testing_knowledge()
     logger.info(f"✅ Registered {count} testing knowledge concepts")
-except Exception as e:
-    logger.error(f"⚠️ Could not auto-register testing knowledge: {e}")
+except (ImportError, AttributeError) as e:
+    # Module not yet loaded or registry unavailable
+    logger.warning(f"⚠️ Registry not available for auto-registration: {e}")
+except DATABASE_EXCEPTIONS as e:
+    # Database error during bulk registration
+    logger.error(f"⚠️ Database error during testing knowledge registration: {e}", exc_info=True)
+except VALIDATION_EXCEPTIONS as e:
+    # Invalid data in registration patterns
+    logger.error(f"⚠️ Validation error in testing knowledge data: {e}", exc_info=True)

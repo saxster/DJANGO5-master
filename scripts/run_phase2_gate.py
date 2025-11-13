@@ -54,7 +54,7 @@ def benchmark_helpbot_with_ontology(queries, iterations_per_query=250):
 
                 if (i + 1) % 50 == 0:
                     print('.', end='', flush=True)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, KeyError, ImportError, RuntimeError) as e:
                 error_count += 1
                 if error_count <= 3:  # Only print first 3 errors
                     print(f"\nError on iteration {i}: {e}")
@@ -192,7 +192,7 @@ def main():
             print("  2. Investigate and optimize before enabling")
             print("  3. Consider ROLLBACK if already deployed")
             return 1
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError, ImportError, RuntimeError, SystemError) as e:
         print("\n" + "="*60)
         print("❌ FATAL ERROR during performance gate")
         print("="*60)

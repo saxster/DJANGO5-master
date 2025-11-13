@@ -25,6 +25,10 @@ EMAIL_HOST_PASSWORD = env("AWS_SES_SMTP_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="dev@localhost")
 EMAIL_FROM_ADDRESS = DEFAULT_FROM_EMAIL
 
+# Email timeout configuration (prevents worker starvation on slow SMTP servers)
+# Django's EmailMessage.send() respects this timeout setting
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)  # 30 seconds
+
 # Email Verification Configuration
 EMAIL_TOKEN_LIFE = 60**2
 EMAIL_MAIL_TOKEN_LIFE = 60**2
@@ -56,6 +60,7 @@ __all__ = [
     'EMAIL_USE_TLS',
     'EMAIL_HOST_USER',
     'EMAIL_HOST_PASSWORD',
+    'EMAIL_TIMEOUT',
     'DEFAULT_FROM_EMAIL',
     'EMAIL_FROM_ADDRESS',
     'EMAIL_TOKEN_LIFE',

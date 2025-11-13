@@ -14,5 +14,7 @@ class AttendanceConfig(AppConfig):
         - Acknowledgement invalidation
         - Assignment notifications
         - Attendance record updates
+        - Cache invalidation (Nov 2025)
         """
         import apps.attendance.signals  # noqa: F401
+        import apps.core.services.cache_invalidation_service  # noqa: F401

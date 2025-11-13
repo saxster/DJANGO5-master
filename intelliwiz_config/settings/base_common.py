@@ -21,9 +21,37 @@ from apps.core.constants.datetime_constants import SECONDS_IN_HOUR
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# CRITICAL: Placeholder SECRET_KEY (overridden in development.py/production.py)
-# Some apps access settings.SECRET_KEY during import, so we need this placeholder
-SECRET_KEY = os.environ.get('SECRET_KEY', get_random_secret_key())
+# CRITICAL: SECRET_KEY must be explicitly set via environment variable
+# Fallback removed to prevent session invalidation on restart (security fix Nov 2025)
+#
+# Generate a secure key with:
+#   python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+#
+SECRET_KEY = os.environ.get('SECRET_KEY')
+
+# Validate SECRET_KEY at settings load time (fail-fast)
+if not SECRET_KEY:
+    import warnings
+    # For development, allow a temporary key but warn loudly
+    if os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('development'):
+        SECRET_KEY = get_random_secret_key()
+        warnings.warn(
+            "\n" + "="*80 + "\n"
+            "WARNING: SECRET_KEY not set! Using random key for DEVELOPMENT ONLY.\n"
+            "Sessions will be invalidated on server restart.\n"
+            "Set SECRET_KEY environment variable to fix this.\n"
+            "="*80,
+            RuntimeWarning,
+            stacklevel=2
+        )
+    else:
+        # Production/staging must have SECRET_KEY set
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "SECRET_KEY environment variable must be set. "
+            "Generate one with: python -c 'from django.core.management.utils "
+            "import get_random_secret_key; print(get_random_secret_key())'"
+        )
 
 # Root URL configuration
 ROOT_URLCONF = "intelliwiz_config.urls"

@@ -89,7 +89,6 @@ class DeviceFailurePredictor:
     def _extract_features(cls, device) -> Dict[str, Any]:
         """Extract 7 features from device."""
         from apps.attendance.models import Attendance
-        from apps.monitoring.models import DeviceEvent
 
         now = timezone.now()
         seven_days_ago = now - timedelta(days=7)

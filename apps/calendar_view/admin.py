@@ -5,12 +5,15 @@ Provides browser-based calendar interface for viewing time-based events
 across all business domains (attendance, operations, journal, helpdesk).
 """
 
+import logging
 from django.contrib import admin
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import path, reverse
 from django.views.generic import TemplateView
 
 from .constants import CalendarContextType, CalendarEventType
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarDashboardView(LoginRequiredMixin, TemplateView):
@@ -155,13 +158,15 @@ class CalendarViewAdmin(admin.ModelAdmin):
         """Redirect to calendar dashboard view."""
         from django.http import HttpResponseRedirect
         from django.urls import reverse
+        from django.urls.exceptions import NoReverseMatch
 
         # Check if calendar dashboard URL exists
         try:
             url = reverse('admin:calendar_dashboard')
             return HttpResponseRedirect(url)
-        except Exception:
-            # Fallback to inline view
+        except NoReverseMatch:
+            # URL pattern not registered - fallback to inline view
+            logger.info("Calendar dashboard URL not found, falling back to inline view")
             view = CalendarDashboardView.as_view()
             return view(request)
 

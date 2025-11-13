@@ -240,7 +240,6 @@ class SecureFileDownloadService:
                 level='warning'
             )
             raise Http404("Invalid file request") from e
-            raise Http404("File not available") from e
 
     @classmethod
     def _validate_file_path(cls, filepath, filename, correlation_id):

@@ -391,9 +391,52 @@ def with_transaction(using: Optional[str] = None, savepoint: bool = True):
     """
     Decorator for automatic transaction management in service methods.
 
+    Wraps service methods with atomic transaction context, ensuring all database
+    operations commit together or roll back on failure. Provides automatic error
+    handling with proper exception wrapping (DatabaseException, BusinessLogicException).
+
+    Features:
+    - Automatic rollback on any exception
+    - Savepoint support for nested transactions
+    - Multi-database transaction support
+    - Correlation ID generation for failures
+    - Transaction lifecycle logging
+
     Args:
-        using: Database alias
-        savepoint: Whether to use savepoints
+        using: Database alias to use for transaction. If None, uses current
+            tenant database from request context. Common values:
+            - None (default): Current tenant database
+            - 'default': Default database
+            - 'analytics': Analytics database
+        savepoint: Whether to use savepoints for nested transactions.
+            Set to False for top-level transactions to avoid savepoint overhead.
+            Default: True
+
+    Returns:
+        Decorator function that wraps the service method.
+
+    Raises:
+        DatabaseException: On database integrity errors or transaction failures
+        BusinessLogicException: On validation errors within transaction
+
+    Example:
+        >>> class UserService(BaseService):
+        ...     @with_transaction()
+        ...     def create_user_with_profile(self, user_data, profile_data):
+        ...         user = User.objects.create(**user_data)
+        ...         Profile.objects.create(user=user, **profile_data)
+        ...         return user
+        ...
+        >>> # Both User and Profile saved atomically or neither saved
+
+        >>> # Multi-database transaction
+        >>> @with_transaction(using='analytics')
+        ... def log_analytics_event(event_data):
+        ...     AnalyticsEvent.objects.create(**event_data)
+
+    Complies with: .claude/rules.md - Transaction Management Requirements
+
+    Related: TransactionManager.atomic_operation(), atomic_view_operation()
     """
     def decorator(func: Callable):
         def wrapper(*args, **kwargs):
@@ -407,10 +450,49 @@ def with_transaction(using: Optional[str] = None, savepoint: bool = True):
 
 def with_saga(saga_id: str):
     """
-    Decorator for methods that should be part of a saga.
+    Decorator for methods that should be part of a saga pattern.
+
+    Marks a method as a saga participant for distributed transaction coordination.
+    Currently a placeholder for saga integration - in production, this would
+    register the method with the saga execution engine.
+
+    Saga Pattern: Manages distributed transactions across multiple services or
+    databases using a sequence of local transactions with compensating actions.
+    If any step fails, previously completed steps are compensated in reverse order.
 
     Args:
-        saga_id: Saga identifier
+        saga_id: Unique saga identifier for tracking. Should be descriptive
+            of the business operation (e.g., 'order_fulfillment_saga',
+            'user_registration_saga')
+
+    Returns:
+        Decorator function that marks the method as saga-aware.
+
+    Example:
+        >>> class OrderService(BaseService):
+        ...     @with_saga('order_fulfillment_saga')
+        ...     def create_order(self, order_data):
+        ...         # Step 1: Create order
+        ...         order = Order.objects.create(**order_data)
+        ...         return order
+        ...
+        ...     @with_saga('order_fulfillment_saga')
+        ...     def reserve_inventory(self, order_id):
+        ...         # Step 2: Reserve inventory
+        ...         pass
+        ...
+        ...     @with_saga('order_fulfillment_saga')
+        ...     def charge_payment(self, order_id):
+        ...         # Step 3: Charge payment
+        ...         pass
+        ...
+        >>> # If charge_payment fails, reserve_inventory and create_order
+        >>> # are automatically compensated in reverse order
+
+    Related: TransactionManager.create_saga(), TransactionManager.execute_saga()
+
+    Note: This is a placeholder decorator. For full saga functionality, use
+    TransactionManager.create_saga() and add_saga_step() explicitly.
     """
     def decorator(func: Callable):
         def wrapper(*args, **kwargs):
@@ -427,22 +509,57 @@ def atomic_view_operation(using: Optional[str] = None):
     """
     Decorator for view handle_valid_form methods requiring atomic transactions.
 
-    This decorator ensures that all database operations within a view's
-    handle_valid_form method are executed atomically. If any step fails,
-    all changes are rolled back, preventing partial data corruption.
+    Ensures all database operations within a view's handle_valid_form method
+    execute atomically. If any step fails, all changes are rolled back,
+    preventing partial data corruption. Critical for multi-step form processing
+    where related models must be created/updated together.
+
+    Features:
+    - Automatic rollback on any database error
+    - Proper exception propagation with logging
+    - Prevents partial saves (e.g., User created but Profile creation failed)
+    - Works with custom views, FormView, CreateView, UpdateView
 
     Args:
-        using: Database alias (defaults to current tenant database)
+        using: Database alias (defaults to current tenant database).
+            Use when working with specific databases in multi-tenant setup.
+
+    Returns:
+        Decorator function that wraps handle_valid_form with transaction.
+
+    Raises:
+        IntegrityError: Database constraint violations (with rollback)
+        ValidationError: Model validation failures (with rollback)
+        DatabaseError: Any database operation failure (with rollback)
 
     Example:
-        @atomic_view_operation()
-        def handle_valid_form(self, form, request, create):
-            obj = form.save()
-            putils.save_userinfo(obj, request.user, request.session)
-            obj.add_history()
-            return JsonResponse({'pk': obj.id})
+        >>> # Basic form handling with transaction
+        >>> class UserCreateView(CreateView):
+        ...     @atomic_view_operation()
+        ...     def handle_valid_form(self, form, request, create):
+        ...         # All operations committed together or rolled back together
+        ...         user = form.save()
+        ...         putils.save_userinfo(user, request.user, request.session)
+        ...         Profile.objects.create(user=user)
+        ...         user.add_history()
+        ...         return JsonResponse({'pk': user.id})
+
+        >>> # Multi-database transaction
+        >>> class AnalyticsReportView(CreateView):
+        ...     @atomic_view_operation(using='analytics')
+        ...     def handle_valid_form(self, form, request, create):
+        ...         report = form.save()
+        ...         return JsonResponse({'id': report.id})
+
+    Common Use Cases:
+    - User registration with profile/permissions creation
+    - Order processing with inventory updates
+    - Audit trail creation alongside data changes
+    - Multi-step form processing
 
     Complies with: .claude/rules.md - Transaction Management Requirements
+
+    Related: with_transaction(), signal_aware_transaction()
     """
     def decorator(func: Callable):
         def wrapper(*args, **kwargs):
@@ -480,22 +597,62 @@ def atomic_view_operation(using: Optional[str] = None):
 @contextmanager
 def signal_aware_transaction(using: Optional[str] = None):
     """
-    Context manager for transactions that trigger signals.
+    Context manager for transactions that trigger Django signals.
 
-    Ensures that signals (like post_save creating related models) are
-    executed within the same transaction as the triggering operation.
-    If the signal handler fails, the entire transaction rolls back.
+    Ensures that signal handlers (like post_save creating related models) execute
+    within the same transaction as the triggering operation. If any signal handler
+    fails, the entire transaction (including the original operation) rolls back.
+    Critical for maintaining data consistency when signals create related objects.
+
+    Problem Solved:
+    Without this, a model might be saved successfully but its post_save signal
+    could fail, leaving orphaned records. This context manager ensures atomicity
+    across the entire signal chain.
 
     Args:
-        using: Database alias
+        using: Database alias (defaults to current tenant database).
+            Use when working with specific databases in multi-tenant setup.
+
+    Yields:
+        None. Use as context manager with 'with' statement.
+
+    Raises:
+        DatabaseException: Wraps IntegrityError from signal handlers with context
+        DatabaseError: Any database operation failure in signal handlers
+        IntegrityError: Constraint violations from main operation or signals
+        ObjectDoesNotExist: If signal handler references missing related objects
 
     Example:
-        with signal_aware_transaction():
-            people = People.objects.create(...)
-            # post_save signals fire here, within transaction
-            # If PeopleProfile creation fails, People creation also rolls back
+        >>> # User creation with post_save profile creation
+        >>> with signal_aware_transaction():
+        ...     people = People.objects.create(
+        ...         username='john_doe',
+        ...         email='john@example.com'
+        ...     )
+        ...     # post_save signal fires here, within transaction
+        ...     # Creates PeopleProfile automatically
+        ...     # If PeopleProfile creation fails, People creation also rolls back
+
+        >>> # Multi-model creation with signals
+        >>> with signal_aware_transaction():
+        ...     order = Order.objects.create(customer=customer)
+        ...     # post_save creates OrderNotification
+        ...     # If notification fails, order is rolled back
+
+    Common Use Cases:
+    - User/profile creation (post_save creates profile)
+    - Order processing (post_save triggers inventory updates)
+    - Audit trail creation (post_save creates history records)
+    - Notification creation (post_save sends notifications)
+
+    Anti-Pattern to Avoid:
+        # DON'T: Signal outside transaction can fail silently
+        people = People.objects.create(...)  # Committed
+        # post_save fails here - people record orphaned!
 
     Complies with: .claude/rules.md - Transaction Management Requirements
+
+    Related: atomic_view_operation(), with_transaction()
     """
     db_name = using or get_current_db_name()
 

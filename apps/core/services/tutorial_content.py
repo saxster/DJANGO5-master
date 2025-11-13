@@ -434,39 +434,189 @@ TUTORIALS = {
 
 
 def get_tutorial(tutorial_id):
-    """Get tutorial by ID"""
+    """
+    Retrieve tutorial by unique identifier.
+
+    Fetches tutorial configuration from the in-memory TUTORIALS registry.
+    Used by the AI mentor system to deliver contextual learning content
+    to admin users based on their current workflow context.
+
+    Args:
+        tutorial_id: Unique tutorial identifier. Valid IDs include:
+            'welcome', 'team_dashboard_deep_dive', 'quick_actions_mastery',
+            'priority_alerts_guide', 'smart_assignment_tutorial',
+            'saved_views_workshop', 'keyboard_shortcuts_bootcamp',
+            'approval_workflow_guide', 'timeline_investigation',
+            'shift_tracker_training', 'efficiency_optimization'
+
+    Returns:
+        Dictionary with tutorial data containing keys:
+        - id: Tutorial identifier
+        - title: Display title
+        - description: Brief description
+        - duration: Estimated completion time (e.g., "10 minutes")
+        - difficulty: Skill level (BEGINNER, INTERMEDIATE, ADVANCED)
+        - category: Tutorial category grouping
+        - steps: List of tutorial steps with content and UI actions
+
+        Returns None if tutorial_id not found.
+
+    Example:
+        >>> tutorial = get_tutorial('welcome')
+        >>> print(tutorial['title'])
+        'Welcome to Your AI-Powered Admin Panel'
+        >>> print(tutorial['duration'])
+        '2 minutes'
+        >>> print(len(tutorial['steps']))
+        4
+
+    Related: list_tutorials(), get_recommended_for_skill_level()
+    """
     return TUTORIALS.get(tutorial_id)
 
 
 def list_tutorials(category=None, difficulty=None):
-    """List all tutorials with optional filtering"""
+    """
+    List all tutorials with optional filtering by category and difficulty.
+
+    Returns complete tutorial registry or filtered subset. Use this to populate
+    tutorial menus, browse interfaces, or generate recommended tutorial lists
+    based on user preferences.
+
+    Args:
+        category: Optional category filter. Valid categories:
+            'Getting Started', 'Core Features', 'Productivity',
+            'AI Features', 'Enterprise Features', 'Troubleshooting',
+            'Operations'
+        difficulty: Optional difficulty filter. Valid levels:
+            'BEGINNER', 'INTERMEDIATE', 'ADVANCED'
+
+    Returns:
+        List of tutorial dictionaries. Each tutorial contains:
+        - id: Unique identifier
+        - title: Display title
+        - description: Brief description
+        - duration: Estimated completion time
+        - difficulty: Skill level required
+        - category: Tutorial category
+        - steps: List of tutorial steps
+
+        Returns all 11 tutorials if no filters applied.
+
+    Example:
+        >>> # Get all beginner tutorials
+        >>> beginner = list_tutorials(difficulty='BEGINNER')
+        >>> print(len(beginner))
+        4
+
+        >>> # Get all productivity tutorials
+        >>> productivity = list_tutorials(category='Productivity')
+        >>> for t in productivity:
+        ...     print(t['title'])
+        'Quick Actions Mastery'
+        'Save Time with Saved Views'
+        'Keyboard Shortcuts Bootcamp'
+
+        >>> # Get beginner productivity tutorials
+        >>> easy_prod = list_tutorials(category='Productivity', difficulty='BEGINNER')
+
+    Related: get_tutorial(), get_categories(), get_recommended_for_skill_level()
+    """
     tutorials = list(TUTORIALS.values())
-    
+
     if category:
         tutorials = [t for t in tutorials if t['category'] == category]
-    
+
     if difficulty:
         tutorials = [t for t in tutorials if t['difficulty'] == difficulty]
-    
+
     return tutorials
 
 
 def get_categories():
-    """Get all tutorial categories"""
+    """
+    Get all unique tutorial categories from the tutorial registry.
+
+    Extracts distinct category values to populate category filters,
+    navigation menus, and tutorial organization interfaces.
+
+    Returns:
+        List of unique category strings:
+        - 'Getting Started'
+        - 'Core Features'
+        - 'Productivity'
+        - 'AI Features'
+        - 'Enterprise Features'
+        - 'Troubleshooting'
+        - 'Operations'
+
+        Categories are unordered (set-derived).
+
+    Example:
+        >>> categories = get_categories()
+        >>> print(len(categories))
+        7
+        >>> 'Productivity' in categories
+        True
+        >>> # Use for dropdown menu
+        >>> for cat in sorted(categories):
+        ...     print(f"<option>{cat}</option>")
+
+    Related: list_tutorials(), get_tutorial()
+    """
     return list(set(t['category'] for t in TUTORIALS.values()))
 
 
 def get_recommended_for_skill_level(skill_level):
-    """Get recommended tutorials for skill level"""
+    """
+    Get recommended tutorials matching user's skill level.
+
+    Maps user skill levels to appropriate tutorial difficulty and returns
+    matching tutorials. Used for personalized onboarding and skill development
+    paths in the AI mentor system.
+
+    Args:
+        skill_level: User's self-reported or assessed skill level:
+            - 'NOVICE': Complete beginners (maps to BEGINNER tutorials)
+            - 'INTERMEDIATE': Some experience (maps to INTERMEDIATE tutorials)
+            - 'ADVANCED': Experienced users (maps to ADVANCED tutorials)
+            - 'EXPERT': Power users (maps to ADVANCED tutorials)
+
+            Defaults to 'BEGINNER' if skill_level not recognized.
+
+    Returns:
+        List of tutorial dictionaries matching the skill level.
+        Each tutorial contains standard keys (id, title, description,
+        duration, difficulty, category, steps).
+
+        Returns 4 BEGINNER, 3 INTERMEDIATE, or 3 ADVANCED tutorials
+        depending on skill_level.
+
+    Example:
+        >>> # New user onboarding
+        >>> novice_tutorials = get_recommended_for_skill_level('NOVICE')
+        >>> print([t['title'] for t in novice_tutorials])
+        ['Welcome to Your AI-Powered Admin Panel',
+         'Master Your Team Dashboard',
+         'Never Miss Another Deadline',
+         'Real-Time Shift Tracker']
+
+        >>> # Advanced user recommendations
+        >>> advanced = get_recommended_for_skill_level('EXPERT')
+        >>> print(len(advanced))
+        3
+
+    Related: list_tutorials(), get_tutorial()
+    """
     difficulty_map = {
         'NOVICE': 'BEGINNER',
         'INTERMEDIATE': 'INTERMEDIATE',
         'ADVANCED': 'ADVANCED',
         'EXPERT': 'ADVANCED'
     }
-    
+
     target_difficulty = difficulty_map.get(skill_level, 'BEGINNER')
-    
+
     return [
         t for t in TUTORIALS.values()
         if t['difficulty'] == target_difficulty

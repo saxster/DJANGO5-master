@@ -410,7 +410,7 @@ class WellnessMQTTMessageHandler:
     def handle_wellness_content_request(self, user_id, request_data):
         """Handle real-time wellness content request"""
         try:
-            from apps.wellness.services.content_delivery import WelnessTipSelector
+            from apps.wellness.services.content_delivery import WellnessTipSelector
             from django.contrib.auth import get_user_model
 
             User = get_user_model()

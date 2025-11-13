@@ -24,6 +24,11 @@ from django.db import DatabaseError
 
 from apps.core.models.sync_tracking import SyncLog
 from apps.core.services.conflict_detector import ConflictDetector
+from apps.core.exceptions.patterns import (
+    DATABASE_EXCEPTIONS,
+    SERIALIZATION_EXCEPTIONS,
+    VALIDATION_EXCEPTIONS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +89,32 @@ class SyncLoggingMiddleware:
         if self._is_sync_operation(request, response):
             try:
                 self._log_sync_operation(request, response)
-            except Exception as e:
-                # Don't break request flow for logging failures
+            except DATABASE_EXCEPTIONS as e:
+                # Database error during sync logging - don't break request flow
                 self.logger.error(
-                    f"Failed to log sync operation: {e}",
+                    f"Database error while logging sync operation: {e}",
+                    exc_info=True,
+                    extra={
+                        'path': request.path,
+                        'method': request.method,
+                        'user_id': getattr(request.user, 'id', None)
+                    }
+                )
+            except SERIALIZATION_EXCEPTIONS as e:
+                # Serialization error (JSON, etc.) - don't break request flow
+                self.logger.warning(
+                    f"Serialization error while logging sync operation: {e}",
+                    exc_info=True,
+                    extra={
+                        'path': request.path,
+                        'method': request.method,
+                        'user_id': getattr(request.user, 'id', None)
+                    }
+                )
+            except (AttributeError, TypeError) as e:
+                # Data structure error - don't break request flow
+                self.logger.warning(
+                    f"Data structure error while logging sync operation: {e}",
                     exc_info=True,
                     extra={
                         'path': request.path,
@@ -183,9 +210,15 @@ class SyncLoggingMiddleware:
             # Trigger asynchronous conflict detection
             self._trigger_conflict_detection(sync_log)
 
-        except (DatabaseError, Exception) as e:
+        except DATABASE_EXCEPTIONS as e:
             self.logger.error(
-                f"Failed to create SyncLog: {e}",
+                f"Database error creating SyncLog: {e}",
+                exc_info=True,
+                extra={'entity_info': entity_info}
+            )
+        except VALIDATION_EXCEPTIONS as e:
+            self.logger.warning(
+                f"Validation error creating SyncLog: {e}",
                 exc_info=True,
                 extra={'entity_info': entity_info}
             )
@@ -210,8 +243,9 @@ class SyncLoggingMiddleware:
                     entity_type = self._determine_entity_type(request.path)
                     if entity_type and entity_id:
                         return {'entity_type': entity_type, 'entity_id': entity_id}
-        except Exception:
-            pass
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
+            # Response doesn't have expected structure - try URL extraction
+            self.logger.debug(f"Could not extract entity from response body: {e}")
 
         # Try to extract from URL path (update/delete operations)
         try:
@@ -224,8 +258,9 @@ class SyncLoggingMiddleware:
                     entity_type = self._determine_entity_type(request.path)
                     if entity_type and entity_id:
                         return {'entity_type': entity_type, 'entity_id': entity_id}
-        except Exception:
-            pass
+        except (IndexError, ValueError, AttributeError) as e:
+            # URL path doesn't match expected pattern
+            self.logger.debug(f"Could not extract entity from URL path: {e}")
 
         return None
 
@@ -402,8 +437,20 @@ class SyncLoggingMiddleware:
         try:
             # Check for concurrent edits
             ConflictDetector.detect_concurrent_edits(sync_log)
-        except Exception as e:
+        except DATABASE_EXCEPTIONS as e:
             self.logger.error(
-                f"Conflict detection failed for sync_log {sync_log.id}: {e}",
+                f"Database error during conflict detection for sync_log {sync_log.id}: {e}",
+                exc_info=True
+            )
+        except (ImportError, AttributeError) as e:
+            # ConflictDetector not available or method missing
+            self.logger.warning(
+                f"Conflict detection unavailable for sync_log {sync_log.id}: {e}",
+                exc_info=True
+            )
+        except (ValueError, TypeError) as e:
+            # Invalid data for conflict detection
+            self.logger.warning(
+                f"Invalid data for conflict detection (sync_log {sync_log.id}): {e}",
                 exc_info=True
             )

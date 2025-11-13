@@ -14,9 +14,13 @@ Middleware Order (CRITICAL):
 7. Authentication
 8. Application middleware
 
+Django Best Practice: Programmatically enforce middleware ordering.
+
 Author: Claude Code
 Date: 2025-10-01
 """
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Base middleware configuration
 # Order is CRITICAL for security and functionality
@@ -131,7 +135,109 @@ OBSERVABILITY ENHANCEMENT (2025-10-01): Added OTEL distributed tracing middlewar
 DO NOT change middleware order without security team approval!
 """
 
+def validate_middleware_order():
+    """
+    Enforce critical middleware ordering constraints.
+
+    Raises:
+        ImproperlyConfigured: If middleware ordering violates security/functional requirements
+
+    Django Best Practice: Programmatically validate middleware order to prevent
+    configuration errors that could introduce security vulnerabilities.
+
+    Date: 2025-11-12
+    """
+    # Define critical ordering constraints
+    # Format: (middleware_class, expected_position, error_message)
+    constraints = [
+        (
+            'django.middleware.security.SecurityMiddleware',
+            0,
+            "SecurityMiddleware must be first (sets security headers before any processing)"
+        ),
+        (
+            'apps.core.error_handling.CorrelationIDMiddleware',
+            1,
+            "CorrelationIDMiddleware must be second (request tracking before any business logic)"
+        ),
+        (
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            None,  # Just validate presence, not position
+            "SessionMiddleware is required for tenant middleware and authentication"
+        ),
+        (
+            'apps.core.error_handling.GlobalExceptionMiddleware',
+            -1,  # Last position
+            "GlobalExceptionMiddleware must be last (catch-all error handler)"
+        ),
+    ]
+
+    # Validate constraints
+    for middleware_class, expected_pos, error_msg in constraints:
+        if expected_pos is None:
+            # Just check presence
+            if middleware_class not in MIDDLEWARE:
+                raise ImproperlyConfigured(
+                    f"MIDDLEWARE configuration error: {error_msg}"
+                )
+        else:
+            # Check specific position
+            try:
+                if MIDDLEWARE[expected_pos] != middleware_class:
+                    raise ImproperlyConfigured(
+                        f"MIDDLEWARE order violation at position {expected_pos}: {error_msg}\n"
+                        f"Expected: {middleware_class}\n"
+                        f"Found: {MIDDLEWARE[expected_pos]}"
+                    )
+            except IndexError:
+                raise ImproperlyConfigured(
+                    f"MIDDLEWARE list too short: {error_msg}\n"
+                    f"Expected {middleware_class} at position {expected_pos}"
+                )
+
+    # Validate relative ordering (A must come before B)
+    relative_constraints = [
+        (
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'apps.tenants.middleware_unified.UnifiedTenantMiddleware',
+            "SessionMiddleware must come before UnifiedTenantMiddleware (tenant needs session)"
+        ),
+        (
+            'apps.tenants.middleware_unified.UnifiedTenantMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            "UnifiedTenantMiddleware must come before AuthenticationMiddleware (auth needs tenant context)"
+        ),
+        (
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            "CsrfViewMiddleware must come before AuthenticationMiddleware"
+        ),
+    ]
+
+    for before_mw, after_mw, error_msg in relative_constraints:
+        try:
+            before_idx = MIDDLEWARE.index(before_mw)
+            after_idx = MIDDLEWARE.index(after_mw)
+            if before_idx >= after_idx:
+                raise ImproperlyConfigured(
+                    f"MIDDLEWARE relative order violation: {error_msg}\n"
+                    f"{before_mw} at position {before_idx}\n"
+                    f"{after_mw} at position {after_idx}"
+                )
+        except ValueError as e:
+            raise ImproperlyConfigured(
+                f"MIDDLEWARE configuration error: {error_msg}\n"
+                f"Missing middleware: {str(e)}"
+            )
+
+
+# Validate middleware order on settings load
+# This ensures configuration errors are caught at startup, not at runtime
+validate_middleware_order()
+
+
 __all__ = [
     'MIDDLEWARE',
     'MIDDLEWARE_NOTES',
+    'validate_middleware_order',
 ]

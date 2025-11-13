@@ -41,6 +41,7 @@ SLA_PREVENTION_SCHEDULE = {
 
 # ============================================================================
 # TIER 1: DEVICE HEALTH MONITORING (Every hour)
+# Note: Task names remain 'apps.monitoring.*' but implemented in apps/noc/services/
 # ============================================================================
 
 DEVICE_MONITORING_SCHEDULE = {

@@ -179,9 +179,12 @@ class TicketCreateView(APIView):
             priority = request.data.get('priority', 'P2')
             category = request.data.get('category', 'general')
 
-            # Generate ticket number
-            ticket_count = Ticket.objects.count()
-            ticket_number = f"TKT-{ticket_count + 1:05d}"
+            # Generate ticket number using Redis atomic counter
+            # This replaces the N+1 query (Ticket.objects.count()) which performs a full table scan
+            from django.core.cache import cache
+
+            ticket_count = cache.incr('ticket_counter', delta=1)
+            ticket_number = f"TKT-{ticket_count:05d}"
 
             # Calculate SLA due date
             sla_hours = self._get_sla_hours(priority)

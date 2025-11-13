@@ -24,6 +24,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import DatabaseError
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q
+from django.core.cache import cache
 
 from apps.y_helpdesk.models import Ticket
 
@@ -61,11 +62,37 @@ class TicketListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """List tickets with tenant filtering and search."""
+        """List tickets with tenant filtering and search (with caching)."""
         # Generate correlation ID
         correlation_id = str(uuid.uuid4())
 
         try:
+            # Generate cache key from query parameters
+            cache_key_parts = [
+                'tickets',
+                'list',
+                str(request.user.id),
+                str(request.user.client_id),
+                request.query_params.get('status', ''),
+                request.query_params.get('priority', ''),
+                request.query_params.get('search', ''),
+                request.query_params.get('limit', '20'),
+                request.query_params.get('page', '1'),
+            ]
+            cache_key = ':'.join(cache_key_parts)
+
+            # Try cache first
+            cached_response = cache.get(cache_key)
+            if cached_response is not None:
+                logger.debug(f"Cache HIT: {cache_key}", extra={'correlation_id': correlation_id})
+                # Update correlation_id and timestamp in cached response
+                cached_response['meta']['correlation_id'] = correlation_id
+                cached_response['meta']['timestamp'] = datetime.now(dt_timezone.utc).isoformat()
+                cached_response['meta']['cached'] = True
+                return Response(cached_response, status=status.HTTP_200_OK)
+
+            logger.debug(f"Cache MISS: {cache_key}", extra={'correlation_id': correlation_id})
+
             # Base queryset with tenant filtering
             queryset = self._get_filtered_queryset(request)
 
@@ -132,7 +159,7 @@ class TicketListView(APIView):
             })
 
             # V2 standardized success response
-            return Response({
+            response_data = {
                 'success': True,
                 'data': {
                     'results': results,
@@ -142,9 +169,16 @@ class TicketListView(APIView):
                 },
                 'meta': {
                     'correlation_id': correlation_id,
-                    'timestamp': datetime.now(dt_timezone.utc).isoformat()
+                    'timestamp': datetime.now(dt_timezone.utc).isoformat(),
+                    'cached': False
                 }
-            }, status=status.HTTP_200_OK)
+            }
+
+            # Cache for 5 minutes (300 seconds)
+            cache.set(cache_key, response_data, 300)
+            logger.info(f"Cached ticket list: {cache_key} (TTL: 300s)")
+
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except ValueError as e:
             logger.warning(f"Invalid parameters: {e}", extra={'correlation_id': correlation_id})

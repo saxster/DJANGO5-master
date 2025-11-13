@@ -1,0 +1,638 @@
+#!/bin/bash
+# Django 5 Enterprise Platform - Pre-commit Hook
+# Enforces critical code quality and security rules from .claude/rules.md
+#
+# This hook prevents code that violates our established patterns from being committed.
+# All violations must be fixed before code can be committed.
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Rule violation tracking
+violations_found=0
+total_checks=0
+
+echo -e "${BLUE}🔍 Django Code Quality Pre-commit Hook${NC}"
+echo "Enforcing rules from .claude/rules.md..."
+echo ""
+
+# Function to report rule violation
+report_violation() {
+    local rule_name="$1"
+    local file_path="$2"
+    local line_number="$3"
+    local message="$4"
+    local rule_reference="$5"
+
+    violations_found=$((violations_found + 1))
+    echo -e "${RED}❌ RULE VIOLATION: ${rule_name}${NC}"
+    echo -e "   📁 File: ${file_path}${line_number:+:${line_number}}"
+    echo -e "   💬 Issue: ${message}"
+    echo -e "   📖 Rule: See .claude/rules.md - ${rule_reference}"
+    echo ""
+}
+
+# Function to run check and increment counter
+run_check() {
+    local check_name="$1"
+    echo -e "${BLUE}Checking: ${check_name}${NC}"
+    total_checks=$((total_checks + 1))
+}
+
+# Get list of staged Python files
+staged_py_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(py)$' || true)
+staged_settings_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E 'settings.*\.py$' || true)
+
+if [ -z "$staged_py_files" ]; then
+    echo -e "${GREEN}✅ No Python files staged for commit${NC}"
+    exit 0
+fi
+
+echo "Staged Python files:"
+echo "$staged_py_files"
+echo ""
+
+# =============================================================================
+# CRITICAL SECURITY RULES
+# =============================================================================
+
+run_check "Critical Security Rule #1: GraphQL Security Bypass Detection"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for GraphQL security bypass patterns
+        if grep -n "def _is_graphql_request.*return True" "$file" 2>/dev/null; then
+            report_violation "GraphQL Security Bypass" "$file" "$(grep -n 'def _is_graphql_request.*return True' "$file" | cut -d: -f1)" \
+                "GraphQL requests bypass security middleware completely" "Rule #1"
+        fi
+
+        # Check for @csrf_exempt on GraphQL endpoints
+        if grep -B5 -A5 "@csrf_exempt" "$file" 2>/dev/null | grep -i "graphql" >/dev/null; then
+            report_violation "CSRF Protection Bypass" "$file" "$(grep -n '@csrf_exempt' "$file" | cut -d: -f1)" \
+                "GraphQL endpoints must have CSRF protection or documented alternative" "Rule #3"
+        fi
+    fi
+done
+
+run_check "Critical Security Rule #3: Unauthorized CSRF Exemptions"
+# Define allowed exempt files (health checks and CSP reports only)
+allowed_csrf_exempt_files="apps/core/health_checks.py apps/core/views/csp_report.py"
+
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for @csrf_exempt usage
+        if grep -n "@csrf_exempt\|@method_decorator(csrf_exempt" "$file" 2>/dev/null; then
+            # Check if file is in allowed list
+            is_allowed=false
+            for allowed_file in $allowed_csrf_exempt_files; do
+                if [ "$file" = "$allowed_file" ]; then
+                    is_allowed=true
+                    break
+                fi
+            done
+
+            if [ "$is_allowed" = false ]; then
+                # Check if there's documented justification (Rule #3 compliance marker)
+                if ! grep -q "CSRF.*Exemption.*Rule #3\|Rule #3.*Alternative Protection" "$file" 2>/dev/null; then
+                    report_violation "Unauthorized CSRF Exemption" "$file" "$(grep -n '@csrf_exempt\|@method_decorator(csrf_exempt' "$file" | cut -d: -f1 | head -1)" \
+                        "All @csrf_exempt usage must have documented Rule #3 compliance justification. Use csrf_protect_ajax, csrf_protect_htmx, or require_monitoring_api_key instead." "Rule #3"
+                fi
+            fi
+        fi
+
+        # Check for mutation endpoints (POST/PUT/PATCH/DELETE) without CSRF protection
+        if grep -q "def post\|def put\|def patch\|def delete" "$file" 2>/dev/null; then
+            # Skip test files
+            if ! echo "$file" | grep -q "test_" 2>/dev/null; then
+                # Check if file has CSRF protection imports
+                if ! grep -q "csrf_protect_ajax\|csrf_protect_htmx\|csrf_protect\|require_monitoring_api_key" "$file" 2>/dev/null; then
+                    # This is a warning, not a hard failure (might have middleware protection)
+                    echo -e "${YELLOW}⚠️  WARNING: Mutation methods in $file may need CSRF protection${NC}"
+                    echo -e "   💡 Consider adding: from apps.core.decorators import csrf_protect_ajax"
+                    echo ""
+                fi
+            fi
+        fi
+    fi
+done
+
+run_check "Critical Security Rule #2: Custom Encryption Without Audit & Deprecated Usage"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Block usage of deprecated insecure encryption functions
+        if grep -n "from apps.core.utils_new.string_utils import.*encrypt\|from apps.core.utils_new.string_utils import.*decrypt" "$file" 2>/dev/null; then
+            # Exclude migrations (they need legacy support) and approved test files
+            if ! echo "$file" | grep -q "migrations\|test_encryption_migration_fix\|test_encryption_key_rotation" 2>/dev/null; then
+                report_violation "CRITICAL: Insecure Encryption Usage" "$file" "$(grep -n 'from apps.core.utils_new.string_utils import.*encrypt\|from apps.core.utils_new.string_utils import.*decrypt' "$file" | cut -d: -f1)" \
+                    "BLOCKED: Deprecated encrypt/decrypt from string_utils uses insecure zlib compression (CVSS 7.5). Use SecureEncryptionService instead." "Rule #2 - CRITICAL"
+            fi
+        fi
+
+        # Block usage of deprecated SecureString field class
+        if grep -n "SecureString(" "$file" 2>/dev/null | grep -v "EnhancedSecureString\|#.*SecureString" 2>/dev/null; then
+            if ! echo "$file" | grep -q "migrations\|test_" 2>/dev/null; then
+                report_violation "Deprecated SecureString Field Usage" "$file" "$(grep -n 'SecureString(' "$file" | grep -v 'EnhancedSecureString' | cut -d: -f1 | head -1)" \
+                    "Use EnhancedSecureString instead of deprecated SecureString field" "Rule #2"
+            fi
+        fi
+
+        # Check for custom encryption implementations (non-audited)
+        if grep -n "class.*Field.*encrypt\|def.*encrypt\|def.*decrypt" "$file" 2>/dev/null; then
+            # Exclude approved encryption services
+            if ! echo "$file" | grep -q "secure_encryption_service\|encryption_key_manager\|test_" 2>/dev/null; then
+                report_violation "Custom Encryption Without Audit" "$file" "$(grep -n 'class.*Field.*encrypt\|def.*encrypt\|def.*decrypt' "$file" | cut -d: -f1 | head -1)" \
+                    "Custom encryption implementations require security team audit" "Rule #2"
+            fi
+        fi
+    fi
+done
+
+run_check "Critical Security Rule #3: Generic Exception Handling"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for generic exception handling
+        if grep -n "except Exception" "$file" 2>/dev/null; then
+            report_violation "Generic Exception Handling" "$file" "$(grep -n 'except Exception' "$file" | cut -d: -f1)" \
+                "Use specific exception types instead of generic 'except Exception'" "Rule #11"
+        fi
+    fi
+done
+
+run_check "Critical Security Rule #4: Secret Management Validation"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for unvalidated environment secrets
+        secret_pattern="env([\"']).*KEY.*[\"']"
+        if grep -n "$secret_pattern" "$file" 2>/dev/null; then
+            # Check if there's validation nearby
+            secret_lines=$(grep -n "$secret_pattern" "$file" | cut -d: -f1)
+            for line in $secret_lines; do
+                context_start=$((line - 3))
+                context_end=$((line + 3))
+                context=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null || true)
+                if ! echo "$context" | grep -q "validate.*secret\|len.*secret\|if.*secret" 2>/dev/null; then
+                    report_violation "Unvalidated Secret Loading" "$file" "$line" \
+                        "Environment secrets must be validated at startup" "Rule #4"
+                fi
+            done
+        fi
+    fi
+done
+
+run_check "Critical Security Rule #5: Debug Information Exposure"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for debug information in responses
+        if grep -n "settings\.DEBUG.*stack_trace\|format_exception.*DEBUG" "$file" 2>/dev/null; then
+            report_violation "Debug Information Exposure" "$file" "$(grep -n 'settings\.DEBUG.*stack_trace\|format_exception.*DEBUG' "$file" | cut -d: -f1)" \
+                "Never expose stack traces or debug info in responses" "Rule #5"
+        fi
+    fi
+done
+
+# =============================================================================
+# MAJOR ARCHITECTURE RULES
+# =============================================================================
+
+run_check "Architecture Rule #6: Settings File Size Limit"
+for file in $staged_settings_files; do
+    if [ -f "$file" ]; then
+        line_count=$(wc -l < "$file")
+        if [ "$line_count" -gt 200 ]; then
+            report_violation "Settings File Too Large" "$file" "" \
+                "Settings file has $line_count lines (limit: 200). Split into environment-specific modules." "Rule #6"
+        fi
+    fi
+done
+
+run_check "Architecture Rule #6.5: GraphQL Settings Centralization"
+# Check for duplicate GraphQL settings in base.py (must only import from security/graphql.py)
+if echo "$staged_settings_files" | grep -q "intelliwiz_config/settings/base.py"; then
+    base_settings_file="intelliwiz_config/settings/base.py"
+    if [ -f "$base_settings_file" ]; then
+        # Check for direct GraphQL setting assignments (forbidden patterns)
+        if grep -n "^GRAPHQL_PATHS\s*=\s*\[" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_PATHS\s*=\s*\[' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_PATHS must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^ENABLE_GRAPHQL_RATE_LIMITING\s*=\s*True" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^ENABLE_GRAPHQL_RATE_LIMITING\s*=\s*True' "$base_settings_file" | cut -d: -f1)" \
+                "ENABLE_GRAPHQL_RATE_LIMITING must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^GRAPHQL_RATE_LIMIT_MAX\s*=\s*[0-9]" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_RATE_LIMIT_MAX\s*=\s*[0-9]' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_RATE_LIMIT_MAX must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^GRAPHQL_MAX_QUERY_DEPTH\s*=\s*[0-9]" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_MAX_QUERY_DEPTH\s*=\s*[0-9]' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_MAX_QUERY_DEPTH must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        if grep -n "^GRAPHQL_SECURITY_LOGGING\s*=\s*{" "$base_settings_file" 2>/dev/null; then
+            report_violation "GraphQL Settings Duplication" "$base_settings_file" "$(grep -n '^GRAPHQL_SECURITY_LOGGING\s*=\s*{' "$base_settings_file" | cut -d: -f1)" \
+                "GRAPHQL_SECURITY_LOGGING must only be defined in intelliwiz_config/settings/security/graphql.py" "Single Source of Truth"
+        fi
+
+        # Verify that base.py imports from security.graphql module
+        if ! grep -q "from \.security\.graphql import" "$base_settings_file" 2>/dev/null; then
+            report_violation "Missing GraphQL Import" "$base_settings_file" "" \
+                "base.py must import GraphQL settings from .security.graphql module (from .security.graphql import ...)" "Single Source of Truth"
+        fi
+    fi
+fi
+
+run_check "Architecture Rule #7: Model Complexity Limits"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check if file contains Django models
+        if grep -q "class.*Model\|models\.Model" "$file" 2>/dev/null; then
+            line_count=$(wc -l < "$file")
+            if [ "$line_count" -gt 150 ]; then
+                report_violation "Model File Too Complex" "$file" "" \
+                    "Model file has $line_count lines (limit: 150). Apply single responsibility principle." "Rule #7"
+            fi
+        fi
+    fi
+done
+
+run_check "Architecture Rule #8: View Method Size Limits"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for large view methods (simplified check for def post/get methods)
+        if grep -q "class.*View\|def post\|def get" "$file" 2>/dev/null; then
+            # Look for methods with more than 30 lines between def and next def/class/end of file
+            awk '
+            /^[[:space:]]*def (post|get|put|delete|patch)/ {
+                start_line = NR
+                method_name = $2
+                line_count = 0
+            }
+            start_line && /^[[:space:]]*(def|class)/ && NR > start_line {
+                if (line_count > 30) {
+                    print "Method " method_name " at line " start_line " has " line_count " lines"
+                }
+                start_line = 0
+            }
+            start_line { line_count++ }
+            END {
+                if (start_line && line_count > 30) {
+                    print "Method " method_name " at line " start_line " has " line_count " lines"
+                }
+            }' "$file" | while read line; do
+                if [ -n "$line" ]; then
+                    method_info=$(echo "$line" | sed 's/Method \([^ ]*\) at line \([^ ]*\) has \([^ ]*\) lines/\1:\2:\3/')
+                    IFS=':' read -r method_name line_num line_count <<< "$method_info"
+                    report_violation "View Method Too Large" "$file" "$line_num" \
+                        "Method '$method_name' has $line_count lines (limit: 30). Delegate to service layer." "Rule #8"
+                fi
+            done
+        fi
+    fi
+done
+
+# =============================================================================
+# CODE QUALITY RULES
+# =============================================================================
+
+run_check "Code Quality Rule #12: Database Query Optimization"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        if echo "$file" | grep -q "views.*\.py$\|managers.*\.py$" 2>/dev/null; then
+
+            if grep -n "objects\.get(id=\|objects\.filter(id=.*\.delete()\|objects\.filter(id=.*\.values(" "$file" 2>/dev/null; then
+                problem_lines=$(grep -n "objects\.get(id=\|objects\.filter(id=.*\.delete()\|objects\.filter(id=.*\.values(" "$file" | cut -d: -f1)
+                for line in $problem_lines; do
+                    context_start=$((line - 2))
+                    context_end=$((line + 3))
+                    context=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null || true)
+
+                    if ! echo "$context" | grep -q "optimized_get\|optimized_filter\|optimized_delete\|select_related\|prefetch_related" 2>/dev/null; then
+                        report_violation "N+1 Query Pattern in View/Manager" "$file" "$line" \
+                            "Use manager's optimized methods (e.g., optimized_get_with_relations) instead of direct .get(id=) or .filter(id=)" "Rule #12"
+                    fi
+                done
+            fi
+
+            if grep -n "objects\.all()\|objects\.filter(" "$file" 2>/dev/null; then
+                query_lines=$(grep -n "objects\.all()\|objects\.filter(" "$file" | cut -d: -f1)
+                for line in $query_lines; do
+                    context_start=$((line))
+                    context_end=$((line + 5))
+                    context=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null || true)
+                    if echo "$context" | grep -q "\.values(.*__.*)" 2>/dev/null; then
+                        if ! echo "$context" | grep -q "select_related\|prefetch_related" 2>/dev/null; then
+                            report_violation "Values Query with FK Field Missing Optimization" "$file" "$line" \
+                                "values() with FK field (e.g., field__subfield) requires select_related('field')" "Rule #12"
+                        fi
+                    fi
+                done
+            fi
+        fi
+    fi
+done
+
+run_check "Code Quality Rule #16: Wildcard Import Prevention"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for wildcard imports
+        if grep -n "^from .* import \*" "$file" 2>/dev/null; then
+            # Exclude acceptable wildcard imports (Django settings inheritance)
+            if ! echo "$file" | grep -q "settings.*\.py$" 2>/dev/null; then
+                # Check if the source module defines __all__
+                import_line=$(grep -n "^from .* import \*" "$file" | head -1)
+                line_num=$(echo "$import_line" | cut -d: -f1)
+                import_statement=$(echo "$import_line" | cut -d: -f2-)
+
+                # Extract module path
+                module_path=$(echo "$import_statement" | sed 's/from \(.*\) import \*/\1/')
+
+                report_violation "Wildcard Import Without __all__" "$file" "$line_num" \
+                    "Wildcard import from '$module_path' found. Use explicit imports or ensure source module defines __all__" "Rule #16"
+            fi
+        fi
+    fi
+done
+
+run_check "Code Quality Rule #14: File Upload Security"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        if grep -n "upload_to=" "$file" 2>/dev/null; then
+            upload_to_lines=$(grep -n "upload_to=" "$file" | cut -d: -f1)
+            for line in $upload_to_lines; do
+                line_content=$(sed -n "${line}p" "$file" 2>/dev/null || true)
+                if echo "$line_content" | grep -q "upload_to=[\"'][^)]*[\"']" 2>/dev/null; then
+                    if ! echo "$line_content" | grep -q "upload_to=upload_\|upload_to=.*\.generate_secure" 2>/dev/null; then
+                        report_violation "Hardcoded Upload Path" "$file" "$line" \
+                            "Use secure callable for upload_to (e.g., upload_to=upload_journal_media)" "Rule #14"
+                    fi
+                fi
+            done
+        fi
+
+        if grep -n "def upload.*filename" "$file" 2>/dev/null; then
+            upload_lines=$(grep -n "def upload.*filename" "$file" | cut -d: -f1)
+            for line in $upload_lines; do
+                context_start=$((line))
+                context_end=$((line + 20))
+                context=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null || true)
+                if ! echo "$context" | grep -q "get_valid_filename\|sanitize.*filename" 2>/dev/null; then
+                    report_violation "Unsafe File Upload Callable" "$file" "$line" \
+                        "File upload functions must sanitize filenames using get_valid_filename()" "Rule #14"
+                fi
+            done
+        fi
+
+        if grep -n "request\.FILES\[" "$file" 2>/dev/null; then
+            files_lines=$(grep -n "request\.FILES\[" "$file" | cut -d: -f1)
+            for line in $files_lines; do
+                context_start=$((line - 5))
+                context_end=$((line + 10))
+                context=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null || true)
+                if ! echo "$context" | grep -q "SecureFileUploadService\|utils\.upload\|get_valid_filename" 2>/dev/null; then
+                    report_violation "Direct File Access Without Validation" "$file" "$line" \
+                        "Direct request.FILES access must use SecureFileUploadService for validation" "Rule #14"
+                fi
+            done
+        fi
+
+        if grep -n "open.*[\"']wb[\"']" "$file" 2>/dev/null; then
+            file_write_lines=$(grep -n "open.*[\"']wb[\"']" "$file" | cut -d: -f1)
+            for line in $file_write_lines; do
+                context_start=$((line - 10))
+                context_end=$((line + 5))
+                context=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null || true)
+                if echo "$context" | grep -q "request\.FILES\|upload\|filename" 2>/dev/null; then
+                    if ! echo "$context" | grep -q "get_valid_filename\|secure.*path\|validation" 2>/dev/null; then
+                        report_violation "Unsafe File Write Operation" "$file" "$line" \
+                            "File write operations must validate paths to prevent traversal attacks" "Rule #14"
+                    fi
+                fi
+            done
+        fi
+    fi
+done
+
+run_check "Code Quality Rule #15: Logging Data Sanitization"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for potential sensitive data in logs
+        if grep -n "logger.*password\|log.*password\|logger.*token\|log.*token" "$file" 2>/dev/null; then
+            report_violation "Sensitive Data in Logs" "$file" "$(grep -n 'logger.*password\|log.*password\|logger.*token\|log.*token' "$file" | cut -d: -f1)" \
+                "Never log passwords, tokens, or other sensitive data" "Rule #15"
+        fi
+    fi
+done
+
+# =============================================================================
+# TRANSACTION MANAGEMENT RULE
+# =============================================================================
+
+run_check "Transaction Management Rule #17: Transaction.Atomic Usage"
+# Run Python script to validate transaction usage
+if [ -f ".githooks/validate-transaction-usage.py" ]; then
+    python3 .githooks/validate-transaction-usage.py
+    if [ $? -ne 0 ]; then
+        violations_found=$((violations_found + 1))
+    fi
+fi
+
+# =============================================================================
+# ADDITIONAL SECURITY CHECKS
+# =============================================================================
+
+run_check "Additional Security: Hardcoded Secrets Detection"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for potential hardcoded secrets (basic patterns)
+        if grep -n "password.*=.*[\"'][^\"']*[\"']\|secret.*=.*[\"'][^\"']*[\"']\|key.*=.*[\"'][^\"']*[\"']" "$file" 2>/dev/null; then
+            # Exclude obvious non-secrets
+            if ! grep -n "password.*=.*[\"']password[\"']\|secret.*=.*[\"']secret[\"']\|key.*=.*[\"']key[\"']" "$file" 2>/dev/null; then
+                report_violation "Potential Hardcoded Secret" "$file" "$(grep -n 'password.*=.*[\"\']\|secret.*=.*[\"\']\|key.*=.*[\"\''] "$file" | head -1 | cut -d: -f1)" \
+                    "Possible hardcoded secret detected. Use environment variables." "Security Best Practice"
+            fi
+        fi
+    fi
+done
+
+run_check "Additional Security: SQL Injection Pattern Detection"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for potential SQL injection patterns (raw queries)
+        if grep -n "raw.*SELECT\|execute.*SELECT\|cursor.*execute" "$file" 2>/dev/null; then
+            report_violation "Potential SQL Injection Risk" "$file" "$(grep -n 'raw.*SELECT\|execute.*SELECT\|cursor.*execute' "$file" | cut -d: -f1)" \
+                "Raw SQL queries should use parameterized queries to prevent injection" "Security Best Practice"
+        fi
+    fi
+done
+
+run_check "Critical Security: F-String SQL Injection Detection"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for f-string SQL injection patterns (CRITICAL)
+        if grep -n 'f".*SELECT.*{.*}.*"\|f'\''.*SELECT.*{.*}.*'\''\|f".*INSERT.*{.*}.*"\|f".*UPDATE.*{.*}.*"\|f".*DELETE.*{.*}.*"' "$file" 2>/dev/null; then
+            report_violation "F-String SQL Injection" "$file" "$(grep -n 'f".*SELECT.*{.*}.*"\|f'\''.*SELECT.*{.*}.*'\''\|f".*INSERT.*{.*}.*"\|f".*UPDATE.*{.*}.*"\|f".*DELETE.*{.*}.*"' "$file" | cut -d: -f1)" \
+                "F-string interpolation in SQL queries creates critical injection vulnerability. Use SecureSQL.build_safe_sqlite_count_query() or parameterized queries." "CRITICAL SECURITY RULE"
+        fi
+
+        # Check for .execute() with f-strings
+        if grep -n '\.execute\s*(\s*f".*{.*}.*"' "$file" 2>/dev/null; then
+            report_violation "Execute F-String SQL Injection" "$file" "$(grep -n '\.execute\s*(\s*f".*{.*}.*"' "$file" | cut -d: -f1)" \
+                "Using .execute() with f-string creates SQL injection vulnerability. Use parameterized queries with %s placeholders." "CRITICAL SECURITY RULE"
+        fi
+
+        # Check for string concatenation in SQL
+        if grep -n '"SELECT.*".*+.*+.*".*"' "$file" 2>/dev/null; then
+            report_violation "String Concatenation SQL Injection" "$file" "$(grep -n '"SELECT.*".*+.*+.*".*"' "$file" | cut -d: -f1)" \
+                "String concatenation in SQL queries creates injection vulnerability. Use parameterized queries." "CRITICAL SECURITY RULE"
+        fi
+    fi
+done
+
+run_check "Security: SecureSQL Utility Usage Verification"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check if files with SQL operations import SecureSQL utilities
+        if grep -q "\.execute\|\.raw\|cursor\." "$file" 2>/dev/null; then
+            if ! grep -q "from.*sql_security\|import.*SecureSQL\|from.*SecureSQL" "$file" 2>/dev/null; then
+                # Check if it's in an allowed location or using safe patterns
+                if ! grep -q "%s.*cursor\.execute\|\.execute.*%s" "$file" 2>/dev/null; then
+                    report_violation "Missing SecureSQL Import" "$file" "" \
+                        "Files using SQL operations should import and use SecureSQL utilities for security" "Security Best Practice"
+                fi
+            fi
+        fi
+    fi
+done
+
+# =============================================================================
+# CODE QUALITY CRITICAL FIXES (2025-09-30)
+# =============================================================================
+
+run_check "Code Injection: eval() and exec() Usage"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Block eval() usage (code injection risk)
+        if grep -n "eval(" "$file" 2>/dev/null | grep -v "#.*eval\|\"eval\|'eval" 2>/dev/null; then
+            report_violation "Code Injection Risk: eval()" "$file" "$(grep -n 'eval(' "$file" | grep -v '#.*eval\|\"eval\|'\''eval' | cut -d: -f1 | head -1)" \
+                "eval() enables code injection vulnerabilities. Use explicit functions/config instead." "Security Critical"
+        fi
+
+        # Block exec() usage (code injection risk)
+        if grep -n "exec(" "$file" 2>/dev/null | grep -v "#.*exec\|\"exec\|'exec" 2>/dev/null; then
+            report_violation "Code Injection Risk: exec()" "$file" "$(grep -n 'exec(' "$file" | grep -v '#.*exec\|"exec\|'\''exec' | cut -d: -f1 | head -1)" \
+                "exec() enables code injection vulnerabilities. Refactor to use safe alternatives." "Security Critical"
+        fi
+    fi
+done
+
+run_check "Generic Exception Handling: except Exception:"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Skip test files and migrations
+        if ! echo "$file" | grep -q "test_\|migrations/" 2>/dev/null; then
+            # Check for generic except Exception:
+            if grep -n "except Exception:" "$file" 2>/dev/null; then
+                report_violation "Generic Exception Handling" "$file" "$(grep -n 'except Exception:' "$file" | cut -d: -f1 | head -1)" \
+                    "Use specific exception types (e.g., except (ValueError, TypeError):). Generic exceptions hide real failures." "Rule #1 - Code Quality"
+            fi
+        fi
+    fi
+done
+
+run_check "Network Calls: Missing Timeouts"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Skip test files (they use mocks)
+        if ! echo "$file" | grep -q "test_\|@patch" 2>/dev/null; then
+            # Check for requests without timeout parameter
+            if grep -n "requests\.\(get\|post\|put\|delete\|patch\)(" "$file" 2>/dev/null | grep -v "timeout=" 2>/dev/null; then
+                report_violation "Network Call Without Timeout" "$file" "$(grep -n 'requests\.\(get\|post\|put\|delete\|patch\)(' "$file" | grep -v 'timeout=' | cut -d: -f1 | head -1)" \
+                    "All network calls must have timeout parameter (e.g., timeout=(5, 15)). Prevents hung workers." "Production Reliability"
+            fi
+        fi
+    fi
+done
+
+run_check "Blocking I/O: time.sleep in Request Paths"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for time.sleep in views, forms, and serializers
+        if echo "$file" | grep -q "views\|forms\|serializers" 2>/dev/null; then
+            if grep -n "time\.sleep(" "$file" 2>/dev/null; then
+                report_violation "Blocking I/O in Request Path" "$file" "$(grep -n 'time\.sleep(' "$file" | cut -d: -f1 | head -1)" \
+                    "time.sleep() blocks worker threads. Use async/await or offload to Celery tasks." "Performance Critical"
+            fi
+        fi
+    fi
+done
+
+run_check "Dangerous Pattern: sys.path Manipulation"
+for file in $staged_py_files; do
+    if [ -f "$file" ]; then
+        # Check for sys.path.insert or sys.path.append
+        if grep -n "sys\.path\.\(insert\|append\)" "$file" 2>/dev/null; then
+            report_violation "sys.path Manipulation" "$file" "$(grep -n 'sys\.path\.\(insert\|append\)' "$file" | cut -d: -f1 | head -1)" \
+                "sys.path manipulation causes import-order bugs. Use importlib.util instead." "Code Quality"
+        fi
+    fi
+done
+
+run_check "Production Settings: Print Statements"
+for file in $staged_settings_files; do
+    if [ -f "$file" ]; then
+        # Check for print statements in production settings
+        if echo "$file" | grep -q "production\|prod" 2>/dev/null; then
+            if grep -n "^print(" "$file" 2>/dev/null; then
+                report_violation "Print Statement in Production Settings" "$file" "$(grep -n '^print(' "$file" | cut -d: -f1 | head -1)" \
+                    "Use logger.info() instead of print() in production settings for structured logging." "Production Best Practice"
+            fi
+        fi
+    fi
+done
+
+# =============================================================================
+# RESULTS SUMMARY
+# =============================================================================
+
+echo ""
+echo "=============================================="
+echo -e "${BLUE}📊 PRE-COMMIT CHECK SUMMARY${NC}"
+echo "=============================================="
+echo -e "Total checks performed: ${total_checks}"
+echo -e "Rule violations found: ${violations_found}"
+echo ""
+
+if [ $violations_found -gt 0 ]; then
+    echo -e "${RED}❌ COMMIT REJECTED${NC}"
+    echo ""
+    echo -e "${YELLOW}⚠️  Your code violates ${violations_found} quality/security rules.${NC}"
+    echo ""
+    echo "📖 Please review .claude/rules.md for detailed guidance on:"
+    echo "   • Forbidden patterns and why they're dangerous"
+    echo "   • Required implementations and best practices"
+    echo "   • Examples of correct code patterns"
+    echo ""
+    echo "🔧 To fix violations:"
+    echo "   1. Address each violation listed above"
+    echo "   2. Run 'git add' to stage your fixes"
+    echo "   3. Try committing again"
+    echo ""
+    echo -e "${RED}Code quality rules exist to prevent security vulnerabilities${NC}"
+    echo -e "${RED}and maintenance issues. Please fix all violations.${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✅ ALL CHECKS PASSED${NC}"
+    echo ""
+    echo "🎉 Your code follows all quality and security rules!"
+    echo "📝 Code is ready for commit and review."
+    echo ""
+    exit 0
+fi

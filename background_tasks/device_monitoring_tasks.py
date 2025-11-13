@@ -199,7 +199,7 @@ def compute_device_health_scores_task(self):
     Returns:
         Dict with health score statistics
     """
-    from apps.monitoring.services.device_health_service import DeviceHealthService
+    from apps.noc.services.device_health_service import DeviceHealthService
     from apps.mqtt.models import DeviceTelemetry
     
     try:

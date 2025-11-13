@@ -365,7 +365,7 @@ def monitor_crisis_patterns(sender, instance, created, **kwargs):
             logger.critical(f"IMMEDIATE CRISIS INDICATORS DETECTED: Journal Entry {instance.id}, User {user.id}")
 
             # Trigger immediate crisis response
-            from .services.crisis_prevention_system import CrisisPreventionSystem
+            from .services.crisis_prevention import CrisisPreventionSystem
             crisis_system = CrisisPreventionSystem()
 
             # Perform rapid crisis assessment

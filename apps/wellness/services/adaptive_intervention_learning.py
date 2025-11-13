@@ -28,7 +28,7 @@ from apps.wellness.models import (
     MentalHealthInterventionType,
     WellnessUserProgress
 )
-from apps.wellness.services.intervention_response_tracker import InterventionResponseTracker
+from apps.wellness.services.intervention_tracking import InterventionResponseTracker
 from apps.core.exceptions.patterns import DATABASE_EXCEPTIONS
 
 logger = logging.getLogger(__name__)

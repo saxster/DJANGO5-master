@@ -80,6 +80,8 @@ class Ticket(BaseModel, TenantAwareModel):
 
     Workflow fields moved to TicketWorkflow model for separation of concerns.
     Access workflow data via properties (level, isescalated, ticketlog, etc.)
+
+    Django Best Practice: Business logic in model methods, not signals.
     """
 
     class Priority(models.TextChoices):
@@ -226,6 +228,80 @@ class Ticket(BaseModel, TenantAwareModel):
     version = VersionField()
 
     objects = TicketManager()
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize Ticket instance and track original status.
+
+        Replaces signal handler pattern for status change detection.
+        Django Best Practice: Track state changes in model, not signals.
+        """
+        super().__init__(*args, **kwargs)
+        # Track original status for change detection (avoid N+1 query in signals)
+        # For new instances (no pk), track the initialized status value
+        self._original_status = self.status
+
+    def save(self, *args, **kwargs):
+        """
+        Save ticket and handle status change broadcasts.
+
+        Replaces post_save signal handler pattern with model method.
+        Uses transaction.on_commit() for WebSocket broadcasts to avoid
+        sending updates for failed transactions.
+
+        Django Best Practice: Business logic in model save(), not signals.
+        """
+        # Detect status change
+        status_changed = self.pk and self._original_status and self._original_status != self.status
+        old_status = self._original_status
+
+        # Save to database
+        super().save(*args, **kwargs)
+
+        # Handle status change broadcasts (after successful save)
+        if status_changed:
+            from django.db import transaction
+            transaction.on_commit(
+                lambda: self._broadcast_status_change(old_status)
+            )
+
+        # Update tracked status for next save
+        self._original_status = self.status
+
+    def _broadcast_status_change(self, old_status):
+        """
+        Broadcast ticket status change via WebSocket.
+
+        Called via transaction.on_commit() to ensure broadcast only
+        happens after successful database commit.
+
+        Args:
+            old_status: Previous status value before change
+
+        TASK 10: Gap #13 - Ticket State Change Broadcasts
+        """
+        import logging
+        logger = logging.getLogger('y_helpdesk.models')
+
+        logger.info(
+            f"Ticket {self.id} status changed: {old_status} → {self.status}",
+            extra={
+                'ticket_id': self.id,
+                'old_status': old_status,
+                'new_status': self.status,
+                'tenant_id': self.tenant_id
+            }
+        )
+
+        # Lazy import to avoid circular dependency
+        try:
+            from apps.noc.services.websocket_service import NOCWebSocketService
+            NOCWebSocketService.broadcast_ticket_update(self, old_status)
+        except (ImportError, AttributeError) as e:
+            logger.warning(
+                f"Failed to import NOCWebSocketService: {e}",
+                extra={'ticket_id': self.id}
+            )
 
     # Backward compatibility properties for workflow fields
     @property
@@ -383,6 +459,10 @@ class Ticket(BaseModel, TenantAwareModel):
             models.Index(fields=['tenant', 'cdtz'], name='ticket_tenant_cdtz_idx'),
             models.Index(fields=['tenant', 'status'], name='ticket_tenant_status_idx'),
             models.Index(fields=['tenant', 'priority'], name='ticket_tenant_priority_idx'),
+            # Performance optimization: compound indexes for common filter combinations
+            models.Index(fields=['tenant', 'status', 'priority'], name='ticket_status_priority_idx'),
+            models.Index(fields=['tenant', 'cdtz', 'status'], name='ticket_created_status_idx'),
+            models.Index(fields=['tenant', 'assignedtopeople', 'status'], name='ticket_assigned_status_idx'),
         ]
 
     def __str__(self):

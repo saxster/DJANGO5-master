@@ -100,20 +100,27 @@ class TicketForm(forms.ModelForm):
             # self.fields['assignedtogroup'] = utils.get_or_create_none_pgroup()
 
     def clean(self):
-        super().clean()
-        cd = self.cleaned_data
+        """
+        Validate form data and enforce business rules.
+
+        Returns:
+            dict: Cleaned and validated form data
+
+        Django Best Practice: Always return cleaned_data from clean()
+        """
+        cleaned_data = super().clean()
 
         # Validate state transitions using centralized TicketStateMachine
         if self.instance and self.instance.pk:  # Existing ticket being updated
             current_status = self.instance.status
-            new_status = cd.get("status")
+            new_status = cleaned_data.get("status")
 
             if current_status and new_status and current_status != new_status:
                 # Create transition context
                 context = TransitionContext(
                     user=getattr(self.request, 'user', None),
                     reason=TransitionReason.USER_ACTION,
-                    comments=cd.get("comments"),
+                    comments=cleaned_data.get("comments"),
                     mobile_client=False
                 )
 
@@ -146,7 +153,7 @@ class TicketForm(forms.ModelForm):
                     )
 
         # Enhanced auto-assignment using TicketAssignmentService
-        if cd.get("assignedtopeople") is None and cd.get("assignedtogroup") is None:
+        if cleaned_data.get("assignedtopeople") is None and cleaned_data.get("assignedtogroup") is None:
             # Use intelligent auto-assignment if ticket exists (editing scenario)
             if self.instance and self.instance.pk:
                 context = AssignmentContext(
@@ -163,17 +170,18 @@ class TicketForm(forms.ModelForm):
                 )
 
                 if assignee and assignee['type'] == 'person':
-                    cd["assignedtopeople"] = People.objects.get(pk=assignee['id'])
+                    cleaned_data["assignedtopeople"] = People.objects.get(pk=assignee['id'])
                 elif assignee and assignee['type'] == 'group':
-                    cd["assignedtogroup"] = Pgroup.objects.get(pk=assignee['id'])
+                    cleaned_data["assignedtogroup"] = Pgroup.objects.get(pk=assignee['id'])
                 else:
                     # Fallback to current user
-                    cd["assignedtopeople"] = self.request.user
+                    cleaned_data["assignedtopeople"] = self.request.user
             else:
                 # For new tickets, default to current user
-                cd["assignedtopeople"] = self.request.user
+                cleaned_data["assignedtopeople"] = self.request.user
 
-        self.cleaned_data = self.check_nones(self.cleaned_data)
+        # Normalize None values and return
+        return self.check_nones(cleaned_data)
 
     def clean_ticketdesc(self):
         if val := self.cleaned_data.get("ticketdesc"):

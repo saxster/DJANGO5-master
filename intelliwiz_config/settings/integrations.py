@@ -56,6 +56,7 @@ from .integrations.aws import (
     EMAIL_USE_TLS,
     EMAIL_HOST_USER,
     EMAIL_HOST_PASSWORD,
+    EMAIL_TIMEOUT,
     DEFAULT_FROM_EMAIL,
     EMAIL_FROM_ADDRESS,
     EMAIL_TOKEN_LIFE,

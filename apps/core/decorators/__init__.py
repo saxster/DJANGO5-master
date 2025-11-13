@@ -17,10 +17,18 @@ from apps.core.decorators.error_handling_decorators import (
     safe_api_view,
     safe_view,
 )
+from apps.core.decorators.caching import (
+    cache_query,
+    invalidate_cache_pattern,
+    cache_queryset_page,
+)
 
 __all__ = [
     "safe_api_view",
     "safe_view",
+    "cache_query",
+    "invalidate_cache_pattern",
+    "cache_queryset_page",
 ]
 
 # Backward compatibility: load legacy decorators module if it exists.

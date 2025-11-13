@@ -326,14 +326,41 @@ class ServiceException(Exception):
 def monitor_service_performance(method_name: str):
     """
     Standalone decorator for monitoring service method performance.
-    
-    Use this when decorating methods at class definition time.
-    For instance methods, use self.monitor_performance() instead.
-    
-    Usage:
-        @monitor_service_performance("create_order")
-        def create_order(self, data):
-            pass
+
+    Provides automatic performance tracking, error handling, and correlation ID
+    generation for service layer methods. Use when decorating methods at class
+    definition time. For instance methods, use self.monitor_performance() instead.
+
+    Features:
+    - Execution duration tracking
+    - Error rate monitoring
+    - Correlation ID generation for failures
+    - Performance metrics logging
+    - Automatic ServiceException wrapping with context
+
+    Args:
+        method_name: Human-readable method name for logging and metrics.
+            Used in performance logs and error messages.
+
+    Returns:
+        Decorator function that wraps the service method.
+
+    Raises:
+        ServiceException: Wraps any exception from decorated method with
+            correlation ID and performance context.
+
+    Example:
+        >>> class OrderService(BaseService):
+        ...     @monitor_service_performance("create_order")
+        ...     def create_order(self, data):
+        ...         order = Order.objects.create(**data)
+        ...         return order
+        ...
+        >>> # Performance logs automatically generated:
+        >>> # INFO: Starting create_order
+        >>> # INFO: OrderService.create_order completed (duration: 0.023s)
+
+    Related: BaseService.monitor_performance() for instance method decoration
     """
     def decorator(func: Callable):
         def wrapper(self, *args, **kwargs):

@@ -16,8 +16,10 @@ from django.db import DatabaseError
 from django.core.paginator import Paginator, EmptyPage
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 
 from apps.peoples.models import People
+from apps.core.decorators.caching import cache_query
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +178,7 @@ class PeopleService:
     @staticmethod
     def search_users(request, search_query='', limit=20):
         """
-        Search users across multiple fields.
+        Search users across multiple fields (with caching).
 
         Args:
             request: HTTP request
@@ -192,6 +194,17 @@ class PeopleService:
         """
         from django.db.models import Q
 
+        # Generate cache key
+        cache_key = f'people:search:{request.user.client_id}:{search_query}:{limit}'
+
+        # Try cache first
+        cached_results = cache.get(cache_key)
+        if cached_results is not None:
+            logger.debug(f"Cache HIT: {cache_key}")
+            return cached_results
+
+        logger.debug(f"Cache MISS: {cache_key}")
+
         queryset = PeopleService.get_tenant_filtered_queryset(request)
 
         if search_query:
@@ -205,7 +218,7 @@ class PeopleService:
         queryset = queryset.select_related('bu', 'client')
         results_list = list(queryset[:limit])
 
-        return [
+        results = [
             {
                 'id': user.id,
                 'username': user.username,
@@ -216,6 +229,12 @@ class PeopleService:
             }
             for user in results_list
         ]
+
+        # Cache for 10 minutes (600 seconds)
+        cache.set(cache_key, results, 600)
+        logger.info(f"Cached people search: {cache_key} (TTL: 600s)")
+
+        return results
 
 
 __all__ = ['PeopleService']

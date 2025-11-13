@@ -21,7 +21,7 @@ Test Coverage:
 import pytest
 from django.utils import timezone
 from datetime import timedelta
-from apps.wellness.services.crisis_prevention_system import CrisisPreventionSystem
+from apps.wellness.services.crisis_prevention import CrisisPreventionSystem
 from apps.journal.models import JournalEntry
 from .conftest import create_journal_entry, create_intervention_log
 
