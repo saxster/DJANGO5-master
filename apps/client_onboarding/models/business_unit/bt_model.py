@@ -28,7 +28,7 @@ from django.contrib.postgres.fields import ArrayField
 import uuid
 
 from apps.tenants.models import TenantAwareModel
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from ...managers import BtManager
 from .bt_helpers import bu_defaults
 from .bt_cache import clear_bu_cache_for_instance

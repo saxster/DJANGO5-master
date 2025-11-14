@@ -8,7 +8,7 @@ Follows .claude/rules.md Rule #7: Model < 150 lines.
 
 from django.db import models
 from django.utils import timezone
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

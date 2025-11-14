@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.activity.managers.job import JobneedDetailsManager
 from apps.activity.models.question_model import QuestionSet
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

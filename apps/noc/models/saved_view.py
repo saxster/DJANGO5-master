@@ -8,7 +8,7 @@ Follows .claude/rules.md Rule #7 (models <150 lines).
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from apps.tenants.models import TenantAwareModel
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 
 __all__ = ['NOCSavedView']
 

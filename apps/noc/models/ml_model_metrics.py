@@ -10,7 +10,7 @@ Follows .claude/rules.md Rule #7: Model < 150 lines.
 import uuid
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 
 
 class MLModelMetrics(BaseModel):

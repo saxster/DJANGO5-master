@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from concurrency.fields import VersionField
 
 from apps.activity.managers.job import JobneedManager
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from apps.core import utils
 

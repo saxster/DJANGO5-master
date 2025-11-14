@@ -17,7 +17,7 @@ from django.db import DatabaseError, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 
 # Import required models
-from apps.peoples.models import People
+# from apps.peoples.models import People  # Moved to lazy import to avoid circular dependency
 from apps.client_onboarding.models import Bt
 
 

@@ -12,7 +12,7 @@ import apps.peoples.models as pm  # people-models
 from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
 from apps.client_onboarding.models import Bt
-from apps.core_onboarding.models import TypeAssist
+# Removed unused import: from apps.core_onboarding.models import TypeAssist
 from django_select2 import forms as s2forms
 from apps.core.utils_new.business_logic import (
     apply_error_classes,

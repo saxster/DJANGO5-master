@@ -23,7 +23,7 @@ from .models import (
     WellnessDeliveryContext,
     EvidenceLevel,
 )
-from apps.journal.serializers.pii_redaction_mixin import PIIRedactionMixin
+# Lazy import to avoid circular dependency: from apps.journal.serializers.pii_redaction_mixin import PIIRedactionMixin
 from apps.wellness.logging import get_wellness_logger
 
 User = get_user_model()

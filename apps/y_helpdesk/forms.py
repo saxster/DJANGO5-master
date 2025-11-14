@@ -3,7 +3,7 @@ from django.db.models import Q
 from .models import Ticket, EscalationMatrix
 from apps.core_onboarding.models import TypeAssist
 from apps.core import utils
-from apps.peoples.models import Pgroup, People
+# from apps.peoples.models import Pgroup, People  # Moved to lazy import to avoid circular dependency
 from apps.activity.models.location_model import Location
 from apps.activity.models.asset_model import Asset
 from apps.core.utils_new.business_logic import initailize_form_fields

@@ -35,7 +35,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
-from apps.peoples.models import BaseModel, People
+from apps.core.models import BaseModel, People
 from apps.tenants.models import TenantAwareModel
 
 logger = logging.getLogger(__name__)

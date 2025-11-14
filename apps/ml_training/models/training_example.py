@@ -18,7 +18,7 @@ from django.db.models import JSONField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from .dataset import TrainingDataset
 from .enums import ExampleType, LabelingStatus

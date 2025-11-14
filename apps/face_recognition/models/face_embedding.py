@@ -7,7 +7,7 @@ from django.db import models
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.postgres.fields import ArrayField
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from .face_recognition_model import FaceRecognitionModel
 

@@ -12,7 +12,7 @@ import apps.peoples.models as pm  # people-models
 from apps.activity.models.location_model import Location
 from apps.activity.models.question_model import QuestionSet
 from apps.client_onboarding.models import Bt
-from apps.core_onboarding.models import TypeAssist
+# Lazy import to avoid circular dependency: from apps.core_onboarding.models import TypeAssist
 from django_select2 import forms as s2forms
 from apps.core.utils_new.business_logic import (
     apply_error_classes,
@@ -81,6 +81,9 @@ class PgroupForm(forms.ModelForm):
 
 class SiteGroupForm(PgroupForm):
     def __init__(self, *args, **kwargs):
+        # Lazy import to avoid circular dependency
+        from apps.core_onboarding.models import TypeAssist
+        
         self.request = kwargs.pop("request")
         S = self.request.session
         super().__init__(*args, **kwargs)
@@ -96,6 +99,9 @@ class SiteGroupForm(PgroupForm):
 
 class PeopleGroupForm(PgroupForm):
     def __init__(self, *args, **kwargs):
+        # Lazy import to avoid circular dependency
+        from apps.core_onboarding.models import TypeAssist
+        
         self.request = kwargs.pop("request")
         S = self.request.session
         super().__init__(*args, **kwargs)

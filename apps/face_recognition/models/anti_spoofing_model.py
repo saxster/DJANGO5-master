@@ -4,7 +4,7 @@ Created: 2025-11-04
 Extracted from models.py as part of god file refactoring
 """
 from django.db import models
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

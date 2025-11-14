@@ -16,7 +16,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timezone as dt_timezone
 
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

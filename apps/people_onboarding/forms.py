@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from datetime import date, timedelta
 
-from apps.peoples.models import People
+# from apps.peoples.models import People  # Moved to lazy import to avoid circular dependency
 from .models import (
     OnboardingRequest,
     CandidateProfile,

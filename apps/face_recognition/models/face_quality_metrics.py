@@ -6,7 +6,7 @@ Extracted from models.py as part of god file refactoring
 from django.db import models
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.postgres.fields import ArrayField
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 
 
 class FaceQualityMetrics(BaseModel):
