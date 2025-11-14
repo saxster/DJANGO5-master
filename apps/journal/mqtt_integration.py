@@ -19,7 +19,7 @@ from paho.mqtt import client as mqtt
 from celery import shared_task
 
 from apps.journal.models import JournalEntry
-from apps.wellness.models import WellnessContent, WellnessContentInteraction
+# Lazy import to avoid circular dependency: from apps.wellness.models import WellnessContent, WellnessContentInteraction
 from apps.mqtt.client import MqttClient
 
 logger = logging.getLogger(__name__)
@@ -485,6 +485,8 @@ def send_wellness_notification_async(user_id, content_id, delivery_context='dail
     """Send wellness notification asynchronously"""
     try:
         from django.contrib.auth import get_user_model
+        # Lazy import to avoid circular dependency
+        from apps.wellness.models import WellnessContent
 
         User = get_user_model()
         user = User.objects.get(id=user_id)
@@ -563,6 +565,8 @@ def broadcast_system_health_status():
         # Calculate system health metrics
         from apps.tenants.models import Tenant
         from django.db.models import Prefetch
+        # Lazy import to avoid circular dependency
+        from apps.wellness.models import WellnessContentInteraction
 
         health_metrics = {}
 
@@ -666,7 +670,7 @@ def trigger_mqtt_notifications_on_entry_create(sender, instance, created, **kwar
             logger.error(f"Failed to trigger MQTT notifications for entry {instance.id}: {e}")
 
 
-@receiver(post_save, sender=WellnessContentInteraction)
+@receiver(post_save, sender='wellness.WellnessContentInteraction')
 def trigger_achievement_notifications_on_interaction(sender, instance, created, **kwargs):
     """Trigger achievement notifications when wellness interactions are created"""
     if created and instance.interaction_type in ['completed', 'acted_upon']:

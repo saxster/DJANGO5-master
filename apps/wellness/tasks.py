@@ -18,7 +18,7 @@ from django.contrib.auth import get_user_model
 from datetime import timedelta
 import logging
 
-from apps.journal.models import JournalEntry
+# Lazy import to avoid circular dependency: from apps.journal.models import JournalEntry
 from apps.wellness.services.mental_health_coordinator import MentalHealthInterventionCoordinator
 from apps.wellness.services.crisis_prevention import CrisisPreventionSystem
 from apps.wellness.services.intervention_tracking import InterventionResponseTracker
@@ -55,6 +55,8 @@ def process_entry_for_mental_health_interventions(self, journal_entry_id, user_i
         user_id: User ID for processing
         created: Whether this was a new entry
     """
+    # Lazy import to avoid circular dependency
+    from apps.journal.models import JournalEntry
 
     with self.task_context(journal_entry_id=journal_entry_id, user_id=user_id, created=created):
         log_task_context('process_entry_for_mental_health_interventions',
