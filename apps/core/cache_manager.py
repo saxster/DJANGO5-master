@@ -115,8 +115,9 @@ class TreeCache:
     def get_or_build_tree(self, root_id: Optional[int] = None, 
                           filter_kwargs: Optional[Dict] = None) -> List[Dict]:
         """Get tree from cache or build it"""
-        # Generate cache key
-        cache_key = f"{self.cache_prefix}:{root_id}:{hash(str(filter_kwargs))}"
+        # Generate cache key using deterministic filter hashing
+        filter_token = self._get_filter_token(filter_kwargs)
+        cache_key = f"{self.cache_prefix}:{root_id}:{filter_token}"
         
         # Try cache first
         cached_tree = cache.get(cache_key)
@@ -188,6 +189,15 @@ class TreeCache:
     def invalidate(self):
         """Invalidate all tree caches for this model"""
         CacheManager.invalidate_pattern(self.cache_prefix)
+
+    @staticmethod
+    def _get_filter_token(filter_kwargs: Optional[Dict]) -> str:
+        """Create a deterministic token for filter kwargs."""
+        if not filter_kwargs:
+            return "nofilter"
+
+        normalized_filters = json.dumps(filter_kwargs, sort_keys=True, default=str)
+        return hashlib.sha256(normalized_filters.encode("utf-8")).hexdigest()
 
 
 class QueryCache:
