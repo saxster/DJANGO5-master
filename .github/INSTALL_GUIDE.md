@@ -40,7 +40,7 @@ Complete guide for setting up the IntelliWiz Enterprise Platform on macOS and Li
 - Ubuntu 20.04+, RHEL 8+, or similar
 - 8GB RAM minimum, 16GB recommended
 - 10GB free disk space
-- Optional: NVIDIA GPU with CUDA 12.1+ for ML acceleration
+- Optional: NVIDIA GPU with CUDA 12.8+ for ML acceleration
 
 ---
 
@@ -332,7 +332,7 @@ pip install -r requirements/speech_to_text_requirements.txt
 - ✅ Django 5.2.1 and REST framework
 - ✅ PostgreSQL adapter (psycopg3 with connection pooling)
 - ✅ Celery for task queue
-- ✅ PyTorch with CUDA 12.1 support (if NVIDIA GPU present)
+- ✅ PyTorch with CUDA 12.8 support (if NVIDIA GPU present)
 - ✅ TensorFlow with CUDA support
 - ✅ NVIDIA CUDA libraries (14 packages for GPU acceleration)
 

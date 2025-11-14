@@ -68,7 +68,7 @@ pip install -r requirements/ai_requirements.txt
 
 **What's the difference?**
 - **macOS**: Uses Metal Performance Shaders (MPS) for GPU acceleration, NO CUDA packages
-- **Linux**: Includes NVIDIA CUDA 12.1 libraries for GPU acceleration
+- **Linux**: Includes NVIDIA CUDA 12.8 libraries for GPU acceleration
 
 📖 **See**: [Complete Installation Guide](.github/INSTALL_GUIDE.md) for troubleshooting and platform-specific details
 
