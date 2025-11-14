@@ -305,7 +305,7 @@ class ReportExportService:
         Comprehensive validation of export file paths.
 
         Security Checks:
-        - Path traversal prevention (../, ..\, etc.)
+        - Path traversal prevention (../, ..\\, etc.)
         - Null byte injection prevention
         - Symlink attack prevention
         - Base directory restriction
