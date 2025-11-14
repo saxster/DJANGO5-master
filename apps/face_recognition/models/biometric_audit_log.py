@@ -7,7 +7,7 @@ Required for GDPR Article 30 (Records of processing activities)
 """
 import uuid
 from django.db import models
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from .biometric_consent_log import BiometricConsentLog
 from .enums import BiometricOperationType
 

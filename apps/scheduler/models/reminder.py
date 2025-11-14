@@ -19,7 +19,7 @@ from django.db.models.functions import Cast
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timezone as dt_timezone, timedelta
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 
 
 class ReminderManager(models.Manager):

@@ -3,7 +3,7 @@ from django.contrib.gis.db.models import PointField
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from apps.activity.managers.deviceeventlog_manager import DELManager
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 
 
 class DeviceEventlog(BaseModel, models.Model):

@@ -21,7 +21,7 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from typing import List, Dict, Any, Optional, Tuple
 import uuid
 import logging

@@ -17,7 +17,7 @@ from django.db import models, transaction
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 import logging
 

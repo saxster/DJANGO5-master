@@ -14,7 +14,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 import uuid
 
 

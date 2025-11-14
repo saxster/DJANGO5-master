@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.client_onboarding.models import Bt
 from apps.core_onboarding.models import ConversationSession
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

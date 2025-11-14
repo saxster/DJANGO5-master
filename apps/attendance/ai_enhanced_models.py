@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

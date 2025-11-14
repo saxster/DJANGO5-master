@@ -5,7 +5,7 @@ Extracted from models.py as part of god file refactoring
 """
 from django.db import models
 from django.core.serializers.json import DjangoJSONEncoder
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

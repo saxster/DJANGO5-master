@@ -1,5 +1,5 @@
 from django.db import models
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from django.utils.translation import gettext_lazy as _
 from django.core.serializers.json import DjangoJSONEncoder

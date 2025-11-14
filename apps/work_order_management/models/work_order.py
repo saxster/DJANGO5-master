@@ -13,7 +13,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.utils.translation import gettext_lazy as _
 from concurrency.fields import VersionField
 
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from apps.ontology import ontology
 from ..managers import WorkOrderManager

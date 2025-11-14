@@ -3,7 +3,7 @@ Geofence model - Geographic boundary definitions for attendance validation.
 
 Uses PostGIS to store and validate polygon/circle geofences.
 """
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from django.db import models
 from django.contrib.gis.db.models import PointField, PolygonField
 from django.utils.translation import gettext_lazy as _

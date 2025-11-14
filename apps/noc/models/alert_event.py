@@ -10,7 +10,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from apps.tenants.models import TenantAwareModel
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from ..constants import ALERT_TYPES, ALERT_SEVERITIES, ALERT_STATUSES
 
 __all__ = ['NOCAlertEvent']

@@ -21,7 +21,7 @@ Following CLAUDE.md:
 Refactored: Oct 11, 2025
 """
 
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from django.db import models
 from ..managers import TicketManager, ESCManager

@@ -18,7 +18,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 
 from apps.tenants.models import TenantAwareModel
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 
 
 class AIChangeSet(BaseModel, TenantAwareModel):

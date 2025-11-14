@@ -4,7 +4,7 @@ from django.contrib.gis.db.models import PointField
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from apps.activity.managers.attachment_manager import AttachmentManager
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 
 

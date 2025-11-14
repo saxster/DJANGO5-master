@@ -6,7 +6,7 @@ from django.db.models import Q
 from django_select2 import forms as s2forms
 
 import apps.peoples.models as pm
-from apps.core_onboarding.models import TypeAssist
+# Lazy import to avoid circular dependency: from apps.core_onboarding.models import TypeAssist
 from apps.core.utils_new.business_logic import (
     apply_error_classes,
     initailize_form_fields,
@@ -58,6 +58,9 @@ class SiteGroupForm(PgroupForm):
     """Form for creating/editing site groups."""
 
     def __init__(self, *args, **kwargs):
+        # Lazy import to avoid circular dependency
+        from apps.core_onboarding.models import TypeAssist
+        
         self.request = kwargs.pop("request")
         S = self.request.session
         super().__init__(*args, **kwargs)
@@ -75,6 +78,9 @@ class PeopleGroupForm(PgroupForm):
     """Form for creating/editing people groups."""
 
     def __init__(self, *args, **kwargs):
+        # Lazy import to avoid circular dependency
+        from apps.core_onboarding.models import TypeAssist
+        
         self.request = kwargs.pop("request")
         S = self.request.session
         super().__init__(*args, **kwargs)

@@ -4,7 +4,7 @@ PeopleEventlog model - Main attendance tracking model.
 Handles check-in/check-out events with geospatial validation, biometric verification,
 fraud detection, and post assignment tracking.
 """
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 import uuid
 from apps.tenants.models import TenantAwareModel
 from django.db import models

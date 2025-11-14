@@ -8,7 +8,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
-from apps.peoples.models import BaseModel
+from apps.core.models import BaseModel
 from apps.tenants.models import TenantAwareModel
 from ..managers import ApproverManager
 from .enums import ApproverIdentifier
