@@ -151,6 +151,8 @@ db.sqlite3-journal
 media/
 staticfiles/
 static/
+!frontend/static/
+!frontend/static/**
 
 # Node.js
 node_modules/

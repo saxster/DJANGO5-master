@@ -1,70 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "peoples/auth_base.html" %}
+{% load static %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Site</title>
-    <!-- BEGIN GLOBAL STYLESHEETS BUNDLE (used by all pages) -->
-    <link href="{{ static('assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet" type="text/css" />
-    <link href="{{ static('assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
-    <link href="{{ static('assets/plugins/custom/jquery-ui/jquery-ui.min.css') }}" rel="stylesheet" type="text/css" />
+{% block title %}Select Site · IntelliWiz{% endblock %}
 
+{% block extra_head %}
+    {{ block.super }}
     {{ nositeform.media.css }}
-</head>
+{% endblock %}
 
-<body>
-    <div class="container">
-        <div class="row justify-content-center align-middle">
-            <div class="col-md-8 col-lg-6 col-xl-4 ">
-                <div class="card shadow-sm card-bordered" style="margin-top: 250px; width:520px">
-                    <div class="card-header justify-content-center my-0">
-                        <div class="site_logo mt-5"><img class="dlogo" style="height:55px"
-                                src="{{static('assets/media/images/logo-transparent.png')}}" alt="">
-                        </div>
-                    </div>
-                    <div class="card-body  p-5">
-                        <form action=""  method="post" id="nosite">
-                            <div class="input-group mb-3">
-                                <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-                                <div class="col-md-2 pt-3">
-                                    {{ nositeform.site.label_tag() }}
-                                </div>
-                                <div class="col-md-10">
-                                    {{ nositeform.site }}
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="card-footer">
-                        <button type="submit" form="nosite" class="btn btn-primary btn-sm">Submit</button>
-                        <button type="button" id="logout" class="btn btn-sm btn-secondary">Log Out</button>
-                        <div class="col">
-                            <p class="fw-normal text-muted mt-4 text-decoration-underline _wrappermb-4">
-                                Note: You have no default site assigned to your account.
-                                Please select one from the list above.
-                            </p>
-                        </div>
-                    </div>
+{% block extra_scripts %}
+    {{ block.super }}
+    {{ nositeform.media.js }}
+{% endblock %}
+
+{% block brand %}
+    <img
+        src="{{ static('assets/media/logos/youtility_technologies_logo.svg') }}"
+        alt="{{ company_name }}"
+        class="auth-logo"
+        width="184"
+        height="184"
+        loading="lazy"
+    >
+    <h1 class="auth-product">{{ product_name }}</h1>
+    <p class="auth-tagline">by {{ company_name }}</p>
+    <div class="auth-domain-pill" aria-label="Current environment">{{ env_hostname }}</div>
+{% endblock %}
+
+{% block content %}
+    <div>
+        <h2 class="auth-heading">Select your site</h2>
+        <p class="auth-subheading">Choose the location you wish to access for this session.</p>
+    </div>
+
+    {% if messages %}
+        {% for msg in messages %}
+            {% if 'alert-danger' in msg.tags %}
+                <div class="auth-alert auth-alert-error" role="alert">{{ msg }}</div>
+            {% else %}
+                <div class="auth-banner auth-banner-info" role="status">{{ msg }}</div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" class="auth-form" id="nosite" data-auth-form novalidate>
+        {% csrf_token %}
+        {% for field in nositeform.visible_fields %}
+            <div class="auth-field">
+                {{ field.label_tag(attrs={'class': 'auth-label'}) }}
+                <div class="auth-input-wrapper">
+                    {{ field.as_widget(attrs={'class': 'auth-select auth-input'}) }}
                 </div>
+                {% for error in field.errors %}
+                    <p class="auth-field-error" role="alert">{{ error }}</p>
+                {% endfor %}
             </div>
+        {% endfor %}
+
+        <div class="auth-actions">
+            <div class="auth-action-row">
+                <button type="submit" class="auth-button" data-auth-submit>
+                    <span class="auth-button__spinner" aria-hidden="true"></span>
+                    <span class="auth-button__label" data-default-label="Continue" data-loading-label="Submitting…">Continue</span>
+                </button>
+                <a href="{% url 'logout' %}" class="auth-link-button">Log out</a>
+            </div>
+            <p class="auth-note">You have no default site assigned to your account. Select an available site to proceed or contact <a href="mailto:{{ support_contact }}">{{ support_contact }}</a> for assistance.</p>
         </div>
-        <!-- BEGIN  GLOBAL JS BUNDLE (used by all pages) -->
-        <script src="{{ static('assets/plugins/global/plugins.bundle.js') }}"></script>
-        <script src="{{ static('assets/js/scripts.bundle.js') }}"></script>
-        <script src="{{ static('assets/plugins/custom/jquery-ui/jquery-ui.min.js') }}"></script>
-        <!-- END  GLOBAL JS BUNDLE (used by all pages) -->
-
-        {{ nositeform.media.js }}
-        <script>
-            $(document).ready(function () {
-                $("#logout").click(function () {
-                    window.location.href = "{{ url ('logout') }}";
-                });
-            });
-
-        </script>
-</body>
-
-</html>
+    </form>
+{% endblock %}

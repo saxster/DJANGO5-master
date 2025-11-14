@@ -48,8 +48,17 @@ class LoginForm(SecureFormMixin, forms.Form):
         max_length=50,
         min_length=4,
         required=True,
-        widget=forms.TextInput(attrs={"placeholder": "Username or Phone or Email"}),
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Enter your username",
+                "class": "auth-input",
+                "autocomplete": "username",
+                "aria-describedby": "id_username_help",
+                "aria-required": "true",
+            }
+        ),
         label="Username",
+        help_text="Use your corporate IntelliWiz credentials.",
     )
 
     password = forms.CharField(
@@ -57,13 +66,27 @@ class LoginForm(SecureFormMixin, forms.Form):
         required=True,
         widget=forms.PasswordInput(
             attrs={
-                "placeholder": "Enter Password",
-                "autocomplete": "off",
-                "data-toggle": "password",
+                "placeholder": "Enter your password",
+                "class": "auth-input",
+                "autocomplete": "current-password",
+                "aria-required": "true",
+                "data-password": "true",
             }
         ),
         label="Password",
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure consistent styling classes remain even after SecureForm processing
+        for field_name, field in self.fields.items():
+            classes = field.widget.attrs.get("class", "").split()
+            if "auth-input" not in classes:
+                classes.append("auth-input")
+            field.widget.attrs["class"] = " ".join(filter(None, classes))
+            field.widget.attrs.setdefault("aria-required", "true")
+
+        self.fields["password"].widget.attrs.setdefault("data-password", "true")
 
     def clean(self):
         super().clean()
