@@ -226,7 +226,7 @@ tqdm==4.67.1
 traitlets==5.14.3
 twilio>=9.0.0  # IVR webhook signature validation (security - Rule #3 compliance)
 transformers==4.53.0  # Security update: Multiple CVEs - deserialization & ReDoS
-# triton==3.0.0  # Removed - not available on macOS, only needed on Linux with CUDA
+# triton==3.4.0  # Removed - not available on macOS, only needed on Linux with CUDA (see base-linux.txt)
 txtai==7.3.0
 typer==0.17.3
 typing-inspection==0.4.1
