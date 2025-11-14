@@ -6,13 +6,15 @@ Business logic delegated to respective services.
 """
 
 import logging
+from datetime import datetime
+
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import permission_required
-from django.utils.decorators import method_decorator
-from django.shortcuts import render, redirect
-from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
+from django.views import View
 
 from apps.peoples.services import (
     PasswordManagementService,
@@ -23,6 +25,19 @@ from apps.client_onboarding.models import Bt
 from apps.peoples.models import People
 
 logger = logging.getLogger(__name__)
+
+
+def _auth_layout_context(request: HttpRequest) -> dict:
+    """Reusable brand context for authentication-related templates."""
+
+    return {
+        "product_name": "IntelliWiz",
+        "company_name": "Youtility Technologies Pvt. Ltd.",
+        "tagline": "Secure access to your field operations data.",
+        "support_contact": "support@youtility.in",
+        "env_hostname": request.get_host(),
+        "current_year": datetime.now().year,
+    }
 
 
 @method_decorator(permission_required('peoples.change_people', raise_exception=True), name='dispatch')
@@ -114,6 +129,7 @@ class NoSite(View):
     def get(self, request: HttpRequest) -> HttpResponse:
         """Render no site form (< 5 lines)."""
         context = {"nositeform": NoSiteForm(session=request.session)}
+        context.update(_auth_layout_context(request))
         return render(request, "peoples/nosite.html", context)
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -130,4 +146,6 @@ class NoSite(View):
 
             return redirect("/dashboard/")
 
-        return render(request, "peoples/nosite.html", {"nositeform": form})
+        context = {"nositeform": form}
+        context.update(_auth_layout_context(request))
+        return render(request, "peoples/nosite.html", context)

@@ -8,12 +8,14 @@ Demonstrates Rule #8 compliance:
 """
 
 import logging
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect
-from django.views import View
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
+from django.views import View
 
 from apps.peoples.services import AuthenticationService
 from apps.peoples.forms import LoginForm
@@ -42,7 +44,7 @@ class SignIn(View):
 
         request.session.set_test_cookie()
         form = LoginForm()
-        return render(request, self.template_path, context={"loginform": form})
+        return self._render_with_context(request, form)
 
     def post(self, request: HttpRequest) -> HttpResponse:
         """Handle POST request for user authentication."""
@@ -50,10 +52,10 @@ class SignIn(View):
 
         if not request.session.test_cookie_worked():
             form.add_error(None, "Please enable cookies in your browser")
-            return render(request, self.template_path, context={"loginform": form})
+            return self._render_with_context(request, form)
 
         if not form.is_valid():
-            return render(request, self.template_path, context={"loginform": form})
+            return self._render_with_context(request, form)
 
         loginid = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password")
@@ -110,7 +112,7 @@ class SignIn(View):
             extra={'correlation_id': auth_result.correlation_id}
         )
 
-        return render(request, self.template_path, context={"loginform": form})
+        return self._render_with_context(request, form)
 
     def _get_client_ip(self, request: HttpRequest) -> str:
         """
@@ -132,6 +134,31 @@ class SignIn(View):
             ip = request.META.get('REMOTE_ADDR')
 
         return ip or '0.0.0.0'
+
+    def _render_with_context(self, request: HttpRequest, form: LoginForm, extra_context=None) -> HttpResponse:
+        context = self._build_context(request, form)
+        if extra_context:
+            context.update(extra_context)
+        return render(request, self.template_path, context=context)
+
+    def _build_context(self, request: HttpRequest, form: LoginForm) -> dict:
+        session_flag = request.GET.get("session")
+        context = {
+            "loginform": form,
+            "product_name": "IntelliWiz",
+            "company_name": "Youtility Technologies Pvt. Ltd.",
+            "tagline": "Secure access to your field operations data.",
+            "support_contact": "support@youtility.in",
+            "env_hostname": request.get_host(),
+            "current_year": datetime.now().year,
+        }
+
+        if session_flag == "expired":
+            context["session_expired_message"] = (
+                "Your session has expired. Please sign in again to continue."
+            )
+
+        return context
 
 
 class SignOut(LoginRequiredMixin, View):
