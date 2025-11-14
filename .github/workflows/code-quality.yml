@@ -63,7 +63,7 @@ jobs:
       continue-on-error: true
 
     - name: 📊 Upload Security Reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -139,7 +139,7 @@ jobs:
       continue-on-error: true
 
     - name: 📊 Upload Quality Metrics
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: quality-metrics
@@ -198,7 +198,7 @@ except Exception as e:
       continue-on-error: true
 
     - name: 📤 Upload Coverage Reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coverage-reports
@@ -299,7 +299,7 @@ except Exception as e:
         echo "All checks enforce rules defined in \`.claude/rules.md\`" >> quality-report.md
 
     - name: 📤 Upload Quality Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: quality-report

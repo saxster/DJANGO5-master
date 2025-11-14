@@ -42,7 +42,7 @@ jobs:
           python scripts/exception_scanner.py --path apps --priority-list --output PRIORITY_FIX_LIST.md
 
       - name: Upload Scan Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: exception-scan-report
           path: |

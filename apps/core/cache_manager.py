@@ -112,24 +112,55 @@ class TreeCache:
         self.parent_field = parent_field
         self.cache_prefix = f"tree:{model._meta.label_lower}"
     
-    def get_or_build_tree(self, root_id: Optional[int] = None, 
+    def get_or_build_tree(self, root_id: Optional[int] = None,
                           filter_kwargs: Optional[Dict] = None) -> List[Dict]:
         """Get tree from cache or build it"""
-        # Generate cache key
-        cache_key = f"{self.cache_prefix}:{root_id}:{hash(str(filter_kwargs))}"
-        
+        # Generate deterministic cache key using SHA-256
+        filter_token = self._generate_filter_token(filter_kwargs)
+        cache_key = f"{self.cache_prefix}:{root_id}:{filter_token}"
+
         # Try cache first
         cached_tree = cache.get(cache_key)
         if cached_tree is not None:
             return cached_tree
-        
+
         # Build tree
         tree = self._build_tree(root_id, filter_kwargs)
-        
+
         # Cache it
         cache.set(cache_key, tree, CacheManager.get_timeout('capability_tree'))
-        
+
         return tree
+
+    def _generate_filter_token(self, filter_kwargs: Optional[Dict]) -> str:
+        """
+        Generate deterministic token for filter_kwargs.
+
+        Uses SHA-256 digest of sorted JSON to ensure cache keys are
+        consistent across different Python processes.
+
+        Args:
+            filter_kwargs: Filter dictionary or None
+
+        Returns:
+            8-character hex token (or 'nofilter' if empty/None)
+        """
+        if not filter_kwargs:
+            return 'nofilter'
+
+        # Sort keys for deterministic JSON serialization
+        # Use default=str to handle non-JSON-serializable types
+        try:
+            filter_json = json.dumps(filter_kwargs, sort_keys=True, default=str)
+        except (TypeError, ValueError):
+            # Fallback for truly unserializable objects
+            filter_json = str(sorted(filter_kwargs.items()))
+
+        # Generate SHA-256 digest
+        digest = hashlib.sha256(filter_json.encode('utf-8')).hexdigest()
+
+        # Use first 8 characters for brevity (still 4 billion combinations)
+        return digest[:8]
     
     def _build_tree(self, root_id: Optional[int] = None, 
                     filter_kwargs: Optional[Dict] = None) -> List[Dict]:
