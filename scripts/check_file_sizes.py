@@ -9,21 +9,28 @@ Validates Python files against architecture limits defined in .claude/rules.md:
 - Forms: < 100 lines
 - Utilities: < 50 lines per function
 
-Exit code 0: All files pass
-Exit code 1: Violations found
+Baseline Mode:
+    --generate-baseline: Creates .file_size_baseline.json with current violations
+    --use-baseline: Only fails on NEW violations beyond baseline (default in CI)
+
+Exit code 0: All files pass (or only baseline violations found)
+Exit code 1: New violations found beyond baseline
 
 Usage:
     python scripts/check_file_sizes.py
     python scripts/check_file_sizes.py --path apps/attendance
     python scripts/check_file_sizes.py --verbose
+    python scripts/check_file_sizes.py --generate-baseline
+    python scripts/check_file_sizes.py --ci  # Uses baseline automatically
 """
 
 import argparse
 import ast
+import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 
 
 @dataclass
@@ -48,12 +55,86 @@ class Violation:
     @property
     def excess_lines(self) -> int:
         return self.line_count - self.limit
+    
+    @property
+    def violation_key(self) -> str:
+        """Unique key for this violation for baseline comparison"""
+        return f"{self.file_path}:{self.category}:{self.limit}"
 
     def __str__(self) -> str:
         return (
             f"[{self.severity.upper()}] {self.category}: {self.file_path}\n"
             f"  Lines: {self.line_count} (limit: {self.limit}, excess: {self.excess_lines})"
         )
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'file_path': self.file_path,
+            'category': self.category,
+            'line_count': self.line_count,
+            'limit': self.limit,
+            'severity': self.severity
+        }
+
+
+class BaselineManager:
+    """Manages baseline violations for legacy code"""
+    
+    BASELINE_FILE = '.file_size_baseline.json'
+    
+    @classmethod
+    def generate_baseline(cls, violations: List[Violation], output_path: Path = None):
+        """Generate baseline file from current violations"""
+        if output_path is None:
+            output_path = Path(cls.BASELINE_FILE)
+        
+        baseline_data = {
+            'version': '1.0',
+            'description': 'Baseline of pre-existing file size violations',
+            'violations': {
+                v.violation_key: v.to_dict()
+                for v in violations
+            }
+        }
+        
+        with open(output_path, 'w') as f:
+            json.dump(baseline_data, f, indent=2)
+        
+        return output_path
+    
+    @classmethod
+    def load_baseline(cls, baseline_path: Path = None) -> Set[str]:
+        """Load baseline violation keys"""
+        if baseline_path is None:
+            baseline_path = Path(cls.BASELINE_FILE)
+        
+        if not baseline_path.exists():
+            return set()
+        
+        try:
+            with open(baseline_path, 'r') as f:
+                data = json.load(f)
+            return set(data.get('violations', {}).keys())
+        except Exception as e:
+            print(f"Warning: Could not load baseline: {e}", file=sys.stderr)
+            return set()
+    
+    @classmethod
+    def filter_new_violations(cls, violations: List[Violation],
+                             baseline_keys: Set[str]) -> Tuple[List[Violation], List[Violation]]:
+        """Separate new violations from baseline violations"""
+        new_violations = []
+        baseline_violations = []
+        
+        for v in violations:
+            if v.violation_key in baseline_keys:
+                baseline_violations.append(v)
+            else:
+                new_violations.append(v)
+        
+        return new_violations, baseline_violations
+
 
 
 class FileTypeDetector:
@@ -188,13 +269,22 @@ def count_non_empty_lines(file_path: Path) -> int:
         return 0
 
 
-def check_view_methods(file_path: Path) -> List[Violation]:
+def check_view_methods(file_path: Path, root_path: Path = None) -> List[Violation]:
     """Check view method sizes using AST"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             tree = ast.parse(f.read(), filename=str(file_path))
+        
+        # Make path relative for reporting
+        if root_path:
+            try:
+                display_path = str(file_path.relative_to(root_path))
+            except ValueError:
+                display_path = str(file_path)
+        else:
+            display_path = str(file_path)
 
-        checker = MethodSizeChecker(str(file_path))
+        checker = MethodSizeChecker(display_path)
         checker.visit(tree)
         return checker.violations
     except Exception as e:
@@ -202,16 +292,25 @@ def check_view_methods(file_path: Path) -> List[Violation]:
         return []
 
 
-def check_file(file_path: Path, detector: FileTypeDetector) -> List[Violation]:
+def check_file(file_path: Path, detector: FileTypeDetector, root_path: Path = None) -> List[Violation]:
     """Check a single file against size limits"""
     violations = []
     line_count = count_non_empty_lines(file_path)
+    
+    # Make path relative for reporting
+    if root_path:
+        try:
+            display_path = str(file_path.relative_to(root_path))
+        except ValueError:
+            display_path = str(file_path)
+    else:
+        display_path = str(file_path)
 
     # Check settings files
     if detector.is_settings_file(file_path):
         if line_count > FileLimits.SETTINGS:
             violations.append(Violation(
-                file_path=str(file_path),
+                file_path=display_path,
                 category="Settings File",
                 line_count=line_count,
                 limit=FileLimits.SETTINGS,
@@ -222,7 +321,7 @@ def check_file(file_path: Path, detector: FileTypeDetector) -> List[Violation]:
     elif detector.is_models_file(file_path):
         if line_count > FileLimits.MODELS:
             violations.append(Violation(
-                file_path=str(file_path),
+                file_path=display_path,
                 category="Model File",
                 line_count=line_count,
                 limit=FileLimits.MODELS,
@@ -233,7 +332,7 @@ def check_file(file_path: Path, detector: FileTypeDetector) -> List[Violation]:
     elif detector.is_forms_file(file_path):
         if line_count > FileLimits.FORMS:
             violations.append(Violation(
-                file_path=str(file_path),
+                file_path=display_path,
                 category="Form File",
                 line_count=line_count,
                 limit=FileLimits.FORMS,
@@ -244,7 +343,7 @@ def check_file(file_path: Path, detector: FileTypeDetector) -> List[Violation]:
     elif detector.is_utility_file(file_path):
         if line_count > FileLimits.UTILITIES:
             violations.append(Violation(
-                file_path=str(file_path),
+                file_path=display_path,
                 category="Utility File",
                 line_count=line_count,
                 limit=FileLimits.UTILITIES,
@@ -253,7 +352,7 @@ def check_file(file_path: Path, detector: FileTypeDetector) -> List[Violation]:
 
     # Check view methods
     if detector.is_views_file(file_path):
-        violations.extend(check_view_methods(file_path))
+        violations.extend(check_view_methods(file_path, root_path))
 
     return violations
 
@@ -303,7 +402,7 @@ def scan_directory(
         stats['total_files'] += 1
 
         # Categorize and check
-        file_violations = check_file(py_file, detector)
+        file_violations = check_file(py_file, detector, root_path)
         if file_violations:
             violations.extend(file_violations)
             stats['checked_files'] += 1
@@ -409,12 +508,22 @@ def main():
     parser.add_argument(
         '--ci',
         action='store_true',
-        help='CI mode: strict exit codes and concise output'
+        help='CI mode: uses baseline automatically, strict exit codes for new violations'
     )
     parser.add_argument(
         '--pre-commit',
         action='store_true',
         help='Pre-commit mode: fast validation for hooks'
+    )
+    parser.add_argument(
+        '--generate-baseline',
+        action='store_true',
+        help='Generate baseline file of current violations'
+    )
+    parser.add_argument(
+        '--use-baseline',
+        action='store_true',
+        help='Use baseline to only fail on NEW violations'
     )
 
     args = parser.parse_args()
@@ -424,6 +533,67 @@ def main():
         print(f"Error: Path does not exist: {root_path}", file=sys.stderr)
         return 1
 
+    # Scan and collect violations
+    exclude_dirs = {'venv', 'env', '.venv', 'migrations', 'node_modules',
+                   '__pycache__', '.git', 'postgresql_migration', 'background_tasks'}
+    if args.exclude:
+        exclude_dirs.update(args.exclude)
+
+    violations, stats = scan_directory(root_path, exclude_dirs)
+
+    # Generate baseline if requested
+    if args.generate_baseline:
+        baseline_path = BaselineManager.generate_baseline(violations)
+        print(f"\n✅ Baseline generated: {baseline_path}")
+        print(f"   Recorded {len(violations)} violations")
+        print(f"   Use --use-baseline or --ci to check against this baseline")
+        return 0
+
+    # Use baseline in CI mode or if explicitly requested
+    use_baseline = args.use_baseline or args.ci
+    
+    if use_baseline:
+        baseline_keys = BaselineManager.load_baseline()
+        if baseline_keys:
+            new_violations, baseline_violations = BaselineManager.filter_new_violations(
+                violations, baseline_keys
+            )
+            
+            if new_violations:
+                print(f"\n{'=' * 80}")
+                print("FILE SIZE VALIDATION REPORT (WITH BASELINE)")
+                print(f"{'=' * 80}\n")
+                print(f"Files Scanned: {stats['files_scanned']}")
+                print(f"Files Checked: {stats['files_checked']}")
+                print(f"\nTotal Violations: {len(violations)}")
+                print(f"  Baseline (pre-existing): {len(baseline_violations)}")
+                print(f"  NEW violations: {len(new_violations)}")
+                print(f"\n{'-' * 80}")
+                print("NEW VIOLATIONS (not in baseline):")
+                print(f"{'-' * 80}\n")
+                
+                by_category = {}
+                for v in new_violations:
+                    by_category.setdefault(v.category, []).append(v)
+                
+                for category, category_violations in sorted(by_category.items()):
+                    print(f"\n{category} ({len(category_violations)} NEW violations):")
+                    for v in category_violations:
+                        print(f"  {v}")
+                
+                print(f"\n{'=' * 80}\n")
+                print(f"❌ FAILED: Found {len(new_violations)} NEW violations beyond baseline")
+                print(f"\nℹ️  {len(baseline_violations)} baseline violations are being ignored (see .file_size_baseline.json)")
+                return 1
+            else:
+                print(f"✅ SUCCESS: No new violations beyond baseline")
+                print(f"   ({len(baseline_violations)} baseline violations exist but are allowed)")
+                return 0
+        else:
+            print("⚠️  Warning: Baseline requested but .file_size_baseline.json not found")
+            print("   Run with --generate-baseline first, or proceeding without baseline...")
+            # Fall through to normal check
+
     print(f"Scanning: {root_path}")
     if args.verbose:
         print("\nFile Size Limits:")
@@ -432,14 +602,6 @@ def main():
         print(f"  Forms: {FileLimits.FORMS} lines")
         print(f"  View Methods: {FileLimits.VIEW_METHOD} lines")
         print(f"  Utilities: {FileLimits.UTILITIES} lines")
-
-    # Scan and collect violations
-    exclude_dirs = {'venv', 'env', '.venv', 'migrations', 'node_modules',
-                   '__pycache__', '.git', 'postgresql_migration', 'background_tasks'}
-    if args.exclude:
-        exclude_dirs.update(args.exclude)
-
-    violations, stats = scan_directory(root_path, exclude_dirs)
 
     # Print results
     return print_summary(violations, stats, verbose=args.verbose)

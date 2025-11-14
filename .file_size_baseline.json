@@ -1,0 +1,2281 @@
+{
+  "version": "1.0",
+  "description": "Baseline of pre-existing file size violations",
+  "violations": {
+    "monitoring/views.py:49:View Method:30": {
+      "file_path": "monitoring/views.py:49",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "monitoring/views.py:152:View Method:30": {
+      "file_path": "monitoring/views.py:152",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "monitoring/views.py:237:View Method:30": {
+      "file_path": "monitoring/views.py:237",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "monitoring/views.py:339:View Method:30": {
+      "file_path": "monitoring/views.py:339",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "monitoring/models.py:Model File:150": {
+      "file_path": "monitoring/models.py",
+      "category": "Model File",
+      "line_count": 201,
+      "limit": 150,
+      "severity": "error"
+    },
+    "intelliwiz_config/settings/redis_sentinel.py:Settings File:200": {
+      "file_path": "intelliwiz_config/settings/redis_sentinel.py",
+      "category": "Settings File",
+      "line_count": 279,
+      "limit": 200,
+      "severity": "error"
+    },
+    "intelliwiz_config/settings/redis_optimized.py:Settings File:200": {
+      "file_path": "intelliwiz_config/settings/redis_optimized.py",
+      "category": "Settings File",
+      "line_count": 319,
+      "limit": 200,
+      "severity": "error"
+    },
+    "apps/tenants/views.py:38:View Method:30": {
+      "file_path": "apps/tenants/views.py:38",
+      "category": "View Method",
+      "line_count": 58,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/tenants/models.py:Model File:150": {
+      "file_path": "apps/tenants/models.py",
+      "category": "Model File",
+      "line_count": 164,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/peoples/utils.py:Utility File:150": {
+      "file_path": "apps/peoples/utils.py",
+      "category": "Utility File",
+      "line_count": 395,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/scheduler/utils.py:Utility File:150": {
+      "file_path": "apps/scheduler/utils.py",
+      "category": "Utility File",
+      "line_count": 722,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/scheduler/forms.py:Form File:100": {
+      "file_path": "apps/scheduler/forms.py",
+      "category": "Form File",
+      "line_count": 482,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/reports/models.py:Model File:150": {
+      "file_path": "apps/reports/models.py",
+      "category": "Model File",
+      "line_count": 155,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:49:View Method:30": {
+      "file_path": "apps/ml_training/views.py:49",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:96:View Method:30": {
+      "file_path": "apps/ml_training/views.py:96",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:133:View Method:30": {
+      "file_path": "apps/ml_training/views.py:133",
+      "category": "View Method",
+      "line_count": 39,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:183:View Method:30": {
+      "file_path": "apps/ml_training/views.py:183",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:255:View Method:30": {
+      "file_path": "apps/ml_training/views.py:255",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:298:View Method:30": {
+      "file_path": "apps/ml_training/views.py:298",
+      "category": "View Method",
+      "line_count": 42,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:341:View Method:30": {
+      "file_path": "apps/ml_training/views.py:341",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:393:View Method:30": {
+      "file_path": "apps/ml_training/views.py:393",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml_training/views.py:432:View Method:30": {
+      "file_path": "apps/ml_training/views.py:432",
+      "category": "View Method",
+      "line_count": 71,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/voice_recognition/models.py:Model File:150": {
+      "file_path": "apps/voice_recognition/models.py",
+      "category": "Model File",
+      "line_count": 269,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/search/views.py:41:View Method:30": {
+      "file_path": "apps/search/views.py:41",
+      "category": "View Method",
+      "line_count": 82,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/utils.py:Utility File:150": {
+      "file_path": "apps/core/utils.py",
+      "category": "Utility File",
+      "line_count": 266,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/people_onboarding/forms.py:Form File:100": {
+      "file_path": "apps/people_onboarding/forms.py",
+      "category": "Form File",
+      "line_count": 226,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/work_order_management/utils.py:Utility File:150": {
+      "file_path": "apps/work_order_management/utils.py",
+      "category": "Utility File",
+      "line_count": 423,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/activity/utils.py:Utility File:150": {
+      "file_path": "apps/activity/utils.py",
+      "category": "Utility File",
+      "line_count": 274,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/mqtt/models.py:Model File:150": {
+      "file_path": "apps/mqtt/models.py",
+      "category": "Model File",
+      "line_count": 331,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/y_helpdesk/forms.py:Form File:100": {
+      "file_path": "apps/y_helpdesk/forms.py",
+      "category": "Form File",
+      "line_count": 175,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/y_helpdesk/views.py:40:View Method:30": {
+      "file_path": "apps/y_helpdesk/views.py:40",
+      "category": "View Method",
+      "line_count": 83,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/y_helpdesk/views.py:144:View Method:30": {
+      "file_path": "apps/y_helpdesk/views.py:144",
+      "category": "View Method",
+      "line_count": 97,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/client_onboarding/utils.py:Utility File:150": {
+      "file_path": "apps/client_onboarding/utils.py",
+      "category": "Utility File",
+      "line_count": 586,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/client_onboarding/forms.py:Form File:100": {
+      "file_path": "apps/client_onboarding/forms.py",
+      "category": "Form File",
+      "line_count": 484,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/report_generation/models.py:Model File:150": {
+      "file_path": "apps/report_generation/models.py",
+      "category": "Model File",
+      "line_count": 196,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/api/v2/views/auth_views.py:128:View Method:30": {
+      "file_path": "apps/api/v2/views/auth_views.py:128",
+      "category": "View Method",
+      "line_count": 95,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/auth_views.py:313:View Method:30": {
+      "file_path": "apps/api/v2/views/auth_views.py:313",
+      "category": "View Method",
+      "line_count": 72,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/auth_views.py:471:View Method:30": {
+      "file_path": "apps/api/v2/views/auth_views.py:471",
+      "category": "View Method",
+      "line_count": 58,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/auth_views.py:629:View Method:30": {
+      "file_path": "apps/api/v2/views/auth_views.py:629",
+      "category": "View Method",
+      "line_count": 76,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/wellness_views.py:67:View Method:30": {
+      "file_path": "apps/api/v2/views/wellness_views.py:67",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/wellness_views.py:232:View Method:30": {
+      "file_path": "apps/api/v2/views/wellness_views.py:232",
+      "category": "View Method",
+      "line_count": 148,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/wellness_views.py:390:View Method:30": {
+      "file_path": "apps/api/v2/views/wellness_views.py:390",
+      "category": "View Method",
+      "line_count": 53,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/reports_views.py:71:View Method:30": {
+      "file_path": "apps/api/v2/views/reports_views.py:71",
+      "category": "View Method",
+      "line_count": 103,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/reports_views.py:211:View Method:30": {
+      "file_path": "apps/api/v2/views/reports_views.py:211",
+      "category": "View Method",
+      "line_count": 46,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/reports_views.py:284:View Method:30": {
+      "file_path": "apps/api/v2/views/reports_views.py:284",
+      "category": "View Method",
+      "line_count": 63,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/reports_views.py:374:View Method:30": {
+      "file_path": "apps/api/v2/views/reports_views.py:374",
+      "category": "View Method",
+      "line_count": 70,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/people_search_views.py:100:View Method:30": {
+      "file_path": "apps/api/v2/views/people_search_views.py:100",
+      "category": "View Method",
+      "line_count": 40,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/telemetry_views.py:36:View Method:30": {
+      "file_path": "apps/api/v2/views/telemetry_views.py:36",
+      "category": "View Method",
+      "line_count": 62,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/people_user_views.py:105:View Method:30": {
+      "file_path": "apps/api/v2/views/people_user_views.py:105",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/people_user_views.py:375:View Method:30": {
+      "file_path": "apps/api/v2/views/people_user_views.py:375",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_list_views.py:64:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_list_views.py:64",
+      "category": "View Method",
+      "line_count": 137,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_list_views.py:241:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_list_views.py:241",
+      "category": "View Method",
+      "line_count": 66,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_list_views.py:337:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_list_views.py:337",
+      "category": "View Method",
+      "line_count": 66,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_workflow_views.py:49:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_workflow_views.py:49",
+      "category": "View Method",
+      "line_count": 71,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_workflow_views.py:151:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_workflow_views.py:151",
+      "category": "View Method",
+      "line_count": 73,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_workflow_views.py:264:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_workflow_views.py:264",
+      "category": "View Method",
+      "line_count": 64,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/ml_views.py:38:View Method:30": {
+      "file_path": "apps/api/v2/views/ml_views.py:38",
+      "category": "View Method",
+      "line_count": 93,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/device_views.py:110:View Method:30": {
+      "file_path": "apps/api/v2/views/device_views.py:110",
+      "category": "View Method",
+      "line_count": 56,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/device_views.py:252:View Method:30": {
+      "file_path": "apps/api/v2/views/device_views.py:252",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/sync_views.py:86:View Method:30": {
+      "file_path": "apps/api/v2/views/sync_views.py:86",
+      "category": "View Method",
+      "line_count": 118,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/sync_views.py:219:View Method:30": {
+      "file_path": "apps/api/v2/views/sync_views.py:219",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/calendar_views.py:50:View Method:30": {
+      "file_path": "apps/api/v2/views/calendar_views.py:50",
+      "category": "View Method",
+      "line_count": 52,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/calendar_views.py:118:View Method:30": {
+      "file_path": "apps/api/v2/views/calendar_views.py:118",
+      "category": "View Method",
+      "line_count": 119,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_detail_views.py:44:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_detail_views.py:44",
+      "category": "View Method",
+      "line_count": 66,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_detail_views.py:161:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_detail_views.py:161",
+      "category": "View Method",
+      "line_count": 83,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/helpdesk_detail_views.py:287:View Method:30": {
+      "file_path": "apps/api/v2/views/helpdesk_detail_views.py:287",
+      "category": "View Method",
+      "line_count": 77,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/profile_views.py:100:View Method:30": {
+      "file_path": "apps/api/v2/views/profile_views.py:100",
+      "category": "View Method",
+      "line_count": 68,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/api/v2/views/profile_views.py:220:View Method:30": {
+      "file_path": "apps/api/v2/views/profile_views.py:220",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/models/user_behavior_profile.py:Model File:150": {
+      "file_path": "apps/attendance/models/user_behavior_profile.py",
+      "category": "Model File",
+      "line_count": 203,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/post.py:Model File:150": {
+      "file_path": "apps/attendance/models/post.py",
+      "category": "Model File",
+      "line_count": 331,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/attendance_alert.py:Model File:150": {
+      "file_path": "apps/attendance/models/attendance_alert.py",
+      "category": "Model File",
+      "line_count": 164,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/post_order_acknowledgement.py:Model File:150": {
+      "file_path": "apps/attendance/models/post_order_acknowledgement.py",
+      "category": "Model File",
+      "line_count": 225,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/audit_log.py:Model File:150": {
+      "file_path": "apps/attendance/models/audit_log.py",
+      "category": "Model File",
+      "line_count": 183,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/attendance_photo.py:Model File:150": {
+      "file_path": "apps/attendance/models/attendance_photo.py",
+      "category": "Model File",
+      "line_count": 217,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/approval_request.py:Model File:150": {
+      "file_path": "apps/attendance/models/approval_request.py",
+      "category": "Model File",
+      "line_count": 204,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/models/consent.py:Model File:150": {
+      "file_path": "apps/attendance/models/consent.py",
+      "category": "Model File",
+      "line_count": 250,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/attendance/views/attendance_views.py:90:View Method:30": {
+      "file_path": "apps/attendance/views/attendance_views.py:90",
+      "category": "View Method",
+      "line_count": 97,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/attendance_views.py:188:View Method:30": {
+      "file_path": "apps/attendance/views/attendance_views.py:188",
+      "category": "View Method",
+      "line_count": 60,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/bulk_operations.py:44:View Method:30": {
+      "file_path": "apps/attendance/views/bulk_operations.py:44",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/bulk_operations.py:166:View Method:30": {
+      "file_path": "apps/attendance/views/bulk_operations.py:166",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/shift_adherence_dashboard.py:22:View Method:30": {
+      "file_path": "apps/attendance/views/shift_adherence_dashboard.py:22",
+      "category": "View Method",
+      "line_count": 45,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/attendance_sync_views.py:34:View Method:30": {
+      "file_path": "apps/attendance/views/attendance_sync_views.py:34",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/conveyance_views.py:71:View Method:30": {
+      "file_path": "apps/attendance/views/conveyance_views.py:71",
+      "category": "View Method",
+      "line_count": 71,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/attendance/views/conveyance_views.py:143:View Method:30": {
+      "file_path": "apps/attendance/views/conveyance_views.py:143",
+      "category": "View Method",
+      "line_count": 70,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/tenants/tests/test_forms.py:Form File:100": {
+      "file_path": "apps/tenants/tests/test_forms.py",
+      "category": "Form File",
+      "line_count": 120,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/face_recognition/api/views.py:93:View Method:30": {
+      "file_path": "apps/face_recognition/api/views.py:93",
+      "category": "View Method",
+      "line_count": 143,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/face_recognition/api/views.py:249:View Method:30": {
+      "file_path": "apps/face_recognition/api/views.py:249",
+      "category": "View Method",
+      "line_count": 140,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/face_recognition/api/views.py:402:View Method:30": {
+      "file_path": "apps/face_recognition/api/views.py:402",
+      "category": "View Method",
+      "line_count": 57,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/face_recognition/api/views.py:472:View Method:30": {
+      "file_path": "apps/face_recognition/api/views.py:472",
+      "category": "View Method",
+      "line_count": 68,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/peoples/models/profile_model.py:Model File:150": {
+      "file_path": "apps/peoples/models/profile_model.py",
+      "category": "Model File",
+      "line_count": 337,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/peoples/models/security_models.py:Model File:150": {
+      "file_path": "apps/peoples/models/security_models.py",
+      "category": "Model File",
+      "line_count": 322,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/peoples/models/user_session.py:Model File:150": {
+      "file_path": "apps/peoples/models/user_session.py",
+      "category": "Model File",
+      "line_count": 163,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/peoples/models/user_model.py:Model File:150": {
+      "file_path": "apps/peoples/models/user_model.py",
+      "category": "Model File",
+      "line_count": 264,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/peoples/models/capability_model.py:Model File:150": {
+      "file_path": "apps/peoples/models/capability_model.py",
+      "category": "Model File",
+      "line_count": 253,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/peoples/forms/user_forms.py:Form File:100": {
+      "file_path": "apps/peoples/forms/user_forms.py",
+      "category": "Form File",
+      "line_count": 171,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/peoples/forms/extras_forms.py:Form File:100": {
+      "file_path": "apps/peoples/forms/extras_forms.py",
+      "category": "Form File",
+      "line_count": 199,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/peoples/forms/organizational_forms.py:Form File:100": {
+      "file_path": "apps/peoples/forms/organizational_forms.py",
+      "category": "Form File",
+      "line_count": 117,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/peoples/forms/group_forms.py:Form File:100": {
+      "file_path": "apps/peoples/forms/group_forms.py",
+      "category": "Form File",
+      "line_count": 106,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/peoples/views/refactored_auth_views.py:58:View Method:30": {
+      "file_path": "apps/peoples/views/refactored_auth_views.py:58",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/peoples/views/refactored_auth_views.py:235:View Method:30": {
+      "file_path": "apps/peoples/views/refactored_auth_views.py:235",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/scheduler/forms/exclusive_tour_forms.py:Form File:100": {
+      "file_path": "apps/scheduler/forms/exclusive_tour_forms.py",
+      "category": "Form File",
+      "line_count": 111,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/scheduler/forms/base_forms.py:Form File:100": {
+      "file_path": "apps/scheduler/forms/base_forms.py",
+      "category": "Form File",
+      "line_count": 125,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/scheduler/forms/tour_forms.py:Form File:100": {
+      "file_path": "apps/scheduler/forms/tour_forms.py",
+      "category": "Form File",
+      "line_count": 196,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/scheduler/forms/task_ticket_forms.py:Form File:100": {
+      "file_path": "apps/scheduler/forms/task_ticket_forms.py",
+      "category": "Form File",
+      "line_count": 113,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/scheduler/forms/refactored_forms.py:Form File:100": {
+      "file_path": "apps/scheduler/forms/refactored_forms.py",
+      "category": "Form File",
+      "line_count": 133,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/scheduler/tests/test_utils.py:Utility File:150": {
+      "file_path": "apps/scheduler/tests/test_utils.py",
+      "category": "Utility File",
+      "line_count": 241,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/onboarding_api/utils/monitoring.py:Utility File:150": {
+      "file_path": "apps/onboarding_api/utils/monitoring.py",
+      "category": "Utility File",
+      "line_count": 258,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/onboarding_api/utils/logging_validation.py:Utility File:150": {
+      "file_path": "apps/onboarding_api/utils/logging_validation.py",
+      "category": "Utility File",
+      "line_count": 162,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/onboarding_api/utils/security.py:Utility File:150": {
+      "file_path": "apps/onboarding_api/utils/security.py",
+      "category": "Utility File",
+      "line_count": 259,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/onboarding_api/utils/preflight.py:Utility File:150": {
+      "file_path": "apps/onboarding_api/utils/preflight.py",
+      "category": "Utility File",
+      "line_count": 174,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/onboarding_api/views/template_views.py:98:View Method:30": {
+      "file_path": "apps/onboarding_api/views/template_views.py:98",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/template_views.py:152:View Method:30": {
+      "file_path": "apps/onboarding_api/views/template_views.py:152",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/template_views.py:197:View Method:30": {
+      "file_path": "apps/onboarding_api/views/template_views.py:197",
+      "category": "View Method",
+      "line_count": 52,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/changeset_views.py:32:View Method:30": {
+      "file_path": "apps/onboarding_api/views/changeset_views.py:32",
+      "category": "View Method",
+      "line_count": 65,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/changeset_views.py:178:View Method:30": {
+      "file_path": "apps/onboarding_api/views/changeset_views.py:178",
+      "category": "View Method",
+      "line_count": 42,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/funnel_analytics_views.py:63:View Method:30": {
+      "file_path": "apps/onboarding_api/views/funnel_analytics_views.py:63",
+      "category": "View Method",
+      "line_count": 74,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/funnel_analytics_views.py:178:View Method:30": {
+      "file_path": "apps/onboarding_api/views/funnel_analytics_views.py:178",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/funnel_analytics_views.py:262:View Method:30": {
+      "file_path": "apps/onboarding_api/views/funnel_analytics_views.py:262",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/funnel_analytics_views.py:349:View Method:30": {
+      "file_path": "apps/onboarding_api/views/funnel_analytics_views.py:349",
+      "category": "View Method",
+      "line_count": 74,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/funnel_analytics_views.py:512:View Method:30": {
+      "file_path": "apps/onboarding_api/views/funnel_analytics_views.py:512",
+      "category": "View Method",
+      "line_count": 49,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/approval_views.py:43:View Method:30": {
+      "file_path": "apps/onboarding_api/views/approval_views.py:43",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/approval_views.py:270:View Method:30": {
+      "file_path": "apps/onboarding_api/views/approval_views.py:270",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/voice_views.py:32:View Method:30": {
+      "file_path": "apps/onboarding_api/views/voice_views.py:32",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/voice_views.py:169:View Method:30": {
+      "file_path": "apps/onboarding_api/views/voice_views.py:169",
+      "category": "View Method",
+      "line_count": 36,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/health_analytics_views.py:56:View Method:30": {
+      "file_path": "apps/onboarding_api/views/health_analytics_views.py:56",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/analytics_dashboard_views.py:78:View Method:30": {
+      "file_path": "apps/onboarding_api/views/analytics_dashboard_views.py:78",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/analytics_dashboard_views.py:162:View Method:30": {
+      "file_path": "apps/onboarding_api/views/analytics_dashboard_views.py:162",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/dlq_admin_views.py:64:View Method:30": {
+      "file_path": "apps/onboarding_api/views/dlq_admin_views.py:64",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/dlq_admin_views.py:186:View Method:30": {
+      "file_path": "apps/onboarding_api/views/dlq_admin_views.py:186",
+      "category": "View Method",
+      "line_count": 43,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/dlq_admin_views.py:343:View Method:30": {
+      "file_path": "apps/onboarding_api/views/dlq_admin_views.py:343",
+      "category": "View Method",
+      "line_count": 52,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/onboarding_api/views/site_audit/observation_capture_views.py:72:View Method:30": {
+      "file_path": "apps/onboarding_api/views/site_audit/observation_capture_views.py:72",
+      "category": "View Method",
+      "line_count": 70,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/forms/report_forms.py:Form File:100": {
+      "file_path": "apps/reports/forms/report_forms.py",
+      "category": "Form File",
+      "line_count": 338,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/reports/views/schedule_views.py:221:View Method:30": {
+      "file_path": "apps/reports/views/schedule_views.py:221",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/template_views.py:133:View Method:30": {
+      "file_path": "apps/reports/views/template_views.py:133",
+      "category": "View Method",
+      "line_count": 42,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/export_views.py:49:View Method:30": {
+      "file_path": "apps/reports/views/export_views.py:49",
+      "category": "View Method",
+      "line_count": 48,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/pdf_views.py:108:View Method:30": {
+      "file_path": "apps/reports/views/pdf_views.py:108",
+      "category": "View Method",
+      "line_count": 49,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/pdf_views.py:174:View Method:30": {
+      "file_path": "apps/reports/views/pdf_views.py:174",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/pdf_views.py:242:View Method:30": {
+      "file_path": "apps/reports/views/pdf_views.py:242",
+      "category": "View Method",
+      "line_count": 85,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/configuration_views.py:39:View Method:30": {
+      "file_path": "apps/reports/views/configuration_views.py:39",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/configuration_views.py:122:View Method:30": {
+      "file_path": "apps/reports/views/configuration_views.py:122",
+      "category": "View Method",
+      "line_count": 43,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/configuration_views.py:211:View Method:30": {
+      "file_path": "apps/reports/views/configuration_views.py:211",
+      "category": "View Method",
+      "line_count": 43,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/frappe_integration_views.py:102:View Method:30": {
+      "file_path": "apps/reports/views/frappe_integration_views.py:102",
+      "category": "View Method",
+      "line_count": 82,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/reports/views/base.py:176:View Method:30": {
+      "file_path": "apps/reports/views/base.py:176",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/voice_recognition/api/views.py:59:View Method:30": {
+      "file_path": "apps/voice_recognition/api/views.py:59",
+      "category": "View Method",
+      "line_count": 131,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/voice_recognition/api/views.py:202:View Method:30": {
+      "file_path": "apps/voice_recognition/api/views.py:202",
+      "category": "View Method",
+      "line_count": 112,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/voice_recognition/api/views.py:326:View Method:30": {
+      "file_path": "apps/voice_recognition/api/views.py:326",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/voice_recognition/api/views.py:388:View Method:30": {
+      "file_path": "apps/voice_recognition/api/views.py:388",
+      "category": "View Method",
+      "line_count": 75,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ml/models/performance_metrics.py:Model File:150": {
+      "file_path": "apps/ml/models/performance_metrics.py",
+      "category": "Model File",
+      "line_count": 197,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/journal/models/entry.py:Model File:150": {
+      "file_path": "apps/journal/models/entry.py",
+      "category": "Model File",
+      "line_count": 259,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/helpbot/views/widget_views.py:35:View Method:30": {
+      "file_path": "apps/helpbot/views/widget_views.py:35",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/helpbot/views/analytics_views.py:30:View Method:30": {
+      "file_path": "apps/helpbot/views/analytics_views.py:30",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/models/image_metadata_core.py:Model File:150": {
+      "file_path": "apps/core/models/image_metadata_core.py",
+      "category": "Model File",
+      "line_count": 198,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/recommendation.py:Model File:150": {
+      "file_path": "apps/core/models/recommendation.py",
+      "category": "Model File",
+      "line_count": 151,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/dashboard_saved_view.py:Model File:150": {
+      "file_path": "apps/core/models/dashboard_saved_view.py",
+      "category": "Model File",
+      "line_count": 194,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/query_performance.py:Model File:150": {
+      "file_path": "apps/core/models/query_performance.py",
+      "category": "Model File",
+      "line_count": 154,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/sync_analytics.py:Model File:150": {
+      "file_path": "apps/core/models/sync_analytics.py",
+      "category": "Model File",
+      "line_count": 186,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/api_authentication.py:Model File:150": {
+      "file_path": "apps/core/models/api_authentication.py",
+      "category": "Model File",
+      "line_count": 162,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/cron_job_execution.py:Model File:150": {
+      "file_path": "apps/core/models/cron_job_execution.py",
+      "category": "Model File",
+      "line_count": 172,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/sync_tracking.py:Model File:150": {
+      "file_path": "apps/core/models/sync_tracking.py",
+      "category": "Model File",
+      "line_count": 172,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/cron_job_definition.py:Model File:150": {
+      "file_path": "apps/core/models/cron_job_definition.py",
+      "category": "Model File",
+      "line_count": 177,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/query_execution_plans.py:Model File:150": {
+      "file_path": "apps/core/models/query_execution_plans.py",
+      "category": "Model File",
+      "line_count": 167,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/models/admin_approval.py:Model File:150": {
+      "file_path": "apps/core/models/admin_approval.py",
+      "category": "Model File",
+      "line_count": 151,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core/testing/security_test_utils.py:Utility File:150": {
+      "file_path": "apps/core/testing/security_test_utils.py",
+      "category": "Utility File",
+      "line_count": 172,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/tasks/utils.py:Utility File:150": {
+      "file_path": "apps/core/tasks/utils.py",
+      "category": "Utility File",
+      "line_count": 244,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/caching/utils.py:Utility File:150": {
+      "file_path": "apps/core/caching/utils.py",
+      "category": "Utility File",
+      "line_count": 175,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/tests/test_raw_query_utils.py:Utility File:150": {
+      "file_path": "apps/core/tests/test_raw_query_utils.py",
+      "category": "Utility File",
+      "line_count": 180,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/tests/test_utils.py:Utility File:150": {
+      "file_path": "apps/core/tests/test_utils.py",
+      "category": "Utility File",
+      "line_count": 165,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/utils_new/upload_utils.py:Utility File:150": {
+      "file_path": "apps/core/utils_new/upload_utils.py",
+      "category": "Utility File",
+      "line_count": 247,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/utils_new/http_utils.py:Utility File:150": {
+      "file_path": "apps/core/utils_new/http_utils.py",
+      "category": "Utility File",
+      "line_count": 216,
+      "limit": 150,
+      "severity": "warning"
+    },
+    "apps/core/views/dashboard_hub_views.py:55:View Method:30": {
+      "file_path": "apps/core/views/dashboard_hub_views.py:55",
+      "category": "View Method",
+      "line_count": 48,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/dashboard_hub_views.py:112:View Method:30": {
+      "file_path": "apps/core/views/dashboard_hub_views.py:112",
+      "category": "View Method",
+      "line_count": 66,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/dashboard_hub_views.py:187:View Method:30": {
+      "file_path": "apps/core/views/dashboard_hub_views.py:187",
+      "category": "View Method",
+      "line_count": 40,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/dashboard_hub_views.py:236:View Method:30": {
+      "file_path": "apps/core/views/dashboard_hub_views.py:236",
+      "category": "View Method",
+      "line_count": 53,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/rate_limit_monitoring_views.py:267:View Method:30": {
+      "file_path": "apps/core/views/rate_limit_monitoring_views.py:267",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/csp_report.py:45:View Method:30": {
+      "file_path": "apps/core/views/csp_report.py:45",
+      "category": "View Method",
+      "line_count": 55,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/celery_monitoring_views.py:80:View Method:30": {
+      "file_path": "apps/core/views/celery_monitoring_views.py:80",
+      "category": "View Method",
+      "line_count": 56,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/celery_monitoring_views.py:146:View Method:30": {
+      "file_path": "apps/core/views/celery_monitoring_views.py:146",
+      "category": "View Method",
+      "line_count": 39,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/celery_monitoring_views.py:213:View Method:30": {
+      "file_path": "apps/core/views/celery_monitoring_views.py:213",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/celery_monitoring_views.py:387:View Method:30": {
+      "file_path": "apps/core/views/celery_monitoring_views.py:387",
+      "category": "View Method",
+      "line_count": 36,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/ia_dashboard_views.py:44:View Method:30": {
+      "file_path": "apps/core/views/ia_dashboard_views.py:44",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/heatmap_views.py:69:View Method:30": {
+      "file_path": "apps/core/views/heatmap_views.py:69",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/cache_monitoring_views.py:207:View Method:30": {
+      "file_path": "apps/core/views/cache_monitoring_views.py:207",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/cache_monitoring_views.py:305:View Method:30": {
+      "file_path": "apps/core/views/cache_monitoring_views.py:305",
+      "category": "View Method",
+      "line_count": 39,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/ia_monitoring_views.py:26:View Method:30": {
+      "file_path": "apps/core/views/ia_monitoring_views.py:26",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/dashboard_views.py:48:View Method:30": {
+      "file_path": "apps/core/views/dashboard_views.py:48",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/team_dashboard_view.py:40:View Method:30": {
+      "file_path": "apps/core/views/team_dashboard_view.py:40",
+      "category": "View Method",
+      "line_count": 53,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/team_dashboard_view.py:134:View Method:30": {
+      "file_path": "apps/core/views/team_dashboard_view.py:134",
+      "category": "View Method",
+      "line_count": 69,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/team_dashboard_view.py:204:View Method:30": {
+      "file_path": "apps/core/views/team_dashboard_view.py:204",
+      "category": "View Method",
+      "line_count": 42,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/saved_view_manager.py:74:View Method:30": {
+      "file_path": "apps/core/views/saved_view_manager.py:74",
+      "category": "View Method",
+      "line_count": 71,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/saved_view_manager.py:150:View Method:30": {
+      "file_path": "apps/core/views/saved_view_manager.py:150",
+      "category": "View Method",
+      "line_count": 36,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/saved_view_manager.py:191:View Method:30": {
+      "file_path": "apps/core/views/saved_view_manager.py:191",
+      "category": "View Method",
+      "line_count": 50,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/async_monitoring_views.py:49:View Method:30": {
+      "file_path": "apps/core/views/async_monitoring_views.py:49",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/async_monitoring_views.py:165:View Method:30": {
+      "file_path": "apps/core/views/async_monitoring_views.py:165",
+      "category": "View Method",
+      "line_count": 65,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/async_monitoring_views.py:239:View Method:30": {
+      "file_path": "apps/core/views/async_monitoring_views.py:239",
+      "category": "View Method",
+      "line_count": 83,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/async_monitoring_views.py:335:View Method:30": {
+      "file_path": "apps/core/views/async_monitoring_views.py:335",
+      "category": "View Method",
+      "line_count": 39,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/portfolio_command_center_view.py:41:View Method:30": {
+      "file_path": "apps/core/views/portfolio_command_center_view.py:41",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/error_sanitization_dashboard.py:118:View Method:30": {
+      "file_path": "apps/core/views/error_sanitization_dashboard.py:118",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/llm_monitoring_views.py:51:View Method:30": {
+      "file_path": "apps/core/views/llm_monitoring_views.py:51",
+      "category": "View Method",
+      "line_count": 55,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/service_monitoring_views.py:43:View Method:30": {
+      "file_path": "apps/core/views/service_monitoring_views.py:43",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/csrf_violation_dashboard.py:461:View Method:30": {
+      "file_path": "apps/core/views/csrf_violation_dashboard.py:461",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/csrf_violation_dashboard.py:552:View Method:30": {
+      "file_path": "apps/core/views/csrf_violation_dashboard.py:552",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/dashboard_agent_api.py:45:View Method:30": {
+      "file_path": "apps/core/views/dashboard_agent_api.py:45",
+      "category": "View Method",
+      "line_count": 57,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/dashboard_agent_api.py:103:View Method:30": {
+      "file_path": "apps/core/views/dashboard_agent_api.py:103",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/realtime_views.py:273:View Method:30": {
+      "file_path": "apps/core/views/realtime_views.py:273",
+      "category": "View Method",
+      "line_count": 58,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:35:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:35",
+      "category": "View Method",
+      "line_count": 52,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:130:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:130",
+      "category": "View Method",
+      "line_count": 53,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:214:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:214",
+      "category": "View Method",
+      "line_count": 43,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:276:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:276",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:312:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:312",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:361:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:361",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/recommendation_views.py:436:View Method:30": {
+      "file_path": "apps/core/views/recommendation_views.py:436",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/sync_analytics_views.py:73:View Method:30": {
+      "file_path": "apps/core/views/sync_analytics_views.py:73",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/sync_analytics_views.py:122:View Method:30": {
+      "file_path": "apps/core/views/sync_analytics_views.py:122",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:42:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:42",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:85:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:85",
+      "category": "View Method",
+      "line_count": 42,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:138:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:138",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:232:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:232",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:282:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:282",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:426:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:426",
+      "category": "View Method",
+      "line_count": 64,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:500:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:500",
+      "category": "View Method",
+      "line_count": 53,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/security_dashboard_views.py:589:View Method:30": {
+      "file_path": "apps/core/views/security_dashboard_views.py:589",
+      "category": "View Method",
+      "line_count": 43,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/timeline_views.py:32:View Method:30": {
+      "file_path": "apps/core/views/timeline_views.py:32",
+      "category": "View Method",
+      "line_count": 55,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/timeline_views.py:103:View Method:30": {
+      "file_path": "apps/core/views/timeline_views.py:103",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/transaction_monitoring_dashboard.py:55:View Method:30": {
+      "file_path": "apps/core/views/transaction_monitoring_dashboard.py:55",
+      "category": "View Method",
+      "line_count": 45,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/cron_management_api.py:49:View Method:30": {
+      "file_path": "apps/core/views/cron_management_api.py:49",
+      "category": "View Method",
+      "line_count": 71,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/cron_management_api.py:121:View Method:30": {
+      "file_path": "apps/core/views/cron_management_api.py:121",
+      "category": "View Method",
+      "line_count": 61,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core/views/cron_management_api.py:188:View Method:30": {
+      "file_path": "apps/core/views/cron_management_api.py:188",
+      "category": "View Method",
+      "line_count": 83,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/core_onboarding/models/approved_location.py:Model File:150": {
+      "file_path": "apps/core_onboarding/models/approved_location.py",
+      "category": "Model File",
+      "line_count": 160,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core_onboarding/models/changeset.py:Model File:150": {
+      "file_path": "apps/core_onboarding/models/changeset.py",
+      "category": "Model File",
+      "line_count": 294,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/core_onboarding/models/review.py:Model File:150": {
+      "file_path": "apps/core_onboarding/models/review.py",
+      "category": "Model File",
+      "line_count": 152,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/wellness/models/conversation_translation.py:Model File:150": {
+      "file_path": "apps/wellness/models/conversation_translation.py",
+      "category": "Model File",
+      "line_count": 274,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/threat_intelligence/v2_api/views.py:33:View Method:30": {
+      "file_path": "apps/threat_intelligence/v2_api/views.py:33",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/threat_intelligence/v2_api/views.py:102:View Method:30": {
+      "file_path": "apps/threat_intelligence/v2_api/views.py:102",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/noc/models/correlated_incident.py:Model File:150": {
+      "file_path": "apps/noc/models/correlated_incident.py",
+      "category": "Model File",
+      "line_count": 153,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/views/incident_views.py:60:View Method:30": {
+      "file_path": "apps/noc/views/incident_views.py:60",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/noc/views/export_views.py:33:View Method:30": {
+      "file_path": "apps/noc/views/export_views.py:33",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/ml_training_dataset.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/ml_training_dataset.py",
+      "category": "Model File",
+      "line_count": 163,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/gps_validation_log.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/gps_validation_log.py",
+      "category": "Model File",
+      "line_count": 169,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/tour_compliance_log.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/tour_compliance_log.py",
+      "category": "Model File",
+      "line_count": 157,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/fraud_prediction_log.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/fraud_prediction_log.py",
+      "category": "Model File",
+      "line_count": 177,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/inactivity_alert.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/inactivity_alert.py",
+      "category": "Model File",
+      "line_count": 153,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/attendance_anomaly_log.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/attendance_anomaly_log.py",
+      "category": "Model File",
+      "line_count": 159,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/audit_finding.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/audit_finding.py",
+      "category": "Model File",
+      "line_count": 180,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/models/security_anomaly_config.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/models/security_anomaly_config.py",
+      "category": "Model File",
+      "line_count": 152,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/noc/security_intelligence/ivr/models/ivr_call_log.py:Model File:150": {
+      "file_path": "apps/noc/security_intelligence/ivr/models/ivr_call_log.py",
+      "category": "Model File",
+      "line_count": 158,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/performance_analytics/api/views.py:345:View Method:30": {
+      "file_path": "apps/performance_analytics/api/views.py:345",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/performance_analytics/models/gamification.py:Model File:150": {
+      "file_path": "apps/performance_analytics/models/gamification.py",
+      "category": "Model File",
+      "line_count": 175,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/performance_analytics/models/worker_metrics.py:Model File:150": {
+      "file_path": "apps/performance_analytics/models/worker_metrics.py",
+      "category": "Model File",
+      "line_count": 164,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/work_order_management/models/work_order.py:Model File:150": {
+      "file_path": "apps/work_order_management/models/work_order.py",
+      "category": "Model File",
+      "line_count": 300,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/work_permit_views.py:82:View Method:30": {
+      "file_path": "apps/work_order_management/views/work_permit_views.py:82",
+      "category": "View Method",
+      "line_count": 231,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/work_permit_views.py:314:View Method:30": {
+      "file_path": "apps/work_order_management/views/work_permit_views.py:314",
+      "category": "View Method",
+      "line_count": 106,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/approval_views.py:71:View Method:30": {
+      "file_path": "apps/work_order_management/views/approval_views.py:71",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/approval_views.py:104:View Method:30": {
+      "file_path": "apps/work_order_management/views/approval_views.py:104",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/approval_views.py:192:View Method:30": {
+      "file_path": "apps/work_order_management/views/approval_views.py:192",
+      "category": "View Method",
+      "line_count": 143,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/approval_views.py:374:View Method:30": {
+      "file_path": "apps/work_order_management/views/approval_views.py:374",
+      "category": "View Method",
+      "line_count": 100,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/approval_views.py:492:View Method:30": {
+      "file_path": "apps/work_order_management/views/approval_views.py:492",
+      "category": "View Method",
+      "line_count": 91,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/sla_views.py:68:View Method:30": {
+      "file_path": "apps/work_order_management/views/sla_views.py:68",
+      "category": "View Method",
+      "line_count": 128,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/sla_views.py:220:View Method:30": {
+      "file_path": "apps/work_order_management/views/sla_views.py:220",
+      "category": "View Method",
+      "line_count": 35,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/vendor_views.py:56:View Method:30": {
+      "file_path": "apps/work_order_management/views/vendor_views.py:56",
+      "category": "View Method",
+      "line_count": 32,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/vendor_views.py:89:View Method:30": {
+      "file_path": "apps/work_order_management/views/vendor_views.py:89",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/work_order_views.py:72:View Method:30": {
+      "file_path": "apps/work_order_management/views/work_order_views.py:72",
+      "category": "View Method",
+      "line_count": 96,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/work_order_views.py:169:View Method:30": {
+      "file_path": "apps/work_order_management/views/work_order_views.py:169",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/work_order_management/views/work_order_views.py:273:View Method:30": {
+      "file_path": "apps/work_order_management/views/work_order_views.py:273",
+      "category": "View Method",
+      "line_count": 68,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/models/meter_reading_model.py:Model File:150": {
+      "file_path": "apps/activity/models/meter_reading_model.py",
+      "category": "Model File",
+      "line_count": 321,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/activity/models/asset_model.py:Model File:150": {
+      "file_path": "apps/activity/models/asset_model.py",
+      "category": "Model File",
+      "line_count": 311,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/activity/models/vehicle_entry_model.py:Model File:150": {
+      "file_path": "apps/activity/models/vehicle_entry_model.py",
+      "category": "Model File",
+      "line_count": 352,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/activity/models/question_model.py:Model File:150": {
+      "file_path": "apps/activity/models/question_model.py",
+      "category": "Model File",
+      "line_count": 426,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/activity/forms/asset_form.py:Form File:100": {
+      "file_path": "apps/activity/forms/asset_form.py",
+      "category": "Form File",
+      "line_count": 369,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/activity/forms/location_form.py:Form File:100": {
+      "file_path": "apps/activity/forms/location_form.py",
+      "category": "Form File",
+      "line_count": 120,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/activity/forms/job_form.py:Form File:100": {
+      "file_path": "apps/activity/forms/job_form.py",
+      "category": "Form File",
+      "line_count": 190,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/activity/forms/question_form.py:Form File:100": {
+      "file_path": "apps/activity/forms/question_form.py",
+      "category": "Form File",
+      "line_count": 357,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:70:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:70",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:108:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:108",
+      "category": "View Method",
+      "line_count": 59,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:214:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:214",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:253:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:253",
+      "category": "View Method",
+      "line_count": 45,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:465:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:465",
+      "category": "View Method",
+      "line_count": 42,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:550:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:550",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/question_views.py:602:View Method:30": {
+      "file_path": "apps/activity/views/question_views.py:602",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/job_views.py:48:View Method:30": {
+      "file_path": "apps/activity/views/job_views.py:48",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/job_views.py:100:View Method:30": {
+      "file_path": "apps/activity/views/job_views.py:100",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/job_views.py:185:View Method:30": {
+      "file_path": "apps/activity/views/job_views.py:185",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/job_views.py:220:View Method:30": {
+      "file_path": "apps/activity/views/job_views.py:220",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/job_views.py:287:View Method:30": {
+      "file_path": "apps/activity/views/job_views.py:287",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/job_views.py:344:View Method:30": {
+      "file_path": "apps/activity/views/job_views.py:344",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/attachment_views.py:66:View Method:30": {
+      "file_path": "apps/activity/views/attachment_views.py:66",
+      "category": "View Method",
+      "line_count": 80,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/attachment_views.py:210:View Method:30": {
+      "file_path": "apps/activity/views/attachment_views.py:210",
+      "category": "View Method",
+      "line_count": 163,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/transcript_views.py:31:View Method:30": {
+      "file_path": "apps/activity/views/transcript_views.py:31",
+      "category": "View Method",
+      "line_count": 63,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/transcript_views.py:105:View Method:30": {
+      "file_path": "apps/activity/views/transcript_views.py:105",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/transcript_views.py:203:View Method:30": {
+      "file_path": "apps/activity/views/transcript_views.py:203",
+      "category": "View Method",
+      "line_count": 44,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/meter_reading_views.py:53:View Method:30": {
+      "file_path": "apps/activity/views/meter_reading_views.py:53",
+      "category": "View Method",
+      "line_count": 74,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/meter_reading_views.py:134:View Method:30": {
+      "file_path": "apps/activity/views/meter_reading_views.py:134",
+      "category": "View Method",
+      "line_count": 31,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/meter_reading_views.py:172:View Method:30": {
+      "file_path": "apps/activity/views/meter_reading_views.py:172",
+      "category": "View Method",
+      "line_count": 57,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/meter_reading_views.py:267:View Method:30": {
+      "file_path": "apps/activity/views/meter_reading_views.py:267",
+      "category": "View Method",
+      "line_count": 36,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/meter_reading_views.py:332:View Method:30": {
+      "file_path": "apps/activity/views/meter_reading_views.py:332",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/task_sync_views.py:40:View Method:30": {
+      "file_path": "apps/activity/views/task_sync_views.py:40",
+      "category": "View Method",
+      "line_count": 45,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/task_sync_views.py:95:View Method:30": {
+      "file_path": "apps/activity/views/task_sync_views.py:95",
+      "category": "View Method",
+      "line_count": 33,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/location_views.py:40:View Method:30": {
+      "file_path": "apps/activity/views/location_views.py:40",
+      "category": "View Method",
+      "line_count": 47,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/location_views.py:88:View Method:30": {
+      "file_path": "apps/activity/views/location_views.py:88",
+      "category": "View Method",
+      "line_count": 37,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/site_survey_views.py:17:View Method:30": {
+      "file_path": "apps/activity/views/site_survey_views.py:17",
+      "category": "View Method",
+      "line_count": 76,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/site_survey_views.py:98:View Method:30": {
+      "file_path": "apps/activity/views/site_survey_views.py:98",
+      "category": "View Method",
+      "line_count": 139,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:53:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:53",
+      "category": "View Method",
+      "line_count": 73,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:133:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:133",
+      "category": "View Method",
+      "line_count": 46,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:186:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:186",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:234:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:234",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:282:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:282",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:341:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:341",
+      "category": "View Method",
+      "line_count": 63,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:430:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:430",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/vehicle_entry_views.py:476:View Method:30": {
+      "file_path": "apps/activity/views/vehicle_entry_views.py:476",
+      "category": "View Method",
+      "line_count": 34,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/bulk_operations.py:163:View Method:30": {
+      "file_path": "apps/activity/views/bulk_operations.py:163",
+      "category": "View Method",
+      "line_count": 36,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/utility_views.py:91:View Method:30": {
+      "file_path": "apps/activity/views/asset/utility_views.py:91",
+      "category": "View Method",
+      "line_count": 46,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/utility_views.py:138:View Method:30": {
+      "file_path": "apps/activity/views/asset/utility_views.py:138",
+      "category": "View Method",
+      "line_count": 40,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/crud_views.py:58:View Method:30": {
+      "file_path": "apps/activity/views/asset/crud_views.py:58",
+      "category": "View Method",
+      "line_count": 61,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/crud_views.py:120:View Method:30": {
+      "file_path": "apps/activity/views/asset/crud_views.py:120",
+      "category": "View Method",
+      "line_count": 41,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/comparison_views.py:28:View Method:30": {
+      "file_path": "apps/activity/views/asset/comparison_views.py:28",
+      "category": "View Method",
+      "line_count": 51,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/comparison_views.py:87:View Method:30": {
+      "file_path": "apps/activity/views/asset/comparison_views.py:87",
+      "category": "View Method",
+      "line_count": 48,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/list_views.py:51:View Method:30": {
+      "file_path": "apps/activity/views/asset/list_views.py:51",
+      "category": "View Method",
+      "line_count": 45,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/activity/views/asset/list_views.py:97:View Method:30": {
+      "file_path": "apps/activity/views/asset/list_views.py:97",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/client_onboarding/forms/business_unit_forms.py:Form File:100": {
+      "file_path": "apps/client_onboarding/forms/business_unit_forms.py",
+      "category": "Form File",
+      "line_count": 242,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/client_onboarding/forms/shift_geofence_forms.py:Form File:100": {
+      "file_path": "apps/client_onboarding/forms/shift_geofence_forms.py",
+      "category": "Form File",
+      "line_count": 105,
+      "limit": 100,
+      "severity": "error"
+    },
+    "apps/client_onboarding/views/configuration_views.py:117:View Method:30": {
+      "file_path": "apps/client_onboarding/views/configuration_views.py:117",
+      "category": "View Method",
+      "line_count": 68,
+      "limit": 30,
+      "severity": "error"
+    },
+    "apps/ai_testing/models/adaptive_thresholds.py:Model File:150": {
+      "file_path": "apps/ai_testing/models/adaptive_thresholds.py",
+      "category": "Model File",
+      "line_count": 174,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/ai_testing/models/test_coverage_gaps.py:Model File:150": {
+      "file_path": "apps/ai_testing/models/test_coverage_gaps.py",
+      "category": "Model File",
+      "line_count": 245,
+      "limit": 150,
+      "severity": "error"
+    },
+    "apps/ai_testing/models/regression_predictions.py:Model File:150": {
+      "file_path": "apps/ai_testing/models/regression_predictions.py",
+      "category": "Model File",
+      "line_count": 235,
+      "limit": 150,
+      "severity": "error"
+    },
+    "monitoring/views/websocket_monitoring_views.py:101:View Method:30": {
+      "file_path": "monitoring/views/websocket_monitoring_views.py:101",
+      "category": "View Method",
+      "line_count": 38,
+      "limit": 30,
+      "severity": "error"
+    },
+    "monitoring/views/prometheus_exporter.py:82:View Method:30": {
+      "file_path": "monitoring/views/prometheus_exporter.py:82",
+      "category": "View Method",
+      "line_count": 87,
+      "limit": 30,
+      "severity": "error"
+    }
+  }
+}
