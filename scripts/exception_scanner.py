@@ -44,7 +44,7 @@ from typing import List, Dict, Set
 from collections import defaultdict
 
 
-dataclass
+@dataclass
 class ExceptionViolation:
     """Container for exception handling violation"""
     file_path: str
