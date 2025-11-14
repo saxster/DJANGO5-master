@@ -9,32 +9,34 @@
 #   pip install -r requirements/ai_requirements.txt
 #
 # Requirements:
-#   - NVIDIA GPU with CUDA 12.1+ support
+#   - NVIDIA GPU with CUDA 12.8+ support
 #   - NVIDIA drivers installed
 #   - Linux OS (Ubuntu 20.04+, RHEL 8+, or similar)
 #
-# Last Updated: October 10, 2025
+# Last Updated: November 14, 2025
 # Python Version: 3.11.9 recommended (3.13.x supported but may have scikit-learn issues)
 
 -r base.txt
 
-# NVIDIA CUDA Toolkit 12.1 libraries (Linux only)
-# These provide GPU acceleration for PyTorch, TensorFlow, and other ML frameworks
-nvidia-cublas-cu12==12.1.3.1
-nvidia-cuda-cupti-cu12==12.1.105
-nvidia-cuda-nvrtc-cu12==12.1.105
-nvidia-cuda-runtime-cu12==12.1.105
+# NVIDIA CUDA Toolkit 12.8 libraries (Linux only)
+# These provide GPU acceleration for PyTorch 2.8.0, TensorFlow, and other ML frameworks
+nvidia-cublas-cu12==12.8.4.75
+nvidia-cuda-cupti-cu12==12.8.81
+nvidia-cuda-nvrtc-cu12==12.8.107
+nvidia-cuda-runtime-cu12==12.8.107
 nvidia-cudnn-cu12==9.1.0.70
-nvidia-cufft-cu12==11.0.2.54
-nvidia-curand-cu12==10.3.2.106
-nvidia-cusolver-cu12==11.4.5.107
-nvidia-cusparse-cu12==12.1.0.106
+nvidia-cufft-cu12==11.3.0.4
+nvidia-curand-cu12==10.3.7.107
+nvidia-cusolver-cu12==11.7.1.2
+nvidia-cusparse-cu12==12.5.4.2
+nvidia-cusparselt-cu12==0.7.1
+nvidia-cufile-cu12==1.13.1.3
 nvidia-nccl-cu12==2.20.5
 nvidia-nvjitlink-cu12==12.9.86
-nvidia-nvtx-cu12==12.1.105
+nvidia-nvtx-cu12==12.8.107
 
 # Triton - GPU programming language for ML (Linux only)
-triton==3.0.0
+triton==3.4.0
 
 # Note: These packages are automatically installed by PyTorch when you install
 # the CUDA-enabled version. This file makes them explicit for dependency tracking.

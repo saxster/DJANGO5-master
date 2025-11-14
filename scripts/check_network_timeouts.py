@@ -96,9 +96,9 @@ class NetworkTimeoutValidator:
                 for func in self.NETWORK_FUNCTIONS:
                     if func in line:
                         # Check if timeout is present in the same line or nearby
-                        # Look at current line and next few lines (for multi-line calls)
-                        context_lines = '\n'.join(lines[max(0, i-1):min(len(lines), i+5)])
-                        
+                        # Look at current line and next 15 lines (for multi-line calls)
+                        context_lines = '\n'.join(lines[max(0, i-1):min(len(lines), i+15)])
+
                         if 'timeout' not in context_lines.lower():
                             violation = TimeoutViolation(
                                 file_path=str(filepath.relative_to(self.root_dir)),

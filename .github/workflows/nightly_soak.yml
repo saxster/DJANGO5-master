@@ -370,7 +370,7 @@ jobs:
 
     - name: 📄 Upload soak test artifacts
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: soak-test-results-${{ github.run_number }}
         path: |

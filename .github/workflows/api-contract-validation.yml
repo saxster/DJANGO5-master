@@ -69,7 +69,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload current schema
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openapi-schema-${{ steps.schema_version.outputs.version }}
           path: openapi-current.json

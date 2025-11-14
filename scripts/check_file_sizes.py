@@ -20,10 +20,11 @@ Usage:
 
 import argparse
 import ast
+import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 
 @dataclass
@@ -54,6 +55,82 @@ class Violation:
             f"[{self.severity.upper()}] {self.category}: {self.file_path}\n"
             f"  Lines: {self.line_count} (limit: {self.limit}, excess: {self.excess_lines})"
         )
+
+
+class BaselineManager:
+    """Manages baseline of existing violations for incremental improvements"""
+
+    BASELINE_FILE = '.file_size_baseline.json'
+
+    @classmethod
+    def load_baseline(cls, baseline_path: Optional[str] = None) -> Dict[str, Dict]:
+        """Load existing baseline from JSON file"""
+        path = Path(baseline_path or cls.BASELINE_FILE)
+
+        if not path.exists():
+            return {}
+
+        try:
+            with open(path, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Could not load baseline file: {e}", file=sys.stderr)
+            return {}
+
+    @classmethod
+    def save_baseline(cls, violations: List[Violation], baseline_path: Optional[str] = None):
+        """Save current violations as baseline"""
+        path = Path(baseline_path or cls.BASELINE_FILE)
+
+        # Convert violations to baseline format
+        baseline = {}
+        for v in violations:
+            key = f"{v.file_path}:{v.category}"
+            baseline[key] = {
+                'file_path': v.file_path,
+                'category': v.category,
+                'line_count': v.line_count,
+                'limit': v.limit,
+                'severity': v.severity
+            }
+
+        with open(path, 'w') as f:
+            json.dump(baseline, f, indent=2, sort_keys=True)
+
+        print(f"✅ Baseline saved: {len(baseline)} violations in {path}")
+
+    @classmethod
+    def filter_new_violations(
+        cls,
+        violations: List[Violation],
+        baseline: Dict[str, Dict]
+    ) -> Tuple[List[Violation], List[Violation]]:
+        """
+        Filter violations into existing (baseline) and new violations.
+
+        Returns:
+            Tuple of (new_violations, baseline_violations)
+        """
+        new_violations = []
+        baseline_violations = []
+
+        for v in violations:
+            key = f"{v.file_path}:{v.category}"
+
+            if key in baseline:
+                baseline_entry = baseline[key]
+                # Check if violation got worse
+                if v.line_count > baseline_entry['line_count']:
+                    # Worse than baseline - treat as new
+                    new_violations.append(v)
+                else:
+                    # Same or better than baseline
+                    baseline_violations.append(v)
+            else:
+                # Not in baseline - new violation
+                new_violations.append(v)
+
+        return new_violations, baseline_violations
 
 
 class FileTypeDetector:
@@ -324,7 +401,14 @@ def scan_directory(
     return violations, stats
 
 
-def print_summary(violations: List[Violation], stats: Dict[str, int], verbose: bool = False):
+def print_summary(
+    violations: List[Violation],
+    stats: Dict[str, int],
+    verbose: bool = False,
+    baseline_mode: bool = False,
+    new_violations: Optional[List[Violation]] = None,
+    baseline_violations: Optional[List[Violation]] = None
+):
     """Print violation summary"""
     errors = [v for v in violations if v.severity == 'error']
     warnings = [v for v in violations if v.severity == 'warning']
@@ -344,18 +428,31 @@ def print_summary(violations: List[Violation], stats: Dict[str, int], verbose: b
         print(f"  View methods: {stats['views']} violations")
         print(f"  Utility files: {stats['utilities']} violations")
 
-    print(f"\nViolations Found: {len(violations)}")
-    print(f"  Errors: {len(errors)}")
-    print(f"  Warnings: {len(warnings)}")
+    if baseline_mode and new_violations is not None:
+        print(f"\nTotal Violations: {len(violations)}")
+        print(f"  Baseline violations: {len(baseline_violations or [])}")
+        print(f"  New violations: {len(new_violations)}")
+        print(f"  Errors: {len([v for v in new_violations if v.severity == 'error'])}")
+        print(f"  Warnings: {len([v for v in new_violations if v.severity == 'warning'])}")
+    else:
+        print(f"\nViolations Found: {len(violations)}")
+        print(f"  Errors: {len(errors)}")
+        print(f"  Warnings: {len(warnings)}")
 
-    if violations:
+    # Show violations (new ones if in baseline mode)
+    display_violations = new_violations if baseline_mode and new_violations else violations
+
+    if display_violations:
         print("\n" + "-" * 80)
-        print("VIOLATIONS:")
+        if baseline_mode and new_violations:
+            print("NEW VIOLATIONS (not in baseline):")
+        else:
+            print("VIOLATIONS:")
         print("-" * 80)
 
         # Group by category
         by_category = {}
-        for v in violations:
+        for v in display_violations:
             by_category.setdefault(v.category, []).append(v)
 
         for category in sorted(by_category.keys()):
@@ -365,23 +462,40 @@ def print_summary(violations: List[Violation], stats: Dict[str, int], verbose: b
                                    reverse=True):
                 print(f"  {violation}")
     else:
-        print("\n✅ All files pass size limits!")
+        if baseline_mode:
+            print("\n✅ No new violations beyond baseline!")
+        else:
+            print("\n✅ All files pass size limits!")
 
     print("\n" + "=" * 80)
 
-    if errors:
-        print("\n❌ FAILED: Found {} critical violations".format(len(errors)))
-        print("\nRecommendations:")
-        print("  1. Refactor large files into smaller modules")
-        print("  2. Follow patterns in docs/architecture/REFACTORING_PATTERNS.md")
-        print("  3. Split by domain/responsibility")
-        return 1
-    elif warnings:
-        print("\n⚠️  WARNING: Found {} non-critical violations".format(len(warnings)))
-        return 0
+    # Determine exit code
+    if baseline_mode and new_violations is not None:
+        new_errors = [v for v in new_violations if v.severity == 'error']
+        if new_errors:
+            print("\n❌ FAILED: Found {} new critical violations".format(len(new_errors)))
+            print("\nRecommendations:")
+            print("  1. Refactor large files into smaller modules")
+            print("  2. Follow patterns in docs/architecture/REFACTORING_PATTERNS.md")
+            print("  3. Split by domain/responsibility")
+            return 1
+        else:
+            print("\n✅ SUCCESS: No new violations beyond baseline")
+            return 0
     else:
-        print("\n✅ SUCCESS: All files meet size requirements")
-        return 0
+        if errors:
+            print("\n❌ FAILED: Found {} critical violations".format(len(errors)))
+            print("\nRecommendations:")
+            print("  1. Refactor large files into smaller modules")
+            print("  2. Follow patterns in docs/architecture/REFACTORING_PATTERNS.md")
+            print("  3. Split by domain/responsibility")
+            return 1
+        elif warnings:
+            print("\n⚠️  WARNING: Found {} non-critical violations".format(len(warnings)))
+            return 0
+        else:
+            print("\n✅ SUCCESS: All files meet size requirements")
+            return 0
 
 
 def main():
@@ -416,6 +530,16 @@ def main():
         action='store_true',
         help='Pre-commit mode: fast validation for hooks'
     )
+    parser.add_argument(
+        '--generate-baseline',
+        action='store_true',
+        help='Generate baseline file with current violations'
+    )
+    parser.add_argument(
+        '--baseline',
+        type=str,
+        help='Path to baseline file (default: .file_size_baseline.json)'
+    )
 
     args = parser.parse_args()
 
@@ -441,8 +565,34 @@ def main():
 
     violations, stats = scan_directory(root_path, exclude_dirs)
 
-    # Print results
-    return print_summary(violations, stats, verbose=args.verbose)
+    # Handle baseline generation
+    if args.generate_baseline:
+        BaselineManager.save_baseline(violations, args.baseline)
+        return 0
+
+    # Check against baseline if in CI mode or baseline file exists
+    baseline_path = args.baseline or BaselineManager.BASELINE_FILE
+    baseline_file = Path(baseline_path)
+
+    if args.ci and baseline_file.exists():
+        # CI mode with baseline - only fail on new violations
+        baseline = BaselineManager.load_baseline(args.baseline)
+        new_violations, baseline_violations = BaselineManager.filter_new_violations(
+            violations,
+            baseline
+        )
+
+        return print_summary(
+            violations,
+            stats,
+            verbose=args.verbose,
+            baseline_mode=True,
+            new_violations=new_violations,
+            baseline_violations=baseline_violations
+        )
+    else:
+        # Normal mode - report all violations
+        return print_summary(violations, stats, verbose=args.verbose)
 
 
 if __name__ == '__main__':
